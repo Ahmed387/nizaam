@@ -10,7 +10,7 @@ import { Loader2, Store } from "lucide-react";
 export default function Setup() {
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
   const [name, setName] = useState("المدير العام");
-  const [email, setEmail] = useState("admin@A&N.com");
+  const [email, setEmail] = useState("admin@an.com");
   const [password, setPassword] = useState("nasser2811");
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
