@@ -34,6 +34,7 @@ import NewReturn from "./pages/branch/NewReturn";
 import Expenses from "./pages/branch/Expenses";
 import BranchReports from "./pages/branch/Reports";
 import AdminReports from "./pages/admin/Reports";
+import StockTransfers from "./pages/branch/StockTransfers";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
