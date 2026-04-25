@@ -31,6 +31,7 @@ import NewShipment from "./pages/branch/NewShipment";
 import ShipmentView from "./pages/branch/ShipmentView";
 import Returns from "./pages/branch/Returns";
 import NewReturn from "./pages/branch/NewReturn";
+import Expenses from "./pages/branch/Expenses";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
