@@ -31,6 +31,7 @@ import NewShipment from "./pages/branch/NewShipment";
 import ShipmentView from "./pages/branch/ShipmentView";
 import Returns from "./pages/branch/Returns";
 import NewReturn from "./pages/branch/NewReturn";
+import Expenses from "./pages/branch/Expenses";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
@@ -71,7 +72,7 @@ const App = () => (
             <Route path="/branch/:id/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
-            <Route path="/branch/:id/expenses" element={<ProtectedRoute><BranchPlaceholder title="المصروفات" /></ProtectedRoute>} />
+            <Route path="/branch/:id/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
             <Route path="/branch/:id/reports" element={<ProtectedRoute><BranchPlaceholder title="تقارير الفرع" /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
