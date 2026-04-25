@@ -54,7 +54,7 @@ export default function Login() {
             <Input
               id="email" type="email" required dir="ltr" className="text-right mt-1.5"
               value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@nexastore.com"
+              placeholder="admin@A&N.com"
             />
           </div>
           <div>
