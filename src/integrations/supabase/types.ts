@@ -1024,7 +1024,7 @@ export type Database = {
         | "warehouse"
         | "accountant"
       invoice_status: "active" | "cancelled"
-      transfer_status: "pending" | "confirmed"
+      transfer_status: "pending" | "confirmed" | "rejected"
       treasury_type: "income" | "expense"
     }
     CompositeTypes: {
@@ -1161,7 +1161,7 @@ export const Constants = {
         "accountant",
       ],
       invoice_status: ["active", "cancelled"],
-      transfer_status: ["pending", "confirmed"],
+      transfer_status: ["pending", "confirmed", "rejected"],
       treasury_type: ["income", "expense"],
     },
   },

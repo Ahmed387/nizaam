@@ -34,6 +34,7 @@ import NewReturn from "./pages/branch/NewReturn";
 import Expenses from "./pages/branch/Expenses";
 import BranchReports from "./pages/branch/Reports";
 import AdminReports from "./pages/admin/Reports";
+import StockTransfers from "./pages/branch/StockTransfers";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/branch/:id/shipments/new" element={<ProtectedRoute><NewShipment /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute><ShipmentView /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/branch/:id/transfers" element={<ProtectedRoute><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/branch/:id/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import {
   Home, Store, Users, FolderTree, ListChecks, BarChart3, ScrollText, Settings,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +34,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" /> },
     { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" /> },
     { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" /> },
+    { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" /> },
     { to: `/branch/${id}/customers`, label: "العملاء", icon: <UserCircle className="w-4 h-4" /> },
     { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" /> },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" /> },
