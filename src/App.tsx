@@ -55,7 +55,7 @@ const App = () => (
             <Route path="/admin/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
             <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminPlaceholder title="التقارير المركزية" /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/audit-log" element={<ProtectedRoute adminOnly><AuditLog /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><AdminPlaceholder title="الإعدادات" /></ProtectedRoute>} />
 
@@ -75,7 +75,7 @@ const App = () => (
             <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
-            <Route path="/branch/:id/reports" element={<ProtectedRoute><BranchPlaceholder title="تقارير الفرع" /></ProtectedRoute>} />
+            <Route path="/branch/:id/reports" element={<ProtectedRoute><BranchReports /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
