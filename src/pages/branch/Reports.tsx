@@ -148,11 +148,11 @@ export default function BranchReports() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <StatCard title="المبيعات" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} />
-        <StatCard title="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} variant="success" />
-        <StatCard title="المصروفات" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} variant="danger" />
-        <StatCard title="صافي الربح" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} variant={netProfit >= 0 ? "success" : "danger"} />
-        <StatCard title="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
+        <StatCard label="المبيعات" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} />
+        <StatCard label="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
+        <StatCard label="المصروفات" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
+        <StatCard label="صافي الربح" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
+        <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
 
       <Tabs defaultValue="products">
