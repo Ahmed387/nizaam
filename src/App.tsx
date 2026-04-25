@@ -1,24 +1,74 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Setup from "./pages/Setup";
+
+import AdminDashboard from "./pages/admin/Dashboard";
+import Branches from "./pages/admin/Branches";
+import Users from "./pages/admin/Users";
+import Categories from "./pages/admin/Categories";
+import PriceList from "./pages/admin/PriceList";
+import AuditLog from "./pages/admin/AuditLog";
+
+import BranchDashboard from "./pages/branch/Dashboard";
+import NewSale from "./pages/branch/NewSale";
+import SalesHistory from "./pages/branch/SalesHistory";
+import InvoiceView from "./pages/branch/InvoiceView";
+import Inventory from "./pages/branch/Inventory";
+import Customers from "./pages/branch/Customers";
+import Suppliers from "./pages/branch/Suppliers";
+import Treasury from "./pages/branch/Treasury";
+import Employees from "./pages/branch/Employees";
+import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      <Sonner position="top-center" dir="rtl" />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/setup" element={<Setup />} />
+
+            {/* Admin */}
+            <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/branches" element={<ProtectedRoute adminOnly><Branches /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
+            <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminPlaceholder title="التقارير المركزية" /></ProtectedRoute>} />
+            <Route path="/admin/audit-log" element={<ProtectedRoute adminOnly><AuditLog /></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute adminOnly><AdminPlaceholder title="الإعدادات" /></ProtectedRoute>} />
+
+            {/* Branch */}
+            <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales/new" element={<ProtectedRoute><NewSale /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales/returns" element={<ProtectedRoute><BranchPlaceholder title="المرتجعات" /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute><InvoiceView /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments" element={<ProtectedRoute><BranchPlaceholder title="الشحنات" /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+            <Route path="/branch/:id/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+            <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />
+            <Route path="/branch/:id/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+            <Route path="/branch/:id/expenses" element={<ProtectedRoute><BranchPlaceholder title="المصروفات" /></ProtectedRoute>} />
+            <Route path="/branch/:id/reports" element={<ProtectedRoute><BranchPlaceholder title="تقارير الفرع" /></ProtectedRoute>} />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
