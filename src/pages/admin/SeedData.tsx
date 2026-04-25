@@ -131,7 +131,7 @@ export default function SeedData() {
 
         // Treasury opening balance
         await supabase.from("treasury").insert({
-          branch_id: branch.id, type: "in", category: "رصيد افتتاحي",
+          branch_id: branch.id, type: "income", category: "رصيد افتتاحي",
           amount: 20000, description: "رصيد افتتاحي للخزنة",
           created_by: user!.id,
         });
