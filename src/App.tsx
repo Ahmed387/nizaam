@@ -36,6 +36,7 @@ import BranchReports from "./pages/branch/Reports";
 import AdminReports from "./pages/admin/Reports";
 import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
+import SeedData from "./pages/admin/SeedData";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/audit-log" element={<ProtectedRoute adminOnly><AuditLog /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+            <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
 
             {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
