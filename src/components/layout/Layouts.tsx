@@ -19,7 +19,7 @@ const adminNav: NavItem[] = [
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  return <AppShell title="نيكساستور" subtitle="لوحة التحكم العامة" nav={adminNav}>{children}</AppShell>;
+  return <AppShell title="A & N" subtitle="لوحة التحكم العامة" nav={adminNav}>{children}</AppShell>;
 }
 
 export function BranchLayout({ children }: { children: ReactNode }) {
