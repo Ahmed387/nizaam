@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import {
-  Home, Store, Users, FolderTree, ListChecks, BarChart3, ScrollText, Settings,
+  Home, Store, Users, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
   ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
@@ -16,6 +16,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/reports", label: "التقارير المركزية", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/admin/audit-log", label: "سجل العمليات", icon: <ScrollText className="w-4 h-4" /> },
   { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
+  { to: "/admin/seed", label: "بيانات تجريبية", icon: <Sparkles className="w-4 h-4" /> },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
