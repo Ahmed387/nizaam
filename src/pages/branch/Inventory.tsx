@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Upload, Loader2 } from "lucide-react";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -26,8 +26,21 @@ export default function Inventory() {
   const [filter, setFilter] = useState<string>("all");
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
-    low_stock_alert: "5", quantity: "0",
+    low_stock_alert: "5", quantity: "0", image: "",
   });
+  const [uploading, setUploading] = useState(false);
+
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${branchId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: false });
+    if (error) { toast.error(error.message); setUploading(false); return; }
+    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+    setForm((f) => ({ ...f, image: data.publicUrl }));
+    setUploading(false);
+    toast.success("تم رفع الصورة");
+  };
 
   const load = async () => {
     setLoading(true);
@@ -56,13 +69,14 @@ export default function Inventory() {
       market_price: Number(form.market_price) || 0,
       low_stock_alert: parseInt(form.low_stock_alert) || 5,
       quantity: parseInt(form.quantity) || 0,
+      image: form.image || null,
       branch_id: branchId!,
     }).select().single();
     if (error) return toast.error(error.message);
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: data.id, details: { name: form.name } });
     toast.success("تمت إضافة المنتج");
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: "5", quantity: "0" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: "5", quantity: "0", image: "" });
     load();
   };
 
@@ -87,6 +101,7 @@ export default function Inventory() {
 
       <DataTable loading={loading} rows={filtered}
         columns={[
+          { key: "image", header: "صورة", render: (r: any) => r.image ? <img src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" /> : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">—</div> },
           { key: "sku", header: "الكود", render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
           { key: "category", header: "التصنيف", render: (r: any) => r.categories?.name ?? "—" },
@@ -106,6 +121,18 @@ export default function Inventory() {
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>إضافة منتج جديد</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <Label>صورة المنتج</Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                {form.image && <img src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
+                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  <span className="text-sm">{form.image ? "تغيير الصورة" : "رفع صورة"}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0])} />
+                </label>
+                {form.image && <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, image: "" })}>إزالة</Button>}
+              </div>
+            </div>
             <div className="col-span-2"><Label>اسم المنتج *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div className="col-span-2">
               <Label>التصنيف</Label>
