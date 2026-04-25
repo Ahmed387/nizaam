@@ -26,6 +26,9 @@ import Customers from "./pages/branch/Customers";
 import Suppliers from "./pages/branch/Suppliers";
 import Treasury from "./pages/branch/Treasury";
 import Employees from "./pages/branch/Employees";
+import Shipments from "./pages/branch/Shipments";
+import NewShipment from "./pages/branch/NewShipment";
+import ShipmentView from "./pages/branch/ShipmentView";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 const queryClient = new QueryClient();
@@ -57,7 +60,9 @@ const App = () => (
             <Route path="/branch/:id/sales/new" element={<ProtectedRoute><NewSale /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/returns" element={<ProtectedRoute><BranchPlaceholder title="المرتجعات" /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute><InvoiceView /></ProtectedRoute>} />
-            <Route path="/branch/:id/shipments" element={<ProtectedRoute><BranchPlaceholder title="الشحنات" /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments/new" element={<ProtectedRoute><NewShipment /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute><ShipmentView /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/branch/:id/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
