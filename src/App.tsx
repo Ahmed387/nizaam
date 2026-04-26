@@ -41,6 +41,10 @@ import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
+import SuperDashboard from "./pages/super/Dashboard";
+import SuperTenants from "./pages/super/Tenants";
+import SuperUsers from "./pages/super/AllUsers";
+
 const queryClient = new QueryClient();
 
 const App = () => (
