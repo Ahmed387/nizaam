@@ -37,6 +37,29 @@ export function BranchLayout({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const { branches, isAdmin } = useAuth();
   const branch = branches.find((b) => b.id === id);
+  const [lowStockCount, setLowStockCount] = useState(0);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("quantity, low_stock_alert")
+        .eq("branch_id", id);
+      if (cancelled) return;
+      setLowStockCount((data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert).length);
+    };
+    load();
+    const channel = supabase
+      .channel(`products-low-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: `branch_id=eq.${id}` }, load)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
@@ -44,7 +67,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
     { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" /> },
     { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" /> },
-    { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" /> },
+    { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount },
     { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" /> },
     { to: `/branch/${id}/customers`, label: "العملاء", icon: <UserCircle className="w-4 h-4" /> },
     { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" /> },
