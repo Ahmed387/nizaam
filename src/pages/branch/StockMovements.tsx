@@ -105,7 +105,7 @@ export default function StockMovements() {
             date: t.created_at,
             type: "نقل صادر",
             qty: -Number(t.quantity),
-            reason: `إلى ${t.to_branch?.name ?? "—"}${t.reason ? " — " + t.reason : ""}`,
+            reason: `إلى ${brMap.get(t.to_branch_id) ?? "—"}${t.reason ? " — " + t.reason : ""}`,
             reference: "TR-OUT",
           });
         } else if (t.to_branch_id === branchId) {
@@ -113,7 +113,7 @@ export default function StockMovements() {
             date: t.created_at,
             type: "نقل وارد",
             qty: Number(t.quantity),
-            reason: `من ${t.from_branch?.name ?? "—"}${t.reason ? " — " + t.reason : ""}`,
+            reason: `من ${brMap.get(t.from_branch_id) ?? "—"}${t.reason ? " — " + t.reason : ""}`,
             reference: "TR-IN",
           });
         }
