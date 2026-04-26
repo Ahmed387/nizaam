@@ -12,15 +12,16 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const { user, isAdmin, branches, loading } = useAuth();
+  const { user, isAdmin, isSuperAdmin, branches, loading } = useAuth();
   const nav = useNavigate();
 
   useEffect(() => {
     if (!loading && user) {
-      if (isAdmin) nav("/admin/dashboard", { replace: true });
+      if (isSuperAdmin) nav("/super/dashboard", { replace: true });
+      else if (isAdmin) nav("/admin/dashboard", { replace: true });
       else if (branches[0]) nav(`/branch/${branches[0].id}/dashboard`, { replace: true });
     }
-  }, [user, isAdmin, branches, loading, nav]);
+  }, [user, isAdmin, isSuperAdmin, branches, loading, nav]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
