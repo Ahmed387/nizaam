@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, Users, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
   ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight,
@@ -6,6 +6,7 @@ import {
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
