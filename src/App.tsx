@@ -60,6 +60,11 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/setup" element={<Setup />} />
 
+            {/* Super Admin */}
+            <Route path="/super/dashboard" element={<ProtectedRoute superAdminOnly><SuperDashboard /></ProtectedRoute>} />
+            <Route path="/super/tenants" element={<ProtectedRoute superAdminOnly><SuperTenants /></ProtectedRoute>} />
+            <Route path="/super/users" element={<ProtectedRoute superAdminOnly><SuperUsers /></ProtectedRoute>} />
+
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/branches" element={<ProtectedRoute adminOnly><Branches /></ProtectedRoute>} />
