@@ -37,9 +37,33 @@ export default function Users() {
     }));
     setRows(enriched);
     setBranches(br ?? []);
+
+    if (tenantId) {
+      const { data: founder } = await supabase.rpc("tenant_founder_admin", { _tenant_id: tenantId });
+      setFounderId((founder as any) ?? null);
+    }
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [tenantId]);
+
+  const handleDelete = async (userId: string, name: string) => {
+    if (userId === founderId) {
+      toast.error("لا يمكن حذف المدير العام المؤسس للشركة");
+      return;
+    }
+    if (!confirm(`هل أنت متأكد من حذف المستخدم "${name}"؟`)) return;
+    try {
+      // Delete dependent rows then profile (auth user remains; roles/branch_users clean up)
+      await supabase.from("branch_users").delete().eq("user_id", userId);
+      await supabase.from("user_roles").delete().eq("user_id", userId);
+      const { error } = await supabase.from("profiles").delete().eq("id", userId);
+      if (error) throw error;
+      toast.success("تم حذف المستخدم");
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
 
   const submit = async () => {
     if (!form.email || !form.password || !form.name) return toast.error("املأ الحقول المطلوبة");
