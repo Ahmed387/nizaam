@@ -1140,9 +1140,9 @@ export type Database = {
           id: string
           is_active: boolean
           logo_url: string | null
-          max_branches: number
-          max_products: number
-          max_users: number
+          max_branches: number | null
+          max_products: number | null
+          max_users: number | null
           name: string
           plan: string
           primary_color: string | null
@@ -1155,9 +1155,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           logo_url?: string | null
-          max_branches?: number
-          max_products?: number
-          max_users?: number
+          max_branches?: number | null
+          max_products?: number | null
+          max_users?: number | null
           name: string
           plan?: string
           primary_color?: string | null
@@ -1170,9 +1170,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           logo_url?: string | null
-          max_branches?: number
-          max_products?: number
-          max_users?: number
+          max_branches?: number | null
+          max_products?: number | null
+          max_users?: number | null
           name?: string
           plan?: string
           primary_color?: string | null
