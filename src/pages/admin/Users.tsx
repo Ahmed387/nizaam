@@ -98,9 +98,11 @@ export default function Users() {
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(ROLE_LABELS) as AppRole[]).map((r) => (
-                    <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
-                  ))}
+                  {(Object.keys(ROLE_LABELS) as AppRole[])
+                    .filter((r) => r !== "super_admin")
+                    .map((r) => (
+                      <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
