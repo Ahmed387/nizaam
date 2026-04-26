@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -13,6 +14,8 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 export default function Suppliers() {
+  const { id: branchId } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -37,6 +40,7 @@ export default function Suppliers() {
       <PageHeader title="الموردين" subtitle={`${rows.length} مورد`}
         actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> إضافة مورد</Button>} />
       <DataTable loading={loading} rows={rows}
+        onRowClick={(r: any) => nav(`/branch/${branchId}/suppliers/${r.id}`)}
         columns={[
           { key: "company_name", header: "الشركة", render: (r: any) => <span className="font-semibold">{r.company_name}</span> },
           { key: "contact_name", header: "المسؤول", render: (r: any) => r.contact_name ?? "—" },

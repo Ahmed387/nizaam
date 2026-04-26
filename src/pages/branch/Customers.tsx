@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -14,6 +14,7 @@ import { Plus } from "lucide-react";
 
 export default function Customers() {
   const { id: branchId } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -38,6 +39,7 @@ export default function Customers() {
       <PageHeader title="العملاء" subtitle={`${rows.length} عميل`}
         actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> إضافة عميل</Button>} />
       <DataTable loading={loading} rows={rows}
+        onRowClick={(r: any) => nav(`/branch/${branchId}/customers/${r.id}`)}
         columns={[
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
