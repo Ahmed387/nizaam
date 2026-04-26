@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 export default function Suppliers() {
+  const { id: branchId } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
