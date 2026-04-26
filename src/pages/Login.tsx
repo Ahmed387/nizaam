@@ -69,6 +69,12 @@ export default function Login() {
           <Button type="submit" disabled={busy} className="w-full h-11 btn-gradient text-base">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تسجيل الدخول"}
           </Button>
+
+          <div className="text-center">
+            <a href="/forgot-password" className="text-xs text-primary hover:underline font-medium">
+              نسيت كلمة المرور؟
+            </a>
+          </div>
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
