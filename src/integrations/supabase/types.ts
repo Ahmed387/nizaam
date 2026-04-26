@@ -1044,6 +1044,7 @@ export type Database = {
         | "cashier"
         | "warehouse"
         | "accountant"
+        | "super_admin"
       invoice_status: "active" | "cancelled"
       transfer_status: "pending" | "confirmed" | "rejected"
       treasury_type: "income" | "expense"
@@ -1180,6 +1181,7 @@ export const Constants = {
         "cashier",
         "warehouse",
         "accountant",
+        "super_admin",
       ],
       invoice_status: ["active", "cancelled"],
       transfer_status: ["pending", "confirmed", "rejected"],
