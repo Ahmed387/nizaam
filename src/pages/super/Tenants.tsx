@@ -249,6 +249,63 @@ export default function Tenants() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل باقة "{editing?.name}"</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>الباقة</Label>
+              <Select value={editForm.plan} onValueChange={applyPreset}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="custom">مخصصة</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">حد الفروع</Label>
+                <Input
+                  type="number" min={1} className="mt-1.5"
+                  value={editForm.max_branches}
+                  onChange={(e) => setEditForm((f) => ({ ...f, max_branches: +e.target.value || 1 }))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">حد المنتجات</Label>
+                <Input
+                  type="number" min={1} className="mt-1.5"
+                  value={editForm.max_products}
+                  onChange={(e) => setEditForm((f) => ({ ...f, max_products: +e.target.value || 1 }))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">حد المستخدمين</Label>
+                <Input
+                  type="number" min={1} className="mt-1.5"
+                  value={editForm.max_users}
+                  onChange={(e) => setEditForm((f) => ({ ...f, max_users: +e.target.value || 1 }))}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              الحدود تُطبَّق فوراً عند إنشاء عناصر جديدة. العناصر الموجودة لا تتأثر.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={saving} className="btn-gradient">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SuperAdminLayout>
   );
 }
