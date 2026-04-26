@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.products_tenant_sku_uniq;

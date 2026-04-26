@@ -569,25 +569,40 @@ export type Database = {
       }
       price_list: {
         Row: {
+          category_name: string | null
+          description: string | null
           id: string
           market_price: number
+          new_price: number
+          old_price: number
           product_name: string
+          sku: string | null
           tenant_id: string | null
           uploaded_at: string
           uploaded_by: string | null
         }
         Insert: {
+          category_name?: string | null
+          description?: string | null
           id?: string
           market_price: number
+          new_price?: number
+          old_price?: number
           product_name: string
+          sku?: string | null
           tenant_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
         Update: {
+          category_name?: string | null
+          description?: string | null
           id?: string
           market_price?: number
+          new_price?: number
+          old_price?: number
           product_name?: string
+          sku?: string | null
           tenant_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -613,6 +628,7 @@ export type Database = {
           low_stock_alert: number
           market_price: number
           name: string
+          old_price: number
           quantity: number
           selling_price: number
           sku: string
@@ -628,6 +644,7 @@ export type Database = {
           low_stock_alert?: number
           market_price?: number
           name: string
+          old_price?: number
           quantity?: number
           selling_price?: number
           sku: string
@@ -643,6 +660,7 @@ export type Database = {
           low_stock_alert?: number
           market_price?: number
           name?: string
+          old_price?: number
           quantity?: number
           selling_price?: number
           sku?: string

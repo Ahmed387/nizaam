@@ -200,9 +200,15 @@ export default function NewSale() {
                         <div className="text-xs text-muted-foreground font-mono">{p.sku}</div>
                       </div>
                       <div className="text-left text-xs space-y-0.5">
-                        <div>💰 سوق: <span className="text-primary font-bold">{formatEGP(pricesMap[p.name] ?? p.market_price)}</span></div>
-                        <div>🏷️ بيع: <span className="text-success font-bold">{formatEGP(p.selling_price)}</span></div>
+                        {Number(p.old_price) > 0 && Number(p.old_price) !== Number(p.selling_price) && (
+                          <div>📉 السعر القديم: <span className="text-muted-foreground line-through">{formatEGP(p.old_price)}</span></div>
+                        )}
+                        <div>🏷️ سعر البيع: <span className="text-success font-bold">{formatEGP(p.selling_price)}</span></div>
                         {showCost && <div>📦 شراء: <span className="text-muted-foreground">{formatEGP(p.cost_price)}</span></div>}
+                        {showCost && Number(p.cost_price) > 0 && (
+                          <div>💵 الربح: <span className="text-primary font-bold">{formatEGP(Number(p.selling_price) - Number(p.cost_price))}</span></div>
+                        )}
+                        <div>💰 سوق: <span className="text-primary">{formatEGP(pricesMap[p.name] ?? p.market_price)}</span></div>
                         <div>📊 متاح: <span className={p.quantity > 0 ? "text-foreground" : "text-destructive"}>{p.quantity}</span></div>
                       </div>
                     </div>
