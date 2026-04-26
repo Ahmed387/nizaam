@@ -6,11 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Search, Power, Trash2, Building2 } from "lucide-react";
+import { Loader2, Search, Power, Trash2, Building2, Pencil } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+
+const PLAN_PRESETS: Record<string, { max_branches: number; max_products: number; max_users: number }> = {
+  free: { max_branches: 1, max_products: 100, max_users: 3 },
+  pro: { max_branches: 5, max_products: 1000, max_users: 15 },
+  enterprise: { max_branches: 999, max_products: 100000, max_users: 999 },
+};
 
 interface Tenant {
   id: string;
