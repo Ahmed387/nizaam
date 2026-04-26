@@ -41,6 +41,10 @@ import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
+import SuperDashboard from "./pages/super/Dashboard";
+import SuperTenants from "./pages/super/Tenants";
+import SuperUsers from "./pages/super/AllUsers";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -55,6 +59,11 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/setup" element={<Setup />} />
+
+            {/* Super Admin */}
+            <Route path="/super/dashboard" element={<ProtectedRoute superAdminOnly><SuperDashboard /></ProtectedRoute>} />
+            <Route path="/super/tenants" element={<ProtectedRoute superAdminOnly><SuperTenants /></ProtectedRoute>} />
+            <Route path="/super/users" element={<ProtectedRoute superAdminOnly><SuperUsers /></ProtectedRoute>} />
 
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />

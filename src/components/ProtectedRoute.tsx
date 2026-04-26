@@ -8,12 +8,14 @@ export function ProtectedRoute({
   children,
   roles,
   adminOnly,
+  superAdminOnly,
 }: {
   children: ReactNode;
   roles?: AppRole[];
   adminOnly?: boolean;
+  superAdminOnly?: boolean;
 }) {
-  const { user, loading, isAdmin, hasRole } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, hasRole } = useAuth();
   const loc = useLocation();
 
   if (loading) {
@@ -26,6 +28,7 @@ export function ProtectedRoute({
 
   if (!user) return <Navigate to="/login" state={{ from: loc }} replace />;
 
+  if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   if (roles && !isAdmin && !roles.some((r) => hasRole(r))) return <Navigate to="/" replace />;
 
