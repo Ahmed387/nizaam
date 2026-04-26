@@ -21,7 +21,7 @@ export type Database = {
           id: string
           month: string
           paid_at: string
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           advance_id: string
@@ -29,7 +29,7 @@ export type Database = {
           id?: string
           month: string
           paid_at?: string
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           advance_id?: string
@@ -37,7 +37,7 @@ export type Database = {
           id?: string
           month?: string
           paid_at?: string
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -65,7 +65,7 @@ export type Database = {
           monthly_deduct: number
           reason: string | null
           remaining: number
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           amount: number
@@ -75,7 +75,7 @@ export type Database = {
           monthly_deduct: number
           reason?: string | null
           remaining: number
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           amount?: number
@@ -85,7 +85,7 @@ export type Database = {
           monthly_deduct?: number
           reason?: string | null
           remaining?: number
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -162,19 +162,19 @@ export type Database = {
         Row: {
           branch_id: string
           id: string
-          tenant_id: string
+          tenant_id: string | null
           user_id: string
         }
         Insert: {
           branch_id: string
           id?: string
-          tenant_id: string
+          tenant_id?: string | null
           user_id: string
         }
         Update: {
           branch_id?: string
           id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -203,7 +203,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           address?: string | null
@@ -213,7 +213,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           address?: string | null
@@ -223,7 +223,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -241,21 +241,21 @@ export type Database = {
           id: string
           name: string
           parent_id: string | null
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           parent_id?: string | null
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           parent_id?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -283,7 +283,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           address?: string | null
@@ -293,7 +293,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           address?: string | null
@@ -303,7 +303,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -334,7 +334,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           base_salary?: number
@@ -347,7 +347,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           base_salary?: number
@@ -360,7 +360,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -388,7 +388,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
-          tenant_id: string
+          tenant_id: string | null
           type: string
         }
         Insert: {
@@ -399,7 +399,7 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
-          tenant_id: string
+          tenant_id?: string | null
           type: string
         }
         Update: {
@@ -410,7 +410,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           type?: string
         }
         Relationships: [
@@ -440,7 +440,7 @@ export type Database = {
           product_name: string
           quantity: number
           selling_price: number
-          tenant_id: string
+          tenant_id: string | null
           total: number
         }
         Insert: {
@@ -452,7 +452,7 @@ export type Database = {
           product_name: string
           quantity: number
           selling_price?: number
-          tenant_id: string
+          tenant_id?: string | null
           total?: number
         }
         Update: {
@@ -464,7 +464,7 @@ export type Database = {
           product_name?: string
           quantity?: number
           selling_price?: number
-          tenant_id?: string
+          tenant_id?: string | null
           total?: number
         }
         Relationships: [
@@ -506,7 +506,7 @@ export type Database = {
           payment_method: string
           status: Database["public"]["Enums"]["invoice_status"]
           subtotal: number
-          tenant_id: string
+          tenant_id: string | null
           total: number
         }
         Insert: {
@@ -523,7 +523,7 @@ export type Database = {
           payment_method?: string
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
-          tenant_id: string
+          tenant_id?: string | null
           total?: number
         }
         Update: {
@@ -540,7 +540,7 @@ export type Database = {
           payment_method?: string
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
-          tenant_id?: string
+          tenant_id?: string | null
           total?: number
         }
         Relationships: [
@@ -572,7 +572,7 @@ export type Database = {
           id: string
           market_price: number
           product_name: string
-          tenant_id: string
+          tenant_id: string | null
           uploaded_at: string
           uploaded_by: string | null
         }
@@ -580,7 +580,7 @@ export type Database = {
           id?: string
           market_price: number
           product_name: string
-          tenant_id: string
+          tenant_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
@@ -588,7 +588,7 @@ export type Database = {
           id?: string
           market_price?: number
           product_name?: string
-          tenant_id?: string
+          tenant_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
@@ -616,7 +616,7 @@ export type Database = {
           quantity: number
           selling_price: number
           sku: string
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           branch_id: string
@@ -631,7 +631,7 @@ export type Database = {
           quantity?: number
           selling_price?: number
           sku: string
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           branch_id?: string
@@ -646,7 +646,7 @@ export type Database = {
           quantity?: number
           selling_price?: number
           sku?: string
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -714,7 +714,7 @@ export type Database = {
           quantity: number
           refund: number
           return_id: string
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           id?: string
@@ -722,7 +722,7 @@ export type Database = {
           quantity: number
           refund: number
           return_id: string
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           id?: string
@@ -730,7 +730,7 @@ export type Database = {
           quantity?: number
           refund?: number
           return_id?: string
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -764,7 +764,7 @@ export type Database = {
           id: string
           invoice_id: string
           reason: string
-          tenant_id: string
+          tenant_id: string | null
           total_refund: number
         }
         Insert: {
@@ -774,7 +774,7 @@ export type Database = {
           id?: string
           invoice_id: string
           reason: string
-          tenant_id: string
+          tenant_id?: string | null
           total_refund: number
         }
         Update: {
@@ -784,7 +784,7 @@ export type Database = {
           id?: string
           invoice_id?: string
           reason?: string
-          tenant_id?: string
+          tenant_id?: string | null
           total_refund?: number
         }
         Relationships: [
@@ -823,7 +823,7 @@ export type Database = {
           net_salary: number
           paid_at: string
           paid_by: string
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           advance_deduct?: number
@@ -836,7 +836,7 @@ export type Database = {
           net_salary: number
           paid_at?: string
           paid_by: string
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           advance_deduct?: number
@@ -849,7 +849,7 @@ export type Database = {
           net_salary?: number
           paid_at?: string
           paid_by?: string
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -908,7 +908,7 @@ export type Database = {
           product_name: string
           quantity: number
           shipment_id: string
-          tenant_id: string
+          tenant_id: string | null
           total: number
         }
         Insert: {
@@ -918,7 +918,7 @@ export type Database = {
           product_name: string
           quantity: number
           shipment_id: string
-          tenant_id: string
+          tenant_id?: string | null
           total: number
         }
         Update: {
@@ -928,7 +928,7 @@ export type Database = {
           product_name?: string
           quantity?: number
           shipment_id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           total?: number
         }
         Relationships: [
@@ -966,7 +966,7 @@ export type Database = {
           received_by: string
           shipping_cost: number
           supplier_id: string
-          tenant_id: string
+          tenant_id: string | null
           total_cost: number
         }
         Insert: {
@@ -979,7 +979,7 @@ export type Database = {
           received_by: string
           shipping_cost?: number
           supplier_id: string
-          tenant_id: string
+          tenant_id?: string | null
           total_cost?: number
         }
         Update: {
@@ -992,7 +992,7 @@ export type Database = {
           received_by?: string
           shipping_cost?: number
           supplier_id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           total_cost?: number
         }
         Relationships: [
@@ -1029,7 +1029,7 @@ export type Database = {
           quantity: number
           reason: string | null
           status: Database["public"]["Enums"]["transfer_status"]
-          tenant_id: string
+          tenant_id: string | null
           to_branch_id: string
           transferred_by: string
         }
@@ -1042,7 +1042,7 @@ export type Database = {
           quantity: number
           reason?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
-          tenant_id: string
+          tenant_id?: string | null
           to_branch_id: string
           transferred_by: string
         }
@@ -1055,7 +1055,7 @@ export type Database = {
           quantity?: number
           reason?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
-          tenant_id?: string
+          tenant_id?: string | null
           to_branch_id?: string
           transferred_by?: string
         }
@@ -1100,7 +1100,7 @@ export type Database = {
           id: string
           notes: string | null
           phone: string | null
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           address?: string | null
@@ -1111,7 +1111,7 @@ export type Database = {
           id?: string
           notes?: string | null
           phone?: string | null
-          tenant_id: string
+          tenant_id?: string | null
         }
         Update: {
           address?: string | null
@@ -1122,7 +1122,7 @@ export type Database = {
           id?: string
           notes?: string | null
           phone?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
         }
         Relationships: [
           {
@@ -1192,7 +1192,7 @@ export type Database = {
           description: string | null
           id: string
           reference_id: string | null
-          tenant_id: string
+          tenant_id: string | null
           type: Database["public"]["Enums"]["treasury_type"]
         }
         Insert: {
@@ -1204,7 +1204,7 @@ export type Database = {
           description?: string | null
           id?: string
           reference_id?: string | null
-          tenant_id: string
+          tenant_id?: string | null
           type: Database["public"]["Enums"]["treasury_type"]
         }
         Update: {
@@ -1216,7 +1216,7 @@ export type Database = {
           description?: string | null
           id?: string
           reference_id?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
           type?: Database["public"]["Enums"]["treasury_type"]
         }
         Relationships: [
@@ -1243,7 +1243,7 @@ export type Database = {
           from_branch_id: string
           id: string
           reason: string | null
-          tenant_id: string
+          tenant_id: string | null
           to_branch_id: string
           transferred_by: string
         }
@@ -1253,7 +1253,7 @@ export type Database = {
           from_branch_id: string
           id?: string
           reason?: string | null
-          tenant_id: string
+          tenant_id?: string | null
           to_branch_id: string
           transferred_by: string
         }
@@ -1263,7 +1263,7 @@ export type Database = {
           from_branch_id?: string
           id?: string
           reason?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
           to_branch_id?: string
           transferred_by?: string
         }
