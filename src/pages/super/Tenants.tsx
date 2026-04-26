@@ -49,6 +49,44 @@ export default function Tenants() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [confirmDel, setConfirmDel] = useState<Tenant | null>(null);
+  const [editing, setEditing] = useState<Tenant | null>(null);
+  const [editForm, setEditForm] = useState({ plan: "free", max_branches: 1, max_products: 100, max_users: 3 });
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = (t: Tenant) => {
+    setEditing(t);
+    setEditForm({
+      plan: t.plan,
+      max_branches: t.max_branches,
+      max_products: t.max_products,
+      max_users: t.max_users,
+    });
+  };
+
+  const applyPreset = (plan: string) => {
+    const p = PLAN_PRESETS[plan];
+    if (p) setEditForm({ plan, ...p });
+    else setEditForm((f) => ({ ...f, plan }));
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("tenants")
+      .update({
+        plan: editForm.plan,
+        max_branches: editForm.max_branches,
+        max_products: editForm.max_products,
+        max_users: editForm.max_users,
+      })
+      .eq("id", editing.id);
+    setSaving(false);
+    if (error) return toast.error("فشل الحفظ: " + error.message);
+    toast.success("تم تحديث الباقة");
+    setEditing(null);
+    load();
+  };
 
   const load = async () => {
     setLoading(true);
