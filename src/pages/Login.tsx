@@ -19,7 +19,6 @@ export default function Login() {
     if (!loading && user) {
       if (isAdmin) nav("/admin/dashboard", { replace: true });
       else if (branches[0]) nav(`/branch/${branches[0].id}/dashboard`, { replace: true });
-      else nav("/no-access", { replace: true });
     }
   }, [user, isAdmin, branches, loading, nav]);
 
