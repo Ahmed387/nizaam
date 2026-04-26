@@ -40,6 +40,7 @@ export default function Suppliers() {
       <PageHeader title="الموردين" subtitle={`${rows.length} مورد`}
         actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> إضافة مورد</Button>} />
       <DataTable loading={loading} rows={rows}
+        onRowClick={(r: any) => nav(`/branch/${branchId}/suppliers/${r.id}`)}
         columns={[
           { key: "company_name", header: "الشركة", render: (r: any) => <span className="font-semibold">{r.company_name}</span> },
           { key: "contact_name", header: "المسؤول", render: (r: any) => r.contact_name ?? "—" },
