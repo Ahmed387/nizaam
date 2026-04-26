@@ -1,0 +1,22 @@
+
+ALTER TABLE public.branches ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.branch_users ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.categories ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.products ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.customers ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.suppliers ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.employees ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.invoices ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.invoice_items ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.returns ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.return_items ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.shipments ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.shipment_items ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.expenses ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.treasury ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.treasury_transfers ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.stock_transfers ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.advances ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.advance_payments ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.salaries ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.price_list ALTER COLUMN tenant_id DROP NOT NULL;

@@ -3,14 +3,25 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { AppRole, fetchUserContext } from "@/lib/roles";
 
+interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  primary_color: string | null;
+}
+
 interface AuthCtx {
   user: User | null;
   session: Session | null;
   profile: { id: string; name: string; username: string } | null;
+  tenantId: string | null;
+  tenant: Tenant | null;
   roles: AppRole[];
   branches: { id: string; name: string; code: string }[];
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   hasRole: (r: AppRole) => boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -22,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthCtx["profile"]>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [branches, setBranches] = useState<AuthCtx["branches"]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadCtx = async (uid: string) => {
     const ctx = await fetchUserContext(uid);
     setProfile(ctx.profile as any);
+    setTenantId(ctx.tenantId);
+    setTenant(ctx.tenant);
     setRoles(ctx.roles);
     setBranches(ctx.branches as any);
   };
@@ -41,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => loadCtx(sess.user.id), 0);
       } else {
         setProfile(null);
+        setTenantId(null);
+        setTenant(null);
         setRoles([]);
         setBranches([]);
       }
@@ -60,10 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     session,
     profile,
+    tenantId,
+    tenant,
     roles,
     branches,
     loading,
-    isAdmin: roles.includes("admin"),
+    isAdmin: roles.includes("admin") || roles.includes("super_admin"),
+    isSuperAdmin: roles.includes("super_admin"),
     hasRole: (r) => roles.includes(r),
     signOut: async () => {
       await supabase.auth.signOut();
