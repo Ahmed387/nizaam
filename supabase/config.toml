@@ -1,1 +1,4 @@
 project_id = "wcvukheadkzktbqkfhum"
+
+[functions.tenant-signup]
+verify_jwt = false
