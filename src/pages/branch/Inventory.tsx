@@ -13,10 +13,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2 } from "lucide-react";
+import { Plus, Upload, Loader2, Activity } from "lucide-react";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
