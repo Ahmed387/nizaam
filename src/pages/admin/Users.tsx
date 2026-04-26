@@ -9,13 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, AppRole } from "@/lib/roles";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Info } from "lucide-react";
+import { Plus, Info, Trash2, Crown } from "lucide-react";
 
 export default function Users() {
+  const { tenantId } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [founderId, setFounderId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "cashier" as AppRole, branchIds: [] as string[] });
 
