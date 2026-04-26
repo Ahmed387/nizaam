@@ -47,12 +47,19 @@ export default function StockMovements() {
         .select("quantity, shipment_id, shipments!inner(arrival_date, branch_id, supplier_id, suppliers(company_name))")
         .eq("product_id", productId!);
 
-      // Transfers (out from this branch / in to this branch)
+      // Transfers — confirmed only, where this branch is from or to
       const { data: transfers } = await supabase
         .from("stock_transfers")
-        .select("quantity, status, created_at, reason, from_branch_id, to_branch_id, from_branch:branches!stock_transfers_from_branch_id_fkey(name), to_branch:branches!stock_transfers_to_branch_id_fkey(name)")
+        .select("quantity, status, created_at, reason, from_branch_id, to_branch_id")
         .eq("product_id", productId!)
         .eq("status", "confirmed");
+
+      // Resolve branch names for transfer rows
+      const branchIds = Array.from(new Set((transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id])));
+      const { data: brs } = branchIds.length
+        ? await supabase.from("branches").select("id, name").in("id", branchIds)
+        : { data: [] as any[] };
+      const brMap = new Map((brs ?? []).map((b: any) => [b.id, b.name]));
 
       const list: Movement[] = [];
 
