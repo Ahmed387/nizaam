@@ -44,7 +44,7 @@ export default function Login() {
           <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-lg">
             <Store className="w-9 h-9 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold gradient-text">A & N</h1>
+          <h1 className="text-3xl font-extrabold gradient-text">Nexa Store</h1>
           <p className="text-muted-foreground text-sm mt-1">نظام إدارة المتاجر متعددة الفروع</p>
         </div>
 

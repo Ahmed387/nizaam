@@ -23,7 +23,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant } = useAuth();
   return (
     <AppShell
-      title={tenant?.name ?? "A & N"}
+      title={tenant?.name ?? "Nexa Store"}
       subtitle="لوحة التحكم العامة"
       nav={adminNav}
     >
