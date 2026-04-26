@@ -1325,6 +1325,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       has_role: {
         Args: {

@@ -20,7 +20,16 @@ const adminNav: NavItem[] = [
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  return <AppShell title="A & N" subtitle="لوحة التحكم العامة" nav={adminNav}>{children}</AppShell>;
+  const { tenant } = useAuth();
+  return (
+    <AppShell
+      title={tenant?.name ?? "A & N"}
+      subtitle="لوحة التحكم العامة"
+      nav={adminNav}
+    >
+      {children}
+    </AppShell>
+  );
 }
 
 export function BranchLayout({ children }: { children: ReactNode }) {
