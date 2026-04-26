@@ -6,35 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Search, Power, Trash2, Building2, Pencil } from "lucide-react";
+import { Loader2, Search, Power, Trash2, Building2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-
-const PLAN_PRESETS: Record<string, { max_branches: number; max_products: number; max_users: number }> = {
-  free: { max_branches: 1, max_products: 100, max_users: 3 },
-  pro: { max_branches: 5, max_products: 1000, max_users: 15 },
-  enterprise: { max_branches: 999, max_products: 100000, max_users: 999 },
-};
 
 interface Tenant {
   id: string;
   name: string;
   slug: string;
-  plan: string;
   is_active: boolean;
   created_at: string;
-  max_branches: number;
-  max_products: number;
-  max_users: number;
 }
 
 interface Counts {
@@ -49,50 +32,12 @@ export default function Tenants() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [confirmDel, setConfirmDel] = useState<Tenant | null>(null);
-  const [editing, setEditing] = useState<Tenant | null>(null);
-  const [editForm, setEditForm] = useState({ plan: "free", max_branches: 1, max_products: 100, max_users: 3 });
-  const [saving, setSaving] = useState(false);
-
-  const openEdit = (t: Tenant) => {
-    setEditing(t);
-    setEditForm({
-      plan: t.plan,
-      max_branches: t.max_branches,
-      max_products: t.max_products,
-      max_users: t.max_users,
-    });
-  };
-
-  const applyPreset = (plan: string) => {
-    const p = PLAN_PRESETS[plan];
-    if (p) setEditForm({ plan, ...p });
-    else setEditForm((f) => ({ ...f, plan }));
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("tenants")
-      .update({
-        plan: editForm.plan,
-        max_branches: editForm.max_branches,
-        max_products: editForm.max_products,
-        max_users: editForm.max_users,
-      })
-      .eq("id", editing.id);
-    setSaving(false);
-    if (error) return toast.error("فشل الحفظ: " + error.message);
-    toast.success("تم تحديث الباقة");
-    setEditing(null);
-    load();
-  };
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("tenants")
-      .select("*")
+      .select("id, name, slug, is_active, created_at")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("فشل تحميل الشركات");
@@ -101,7 +46,6 @@ export default function Tenants() {
     }
     setTenants((data ?? []) as Tenant[]);
 
-    // counts per tenant
     const ids = (data ?? []).map((t: any) => t.id);
     if (ids.length) {
       const [br, us, pr] = await Promise.all([
@@ -186,7 +130,6 @@ export default function Tenants() {
                     <Badge variant={t.is_active ? "default" : "secondary"}>
                       {t.is_active ? "نشطة" : "معطلة"}
                     </Badge>
-                    <Badge variant="outline">{t.plan}</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {new Date(t.created_at).toLocaleDateString("ar-EG")}
@@ -207,9 +150,6 @@ export default function Tenants() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(t)}>
-                    <Pencil className="w-4 h-4 ml-1" /> الباقة
-                  </Button>
                   <Button variant="outline" size="sm" onClick={() => toggleActive(t)}>
                     <Power className="w-4 h-4 ml-1" />
                     {t.is_active ? "تعطيل" : "تفعيل"}
@@ -249,63 +189,6 @@ export default function Tenants() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>تعديل باقة "{editing?.name}"</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>الباقة</Label>
-              <Select value={editForm.plan} onValueChange={applyPreset}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
-                  <SelectItem value="custom">مخصصة</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <Label className="text-xs">حد الفروع</Label>
-                <Input
-                  type="number" min={1} className="mt-1.5"
-                  value={editForm.max_branches}
-                  onChange={(e) => setEditForm((f) => ({ ...f, max_branches: +e.target.value || 1 }))}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">حد المنتجات</Label>
-                <Input
-                  type="number" min={1} className="mt-1.5"
-                  value={editForm.max_products}
-                  onChange={(e) => setEditForm((f) => ({ ...f, max_products: +e.target.value || 1 }))}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">حد المستخدمين</Label>
-                <Input
-                  type="number" min={1} className="mt-1.5"
-                  value={editForm.max_users}
-                  onChange={(e) => setEditForm((f) => ({ ...f, max_users: +e.target.value || 1 }))}
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              الحدود تُطبَّق فوراً عند إنشاء عناصر جديدة. العناصر الموجودة لا تتأثر.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
-            <Button onClick={saveEdit} disabled={saving} className="btn-gradient">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </SuperAdminLayout>
   );
 }
