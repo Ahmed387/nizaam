@@ -56,7 +56,12 @@ export function AppShell({
               }`}
             >
               <span className="shrink-0">{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.badge && item.badge > 0 ? (
+                <span className="shrink-0 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              ) : null}
             </NavLink>
           );
         })}
