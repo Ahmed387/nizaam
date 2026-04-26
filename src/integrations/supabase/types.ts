@@ -1339,6 +1339,7 @@ export type Database = {
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_sku: { Args: never; Returns: string }
+      tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       user_in_branch: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
