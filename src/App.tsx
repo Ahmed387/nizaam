@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Setup from "./pages/Setup";
 import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
@@ -24,6 +26,7 @@ import NewSale from "./pages/branch/NewSale";
 import SalesHistory from "./pages/branch/SalesHistory";
 import InvoiceView from "./pages/branch/InvoiceView";
 import Inventory from "./pages/branch/Inventory";
+import StockMovements from "./pages/branch/StockMovements";
 import Customers from "./pages/branch/Customers";
 import CustomerProfile from "./pages/branch/CustomerProfile";
 import Suppliers from "./pages/branch/Suppliers";
@@ -59,6 +62,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/setup" element={<Setup />} />
 
@@ -89,6 +94,7 @@ const App = () => (
             <Route path="/branch/:id/shipments/new" element={<ProtectedRoute><NewShipment /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute><ShipmentView /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute><StockMovements /></ProtectedRoute>} />
             <Route path="/branch/:id/transfers" element={<ProtectedRoute><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers/:customerId" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
