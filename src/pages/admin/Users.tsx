@@ -104,12 +104,26 @@ export default function Users() {
       <DataTable
         loading={loading} rows={rows}
         columns={[
-          { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+          { key: "name", header: "الاسم", render: (r: any) => (
+            <span className="font-semibold flex items-center gap-1.5">
+              {r.id === founderId && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+              {r.name}
+            </span>
+          ) },
           { key: "username", header: "اسم المستخدم" },
           { key: "roles", header: "الدور", render: (r: any) => r.roles.map((x: AppRole) => ROLE_LABELS[x]).join("، ") || "—" },
           { key: "branches", header: "الفروع", render: (r: any) => r.branches.join("، ") || "—" },
           { key: "is_active", header: "الحالة", render: (r: any) =>
             <span className={r.is_active ? "text-success" : "text-muted-foreground"}>{r.is_active ? "نشط" : "موقوف"}</span> },
+          { key: "actions", header: "إجراءات", render: (r: any) => (
+            r.id === founderId ? (
+              <span className="text-xs text-muted-foreground">المؤسس — محمي</span>
+            ) : (
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(r.id, r.name)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )
+          ) },
         ]}
       />
 
