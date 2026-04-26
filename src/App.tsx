@@ -24,6 +24,7 @@ import NewSale from "./pages/branch/NewSale";
 import SalesHistory from "./pages/branch/SalesHistory";
 import InvoiceView from "./pages/branch/InvoiceView";
 import Inventory from "./pages/branch/Inventory";
+import StockMovements from "./pages/branch/StockMovements";
 import Customers from "./pages/branch/Customers";
 import CustomerProfile from "./pages/branch/CustomerProfile";
 import Suppliers from "./pages/branch/Suppliers";
