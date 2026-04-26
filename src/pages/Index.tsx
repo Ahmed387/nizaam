@@ -8,7 +8,7 @@ const Index = () => {
   const nav = useNavigate();
   useEffect(() => {
     if (loading) return;
-    if (!user) nav("/login", { replace: true });
+    if (!user) nav("/welcome", { replace: true });
     else if (isAdmin) nav("/admin/dashboard", { replace: true });
     else if (branches[0]) nav(`/branch/${branches[0].id}/dashboard`, { replace: true });
     else nav("/login", { replace: true });

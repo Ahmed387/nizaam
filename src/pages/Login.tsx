@@ -71,7 +71,7 @@ export default function Login() {
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
-          لإنشاء حساب مدير عام جديد، استخدم صفحة <a href="/setup" className="text-primary hover:underline">الإعداد الأولي</a>
+          ليس لديك حساب؟ <a href="/signup" className="text-primary hover:underline font-medium">أنشئ شركتك الآن مجاناً</a>
         </p>
       </div>
     </div>
