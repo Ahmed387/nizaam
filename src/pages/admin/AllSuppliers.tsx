@@ -257,6 +257,116 @@ export default function AllSuppliers() {
     toast.success(`تم تصدير ${rows.length} سطر`);
   };
 
+  const openNewShipment = (preSupplierId?: string) => {
+    setShipForm({
+      supplier_id: preSupplierId ?? "",
+      branch_id: "",
+      arrival_date: new Date().toISOString().split("T")[0],
+      received_by: "",
+      shipping_cost: 0,
+      admin_cost: 0,
+      notes: "",
+    });
+    setShipLines([]);
+    setBranchProducts([]);
+    setNewShipOpen(true);
+  };
+
+  useEffect(() => {
+    if (!shipForm.branch_id) { setBranchProducts([]); return; }
+    supabase.from("products").select("*").eq("branch_id", shipForm.branch_id).order("name")
+      .then(({ data }) => setBranchProducts(data ?? []));
+  }, [shipForm.branch_id]);
+
+  const addShipLine = () => setShipLines([...shipLines, { product_id: null, product_name: "", quantity: 1, cost_price: 0 }]);
+  const updShipLine = (i: number, patch: Partial<typeof shipLines[number]>) => {
+    const copy = [...shipLines]; copy[i] = { ...copy[i], ...patch }; setShipLines(copy);
+  };
+  const rmShipLine = (i: number) => setShipLines(shipLines.filter((_, idx) => idx !== i));
+  const onPickProduct = (i: number, pid: string) => {
+    if (pid === "__new__") { updShipLine(i, { product_id: null, product_name: "" }); return; }
+    const p = branchProducts.find((x) => x.id === pid);
+    if (p) updShipLine(i, { product_id: p.id, product_name: p.name, cost_price: Number(p.cost_price) });
+  };
+  const shipItemsTotal = shipLines.reduce((s, l) => s + (l.quantity * l.cost_price), 0);
+  const shipGrandTotal = shipItemsTotal + Number(shipForm.shipping_cost || 0) + Number(shipForm.admin_cost || 0);
+
+  const submitNewShipment = async () => {
+    if (!shipForm.supplier_id) return toast.error("اختر المورد");
+    if (!shipForm.branch_id) return toast.error("اختر الفرع");
+    if (!shipForm.received_by.trim()) return toast.error("أدخل اسم المستلم");
+    if (!shipLines.length) return toast.error("أضف صنفاً واحداً على الأقل");
+    for (const l of shipLines) {
+      if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
+        return toast.error("تأكد من بيانات كل الأصناف");
+    }
+    setShipBusy(true);
+    try {
+      const { data: ship, error: e1 } = await supabase.from("shipments").insert({
+        tenant_id: tenantId,
+        branch_id: shipForm.branch_id,
+        supplier_id: shipForm.supplier_id,
+        arrival_date: shipForm.arrival_date,
+        received_by: shipForm.received_by.trim(),
+        shipping_cost: Number(shipForm.shipping_cost || 0),
+        admin_cost: Number(shipForm.admin_cost || 0),
+        total_cost: shipGrandTotal,
+        notes: shipForm.notes.trim() || null,
+      }).select().single();
+      if (e1) throw e1;
+
+      for (const l of shipLines) {
+        let pid = l.product_id;
+        if (!pid) {
+          const sku = `P-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+          const { data: np, error: ep } = await supabase.from("products").insert({
+            tenant_id: tenantId,
+            branch_id: shipForm.branch_id,
+            name: l.product_name.trim(),
+            sku,
+            cost_price: l.cost_price,
+            selling_price: l.cost_price * 1.3,
+            market_price: l.cost_price * 1.3,
+            quantity: 0,
+          }).select().single();
+          if (ep) throw ep;
+          pid = np.id;
+        }
+        await supabase.from("shipment_items").insert({
+          tenant_id: tenantId,
+          shipment_id: ship.id,
+          product_id: pid,
+          product_name: l.product_name,
+          quantity: l.quantity,
+          cost_price: l.cost_price,
+          total: l.quantity * l.cost_price,
+        });
+        const cur = branchProducts.find((p) => p.id === pid);
+        const newQty = (cur?.quantity ?? 0) + l.quantity;
+        await supabase.from("products").update({ quantity: newQty, cost_price: l.cost_price }).eq("id", pid);
+      }
+
+      await supabase.from("treasury").insert({
+        tenant_id: tenantId,
+        branch_id: shipForm.branch_id,
+        type: "expense",
+        category: "shipment",
+        amount: shipGrandTotal,
+        description: `شحنة #${ship.id.slice(0, 8)}`,
+        reference_id: ship.id,
+        created_by: user!.id,
+      });
+
+      toast.success("تم تسجيل الشحنة وتحديث المخزون");
+      setNewShipOpen(false);
+      load();
+    } catch (err: any) {
+      toast.error(err.message ?? "خطأ في حفظ الشحنة");
+    } finally {
+      setShipBusy(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <PageHeader
