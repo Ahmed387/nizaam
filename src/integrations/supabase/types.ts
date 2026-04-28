@@ -1216,6 +1216,45 @@ export type Database = {
           },
         ]
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string
+          paid_by: string
+          supplier_id: string
+          tenant_id: string | null
+          treasury_id: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by: string
+          supplier_id: string
+          tenant_id?: string | null
+          treasury_id?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string
+          supplier_id?: string
+          tenant_id?: string | null
+          treasury_id?: string | null
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           address: string | null
