@@ -1,4 +1,8 @@
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -14,13 +18,16 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    console.log("Received PDF, base64 length:", pdfBase64.length);
+
     const systemPrompt = `أنت خبير في استخراج البيانات من ملفات PDF لقوائم الأسعار العربية.
 سيُعطى لك ملف PDF يحتوي على قائمة منتجات وأسعارها. مهمتك استخراج كل صف منتج وإرجاع JSON منظم.
 - استخرج: SKU/الكود (إن وجد)، اسم المنتج، التصنيف (إن وجد)، الوصف (إن وجد)، السعر القديم، السعر الجديد، سعر السوق.
 - لو لم يوجد سعر قديم، اجعله 0.
 - لو لم يوجد سعر سوق، استخدم نفس السعر الجديد.
 - تجاهل الرؤوس والتذييلات والصفوف الفارغة.
-- الأسعار أرقام فقط (بدون عملة أو فواصل).`;
+- الأسعار أرقام فقط (بدون عملة أو فواصل).
+- استخرج كل المنتجات بدون استثناء.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -75,6 +82,8 @@ Deno.serve(async (req) => {
       }),
     });
 
+    console.log("AI gateway status:", response.status);
+
     if (!response.ok) {
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
@@ -88,7 +97,7 @@ Deno.serve(async (req) => {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: "خطأ في خدمة AI" }), {
+      return new Response(JSON.stringify({ error: `خطأ في خدمة AI: ${t.slice(0, 200)}` }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -96,12 +105,14 @@ Deno.serve(async (req) => {
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
+      console.error("No tool call returned. Full response:", JSON.stringify(data).slice(0, 1000));
       return new Response(JSON.stringify({ error: "لم يتم استخراج أي بيانات من الملف" }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const args = JSON.parse(toolCall.function.arguments);
+    console.log("Extracted products count:", args.products?.length ?? 0);
     return new Response(JSON.stringify({ products: args.products ?? [] }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
