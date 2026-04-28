@@ -19,6 +19,7 @@ import Branches from "./pages/admin/Branches";
 import Users from "./pages/admin/Users";
 import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
+import AllInventory from "./pages/admin/AllInventory";
 import AuditLog from "./pages/admin/AuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/admin/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
             <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
+            <Route path="/admin/inventory" element={<ProtectedRoute adminOnly><AllInventory /></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/audit-log" element={<ProtectedRoute adminOnly><AuditLog /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
