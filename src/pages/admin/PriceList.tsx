@@ -94,8 +94,17 @@ export default function PriceList() {
 
   const submit = async () => {
     if (!form.product_name) return toast.error("أدخل اسم المنتج");
+    // عند الإضافة: ولّد SKU فريد تلقائياً. عند التعديل: حافظ على القيمة الحالية
+    let sku = form.sku || null;
+    if (!form.id) {
+      try {
+        sku = await generateUniqueSku();
+      } catch (e: any) {
+        return toast.error(e.message || "تعذّر توليد SKU");
+      }
+    }
     const payload = {
-      sku: form.sku || null,
+      sku,
       product_name: form.product_name,
       category_name: form.category_name || null,
       description: form.description || null,
@@ -111,7 +120,7 @@ export default function PriceList() {
     } else {
       const { error } = await supabase.from("price_list").insert(payload);
       if (error) return toast.error(error.message);
-      toast.success("تمت الإضافة");
+      toast.success(`تمت الإضافة (SKU: ${sku})`);
     }
     setOpen(false); setForm(emptyForm); load();
   };
@@ -445,8 +454,7 @@ export default function PriceList() {
             <DialogDescription>السعر القديم والجديد سيظهروا للكاشير وقت البيع.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>SKU</Label><Input dir="ltr" className="text-right mt-1.5" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
-            <div><Label>التصنيف</Label><Input value={form.category_name} onChange={(e) => setForm({ ...form, category_name: e.target.value })} className="mt-1.5" /></div>
+            <div className="col-span-2"><Label>التصنيف</Label><Input value={form.category_name} onChange={(e) => setForm({ ...form, category_name: e.target.value })} className="mt-1.5" /></div>
             <div className="col-span-2"><Label>اسم المنتج *</Label><Input value={form.product_name} onChange={(e) => setForm({ ...form, product_name: e.target.value })} className="mt-1.5" /></div>
             <div className="col-span-2"><Label>الوصف</Label><Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1.5" /></div>
             <div><Label>السعر القديم</Label><Input type="number" value={form.old_price} onChange={(e) => setForm({ ...form, old_price: e.target.value })} className="mt-1.5" /></div>
