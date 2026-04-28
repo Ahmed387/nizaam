@@ -238,6 +238,23 @@ export default function PriceList() {
     }
   };
 
+  /** يولّد SKU فريد داخل الشركة، يجرّب أكتر من مرة لو حصل تكرار */
+  const generateUniqueSku = async (): Promise<string> => {
+    if (!tenantId) throw new Error("no tenant");
+    for (let i = 0; i < 8; i++) {
+      const candidate = `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+      const { data } = await supabase
+        .from("products")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("sku", candidate)
+        .limit(1)
+        .maybeSingle();
+      if (!data) return candidate;
+      await new Promise(r => setTimeout(r, 5));
+    }
+    throw new Error("تعذّر توليد SKU فريد");
+  };
 
 
   /**
@@ -304,12 +321,29 @@ export default function PriceList() {
               .eq("id", existingId);
             if (!upErr) updated++;
           } else {
+            // تحديد SKU: لو القائمة فيها SKU وغير مستخدم في منتج آخر بنفس الشركة → استخدمه
+            // وإلا ولّد SKU فريد تلقائياً
+            let skuToUse = r.sku?.trim() || "";
+            if (skuToUse) {
+              const { data: clash } = await supabase
+                .from("products")
+                .select("id, name")
+                .eq("tenant_id", tenantId)
+                .eq("sku", skuToUse)
+                .neq("name", r.product_name)
+                .limit(1)
+                .maybeSingle();
+              if (clash) skuToUse = await generateUniqueSku();
+            } else {
+              skuToUse = await generateUniqueSku();
+            }
+
             // إضافة المنتج للفرع بكمية 0
             const { error: insErr } = await supabase.from("products").insert({
               tenant_id: tenantId,
               branch_id: b.id,
               name: r.product_name,
-              sku: r.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              sku: skuToUse,
               old_price: oldP || newP,
               selling_price: newP,
               market_price: market,
