@@ -33,6 +33,7 @@ import Suppliers from "./pages/branch/Suppliers";
 import SupplierProfile from "./pages/branch/SupplierProfile";
 import Treasury from "./pages/branch/Treasury";
 import Employees from "./pages/branch/Employees";
+import AdvanceRequests from "./pages/branch/AdvanceRequests";
 import Shipments from "./pages/branch/Shipments";
 import NewShipment from "./pages/branch/NewShipment";
 import ShipmentView from "./pages/branch/ShipmentView";
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute><SupplierProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+            <Route path="/branch/:id/advance-requests" element={<ProtectedRoute><AdvanceRequests /></ProtectedRoute>} />
             <Route path="/branch/:id/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
             <Route path="/branch/:id/reports" element={<ProtectedRoute><BranchReports /></ProtectedRoute>} />
 
