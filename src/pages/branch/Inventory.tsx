@@ -60,10 +60,26 @@ export default function Inventory() {
 
   const submit = async () => {
     if (!form.name) return toast.error("اسم المنتج مطلوب");
-    const { data: skuRes } = await supabase.rpc("next_sku");
+    // ولّد SKU فريد داخل الشركة
+    let sku = "";
+    for (let i = 0; i < 10; i++) {
+      const { data: skuRes } = await supabase.rpc("next_sku");
+      const candidate = skuRes as string;
+      if (!candidate) continue;
+      const { data: clash } = await supabase
+        .from("products")
+        .select("id")
+        .eq("tenant_id", tenantId!)
+        .eq("sku", candidate)
+        .limit(1)
+        .maybeSingle();
+      if (!clash) { sku = candidate; break; }
+    }
+    if (!sku) return toast.error("تعذّر توليد كود منتج فريد");
+
     const { data, error } = await supabase.from("products").insert({
       name: form.name,
-      sku: skuRes as string,
+      sku,
       category_id: form.category_id || null,
       cost_price: Number(form.cost_price) || 0,
       selling_price: Number(form.selling_price) || 0,
