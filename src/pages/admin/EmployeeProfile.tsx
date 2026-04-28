@@ -365,6 +365,53 @@ export default function EmployeeProfile() {
             ]}
           />
         </TabsContent>
+
+        <TabsContent value="account" className="mt-4">
+          {emp.user_id && accountProfile ? (
+            <div className="card-elevated p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">حساب الدخول مرتبط</div>
+                  <div className="font-bold text-lg">{accountProfile.username}</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    حالة الحساب:{" "}
+                    <span className={accountProfile.is_active ? "text-success" : "text-muted-foreground"}>
+                      {accountProfile.is_active ? "نشط" : "موقوف"}
+                    </span>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:text-destructive" onClick={() => setUnlinkOpen(true)}>
+                  <Unlink className="w-4 h-4 ml-1" /> فك الربط
+                </Button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">الدور</div>
+                  <div className="font-semibold">{accountRoles.map((r) => ROLE_LABELS[r]).join("، ") || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">الفروع المسموح بها</div>
+                  <div className="font-semibold">
+                    {accountBranchIds.length
+                      ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
+                      : "كل الفروع (مدير)"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="card-elevated p-8 text-center">
+              <KeyRound className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+              <div className="font-semibold mb-1">لا يوجد حساب دخول مرتبط بهذا الموظف</div>
+              <div className="text-sm text-muted-foreground mb-4">
+                أنشئ حساب دخول لتمكين الموظف من تسجيل الدخول واستخدام النظام بصلاحيات محددة.
+              </div>
+              <Button onClick={openCreateAccount} className="btn-gradient">
+                <UserPlus className="w-4 h-4 ml-1" /> إنشاء حساب دخول
+              </Button>
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Edit dialog */}
