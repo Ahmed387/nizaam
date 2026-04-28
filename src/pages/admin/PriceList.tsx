@@ -247,14 +247,6 @@ export default function PriceList() {
   };
 
 
-  const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([
-      { "SKU": "SKU-001", "اسم المنتج": "موبايل سامسونج A15", "التصنيف": "موبايلات", "الوصف": "128GB / 6GB RAM", "السعر القديم": 5500, "السعر الجديد": 6000, "سعر السوق": 6200 },
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Prices");
-    XLSX.writeFile(wb, "price_list_template.xlsx");
-  };
 
   /**
    * تطبيق قائمة الأسعار على كل الفروع:
@@ -319,7 +311,6 @@ export default function PriceList() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.pdf" onChange={upload} className="hidden" />
-            <Button variant="ghost" onClick={downloadTemplate}>قالب Excel</Button>
             <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 ml-1" /> رفع Excel / PDF</Button>
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
