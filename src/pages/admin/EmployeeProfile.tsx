@@ -31,6 +31,12 @@ export default function EmployeeProfile() {
   const [advancePayments, setAdvancePayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Login account info
+  const [accountProfile, setAccountProfile] = useState<any>(null);
+  const [accountRoles, setAccountRoles] = useState<AppRole[]>([]);
+  const [accountBranchIds, setAccountBranchIds] = useState<string[]>([]);
+  const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
+
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", base_salary: "", hire_date: "", notes: "" });
   const [delOpen, setDelOpen] = useState(false);
@@ -39,6 +45,11 @@ export default function EmployeeProfile() {
   const [salOpen, setSalOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ amount: "", monthly_deduct: "", reason: "" });
   const [salForm, setSalForm] = useState({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
+
+  // Account dialog
+  const [acctOpen, setAcctOpen] = useState(false);
+  const [acctForm, setAcctForm] = useState({ email: "", password: "", role: "cashier" as AppRole, branchIds: [] as string[] });
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
 
   const load = async () => {
     if (!id) return;
