@@ -63,15 +63,24 @@ export default function PriceList() {
   };
   useEffect(() => { load(); }, []);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach(r => { if (r.category_name) set.add(r.category_name); });
+    return Array.from(set).sort();
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.product_name.toLowerCase().includes(q) ||
-      (r.sku ?? "").toLowerCase().includes(q) ||
-      (r.category_name ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+    return rows.filter(r => {
+      if (categoryFilter !== "__all__" && (r.category_name ?? "") !== categoryFilter) return false;
+      if (!q) return true;
+      return (
+        r.product_name.toLowerCase().includes(q) ||
+        (r.sku ?? "").toLowerCase().includes(q) ||
+        (r.category_name ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [rows, search, categoryFilter]);
 
   const openNew = () => { setForm(emptyForm); setOpen(true); };
   const openEdit = (r: PriceRow) => {
