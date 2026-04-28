@@ -15,6 +15,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
   { to: "/admin/pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
   { to: "/admin/inventory", label: "مخزون كل الفروع", icon: <Warehouse className="w-4 h-4" /> },
+  { to: "/admin/suppliers", label: "الموردين (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
   { to: "/admin/reports", label: "التقارير المركزية", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/admin/audit-log", label: "سجل العمليات", icon: <ScrollText className="w-4 h-4" /> },
   { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
