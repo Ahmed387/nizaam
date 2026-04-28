@@ -37,6 +37,7 @@ export default function PriceList() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [confirmApply, setConfirmApply] = useState(false);
   const [applying, setApplying] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
