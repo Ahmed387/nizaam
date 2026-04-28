@@ -60,6 +60,9 @@ export default function NewSale() {
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.quantity * i.selling_price, 0), [items]);
   const total = Math.max(0, subtotal - discountAmt);
+  const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
+  const totalProfit = total - totalCost;
+  const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
   const setDiscByAmt = (v: number) => {
     setDiscountAmt(v);
@@ -94,6 +97,10 @@ export default function NewSale() {
     if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
     if (q <= 0) return setItems(items.filter((i) => i.product_id !== pid));
     setItems(items.map((i) => i.product_id === pid ? { ...i, quantity: q } : i));
+  };
+
+  const updatePrice = (pid: string, price: number) => {
+    setItems(items.map((i) => i.product_id === pid ? { ...i, selling_price: Math.max(0, price) } : i));
   };
 
   const submit = async () => {
@@ -226,19 +233,41 @@ export default function NewSale() {
               <div className="p-8 text-center text-muted-foreground">ابحث عن منتج لإضافته</div>
             ) : (
               <table className="w-full text-sm">
-                <thead><tr className="bg-surface-2 text-xs"><th className="p-2 text-right">المنتج</th><th className="p-2">الكمية</th><th className="p-2">السعر</th><th className="p-2">الإجمالي</th><th></th></tr></thead>
+                <thead><tr className="bg-surface-2 text-xs">
+                  <th className="p-2 text-right">المنتج</th>
+                  <th className="p-2">الكمية</th>
+                  <th className="p-2">سعر البيع (قابل للتعديل)</th>
+                  {showCost && <th className="p-2">الربح</th>}
+                  <th className="p-2">الإجمالي</th>
+                  <th></th>
+                </tr></thead>
                 <tbody>
-                  {items.map((i) => (
-                    <tr key={i.product_id} className="border-t border-border">
-                      <td className="p-2 font-medium">{i.product_name}</td>
-                      <td className="p-2 text-center">
-                        <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(i.product_id, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
-                      </td>
-                      <td className="p-2 text-center">{formatEGP(i.selling_price)}</td>
-                      <td className="p-2 text-center font-bold">{formatEGP(i.quantity * i.selling_price)}</td>
-                      <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(i.product_id, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
-                    </tr>
-                  ))}
+                  {items.map((i) => {
+                    const lineProfit = (i.selling_price - i.cost_price) * i.quantity;
+                    const linePct = i.cost_price > 0 ? ((i.selling_price - i.cost_price) / i.cost_price) * 100 : 0;
+                    return (
+                      <tr key={i.product_id} className="border-t border-border">
+                        <td className="p-2 font-medium">
+                          {i.product_name}
+                          {showCost && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
+                        </td>
+                        <td className="p-2 text-center">
+                          <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(i.product_id, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
+                        </td>
+                        <td className="p-2 text-center">
+                          <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(i.product_id, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
+                        </td>
+                        {showCost && (
+                          <td className="p-2 text-center">
+                            <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
+                            <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
+                          </td>
+                        )}
+                        <td className="p-2 text-center font-bold">{formatEGP(i.quantity * i.selling_price)}</td>
+                        <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(i.product_id, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -271,6 +300,13 @@ export default function NewSale() {
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي قبل الخصم</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">الخصم ({discountPct}%)</span><span className="text-destructive font-bold">- {formatEGP(discountAmt)}</span></div>
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className="text-primary font-extrabold text-xl">{formatEGP(total)}</span></div>
+              {showCost && items.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
+                  <div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{formatEGP(totalProfit)}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{profitPct.toFixed(2)}%</span></div>
+                </div>
+              )}
             </div>
             <Button className="w-full mt-4 h-12 btn-gradient text-base" disabled={busy || !items.length} onClick={submit}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Printer className="w-4 h-4 ml-2" /> إنشاء وطباعة</>}
