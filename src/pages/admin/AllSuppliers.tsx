@@ -59,6 +59,10 @@ export default function AllSuppliers() {
   const [form, setForm] = useState({ company_name: "", contact_name: "", phone: "", address: "", notes: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null);
   const [details, setDetails] = useState<Supplier | null>(null);
+  const [shipmentsView, setShipmentsView] = useState<Supplier | null>(null);
+  const [shipmentsList, setShipmentsList] = useState<any[]>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(false);
+  const [shipBranchFilter, setShipBranchFilter] = useState("all");
 
   const load = async () => {
     setLoading(true);
