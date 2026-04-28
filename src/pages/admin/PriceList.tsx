@@ -326,7 +326,7 @@ export default function PriceList() {
               tenant_id: tenantId,
               branch_id: b.id,
               name: r.product_name,
-              sku: r.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              sku: r.sku || (await generateUniqueSku()),
               old_price: oldP || newP,
               selling_price: newP,
               market_price: market,
