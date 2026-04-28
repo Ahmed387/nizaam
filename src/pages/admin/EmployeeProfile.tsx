@@ -488,6 +488,71 @@ export default function EmployeeProfile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create login account dialog */}
+      <Dialog open={acctOpen} onOpenChange={setAcctOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>إنشاء حساب دخول للموظف</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
+              سيتم إنشاء حساب باسم <b>{emp.name}</b> وربطه بهذا الموظف.
+            </div>
+            <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={acctForm.email} onChange={(e) => setAcctForm({ ...acctForm, email: e.target.value })} /></div>
+            <div><Label>كلمة المرور * (8 أحرف على الأقل)</Label><Input type="password" minLength={8} value={acctForm.password} onChange={(e) => setAcctForm({ ...acctForm, password: e.target.value })} className="mt-1.5" /></div>
+            <div>
+              <Label>الدور</Label>
+              <Select value={acctForm.role} onValueChange={(v) => setAcctForm({ ...acctForm, role: v as AppRole })}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ROLE_LABELS) as AppRole[])
+                    .filter((r) => r !== "super_admin")
+                    .map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {acctForm.role !== "admin" && (
+              <div>
+                <Label>الفروع المسموح بها</Label>
+                <div className="mt-1.5 grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-border rounded-lg p-2">
+                  {allBranches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 p-2 rounded hover:bg-surface-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={acctForm.branchIds.includes(b.id)}
+                        onChange={(e) => setAcctForm({
+                          ...acctForm,
+                          branchIds: e.target.checked ? [...acctForm.branchIds, b.id] : acctForm.branchIds.filter((x) => x !== b.id),
+                        })}
+                      />
+                      <span className="text-sm">{b.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcctOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={submitCreateAccount}>إنشاء وربط</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink account confirm */}
+      <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>فك ربط حساب الدخول</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف حساب الدخول وأدواره وفروعه المرتبطة بالموظف <b>{emp.name}</b>. بيانات الموظف (الرواتب/السلف) لن تتأثر.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={unlinkAccount}>تأكيد فك الربط</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
