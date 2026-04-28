@@ -124,37 +124,128 @@ export default function PriceList() {
     load();
   };
 
+  const parsePdfWithAI = async (file: File): Promise<any[]> => {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
+    }
+    const base64 = btoa(binary);
+    const { data, error } = await supabase.functions.invoke("parse-price-list-pdf", { body: { pdfBase64: base64 } });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data?.products ?? [];
+  };
+
+  const parsePdfSimple = async (file: File): Promise<any[]> => {
+    const pdfjs: any = await import("pdfjs-dist");
+    pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: buf }).promise;
+    const lines: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // Group items by approximate Y position to reconstruct rows
+      const rows: Record<number, string[]> = {};
+      for (const item of content.items as any[]) {
+        const y = Math.round(item.transform[5]);
+        if (!rows[y]) rows[y] = [];
+        rows[y].push(item.str);
+      }
+      Object.keys(rows).sort((a, b) => Number(b) - Number(a)).forEach(y => {
+        lines.push(rows[Number(y)].join(" ").trim());
+      });
+    }
+    // Try to parse rows: looking for "name ... price"
+    const records: any[] = [];
+    for (const line of lines) {
+      if (!line || line.length < 3) continue;
+      // Match trailing number(s) as prices
+      const numMatches = [...line.matchAll(/(\d+(?:[.,]\d+)?)/g)].map(m => Number(m[1].replace(",", ".")));
+      if (numMatches.length === 0) continue;
+      // Strip prices from name
+      const name = line.replace(/\d+(?:[.,]\d+)?/g, "").replace(/\s+/g, " ").trim();
+      if (!name || name.length < 2) continue;
+      const newP = numMatches[numMatches.length - 1];
+      const oldP = numMatches.length > 1 ? numMatches[numMatches.length - 2] : 0;
+      if (!newP || newP < 1) continue;
+      records.push({
+        sku: null,
+        product_name: name,
+        category_name: null,
+        description: null,
+        old_price: oldP,
+        new_price: newP,
+        market_price: newP,
+      });
+    }
+    return records;
+  };
+
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json<any>(sheet);
-    const records = json
-      .map((r) => {
-        const newP = Number(r["السعر الجديد"] ?? r["new_price"] ?? r["السعر"] ?? r["price"] ?? r["market_price"] ?? r["سعر السوق"] ?? 0);
-        const oldP = Number(r["السعر القديم"] ?? r["old_price"] ?? 0);
-        const market = Number(r["سعر السوق"] ?? r["market_price"] ?? newP);
-        return {
-          sku: (r["SKU"] ?? r["sku"] ?? r["كود"] ?? null)?.toString() || null,
-          product_name: r["اسم المنتج"] ?? r["product_name"] ?? r["name"],
-          category_name: r["التصنيف"] ?? r["category"] ?? r["category_name"] ?? null,
-          description: r["الوصف"] ?? r["description"] ?? null,
-          old_price: isNaN(oldP) ? 0 : oldP,
-          new_price: isNaN(newP) ? 0 : newP,
-          market_price: isNaN(market) ? 0 : market,
-          uploaded_by: user!.id,
-        };
-      })
-      .filter((r) => r.product_name);
-    if (!records.length) return toast.error("لم يتم العثور على بيانات صحيحة");
-    const { error } = await supabase.from("price_list").insert(records);
-    if (error) toast.error(error.message);
-    else toast.success(`تم رفع ${records.length} منتج`);
-    if (fileRef.current) fileRef.current.value = "";
-    load();
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    let records: any[] = [];
+
+    try {
+      if (isPdf) {
+        toast.info("جاري قراءة الـ PDF...");
+        try {
+          records = await parsePdfSimple(file);
+        } catch (err) {
+          console.warn("Simple PDF parse failed:", err);
+        }
+        if (records.length < 2) {
+          toast.info("الاستخراج البسيط لم يكفِ، جاري التحليل بالذكاء الاصطناعي...");
+          records = await parsePdfWithAI(file);
+        }
+      } else {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf);
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json<any>(sheet);
+        records = json
+          .map((r) => {
+            const newP = Number(r["السعر الجديد"] ?? r["new_price"] ?? r["السعر"] ?? r["price"] ?? r["market_price"] ?? r["سعر السوق"] ?? 0);
+            const oldP = Number(r["السعر القديم"] ?? r["old_price"] ?? 0);
+            const market = Number(r["سعر السوق"] ?? r["market_price"] ?? newP);
+            return {
+              sku: (r["SKU"] ?? r["sku"] ?? r["كود"] ?? null)?.toString() || null,
+              product_name: r["اسم المنتج"] ?? r["product_name"] ?? r["name"],
+              category_name: r["التصنيف"] ?? r["category"] ?? r["category_name"] ?? null,
+              description: r["الوصف"] ?? r["description"] ?? null,
+              old_price: isNaN(oldP) ? 0 : oldP,
+              new_price: isNaN(newP) ? 0 : newP,
+              market_price: isNaN(market) ? 0 : market,
+            };
+          })
+          .filter((r) => r.product_name);
+      }
+
+      const finalRecords = records
+        .filter((r) => r.product_name)
+        .map((r) => ({ ...r, uploaded_by: user!.id }));
+
+      if (!finalRecords.length) {
+        toast.error("لم يتم العثور على بيانات صحيحة");
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
+
+      const { error } = await supabase.from("price_list").insert(finalRecords);
+      if (error) toast.error(error.message);
+      else toast.success(`تم رفع ${finalRecords.length} منتج`);
+    } catch (err: any) {
+      toast.error(err.message ?? "فشل قراءة الملف");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+      load();
+    }
   };
+
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([
@@ -227,9 +318,9 @@ export default function PriceList() {
         subtitle="السعر القديم والجديد للكاشير + التطبيق على كل الفروع"
         actions={
           <div className="flex gap-2 flex-wrap">
-            <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={upload} className="hidden" />
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.pdf" onChange={upload} className="hidden" />
             <Button variant="ghost" onClick={downloadTemplate}>قالب Excel</Button>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 ml-1" /> رفع Excel</Button>
+            <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 ml-1" /> رفع Excel / PDF</Button>
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
             </Button>
