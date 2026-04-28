@@ -241,8 +241,17 @@ export default function PriceList() {
         }
       />
 
-      <div className="mb-4">
-        <Input placeholder="بحث بالاسم أو الـ SKU أو التصنيف..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="mb-4 flex flex-col sm:flex-row gap-2">
+        <Input placeholder="بحث بالاسم أو الـ SKU أو التصنيف..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="sm:w-64"><SelectValue placeholder="كل التصنيفات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">كل التصنيفات ({rows.length})</SelectItem>
+            {categories.map(c => (
+              <SelectItem key={c} value={c}>{c} ({rows.filter(r => r.category_name === c).length})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
