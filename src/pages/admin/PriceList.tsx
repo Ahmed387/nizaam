@@ -238,6 +238,23 @@ export default function PriceList() {
     }
   };
 
+  /** يولّد SKU فريد داخل الشركة، يجرّب أكتر من مرة لو حصل تكرار */
+  const generateUniqueSku = async (): Promise<string> => {
+    if (!tenantId) throw new Error("no tenant");
+    for (let i = 0; i < 8; i++) {
+      const candidate = `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+      const { data } = await supabase
+        .from("products")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("sku", candidate)
+        .limit(1)
+        .maybeSingle();
+      if (!data) return candidate;
+      await new Promise(r => setTimeout(r, 5));
+    }
+    throw new Error("تعذّر توليد SKU فريد");
+  };
 
 
   /**
