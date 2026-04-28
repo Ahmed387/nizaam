@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus, Eraser } from "lucide-react";
 
 type PriceRow = {
   id: string;
@@ -38,7 +38,20 @@ export default function PriceList() {
   const [search, setSearch] = useState("");
   const [confirmApply, setConfirmApply] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const clearAll = async () => {
+    if (!tenantId) return;
+    setClearing(true);
+    const { error } = await supabase.from("price_list").delete().eq("tenant_id", tenantId);
+    setClearing(false);
+    setConfirmClear(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم مسح كل قائمة الأسعار");
+    load();
+  };
 
   const load = async () => {
     setLoading(true);
@@ -209,6 +222,9 @@ export default function PriceList() {
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
             </Button>
+            <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setConfirmClear(true)} disabled={!rows.length || clearing}>
+              <Eraser className="w-4 h-4 ml-1" /> مسح القائمة
+            </Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة منتج</Button>
           </div>
         }
@@ -278,6 +294,31 @@ export default function PriceList() {
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction onClick={applyToAllBranches} disabled={applying}>تطبيق الآن</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>مسح كل قائمة الأسعار؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف جميع الأسعار ({rows.length} عنصر) من القائمة الرسمية.
+              <br />
+              <b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
+              <br />
+              ملاحظة: أسعار المنتجات في الفروع لن تتأثر — فقط القائمة المرجعية هنا.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={clearAll}
+              disabled={clearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {clearing ? "جاري المسح..." : "نعم، امسح الكل"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
