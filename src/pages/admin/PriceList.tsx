@@ -318,9 +318,9 @@ export default function PriceList() {
         subtitle="السعر القديم والجديد للكاشير + التطبيق على كل الفروع"
         actions={
           <div className="flex gap-2 flex-wrap">
-            <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={upload} className="hidden" />
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.pdf" onChange={upload} className="hidden" />
             <Button variant="ghost" onClick={downloadTemplate}>قالب Excel</Button>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 ml-1" /> رفع Excel</Button>
+            <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 ml-1" /> رفع Excel / PDF</Button>
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
             </Button>
