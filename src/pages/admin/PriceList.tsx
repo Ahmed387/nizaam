@@ -431,9 +431,10 @@ export default function PriceList() {
           <AlertDialogHeader>
             <AlertDialogTitle>تطبيق القائمة على كل الفروع</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم تحديث السعر القديم وسعر السوق في جميع المنتجات المطابقة (بالـ SKU أو الاسم) عبر كل الفروع.
-              <br />
-              <b>سعر البيع لن يتغير</b> - الكاشير هو من يحدده وقت البيع.
+              سيتم توزيع منتجات القائمة على <b>كل الفروع</b>:
+              <br />• المنتج الموجود في الفرع → يتم تحديث السعر القديم وسعر السوق فقط.
+              <br />• المنتج الناقص في الفرع → يتم إضافته بكمية <b>صفر</b> ليظهر في مخزون الفرع.
+              <br />• <b>سعر البيع والكميات الحالية لن تتغير</b>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
