@@ -190,6 +190,54 @@ export default function EmployeeProfile() {
     load();
   };
 
+  const openCreateAccount = () => {
+    setAcctForm({ email: "", password: "", role: "cashier", branchIds: emp.branch_id ? [emp.branch_id] : [] });
+    setAcctOpen(true);
+  };
+
+  const submitCreateAccount = async () => {
+    if (!acctForm.email || !acctForm.password) return toast.error("أدخل البريد وكلمة المرور");
+    if (acctForm.password.length < 8) return toast.error("كلمة المرور 8 أحرف على الأقل");
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: acctForm.email,
+        password: acctForm.password,
+        options: {
+          data: { name: emp.name, username: acctForm.email.split("@")[0] },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      const uid = data.user?.id;
+      if (!uid) throw new Error("فشل إنشاء الحساب");
+      await new Promise((r) => setTimeout(r, 400));
+      await supabase.from("user_roles").insert({ user_id: uid, role: acctForm.role });
+      if (acctForm.role !== "admin" && acctForm.branchIds.length) {
+        await supabase.from("branch_users").insert(acctForm.branchIds.map((bid) => ({ user_id: uid, branch_id: bid })));
+      }
+      await supabase.from("employees").update({ user_id: uid }).eq("id", emp.id);
+      toast.success("تم إنشاء حساب الدخول وربطه بالموظف");
+      setAcctOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const unlinkAccount = async () => {
+    if (!emp.user_id) return;
+    try {
+      await supabase.from("branch_users").delete().eq("user_id", emp.user_id);
+      await supabase.from("user_roles").delete().eq("user_id", emp.user_id);
+      await supabase.from("profiles").delete().eq("id", emp.user_id);
+      await supabase.from("employees").update({ user_id: null }).eq("id", emp.id);
+      toast.success("تم فك ربط الحساب");
+      setUnlinkOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
   if (loading) return <AdminLayout><div className="text-center py-12 text-muted-foreground">جاري التحميل...</div></AdminLayout>;
   if (!emp) return <AdminLayout><div className="text-center py-12 text-muted-foreground">الموظف غير موجود</div></AdminLayout>;
 
