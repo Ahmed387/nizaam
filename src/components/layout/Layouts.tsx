@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, Users, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,9 +35,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
 export function BranchLayout({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>();
-  const { branches, isAdmin } = useAuth();
+  const { branches, isAdmin, hasRole, user } = useAuth();
   const branch = branches.find((b) => b.id === id);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [pendingAdvCount, setPendingAdvCount] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -61,6 +62,31 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !user) return;
+    const isBranchManager = hasRole("branch_manager");
+    if (!isBranchManager && !isAdmin) {
+      setPendingAdvCount(0);
+      return;
+    }
+    const targetStatus = isAdmin ? "pending_admin" : "pending_branch_manager";
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from("advance_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("branch_id", id)
+        .eq("status", targetStatus);
+      if (!cancelled) setPendingAdvCount(count ?? 0);
+    };
+    load();
+    const ch = supabase
+      .channel(`adv-req-badge-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "advance_requests", filter: `branch_id=eq.${id}` }, load)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [id, user?.id, isAdmin, hasRole]);
+
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
   const nav: NavItem[] = [
@@ -73,6 +99,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" /> },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" /> },
     { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" /> },
+    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount },
     { to: `/branch/${id}/expenses`, label: "المصروفات", icon: <Receipt className="w-4 h-4" /> },
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
   ];

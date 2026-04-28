@@ -56,6 +56,72 @@ export type Database = {
           },
         ]
       }
+      advance_requests: {
+        Row: {
+          admin_decision_at: string | null
+          admin_id: string | null
+          admin_note: string | null
+          amount: number
+          branch_id: string
+          branch_manager_decision_at: string | null
+          branch_manager_id: string | null
+          branch_manager_note: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          monthly_deduct: number
+          reason: string | null
+          rejection_reason: string | null
+          requested_by: string
+          resulting_advance_id: string | null
+          status: Database["public"]["Enums"]["advance_request_status"]
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_decision_at?: string | null
+          admin_id?: string | null
+          admin_note?: string | null
+          amount: number
+          branch_id: string
+          branch_manager_decision_at?: string | null
+          branch_manager_id?: string | null
+          branch_manager_note?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          monthly_deduct: number
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_by: string
+          resulting_advance_id?: string | null
+          status?: Database["public"]["Enums"]["advance_request_status"]
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_decision_at?: string | null
+          admin_id?: string | null
+          admin_note?: string | null
+          amount?: number
+          branch_id?: string
+          branch_manager_decision_at?: string | null
+          branch_manager_id?: string | null
+          branch_manager_note?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          monthly_deduct?: number
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_by?: string
+          resulting_advance_id?: string | null
+          status?: Database["public"]["Enums"]["advance_request_status"]
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       advances: {
         Row: {
           amount: number
@@ -566,6 +632,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          related_entity: string | null
+          related_entity_id: string | null
+          tenant_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          related_entity?: string | null
+          related_entity_id?: string | null
+          tenant_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          related_entity?: string | null
+          related_entity_id?: string | null
+          tenant_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       price_list: {
         Row: {
@@ -1364,6 +1472,11 @@ export type Database = {
       }
     }
     Enums: {
+      advance_request_status:
+        | "pending_branch_manager"
+        | "pending_admin"
+        | "approved"
+        | "rejected"
       app_role:
         | "admin"
         | "branch_manager"
@@ -1501,6 +1614,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      advance_request_status: [
+        "pending_branch_manager",
+        "pending_admin",
+        "approved",
+        "rejected",
+      ],
       app_role: [
         "admin",
         "branch_manager",
