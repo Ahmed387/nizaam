@@ -390,6 +390,87 @@ export default function AllSuppliers() {
         </DialogContent>
       </Dialog>
 
+      {/* Shipments view */}
+      <Dialog open={!!shipmentsView} onOpenChange={(o) => !o && setShipmentsView(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>شحنات: {shipmentsView?.company_name}</DialogTitle>
+            <DialogDescription>كل ما نزّله المورد، بالأصناف والكميات والفرع</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 flex-wrap items-center mb-2">
+            <Select value={shipBranchFilter} onValueChange={setShipBranchFilter}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="الفرع" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الفروع</SelectItem>
+                {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={exportShipments}>
+              <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+            </Button>
+            <div className="text-xs text-muted-foreground mr-auto">
+              {shipmentsList.filter((s) => shipBranchFilter === "all" || s.branch_id === shipBranchFilter).length} شحنة
+            </div>
+          </div>
+          {shipmentsLoading ? (
+            <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
+          ) : shipmentsList.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">لا توجد شحنات لهذا المورد.</div>
+          ) : (
+            <div className="space-y-3">
+              {shipmentsList
+                .filter((s) => shipBranchFilter === "all" || s.branch_id === shipBranchFilter)
+                .map((sh) => {
+                  const items = (sh.shipment_items ?? []) as any[];
+                  return (
+                    <div key={sh.id} className="rounded-md border overflow-hidden">
+                      <div className="p-3 bg-muted/40 flex flex-wrap gap-3 items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold">{sh.branches?.name ?? "—"}</span>
+                          <span className="text-xs text-muted-foreground">وصلت: {sh.arrival_date} • مستلم: {sh.received_by ?? "—"}</span>
+                        </div>
+                        <div className="flex gap-3 text-xs">
+                          <div><span className="text-muted-foreground">إجمالي:</span> <span className="font-bold">{formatEGP(sh.total_cost)}</span></div>
+                          {Number(sh.shipping_cost) > 0 && <div><span className="text-muted-foreground">شحن:</span> {formatEGP(sh.shipping_cost)}</div>}
+                          {Number(sh.admin_cost) > 0 && <div><span className="text-muted-foreground">إداري:</span> {formatEGP(sh.admin_cost)}</div>}
+                        </div>
+                      </div>
+                      {items.length > 0 ? (
+                        <table className="w-full text-sm">
+                          <thead className="bg-background">
+                            <tr className="text-xs text-muted-foreground border-b">
+                              <th className="text-right p-2">الصنف</th>
+                              <th className="text-right p-2">الكمية</th>
+                              <th className="text-right p-2">سعر الوحدة</th>
+                              <th className="text-right p-2">الإجمالي</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((it, i) => (
+                              <tr key={i} className="border-b last:border-0">
+                                <td className="p-2">{it.product_name}</td>
+                                <td className="p-2">{it.quantity}</td>
+                                <td className="p-2">{formatEGP(it.cost_price)}</td>
+                                <td className="p-2 font-semibold">{formatEGP(it.total)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="p-3 text-xs text-muted-foreground">لا توجد أصناف مسجّلة لهذه الشحنة.</div>
+                      )}
+                      {sh.notes && <div className="p-2 text-xs text-muted-foreground border-t bg-muted/20">📝 {sh.notes}</div>}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShipmentsView(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete confirm */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
         <AlertDialogContent>
