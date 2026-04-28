@@ -220,12 +220,49 @@ export default function NewSale() {
             )}
           </div>
 
-          {/* Search */}
+          {/* Search & Scanner */}
           <div className="card-elevated p-4">
-            <Label className="mb-2 block">إضافة منتج</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label>إضافة منتج</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant={scannerMode ? "default" : "outline"}
+                onClick={() => setScannerMode((s) => !s)}
+                className="gap-2"
+              >
+                <ScanLine className="w-4 h-4" />
+                {scannerMode ? "وضع الباركود مُفعّل" : "تفعيل الباركود"}
+              </Button>
+            </div>
+
+            {scannerMode && (
+              <div className="mb-3 p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-3">
+                <ScanLine className="w-5 h-5 text-primary animate-pulse" />
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground">امسح الباركود الآن — التركيز نشط تلقائياً</div>
+                  <Input
+                    ref={scannerInputRef}
+                    value={scanBuffer}
+                    onChange={(e) => setScanBuffer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleScan(scanBuffer);
+                        setScanBuffer("");
+                      }
+                    }}
+                    placeholder="انتظار المسح..."
+                    className="mt-1 h-8 font-mono text-sm"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="ابحث بالاسم أو الكود" value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
+              <Input placeholder="أو ابحث بالاسم أو الكود يدوياً" value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
             </div>
             {search && (
               <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
