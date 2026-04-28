@@ -57,19 +57,37 @@ export default function EmployeeProfile() {
     const { data: e } = await supabase.from("employees").select("*").eq("id", id).maybeSingle();
     if (!e) { setLoading(false); return; }
     setEmp(e);
-    const [{ data: b }, { data: a }, { data: s }] = await Promise.all([
+    const [{ data: b }, { data: a }, { data: s }, { data: br }] = await Promise.all([
       supabase.from("branches").select("id, name, code").eq("id", e.branch_id).maybeSingle(),
       supabase.from("advances").select("*").eq("employee_id", id).order("created_at", { ascending: false }),
       supabase.from("salaries").select("*").eq("employee_id", id).order("paid_at", { ascending: false }),
+      supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
     ]);
     setBranch(b);
     setAdvances(a ?? []);
     setSalaries(s ?? []);
+    setAllBranches(br ?? []);
     const advIds = (a ?? []).map((x) => x.id);
     if (advIds.length) {
       const { data: ap } = await supabase.from("advance_payments").select("*").in("advance_id", advIds).order("paid_at", { ascending: false });
       setAdvancePayments(ap ?? []);
     } else setAdvancePayments([]);
+
+    // Load login account if linked
+    if ((e as any).user_id) {
+      const [{ data: prof }, { data: rs }, { data: bus }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", (e as any).user_id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", (e as any).user_id),
+        supabase.from("branch_users").select("branch_id").eq("user_id", (e as any).user_id),
+      ]);
+      setAccountProfile(prof);
+      setAccountRoles((rs ?? []).map((r: any) => r.role));
+      setAccountBranchIds((bus ?? []).map((x: any) => x.branch_id));
+    } else {
+      setAccountProfile(null);
+      setAccountRoles([]);
+      setAccountBranchIds([]);
+    }
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
