@@ -274,12 +274,31 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
     if (!form.name) return toast.error("اسم المنتج مطلوب");
     if (!form.branch_ids.length) return toast.error("اختر فرعاً واحداً على الأقل");
     setSaving(true);
+    // ولّد SKU واحد للمنتج، يتأكد إنه فريد داخل الشركة، ويُستخدم في كل الفروع
+    let sharedSku = "";
+    for (let i = 0; i < 10; i++) {
+      const { data: skuRes } = await supabase.rpc("next_sku");
+      const candidate = skuRes as string;
+      if (!candidate) continue;
+      const { data: clash } = await supabase
+        .from("products")
+        .select("id")
+        .eq("tenant_id", tenantId!)
+        .eq("sku", candidate)
+        .limit(1)
+        .maybeSingle();
+      if (!clash) { sharedSku = candidate; break; }
+    }
+    if (!sharedSku) {
+      setSaving(false);
+      return toast.error("تعذّر توليد كود منتج فريد، حاول مرة أخرى");
+    }
+
     let ok = 0;
     for (const branchId of form.branch_ids) {
-      const { data: skuRes } = await supabase.rpc("next_sku");
       const { data, error } = await supabase.from("products").insert({
         name: form.name,
-        sku: skuRes as string,
+        sku: sharedSku,
         category_id: form.category_id || null,
         cost_price: Number(form.cost_price) || 0,
         selling_price: Number(form.selling_price) || 0,
