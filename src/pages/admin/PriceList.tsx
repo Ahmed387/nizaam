@@ -321,12 +321,29 @@ export default function PriceList() {
               .eq("id", existingId);
             if (!upErr) updated++;
           } else {
+            // تحديد SKU: لو القائمة فيها SKU وغير مستخدم في منتج آخر بنفس الشركة → استخدمه
+            // وإلا ولّد SKU فريد تلقائياً
+            let skuToUse = r.sku?.trim() || "";
+            if (skuToUse) {
+              const { data: clash } = await supabase
+                .from("products")
+                .select("id, name")
+                .eq("tenant_id", tenantId)
+                .eq("sku", skuToUse)
+                .neq("name", r.product_name)
+                .limit(1)
+                .maybeSingle();
+              if (clash) skuToUse = await generateUniqueSku();
+            } else {
+              skuToUse = await generateUniqueSku();
+            }
+
             // إضافة المنتج للفرع بكمية 0
             const { error: insErr } = await supabase.from("products").insert({
               tenant_id: tenantId,
               branch_id: b.id,
               name: r.product_name,
-              sku: r.sku || (await generateUniqueSku()),
+              sku: skuToUse,
               old_price: oldP || newP,
               selling_price: newP,
               market_price: market,
