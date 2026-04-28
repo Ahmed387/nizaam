@@ -297,6 +297,31 @@ export default function PriceList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>مسح كل قائمة الأسعار؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف جميع الأسعار ({rows.length} عنصر) من القائمة الرسمية.
+              <br />
+              <b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
+              <br />
+              ملاحظة: أسعار المنتجات في الفروع لن تتأثر — فقط القائمة المرجعية هنا.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={clearAll}
+              disabled={clearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {clearing ? "جاري المسح..." : "نعم، امسح الكل"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
