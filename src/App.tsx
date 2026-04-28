@@ -21,6 +21,8 @@ import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
 import AllInventory from "./pages/admin/AllInventory";
 import AllSuppliers from "./pages/admin/AllSuppliers";
+import AllEmployees from "./pages/admin/AllEmployees";
+import EmployeeProfile from "./pages/admin/EmployeeProfile";
 import AuditLog from "./pages/admin/AuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
