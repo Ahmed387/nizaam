@@ -41,6 +41,9 @@ export default function NewSale() {
   const [discountPct, setDiscountPct] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scannerMode, setScannerMode] = useState(true);
+  const scannerInputRef = useRef<HTMLInputElement>(null);
+  const [scanBuffer, setScanBuffer] = useState("");
 
   useEffect(() => {
     if (!branchId) return;
