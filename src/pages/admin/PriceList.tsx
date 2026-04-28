@@ -242,36 +242,87 @@ export default function PriceList() {
 
   /**
    * تطبيق قائمة الأسعار على كل الفروع:
-   * - يحدّث products.old_price, products.market_price في كل الفروع للمنتجات المطابقة بالـ SKU أو الاسم.
-   * - selling_price لا يُلمس (الكاشير/المدير يحدده وقت البيع).
+   * - لكل منتج في القائمة، يتأكد إنه موجود في كل فرع.
+   * - لو موجود (بالـ SKU أو الاسم) → يحدّث old_price و market_price (الكمية و selling_price ما يتغيروش).
+   * - لو ناقص في فرع → يضيفه بكمية 0 عشان يبقى ظاهر في مخزون الفرع.
    */
   const applyToAllBranches = async () => {
     if (!tenantId) return;
     setApplying(true);
     try {
-      let matched = 0;
+      // اجلب كل الفروع التابعة للشركة
+      const { data: branches, error: brErr } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true);
+      if (brErr) throw brErr;
+      if (!branches || branches.length === 0) {
+        toast.error("لا توجد فروع");
+        return;
+      }
+
+      let updated = 0;
+      let created = 0;
       let scanned = 0;
+
       for (const r of rows) {
         scanned++;
         const newP = Number(r.new_price) || 0;
         const oldP = Number(r.old_price) || 0;
         const market = Number(r.market_price) || newP;
 
-        // Match by SKU first, fallback to exact name match within tenant
-        let q = supabase.from("products").update({
-          old_price: oldP || newP,
-          market_price: market,
-        }).eq("tenant_id", tenantId);
+        for (const b of branches) {
+          // ابحث عن المنتج في الفرع: بالـ SKU لو موجود، وإلا بالاسم
+          let existingId: string | null = null;
+          if (r.sku) {
+            const { data: bySku } = await supabase
+              .from("products")
+              .select("id")
+              .eq("tenant_id", tenantId)
+              .eq("branch_id", b.id)
+              .eq("sku", r.sku)
+              .maybeSingle();
+            if (bySku?.id) existingId = bySku.id;
+          }
+          if (!existingId) {
+            const { data: byName } = await supabase
+              .from("products")
+              .select("id")
+              .eq("tenant_id", tenantId)
+              .eq("branch_id", b.id)
+              .eq("name", r.product_name)
+              .maybeSingle();
+            if (byName?.id) existingId = byName.id;
+          }
 
-        if (r.sku) {
-          const { data, error } = await q.eq("sku", r.sku).select("id");
-          if (!error && data) matched += data.length;
-        } else {
-          const { data, error } = await q.eq("name", r.product_name).select("id");
-          if (!error && data) matched += data.length;
+          if (existingId) {
+            // تحديث الأسعار فقط (الكمية و selling_price ما يتغيروش)
+            const { error: upErr } = await supabase
+              .from("products")
+              .update({ old_price: oldP || newP, market_price: market })
+              .eq("id", existingId);
+            if (!upErr) updated++;
+          } else {
+            // إضافة المنتج للفرع بكمية 0
+            const { error: insErr } = await supabase.from("products").insert({
+              tenant_id: tenantId,
+              branch_id: b.id,
+              name: r.product_name,
+              sku: r.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              old_price: oldP || newP,
+              selling_price: newP,
+              market_price: market,
+              cost_price: 0,
+              quantity: 0,
+            });
+            if (!insErr) created++;
+          }
         }
       }
-      toast.success(`تم تحديث ${matched} منتج في كل الفروع (من ${scanned} عنصر)`);
+      toast.success(
+        `تم! ${created} منتج أُضيف للفروع الناقصة، و${updated} منتج تم تحديث سعره (من ${scanned} عنصر × ${branches.length} فرع)`
+      );
     } catch (e: any) {
       toast.error(e.message ?? "خطأ في التطبيق");
     } finally {
