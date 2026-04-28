@@ -64,6 +64,21 @@ export default function AllSuppliers() {
   const [shipmentsLoading, setShipmentsLoading] = useState(false);
   const [shipBranchFilter, setShipBranchFilter] = useState("all");
 
+  // New shipment dialog
+  const [newShipOpen, setNewShipOpen] = useState(false);
+  const [shipForm, setShipForm] = useState({
+    supplier_id: "",
+    branch_id: "",
+    arrival_date: new Date().toISOString().split("T")[0],
+    received_by: "",
+    shipping_cost: 0,
+    admin_cost: 0,
+    notes: "",
+  });
+  const [shipLines, setShipLines] = useState<{ product_id: string | null; product_name: string; quantity: number; cost_price: number }[]>([]);
+  const [branchProducts, setBranchProducts] = useState<any[]>([]);
+  const [shipBusy, setShipBusy] = useState(false);
+
   const load = async () => {
     setLoading(true);
     const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
