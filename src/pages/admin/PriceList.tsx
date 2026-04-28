@@ -192,16 +192,8 @@ export default function PriceList() {
 
     try {
       if (isPdf) {
-        toast.info("جاري قراءة الـ PDF...");
-        try {
-          records = await parsePdfSimple(file);
-        } catch (err) {
-          console.warn("Simple PDF parse failed:", err);
-        }
-        if (records.length < 2) {
-          toast.info("الاستخراج البسيط لم يكفِ، جاري التحليل بالذكاء الاصطناعي...");
-          records = await parsePdfWithAI(file);
-        }
+        toast.info("جاري قراءة الـ PDF بالذكاء الاصطناعي...");
+        records = await parsePdfWithAI(file);
       } else {
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf);
