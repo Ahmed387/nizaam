@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
-  Home, Store, Users, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
+  Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
   ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
