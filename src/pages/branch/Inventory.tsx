@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode } from "lucide-react";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -84,7 +84,14 @@ export default function Inventory() {
   return (
     <BranchLayout>
       <PageHeader title="المخزون" subtitle={`${rows.length} منتج`}
-        actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
+              <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
+            </Button>
+            <Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>
+          </div>
+        }
       />
 
       <div className="flex gap-3 mb-4 flex-wrap">

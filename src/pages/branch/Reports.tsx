@@ -12,6 +12,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
 import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet } from "lucide-react";
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
+  BarChart, Bar, PieChart, Pie, Cell, Legend,
+} from "recharts";
+
+const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))", "#8b5cf6", "#06b6d4"];
 
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
@@ -155,12 +161,84 @@ export default function BranchReports() {
         <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
 
-      <Tabs defaultValue="products">
+      <Tabs defaultValue="charts">
         <TabsList>
+          <TabsTrigger value="charts">📊 التحليل البصري</TabsTrigger>
           <TabsTrigger value="products">أكثر مبيعاً</TabsTrigger>
           <TabsTrigger value="expenses">المصروفات</TabsTrigger>
           <TabsTrigger value="lowstock">مخزون منخفض</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="charts" className="mt-4 space-y-6">
+          {(() => {
+            // sales by day
+            const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
+            for (const inv of activeInv) {
+              const d = inv.created_at.slice(0, 10);
+              if (!dayMap[d]) dayMap[d] = { date: d.slice(5), sales: 0, profit: 0 };
+              dayMap[d].sales += Number(inv.total);
+              const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * it.quantity, 0);
+              dayMap[d].profit += Number(inv.total) - cost;
+            }
+            const dailyData = Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
+            const expensesData = Object.entries(expByType).map(([name, value]) => ({ name, value }));
+
+            return (
+              <>
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="card-elevated p-4">
+                    <h4 className="font-bold mb-3">المبيعات والأرباح اليومية</h4>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <AreaChart data={dailyData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                        <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                        <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                        <Legend />
+                        <Area type="monotone" dataKey="sales" name="المبيعات" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
+                        <Area type="monotone" dataKey="profit" name="الربح" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.3} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="card-elevated p-4">
+                    <h4 className="font-bold mb-3">المصروفات حسب النوع</h4>
+                    {expensesData.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مصروفات</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie data={expensesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${formatEGP(e.value)}`}>
+                            {expensesData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                <div className="card-elevated p-4">
+                  <h4 className="font-bold mb-3">أكثر 10 منتجات إيراداً</h4>
+                  {topProducts.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={topProducts} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                        <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                        <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                        <Bar dataKey="revenue" name="الإيراد" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </TabsContent>
+
         <TabsContent value="products" className="mt-4">
           <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[

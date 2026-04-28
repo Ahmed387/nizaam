@@ -28,6 +28,7 @@ import SalesHistory from "./pages/branch/SalesHistory";
 import InvoiceView from "./pages/branch/InvoiceView";
 import Inventory from "./pages/branch/Inventory";
 import StockMovements from "./pages/branch/StockMovements";
+import PrintBarcodes from "./pages/branch/PrintBarcodes";
 import Customers from "./pages/branch/Customers";
 import CustomerProfile from "./pages/branch/CustomerProfile";
 import Suppliers from "./pages/branch/Suppliers";
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="/branch/:id/shipments/new" element={<ProtectedRoute><NewShipment /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute><ShipmentView /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory/barcodes" element={<ProtectedRoute><PrintBarcodes /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute><StockMovements /></ProtectedRoute>} />
             <Route path="/branch/:id/transfers" element={<ProtectedRoute><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
