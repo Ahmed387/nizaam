@@ -10,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
+import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Receipt, ArrowRight, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power } from "lucide-react";
+import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink } from "lucide-react";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +31,12 @@ export default function EmployeeProfile() {
   const [advancePayments, setAdvancePayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Login account info
+  const [accountProfile, setAccountProfile] = useState<any>(null);
+  const [accountRoles, setAccountRoles] = useState<AppRole[]>([]);
+  const [accountBranchIds, setAccountBranchIds] = useState<string[]>([]);
+  const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
+
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", base_salary: "", hire_date: "", notes: "" });
   const [delOpen, setDelOpen] = useState(false);
@@ -38,25 +46,48 @@ export default function EmployeeProfile() {
   const [advForm, setAdvForm] = useState({ amount: "", monthly_deduct: "", reason: "" });
   const [salForm, setSalForm] = useState({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
 
+  // Account dialog
+  const [acctOpen, setAcctOpen] = useState(false);
+  const [acctForm, setAcctForm] = useState({ email: "", password: "", role: "cashier" as AppRole, branchIds: [] as string[] });
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
+
   const load = async () => {
     if (!id) return;
     setLoading(true);
     const { data: e } = await supabase.from("employees").select("*").eq("id", id).maybeSingle();
     if (!e) { setLoading(false); return; }
     setEmp(e);
-    const [{ data: b }, { data: a }, { data: s }] = await Promise.all([
+    const [{ data: b }, { data: a }, { data: s }, { data: br }] = await Promise.all([
       supabase.from("branches").select("id, name, code").eq("id", e.branch_id).maybeSingle(),
       supabase.from("advances").select("*").eq("employee_id", id).order("created_at", { ascending: false }),
       supabase.from("salaries").select("*").eq("employee_id", id).order("paid_at", { ascending: false }),
+      supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
     ]);
     setBranch(b);
     setAdvances(a ?? []);
     setSalaries(s ?? []);
+    setAllBranches(br ?? []);
     const advIds = (a ?? []).map((x) => x.id);
     if (advIds.length) {
       const { data: ap } = await supabase.from("advance_payments").select("*").in("advance_id", advIds).order("paid_at", { ascending: false });
       setAdvancePayments(ap ?? []);
     } else setAdvancePayments([]);
+
+    // Load login account if linked
+    if ((e as any).user_id) {
+      const [{ data: prof }, { data: rs }, { data: bus }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", (e as any).user_id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", (e as any).user_id),
+        supabase.from("branch_users").select("branch_id").eq("user_id", (e as any).user_id),
+      ]);
+      setAccountProfile(prof);
+      setAccountRoles((rs ?? []).map((r: any) => r.role));
+      setAccountBranchIds((bus ?? []).map((x: any) => x.branch_id));
+    } else {
+      setAccountProfile(null);
+      setAccountRoles([]);
+      setAccountBranchIds([]);
+    }
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
@@ -159,6 +190,54 @@ export default function EmployeeProfile() {
     load();
   };
 
+  const openCreateAccount = () => {
+    setAcctForm({ email: "", password: "", role: "cashier", branchIds: emp.branch_id ? [emp.branch_id] : [] });
+    setAcctOpen(true);
+  };
+
+  const submitCreateAccount = async () => {
+    if (!acctForm.email || !acctForm.password) return toast.error("أدخل البريد وكلمة المرور");
+    if (acctForm.password.length < 8) return toast.error("كلمة المرور 8 أحرف على الأقل");
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: acctForm.email,
+        password: acctForm.password,
+        options: {
+          data: { name: emp.name, username: acctForm.email.split("@")[0] },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      const uid = data.user?.id;
+      if (!uid) throw new Error("فشل إنشاء الحساب");
+      await new Promise((r) => setTimeout(r, 400));
+      await supabase.from("user_roles").insert({ user_id: uid, role: acctForm.role });
+      if (acctForm.role !== "admin" && acctForm.branchIds.length) {
+        await supabase.from("branch_users").insert(acctForm.branchIds.map((bid) => ({ user_id: uid, branch_id: bid })));
+      }
+      await supabase.from("employees").update({ user_id: uid }).eq("id", emp.id);
+      toast.success("تم إنشاء حساب الدخول وربطه بالموظف");
+      setAcctOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const unlinkAccount = async () => {
+    if (!emp.user_id) return;
+    try {
+      await supabase.from("branch_users").delete().eq("user_id", emp.user_id);
+      await supabase.from("user_roles").delete().eq("user_id", emp.user_id);
+      await supabase.from("profiles").delete().eq("id", emp.user_id);
+      await supabase.from("employees").update({ user_id: null }).eq("id", emp.id);
+      toast.success("تم فك ربط الحساب");
+      setUnlinkOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
   if (loading) return <AdminLayout><div className="text-center py-12 text-muted-foreground">جاري التحميل...</div></AdminLayout>;
   if (!emp) return <AdminLayout><div className="text-center py-12 text-muted-foreground">الموظف غير موجود</div></AdminLayout>;
 
@@ -236,6 +315,7 @@ export default function EmployeeProfile() {
           <TabsTrigger value="salaries"><Receipt className="w-4 h-4 ml-1" /> الرواتب</TabsTrigger>
           <TabsTrigger value="advances"><Wallet className="w-4 h-4 ml-1" /> السلف</TabsTrigger>
           <TabsTrigger value="payments">سداد السلف</TabsTrigger>
+          <TabsTrigger value="account"><KeyRound className="w-4 h-4 ml-1" /> حساب الدخول</TabsTrigger>
         </TabsList>
 
         <TabsContent value="salaries" className="mt-4">
@@ -284,6 +364,53 @@ export default function EmployeeProfile() {
               { key: "paid_at", header: "تاريخ السداد", render: (r: any) => formatDate(r.paid_at) },
             ]}
           />
+        </TabsContent>
+
+        <TabsContent value="account" className="mt-4">
+          {emp.user_id && accountProfile ? (
+            <div className="card-elevated p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">حساب الدخول مرتبط</div>
+                  <div className="font-bold text-lg">{accountProfile.username}</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    حالة الحساب:{" "}
+                    <span className={accountProfile.is_active ? "text-success" : "text-muted-foreground"}>
+                      {accountProfile.is_active ? "نشط" : "موقوف"}
+                    </span>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:text-destructive" onClick={() => setUnlinkOpen(true)}>
+                  <Unlink className="w-4 h-4 ml-1" /> فك الربط
+                </Button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">الدور</div>
+                  <div className="font-semibold">{accountRoles.map((r) => ROLE_LABELS[r]).join("، ") || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">الفروع المسموح بها</div>
+                  <div className="font-semibold">
+                    {accountBranchIds.length
+                      ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
+                      : "كل الفروع (مدير)"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="card-elevated p-8 text-center">
+              <KeyRound className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+              <div className="font-semibold mb-1">لا يوجد حساب دخول مرتبط بهذا الموظف</div>
+              <div className="text-sm text-muted-foreground mb-4">
+                أنشئ حساب دخول لتمكين الموظف من تسجيل الدخول واستخدام النظام بصلاحيات محددة.
+              </div>
+              <Button onClick={openCreateAccount} className="btn-gradient">
+                <UserPlus className="w-4 h-4 ml-1" /> إنشاء حساب دخول
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -358,6 +485,71 @@ export default function EmployeeProfile() {
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>حذف</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create login account dialog */}
+      <Dialog open={acctOpen} onOpenChange={setAcctOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>إنشاء حساب دخول للموظف</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
+              سيتم إنشاء حساب باسم <b>{emp.name}</b> وربطه بهذا الموظف.
+            </div>
+            <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={acctForm.email} onChange={(e) => setAcctForm({ ...acctForm, email: e.target.value })} /></div>
+            <div><Label>كلمة المرور * (8 أحرف على الأقل)</Label><Input type="password" minLength={8} value={acctForm.password} onChange={(e) => setAcctForm({ ...acctForm, password: e.target.value })} className="mt-1.5" /></div>
+            <div>
+              <Label>الدور</Label>
+              <Select value={acctForm.role} onValueChange={(v) => setAcctForm({ ...acctForm, role: v as AppRole })}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ROLE_LABELS) as AppRole[])
+                    .filter((r) => r !== "super_admin")
+                    .map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {acctForm.role !== "admin" && (
+              <div>
+                <Label>الفروع المسموح بها</Label>
+                <div className="mt-1.5 grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-border rounded-lg p-2">
+                  {allBranches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 p-2 rounded hover:bg-surface-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={acctForm.branchIds.includes(b.id)}
+                        onChange={(e) => setAcctForm({
+                          ...acctForm,
+                          branchIds: e.target.checked ? [...acctForm.branchIds, b.id] : acctForm.branchIds.filter((x) => x !== b.id),
+                        })}
+                      />
+                      <span className="text-sm">{b.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcctOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={submitCreateAccount}>إنشاء وربط</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink account confirm */}
+      <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>فك ربط حساب الدخول</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف حساب الدخول وأدواره وفروعه المرتبطة بالموظف <b>{emp.name}</b>. بيانات الموظف (الرواتب/السلف) لن تتأثر.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={unlinkAccount}>تأكيد فك الربط</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

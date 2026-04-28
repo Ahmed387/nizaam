@@ -401,6 +401,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           tenant_id: string | null
+          user_id: string | null
         }
         Insert: {
           base_salary?: number
@@ -414,6 +415,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           tenant_id?: string | null
+          user_id?: string | null
         }
         Update: {
           base_salary?: number
@@ -427,6 +429,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           tenant_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {

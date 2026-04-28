@@ -16,7 +16,7 @@ import Landing from "./pages/Landing";
 
 import AdminDashboard from "./pages/admin/Dashboard";
 import Branches from "./pages/admin/Branches";
-import Users from "./pages/admin/Users";
+
 import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
 import AllInventory from "./pages/admin/AllInventory";
@@ -81,7 +81,7 @@ const App = () => (
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/branches" element={<ProtectedRoute adminOnly><Branches /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            
             <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
             <Route path="/admin/inventory" element={<ProtectedRoute adminOnly><AllInventory /></ProtectedRoute>} />

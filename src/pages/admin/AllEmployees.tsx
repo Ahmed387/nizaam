@@ -182,6 +182,11 @@ export default function AllEmployees() {
               : <span className="text-muted-foreground">—</span>
           )},
           { key: "hire_date", header: "التعيين", render: (r: any) => formatDate(r.hire_date) },
+          { key: "user_id", header: "حساب دخول", render: (r: any) => (
+            r.user_id
+              ? <span className="px-2 py-0.5 rounded text-xs bg-success/15 text-success">مرتبط</span>
+              : <span className="text-xs text-muted-foreground">—</span>
+          )},
           { key: "is_active", header: "الحالة", render: (r: any) => (
             <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
               {r.is_active ? "نشط" : "موقوف"}
