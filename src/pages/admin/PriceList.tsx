@@ -38,7 +38,20 @@ export default function PriceList() {
   const [search, setSearch] = useState("");
   const [confirmApply, setConfirmApply] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const clearAll = async () => {
+    if (!tenantId) return;
+    setClearing(true);
+    const { error } = await supabase.from("price_list").delete().eq("tenant_id", tenantId);
+    setClearing(false);
+    setConfirmClear(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم مسح كل قائمة الأسعار");
+    load();
+  };
 
   const load = async () => {
     setLoading(true);
@@ -208,6 +221,9 @@ export default function PriceList() {
             <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 ml-1" /> رفع Excel</Button>
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
+            </Button>
+            <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setConfirmClear(true)} disabled={!rows.length || clearing}>
+              <Eraser className="w-4 h-4 ml-1" /> مسح القائمة
             </Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة منتج</Button>
           </div>
