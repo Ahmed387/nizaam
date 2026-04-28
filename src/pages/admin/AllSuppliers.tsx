@@ -375,6 +375,7 @@ export default function AllSuppliers() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
+            <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> شحنة جديدة</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> مورد جديد</Button>
           </div>
         }
