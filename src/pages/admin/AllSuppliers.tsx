@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck } from "lucide-react";
+import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck, Loader2 } from "lucide-react";
 
 interface Supplier {
   id: string;
@@ -63,6 +63,21 @@ export default function AllSuppliers() {
   const [shipmentsList, setShipmentsList] = useState<any[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(false);
   const [shipBranchFilter, setShipBranchFilter] = useState("all");
+
+  // New shipment dialog
+  const [newShipOpen, setNewShipOpen] = useState(false);
+  const [shipForm, setShipForm] = useState({
+    supplier_id: "",
+    branch_id: "",
+    arrival_date: new Date().toISOString().split("T")[0],
+    received_by: "",
+    shipping_cost: 0,
+    admin_cost: 0,
+    notes: "",
+  });
+  const [shipLines, setShipLines] = useState<{ product_id: string | null; product_name: string; quantity: number; cost_price: number }[]>([]);
+  const [branchProducts, setBranchProducts] = useState<any[]>([]);
+  const [shipBusy, setShipBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -242,6 +257,116 @@ export default function AllSuppliers() {
     toast.success(`تم تصدير ${rows.length} سطر`);
   };
 
+  const openNewShipment = (preSupplierId?: string) => {
+    setShipForm({
+      supplier_id: preSupplierId ?? "",
+      branch_id: "",
+      arrival_date: new Date().toISOString().split("T")[0],
+      received_by: "",
+      shipping_cost: 0,
+      admin_cost: 0,
+      notes: "",
+    });
+    setShipLines([]);
+    setBranchProducts([]);
+    setNewShipOpen(true);
+  };
+
+  useEffect(() => {
+    if (!shipForm.branch_id) { setBranchProducts([]); return; }
+    supabase.from("products").select("*").eq("branch_id", shipForm.branch_id).order("name")
+      .then(({ data }) => setBranchProducts(data ?? []));
+  }, [shipForm.branch_id]);
+
+  const addShipLine = () => setShipLines([...shipLines, { product_id: null, product_name: "", quantity: 1, cost_price: 0 }]);
+  const updShipLine = (i: number, patch: Partial<typeof shipLines[number]>) => {
+    const copy = [...shipLines]; copy[i] = { ...copy[i], ...patch }; setShipLines(copy);
+  };
+  const rmShipLine = (i: number) => setShipLines(shipLines.filter((_, idx) => idx !== i));
+  const onPickProduct = (i: number, pid: string) => {
+    if (pid === "__new__") { updShipLine(i, { product_id: null, product_name: "" }); return; }
+    const p = branchProducts.find((x) => x.id === pid);
+    if (p) updShipLine(i, { product_id: p.id, product_name: p.name, cost_price: Number(p.cost_price) });
+  };
+  const shipItemsTotal = shipLines.reduce((s, l) => s + (l.quantity * l.cost_price), 0);
+  const shipGrandTotal = shipItemsTotal + Number(shipForm.shipping_cost || 0) + Number(shipForm.admin_cost || 0);
+
+  const submitNewShipment = async () => {
+    if (!shipForm.supplier_id) return toast.error("اختر المورد");
+    if (!shipForm.branch_id) return toast.error("اختر الفرع");
+    if (!shipForm.received_by.trim()) return toast.error("أدخل اسم المستلم");
+    if (!shipLines.length) return toast.error("أضف صنفاً واحداً على الأقل");
+    for (const l of shipLines) {
+      if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
+        return toast.error("تأكد من بيانات كل الأصناف");
+    }
+    setShipBusy(true);
+    try {
+      const { data: ship, error: e1 } = await supabase.from("shipments").insert({
+        tenant_id: tenantId,
+        branch_id: shipForm.branch_id,
+        supplier_id: shipForm.supplier_id,
+        arrival_date: shipForm.arrival_date,
+        received_by: shipForm.received_by.trim(),
+        shipping_cost: Number(shipForm.shipping_cost || 0),
+        admin_cost: Number(shipForm.admin_cost || 0),
+        total_cost: shipGrandTotal,
+        notes: shipForm.notes.trim() || null,
+      }).select().single();
+      if (e1) throw e1;
+
+      for (const l of shipLines) {
+        let pid = l.product_id;
+        if (!pid) {
+          const sku = `P-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+          const { data: np, error: ep } = await supabase.from("products").insert({
+            tenant_id: tenantId,
+            branch_id: shipForm.branch_id,
+            name: l.product_name.trim(),
+            sku,
+            cost_price: l.cost_price,
+            selling_price: l.cost_price * 1.3,
+            market_price: l.cost_price * 1.3,
+            quantity: 0,
+          }).select().single();
+          if (ep) throw ep;
+          pid = np.id;
+        }
+        await supabase.from("shipment_items").insert({
+          tenant_id: tenantId,
+          shipment_id: ship.id,
+          product_id: pid,
+          product_name: l.product_name,
+          quantity: l.quantity,
+          cost_price: l.cost_price,
+          total: l.quantity * l.cost_price,
+        });
+        const cur = branchProducts.find((p) => p.id === pid);
+        const newQty = (cur?.quantity ?? 0) + l.quantity;
+        await supabase.from("products").update({ quantity: newQty, cost_price: l.cost_price }).eq("id", pid);
+      }
+
+      await supabase.from("treasury").insert({
+        tenant_id: tenantId,
+        branch_id: shipForm.branch_id,
+        type: "expense",
+        category: "shipment",
+        amount: shipGrandTotal,
+        description: `شحنة #${ship.id.slice(0, 8)}`,
+        reference_id: ship.id,
+        created_by: user!.id,
+      });
+
+      toast.success("تم تسجيل الشحنة وتحديث المخزون");
+      setNewShipOpen(false);
+      load();
+    } catch (err: any) {
+      toast.error(err.message ?? "خطأ في حفظ الشحنة");
+    } finally {
+      setShipBusy(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <PageHeader
@@ -250,6 +375,7 @@ export default function AllSuppliers() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
+            <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> شحنة جديدة</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> مورد جديد</Button>
           </div>
         }
@@ -312,6 +438,7 @@ export default function AllSuppliers() {
             <div className="flex gap-1">
               <Button size="sm" variant="outline" title="ملخص الفروع" onClick={() => setDetails(r)}><Eye className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="شحنات المورد" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
             </div>
@@ -467,6 +594,127 @@ export default function AllSuppliers() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShipmentsView(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New shipment dialog */}
+      <Dialog open={newShipOpen} onOpenChange={setNewShipOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تسجيل شحنة جديدة</DialogTitle>
+            <DialogDescription>سيتم إضافة الكميات تلقائياً لمخزون الفرع المحدد</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <Label>المورد *</Label>
+              <Select value={shipForm.supplier_id} onValueChange={(v) => setShipForm({ ...shipForm, supplier_id: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>الفرع المستلم *</Label>
+              <Select value={shipForm.branch_id} onValueChange={(v) => setShipForm({ ...shipForm, branch_id: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>تاريخ الوصول</Label>
+              <Input type="date" className="mt-1.5" value={shipForm.arrival_date} onChange={(e) => setShipForm({ ...shipForm, arrival_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>اسم المستلم *</Label>
+              <Input className="mt-1.5" value={shipForm.received_by} onChange={(e) => setShipForm({ ...shipForm, received_by: e.target.value })} />
+            </div>
+            <div>
+              <Label>تكلفة الشحن</Label>
+              <Input type="number" min={0} className="mt-1.5" value={shipForm.shipping_cost} onChange={(e) => setShipForm({ ...shipForm, shipping_cost: Number(e.target.value) })} />
+            </div>
+            <div>
+              <Label>مصاريف إدارية</Label>
+              <Input type="number" min={0} className="mt-1.5" value={shipForm.admin_cost} onChange={(e) => setShipForm({ ...shipForm, admin_cost: Number(e.target.value) })} />
+            </div>
+            <div className="md:col-span-3">
+              <Label>ملاحظات</Label>
+              <Textarea className="mt-1.5" rows={2} value={shipForm.notes} onChange={(e) => setShipForm({ ...shipForm, notes: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="rounded-md border mt-3 overflow-hidden">
+            <div className="flex items-center justify-between p-3 bg-muted/40 border-b">
+              <h4 className="font-bold text-sm">الأصناف</h4>
+              <Button size="sm" onClick={addShipLine} disabled={!shipForm.branch_id}>
+                <Plus className="w-4 h-4 ml-1" /> إضافة صنف
+              </Button>
+            </div>
+            {!shipForm.branch_id ? (
+              <div className="p-6 text-center text-sm text-muted-foreground">اختر الفرع أولاً</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-background border-b text-xs text-muted-foreground">
+                      <th className="text-right p-2">المنتج</th>
+                      <th className="text-right p-2 w-24">الكمية</th>
+                      <th className="text-right p-2 w-32">سعر التكلفة</th>
+                      <th className="text-right p-2 w-32">الإجمالي</th>
+                      <th className="w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shipLines.length === 0 && (
+                      <tr><td colSpan={5} className="text-center text-muted-foreground py-6">اضغط "إضافة صنف"</td></tr>
+                    )}
+                    {shipLines.map((l, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="p-2 min-w-[260px]">
+                          <select
+                            value={l.product_id ?? (l.product_name ? "__new__" : "")}
+                            onChange={(e) => onPickProduct(i, e.target.value)}
+                            className="w-full bg-background border border-border rounded-md px-2 py-1.5 text-sm mb-1"
+                          >
+                            <option value="">— اختر منتج —</option>
+                            {branchProducts.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name} (متوفر: {p.quantity})</option>
+                            ))}
+                            <option value="__new__">+ منتج جديد</option>
+                          </select>
+                          {l.product_id === null && (
+                            <Input placeholder="اسم المنتج الجديد" value={l.product_name} onChange={(e) => updShipLine(i, { product_name: e.target.value })} />
+                          )}
+                        </td>
+                        <td className="p-2"><Input type="number" min={1} value={l.quantity} onChange={(e) => updShipLine(i, { quantity: Number(e.target.value) })} /></td>
+                        <td className="p-2"><Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updShipLine(i, { cost_price: Number(e.target.value) })} /></td>
+                        <td className="p-2 font-bold">{formatEGP(l.quantity * l.cost_price)}</td>
+                        <td className="p-2">
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => rmShipLine(i)}><Trash2 className="w-4 h-4" /></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="p-3 border-t bg-muted/20 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+              <div><span className="text-muted-foreground">إجمالي البضاعة: </span><b>{formatEGP(shipItemsTotal)}</b></div>
+              <div><span className="text-muted-foreground">الشحن: </span><b>{formatEGP(shipForm.shipping_cost)}</b></div>
+              <div><span className="text-muted-foreground">إدارية: </span><b>{formatEGP(shipForm.admin_cost)}</b></div>
+              <div><span className="text-muted-foreground">الإجمالي: </span><b className="text-primary">{formatEGP(shipGrandTotal)}</b></div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewShipOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient gap-2" onClick={submitNewShipment} disabled={shipBusy}>
+              {shipBusy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ الشحنة
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
