@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus, Eraser } from "lucide-react";
 
 type PriceRow = {
   id: string;
