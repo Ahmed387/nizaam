@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -18,11 +18,11 @@ import { Plus, Wallet, Receipt, ArrowRight } from "lucide-react";
 
 export default function Employees() {
   const { id: branchId } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10) });
 
   const load = async () => {
@@ -46,8 +46,6 @@ export default function Employees() {
     load();
   };
 
-  if (selected) return <EmployeeDetail emp={selected} branchId={branchId!} onBack={() => { setSelected(null); load(); }} />;
-
   return (
     <BranchLayout>
       <PageHeader
@@ -59,7 +57,7 @@ export default function Employees() {
       <DataTable
         loading={loading}
         rows={rows}
-        onRowClick={setSelected}
+        onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
         empty="لا يوجد موظفين"
         columns={[
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
