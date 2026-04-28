@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Upload, Loader2, Image as ImageIcon, Pencil, Plus } from "lucide-react";
+import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3 } from "lucide-react";
 
 interface Row {
   id: string;
@@ -33,6 +37,7 @@ interface Row {
 
 export default function AllInventory() {
   const { user, profile, tenantId } = useAuth();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
@@ -44,6 +49,10 @@ export default function AllInventory() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<Row | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -61,6 +70,7 @@ export default function AllInventory() {
     );
     setBranches(brs ?? []);
     setCats(cs ?? []);
+    setSelected(new Set());
     setLoading(false);
   };
 
@@ -116,12 +126,108 @@ export default function AllInventory() {
     load();
   };
 
+  /** حذف منتج واحد من فرع معيّن */
+  const deleteOne = async (r: Row) => {
+    const { error } = await supabase.from("products").delete().eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, tenantId, branchId: r.branch_id, action: "DELETE", entity: "Product", entityId: r.id, details: { name: r.name } });
+    toast.success(`تم حذف ${r.name} من ${r.branch_name}`);
+    setDeleteConfirm(null);
+    load();
+  };
+
+  /** حذف جماعي للمنتجات المختارة */
+  const deleteBulk = async () => {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    const { error } = await supabase.from("products").delete().in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`تم حذف ${ids.length} منتج`);
+    setBulkDeleteOpen(false);
+    load();
+  };
+
+  /** تصدير المنتجات المعروضة (المفلترة) إلى Excel */
+  const exportExcel = () => {
+    const data = filtered.map((r) => ({
+      "الكود (SKU)": r.sku,
+      "اسم المنتج": r.name,
+      "الفرع": r.branch_name,
+      "التصنيف": r.category_name,
+      "الكمية": r.quantity,
+      "الحد التنبيهي": r.low_stock_alert,
+      "سعر الشراء": Number(r.cost_price) || 0,
+      "سعر البيع": Number(r.selling_price) || 0,
+      "سعر السوق": Number(r.market_price) || 0,
+      "قيمة المخزون": (Number(r.quantity) || 0) * (Number(r.cost_price) || 0),
+      "الحالة": r.quantity === 0 ? "نفد" : r.quantity <= r.low_stock_alert ? "منخفض" : "متوفر",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المخزون");
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `inventory-${date}.xlsx`);
+    toast.success(`تم تصدير ${data.length} منتج`);
+  };
+
+  /** الذهاب لطباعة باركود لفرع المنتج المختار (لو واحد بس) */
+  const goPrintBarcodes = () => {
+    if (selected.size === 0) {
+      toast.error("اختر منتج واحد على الأقل");
+      return;
+    }
+    const selectedRows = rows.filter((r) => selected.has(r.id));
+    const branchIds = new Set(selectedRows.map((r) => r.branch_id));
+    if (branchIds.size > 1) {
+      toast.error("اختر منتجات من فرع واحد فقط لطباعة الباركود");
+      return;
+    }
+    const branchId = Array.from(branchIds)[0];
+    navigate(`/branch/${branchId}/inventory/barcodes`);
+  };
+
+  /** الذهاب لصفحة النقل بين الفروع */
+  const goTransfers = () => {
+    if (selected.size === 0) {
+      // لو مفيش حاجة مختارة، روح لأي فرع نشط
+      if (branches[0]) navigate(`/branch/${branches[0].id}/transfers`);
+      else toast.error("لا توجد فروع");
+      return;
+    }
+    const selectedRows = rows.filter((r) => selected.has(r.id));
+    const branchId = selectedRows[0].branch_id;
+    navigate(`/branch/${branchId}/transfers`);
+  };
+
+  const toggleRow = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+  const toggleAllVisible = () => {
+    if (filtered.every((r) => selected.has(r.id))) {
+      const next = new Set(selected);
+      filtered.forEach((r) => next.delete(r.id));
+      setSelected(next);
+    } else {
+      const next = new Set(selected);
+      filtered.forEach((r) => next.add(r.id));
+      setSelected(next);
+    }
+  };
+
   return (
     <AdminLayout>
       <PageHeader
         title="إدارة المنتجات لكل الفروع"
         subtitle={`${stats.total} منتج · ${stats.out} نافد · ${stats.low} منخفض · قيمة المخزون: ${formatEGP(stats.value)}`}
-        actions={<Button className="btn-gradient" onClick={() => setAdding(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>}
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
+            <Button variant="outline" onClick={goTransfers}><ArrowLeftRight className="w-4 h-4 ml-1" /> نقل بين الفروع</Button>
+            <Button className="btn-gradient" onClick={() => setAdding(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>
+          </div>
+        }
       />
 
       <div className="flex gap-3 mb-4 flex-wrap">
@@ -151,8 +257,41 @@ export default function AllInventory() {
         </Select>
       </div>
 
+      {/* شريط العمليات الجماعية */}
+      {selected.size > 0 && (
+        <div className="mb-3 p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between flex-wrap gap-2">
+          <span className="text-sm font-semibold">
+            تم تحديد <span className="text-primary">{selected.size}</span> منتج
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)}>
+              <Edit3 className="w-3.5 h-3.5 ml-1" /> تعديل جماعي
+            </Button>
+            <Button size="sm" variant="outline" onClick={goPrintBarcodes}>
+              <Barcode className="w-3.5 h-3.5 ml-1" /> طباعة باركود
+            </Button>
+            <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 className="w-3.5 h-3.5 ml-1" /> حذف الكل
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>إلغاء التحديد</Button>
+          </div>
+        </div>
+      )}
+
       <DataTable loading={loading} rows={filtered}
         columns={[
+          {
+            key: "select",
+            header: (
+              <Checkbox
+                checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
+                onCheckedChange={toggleAllVisible}
+              />
+            ) as any,
+            render: (r: Row) => (
+              <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleRow(r.id)} onClick={(e) => e.stopPropagation()} />
+            ),
+          },
           { key: "image", header: "صورة", render: (r: Row) => r.image
               ? <img src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
               : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div> },
@@ -169,10 +308,15 @@ export default function AllInventory() {
             if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning">🟡 منخفض</span>;
             return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
           }},
-          { key: "actions", header: "تعديل", render: (r: Row) => (
-            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditing({ ...r }); }}>
-              <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
-            </Button>
+          { key: "actions", header: "إجراءات", render: (r: Row) => (
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditing({ ...r }); }}>
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r); }}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           )},
         ]}
       />
@@ -226,6 +370,48 @@ export default function AllInventory() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete one confirm */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف المنتج</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف <b>{deleteConfirm?.name}</b> من فرع <b>{deleteConfirm?.branch_name}</b> نهائياً.
+              <br />هل أنت متأكد؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => deleteConfirm && deleteOne(deleteConfirm)}>حذف</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirm */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف جماعي</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف <b>{selected.size}</b> منتج نهائياً من فروعهم. لا يمكن التراجع.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={deleteBulk}>حذف الكل</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk edit dialog */}
+      <BulkEditDialog
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        selectedIds={Array.from(selected)}
+        cats={cats}
+        onSaved={load}
+      />
+
       {/* Add product dialog */}
       <AddProductDialog
         open={adding}
@@ -238,6 +424,141 @@ export default function AllInventory() {
   );
 }
 
+/* ====================== Bulk Edit Dialog ====================== */
+function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
+  open: boolean; onClose: () => void; selectedIds: string[];
+  cats: { id: string; name: string }[]; onSaved: () => void;
+}) {
+  const [fields, setFields] = useState({
+    use_category: false, category_id: "none",
+    use_cost: false, cost_price: "",
+    use_selling: false, selling_price: "",
+    use_market: false, market_price: "",
+    use_alert: false, low_stock_alert: "",
+    use_qty_op: false, qty_op: "set" as "set" | "add" | "sub", qty_value: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) setFields({
+      use_category: false, category_id: "none",
+      use_cost: false, cost_price: "",
+      use_selling: false, selling_price: "",
+      use_market: false, market_price: "",
+      use_alert: false, low_stock_alert: "",
+      use_qty_op: false, qty_op: "set", qty_value: "",
+    });
+  }, [open]);
+
+  const apply = async () => {
+    const update: any = {};
+    if (fields.use_category) update.category_id = fields.category_id === "none" ? null : fields.category_id;
+    if (fields.use_cost) update.cost_price = Number(fields.cost_price) || 0;
+    if (fields.use_selling) update.selling_price = Number(fields.selling_price) || 0;
+    if (fields.use_market) update.market_price = Number(fields.market_price) || 0;
+    if (fields.use_alert) update.low_stock_alert = Number(fields.low_stock_alert) || 5;
+
+    setSaving(true);
+
+    // التحديثات العادية تنطبق دفعة واحدة
+    if (Object.keys(update).length > 0) {
+      const { error } = await supabase.from("products").update(update).in("id", selectedIds);
+      if (error) { setSaving(false); return toast.error(error.message); }
+    }
+
+    // عمليات الكمية: محتاجة قراءة القيمة الحالية لو add/sub
+    if (fields.use_qty_op) {
+      const value = Number(fields.qty_value) || 0;
+      if (fields.qty_op === "set") {
+        const { error } = await supabase.from("products").update({ quantity: value }).in("id", selectedIds);
+        if (error) { setSaving(false); return toast.error(error.message); }
+      } else {
+        const { data: current } = await supabase.from("products").select("id, quantity").in("id", selectedIds);
+        for (const p of current ?? []) {
+          const newQty = fields.qty_op === "add" ? (p.quantity + value) : Math.max(0, p.quantity - value);
+          await supabase.from("products").update({ quantity: newQty }).eq("id", p.id);
+        }
+      }
+    }
+
+    setSaving(false);
+    toast.success(`تم تعديل ${selectedIds.length} منتج`);
+    onClose();
+    onSaved();
+  };
+
+  const anySelected = fields.use_category || fields.use_cost || fields.use_selling || fields.use_market || fields.use_alert || fields.use_qty_op;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>تعديل جماعي ({selectedIds.length} منتج)</DialogTitle>
+          <DialogDescription>اختر الحقول التي تريد تعديلها فقط. الباقي لن يتغير.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-3 rounded-md border">
+            <Checkbox checked={fields.use_category} onCheckedChange={(v) => setFields({ ...fields, use_category: !!v })} className="mt-2" />
+            <div className="flex-1">
+              <Label className="text-sm">التصنيف</Label>
+              <Select disabled={!fields.use_category} value={fields.category_id} onValueChange={(v) => setFields({ ...fields, category_id: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— بدون —</SelectItem>
+                  {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {[
+            { key: "cost", label: "سعر الشراء", useKey: "use_cost", valueKey: "cost_price" },
+            { key: "selling", label: "سعر البيع", useKey: "use_selling", valueKey: "selling_price" },
+            { key: "market", label: "سعر السوق", useKey: "use_market", valueKey: "market_price" },
+            { key: "alert", label: "الحد التنبيهي", useKey: "use_alert", valueKey: "low_stock_alert" },
+          ].map((row) => (
+            <div key={row.key} className="flex items-start gap-3 p-3 rounded-md border">
+              <Checkbox checked={(fields as any)[row.useKey]} onCheckedChange={(v) => setFields({ ...fields, [row.useKey]: !!v })} className="mt-2" />
+              <div className="flex-1">
+                <Label className="text-sm">{row.label}</Label>
+                <Input type="number" disabled={!(fields as any)[row.useKey]} value={(fields as any)[row.valueKey]}
+                  onChange={(e) => setFields({ ...fields, [row.valueKey]: e.target.value })} className="mt-1.5" />
+              </div>
+            </div>
+          ))}
+
+          <div className="flex items-start gap-3 p-3 rounded-md border">
+            <Checkbox checked={fields.use_qty_op} onCheckedChange={(v) => setFields({ ...fields, use_qty_op: !!v })} className="mt-2" />
+            <div className="flex-1">
+              <Label className="text-sm">الكمية</Label>
+              <div className="flex gap-2 mt-1.5">
+                <Select disabled={!fields.use_qty_op} value={fields.qty_op} onValueChange={(v: any) => setFields({ ...fields, qty_op: v })}>
+                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="set">تعيين إلى</SelectItem>
+                    <SelectItem value="add">إضافة +</SelectItem>
+                    <SelectItem value="sub">خصم −</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input type="number" disabled={!fields.use_qty_op} value={fields.qty_value}
+                  onChange={(e) => setFields({ ...fields, qty_value: e.target.value })} placeholder="القيمة" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button className="btn-gradient" onClick={apply} disabled={saving || !anySelected}>
+            {saving && <Loader2 className="w-4 h-4 animate-spin ml-1" />}
+            تطبيق
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ====================== Add Product Dialog (نفس القديم) ====================== */
 function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
   open: boolean; onClose: () => void;
   branches: { id: string; name: string }[];
@@ -274,39 +595,24 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
     if (!form.name) return toast.error("اسم المنتج مطلوب");
     if (!form.branch_ids.length) return toast.error("اختر فرعاً واحداً على الأقل");
     setSaving(true);
-    // ولّد SKU واحد للمنتج، يتأكد إنه فريد داخل الشركة، ويُستخدم في كل الفروع
     let sharedSku = "";
     for (let i = 0; i < 10; i++) {
       const { data: skuRes } = await supabase.rpc("next_sku");
       const candidate = skuRes as string;
       if (!candidate) continue;
       const { data: clash } = await supabase
-        .from("products")
-        .select("id")
-        .eq("tenant_id", tenantId!)
-        .eq("sku", candidate)
-        .limit(1)
-        .maybeSingle();
+        .from("products").select("id").eq("tenant_id", tenantId!).eq("sku", candidate).limit(1).maybeSingle();
       if (!clash) { sharedSku = candidate; break; }
     }
-    if (!sharedSku) {
-      setSaving(false);
-      return toast.error("تعذّر توليد كود منتج فريد، حاول مرة أخرى");
-    }
+    if (!sharedSku) { setSaving(false); return toast.error("تعذّر توليد كود منتج فريد، حاول مرة أخرى"); }
 
     let ok = 0;
     for (const branchId of form.branch_ids) {
       const { data, error } = await supabase.from("products").insert({
-        name: form.name,
-        sku: sharedSku,
-        category_id: form.category_id || null,
-        cost_price: Number(form.cost_price) || 0,
-        selling_price: Number(form.selling_price) || 0,
-        market_price: Number(form.market_price) || 0,
-        low_stock_alert: parseInt(form.low_stock_alert) || 5,
-        quantity: parseInt(form.quantity) || 0,
-        image: form.image || null,
-        branch_id: branchId,
+        name: form.name, sku: sharedSku, category_id: form.category_id || null,
+        cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
+        market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || 5,
+        quantity: parseInt(form.quantity) || 0, image: form.image || null, branch_id: branchId,
       }).select().single();
       if (!error && data) {
         ok++;
