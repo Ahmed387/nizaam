@@ -94,8 +94,17 @@ export default function PriceList() {
 
   const submit = async () => {
     if (!form.product_name) return toast.error("أدخل اسم المنتج");
+    // عند الإضافة: ولّد SKU فريد تلقائياً. عند التعديل: حافظ على القيمة الحالية
+    let sku = form.sku || null;
+    if (!form.id) {
+      try {
+        sku = await generateUniqueSku();
+      } catch (e: any) {
+        return toast.error(e.message || "تعذّر توليد SKU");
+      }
+    }
     const payload = {
-      sku: form.sku || null,
+      sku,
       product_name: form.product_name,
       category_name: form.category_name || null,
       description: form.description || null,
@@ -111,7 +120,7 @@ export default function PriceList() {
     } else {
       const { error } = await supabase.from("price_list").insert(payload);
       if (error) return toast.error(error.message);
-      toast.success("تمت الإضافة");
+      toast.success(`تمت الإضافة (SKU: ${sku})`);
     }
     setOpen(false); setForm(emptyForm); load();
   };
