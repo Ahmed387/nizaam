@@ -247,14 +247,6 @@ export default function PriceList() {
   };
 
 
-  const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([
-      { "SKU": "SKU-001", "اسم المنتج": "موبايل سامسونج A15", "التصنيف": "موبايلات", "الوصف": "128GB / 6GB RAM", "السعر القديم": 5500, "السعر الجديد": 6000, "سعر السوق": 6200 },
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Prices");
-    XLSX.writeFile(wb, "price_list_template.xlsx");
-  };
 
   /**
    * تطبيق قائمة الأسعار على كل الفروع:
