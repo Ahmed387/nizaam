@@ -598,6 +598,127 @@ export default function AllSuppliers() {
         </DialogContent>
       </Dialog>
 
+      {/* New shipment dialog */}
+      <Dialog open={newShipOpen} onOpenChange={setNewShipOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تسجيل شحنة جديدة</DialogTitle>
+            <DialogDescription>سيتم إضافة الكميات تلقائياً لمخزون الفرع المحدد</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <Label>المورد *</Label>
+              <Select value={shipForm.supplier_id} onValueChange={(v) => setShipForm({ ...shipForm, supplier_id: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>الفرع المستلم *</Label>
+              <Select value={shipForm.branch_id} onValueChange={(v) => setShipForm({ ...shipForm, branch_id: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>تاريخ الوصول</Label>
+              <Input type="date" className="mt-1.5" value={shipForm.arrival_date} onChange={(e) => setShipForm({ ...shipForm, arrival_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>اسم المستلم *</Label>
+              <Input className="mt-1.5" value={shipForm.received_by} onChange={(e) => setShipForm({ ...shipForm, received_by: e.target.value })} />
+            </div>
+            <div>
+              <Label>تكلفة الشحن</Label>
+              <Input type="number" min={0} className="mt-1.5" value={shipForm.shipping_cost} onChange={(e) => setShipForm({ ...shipForm, shipping_cost: Number(e.target.value) })} />
+            </div>
+            <div>
+              <Label>مصاريف إدارية</Label>
+              <Input type="number" min={0} className="mt-1.5" value={shipForm.admin_cost} onChange={(e) => setShipForm({ ...shipForm, admin_cost: Number(e.target.value) })} />
+            </div>
+            <div className="md:col-span-3">
+              <Label>ملاحظات</Label>
+              <Textarea className="mt-1.5" rows={2} value={shipForm.notes} onChange={(e) => setShipForm({ ...shipForm, notes: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="rounded-md border mt-3 overflow-hidden">
+            <div className="flex items-center justify-between p-3 bg-muted/40 border-b">
+              <h4 className="font-bold text-sm">الأصناف</h4>
+              <Button size="sm" onClick={addShipLine} disabled={!shipForm.branch_id}>
+                <Plus className="w-4 h-4 ml-1" /> إضافة صنف
+              </Button>
+            </div>
+            {!shipForm.branch_id ? (
+              <div className="p-6 text-center text-sm text-muted-foreground">اختر الفرع أولاً</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-background border-b text-xs text-muted-foreground">
+                      <th className="text-right p-2">المنتج</th>
+                      <th className="text-right p-2 w-24">الكمية</th>
+                      <th className="text-right p-2 w-32">سعر التكلفة</th>
+                      <th className="text-right p-2 w-32">الإجمالي</th>
+                      <th className="w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shipLines.length === 0 && (
+                      <tr><td colSpan={5} className="text-center text-muted-foreground py-6">اضغط "إضافة صنف"</td></tr>
+                    )}
+                    {shipLines.map((l, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="p-2 min-w-[260px]">
+                          <select
+                            value={l.product_id ?? (l.product_name ? "__new__" : "")}
+                            onChange={(e) => onPickProduct(i, e.target.value)}
+                            className="w-full bg-background border border-border rounded-md px-2 py-1.5 text-sm mb-1"
+                          >
+                            <option value="">— اختر منتج —</option>
+                            {branchProducts.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name} (متوفر: {p.quantity})</option>
+                            ))}
+                            <option value="__new__">+ منتج جديد</option>
+                          </select>
+                          {l.product_id === null && (
+                            <Input placeholder="اسم المنتج الجديد" value={l.product_name} onChange={(e) => updShipLine(i, { product_name: e.target.value })} />
+                          )}
+                        </td>
+                        <td className="p-2"><Input type="number" min={1} value={l.quantity} onChange={(e) => updShipLine(i, { quantity: Number(e.target.value) })} /></td>
+                        <td className="p-2"><Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updShipLine(i, { cost_price: Number(e.target.value) })} /></td>
+                        <td className="p-2 font-bold">{formatEGP(l.quantity * l.cost_price)}</td>
+                        <td className="p-2">
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => rmShipLine(i)}><Trash2 className="w-4 h-4" /></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="p-3 border-t bg-muted/20 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+              <div><span className="text-muted-foreground">إجمالي البضاعة: </span><b>{formatEGP(shipItemsTotal)}</b></div>
+              <div><span className="text-muted-foreground">الشحن: </span><b>{formatEGP(shipForm.shipping_cost)}</b></div>
+              <div><span className="text-muted-foreground">إدارية: </span><b>{formatEGP(shipForm.admin_cost)}</b></div>
+              <div><span className="text-muted-foreground">الإجمالي: </span><b className="text-primary">{formatEGP(shipGrandTotal)}</b></div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewShipOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient gap-2" onClick={submitNewShipment} disabled={shipBusy}>
+              {shipBusy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ الشحنة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete confirm */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
         <AlertDialogContent>
