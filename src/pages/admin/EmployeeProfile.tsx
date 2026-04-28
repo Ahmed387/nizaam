@@ -315,6 +315,7 @@ export default function EmployeeProfile() {
           <TabsTrigger value="salaries"><Receipt className="w-4 h-4 ml-1" /> الرواتب</TabsTrigger>
           <TabsTrigger value="advances"><Wallet className="w-4 h-4 ml-1" /> السلف</TabsTrigger>
           <TabsTrigger value="payments">سداد السلف</TabsTrigger>
+          <TabsTrigger value="account"><KeyRound className="w-4 h-4 ml-1" /> حساب الدخول</TabsTrigger>
         </TabsList>
 
         <TabsContent value="salaries" className="mt-4">
