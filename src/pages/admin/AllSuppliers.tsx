@@ -195,6 +195,53 @@ export default function AllSuppliers() {
     toast.success(`تم تصدير ${data.length} مورد`);
   };
 
+  const openShipments = async (s: Supplier) => {
+    setShipmentsView(s);
+    setShipBranchFilter("all");
+    setShipmentsLoading(true);
+    setShipmentsList([]);
+    const { data, error } = await supabase
+      .from("shipments")
+      .select("id, arrival_date, branch_id, total_cost, shipping_cost, admin_cost, received_by, notes, created_at, branches(name), shipment_items(product_name, quantity, cost_price, total)")
+      .eq("supplier_id", s.id)
+      .order("arrival_date", { ascending: false });
+    if (error) toast.error(error.message);
+    setShipmentsList(data ?? []);
+    setShipmentsLoading(false);
+  };
+
+  const exportShipments = () => {
+    if (!shipmentsView) return;
+    const rows: any[] = [];
+    for (const sh of shipmentsList) {
+      if (shipBranchFilter !== "all" && sh.branch_id !== shipBranchFilter) continue;
+      const items = (sh.shipment_items ?? []) as any[];
+      if (items.length === 0) {
+        rows.push({
+          "تاريخ الوصول": sh.arrival_date, "الفرع": sh.branches?.name ?? "—",
+          "الصنف": "—", "الكمية": 0, "سعر الوحدة": 0, "الإجمالي": 0,
+          "إجمالي الشحنة": Number(sh.total_cost) || 0, "الشحن": Number(sh.shipping_cost) || 0,
+          "مصاريف إدارية": Number(sh.admin_cost) || 0, "المستلم": sh.received_by ?? "—",
+        });
+      } else {
+        for (const it of items) {
+          rows.push({
+            "تاريخ الوصول": sh.arrival_date, "الفرع": sh.branches?.name ?? "—",
+            "الصنف": it.product_name, "الكمية": it.quantity, "سعر الوحدة": Number(it.cost_price) || 0,
+            "الإجمالي": Number(it.total) || 0,
+            "إجمالي الشحنة": Number(sh.total_cost) || 0, "الشحن": Number(sh.shipping_cost) || 0,
+            "مصاريف إدارية": Number(sh.admin_cost) || 0, "المستلم": sh.received_by ?? "—",
+          });
+        }
+      }
+    }
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "شحنات المورد");
+    XLSX.writeFile(wb, `shipments-${shipmentsView.company_name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`تم تصدير ${rows.length} سطر`);
+  };
+
   return (
     <AdminLayout>
       <PageHeader
