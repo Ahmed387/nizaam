@@ -438,6 +438,7 @@ export default function AllSuppliers() {
             <div className="flex gap-1">
               <Button size="sm" variant="outline" title="ملخص الفروع" onClick={() => setDetails(r)}><Eye className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="شحنات المورد" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
             </div>
