@@ -107,7 +107,11 @@
 
 /* Print styles for invoice */
 @media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: white !important; color: black !important; }
   body * { visibility: hidden; }
   .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; right: 0; top: 0; width: 100%; }
+  .print-area { position: absolute; right: 0; top: 0; width: 100%; background: white !important; color: black !important; box-shadow: none !important; border: none !important; }
+  .print-area .gradient-text { background: none !important; -webkit-text-fill-color: black !important; color: black !important; }
+  .no-print { display: none !important; }
 }
