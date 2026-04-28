@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
@@ -36,6 +37,7 @@ export default function PriceList() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [confirmApply, setConfirmApply] = useState(false);
   const [applying, setApplying] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -61,15 +63,24 @@ export default function PriceList() {
   };
   useEffect(() => { load(); }, []);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach(r => { if (r.category_name) set.add(r.category_name); });
+    return Array.from(set).sort();
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.product_name.toLowerCase().includes(q) ||
-      (r.sku ?? "").toLowerCase().includes(q) ||
-      (r.category_name ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+    return rows.filter(r => {
+      if (categoryFilter !== "__all__" && (r.category_name ?? "") !== categoryFilter) return false;
+      if (!q) return true;
+      return (
+        r.product_name.toLowerCase().includes(q) ||
+        (r.sku ?? "").toLowerCase().includes(q) ||
+        (r.category_name ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [rows, search, categoryFilter]);
 
   const openNew = () => { setForm(emptyForm); setOpen(true); };
   const openEdit = (r: PriceRow) => {
@@ -230,8 +241,17 @@ export default function PriceList() {
         }
       />
 
-      <div className="mb-4">
-        <Input placeholder="بحث بالاسم أو الـ SKU أو التصنيف..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="mb-4 flex flex-col sm:flex-row gap-2">
+        <Input placeholder="بحث بالاسم أو الـ SKU أو التصنيف..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="sm:w-64"><SelectValue placeholder="كل التصنيفات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">كل التصنيفات ({rows.length})</SelectItem>
+            {categories.map(c => (
+              <SelectItem key={c} value={c}>{c} ({rows.filter(r => r.category_name === c).length})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
