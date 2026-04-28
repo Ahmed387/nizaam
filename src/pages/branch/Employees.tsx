@@ -46,8 +46,6 @@ export default function Employees() {
     load();
   };
 
-  if (selected) return <EmployeeDetail emp={selected} branchId={branchId!} onBack={() => { setSelected(null); load(); }} />;
-
   return (
     <BranchLayout>
       <PageHeader
@@ -59,7 +57,7 @@ export default function Employees() {
       <DataTable
         loading={loading}
         rows={rows}
-        onRowClick={setSelected}
+        onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
         empty="لا يوجد موظفين"
         columns={[
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
