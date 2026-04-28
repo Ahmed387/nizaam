@@ -95,7 +95,33 @@ export default function NewSale() {
     setSearch("");
   };
 
-  const updateQty = (pid: string, q: number) => {
+  // Scan by SKU exact match
+  const handleScan = (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    const found = products.find((p) => p.sku === trimmed || p.sku?.toLowerCase() === trimmed.toLowerCase());
+    if (!found) {
+      toast.error(`الكود ${trimmed} غير موجود`);
+      return;
+    }
+    addItem(found);
+    toast.success(`تم إضافة ${found.name}`, { duration: 1500 });
+  };
+
+  // Keep scanner input focused in scanner mode
+  useEffect(() => {
+    if (!scannerMode) return;
+    const focus = () => {
+      const active = document.activeElement as HTMLElement | null;
+      const tag = active?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      scannerInputRef.current?.focus();
+    };
+    focus();
+    const interval = setInterval(focus, 500);
+    return () => clearInterval(interval);
+  }, [scannerMode]);
+
     const prod = products.find((x) => x.id === pid);
     if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
     if (q <= 0) return setItems(items.filter((i) => i.product_id !== pid));
