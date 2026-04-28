@@ -122,6 +122,7 @@ export default function NewSale() {
     return () => clearInterval(interval);
   }, [scannerMode]);
 
+  const updateQty = (pid: string, q: number) => {
     const prod = products.find((x) => x.id === pid);
     if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
     if (q <= 0) return setItems(items.filter((i) => i.product_id !== pid));
