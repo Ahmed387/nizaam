@@ -18,11 +18,11 @@ import { Plus, Wallet, Receipt, ArrowRight } from "lucide-react";
 
 export default function Employees() {
   const { id: branchId } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10) });
 
   const load = async () => {
