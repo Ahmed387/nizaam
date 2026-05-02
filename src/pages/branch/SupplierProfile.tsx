@@ -54,6 +54,9 @@ export default function SupplierProfile() {
   const { id: branchId, supplierId } = useParams<{ id: string; supplierId: string }>();
   const nav = useNavigate();
   const { user, profile, tenantId, branches, isAdmin } = useAuth();
+  const isAdminView = !branchId;
+  const Layout = isAdminView ? AdminLayout : BranchLayout;
+  const backTo = isAdminView ? `/admin/suppliers` : `/branch/${branchId}/suppliers`;
   const [supplier, setSupplier] = useState<any>(null);
   const [shipments, setShipments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
