@@ -72,7 +72,7 @@ export default function NewShipment() {
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
-    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price) });
+    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "" });
     else updateLine(i, { product_id: productId });
   };
 
@@ -85,7 +85,20 @@ export default function NewShipment() {
       product_name: pl.product_name,
       sku: pl.sku || genSku(),
       cost_price: Number(pl.new_price ?? pl.market_price ?? 0),
+      image: pl.image ?? "",
     });
+  };
+
+  const onPickLineImage = async (i: number, file: File) => {
+    updateLine(i, { uploadingImg: true });
+    try {
+      const url = await uploadProductImage(file, branchId!);
+      updateLine(i, { image: url, uploadingImg: false });
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      updateLine(i, { uploadingImg: false });
+      toast.error(e.message ?? "فشل رفع الصورة");
+    }
   };
 
   const submit = async () => {
