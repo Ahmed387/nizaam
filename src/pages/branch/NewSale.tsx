@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
+import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, Plus, ScanLine } from "lucide-react";
 
 interface Item {
@@ -145,8 +146,7 @@ export default function NewSale() {
         custId = c?.id ?? null;
       }
 
-      // Atomic sale: invoice + items + stock deduction + treasury — all in one transaction with row locks
-      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale", {
+      const payload = {
         p_branch_id: branchId!,
         p_customer_id: custId,
         p_subtotal: subtotal,
@@ -156,13 +156,36 @@ export default function NewSale() {
         p_total: total,
         p_payment_method: "cash",
         p_items: items as any,
-      });
-      if (rpcErr) throw rpcErr;
+      };
+
+      // If offline, queue locally and exit
+      if (!navigator.onLine) {
+        await enqueueSale(payload);
+        toast.success("لا يوجد اتصال — تم حفظ الفاتورة محلياً وستُرفع تلقائياً");
+        nav(`/branch/${branchId}/sales`);
+        return;
+      }
+
+      // Atomic sale: invoice + items + stock deduction + treasury — all in one transaction with row locks
+      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale", payload);
+      if (rpcErr) {
+        // Network failure → queue
+        if (rpcErr.message?.includes("Failed to fetch") || rpcErr.message?.includes("NetworkError")) {
+          await enqueueSale(payload);
+          toast.success("انقطع الاتصال — تم حفظ الفاتورة محلياً");
+          nav(`/branch/${branchId}/sales`);
+          return;
+        }
+        throw rpcErr;
+      }
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
         entity: "Invoice", entityId: invId as string, details: { total },
       });
+
+      // Try to sync any older pending sales now that we know we're online
+      syncPendingSales(true);
 
       toast.success("تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
