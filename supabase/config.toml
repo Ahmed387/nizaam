@@ -2,3 +2,6 @@ project_id = "wcvukheadkzktbqkfhum"
 
 [functions.tenant-signup]
 verify_jwt = false
+
+[functions.employee-signin]
+verify_jwt = false
