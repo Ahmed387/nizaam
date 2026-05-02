@@ -43,12 +43,14 @@ export default function AdminReports() {
   const [treasury, setTreasury] = useState<any[]>([]);
   const [returns, setReturns] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [allShipments, setAllShipments] = useState<any[]>([]);
+  const [allSupPayments, setAllSupPayments] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu] = await Promise.all([
+    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("expenses").select("*").gte("date", from).lte("date", to),
@@ -60,6 +62,8 @@ export default function AdminReports() {
       supabase.from("treasury").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("returns").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("customers").select("id,branch_id"),
+      supabase.from("shipments").select("supplier_id,total_cost"),
+      supabase.from("supplier_payments").select("supplier_id,amount"),
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
@@ -72,6 +76,8 @@ export default function AdminReports() {
     setTreasury(tr.data ?? []);
     setReturns(ret.data ?? []);
     setCustomers(cu.data ?? []);
+    setAllShipments(ash.data ?? []);
+    setAllSupPayments(asp.data ?? []);
     setLoading(false);
   };
 
@@ -154,12 +160,26 @@ export default function AdminReports() {
 
   const lowStockList = useMemo(() => scopedProducts.filter((p) => p.quantity <= p.low_stock_alert), [scopedProducts]);
 
-  // Suppliers — global only (not branch-scoped by design)
+  // Suppliers — global only. Compute total invoiced (علينا) + total paid (سددنا) historically.
+  const suppliersWithTotals = useMemo(() => {
+    return suppliers.map((s) => {
+      const totalOwed = allShipments
+        .filter((sh) => sh.supplier_id === s.id)
+        .reduce((sum, sh) => sum + Number(sh.total_cost ?? 0), 0);
+      const totalPaid = allSupPayments
+        .filter((p) => p.supplier_id === s.id)
+        .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+      return { ...s, totalOwed, totalPaid, remaining: Number(s.balance ?? 0) };
+    });
+  }, [suppliers, allShipments, allSupPayments]);
+
   const topSuppliers = useMemo(
-    () => [...suppliers].sort((a, b) => Number(b.balance ?? 0) - Number(a.balance ?? 0)).slice(0, 15),
-    [suppliers]
+    () => [...suppliersWithTotals].sort((a, b) => b.remaining - a.remaining).slice(0, 50),
+    [suppliersWithTotals]
   );
-  const supplierDebt = suppliers.reduce((s, x) => s + Number(x.balance ?? 0), 0);
+  const supplierDebt = suppliersWithTotals.reduce((s, x) => s + x.remaining, 0);
+  const supplierTotalOwed = suppliersWithTotals.reduce((s, x) => s + x.totalOwed, 0);
+  const supplierTotalPaid = suppliersWithTotals.reduce((s, x) => s + x.totalPaid, 0);
 
   const currentBranchName = scope === "global" ? "كل الفروع" : (branches.find((b) => b.id === scope)?.name ?? "—");
 
@@ -195,7 +215,13 @@ export default function AdminReports() {
         المصروفات: b.expenses, الصافي: b.net,
         قيمة_المخزون: b.inventoryValue, الموظفين: b.employees, رصيد_الخزنة: b.treasuryBalance,
       })) });
-      sheets.push({ name: "الموردين", rows: topSuppliers.map((s) => ({ الشركة: s.company_name, الهاتف: s.phone, الرصيد: s.balance })) });
+      sheets.push({ name: "الموردين", rows: topSuppliers.map((s) => ({
+        الشركة: s.company_name,
+        الهاتف: s.phone ?? "",
+        "علينا (إجمالي)": s.totalOwed,
+        "سددنا": s.totalPaid,
+        "المتبقي": s.remaining,
+      })) });
     }
     exportToExcel(`تقرير-${currentBranchName}-${from}-${to}`, sheets);
   };
@@ -315,8 +341,10 @@ export default function AdminReports() {
           <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
         </div>
         {scope === "global" && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MiniKpi label="إجمالي مديونية الموردين" value={formatEGP(supplierDebt)} icon={<Truck className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد`} />
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="من جميع الشحنات" />
+            <MiniKpi label="إجمالي ما سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="من جميع الدفعات" />
+            <MiniKpi label="المتبقي علينا" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد`} />
           </div>
         )}
       </Section>
@@ -459,13 +487,19 @@ export default function AdminReports() {
         </TabsContent>
 
         {scope === "global" && (
-          <TabsContent value="suppliers" className="mt-4">
+          <TabsContent value="suppliers" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <MiniKpi label="إجمالي علينا" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="قيمة كل الشحنات تاريخياً" />
+              <MiniKpi label="إجمالي سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="كل الدفعات تاريخياً" />
+              <MiniKpi label="المتبقي علينا" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" />
+            </div>
             <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
               columns={[
                 { key: "company_name", header: "الشركة", render: (r: any) => <b>{r.company_name}</b> },
-                { key: "contact_name", header: "جهة الاتصال", render: (r: any) => r.contact_name ?? "—" },
                 { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
-                { key: "balance", header: "الرصيد المستحق", render: (r: any) => <b className={Number(r.balance) > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.balance)}</b> },
+                { key: "totalOwed", header: "علينا (إجمالي)", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
+                { key: "totalPaid", header: "سددنا", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },
+                { key: "remaining", header: "المتبقي", render: (r: any) => <b className={r.remaining > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.remaining)}</b> },
               ]} />
           </TabsContent>
         )}
