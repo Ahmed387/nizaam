@@ -1525,7 +1525,40 @@ export type Database = {
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_sku: { Args: never; Returns: string }
+      process_sale: {
+        Args: {
+          p_branch_id: string
+          p_customer_id: string
+          p_discount_amount: number
+          p_discount_percent: number
+          p_discount_reason: string
+          p_items: Json
+          p_payment_method: string
+          p_subtotal: number
+          p_total: number
+        }
+        Returns: string
+      }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
+      transfer_stock_atomic: {
+        Args: {
+          p_from_branch: string
+          p_product_id: string
+          p_quantity: number
+          p_reason: string
+          p_to_branch: string
+        }
+        Returns: string
+      }
+      transfer_treasury_atomic: {
+        Args: {
+          p_amount: number
+          p_from_branch: string
+          p_reason: string
+          p_to_branch: string
+        }
+        Returns: string
+      }
       user_in_branch: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean

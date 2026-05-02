@@ -145,53 +145,27 @@ export default function NewSale() {
         custId = c?.id ?? null;
       }
 
-      const { data: numRes } = await supabase.rpc("next_invoice_number");
-      const invoiceNumber = numRes as string;
-
-      const { data: inv, error: invErr } = await supabase.from("invoices").insert({
-        invoice_number: invoiceNumber,
-        branch_id: branchId!,
-        customer_id: custId,
-        cashier_id: user!.id,
-        subtotal, discount_amount: discountAmt, discount_percent: discountPct,
-        discount_reason: discountReason || null,
-        total,
-      }).select().single();
-      if (invErr) throw invErr;
-
-      const { error: itemsErr } = await supabase.from("invoice_items").insert(
-        items.map((i) => ({
-          invoice_id: inv.id,
-          product_id: i.product_id,
-          product_name: i.product_name,
-          quantity: i.quantity,
-          cost_price: i.cost_price,
-          selling_price: i.selling_price,
-          market_price: i.market_price,
-          total: i.quantity * i.selling_price,
-        }))
-      );
-      if (itemsErr) throw itemsErr;
-
-      // Deduct stock
-      for (const it of items) {
-        const p = products.find((x) => x.id === it.product_id);
-        await supabase.from("products").update({ quantity: (p?.quantity ?? 0) - it.quantity }).eq("id", it.product_id);
-      }
-
-      // Treasury income
-      await supabase.from("treasury").insert({
-        branch_id: branchId!, type: "income", category: "sales",
-        amount: total, description: `فاتورة ${invoiceNumber}`, reference_id: inv.id, created_by: user!.id,
+      // Atomic sale: invoice + items + stock deduction + treasury — all in one transaction with row locks
+      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale", {
+        p_branch_id: branchId!,
+        p_customer_id: custId,
+        p_subtotal: subtotal,
+        p_discount_amount: discountAmt,
+        p_discount_percent: discountPct,
+        p_discount_reason: discountReason || null,
+        p_total: total,
+        p_payment_method: "cash",
+        p_items: items as any,
       });
+      if (rpcErr) throw rpcErr;
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
-        entity: "Invoice", entityId: inv.id, details: { invoice_number: invoiceNumber, total },
+        entity: "Invoice", entityId: invId as string, details: { total },
       });
 
       toast.success("تم إنشاء الفاتورة");
-      nav(`/branch/${branchId}/sales/${inv.id}`);
+      nav(`/branch/${branchId}/sales/${invId}`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
