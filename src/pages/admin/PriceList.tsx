@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus, Eraser } from "lucide-react";
+import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus, Eraser, Loader2, ImageIcon } from "lucide-react";
+import { uploadProductImage } from "@/lib/uploadImage";
 
 type PriceRow = {
   id: string;
@@ -25,10 +26,11 @@ type PriceRow = {
   old_price: number;
   new_price: number;
   market_price: number;
+  image: string | null;
   uploaded_at: string;
 };
 
-const emptyForm = { id: "", sku: "", product_name: "", category_name: "", description: "", old_price: "", new_price: "", market_price: "" };
+const emptyForm = { id: "", sku: "", product_name: "", category_name: "", description: "", old_price: "", new_price: "", market_price: "", image: "" };
 
 export default function PriceList() {
   const { user, tenantId } = useAuth();
