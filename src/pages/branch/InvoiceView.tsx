@@ -18,6 +18,7 @@ export default function InvoiceView() {
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [branch, setBranch] = useState<any>(null);
+  const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -28,7 +29,7 @@ export default function InvoiceView() {
       try {
         const { data: i, error: e1 } = await supabase
           .from("invoices")
-          .select("*, customers(name, phone, address), profiles!invoices_cashier_id_fkey(name)")
+          .select("*, customers(name, phone, address)")
           .eq("id", invoiceId)
           .maybeSingle();
         if (e1) throw e1;
@@ -37,6 +38,14 @@ export default function InvoiceView() {
           return;
         }
         setInv(i);
+        if (i.cashier_id) {
+          const { data: cashier } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", i.cashier_id)
+            .maybeSingle();
+          setCashierName(cashier?.name ?? null);
+        }
         const { data: its } = await supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId);
         setItems(its ?? []);
         const { data: b } = await supabase.from("branches").select("*").eq("id", id).maybeSingle();
@@ -109,7 +118,7 @@ export default function InvoiceView() {
           </div>
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
             <div className="text-xs text-muted-foreground mb-1">🧾 الكاشير المسؤول</div>
-            <div className="font-bold">{inv.profiles?.name ?? "—"}</div>
+            <div className="font-bold">{cashierName ?? "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">طريقة الدفع: {inv.payment_method === "cash" ? "نقدي" : inv.payment_method}</div>
           </div>
         </div>
@@ -167,7 +176,7 @@ export default function InvoiceView() {
         <div className="mt-8 pt-4 border-t border-dashed border-border grid grid-cols-2 gap-4 text-xs text-muted-foreground">
           <div>
             <div>توقيع الكاشير</div>
-            <div className="mt-8 border-t border-border pt-1">{inv.profiles?.name}</div>
+            <div className="mt-8 border-t border-border pt-1">{cashierName ?? "—"}</div>
           </div>
           <div className="text-left">
             <div>توقيع العميل</div>
