@@ -12,7 +12,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 export async function fetchUserContext(userId: string) {
-  const [{ data: profile }, { data: roles }, { data: branches }] = await Promise.all([
+  const [{ data: profile }, { data: roles }, { data: branchUsers }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", userId),
     supabase.from("branch_users").select("branch_id, branches(*)").eq("user_id", userId),
@@ -28,12 +28,29 @@ export async function fetchUserContext(userId: string) {
     tenant = (t as any) ?? null;
   }
 
+  const userRoles = (roles ?? []).map((r) => r.role as AppRole);
+  const isAdminOrSuper = userRoles.includes("admin") || userRoles.includes("super_admin");
+
+  // الأدمن يشوف كل فروع شركته، أما باقي الموظفين فيشوفوا الفروع المسجل فيهم فقط
+  let branches: any[] = [];
+  if (isAdminOrSuper && (profile as any)?.tenant_id) {
+    const { data: allBranches } = await supabase
+      .from("branches")
+      .select("*")
+      .eq("tenant_id", (profile as any).tenant_id)
+      .eq("is_active", true)
+      .order("name");
+    branches = allBranches ?? [];
+  } else {
+    branches = (branchUsers ?? []).map((b: any) => b.branches).filter(Boolean);
+  }
+
   return {
     profile,
     tenantId: (profile as any)?.tenant_id ?? null,
     tenant,
-    roles: (roles ?? []).map((r) => r.role as AppRole),
-    branches: (branches ?? []).map((b: any) => b.branches).filter(Boolean),
+    roles: userRoles,
+    branches,
   };
 }
 
