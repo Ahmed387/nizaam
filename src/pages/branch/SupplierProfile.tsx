@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
-import { printReport } from "@/lib/export";
+import { printReport, exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -46,6 +46,8 @@ import {
   FileText,
   Receipt,
   Activity,
+  Download,
+  Package,
 } from "lucide-react";
 
 export default function SupplierProfile() {
@@ -71,7 +73,7 @@ export default function SupplierProfile() {
       supabase.from("suppliers").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
-        .select("*, branches(name)")
+        .select("*, branches(name), shipment_items(id, quantity)")
         .eq("supplier_id", supplierId!)
         .order("arrival_date", { ascending: false }),
       supabase
@@ -104,6 +106,18 @@ export default function SupplierProfile() {
   const totalShipments = shipments.reduce((s, x) => s + Number(x.total_cost), 0);
   const totalPaid = payments.reduce((s, x) => s + Number(x.amount), 0);
   const balance = Number(supplier?.balance ?? 0);
+  const totalItemsCount = shipments.reduce(
+    (s, x) => s + ((x.shipment_items ?? []) as any[]).length,
+    0
+  );
+  const totalUnits = shipments.reduce(
+    (s, x) =>
+      s + ((x.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0),
+    0
+  );
+  const shipmentItemCount = (sh: any) => ((sh.shipment_items ?? []) as any[]).length;
+  const shipmentUnitsCount = (sh: any) =>
+    ((sh.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0);
 
   // Unified timeline
   const timeline = useMemo(() => {
@@ -274,6 +288,44 @@ export default function SupplierProfile() {
     printReport(`كشف حساب المورد — ${supplier.company_name}`, html);
   };
 
+  const exportExcel = () => {
+    if (!supplier) return;
+    const summary = [
+      { البيان: "اسم الشركة", القيمة: supplier.company_name },
+      { البيان: "المسؤول", القيمة: supplier.contact_name ?? "—" },
+      { البيان: "التليفون", القيمة: supplier.phone ?? "—" },
+      { البيان: "العنوان", القيمة: supplier.address ?? "—" },
+      { البيان: "عدد الشحنات", القيمة: shipments.length },
+      { البيان: "عدد الأصناف (إجمالي)", القيمة: totalItemsCount },
+      { البيان: "إجمالي الوحدات", القيمة: totalUnits },
+      { البيان: "إجمالي الشحنات (جنيه)", القيمة: totalShipments },
+      { البيان: "إجمالي المدفوع (جنيه)", القيمة: totalPaid },
+      { البيان: "المتبقي عليك (جنيه)", القيمة: balance },
+    ];
+    const shipRows = shipments.map((s) => ({
+      التاريخ: formatDate(s.arrival_date),
+      الفرع: s.branches?.name ?? "—",
+      المستلم: s.received_by,
+      "عدد الأصناف": shipmentItemCount(s),
+      "إجمالي الوحدات": shipmentUnitsCount(s),
+      "تكلفة الشحن": Number(s.shipping_cost),
+      "مصاريف إدارية": Number(s.admin_cost),
+      "الإجمالي": Number(s.total_cost),
+      ملاحظات: s.notes ?? "",
+    }));
+    const payRows = payments.map((p) => ({
+      "تاريخ السداد": formatDateTime(p.paid_at),
+      الفرع: p.branches?.name ?? "—",
+      "دفع بواسطة": p.profiles?.name ?? "—",
+      المبلغ: Number(p.amount),
+      ملاحظات: p.notes ?? "",
+    }));
+    exportToExcel(`كشف حساب — ${supplier.company_name}`, [
+      { name: "ملخص", rows: summary },
+      { name: "الشحنات", rows: shipRows },
+      { name: "المدفوعات", rows: payRows },
+    ]);
+  };
   return (
     <BranchLayout>
       <PageHeader
@@ -286,6 +338,9 @@ export default function SupplierProfile() {
             </Button>
             <Button variant="outline" onClick={printStatement}>
               <FileText className="w-4 h-4 ml-1" /> كشف حساب PDF
+            </Button>
+            <Button variant="outline" onClick={exportExcel}>
+              <Download className="w-4 h-4 ml-1" /> تحميل Excel
             </Button>
             {isAdmin && (
               <>
@@ -319,8 +374,9 @@ export default function SupplierProfile() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <StatCard label="عدد الشحنات" value={shipments.length} icon={<Truck className="w-5 h-5" />} accent="primary" />
+        <StatCard label="إجمالي الأصناف" value={`${totalItemsCount} (${totalUnits} وحدة)`} icon={<Package className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي الشحنات" value={formatEGP(totalShipments)} icon={<DollarSign className="w-5 h-5" />} accent="secondary" />
         <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
         <StatCard
@@ -382,6 +438,7 @@ export default function SupplierProfile() {
               { key: "arrival_date", header: "التاريخ", render: (r: any) => formatDate(r.arrival_date) },
               { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
               { key: "received_by", header: "المستلم" },
+              { key: "items", header: "أصناف", render: (r: any) => `${shipmentItemCount(r)} (${shipmentUnitsCount(r)})` },
               { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
               { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
               {
