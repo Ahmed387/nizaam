@@ -355,7 +355,7 @@ export default function SupplierProfile() {
                 </Button>
               </>
             )}
-            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/suppliers`)}>
+            <Button variant="outline" onClick={() => nav(backTo)}>
               <ArrowRight className="w-4 h-4 ml-1" /> رجوع
             </Button>
           </div>
