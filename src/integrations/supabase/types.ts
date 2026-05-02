@@ -701,6 +701,7 @@ export type Database = {
           old_price: number
           product_name: string
           sku: string | null
+          source: string
           tenant_id: string | null
           uploaded_at: string
           uploaded_by: string | null
@@ -715,6 +716,7 @@ export type Database = {
           old_price?: number
           product_name: string
           sku?: string | null
+          source?: string
           tenant_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -729,6 +731,7 @@ export type Database = {
           old_price?: number
           product_name?: string
           sku?: string | null
+          source?: string
           tenant_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null

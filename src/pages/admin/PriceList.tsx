@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
@@ -28,7 +29,10 @@ type PriceRow = {
   market_price: number;
   image: string | null;
   uploaded_at: string;
+  source: "manual" | "upload";
 };
+
+type ClearMode = "all" | "manual" | "upload";
 
 const emptyForm = { id: "", sku: "", product_name: "", category_name: "", description: "", old_price: "", new_price: "", market_price: "", image: "" };
 
@@ -42,18 +46,30 @@ export default function PriceList() {
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [confirmApply, setConfirmApply] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear] = useState<ClearMode | null>(null);
   const [clearing, setClearing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const clearAll = async () => {
+  const counts = useMemo(() => ({
+    all: rows.length,
+    manual: rows.filter(r => r.source === "manual").length,
+    upload: rows.filter(r => r.source === "upload").length,
+  }), [rows]);
+
+  const clearBy = async (mode: ClearMode) => {
     if (!tenantId) return;
     setClearing(true);
-    const { error } = await supabase.from("price_list").delete().eq("tenant_id", tenantId);
+    let q = supabase.from("price_list").delete().eq("tenant_id", tenantId);
+    if (mode !== "all") q = q.eq("source", mode);
+    const { error } = await q;
     setClearing(false);
-    setConfirmClear(false);
+    setConfirmClear(null);
     if (error) return toast.error(error.message);
-    toast.success("تم مسح كل قائمة الأسعار");
+    toast.success(
+      mode === "all" ? "تم مسح كل قائمة الأسعار"
+      : mode === "manual" ? "تم مسح المنتجات المُدخلة يدوياً"
+      : "تم مسح المنتجات المرفوعة من ملف"
+    );
     load();
   };
 
@@ -136,7 +152,7 @@ export default function PriceList() {
       if (error) return toast.error(error.message);
       toast.success("تم التحديث");
     } else {
-      const { error } = await supabase.from("price_list").insert(payload);
+      const { error } = await supabase.from("price_list").insert({ ...payload, source: "manual" });
       if (error) return toast.error(error.message);
       toast.success(`تمت الإضافة (SKU: ${sku})`);
     }
@@ -246,7 +262,7 @@ export default function PriceList() {
 
       const finalRecords = records
         .filter((r) => r.product_name)
-        .map((r) => ({ ...r, uploaded_by: user!.id }));
+        .map((r) => ({ ...r, uploaded_by: user!.id, source: "upload" as const }));
 
       if (!finalRecords.length) {
         toast.error("لم يتم العثور على بيانات صحيحة");
@@ -422,9 +438,24 @@ export default function PriceList() {
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
             </Button>
-            <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setConfirmClear(true)} disabled={!rows.length || clearing}>
-              <Eraser className="w-4 h-4 ml-1" /> مسح القائمة
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" disabled={!rows.length || clearing}>
+                  <Eraser className="w-4 h-4 ml-1" /> مسح القائمة
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setConfirmClear("upload")} disabled={!counts.upload}>
+                  مسح المرفوع من ملف ({counts.upload})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setConfirmClear("manual")} disabled={!counts.manual}>
+                  مسح المُدخل يدوياً ({counts.manual})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setConfirmClear("all")} className="text-destructive">
+                  مسح الكل ({counts.all})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة منتج</Button>
           </div>
         }
@@ -526,12 +557,18 @@ export default function PriceList() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+      <AlertDialog open={!!confirmClear} onOpenChange={(o) => !o && setConfirmClear(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>مسح كل قائمة الأسعار؟</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirmClear === "all" && "مسح كل قائمة الأسعار؟"}
+              {confirmClear === "manual" && "مسح المنتجات المُدخلة يدوياً؟"}
+              {confirmClear === "upload" && "مسح المنتجات المرفوعة من ملف؟"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف جميع الأسعار ({rows.length} عنصر) من القائمة الرسمية.
+              {confirmClear === "all" && `سيتم حذف جميع الأسعار (${counts.all} عنصر).`}
+              {confirmClear === "manual" && `سيتم حذف ${counts.manual} منتج تم إدخالها يدوياً فقط.`}
+              {confirmClear === "upload" && `سيتم حذف ${counts.upload} منتج تم رفعها من ملف Excel/PDF فقط.`}
               <br />
               <b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
               <br />
@@ -541,11 +578,11 @@ export default function PriceList() {
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction
-              onClick={clearAll}
+              onClick={() => confirmClear && clearBy(confirmClear)}
               disabled={clearing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {clearing ? "جاري المسح..." : "نعم، امسح الكل"}
+              {clearing ? "جاري المسح..." : "نعم، امسح"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
