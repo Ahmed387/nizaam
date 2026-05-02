@@ -179,8 +179,7 @@ export default function SupplierProfile() {
       tenant_id: tenantId,
     } as any);
     if (payErr) return toast.error(payErr.message);
-
-    await supabase.from("suppliers").update({ balance: balance - amount }).eq("id", supplierId!);
+    // ملاحظة: رصيد المورد بيتحدث تلقائياً عبر trigger في قاعدة البيانات
 
     await logAudit({
       userId: user!.id,
