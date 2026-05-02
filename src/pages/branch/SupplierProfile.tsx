@@ -581,6 +581,6 @@ export default function SupplierProfile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </BranchLayout>
+    </Layout>
   );
 }
