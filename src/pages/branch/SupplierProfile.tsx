@@ -288,6 +288,44 @@ export default function SupplierProfile() {
     printReport(`كشف حساب المورد — ${supplier.company_name}`, html);
   };
 
+  const exportExcel = () => {
+    if (!supplier) return;
+    const summary = [
+      { البيان: "اسم الشركة", القيمة: supplier.company_name },
+      { البيان: "المسؤول", القيمة: supplier.contact_name ?? "—" },
+      { البيان: "التليفون", القيمة: supplier.phone ?? "—" },
+      { البيان: "العنوان", القيمة: supplier.address ?? "—" },
+      { البيان: "عدد الشحنات", القيمة: shipments.length },
+      { البيان: "عدد الأصناف (إجمالي)", القيمة: totalItemsCount },
+      { البيان: "إجمالي الوحدات", القيمة: totalUnits },
+      { البيان: "إجمالي الشحنات (جنيه)", القيمة: totalShipments },
+      { البيان: "إجمالي المدفوع (جنيه)", القيمة: totalPaid },
+      { البيان: "المتبقي عليك (جنيه)", القيمة: balance },
+    ];
+    const shipRows = shipments.map((s) => ({
+      التاريخ: formatDate(s.arrival_date),
+      الفرع: s.branches?.name ?? "—",
+      المستلم: s.received_by,
+      "عدد الأصناف": shipmentItemCount(s),
+      "إجمالي الوحدات": shipmentUnitsCount(s),
+      "تكلفة الشحن": Number(s.shipping_cost),
+      "مصاريف إدارية": Number(s.admin_cost),
+      "الإجمالي": Number(s.total_cost),
+      ملاحظات: s.notes ?? "",
+    }));
+    const payRows = payments.map((p) => ({
+      "تاريخ السداد": formatDateTime(p.paid_at),
+      الفرع: p.branches?.name ?? "—",
+      "دفع بواسطة": p.profiles?.name ?? "—",
+      المبلغ: Number(p.amount),
+      ملاحظات: p.notes ?? "",
+    }));
+    exportToExcel(`كشف حساب — ${supplier.company_name}`, [
+      { name: "ملخص", rows: summary },
+      { name: "الشحنات", rows: shipRows },
+      { name: "المدفوعات", rows: payRows },
+    ]);
+  };
   return (
     <BranchLayout>
       <PageHeader
