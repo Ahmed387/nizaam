@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -16,6 +17,7 @@ import { Plus, Pencil } from "lucide-react";
 
 export default function Branches() {
   const { profile } = useAuth();
+  const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -66,20 +68,21 @@ export default function Branches() {
       />
       <DataTable
         loading={loading} rows={rows}
+        onRowClick={(r: any) => nav(`/admin/branches/${r.id}`)}
         columns={[
           { key: "code", header: "الكود", render: (r: any) => <span className="font-mono text-primary">{r.code}</span> },
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
           { key: "address", header: "العنوان" },
           { key: "phone", header: "التليفون" },
           { key: "is_active", header: "الحالة", render: (r: any) => (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Switch checked={r.is_active} onCheckedChange={() => toggle(r)} />
               <span className={r.is_active ? "text-success text-xs" : "text-muted-foreground text-xs"}>{r.is_active ? "نشط" : "موقوف"}</span>
             </div>
           )},
           { key: "created_at", header: "تاريخ الإنشاء", render: (r: any) => formatDate(r.created_at) },
           { key: "actions", header: "", render: (r: any) => (
-            <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(r); }}><Pencil className="w-4 h-4" /></Button>
           )},
         ]}
       />
