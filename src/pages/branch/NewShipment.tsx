@@ -69,8 +69,20 @@ export default function NewShipment() {
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
-    if (p) updateLine(i, { product_id: p.id, product_name: p.name, cost_price: Number(p.cost_price) });
+    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price) });
     else updateLine(i, { product_id: productId });
+  };
+
+  // اختيار منتج من الـ price list (للمنتجات الجديدة على الفرع)
+  const handlePriceListPick = (i: number, plId: string) => {
+    const pl = priceList.find((x) => x.id === plId);
+    if (!pl) return;
+    updateLine(i, {
+      product_id: null,
+      product_name: pl.product_name,
+      sku: pl.sku || genSku(),
+      cost_price: Number(pl.new_price ?? pl.market_price ?? 0),
+    });
   };
 
   const submit = async () => {
