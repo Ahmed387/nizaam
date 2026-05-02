@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
+import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, ArrowLeftRight } from "lucide-react";
