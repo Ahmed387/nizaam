@@ -390,44 +390,56 @@ export type Database = {
       }
       employees: {
         Row: {
+          address: string | null
           base_salary: number
           branch_id: string
           created_at: string
+          email: string | null
           hire_date: string
           id: string
           is_active: boolean
           job_title: string
+          login_password: string | null
           name: string
           notes: string | null
           phone: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
           tenant_id: string | null
           user_id: string | null
         }
         Insert: {
+          address?: string | null
           base_salary?: number
           branch_id: string
           created_at?: string
+          email?: string | null
           hire_date: string
           id?: string
           is_active?: boolean
           job_title: string
+          login_password?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           tenant_id?: string | null
           user_id?: string | null
         }
         Update: {
+          address?: string | null
           base_salary?: number
           branch_id?: string
           created_at?: string
+          email?: string | null
           hire_date?: string
           id?: string
           is_active?: boolean
           job_title?: string
+          login_password?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           tenant_id?: string | null
           user_id?: string | null
         }
