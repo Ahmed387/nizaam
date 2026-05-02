@@ -32,6 +32,7 @@ export default function NewShipment() {
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [priceList, setPriceList] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [arrival, setArrival] = useState(new Date().toISOString().split("T")[0]);
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
