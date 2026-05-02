@@ -339,6 +339,9 @@ export default function SupplierProfile() {
             <Button variant="outline" onClick={printStatement}>
               <FileText className="w-4 h-4 ml-1" /> كشف حساب PDF
             </Button>
+            <Button variant="outline" onClick={exportExcel}>
+              <Download className="w-4 h-4 ml-1" /> تحميل Excel
+            </Button>
             {isAdmin && (
               <>
                 <Button variant="outline" onClick={() => setEditOpen(true)}>
