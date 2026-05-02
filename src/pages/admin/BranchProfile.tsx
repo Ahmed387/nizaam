@@ -263,7 +263,7 @@ export default function BranchProfile() {
             columns={[
               { key: "invoice_number", header: "رقم الفاتورة", render: (r: any) => <span className="font-mono">{r.invoice_number}</span> },
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
-              { key: "cashier", header: "الكاشير", render: (r: any) => r.profiles?.name ?? "—" },
+              { key: "cashier", header: "الكاشير", render: (r: any) => r.cashier_name ?? "—" },
               { key: "payment_method", header: "الدفع" },
               { key: "status", header: "الحالة", render: (r: any) => (
                 <Badge variant={r.status === "active" ? "default" : "secondary"}>
