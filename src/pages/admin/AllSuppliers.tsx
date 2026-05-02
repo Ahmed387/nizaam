@@ -424,6 +424,7 @@ export default function AllSuppliers() {
       </div>
 
       <DataTable loading={loading} rows={filtered}
+        onRowClick={(r: any) => nav(`/admin/suppliers/${r.id}`)}
         columns={[
           { key: "company_name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.contact_name ?? "—"}</div></div> },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
