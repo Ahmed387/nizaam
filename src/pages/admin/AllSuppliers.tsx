@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -45,6 +46,7 @@ interface PaymentSummary {
 
 export default function AllSuppliers() {
   const { tenantId, user } = useAuth();
+  const nav = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [shipSums, setShipSums] = useState<ShipmentSummary[]>([]);
@@ -422,6 +424,7 @@ export default function AllSuppliers() {
       </div>
 
       <DataTable loading={loading} rows={filtered}
+        onRowClick={(r: any) => nav(`/admin/suppliers/${r.id}`)}
         columns={[
           { key: "company_name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.contact_name ?? "—"}</div></div> },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
@@ -435,8 +438,8 @@ export default function AllSuppliers() {
             return <span className="text-success font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">لينا</span></span>;
           }},
           { key: "actions", header: "إجراءات", render: (r: any) => (
-            <div className="flex gap-1">
-              <Button size="sm" variant="outline" title="ملخص الفروع" onClick={() => setDetails(r)}><Eye className="w-3.5 h-3.5" /></Button>
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="outline" title="فتح صفحة المورد" onClick={() => nav(`/admin/suppliers/${r.id}`)}><Eye className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="شحنات المورد" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>

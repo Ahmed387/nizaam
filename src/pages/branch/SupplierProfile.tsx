@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BranchLayout } from "@/components/layout/Layouts";
+import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
@@ -54,6 +54,9 @@ export default function SupplierProfile() {
   const { id: branchId, supplierId } = useParams<{ id: string; supplierId: string }>();
   const nav = useNavigate();
   const { user, profile, tenantId, branches, isAdmin } = useAuth();
+  const isAdminView = !branchId;
+  const Layout = isAdminView ? AdminLayout : BranchLayout;
+  const backTo = isAdminView ? `/admin/suppliers` : `/branch/${branchId}/suppliers`;
   const [supplier, setSupplier] = useState<any>(null);
   const [shipments, setShipments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -230,7 +233,7 @@ export default function SupplierProfile() {
       details: { company_name: supplier.company_name },
     });
     toast.success("تم الحذف");
-    nav(`/branch/${branchId}/suppliers`);
+    nav(backTo);
   };
 
   const printStatement = () => {
@@ -327,7 +330,7 @@ export default function SupplierProfile() {
     ]);
   };
   return (
-    <BranchLayout>
+    <Layout>
       <PageHeader
         title={supplier?.company_name ?? "ملف المورد"}
         subtitle={supplier?.contact_name ?? ""}
@@ -352,7 +355,7 @@ export default function SupplierProfile() {
                 </Button>
               </>
             )}
-            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/suppliers`)}>
+            <Button variant="outline" onClick={() => nav(backTo)}>
               <ArrowRight className="w-4 h-4 ml-1" /> رجوع
             </Button>
           </div>
@@ -578,6 +581,6 @@ export default function SupplierProfile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </BranchLayout>
+    </Layout>
   );
 }
