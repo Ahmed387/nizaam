@@ -438,6 +438,7 @@ export default function SupplierProfile() {
               { key: "arrival_date", header: "التاريخ", render: (r: any) => formatDate(r.arrival_date) },
               { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
               { key: "received_by", header: "المستلم" },
+              { key: "items", header: "أصناف", render: (r: any) => `${shipmentItemCount(r)} (${shipmentUnitsCount(r)})` },
               { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
               { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
               {
