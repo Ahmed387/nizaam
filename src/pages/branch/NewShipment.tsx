@@ -145,6 +145,7 @@ export default function NewShipment() {
               selling_price: l.cost_price * 1.3,
               market_price: l.cost_price * 1.3,
               quantity: 0,
+              image: l.image || null,
             })
             .select()
             .single();
