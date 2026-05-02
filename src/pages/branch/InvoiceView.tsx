@@ -21,14 +21,30 @@ export default function InvoiceView() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     (async () => {
-      const { data: i } = await supabase.from("invoices").select("*, customers(name, phone, address), profiles!invoices_cashier_id_fkey(name)").eq("id", invoiceId).single();
-      setInv(i);
-      const { data: its } = await supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId);
-      setItems(its ?? []);
-      const { data: b } = await supabase.from("branches").select("*").eq("id", id).single();
-      setBranch(b);
+      try {
+        const { data: i, error: e1 } = await supabase
+          .from("invoices")
+          .select("*, customers(name, phone, address), profiles!invoices_cashier_id_fkey(name)")
+          .eq("id", invoiceId)
+          .maybeSingle();
+        if (e1) throw e1;
+        if (!i) {
+          setError("الفاتورة غير موجودة");
+          return;
+        }
+        setInv(i);
+        const { data: its } = await supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId);
+        setItems(its ?? []);
+        const { data: b } = await supabase.from("branches").select("*").eq("id", id).maybeSingle();
+        setBranch(b);
+      } catch (err: any) {
+        console.error("Invoice load error:", err);
+        setError(err.message ?? "تعذر تحميل الفاتورة");
+      }
     })();
   }, [invoiceId, id]);
 
