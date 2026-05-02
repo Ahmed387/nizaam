@@ -90,8 +90,23 @@ export default function PriceList() {
       id: r.id, sku: r.sku ?? "", product_name: r.product_name, category_name: r.category_name ?? "",
       description: r.description ?? "", old_price: String(r.old_price ?? 0),
       new_price: String(r.new_price ?? 0), market_price: String(r.market_price ?? 0),
+      image: r.image ?? "",
     });
     setOpen(true);
+  };
+
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const onPickFormImage = async (file: File) => {
+    setUploadingImg(true);
+    try {
+      const url = await uploadProductImage(file, "price-list");
+      setForm((f) => ({ ...f, image: url }));
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploadingImg(false);
+    }
   };
 
   const submit = async () => {
@@ -113,6 +128,7 @@ export default function PriceList() {
       old_price: Number(form.old_price) || 0,
       new_price: Number(form.new_price) || 0,
       market_price: Number(form.market_price) || 0,
+      image: form.image || null,
       uploaded_by: user!.id,
     };
     if (form.id) {
