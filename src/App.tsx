@@ -16,6 +16,7 @@ import Landing from "./pages/Landing";
 
 import AdminDashboard from "./pages/admin/Dashboard";
 import Branches from "./pages/admin/Branches";
+import BranchProfile from "./pages/admin/BranchProfile";
 
 import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
