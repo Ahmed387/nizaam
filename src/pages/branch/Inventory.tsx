@@ -14,6 +14,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Upload, Loader2, Activity, Barcode } from "lucide-react";
+import { uploadProductImage } from "@/lib/uploadImage";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
