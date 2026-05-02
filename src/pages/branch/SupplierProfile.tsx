@@ -106,6 +106,18 @@ export default function SupplierProfile() {
   const totalShipments = shipments.reduce((s, x) => s + Number(x.total_cost), 0);
   const totalPaid = payments.reduce((s, x) => s + Number(x.amount), 0);
   const balance = Number(supplier?.balance ?? 0);
+  const totalItemsCount = shipments.reduce(
+    (s, x) => s + ((x.shipment_items ?? []) as any[]).length,
+    0
+  );
+  const totalUnits = shipments.reduce(
+    (s, x) =>
+      s + ((x.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0),
+    0
+  );
+  const shipmentItemCount = (sh: any) => ((sh.shipment_items ?? []) as any[]).length;
+  const shipmentUnitsCount = (sh: any) =>
+    ((sh.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0);
 
   // Unified timeline
   const timeline = useMemo(() => {
