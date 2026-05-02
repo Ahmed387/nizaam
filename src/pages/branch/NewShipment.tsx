@@ -280,16 +280,31 @@ export default function NewShipment() {
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
+                <tr><td colSpan={7} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
               )}
               {lines.map((l, i) => (
                 <tr key={i} className="border-b border-border align-top">
+                  <td className="px-3 py-2 w-24">
+                    <div className="flex flex-col items-center gap-1">
+                      {l.image
+                        ? <img src={l.image} alt="" className="w-14 h-14 rounded object-cover border" />
+                        : <div className="w-14 h-14 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
+                      }
+                      {l.product_id === null && (
+                        <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          {l.uploadingImg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                          <span>{l.image ? "تغيير" : "رفع"}</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
+                        </label>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-2 min-w-[300px]">
                     <select
                       value={l.product_id ?? ""}
                       onChange={(e) => {
                         if (e.target.value === "__new__") {
-                          updateLine(i, { product_id: null, product_name: "", sku: genSku() });
+                          updateLine(i, { product_id: null, product_name: "", sku: genSku(), image: "" });
                         } else handleProductChange(i, e.target.value);
                       }}
                       className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
