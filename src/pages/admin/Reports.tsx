@@ -50,7 +50,7 @@ export default function AdminReports() {
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu] = await Promise.all([
+    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("expenses").select("*").gte("date", from).lte("date", to),
@@ -62,6 +62,8 @@ export default function AdminReports() {
       supabase.from("treasury").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("returns").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("customers").select("id,branch_id"),
+      supabase.from("shipments").select("supplier_id,total_cost"),
+      supabase.from("supplier_payments").select("supplier_id,amount"),
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
@@ -74,6 +76,8 @@ export default function AdminReports() {
     setTreasury(tr.data ?? []);
     setReturns(ret.data ?? []);
     setCustomers(cu.data ?? []);
+    setAllShipments(ash.data ?? []);
+    setAllSupPayments(asp.data ?? []);
     setLoading(false);
   };
 
