@@ -38,11 +38,14 @@ export default function Treasury() {
   const transfer = async () => {
     if (!tForm.to || !tForm.amount) return toast.error("املأ البيانات");
     const amt = Number(tForm.amount);
-    await supabase.from("treasury_transfers").insert({ from_branch_id: branchId!, to_branch_id: tForm.to, amount: amt, reason: tForm.reason, transferred_by: user!.id });
-    await supabase.from("treasury").insert([
-      { branch_id: branchId!, type: "expense", category: "transfer", amount: amt, description: `تحويل لفرع: ${tForm.reason}`, created_by: user!.id },
-      { branch_id: tForm.to, type: "income", category: "transfer", amount: amt, description: `تحويل وارد: ${tForm.reason}`, created_by: user!.id },
-    ]);
+    if (amt <= 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
+    const { error } = await supabase.rpc("transfer_treasury_atomic", {
+      p_from_branch: branchId!,
+      p_to_branch: tForm.to,
+      p_amount: amt,
+      p_reason: tForm.reason || null,
+    });
+    if (error) return toast.error(error.message);
     toast.success("تم التحويل");
     setOpenTransfer(false); setTForm({ to: "", amount: "", reason: "" }); load();
   };
