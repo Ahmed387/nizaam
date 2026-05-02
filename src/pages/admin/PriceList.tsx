@@ -447,6 +447,10 @@ export default function PriceList() {
         loading={loading} rows={filtered}
         empty="لا توجد منتجات في القائمة"
         columns={[
+          { key: "image", header: "صورة", render: (r: PriceRow) => r.image
+            ? <img src={r.image} alt={r.product_name} className="w-10 h-10 rounded object-cover border" loading="lazy" />
+            : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>
+          },
           { key: "sku", header: "SKU", render: (r: PriceRow) => <span className="text-xs text-muted-foreground" dir="ltr">{r.sku ?? "—"}</span> },
           { key: "product_name", header: "اسم المنتج", render: (r: PriceRow) => (
             <div>
