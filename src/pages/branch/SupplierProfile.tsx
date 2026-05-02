@@ -330,7 +330,7 @@ export default function SupplierProfile() {
     ]);
   };
   return (
-    <BranchLayout>
+    <Layout>
       <PageHeader
         title={supplier?.company_name ?? "ملف المورد"}
         subtitle={supplier?.contact_name ?? ""}
