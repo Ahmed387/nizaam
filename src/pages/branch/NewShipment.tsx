@@ -11,7 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
+import { uploadProductImage } from "@/lib/uploadImage";
 
 interface Line {
   product_id: string | null;
@@ -19,6 +20,8 @@ interface Line {
   sku: string;
   quantity: number;
   cost_price: number;
+  image: string;
+  uploadingImg?: boolean;
 }
 
 // توليد كود فريد للمنتج الجديد
@@ -54,7 +57,7 @@ export default function NewShipment() {
   }, [profile]);
 
   const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0 }]);
+    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, image: "" }]);
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
@@ -69,7 +72,7 @@ export default function NewShipment() {
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
-    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price) });
+    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "" });
     else updateLine(i, { product_id: productId });
   };
 
@@ -82,7 +85,20 @@ export default function NewShipment() {
       product_name: pl.product_name,
       sku: pl.sku || genSku(),
       cost_price: Number(pl.new_price ?? pl.market_price ?? 0),
+      image: pl.image ?? "",
     });
+  };
+
+  const onPickLineImage = async (i: number, file: File) => {
+    updateLine(i, { uploadingImg: true });
+    try {
+      const url = await uploadProductImage(file, branchId!);
+      updateLine(i, { image: url, uploadingImg: false });
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      updateLine(i, { uploadingImg: false });
+      toast.error(e.message ?? "فشل رفع الصورة");
+    }
   };
 
   const submit = async () => {
@@ -129,6 +145,7 @@ export default function NewShipment() {
               selling_price: l.cost_price * 1.3,
               market_price: l.cost_price * 1.3,
               quantity: 0,
+              image: l.image || null,
             })
             .select()
             .single();
@@ -252,6 +269,7 @@ export default function NewShipment() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-2 border-b border-border">
+                <th className="px-3 py-2 text-right">صورة</th>
                 <th className="px-3 py-2 text-right">المنتج</th>
                 <th className="px-3 py-2 text-right">الكود (SKU)</th>
                 <th className="px-3 py-2 text-right">الكمية</th>
@@ -262,16 +280,31 @@ export default function NewShipment() {
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
+                <tr><td colSpan={7} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
               )}
               {lines.map((l, i) => (
                 <tr key={i} className="border-b border-border align-top">
+                  <td className="px-3 py-2 w-24">
+                    <div className="flex flex-col items-center gap-1">
+                      {l.image
+                        ? <img src={l.image} alt="" className="w-14 h-14 rounded object-cover border" />
+                        : <div className="w-14 h-14 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
+                      }
+                      {l.product_id === null && (
+                        <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          {l.uploadingImg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                          <span>{l.image ? "تغيير" : "رفع"}</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
+                        </label>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-2 min-w-[300px]">
                     <select
                       value={l.product_id ?? ""}
                       onChange={(e) => {
                         if (e.target.value === "__new__") {
-                          updateLine(i, { product_id: null, product_name: "", sku: genSku() });
+                          updateLine(i, { product_id: null, product_name: "", sku: genSku(), image: "" });
                         } else handleProductChange(i, e.target.value);
                       }}
                       className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"

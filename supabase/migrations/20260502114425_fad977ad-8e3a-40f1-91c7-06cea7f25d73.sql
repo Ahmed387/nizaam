@@ -1,0 +1,1 @@
+ALTER TABLE public.price_list ADD COLUMN IF NOT EXISTS image text;

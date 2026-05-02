@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus, Eraser } from "lucide-react";
+import { Plus, Upload, RefreshCw, Pencil, Trash2, ArrowUp, ArrowDown, Minus, Eraser, Loader2, ImageIcon } from "lucide-react";
+import { uploadProductImage } from "@/lib/uploadImage";
 
 type PriceRow = {
   id: string;
@@ -25,10 +26,11 @@ type PriceRow = {
   old_price: number;
   new_price: number;
   market_price: number;
+  image: string | null;
   uploaded_at: string;
 };
 
-const emptyForm = { id: "", sku: "", product_name: "", category_name: "", description: "", old_price: "", new_price: "", market_price: "" };
+const emptyForm = { id: "", sku: "", product_name: "", category_name: "", description: "", old_price: "", new_price: "", market_price: "", image: "" };
 
 export default function PriceList() {
   const { user, tenantId } = useAuth();
@@ -88,8 +90,23 @@ export default function PriceList() {
       id: r.id, sku: r.sku ?? "", product_name: r.product_name, category_name: r.category_name ?? "",
       description: r.description ?? "", old_price: String(r.old_price ?? 0),
       new_price: String(r.new_price ?? 0), market_price: String(r.market_price ?? 0),
+      image: r.image ?? "",
     });
     setOpen(true);
+  };
+
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const onPickFormImage = async (file: File) => {
+    setUploadingImg(true);
+    try {
+      const url = await uploadProductImage(file, "price-list");
+      setForm((f) => ({ ...f, image: url }));
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploadingImg(false);
+    }
   };
 
   const submit = async () => {
@@ -111,6 +128,7 @@ export default function PriceList() {
       old_price: Number(form.old_price) || 0,
       new_price: Number(form.new_price) || 0,
       market_price: Number(form.market_price) || 0,
+      image: form.image || null,
       uploaded_by: user!.id,
     };
     if (form.id) {
@@ -323,10 +341,12 @@ export default function PriceList() {
           }
 
           if (existingId) {
-            // تحديث الأسعار فقط (الكمية و selling_price ما يتغيروش)
+            // تحديث الأسعار + الصورة لو القائمة فيها صورة (الكمية و selling_price ما يتغيروش)
+            const upd: any = { old_price: oldP || newP, market_price: market };
+            if (r.image) upd.image = r.image;
             const { error: upErr } = await supabase
               .from("products")
-              .update({ old_price: oldP || newP, market_price: market })
+              .update(upd)
               .eq("id", existingId);
             if (!upErr) updated++;
           } else {
@@ -358,6 +378,7 @@ export default function PriceList() {
               market_price: market,
               cost_price: 0,
               quantity: 0,
+              image: r.image || null,
             });
             if (!insErr) created++;
           }
@@ -426,6 +447,10 @@ export default function PriceList() {
         loading={loading} rows={filtered}
         empty="لا توجد منتجات في القائمة"
         columns={[
+          { key: "image", header: "صورة", render: (r: PriceRow) => r.image
+            ? <img src={r.image} alt={r.product_name} className="w-10 h-10 rounded object-cover border" loading="lazy" />
+            : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>
+          },
           { key: "sku", header: "SKU", render: (r: PriceRow) => <span className="text-xs text-muted-foreground" dir="ltr">{r.sku ?? "—"}</span> },
           { key: "product_name", header: "اسم المنتج", render: (r: PriceRow) => (
             <div>
@@ -454,6 +479,21 @@ export default function PriceList() {
             <DialogDescription>السعر القديم والجديد سيظهروا للكاشير وقت البيع.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <Label>صورة المنتج</Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                {form.image
+                  ? <img src={form.image} alt="" className="w-20 h-20 rounded object-cover border" />
+                  : <div className="w-20 h-20 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-6 h-6 text-muted-foreground" /></div>
+                }
+                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted text-sm">
+                  {uploadingImg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  <span>{form.image ? "تغيير" : "رفع صورة"}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickFormImage(e.target.files[0])} />
+                </label>
+                {form.image && <Button variant="ghost" size="sm" type="button" onClick={() => setForm({ ...form, image: "" })}>إزالة</Button>}
+              </div>
+            </div>
             <div className="col-span-2"><Label>التصنيف</Label><Input value={form.category_name} onChange={(e) => setForm({ ...form, category_name: e.target.value })} className="mt-1.5" /></div>
             <div className="col-span-2"><Label>اسم المنتج *</Label><Input value={form.product_name} onChange={(e) => setForm({ ...form, product_name: e.target.value })} className="mt-1.5" /></div>
             <div className="col-span-2"><Label>الوصف</Label><Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1.5" /></div>
