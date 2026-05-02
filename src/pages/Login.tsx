@@ -129,6 +129,11 @@ export default function Login() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>كلمة المرور *</Label>
+                <Input type="password" required className="mt-1.5"
+                  value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} />
+              </div>
               <Button type="submit" disabled={busy} className="w-full h-11 btn-gradient text-base">
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "دخول"}
               </Button>
