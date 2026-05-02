@@ -55,16 +55,22 @@ export default function BranchProfile() {
       supabase.from("branches").select("*").eq("id", branchId).maybeSingle(),
       supabase.from("employees").select("*").eq("branch_id", branchId).order("name"),
       supabase.from("products").select("*").eq("branch_id", branchId).order("quantity"),
-      supabase.from("invoices").select("*, profiles:cashier_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
+      supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
       supabase.from("shipments").select("*, suppliers(company_name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).limit(200),
       supabase.from("expenses").select("*").eq("branch_id", branchId).order("date", { ascending: false }).limit(200),
       supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
       supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200),
     ]);
+    const cashierIds = [...new Set((invs ?? []).map((r: any) => r.cashier_id).filter(Boolean))];
+    const { data: cashiers } = cashierIds.length
+      ? await supabase.from("profiles").select("id, name").in("id", cashierIds)
+      : { data: [] as any[] };
+    const cashierMap = new Map((cashiers ?? []).map((c: any) => [c.id, c.name]));
+
     setBranch(br);
     setEmployees(emps ?? []);
     setProducts(prods ?? []);
-    setInvoices(invs ?? []);
+    setInvoices((invs ?? []).map((r: any) => ({ ...r, cashier_name: cashierMap.get(r.cashier_id) ?? "—" })));
     setShipments(ships ?? []);
     setExpenses(exps ?? []);
     setTreasury(trs ?? []);
