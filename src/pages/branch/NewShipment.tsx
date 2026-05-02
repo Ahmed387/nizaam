@@ -11,7 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
+import { uploadProductImage } from "@/lib/uploadImage";
 
 interface Line {
   product_id: string | null;
@@ -19,6 +20,8 @@ interface Line {
   sku: string;
   quantity: number;
   cost_price: number;
+  image: string;
+  uploadingImg?: boolean;
 }
 
 // توليد كود فريد للمنتج الجديد
