@@ -233,7 +233,7 @@ export default function SupplierProfile() {
       details: { company_name: supplier.company_name },
     });
     toast.success("تم الحذف");
-    nav(`/branch/${branchId}/suppliers`);
+    nav(backTo);
   };
 
   const printStatement = () => {
