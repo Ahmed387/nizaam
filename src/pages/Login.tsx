@@ -22,6 +22,7 @@ export default function Login() {
   const [empEmail, setEmpEmail] = useState("");
   const [empPhone, setEmpPhone] = useState("");
   const [empJob, setEmpJob] = useState("");
+  const [empPassword, setEmpPassword] = useState("");
 
   const { user, isAdmin, isSuperAdmin, branches, loading } = useAuth();
   const nav = useNavigate();
@@ -45,13 +46,13 @@ export default function Login() {
 
   const submitEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empEmail || !empPhone || !empJob) {
-      return toast.error("املأ كل البيانات");
+    if (!empEmail || !empPhone || !empJob || !empPassword) {
+      return toast.error("املأ كل البيانات بما فيها كلمة المرور");
     }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("employee-signin", {
-        body: { email: empEmail, phone: empPhone, job_title: empJob },
+        body: { email: empEmail, phone: empPhone, job_title: empJob, password: empPassword },
       });
       if (error) {
         const ctx: any = (error as any).context;
@@ -127,6 +128,11 @@ export default function Login() {
                     {POSITIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>كلمة المرور *</Label>
+                <Input type="password" required className="mt-1.5"
+                  value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} />
               </div>
               <Button type="submit" disabled={busy} className="w-full h-11 btn-gradient text-base">
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "دخول"}
