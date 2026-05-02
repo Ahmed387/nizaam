@@ -16,9 +16,14 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 interface Line {
   product_id: string | null;
   product_name: string;
+  sku: string;
   quantity: number;
   cost_price: number;
 }
+
+// توليد كود فريد للمنتج الجديد
+const genSku = () =>
+  `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export default function NewShipment() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -27,6 +32,7 @@ export default function NewShipment() {
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [priceList, setPriceList] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [arrival, setArrival] = useState(new Date().toISOString().split("T")[0]);
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
@@ -40,6 +46,7 @@ export default function NewShipment() {
     if (!branchId) return;
     supabase.from("suppliers").select("*").order("company_name").then(({ data }) => setSuppliers(data ?? []));
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
+    supabase.from("price_list").select("*").order("product_name").then(({ data }) => setPriceList(data ?? []));
   }, [branchId]);
 
   useEffect(() => {
@@ -47,7 +54,7 @@ export default function NewShipment() {
   }, [profile]);
 
   const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", quantity: 1, cost_price: 0 }]);
+    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0 }]);
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
@@ -62,8 +69,20 @@ export default function NewShipment() {
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
-    if (p) updateLine(i, { product_id: p.id, product_name: p.name, cost_price: Number(p.cost_price) });
+    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price) });
     else updateLine(i, { product_id: productId });
+  };
+
+  // اختيار منتج من الـ price list (للمنتجات الجديدة على الفرع)
+  const handlePriceListPick = (i: number, plId: string) => {
+    const pl = priceList.find((x) => x.id === plId);
+    if (!pl) return;
+    updateLine(i, {
+      product_id: null,
+      product_name: pl.product_name,
+      sku: pl.sku || genSku(),
+      cost_price: Number(pl.new_price ?? pl.market_price ?? 0),
+    });
   };
 
   const submit = async () => {
@@ -99,7 +118,7 @@ export default function NewShipment() {
         let pid = l.product_id;
         // Create product if new
         if (!pid) {
-          const sku = `P-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+          const sku = (l.sku && l.sku.trim()) || genSku();
           const { data: np, error: ep } = await supabase
             .from("products")
             .insert({
@@ -234,6 +253,7 @@ export default function NewShipment() {
             <thead>
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-3 py-2 text-right">المنتج</th>
+                <th className="px-3 py-2 text-right">الكود (SKU)</th>
                 <th className="px-3 py-2 text-right">الكمية</th>
                 <th className="px-3 py-2 text-right">سعر التكلفة</th>
                 <th className="px-3 py-2 text-right">الإجمالي</th>
@@ -242,33 +262,57 @@ export default function NewShipment() {
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={5} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
+                <tr><td colSpan={6} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
               )}
               {lines.map((l, i) => (
-                <tr key={i} className="border-b border-border">
-                  <td className="px-3 py-2 min-w-[280px]">
+                <tr key={i} className="border-b border-border align-top">
+                  <td className="px-3 py-2 min-w-[300px]">
                     <select
                       value={l.product_id ?? ""}
                       onChange={(e) => {
                         if (e.target.value === "__new__") {
-                          updateLine(i, { product_id: null, product_name: "" });
+                          updateLine(i, { product_id: null, product_name: "", sku: genSku() });
                         } else handleProductChange(i, e.target.value);
                       }}
                       className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
                     >
-                      <option value="">— اختر منتج —</option>
+                      <option value="">— اختر من مخزون الفرع —</option>
                       {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (متوفر: {p.quantity})</option>
+                        <option key={p.id} value={p.id}>{p.name} — {p.sku} (متوفر: {p.quantity})</option>
                       ))}
                       <option value="__new__">+ منتج جديد</option>
                     </select>
                     {l.product_id === null && (
-                      <Input
-                        placeholder="اسم المنتج الجديد"
-                        value={l.product_name}
-                        onChange={(e) => updateLine(i, { product_name: e.target.value })}
-                      />
+                      <>
+                        {priceList.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && handlePriceListPick(i, e.target.value)}
+                            className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
+                          >
+                            <option value="">— أو اختر من قائمة الأسعار —</option>
+                            {priceList.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.product_name}{p.sku ? ` — ${p.sku}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <Input
+                          placeholder="اسم المنتج الجديد"
+                          value={l.product_name}
+                          onChange={(e) => updateLine(i, { product_name: e.target.value })}
+                        />
+                      </>
                     )}
+                  </td>
+                  <td className="px-3 py-2 w-40">
+                    <Input
+                      value={l.sku}
+                      onChange={(e) => updateLine(i, { sku: e.target.value })}
+                      readOnly={l.product_id !== null}
+                      className={l.product_id !== null ? "bg-surface-2 font-mono text-xs" : "font-mono text-xs"}
+                    />
                   </td>
                   <td className="px-3 py-2 w-24">
                     <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
