@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
-import { printReport } from "@/lib/export";
+import { printReport, exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -46,6 +46,8 @@ import {
   FileText,
   Receipt,
   Activity,
+  Download,
+  Package,
 } from "lucide-react";
 
 export default function SupplierProfile() {
