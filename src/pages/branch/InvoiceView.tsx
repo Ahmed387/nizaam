@@ -177,7 +177,7 @@ export default function InvoiceView() {
           <div>تم إصدار هذه الفاتورة إلكترونياً بواسطة:</div>
           <div className="mt-1 font-bold text-foreground text-sm">✍️ {cashierName ?? "—"}</div>
           <div className="mt-1">بتاريخ {formatDateTime(inv.created_at)}</div>
-          <div className="mt-1 text-[10px]">(لا تحتاج إلى توقيع يدوي)</div>
+          
         </div>
 
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
