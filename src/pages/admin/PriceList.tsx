@@ -341,10 +341,12 @@ export default function PriceList() {
           }
 
           if (existingId) {
-            // تحديث الأسعار فقط (الكمية و selling_price ما يتغيروش)
+            // تحديث الأسعار + الصورة لو القائمة فيها صورة (الكمية و selling_price ما يتغيروش)
+            const upd: any = { old_price: oldP || newP, market_price: market };
+            if (r.image) upd.image = r.image;
             const { error: upErr } = await supabase
               .from("products")
-              .update({ old_price: oldP || newP, market_price: market })
+              .update(upd)
               .eq("id", existingId);
             if (!upErr) updated++;
           } else {
