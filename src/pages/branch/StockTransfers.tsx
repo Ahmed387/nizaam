@@ -111,6 +111,18 @@ export default function StockTransfers() {
 
     await supabase.from("stock_transfers").update({ status: "confirmed", confirmed_by: user!.id }).eq("id", t.id);
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { confirmed: true } });
+
+    // Notify sender branch managers
+    const senderMgrs = await getBranchManagers(t.from_branch_id);
+    await notifyMany(senderMgrs, {
+      title: "تم استلام طلب النقل ✅",
+      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      type: "general",
+      link: `/branch/${t.from_branch_id}/transfers`,
+      relatedEntity: "stock_transfer",
+      relatedEntityId: t.id,
+    });
+
     toast.success("تم تأكيد الاستلام وإضافة الكمية للمخزون");
     load();
   };
@@ -122,6 +134,18 @@ export default function StockTransfers() {
     if (src) await supabase.from("products").update({ quantity: src.quantity + t.quantity }).eq("id", t.product_id);
     await supabase.from("stock_transfers").update({ status: "rejected", confirmed_by: user!.id }).eq("id", t.id);
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { rejected: true } });
+
+    // Notify sender branch managers
+    const senderMgrs = await getBranchManagers(t.from_branch_id);
+    await notifyMany(senderMgrs, {
+      title: "تم رفض طلب النقل ❌",
+      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity} (رجعت الكمية للمخزون)`,
+      type: "general",
+      link: `/branch/${t.from_branch_id}/transfers`,
+      relatedEntity: "stock_transfer",
+      relatedEntityId: t.id,
+    });
+
     toast.info("تم رفض الطلب وإرجاع الكمية");
     load();
   };
