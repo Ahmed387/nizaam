@@ -54,14 +54,16 @@ export default function StockTransfers() {
     if (!prod) return;
     if (qty > prod.quantity) return toast.error(`الكمية المتاحة: ${prod.quantity} فقط`);
 
-    // Create transfer (pending) + decrement source stock immediately
-    const { data: tr, error } = await supabase.from("stock_transfers").insert({
-      from_branch_id: branchId!, to_branch_id: form.to_branch_id, product_id: form.product_id,
-      quantity: qty, reason: form.reason || null, transferred_by: user!.id, status: "pending",
-    }).select().single();
+    // Atomic: lock product, decrement stock, create transfer in one transaction
+    const { data: trId, error } = await supabase.rpc("transfer_stock_atomic", {
+      p_from_branch: branchId!,
+      p_to_branch: form.to_branch_id,
+      p_product_id: form.product_id,
+      p_quantity: qty,
+      p_reason: form.reason || null,
+    });
     if (error) return toast.error(error.message);
-
-    await supabase.from("products").update({ quantity: prod.quantity - qty }).eq("id", form.product_id);
+    const tr = { id: trId as string };
 
     // Notify branch managers of receiving branch
     const toBranch = branches.find((b) => b.id === form.to_branch_id);
