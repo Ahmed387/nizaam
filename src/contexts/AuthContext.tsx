@@ -98,6 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export const useAuth = () => {
   const c = useContext(Ctx);
-  if (!c) throw new Error("useAuth must be inside AuthProvider");
+  if (!c) {
+    // قد يحدث أثناء Hot Module Reload — أعد تحميل الصفحة
+    if (typeof window !== "undefined") window.location.reload();
+    throw new Error("useAuth must be inside AuthProvider");
+  }
   return c;
 };
