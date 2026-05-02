@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Store } from "lucide-react";
+import { Loader2, Store, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const { user, isAdmin, isSuperAdmin, branches, loading } = useAuth();
   const nav = useNavigate();
@@ -59,11 +60,26 @@ export default function Login() {
           </div>
           <div>
             <Label htmlFor="password">كلمة المرور</Label>
-            <Input
-              id="password" type="password" required className="mt-1.5"
-              value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                className="pl-10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+                aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <Button type="submit" disabled={busy} className="w-full h-11 btn-gradient text-base">
