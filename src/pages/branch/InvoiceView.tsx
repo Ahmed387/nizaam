@@ -173,15 +173,11 @@ export default function InvoiceView() {
           </div>
         )}
 
-        <div className="mt-8 pt-4 border-t border-dashed border-border grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-          <div>
-            <div>توقيع الكاشير</div>
-            <div className="mt-8 border-t border-border pt-1">{cashierName ?? "—"}</div>
-          </div>
-          <div className="text-left">
-            <div>توقيع العميل</div>
-            <div className="mt-8 border-t border-border pt-1">{inv.customers?.name ?? "—"}</div>
-          </div>
+        <div className="mt-8 pt-4 border-t border-dashed border-border text-xs text-muted-foreground text-center">
+          <div>تم إصدار هذه الفاتورة إلكترونياً بواسطة:</div>
+          <div className="mt-1 font-bold text-foreground text-sm">✍️ {cashierName ?? "—"}</div>
+          <div className="mt-1">بتاريخ {formatDateTime(inv.created_at)}</div>
+          <div className="mt-1 text-[10px]">(لا تحتاج إلى توقيع يدوي)</div>
         </div>
 
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
