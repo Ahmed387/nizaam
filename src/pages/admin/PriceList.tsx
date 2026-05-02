@@ -45,18 +45,30 @@ export default function PriceList() {
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [confirmApply, setConfirmApply] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear] = useState<ClearMode | null>(null);
   const [clearing, setClearing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const clearAll = async () => {
+  const counts = useMemo(() => ({
+    all: rows.length,
+    manual: rows.filter(r => r.source === "manual").length,
+    upload: rows.filter(r => r.source === "upload").length,
+  }), [rows]);
+
+  const clearBy = async (mode: ClearMode) => {
     if (!tenantId) return;
     setClearing(true);
-    const { error } = await supabase.from("price_list").delete().eq("tenant_id", tenantId);
+    let q = supabase.from("price_list").delete().eq("tenant_id", tenantId);
+    if (mode !== "all") q = q.eq("source", mode);
+    const { error } = await q;
     setClearing(false);
-    setConfirmClear(false);
+    setConfirmClear(null);
     if (error) return toast.error(error.message);
-    toast.success("تم مسح كل قائمة الأسعار");
+    toast.success(
+      mode === "all" ? "تم مسح كل قائمة الأسعار"
+      : mode === "manual" ? "تم مسح المنتجات المُدخلة يدوياً"
+      : "تم مسح المنتجات المرفوعة من ملف"
+    );
     load();
   };
 
