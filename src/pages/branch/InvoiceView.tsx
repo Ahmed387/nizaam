@@ -112,7 +112,13 @@ export default function InvoiceView() {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
             <div className="text-xs text-muted-foreground mb-1">👤 الجهة المشترية (العميل)</div>
-            <div className="font-bold">{inv.customers?.name ?? "عميل نقدي"}</div>
+            {inv.customer_id ? (
+              <a href={`/branch/${id}/customers/${inv.customer_id}`} className="font-bold text-primary hover:underline">
+                {inv.customers?.name ?? "عميل"}
+              </a>
+            ) : (
+              <div className="font-bold">عميل نقدي</div>
+            )}
             {inv.customers?.phone && <div className="text-xs text-muted-foreground">☎ {inv.customers.phone}</div>}
             {inv.customers?.address && <div className="text-xs text-muted-foreground">📍 {inv.customers.address}</div>}
           </div>
