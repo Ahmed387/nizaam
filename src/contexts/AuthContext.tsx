@@ -73,6 +73,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Realtime: re-fetch context (and force re-login) if this user's roles or branches change
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`user-ctx-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
+        async () => {
+          await loadCtx(user.id);
+          // Force re-login so JWT/session reflects role change everywhere
+          if (typeof window !== "undefined") {
+            await supabase.auth.signOut();
+            window.location.href = "/login";
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_users", filter: `user_id=eq.${user.id}` },
+        () => loadCtx(user.id)
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   const value: AuthCtx = {
     user,
     session,
