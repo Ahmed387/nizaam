@@ -1563,6 +1563,10 @@ export type Database = {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
       }
+      verify_employee_password: {
+        Args: { _employee_id: string; _password: string }
+        Returns: boolean
+      }
     }
     Enums: {
       advance_request_status:
