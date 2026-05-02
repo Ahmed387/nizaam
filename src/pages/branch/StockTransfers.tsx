@@ -63,9 +63,25 @@ export default function StockTransfers() {
 
     await supabase.from("products").update({ quantity: prod.quantity - qty }).eq("id", form.product_id);
 
+    // Notify branch managers of receiving branch
+    const toBranch = branches.find((b) => b.id === form.to_branch_id);
+    const fromBranch = branches.find((b) => b.id === branchId) ?? { name: "فرع آخر" };
+    const recipients = await getBranchManagers(form.to_branch_id);
+    await notifyMany(recipients, {
+      title: "طلب نقل بضاعة جديد",
+      body: `من ${fromBranch.name ?? "فرع آخر"}: ${prod.name} × ${qty}`,
+      type: "general",
+      link: `/branch/${form.to_branch_id}/transfers`,
+      relatedEntity: "stock_transfer",
+      relatedEntityId: tr.id,
+    });
+
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "CREATE", entity: "stock_transfer", entityId: tr.id, details: { product: prod.name, qty, to: form.to_branch_id } });
     toast.success("تم إرسال طلب النقل وانتظار التأكيد من الفرع المستلم");
     setOpen(false);
+    setForm({ to_branch_id: "", product_id: "", quantity: "", reason: "" });
+    load();
+  };
     setForm({ to_branch_id: "", product_id: "", quantity: "", reason: "" });
     load();
   };
