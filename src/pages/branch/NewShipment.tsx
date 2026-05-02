@@ -46,6 +46,7 @@ export default function NewShipment() {
     if (!branchId) return;
     supabase.from("suppliers").select("*").order("company_name").then(({ data }) => setSuppliers(data ?? []));
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
+    supabase.from("price_list").select("*").order("product_name").then(({ data }) => setPriceList(data ?? []));
   }, [branchId]);
 
   useEffect(() => {
