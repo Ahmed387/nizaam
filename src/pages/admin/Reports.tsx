@@ -160,12 +160,26 @@ export default function AdminReports() {
 
   const lowStockList = useMemo(() => scopedProducts.filter((p) => p.quantity <= p.low_stock_alert), [scopedProducts]);
 
-  // Suppliers — global only (not branch-scoped by design)
+  // Suppliers — global only. Compute total invoiced (علينا) + total paid (سددنا) historically.
+  const suppliersWithTotals = useMemo(() => {
+    return suppliers.map((s) => {
+      const totalOwed = allShipments
+        .filter((sh) => sh.supplier_id === s.id)
+        .reduce((sum, sh) => sum + Number(sh.total_cost ?? 0), 0);
+      const totalPaid = allSupPayments
+        .filter((p) => p.supplier_id === s.id)
+        .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+      return { ...s, totalOwed, totalPaid, remaining: Number(s.balance ?? 0) };
+    });
+  }, [suppliers, allShipments, allSupPayments]);
+
   const topSuppliers = useMemo(
-    () => [...suppliers].sort((a, b) => Number(b.balance ?? 0) - Number(a.balance ?? 0)).slice(0, 15),
-    [suppliers]
+    () => [...suppliersWithTotals].sort((a, b) => b.remaining - a.remaining).slice(0, 50),
+    [suppliersWithTotals]
   );
-  const supplierDebt = suppliers.reduce((s, x) => s + Number(x.balance ?? 0), 0);
+  const supplierDebt = suppliersWithTotals.reduce((s, x) => s + x.remaining, 0);
+  const supplierTotalOwed = suppliersWithTotals.reduce((s, x) => s + x.totalOwed, 0);
+  const supplierTotalPaid = suppliersWithTotals.reduce((s, x) => s + x.totalPaid, 0);
 
   const currentBranchName = scope === "global" ? "كل الفروع" : (branches.find((b) => b.id === scope)?.name ?? "—");
 
