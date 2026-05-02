@@ -16,9 +16,14 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 interface Line {
   product_id: string | null;
   product_name: string;
+  sku: string;
   quantity: number;
   cost_price: number;
 }
+
+// توليد كود فريد للمنتج الجديد
+const genSku = () =>
+  `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export default function NewShipment() {
   const { id: branchId } = useParams<{ id: string }>();
