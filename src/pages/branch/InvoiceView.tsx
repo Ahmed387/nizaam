@@ -65,6 +65,7 @@ export default function InvoiceView() {
     location.reload();
   };
 
+  if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
 
   const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
