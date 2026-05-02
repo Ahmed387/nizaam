@@ -378,6 +378,7 @@ export default function PriceList() {
               market_price: market,
               cost_price: 0,
               quantity: 0,
+              image: r.image || null,
             });
             if (!insErr) created++;
           }
