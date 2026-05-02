@@ -51,7 +51,7 @@ export default function BranchDashboard() {
         supabase.from("treasury").select("type, amount").eq("branch_id", id),
         supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
         supabase.from("customers").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
-        supabase.from("invoices").select("*, customers(name), profiles!invoices_cashier_id_fkey(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
+        supabase.from("invoices").select("*, customers(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
         supabase.from("invoices").select("created_at, total").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
         supabase.from("invoice_items").select("product_name, quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
         supabase.from("invoices").select("customer_id, total, customers(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("customer_id", "is", null),
