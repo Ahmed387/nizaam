@@ -52,7 +52,7 @@ export default function NewShipment() {
   }, [profile]);
 
   const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", quantity: 1, cost_price: 0 }]);
+    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0 }]);
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
