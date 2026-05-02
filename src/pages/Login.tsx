@@ -46,13 +46,13 @@ export default function Login() {
 
   const submitEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empEmail || !empPhone || !empJob) {
-      return toast.error("املأ كل البيانات");
+    if (!empEmail || !empPhone || !empJob || !empPassword) {
+      return toast.error("املأ كل البيانات بما فيها كلمة المرور");
     }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("employee-signin", {
-        body: { email: empEmail, phone: empPhone, job_title: empJob },
+        body: { email: empEmail, phone: empPhone, job_title: empJob, password: empPassword },
       });
       if (error) {
         const ctx: any = (error as any).context;
