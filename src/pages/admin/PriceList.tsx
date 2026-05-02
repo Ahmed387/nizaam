@@ -557,12 +557,18 @@ export default function PriceList() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+      <AlertDialog open={!!confirmClear} onOpenChange={(o) => !o && setConfirmClear(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>مسح كل قائمة الأسعار؟</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirmClear === "all" && "مسح كل قائمة الأسعار؟"}
+              {confirmClear === "manual" && "مسح المنتجات المُدخلة يدوياً؟"}
+              {confirmClear === "upload" && "مسح المنتجات المرفوعة من ملف؟"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف جميع الأسعار ({rows.length} عنصر) من القائمة الرسمية.
+              {confirmClear === "all" && `سيتم حذف جميع الأسعار (${counts.all} عنصر).`}
+              {confirmClear === "manual" && `سيتم حذف ${counts.manual} منتج تم إدخالها يدوياً فقط.`}
+              {confirmClear === "upload" && `سيتم حذف ${counts.upload} منتج تم رفعها من ملف Excel/PDF فقط.`}
               <br />
               <b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
               <br />
@@ -572,11 +578,11 @@ export default function PriceList() {
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction
-              onClick={clearAll}
+              onClick={() => confirmClear && clearBy(confirmClear)}
               disabled={clearing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {clearing ? "جاري المسح..." : "نعم، امسح الكل"}
+              {clearing ? "جاري المسح..." : "نعم، امسح"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
