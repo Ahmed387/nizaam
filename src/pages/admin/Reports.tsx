@@ -481,13 +481,19 @@ export default function AdminReports() {
         </TabsContent>
 
         {scope === "global" && (
-          <TabsContent value="suppliers" className="mt-4">
+          <TabsContent value="suppliers" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <MiniKpi label="إجمالي علينا" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="قيمة كل الشحنات تاريخياً" />
+              <MiniKpi label="إجمالي سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="كل الدفعات تاريخياً" />
+              <MiniKpi label="المتبقي علينا" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" />
+            </div>
             <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
               columns={[
                 { key: "company_name", header: "الشركة", render: (r: any) => <b>{r.company_name}</b> },
-                { key: "contact_name", header: "جهة الاتصال", render: (r: any) => r.contact_name ?? "—" },
                 { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
-                { key: "balance", header: "الرصيد المستحق", render: (r: any) => <b className={Number(r.balance) > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.balance)}</b> },
+                { key: "totalOwed", header: "علينا (إجمالي)", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
+                { key: "totalPaid", header: "سددنا", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },
+                { key: "remaining", header: "المتبقي", render: (r: any) => <b className={r.remaining > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.remaining)}</b> },
               ]} />
           </TabsContent>
         )}
