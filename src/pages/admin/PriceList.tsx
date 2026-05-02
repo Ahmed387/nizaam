@@ -261,7 +261,7 @@ export default function PriceList() {
 
       const finalRecords = records
         .filter((r) => r.product_name)
-        .map((r) => ({ ...r, uploaded_by: user!.id }));
+        .map((r) => ({ ...r, uploaded_by: user!.id, source: "upload" as const }));
 
       if (!finalRecords.length) {
         toast.error("لم يتم العثور على بيانات صحيحة");
