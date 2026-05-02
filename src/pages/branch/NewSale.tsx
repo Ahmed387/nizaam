@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
+import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, Plus, ScanLine } from "lucide-react";
 
 interface Item {
