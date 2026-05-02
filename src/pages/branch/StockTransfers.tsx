@@ -82,9 +82,7 @@ export default function StockTransfers() {
     setForm({ to_branch_id: "", product_id: "", quantity: "", reason: "" });
     load();
   };
-    setForm({ to_branch_id: "", product_id: "", quantity: "", reason: "" });
-    load();
-  };
+
 
   const confirmTransfer = async (t: any) => {
     // Add to destination product (or create if not exists)
