@@ -82,6 +82,7 @@ const App = () => (
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/branches" element={<ProtectedRoute adminOnly><Branches /></ProtectedRoute>} />
+            <Route path="/admin/branches/:id" element={<ProtectedRoute adminOnly><BranchProfile /></ProtectedRoute>} />
             
             <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
