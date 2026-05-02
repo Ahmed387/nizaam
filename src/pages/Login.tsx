@@ -22,6 +22,7 @@ export default function Login() {
   const [empEmail, setEmpEmail] = useState("");
   const [empPhone, setEmpPhone] = useState("");
   const [empJob, setEmpJob] = useState("");
+  const [empPassword, setEmpPassword] = useState("");
 
   const { user, isAdmin, isSuperAdmin, branches, loading } = useAuth();
   const nav = useNavigate();
