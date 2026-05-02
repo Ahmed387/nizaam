@@ -269,6 +269,7 @@ export default function NewShipment() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-2 border-b border-border">
+                <th className="px-3 py-2 text-right">صورة</th>
                 <th className="px-3 py-2 text-right">المنتج</th>
                 <th className="px-3 py-2 text-right">الكود (SKU)</th>
                 <th className="px-3 py-2 text-right">الكمية</th>
