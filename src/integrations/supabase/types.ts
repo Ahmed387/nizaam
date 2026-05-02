@@ -683,6 +683,7 @@ export type Database = {
           category_name: string | null
           description: string | null
           id: string
+          image: string | null
           market_price: number
           new_price: number
           old_price: number
@@ -696,6 +697,7 @@ export type Database = {
           category_name?: string | null
           description?: string | null
           id?: string
+          image?: string | null
           market_price: number
           new_price?: number
           old_price?: number
@@ -709,6 +711,7 @@ export type Database = {
           category_name?: string | null
           description?: string | null
           id?: string
+          image?: string | null
           market_price?: number
           new_price?: number
           old_price?: number
