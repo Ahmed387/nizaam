@@ -4,19 +4,20 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
 import {
   FileSpreadsheet, Printer, ShoppingCart, TrendingUp, TrendingDown,
-  Wallet, Store, Users, Truck, Package, RotateCcw, Building2,
+  Wallet, Store, Users, Truck, Package, RotateCcw, Building2, AlertTriangle,
+  Receipt, ArrowDownCircle, ArrowUpCircle, Layers, ChevronLeft,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell as RCell,
 } from "recharts";
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))", "#8b5cf6", "#06b6d4"];
@@ -29,6 +30,7 @@ export default function AdminReports() {
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);
+  const [scope, setScope] = useState<"global" | string>("global"); // "global" or branch id
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -75,319 +77,349 @@ export default function AdminReports() {
 
   useEffect(() => { load(); }, []);
 
-  const activeInv = invoices.filter((i) => i.status === "active");
+  // Filter helper based on current scope
+  const inScope = (branchId: string | null | undefined) =>
+    scope === "global" ? true : branchId === scope;
 
-  // ============ Per-branch breakdown ============
+  const activeInv = invoices.filter((i) => i.status === "active" && inScope(i.branch_id));
+  const scopedExpenses = expenses.filter((e) => inScope(e.branch_id));
+  const scopedProducts = products.filter((p) => inScope(p.branch_id));
+  const scopedShipments = shipments.filter((s) => inScope(s.branch_id));
+  const scopedSupPayments = supplierPayments.filter((s) => inScope(s.branch_id));
+  const scopedEmployees = employees.filter((e) => inScope(e.branch_id));
+  const scopedTreasury = treasury.filter((t) => inScope(t.branch_id));
+  const scopedReturns = returns.filter((r) => inScope(r.branch_id));
+  const scopedCustomers = customers.filter((c) => inScope(c.branch_id));
+
+  // ============ Aggregated KPIs for current scope ============
+  const k = useMemo(() => {
+    const sales = activeInv.reduce((s, i) => s + Number(i.total), 0);
+    const cost = activeInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * it.quantity, 0), 0);
+    const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
+    const inventoryValue = scopedProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
+    const inventoryQty = scopedProducts.reduce((s, p) => s + p.quantity, 0);
+    const lowStock = scopedProducts.filter((p) => p.quantity <= p.low_stock_alert);
+    const shipmentsCost = scopedShipments.reduce((s, x) => s + Number(x.total_cost), 0);
+    const supPaid = scopedSupPayments.reduce((s, x) => s + Number(x.amount), 0);
+    const cashIn = scopedTreasury.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+    const cashOut = scopedTreasury.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+    const returnsTotal = scopedReturns.reduce((s, r) => s + Number(r.total_refund), 0);
+    return {
+      sales, cost, profit: sales - cost, exp, net: sales - cost - exp,
+      inventoryValue, inventoryQty, lowStockCount: lowStock.length,
+      shipmentsCost, supPaid,
+      cashIn, cashOut, treasuryBalance: cashIn - cashOut,
+      returnsTotal,
+      invoicesCount: activeInv.length,
+    };
+  }, [activeInv, scopedExpenses, scopedProducts, scopedShipments, scopedSupPayments, scopedTreasury, scopedReturns]);
+
+  // Per-branch (used in global mode)
   const perBranch = useMemo(() => branches.map((b) => {
-    const bInv = activeInv.filter((i) => i.branch_id === b.id);
+    const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
     const cost = bInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * it.quantity, 0), 0);
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
     const bProducts = products.filter((p) => p.branch_id === b.id);
-    const inventoryValue = bProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
-    const inventoryQty = bProducts.reduce((s, p) => s + p.quantity, 0);
-    const lowStock = bProducts.filter((p) => p.quantity <= p.low_stock_alert).length;
-    const bShipments = shipments.filter((s) => s.branch_id === b.id);
-    const shipmentsCost = bShipments.reduce((s, x) => s + Number(x.total_cost), 0);
-    const bSupPay = supplierPayments.filter((s) => s.branch_id === b.id).reduce((s, x) => s + Number(x.amount), 0);
-    const bEmployees = employees.filter((e) => e.branch_id === b.id);
-    const cashIn = treasury.filter((t) => t.branch_id === b.id && t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
-    const cashOut = treasury.filter((t) => t.branch_id === b.id && t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-    const treasuryBalance = cashIn - cashOut;
-    const bReturns = returns.filter((r) => r.branch_id === b.id);
-    const returnsTotal = bReturns.reduce((s, r) => s + Number(r.total_refund), 0);
-    const bCustomers = customers.filter((c) => c.branch_id === b.id).length;
     return {
       ...b,
-      invoices: bInv.length, sales, cost,
-      profit: sales - cost,
-      expenses: exp,
-      net: sales - cost - exp,
-      inventoryValue, inventoryQty, lowStock,
-      shipments: bShipments.length, shipmentsCost,
-      supplierPayments: bSupPay,
-      employeesCount: bEmployees.length,
-      cashIn, cashOut, treasuryBalance,
-      returnsCount: bReturns.length, returnsTotal,
-      customersCount: bCustomers,
+      invoices: bInv.length, sales, cost, profit: sales - cost,
+      expenses: exp, net: sales - cost - exp,
+      inventoryValue: bProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0),
+      inventoryQty: bProducts.reduce((s, p) => s + p.quantity, 0),
+      employees: employees.filter((e) => e.branch_id === b.id).length,
+      treasuryBalance:
+        treasury.filter((t) => t.branch_id === b.id && t.type === "income").reduce((s, t) => s + Number(t.amount), 0) -
+        treasury.filter((t) => t.branch_id === b.id && t.type === "expense").reduce((s, t) => s + Number(t.amount), 0),
     };
-  }), [branches, activeInv, expenses, products, shipments, supplierPayments, employees, treasury, returns, customers]);
+  }), [branches, invoices, expenses, products, employees, treasury]);
 
-  // ============ Global totals ============
-  const totals = useMemo(() => {
-    const sales = perBranch.reduce((s, b) => s + b.sales, 0);
-    const cost = perBranch.reduce((s, b) => s + b.cost, 0);
-    const exp = perBranch.reduce((s, b) => s + b.expenses, 0);
-    const inventoryValue = perBranch.reduce((s, b) => s + b.inventoryValue, 0);
-    const inventoryQty = perBranch.reduce((s, b) => s + b.inventoryQty, 0);
-    const supplierDebt = suppliers.reduce((s, x) => s + Number(x.balance ?? 0), 0);
-    const shipmentsCost = perBranch.reduce((s, b) => s + b.shipmentsCost, 0);
-    const supPaid = perBranch.reduce((s, b) => s + b.supplierPayments, 0);
-    const cashIn = perBranch.reduce((s, b) => s + b.cashIn, 0);
-    const cashOut = perBranch.reduce((s, b) => s + b.cashOut, 0);
-    const returnsTotal = perBranch.reduce((s, b) => s + b.returnsTotal, 0);
-    return {
-      sales, cost, profit: sales - cost, exp, net: sales - cost - exp,
-      inventoryValue, inventoryQty, supplierDebt, shipmentsCost, supPaid,
-      cashIn, cashOut, treasuryBalance: cashIn - cashOut, returnsTotal,
-    };
-  }, [perBranch, suppliers]);
-
-  // Top products globally
+  // Top products in scope
   const topProducts = useMemo(() => {
     const m: Record<string, { name: string; qty: number; revenue: number }> = {};
     for (const inv of activeInv) for (const it of inv.invoice_items) {
-      const k = it.product_name;
-      if (!m[k]) m[k] = { name: k, qty: 0, revenue: 0 };
-      m[k].qty += it.quantity;
-      m[k].revenue += Number(it.total);
+      const key = it.product_name;
+      if (!m[key]) m[key] = { name: key, qty: 0, revenue: 0 };
+      m[key].qty += it.quantity;
+      m[key].revenue += Number(it.total);
     }
     return Object.values(m).sort((a, b) => b.revenue - a.revenue).slice(0, 15);
   }, [activeInv]);
 
-  // Top suppliers by balance
-  const topSuppliers = useMemo(() =>
-    [...suppliers].sort((a, b) => Number(b.balance ?? 0) - Number(a.balance ?? 0)).slice(0, 10)
-  , [suppliers]);
+  const expByType = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const e of scopedExpenses) m[e.type] = (m[e.type] ?? 0) + Number(e.amount);
+    return Object.entries(m).map(([name, value]) => ({ name, value }));
+  }, [scopedExpenses]);
+
+  const lowStockList = useMemo(() => scopedProducts.filter((p) => p.quantity <= p.low_stock_alert), [scopedProducts]);
+
+  // Suppliers — global only (not branch-scoped by design)
+  const topSuppliers = useMemo(
+    () => [...suppliers].sort((a, b) => Number(b.balance ?? 0) - Number(a.balance ?? 0)).slice(0, 15),
+    [suppliers]
+  );
+  const supplierDebt = suppliers.reduce((s, x) => s + Number(x.balance ?? 0), 0);
+
+  const currentBranchName = scope === "global" ? "كل الفروع" : (branches.find((b) => b.id === scope)?.name ?? "—");
 
   // ============ Export ============
   const exportXlsx = () => {
-    exportToExcel(`تقرير-شامل-${from}-${to}`, [
-      { name: "ملخص_عام", rows: [
-        { البند: "إجمالي المبيعات", القيمة: totals.sales },
-        { البند: "إجمالي التكلفة", القيمة: totals.cost },
-        { البند: "إجمالي الربح", القيمة: totals.profit },
-        { البند: "المصروفات", القيمة: totals.exp },
-        { البند: "صافي الربح", القيمة: totals.net },
-        { البند: "قيمة المخزون", القيمة: totals.inventoryValue },
-        { البند: "عدد قطع المخزون", القيمة: totals.inventoryQty },
-        { البند: "مديونية الموردين", القيمة: totals.supplierDebt },
-        { البند: "تكلفة الشحنات", القيمة: totals.shipmentsCost },
-        { البند: "مدفوع للموردين", القيمة: totals.supPaid },
-        { البند: "وارد للخزنة", القيمة: totals.cashIn },
-        { البند: "صادر من الخزنة", القيمة: totals.cashOut },
-        { البند: "رصيد الخزنة", القيمة: totals.treasuryBalance },
-        { البند: "إجمالي المرتجعات", القيمة: totals.returnsTotal },
-        { البند: "عدد الموظفين", القيمة: employees.length },
-        { البند: "عدد الموردين", القيمة: suppliers.length },
-        { البند: "عدد العملاء", القيمة: customers.length },
-        { البند: "عدد الفروع", القيمة: branches.length },
+    const sheets: { name: string; rows: any[] }[] = [
+      { name: "ملخص", rows: [
+        { البند: "النطاق", القيمة: currentBranchName },
+        { البند: "من", القيمة: from },
+        { البند: "إلى", القيمة: to },
+        { البند: "المبيعات", القيمة: k.sales },
+        { البند: "التكلفة", القيمة: k.cost },
+        { البند: "إجمالي الربح", القيمة: k.profit },
+        { البند: "المصروفات", القيمة: k.exp },
+        { البند: "صافي الربح", القيمة: k.net },
+        { البند: "قيمة المخزون", القيمة: k.inventoryValue },
+        { البند: "قطع المخزون", القيمة: k.inventoryQty },
+        { البند: "تكلفة الشحنات", القيمة: k.shipmentsCost },
+        { البند: "مدفوع للموردين", القيمة: k.supPaid },
+        { البند: "وارد الخزنة", القيمة: k.cashIn },
+        { البند: "صادر الخزنة", القيمة: k.cashOut },
+        { البند: "رصيد الخزنة", القيمة: k.treasuryBalance },
+        { البند: "المرتجعات", القيمة: k.returnsTotal },
       ]},
-      { name: "أداء_الفروع", rows: perBranch.map((b) => ({
+      { name: "أكثر_المنتجات", rows: topProducts.map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue })) },
+      { name: "المصروفات_حسب_النوع", rows: expByType.map((e) => ({ النوع: e.name, المبلغ: e.value })) },
+      { name: "مخزون_منخفض", rows: lowStockList.map((p) => ({ المنتج: p.name, المتوفر: p.quantity, "حد التنبيه": p.low_stock_alert })) },
+    ];
+    if (scope === "global") {
+      sheets.push({ name: "مقارنة_الفروع", rows: perBranch.map((b) => ({
         الفرع: b.name, الكود: b.code, الفواتير: b.invoices,
         المبيعات: b.sales, التكلفة: b.cost, الربح: b.profit,
         المصروفات: b.expenses, الصافي: b.net,
-        قيمة_المخزون: b.inventoryValue, قطع_المخزون: b.inventoryQty, مخزون_منخفض: b.lowStock,
-        الشحنات: b.shipments, تكلفة_الشحنات: b.shipmentsCost,
-        مدفوع_للموردين: b.supplierPayments,
-        الموظفين: b.employeesCount, العملاء: b.customersCount,
-        وارد_الخزنة: b.cashIn, صادر_الخزنة: b.cashOut, رصيد_الخزنة: b.treasuryBalance,
-        المرتجعات: b.returnsCount, قيمة_المرتجعات: b.returnsTotal,
-      })) },
-      { name: "أكثر_المنتجات_مبيعاً", rows: topProducts.map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue })) },
-      { name: "الموردين", rows: suppliers.map((s) => ({ الشركة: s.company_name, جهة_الاتصال: s.contact_name, الهاتف: s.phone, الرصيد_المستحق: s.balance })) },
-      { name: "الموظفين", rows: employees.map((e) => ({
-        الاسم: e.name, الوظيفة: e.job_title, الفرع: branches.find((b) => b.id === e.branch_id)?.name ?? "—",
-        الراتب: e.base_salary, الهاتف: e.phone, تاريخ_التعيين: e.hire_date,
-      })) },
-    ]);
+        قيمة_المخزون: b.inventoryValue, الموظفين: b.employees, رصيد_الخزنة: b.treasuryBalance,
+      })) });
+      sheets.push({ name: "الموردين", rows: topSuppliers.map((s) => ({ الشركة: s.company_name, الهاتف: s.phone, الرصيد: s.balance })) });
+    }
+    exportToExcel(`تقرير-${currentBranchName}-${from}-${to}`, sheets);
   };
 
   const printSummary = () => {
-    const html = `
-      <div class="kpi">
-        <div>المبيعات<b class="pos">${formatEGP(totals.sales)}</b></div>
-        <div>إجمالي الربح<b class="pos">${formatEGP(totals.profit)}</b></div>
-        <div>المصروفات<b class="neg">${formatEGP(totals.exp)}</b></div>
-        <div>صافي الربح<b class="${totals.net >= 0 ? "pos" : "neg"}">${formatEGP(totals.net)}</b></div>
-        <div>قيمة المخزون<b>${formatEGP(totals.inventoryValue)}</b></div>
-        <div>مديونية الموردين<b class="neg">${formatEGP(totals.supplierDebt)}</b></div>
-        <div>رصيد الخزنة<b class="${totals.treasuryBalance >= 0 ? "pos" : "neg"}">${formatEGP(totals.treasuryBalance)}</b></div>
-      </div>
-
-      <h3>أداء الفروع التفصيلي</h3>
-      <table><thead><tr>
-        <th>الفرع</th><th>الفواتير</th><th>المبيعات</th><th>الربح</th><th>المصروفات</th>
-        <th>الصافي</th><th>المخزون</th><th>الخزنة</th><th>الموظفين</th>
-      </tr></thead><tbody>
+    const branchTable = scope === "global" ? `
+      <h3>أداء الفروع</h3>
+      <table><thead><tr><th>الفرع</th><th>الفواتير</th><th>المبيعات</th><th>الربح</th><th>المصروفات</th><th>الصافي</th><th>المخزون</th></tr></thead><tbody>
         ${perBranch.map((b) => `<tr>
-          <td><b>${b.name}</b><br/><small>${b.code}</small></td>
-          <td>${b.invoices}</td>
+          <td><b>${b.name}</b></td><td>${b.invoices}</td>
           <td>${formatEGP(b.sales)}</td>
           <td class="pos">${formatEGP(b.profit)}</td>
           <td class="neg">${formatEGP(b.expenses)}</td>
           <td class="${b.net >= 0 ? "pos" : "neg"}"><b>${formatEGP(b.net)}</b></td>
-          <td>${formatEGP(b.inventoryValue)}<br/><small>${b.inventoryQty} قطعة</small></td>
-          <td class="${b.treasuryBalance >= 0 ? "pos" : "neg"}">${formatEGP(b.treasuryBalance)}</td>
-          <td>${b.employeesCount}</td>
+          <td>${formatEGP(b.inventoryValue)}</td>
         </tr>`).join("")}
-      </tbody></table>
+      </tbody></table>` : "";
 
+    const html = `
+      <div class="kpi">
+        <div>المبيعات<b class="pos">${formatEGP(k.sales)}</b></div>
+        <div>إجمالي الربح<b class="pos">${formatEGP(k.profit)}</b></div>
+        <div>المصروفات<b class="neg">${formatEGP(k.exp)}</b></div>
+        <div>صافي الربح<b class="${k.net >= 0 ? "pos" : "neg"}">${formatEGP(k.net)}</b></div>
+        <div>قيمة المخزون<b>${formatEGP(k.inventoryValue)}</b></div>
+        <div>رصيد الخزنة<b class="${k.treasuryBalance >= 0 ? "pos" : "neg"}">${formatEGP(k.treasuryBalance)}</b></div>
+      </div>
+      ${branchTable}
       <h3>أكثر المنتجات مبيعاً</h3>
       <table><thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead><tbody>
-        ${topProducts.map((p, i) => `<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("")}
-      </tbody></table>
-
-      <h3>الموردين والمستحقات</h3>
-      <table><thead><tr><th>الشركة</th><th>جهة الاتصال</th><th>الهاتف</th><th>الرصيد المستحق</th></tr></thead><tbody>
-        ${topSuppliers.map((s) => `<tr><td>${s.company_name}</td><td>${s.contact_name ?? "—"}</td><td>${s.phone ?? "—"}</td><td class="${Number(s.balance) > 0 ? "neg" : "pos"}"><b>${formatEGP(s.balance)}</b></td></tr>`).join("") || "<tr><td colspan='4'>لا يوجد</td></tr>"}
+        ${topProducts.map((p, i) => `<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("") || "<tr><td colspan='4'>لا توجد بيانات</td></tr>"}
       </tbody></table>
     `;
-    printReport(`التقرير الشامل (${from} → ${to})`, html);
+    printReport(`تقرير ${currentBranchName} (${from} → ${to})`, html);
   };
-
-  // Branch comparison data
-  const branchChartData = perBranch.map((b) => ({ name: b.name, مبيعات: b.sales, ربح: b.profit, مصروفات: b.expenses }));
 
   return (
     <AdminLayout>
       <PageHeader
-        title="التقارير الشاملة"
-        subtitle={`تقرير لكل فرع + إجمالي مدمج • ${from} → ${to}`}
+        title="التقارير"
+        subtitle={`${currentBranchName} • ${from} → ${to}`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportXlsx} className="gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
-            <Button onClick={printSummary} className="gap-2"><Printer className="w-4 h-4" /> طباعة / PDF</Button>
+            <Button onClick={printSummary} className="gap-2"><Printer className="w-4 h-4" /> طباعة</Button>
           </div>
         }
       />
 
+      {/* ===== Scope selector — clear top-level switch ===== */}
+      <div className="card-elevated p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Layers className="w-4 h-4 text-primary" />
+          <h3 className="font-bold">نطاق التقرير</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setScope("global")}
+            className={`px-4 py-2.5 rounded-lg border-2 transition text-sm font-bold flex items-center gap-2 ${
+              scope === "global"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border bg-surface hover:border-primary/50"
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            إجمالي كل الفروع
+          </button>
+          {branches.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setScope(b.id)}
+              className={`px-4 py-2.5 rounded-lg border-2 transition text-sm font-bold flex items-center gap-2 ${
+                scope === b.id
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "border-border bg-surface hover:border-primary/50"
+              }`}
+            >
+              <Store className="w-4 h-4" />
+              {b.name}
+              <span className="text-[10px] text-muted-foreground font-normal">({b.code})</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ===== Date range ===== */}
       <div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1.5" /></div>
         <div><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1.5" /></div>
-        <Button onClick={load} disabled={loading}>تحديث</Button>
-        <div className="flex gap-2 mr-auto flex-wrap">
+        <Button onClick={load} disabled={loading}>تحديث البيانات</Button>
+        <div className="flex gap-1 mr-auto flex-wrap">
           <Button size="sm" variant="ghost" onClick={() => { setFrom(today()); setTo(today()); }}>اليوم</Button>
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(7)); setTo(today()); }}>7 أيام</Button>
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(30)); setTo(today()); }}>30 يوم</Button>
+          <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(90)); setTo(today()); }}>3 شهور</Button>
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(365)); setTo(today()); }}>سنة</Button>
         </div>
       </div>
 
-      {/* Global KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <StatCard label="المبيعات" value={formatEGP(totals.sales)} icon={<ShoppingCart className="w-4 h-4" />} hint={`${activeInv.length} فاتورة`} />
-        <StatCard label="إجمالي الربح" value={formatEGP(totals.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-        <StatCard label="المصروفات" value={formatEGP(totals.exp)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
-        <StatCard label="صافي الربح" value={formatEGP(totals.net)} icon={<Wallet className="w-4 h-4" />} accent={totals.net >= 0 ? "success" : "destructive"} />
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="قيمة المخزون" value={formatEGP(totals.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${totals.inventoryQty} قطعة`} accent="primary" />
-        <StatCard label="مديونية الموردين" value={formatEGP(totals.supplierDebt)} icon={<Truck className="w-4 h-4" />} accent="warning" hint={`${suppliers.length} مورد`} />
-        <StatCard label="رصيد الخزنة الكلي" value={formatEGP(totals.treasuryBalance)} icon={<Wallet className="w-4 h-4" />} accent={totals.treasuryBalance >= 0 ? "success" : "destructive"} />
-        <StatCard label="الموظفين" value={String(employees.length)} icon={<Users className="w-4 h-4" />} hint={`${branches.length} فرع`} accent="secondary" />
-      </div>
+      {/* ===== Section 1: Profitability ===== */}
+      <Section icon={<TrendingUp className="w-5 h-5" />} title="الربحية والمبيعات" color="success">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <MiniKpi label="المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} hint={`${k.invoicesCount} فاتورة`} />
+          <MiniKpi label="التكلفة" value={formatEGP(k.cost)} icon={<Package className="w-4 h-4" />} />
+          <MiniKpi label="إجمالي الربح" value={formatEGP(k.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
+          <MiniKpi label="المصروفات" value={formatEGP(k.exp)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
+          <MiniKpi label="صافي الربح" value={formatEGP(k.net)} icon={<Wallet className="w-4 h-4" />} accent={k.net >= 0 ? "success" : "destructive"} />
+        </div>
+      </Section>
 
-      <Tabs defaultValue="overview">
+      {/* ===== Section 2: Inventory & Suppliers ===== */}
+      <Section icon={<Store className="w-5 h-5" />} title="المخزون والموردين" color="primary">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
+          <MiniKpi label="مخزون منخفض" value={String(k.lowStockCount)} icon={<AlertTriangle className="w-4 h-4" />} accent={k.lowStockCount > 0 ? "warning" : "success"} hint="منتج تحت الحد" />
+          <MiniKpi label="تكلفة الشحنات" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
+          <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
+        </div>
+        {scope === "global" && (
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniKpi label="إجمالي مديونية الموردين" value={formatEGP(supplierDebt)} icon={<Truck className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد`} />
+          </div>
+        )}
+      </Section>
+
+      {/* ===== Section 3: Treasury & Operations ===== */}
+      <Section icon={<Wallet className="w-5 h-5" />} title="الخزنة والعمليات" color="warning">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <MiniKpi label="وارد الخزنة" value={formatEGP(k.cashIn)} icon={<ArrowDownCircle className="w-4 h-4" />} accent="success" />
+          <MiniKpi label="صادر الخزنة" value={formatEGP(k.cashOut)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="destructive" />
+          <MiniKpi label="رصيد الخزنة" value={formatEGP(k.treasuryBalance)} icon={<Wallet className="w-4 h-4" />} accent={k.treasuryBalance >= 0 ? "success" : "destructive"} />
+          <MiniKpi label="المرتجعات" value={formatEGP(k.returnsTotal)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${scopedReturns.length} مرتجع`} />
+          <MiniKpi label="الموظفين / العملاء" value={`${scopedEmployees.length} / ${scopedCustomers.length}`} icon={<Users className="w-4 h-4" />} />
+        </div>
+      </Section>
+
+      {/* ===== Detailed tabs ===== */}
+      <Tabs defaultValue={scope === "global" ? "branches" : "products"} className="mt-2">
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="overview">📊 نظرة عامة</TabsTrigger>
-          <TabsTrigger value="branches">🏢 الفروع</TabsTrigger>
+          {scope === "global" && <TabsTrigger value="branches">🏢 مقارنة الفروع</TabsTrigger>}
           <TabsTrigger value="products">📦 المنتجات</TabsTrigger>
-          <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>
-          <TabsTrigger value="employees">👥 الموظفين</TabsTrigger>
-          <TabsTrigger value="treasury">💰 الخزنة</TabsTrigger>
+          <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
+          <TabsTrigger value="lowstock">⚠️ مخزون منخفض</TabsTrigger>
+          {scope === "global" && <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>}
         </TabsList>
 
-        {/* Overview / Charts */}
-        <TabsContent value="overview" className="mt-4 space-y-6">
-          <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">مقارنة الفروع</h4>
-            {branchChartData.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={branchChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Legend />
-                  <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="ربح" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="مصروفات" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="card-elevated p-4">
-              <h4 className="font-bold mb-3">توزيع المبيعات على الفروع</h4>
-              {branchChartData.filter((b) => b.مبيعات > 0).length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مبيعات</div>
+        {scope === "global" && (
+          <TabsContent value="branches" className="mt-4 space-y-6">
+            {/* Branch comparison chart */}
+            <div className="card-elevated p-5">
+              <h4 className="font-bold mb-4">مقارنة أداء الفروع</h4>
+              {perBranch.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground text-sm">لا توجد فروع</div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie data={branchChartData.filter((b) => b.مبيعات > 0)} dataKey="مبيعات" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}`}>
-                      {branchChartData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div className="card-elevated p-4">
-              <h4 className="font-bold mb-3">أكثر 10 منتجات إيراداً</h4>
-              {topProducts.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={topProducts.slice(0, 10)} layout="vertical">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={perBranch.map((b) => ({ name: b.name, مبيعات: b.sales, ربح: b.profit, مصروفات: b.expenses }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                    <Bar dataKey="revenue" name="الإيراد" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <Legend />
+                    <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="ربح" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="مصروفات" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
-          </div>
-        </TabsContent>
 
-        {/* Per branch detailed */}
-        <TabsContent value="branches" className="mt-4 space-y-4">
-          {perBranch.length === 0 && !loading && (
-            <div className="card-elevated p-12 text-center text-muted-foreground">لا توجد فروع</div>
-          )}
-          {perBranch.map((b) => (
-            <div key={b.id} className="card-elevated p-5">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
-                    <Building2 className="w-5 h-5" />
+            {/* Per-branch detailed cards */}
+            <div className="grid lg:grid-cols-2 gap-4">
+              {perBranch.map((b) => (
+                <div key={b.id} className="card-elevated p-5 hover:border-primary/50 transition cursor-pointer" onClick={() => setScope(b.id)}>
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold">{b.name}</h3>
+                        <div className="text-xs text-muted-foreground">{b.code}</div>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div className={`text-xl font-extrabold ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</div>
+                      <div className="text-[10px] text-muted-foreground">صافي الربح</div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg">{b.name}</h3>
-                    <div className="text-xs text-muted-foreground">{b.code}</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <Row label="الفواتير" value={String(b.invoices)} />
+                    <Row label="المبيعات" value={formatEGP(b.sales)} />
+                    <Row label="الربح" value={formatEGP(b.profit)} accent="success" />
+                    <Row label="المصروفات" value={formatEGP(b.expenses)} accent="destructive" />
+                    <Row label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة`} />
+                    <Row label="الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} />
+                    <Row label="الموظفين" value={String(b.employees)} />
+                  </div>
+                  <div className="flex items-center justify-end gap-1 text-xs text-primary mt-3 pt-3 border-t border-border">
+                    عرض تقرير الفرع التفصيلي <ChevronLeft className="w-3 h-3" />
                   </div>
                 </div>
-                <div className={`text-2xl font-extrabold ${b.net >= 0 ? "text-success" : "text-destructive"}`}>
-                  {formatEGP(b.net)}
-                  <div className="text-xs font-normal text-muted-foreground text-left">صافي الربح</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-                <Cell2 icon={<ShoppingCart className="w-3.5 h-3.5" />} label="المبيعات" value={formatEGP(b.sales)} hint={`${b.invoices} فاتورة`} />
-                <Cell2 icon={<TrendingUp className="w-3.5 h-3.5" />} label="الربح" value={formatEGP(b.profit)} accent="success" />
-                <Cell2 icon={<TrendingDown className="w-3.5 h-3.5" />} label="المصروفات" value={formatEGP(b.expenses)} accent="destructive" />
-                <Cell2 icon={<Store className="w-3.5 h-3.5" />} label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة • ${b.lowStock} منخفض`} />
-                <Cell2 icon={<Truck className="w-3.5 h-3.5" />} label="الشحنات" value={formatEGP(b.shipmentsCost)} hint={`${b.shipments} شحنة`} />
-                <Cell2 icon={<Wallet className="w-3.5 h-3.5" />} label="مدفوع للموردين" value={formatEGP(b.supplierPayments)} accent="warning" />
-                <Cell2 icon={<Wallet className="w-3.5 h-3.5" />} label="رصيد الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} hint={`+${formatEGP(b.cashIn)} / -${formatEGP(b.cashOut)}`} />
-                <Cell2 icon={<Users className="w-3.5 h-3.5" />} label="الموظفين" value={String(b.employeesCount)} />
-                <Cell2 icon={<Users className="w-3.5 h-3.5" />} label="العملاء" value={String(b.customersCount)} />
-                <Cell2 icon={<RotateCcw className="w-3.5 h-3.5" />} label="المرتجعات" value={formatEGP(b.returnsTotal)} hint={`${b.returnsCount} مرتجع`} accent="warning" />
-                <Cell2 icon={<Package className="w-3.5 h-3.5" />} label="التكلفة" value={formatEGP(b.cost)} />
-              </div>
+              ))}
             </div>
-          ))}
-        </TabsContent>
+          </TabsContent>
+        )}
 
-        <TabsContent value="products" className="mt-4">
-          <DataTable rows={topProducts} loading={loading} empty="لا توجد مبيعات"
+        <TabsContent value="products" className="mt-4 space-y-4">
+          <div className="card-elevated p-4">
+            <h4 className="font-bold mb-3">أكثر 10 منتجات إيراداً</h4>
+            {topProducts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={topProducts.slice(0, 10)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                  <Bar dataKey="revenue" name="الإيراد" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
               { key: "qty", header: "الكمية" },
@@ -395,55 +427,98 @@ export default function AdminReports() {
             ]} />
         </TabsContent>
 
-        <TabsContent value="suppliers" className="mt-4">
-          <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
+        <TabsContent value="expenses" className="mt-4 space-y-4">
+          {expByType.length > 0 && (
+            <div className="card-elevated p-4">
+              <h4 className="font-bold mb-3">المصروفات حسب النوع</h4>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie data={expByType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${formatEGP(e.value)}`}>
+                    {expByType.map((_, i) => <RCell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          <DataTable rows={expByType} empty="لا توجد مصروفات"
             columns={[
-              { key: "company_name", header: "الشركة", render: (r: any) => <b>{r.company_name}</b> },
-              { key: "contact_name", header: "جهة الاتصال", render: (r: any) => r.contact_name ?? "—" },
-              { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
-              { key: "balance", header: "الرصيد المستحق", render: (r: any) => <b className={Number(r.balance) > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.balance)}</b> },
+              { key: "name", header: "النوع" },
+              { key: "value", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.value)}</b> },
             ]} />
         </TabsContent>
 
-        <TabsContent value="employees" className="mt-4">
-          <DataTable rows={employees.map((e) => ({ ...e, branch_name: branches.find((b) => b.id === e.branch_id)?.name ?? "—" }))} loading={loading} empty="لا يوجد موظفين"
+        <TabsContent value="lowstock" className="mt-4">
+          <DataTable rows={lowStockList} loading={loading} empty="✅ كل المنتجات بمخزون كافي"
             columns={[
-              { key: "name", header: "الاسم", render: (r: any) => <b>{r.name}</b> },
-              { key: "job_title", header: "الوظيفة" },
-              { key: "branch_name", header: "الفرع" },
-              { key: "base_salary", header: "الراتب", render: (r: any) => formatEGP(r.base_salary) },
-              { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
+              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
+              { key: "sku", header: "الكود" },
+              { key: "quantity", header: "المتوفر", render: (r: any) => <b className="text-destructive">{r.quantity}</b> },
+              { key: "low_stock_alert", header: "الحد الأدنى" },
             ]} />
         </TabsContent>
 
-        <TabsContent value="treasury" className="mt-4">
-          <DataTable rows={perBranch} loading={loading} empty="لا توجد بيانات"
-            columns={[
-              { key: "name", header: "الفرع", render: (r: any) => <b>{r.name}</b> },
-              { key: "cashIn", header: "وارد", render: (r: any) => <span className="text-success">{formatEGP(r.cashIn)}</span> },
-              { key: "cashOut", header: "صادر", render: (r: any) => <span className="text-destructive">{formatEGP(r.cashOut)}</span> },
-              { key: "treasuryBalance", header: "الرصيد", render: (r: any) => <b className={r.treasuryBalance >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.treasuryBalance)}</b> },
-              { key: "supplierPayments", header: "مدفوع للموردين", render: (r: any) => <span className="text-warning">{formatEGP(r.supplierPayments)}</span> },
-            ]} />
-        </TabsContent>
+        {scope === "global" && (
+          <TabsContent value="suppliers" className="mt-4">
+            <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
+              columns={[
+                { key: "company_name", header: "الشركة", render: (r: any) => <b>{r.company_name}</b> },
+                { key: "contact_name", header: "جهة الاتصال", render: (r: any) => r.contact_name ?? "—" },
+                { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
+                { key: "balance", header: "الرصيد المستحق", render: (r: any) => <b className={Number(r.balance) > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.balance)}</b> },
+              ]} />
+          </TabsContent>
+        )}
       </Tabs>
     </AdminLayout>
   );
 }
 
-function Cell2({ icon, label, value, hint, accent }: { icon: React.ReactNode; label: string; value: string; hint?: string; accent?: "success" | "destructive" | "warning" }) {
+/* ===== Helper UI ===== */
+
+function Section({ icon, title, color, children }: { icon: React.ReactNode; title: string; color: "success" | "primary" | "warning"; children: React.ReactNode }) {
+  const colors = {
+    success: "bg-success/10 text-success",
+    primary: "bg-primary/10 text-primary",
+    warning: "bg-warning/10 text-warning",
+  };
+  return (
+    <div className="card-elevated p-5 mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colors[color]}`}>{icon}</div>
+        <h2 className="font-bold text-lg">{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MiniKpi({ label, value, icon, hint, accent }: { label: string; value: string; icon: React.ReactNode; hint?: string; accent?: "success" | "destructive" | "warning" }) {
   const colorMap = {
     success: "text-success",
     destructive: "text-destructive",
     warning: "text-warning",
   };
   return (
-    <div className="bg-surface-2 rounded-lg p-3">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-        {icon}<span>{label}</span>
+    <div className="bg-surface-2 rounded-xl p-4 border border-border">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+        {icon}<span className="font-medium">{label}</span>
       </div>
-      <div className={`font-bold ${accent ? colorMap[accent] : ""}`}>{value}</div>
-      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+      <div className={`font-extrabold text-lg ${accent ? colorMap[accent] : ""}`}>{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
+    </div>
+  );
+}
+
+function Row({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: "success" | "destructive" }) {
+  const c = accent === "success" ? "text-success" : accent === "destructive" ? "text-destructive" : "";
+  return (
+    <div className="flex items-center justify-between py-1.5 px-2 rounded bg-surface-2/50">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="text-left">
+        <div className={`font-bold ${c}`}>{value}</div>
+        {hint && <div className="text-[9px] text-muted-foreground">{hint}</div>}
+      </div>
     </div>
   );
 }
