@@ -17,6 +17,7 @@ import { Plus, Pencil } from "lucide-react";
 
 export default function Branches() {
   const { profile } = useAuth();
+  const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
