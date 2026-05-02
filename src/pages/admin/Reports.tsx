@@ -215,7 +215,13 @@ export default function AdminReports() {
         المصروفات: b.expenses, الصافي: b.net,
         قيمة_المخزون: b.inventoryValue, الموظفين: b.employees, رصيد_الخزنة: b.treasuryBalance,
       })) });
-      sheets.push({ name: "الموردين", rows: topSuppliers.map((s) => ({ الشركة: s.company_name, الهاتف: s.phone, الرصيد: s.balance })) });
+      sheets.push({ name: "الموردين", rows: topSuppliers.map((s) => ({
+        الشركة: s.company_name,
+        الهاتف: s.phone ?? "",
+        "علينا (إجمالي)": s.totalOwed,
+        "سددنا": s.totalPaid,
+        "المتبقي": s.remaining,
+      })) });
     }
     exportToExcel(`تقرير-${currentBranchName}-${from}-${to}`, sheets);
   };
