@@ -34,14 +34,15 @@ export default function Inventory() {
 
   const uploadImage = async (file: File) => {
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${branchId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: false });
-    if (error) { toast.error(error.message); setUploading(false); return; }
-    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-    setForm((f) => ({ ...f, image: data.publicUrl }));
-    setUploading(false);
-    toast.success("تم رفع الصورة");
+    try {
+      const url = await uploadProductImage(file, branchId!);
+      setForm((f) => ({ ...f, image: url }));
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const load = async () => {
