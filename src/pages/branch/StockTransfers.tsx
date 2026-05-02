@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
+import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, ArrowLeftRight } from "lucide-react";
@@ -62,12 +63,26 @@ export default function StockTransfers() {
 
     await supabase.from("products").update({ quantity: prod.quantity - qty }).eq("id", form.product_id);
 
+    // Notify branch managers of receiving branch
+    const toBranch = branches.find((b) => b.id === form.to_branch_id);
+    const fromBranch = branches.find((b) => b.id === branchId) ?? { name: "فرع آخر" };
+    const recipients = await getBranchManagers(form.to_branch_id);
+    await notifyMany(recipients, {
+      title: "طلب نقل بضاعة جديد",
+      body: `من ${fromBranch.name ?? "فرع آخر"}: ${prod.name} × ${qty}`,
+      type: "general",
+      link: `/branch/${form.to_branch_id}/transfers`,
+      relatedEntity: "stock_transfer",
+      relatedEntityId: tr.id,
+    });
+
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "CREATE", entity: "stock_transfer", entityId: tr.id, details: { product: prod.name, qty, to: form.to_branch_id } });
     toast.success("تم إرسال طلب النقل وانتظار التأكيد من الفرع المستلم");
     setOpen(false);
     setForm({ to_branch_id: "", product_id: "", quantity: "", reason: "" });
     load();
   };
+
 
   const confirmTransfer = async (t: any) => {
     // Add to destination product (or create if not exists)
@@ -96,6 +111,18 @@ export default function StockTransfers() {
 
     await supabase.from("stock_transfers").update({ status: "confirmed", confirmed_by: user!.id }).eq("id", t.id);
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { confirmed: true } });
+
+    // Notify sender branch managers
+    const senderMgrs = await getBranchManagers(t.from_branch_id);
+    await notifyMany(senderMgrs, {
+      title: "تم استلام طلب النقل ✅",
+      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      type: "general",
+      link: `/branch/${t.from_branch_id}/transfers`,
+      relatedEntity: "stock_transfer",
+      relatedEntityId: t.id,
+    });
+
     toast.success("تم تأكيد الاستلام وإضافة الكمية للمخزون");
     load();
   };
@@ -107,6 +134,18 @@ export default function StockTransfers() {
     if (src) await supabase.from("products").update({ quantity: src.quantity + t.quantity }).eq("id", t.product_id);
     await supabase.from("stock_transfers").update({ status: "rejected", confirmed_by: user!.id }).eq("id", t.id);
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { rejected: true } });
+
+    // Notify sender branch managers
+    const senderMgrs = await getBranchManagers(t.from_branch_id);
+    await notifyMany(senderMgrs, {
+      title: "تم رفض طلب النقل ❌",
+      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity} (رجعت الكمية للمخزون)`,
+      type: "general",
+      link: `/branch/${t.from_branch_id}/transfers`,
+      relatedEntity: "stock_transfer",
+      relatedEntityId: t.id,
+    });
+
     toast.info("تم رفض الطلب وإرجاع الكمية");
     load();
   };
