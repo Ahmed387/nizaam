@@ -73,7 +73,7 @@ export default function SupplierProfile() {
       supabase.from("suppliers").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
-        .select("*, branches(name)")
+        .select("*, branches(name), shipment_items(id, quantity)")
         .eq("supplier_id", supplierId!)
         .order("arrival_date", { ascending: false }),
       supabase
