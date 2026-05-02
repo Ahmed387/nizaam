@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Setup from "./pages/Setup";
 import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
+import Profile from "./pages/Profile";
 
 import AdminDashboard from "./pages/admin/Dashboard";
 import Branches from "./pages/admin/Branches";
@@ -73,6 +74,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/setup" element={<Setup />} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
             {/* Super Admin */}
             <Route path="/super/dashboard" element={<ProtectedRoute superAdminOnly><SuperDashboard /></ProtectedRoute>} />

@@ -1,7 +1,7 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
-import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft } from "lucide-react";
+import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog } from "lucide-react";
 import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -107,7 +107,12 @@ export function AppShell({
 
       <div className={`${isCollapsed ? "p-2" : "p-3"} border-t border-sidebar-border`}>
         {!isCollapsed && (
-          <div className="flex items-center gap-3 p-2 mb-2">
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 p-2 mb-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+            title="الصفحة الشخصية"
+          >
             <div className="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center font-bold text-sm shrink-0">
               {profile?.name?.[0] ?? "?"}
             </div>
@@ -117,7 +122,24 @@ export function AppShell({
                 {roles.map((r) => ROLE_LABELS[r]).join("، ")}
               </div>
             </div>
-          </div>
+            <UserCog className="w-4 h-4 text-muted-foreground shrink-0" />
+          </Link>
+        )}
+        {isCollapsed && (
+          <Tooltip delayDuration={100}>
+            <TooltipTrigger asChild>
+              <Link
+                to="/profile"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center p-2 mb-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center font-bold text-sm">
+                  {profile?.name?.[0] ?? "?"}
+                </div>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="left">الصفحة الشخصية</TooltipContent>
+          </Tooltip>
         )}
         {isCollapsed ? (
           <Tooltip delayDuration={100}>
