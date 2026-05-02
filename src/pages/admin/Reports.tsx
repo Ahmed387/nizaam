@@ -335,8 +335,10 @@ export default function AdminReports() {
           <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
         </div>
         {scope === "global" && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MiniKpi label="إجمالي مديونية الموردين" value={formatEGP(supplierDebt)} icon={<Truck className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد`} />
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="من جميع الشحنات" />
+            <MiniKpi label="إجمالي ما سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="من جميع الدفعات" />
+            <MiniKpi label="المتبقي علينا" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد`} />
           </div>
         )}
       </Section>
