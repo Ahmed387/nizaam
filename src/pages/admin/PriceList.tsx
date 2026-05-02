@@ -437,9 +437,24 @@ export default function PriceList() {
             <Button variant="outline" onClick={() => setConfirmApply(true)} disabled={!rows.length || applying}>
               <RefreshCw className={`w-4 h-4 ml-1 ${applying ? "animate-spin" : ""}`} /> تطبيق على كل الفروع
             </Button>
-            <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setConfirmClear(true)} disabled={!rows.length || clearing}>
-              <Eraser className="w-4 h-4 ml-1" /> مسح القائمة
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" disabled={!rows.length || clearing}>
+                  <Eraser className="w-4 h-4 ml-1" /> مسح القائمة
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setConfirmClear("upload")} disabled={!counts.upload}>
+                  مسح المرفوع من ملف ({counts.upload})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setConfirmClear("manual")} disabled={!counts.manual}>
+                  مسح المُدخل يدوياً ({counts.manual})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setConfirmClear("all")} className="text-destructive">
+                  مسح الكل ({counts.all})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة منتج</Button>
           </div>
         }
