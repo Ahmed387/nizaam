@@ -253,6 +253,7 @@ export default function NewShipment() {
             <thead>
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-3 py-2 text-right">المنتج</th>
+                <th className="px-3 py-2 text-right">الكود (SKU)</th>
                 <th className="px-3 py-2 text-right">الكمية</th>
                 <th className="px-3 py-2 text-right">سعر التكلفة</th>
                 <th className="px-3 py-2 text-right">الإجمالي</th>
@@ -261,33 +262,57 @@ export default function NewShipment() {
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={5} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
+                <tr><td colSpan={6} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
               )}
               {lines.map((l, i) => (
-                <tr key={i} className="border-b border-border">
-                  <td className="px-3 py-2 min-w-[280px]">
+                <tr key={i} className="border-b border-border align-top">
+                  <td className="px-3 py-2 min-w-[300px]">
                     <select
                       value={l.product_id ?? ""}
                       onChange={(e) => {
                         if (e.target.value === "__new__") {
-                          updateLine(i, { product_id: null, product_name: "" });
+                          updateLine(i, { product_id: null, product_name: "", sku: genSku() });
                         } else handleProductChange(i, e.target.value);
                       }}
                       className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
                     >
-                      <option value="">— اختر منتج —</option>
+                      <option value="">— اختر من مخزون الفرع —</option>
                       {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (متوفر: {p.quantity})</option>
+                        <option key={p.id} value={p.id}>{p.name} — {p.sku} (متوفر: {p.quantity})</option>
                       ))}
                       <option value="__new__">+ منتج جديد</option>
                     </select>
                     {l.product_id === null && (
-                      <Input
-                        placeholder="اسم المنتج الجديد"
-                        value={l.product_name}
-                        onChange={(e) => updateLine(i, { product_name: e.target.value })}
-                      />
+                      <>
+                        {priceList.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && handlePriceListPick(i, e.target.value)}
+                            className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
+                          >
+                            <option value="">— أو اختر من قائمة الأسعار —</option>
+                            {priceList.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.product_name}{p.sku ? ` — ${p.sku}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <Input
+                          placeholder="اسم المنتج الجديد"
+                          value={l.product_name}
+                          onChange={(e) => updateLine(i, { product_name: e.target.value })}
+                        />
+                      </>
                     )}
+                  </td>
+                  <td className="px-3 py-2 w-40">
+                    <Input
+                      value={l.sku}
+                      onChange={(e) => updateLine(i, { sku: e.target.value })}
+                      readOnly={l.product_id !== null}
+                      className={l.product_id !== null ? "bg-surface-2 font-mono text-xs" : "font-mono text-xs"}
+                    />
                   </td>
                   <td className="px-3 py-2 w-24">
                     <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
