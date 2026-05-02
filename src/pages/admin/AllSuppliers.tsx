@@ -46,6 +46,7 @@ interface PaymentSummary {
 
 export default function AllSuppliers() {
   const { tenantId, user } = useAuth();
+  const nav = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [shipSums, setShipSums] = useState<ShipmentSummary[]>([]);
