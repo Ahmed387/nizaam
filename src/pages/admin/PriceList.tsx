@@ -28,7 +28,10 @@ type PriceRow = {
   market_price: number;
   image: string | null;
   uploaded_at: string;
+  source: "manual" | "upload";
 };
+
+type ClearMode = "all" | "manual" | "upload";
 
 const emptyForm = { id: "", sku: "", product_name: "", category_name: "", description: "", old_price: "", new_price: "", market_price: "", image: "" };
 
