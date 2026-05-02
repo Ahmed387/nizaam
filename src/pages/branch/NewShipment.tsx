@@ -118,7 +118,7 @@ export default function NewShipment() {
         let pid = l.product_id;
         // Create product if new
         if (!pid) {
-          const sku = `P-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+          const sku = (l.sku && l.sku.trim()) || genSku();
           const { data: np, error: ep } = await supabase
             .from("products")
             .insert({
