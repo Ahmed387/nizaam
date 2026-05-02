@@ -151,7 +151,7 @@ export default function PriceList() {
       if (error) return toast.error(error.message);
       toast.success("تم التحديث");
     } else {
-      const { error } = await supabase.from("price_list").insert(payload);
+      const { error } = await supabase.from("price_list").insert({ ...payload, source: "manual" });
       if (error) return toast.error(error.message);
       toast.success(`تمت الإضافة (SKU: ${sku})`);
     }
