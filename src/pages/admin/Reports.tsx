@@ -43,6 +43,8 @@ export default function AdminReports() {
   const [treasury, setTreasury] = useState<any[]>([]);
   const [returns, setReturns] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [allShipments, setAllShipments] = useState<any[]>([]);
+  const [allSupPayments, setAllSupPayments] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
