@@ -101,26 +101,26 @@ const App = () => (
             {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
             <Route path="/branch/:id/sales" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
-            <Route path="/branch/:id/sales/new" element={<ProtectedRoute><NewSale /></ProtectedRoute>} />
-            <Route path="/branch/:id/sales/returns" element={<ProtectedRoute><Returns /></ProtectedRoute>} />
-            <Route path="/branch/:id/sales/returns/new" element={<ProtectedRoute><NewReturn /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales/new" element={<ProtectedRoute roles={["branch_manager","cashier"]}><NewSale /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales/returns" element={<ProtectedRoute roles={["branch_manager","cashier","accountant"]}><Returns /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales/returns/new" element={<ProtectedRoute roles={["branch_manager","cashier"]}><NewReturn /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute><InvoiceView /></ProtectedRoute>} />
-            <Route path="/branch/:id/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
-            <Route path="/branch/:id/shipments/new" element={<ProtectedRoute><NewShipment /></ProtectedRoute>} />
-            <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute><ShipmentView /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><Shipments /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments/new" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><NewShipment /></ProtectedRoute>} />
+            <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><ShipmentView /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-            <Route path="/branch/:id/inventory/barcodes" element={<ProtectedRoute><PrintBarcodes /></ProtectedRoute>} />
-            <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute><StockMovements /></ProtectedRoute>} />
-            <Route path="/branch/:id/transfers" element={<ProtectedRoute><StockTransfers /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory/barcodes" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><PrintBarcodes /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><StockMovements /></ProtectedRoute>} />
+            <Route path="/branch/:id/transfers" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers/:customerId" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
-            <Route path="/branch/:id/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-            <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute><SupplierProfile /></ProtectedRoute>} />
-            <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />
-            <Route path="/branch/:id/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
-            <Route path="/branch/:id/advance-requests" element={<ProtectedRoute><AdvanceRequests /></ProtectedRoute>} />
-            <Route path="/branch/:id/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
-            <Route path="/branch/:id/reports" element={<ProtectedRoute><BranchReports /></ProtectedRoute>} />
+            <Route path="/branch/:id/suppliers" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><Suppliers /></ProtectedRoute>} />
+            <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/branch/:id/treasury" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Treasury /></ProtectedRoute>} />
+            <Route path="/branch/:id/employees" element={<ProtectedRoute roles={["branch_manager"]}><Employees /></ProtectedRoute>} />
+            <Route path="/branch/:id/advance-requests" element={<ProtectedRoute roles={["branch_manager"]}><AdvanceRequests /></ProtectedRoute>} />
+            <Route path="/branch/:id/expenses" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Expenses /></ProtectedRoute>} />
+            <Route path="/branch/:id/reports" element={<ProtectedRoute roles={["branch_manager","accountant"]}><BranchReports /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
