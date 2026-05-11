@@ -15,7 +15,7 @@ export function ProtectedRoute({
   adminOnly?: boolean;
   superAdminOnly?: boolean;
 }) {
-  const { user, loading, isAdmin, isSuperAdmin, hasRole } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, hasRole, tenant, signOut } = useAuth();
   const loc = useLocation();
 
   if (loading) {
@@ -27,6 +27,12 @@ export function ProtectedRoute({
   }
 
   if (!user) return <Navigate to="/login" state={{ from: loc }} replace />;
+
+  // Suspended tenant — auto sign-out non-super users
+  if (tenant?.is_suspended && !isSuperAdmin) {
+    signOut();
+    return <Navigate to={`/suspended?slug=${tenant.slug}`} replace />;
+  }
 
   if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
