@@ -146,6 +146,23 @@ export default function Settings() {
             </Button>
           </div>
         </TabsContent>
+
+        <TabsContent value="security" className="mt-4">
+          <div className="card-elevated p-6 space-y-4 max-w-md">
+            <div>
+              <Label>كلمة المرور الجديدة</Label>
+              <Input type="password" value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} className="mt-1.5" />
+            </div>
+            <div>
+              <Label>تأكيد كلمة المرور</Label>
+              <Input type="password" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} className="mt-1.5" />
+            </div>
+            <Button onClick={changePassword} disabled={pwdSaving} className="gap-2">
+              {pwdSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+              تغيير كلمة المرور
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
     </AdminLayout>
   );
