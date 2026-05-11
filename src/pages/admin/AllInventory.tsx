@@ -76,6 +76,7 @@ export default function AllInventory() {
   };
 
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["products", "branches", "categories"], load);
 
   const filtered = useMemo(() => rows.filter((p) => {
     if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
