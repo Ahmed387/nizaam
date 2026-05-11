@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet } from "lucide-react";
+import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2 } from "lucide-react";
 
 export default function AllEmployees() {
   const nav = useNavigate();
@@ -28,9 +29,12 @@ export default function AllEmployees() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     name: "", job_title: "", phone: "", base_salary: "",
-    hire_date: new Date().toISOString().slice(0, 10), branch_id: "",
+    hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
 
   const load = async () => {
@@ -72,21 +76,54 @@ export default function AllEmployees() {
     salaryTotal: enriched.filter((e) => e.is_active).reduce((s, e) => s + Number(e.base_salary), 0),
   }), [enriched]);
 
+  const openNew = () => {
+    setEditing(null);
+    setForm({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
+    setOpen(true);
+  };
+  const openEdit = (e: any) => {
+    setEditing(e);
+    setForm({
+      name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "",
+      base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
+      branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
+    });
+    setOpen(true);
+  };
+
   const submit = async () => {
     if (!form.name || !form.job_title || !form.branch_id) return toast.error("املأ الاسم والوظيفة والفرع");
-    const { error } = await supabase.from("employees").insert({
-      tenant_id: tenantId,
+    const payload: any = {
       branch_id: form.branch_id,
       name: form.name,
       job_title: form.job_title,
       phone: form.phone || null,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("تمت الإضافة");
+      role: form.role || null,
+      is_active: form.is_active,
+    };
+    if (editing) {
+      const { error } = await supabase.from("employees").update(payload).eq("id", editing.id);
+      if (error) return toast.error(error.message);
+      toast.success("تم التعديل");
+    } else {
+      const { error } = await supabase.from("employees").insert({ ...payload, tenant_id: tenantId });
+      if (error) return toast.error(error.message);
+      toast.success("تمت الإضافة");
+    }
     setOpen(false);
-    setForm({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "" });
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("employees").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الموظف");
+    setDeleteTarget(null);
     load();
   };
 
@@ -116,7 +153,7 @@ export default function AllEmployees() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
-            <Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
+            <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
           </div>
         }
       />
@@ -192,13 +229,19 @@ export default function AllEmployees() {
               {r.is_active ? "نشط" : "موقوف"}
             </span>
           )},
-          { key: "go", header: "", render: () => <ArrowRight className="w-4 h-4 text-muted-foreground" /> },
+          { key: "actions", header: "", render: (r: any) => (
+            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              <ArrowRight className="w-4 h-4 text-muted-foreground self-center" />
+            </div>
+          )},
         ]}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>موظف جديد</DialogTitle></DialogHeader>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? "تعديل موظف" : "موظف جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>الفرع *</Label>
@@ -211,16 +254,57 @@ export default function AllEmployees() {
             </div>
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الوظيفة *</Label><Input value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} className="mt-1.5" /></div>
+            <div>
+              <Label>الدور (الصلاحية)</Label>
+              <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— بدون —" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— بدون —</SelectItem>
+                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="cashier">كاشير</SelectItem>
+                  <SelectItem value="warehouse">مخزن</SelectItem>
+                  <SelectItem value="accountant">محاسب</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
             <div><Label>تاريخ التعيين</Label><Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" /></div>
+            {editing && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
+                موظف نشط
+              </label>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button onClick={submit}>إضافة</Button>
+            <Button onClick={submit}>{editing ? "حفظ" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الموظف "{deleteTarget?.name}"؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              لن يُسمح بالحذف إذا كان للموظف طلبات سلف معلّقة. الأفضل إيقاف تنشيطه بدلاً من الحذف للحفاظ على سجل الرواتب.
+              <br /><b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={confirmDelete}
+            >
+              {deleting ? "جاري الحذف..." : "نعم، احذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

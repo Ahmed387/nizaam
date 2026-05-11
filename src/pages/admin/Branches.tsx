@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 export default function Branches() {
   const { profile } = useAuth();
@@ -22,6 +23,8 @@ export default function Branches() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ name: "", address: "", phone: "" });
 
   const load = async () => {
@@ -82,7 +85,10 @@ export default function Branches() {
           )},
           { key: "created_at", header: "تاريخ الإنشاء", render: (r: any) => formatDate(r.created_at) },
           { key: "actions", header: "", render: (r: any) => (
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(r); }}><Pencil className="w-4 h-4" /></Button>
+            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+            </div>
           )},
         ]}
       />
@@ -101,6 +107,38 @@ export default function Branches() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الفرع "{deleteTarget?.name}"؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              لن يُسمح بالحذف لو كان للفرع موظفين أو مخزون أو فواتير. الأفضل إيقاف تنشيطه.
+              <br /><b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={async () => {
+                if (!deleteTarget) return;
+                setDeleting(true);
+                const { error } = await supabase.from("branches").delete().eq("id", deleteTarget.id);
+                setDeleting(false);
+                if (error) return toast.error(error.message);
+                await logAudit({ userId: profile!.id, userName: profile!.name, action: "DELETE", entity: "Branch", entityId: deleteTarget.id, details: { name: deleteTarget.name } });
+                toast.success("تم حذف الفرع");
+                setDeleteTarget(null);
+                load();
+              }}
+            >
+              {deleting ? "جاري الحذف..." : "نعم، احذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

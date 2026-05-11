@@ -11,9 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound } from "lucide-react";
 
-interface CompanySettings { name: string; address: string; phone: string; tax_number: string }
+interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
 interface InventorySettings { default_low_stock_alert: number }
 
@@ -21,7 +21,9 @@ export default function Settings() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "" });
+  const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
+  const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+  const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
 
@@ -48,6 +50,18 @@ export default function Settings() {
     setSaving(false);
   };
 
+  const changePassword = async () => {
+    if (!pwd.next || pwd.next.length < 6) return toast.error("كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل");
+    if (pwd.next !== pwd.confirm) return toast.error("تأكيد كلمة المرور غير مطابق");
+    setPwdSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: pwd.next });
+    setPwdSaving(false);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "auth", entityId: user!.id, details: { changed: "password" } });
+    toast.success("تم تغيير كلمة المرور");
+    setPwd({ current: "", next: "", confirm: "" });
+  };
+
   if (loading) {
     return <AdminLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></AdminLayout>;
   }
@@ -61,6 +75,7 @@ export default function Settings() {
           <TabsTrigger value="company"><Building2 className="w-4 h-4 ml-1" /> بيانات الشركة</TabsTrigger>
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
+          <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="mt-4">
@@ -69,6 +84,11 @@ export default function Settings() {
               <Label>اسم الشركة *</Label>
               <Input value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} className="mt-1.5" />
               <p className="text-xs text-muted-foreground mt-1">يظهر في الفواتير ورأس التقارير</p>
+            </div>
+            <div>
+              <Label>رابط شعار الشركة (URL)</Label>
+              <Input dir="ltr" className="text-right mt-1.5" placeholder="https://..." value={company.logo_url} onChange={(e) => setCompany({ ...company, logo_url: e.target.value })} />
+              {company.logo_url && <img src={company.logo_url} alt="logo" className="mt-2 h-16 rounded border bg-white p-1" />}
             </div>
             <div>
               <Label>العنوان</Label>
@@ -123,6 +143,23 @@ export default function Settings() {
             <Button onClick={() => saveKey("inventory", inventory)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="mt-4">
+          <div className="card-elevated p-6 space-y-4 max-w-md">
+            <div>
+              <Label>كلمة المرور الجديدة</Label>
+              <Input type="password" value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} className="mt-1.5" />
+            </div>
+            <div>
+              <Label>تأكيد كلمة المرور</Label>
+              <Input type="password" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} className="mt-1.5" />
+            </div>
+            <Button onClick={changePassword} disabled={pwdSaving} className="gap-2">
+              {pwdSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+              تغيير كلمة المرور
             </Button>
           </div>
         </TabsContent>
