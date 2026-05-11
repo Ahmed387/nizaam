@@ -11,9 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound } from "lucide-react";
 
-interface CompanySettings { name: string; address: string; phone: string; tax_number: string }
+interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
 interface InventorySettings { default_low_stock_alert: number }
 
