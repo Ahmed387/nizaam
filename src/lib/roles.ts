@@ -18,11 +18,11 @@ export async function fetchUserContext(userId: string) {
     supabase.from("branch_users").select("branch_id, branches(*)").eq("user_id", userId),
   ]);
 
-  let tenant: { id: string; name: string; slug: string; logo_url: string | null; primary_color: string | null } | null = null;
+  let tenant: any = null;
   if ((profile as any)?.tenant_id) {
     const { data: t } = await supabase
       .from("tenants")
-      .select("id, name, slug, logo_url, primary_color")
+      .select("id, name, slug, logo_url, primary_color, is_suspended, suspension_reason")
       .eq("id", (profile as any).tenant_id)
       .maybeSingle();
     tenant = (t as any) ?? null;

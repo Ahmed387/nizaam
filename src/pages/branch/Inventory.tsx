@@ -13,8 +13,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
+import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -24,6 +25,7 @@ export default function Inventory() {
   const [cats, setCats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [form, setForm] = useState({
@@ -103,7 +105,8 @@ export default function Inventory() {
     <BranchLayout>
       <PageHeader title="المخزون" subtitle={`${rows.length} منتج`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
             <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
               <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
             </Button>
@@ -187,6 +190,41 @@ export default function Inventory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ExcelImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="استيراد منتجات من Excel"
+        templateName="products-template"
+        columns={[
+          { key: "name", header: "اسم المنتج", required: true },
+          { key: "category", header: "التصنيف" },
+          { key: "cost_price", header: "سعر الشراء", type: "number" },
+          { key: "selling_price", header: "سعر البيع", type: "number" },
+          { key: "market_price", header: "سعر السوق", type: "number" },
+          { key: "quantity", header: "الكمية", type: "number" },
+          { key: "low_stock_alert", header: "حد التنبيه", type: "number" },
+        ]}
+        sampleRow={{ name: "منتج مثال", cost_price: 10, selling_price: 15, market_price: 18, quantity: 100, low_stock_alert: 5 }}
+        onImport={async (rows) => {
+          let inserted = 0;
+          for (const r of rows) {
+            const { data: skuRes } = await supabase.rpc("next_sku");
+            const sku = (skuRes as string) ?? `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const cat = r.category ? cats.find((c: any) => c.name === r.category) : null;
+            const { error } = await supabase.from("products").insert({
+              tenant_id: tenantId, branch_id: branchId!, name: r.name, sku,
+              category_id: cat?.id ?? null,
+              cost_price: r.cost_price ?? 0, selling_price: r.selling_price ?? 0,
+              market_price: r.market_price ?? 0, quantity: r.quantity ?? 0,
+              low_stock_alert: r.low_stock_alert ?? 5,
+            });
+            if (!error) inserted++;
+          }
+          load();
+          return { inserted };
+        }}
+      />
     </BranchLayout>
   );
 }
