@@ -74,6 +74,28 @@ export default function Profile() {
   const [showPwd, setShowPwd] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  const changeEmail = async () => {
+    const e = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return toast.error("بريد إلكتروني غير صالح");
+    if (e === user?.email?.toLowerCase()) return toast.error("هذا هو بريدك الحالي");
+    setSavingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-own-email", { body: { newEmail: e } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("تم تغيير البريد الإلكتروني بنجاح");
+      setNewEmail("");
+      await refresh();
+    } catch (err: any) {
+      toast.error(err.message ?? "فشل التغيير");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -236,6 +258,34 @@ export default function Profile() {
             <div className="flex justify-end pt-2">
               <Button onClick={saveProfile} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ التعديلات"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Change email */}
+        <Card className="p-5 mb-4">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Mail className="w-5 h-5" /> تغيير البريد الإلكتروني</h2>
+          <div className="space-y-3">
+            <div>
+              <Label>البريد الحالي</Label>
+              <Input dir="ltr" className="mt-1.5 text-right bg-muted" value={user?.email ?? ""} disabled />
+            </div>
+            <div>
+              <Label>البريد الجديد</Label>
+              <Input
+                type="email"
+                dir="ltr"
+                className="mt-1.5 text-right"
+                placeholder="new@example.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">سيتم استخدام البريد الجديد فوراً لتسجيل الدخول.</p>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button onClick={changeEmail} disabled={savingEmail || !newEmail.trim()}>
+                {savingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : "تغيير البريد"}
               </Button>
             </div>
           </div>
