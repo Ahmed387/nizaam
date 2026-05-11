@@ -1015,6 +1015,36 @@ export type Database = {
           },
         ]
       }
+      scheduled_reports: {
+        Row: {
+          created_at: string
+          id: string
+          period: string
+          period_end: string
+          period_start: string
+          summary: Json
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period?: string
+          period_end: string
+          period_start: string
+          summary?: Json
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period?: string
+          period_end?: string
+          period_start?: string
+          summary?: Json
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           key: string
