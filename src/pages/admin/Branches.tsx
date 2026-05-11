@@ -35,6 +35,7 @@ export default function Branches() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["branches"], load);
 
   const openNew = () => { setEditing(null); setForm({ name: "", address: "", phone: "" }); setOpen(true); };
   const openEdit = (b: any) => { setEditing(b); setForm({ name: b.name, address: b.address ?? "", phone: b.phone ?? "" }); setOpen(true); };
