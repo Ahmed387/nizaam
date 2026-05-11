@@ -240,8 +240,8 @@ export default function AllEmployees() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>موظف جديد</DialogTitle></DialogHeader>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? "تعديل موظف" : "موظف جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>الفرع *</Label>
@@ -254,16 +254,57 @@ export default function AllEmployees() {
             </div>
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الوظيفة *</Label><Input value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} className="mt-1.5" /></div>
+            <div>
+              <Label>الدور (الصلاحية)</Label>
+              <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— بدون —" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— بدون —</SelectItem>
+                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="cashier">كاشير</SelectItem>
+                  <SelectItem value="warehouse">مخزن</SelectItem>
+                  <SelectItem value="accountant">محاسب</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
             <div><Label>تاريخ التعيين</Label><Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" /></div>
+            {editing && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
+                موظف نشط
+              </label>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button onClick={submit}>إضافة</Button>
+            <Button onClick={submit}>{editing ? "حفظ" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الموظف "{deleteTarget?.name}"؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              لن يُسمح بالحذف إذا كان للموظف طلبات سلف معلّقة. الأفضل إيقاف تنشيطه بدلاً من الحذف للحفاظ على سجل الرواتب.
+              <br /><b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={confirmDelete}
+            >
+              {deleting ? "جاري الحذف..." : "نعم، احذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
