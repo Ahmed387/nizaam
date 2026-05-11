@@ -50,6 +50,18 @@ export default function Settings() {
     setSaving(false);
   };
 
+  const changePassword = async () => {
+    if (!pwd.next || pwd.next.length < 6) return toast.error("كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل");
+    if (pwd.next !== pwd.confirm) return toast.error("تأكيد كلمة المرور غير مطابق");
+    setPwdSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: pwd.next });
+    setPwdSaving(false);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "auth", entityId: user!.id, details: { changed: "password" } });
+    toast.success("تم تغيير كلمة المرور");
+    setPwd({ current: "", next: "", confirm: "" });
+  };
+
   if (loading) {
     return <AdminLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></AdminLayout>;
   }
