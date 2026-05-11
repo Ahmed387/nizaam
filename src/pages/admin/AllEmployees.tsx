@@ -76,21 +76,54 @@ export default function AllEmployees() {
     salaryTotal: enriched.filter((e) => e.is_active).reduce((s, e) => s + Number(e.base_salary), 0),
   }), [enriched]);
 
+  const openNew = () => {
+    setEditing(null);
+    setForm({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
+    setOpen(true);
+  };
+  const openEdit = (e: any) => {
+    setEditing(e);
+    setForm({
+      name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "",
+      base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
+      branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
+    });
+    setOpen(true);
+  };
+
   const submit = async () => {
     if (!form.name || !form.job_title || !form.branch_id) return toast.error("املأ الاسم والوظيفة والفرع");
-    const { error } = await supabase.from("employees").insert({
-      tenant_id: tenantId,
+    const payload: any = {
       branch_id: form.branch_id,
       name: form.name,
       job_title: form.job_title,
       phone: form.phone || null,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("تمت الإضافة");
+      role: form.role || null,
+      is_active: form.is_active,
+    };
+    if (editing) {
+      const { error } = await supabase.from("employees").update(payload).eq("id", editing.id);
+      if (error) return toast.error(error.message);
+      toast.success("تم التعديل");
+    } else {
+      const { error } = await supabase.from("employees").insert({ ...payload, tenant_id: tenantId });
+      if (error) return toast.error(error.message);
+      toast.success("تمت الإضافة");
+    }
     setOpen(false);
-    setForm({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "" });
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("employees").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الموظف");
+    setDeleteTarget(null);
     load();
   };
 
