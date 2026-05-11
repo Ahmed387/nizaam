@@ -263,6 +263,34 @@ export default function Profile() {
           </div>
         </Card>
 
+        {/* Change email */}
+        <Card className="p-5 mb-4">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Mail className="w-5 h-5" /> تغيير البريد الإلكتروني</h2>
+          <div className="space-y-3">
+            <div>
+              <Label>البريد الحالي</Label>
+              <Input dir="ltr" className="mt-1.5 text-right bg-muted" value={user?.email ?? ""} disabled />
+            </div>
+            <div>
+              <Label>البريد الجديد</Label>
+              <Input
+                type="email"
+                dir="ltr"
+                className="mt-1.5 text-right"
+                placeholder="new@example.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">سيتم استخدام البريد الجديد فوراً لتسجيل الدخول.</p>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button onClick={changeEmail} disabled={savingEmail || !newEmail.trim()}>
+                {savingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : "تغيير البريد"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
         {/* Change password */}
         <Card className="p-5">
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5" /> تغيير كلمة المرور</h2>
