@@ -21,7 +21,9 @@ export default function Settings() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "" });
+  const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
+  const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+  const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
 
