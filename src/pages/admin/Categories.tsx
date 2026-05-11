@@ -115,7 +115,7 @@ export default function Categories() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={submit}>إضافة</Button>
+            <Button className="btn-gradient" onClick={submit}>{editing ? "حفظ" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
