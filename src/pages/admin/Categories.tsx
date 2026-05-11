@@ -13,6 +13,7 @@ import { Plus, FolderTree, Folder, Trash2, Pencil } from "lucide-react";
 export default function Categories() {
   const [cats, setCats] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", parent_id: "" });
 
   const load = async () => {
