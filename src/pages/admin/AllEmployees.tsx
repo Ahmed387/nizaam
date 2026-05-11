@@ -153,7 +153,7 @@ export default function AllEmployees() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
-            <Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
+            <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
           </div>
         }
       />
