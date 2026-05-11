@@ -1325,6 +1325,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_suspended: boolean
           logo_url: string | null
           max_branches: number | null
           max_products: number | null
@@ -1333,6 +1334,8 @@ export type Database = {
           plan: string
           primary_color: string | null
           slug: string
+          suspended_at: string | null
+          suspension_reason: string | null
           trial_ends_at: string | null
           updated_at: string
         }
@@ -1340,6 +1343,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_suspended?: boolean
           logo_url?: string | null
           max_branches?: number | null
           max_products?: number | null
@@ -1348,6 +1352,8 @@ export type Database = {
           plan?: string
           primary_color?: string | null
           slug: string
+          suspended_at?: string | null
+          suspension_reason?: string | null
           trial_ends_at?: string | null
           updated_at?: string
         }
@@ -1355,6 +1361,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_suspended?: boolean
           logo_url?: string | null
           max_branches?: number | null
           max_products?: number | null
@@ -1363,6 +1370,8 @@ export type Database = {
           plan?: string
           primary_color?: string | null
           slug?: string
+          suspended_at?: string | null
+          suspension_reason?: string | null
           trial_ends_at?: string | null
           updated_at?: string
         }
@@ -1517,6 +1526,7 @@ export type Database = {
       }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
+      current_tenant_is_suspended: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
