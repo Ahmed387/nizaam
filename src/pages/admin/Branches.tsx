@@ -85,7 +85,10 @@ export default function Branches() {
           )},
           { key: "created_at", header: "تاريخ الإنشاء", render: (r: any) => formatDate(r.created_at) },
           { key: "actions", header: "", render: (r: any) => (
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(r); }}><Pencil className="w-4 h-4" /></Button>
+            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+            </div>
           )},
         ]}
       />
@@ -104,6 +107,38 @@ export default function Branches() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الفرع "{deleteTarget?.name}"؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              لن يُسمح بالحذف لو كان للفرع موظفين أو مخزون أو فواتير. الأفضل إيقاف تنشيطه.
+              <br /><b className="text-destructive">هذا الإجراء لا يمكن التراجع عنه.</b>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={async () => {
+                if (!deleteTarget) return;
+                setDeleting(true);
+                const { error } = await supabase.from("branches").delete().eq("id", deleteTarget.id);
+                setDeleting(false);
+                if (error) return toast.error(error.message);
+                await logAudit({ userId: profile!.id, userName: profile!.name, action: "DELETE", entity: "Branch", entityId: deleteTarget.id, details: { name: deleteTarget.name } });
+                toast.success("تم حذف الفرع");
+                setDeleteTarget(null);
+                load();
+              }}
+            >
+              {deleting ? "جاري الحذف..." : "نعم، احذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
