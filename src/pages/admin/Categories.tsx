@@ -56,7 +56,7 @@ export default function Categories() {
       <PageHeader
         title="التصنيفات"
         subtitle={`${cats.length} تصنيف`}
-        actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> إضافة تصنيف</Button>}
+        actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة تصنيف</Button>}
       />
 
       <div className="card-elevated p-5 space-y-2">
@@ -68,9 +68,14 @@ export default function Categories() {
                 <FolderTree className="w-4 h-4 text-primary" />
                 <span className="font-semibold">{c.name}</span>
               </div>
-              <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100" onClick={() => remove(c.id)}>
-                <Trash2 className="w-4 h-4 text-destructive" />
-              </Button>
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => remove(c.id)}>
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
             </div>
             {cats.filter((x) => x.parent_id === c.id).map((child) => (
               <div key={child.id} className="flex items-center justify-between p-2 mr-8 rounded hover:bg-surface-2 group">
@@ -78,9 +83,14 @@ export default function Categories() {
                   <Folder className="w-4 h-4 text-muted-foreground" />
                   <span>{child.name}</span>
                 </div>
-                <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100" onClick={() => remove(child.id)}>
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(child)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => remove(child.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -89,7 +99,7 @@ export default function Categories() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>إضافة تصنيف</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "تعديل تصنيف" : "إضافة تصنيف"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>اسم التصنيف *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div>
@@ -98,7 +108,7 @@ export default function Categories() {
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="بدون" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— تصنيف رئيسي —</SelectItem>
-                  {cats.filter((c) => !c.parent_id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {cats.filter((c) => !c.parent_id && c.id !== editing?.id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
