@@ -83,6 +83,10 @@ export default function AdminReports() {
   };
 
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(
+    ["invoices", "expenses", "products", "suppliers", "shipments", "supplier_payments", "employees", "treasury", "returns", "customers", "branches"],
+    load
+  );
 
   // Filter helper based on current scope
   const inScope = (branchId: string | null | undefined) =>
