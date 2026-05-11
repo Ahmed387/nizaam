@@ -74,6 +74,28 @@ export default function Profile() {
   const [showPwd, setShowPwd] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  const changeEmail = async () => {
+    const e = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return toast.error("بريد إلكتروني غير صالح");
+    if (e === user?.email?.toLowerCase()) return toast.error("هذا هو بريدك الحالي");
+    setSavingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-own-email", { body: { newEmail: e } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("تم تغيير البريد الإلكتروني بنجاح");
+      setNewEmail("");
+      await refresh();
+    } catch (err: any) {
+      toast.error(err.message ?? "فشل التغيير");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     (async () => {
