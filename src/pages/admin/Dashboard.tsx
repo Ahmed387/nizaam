@@ -19,47 +19,50 @@ export default function AdminDashboard() {
   const [recent, setRecent] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayIso = today.toISOString();
+  const load = useCallback(async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
 
-      const [{ data: invToday }, { data: trAll }, { data: prods }, { data: shipsToday }, { data: branches }, { data: recentInv }] =
-        await Promise.all([
-          supabase.from("invoices").select("total").eq("status", "active").gte("created_at", todayIso),
-          supabase.from("treasury").select("type, amount, branch_id"),
-          supabase.from("products").select("quantity, low_stock_alert"),
-          supabase.from("shipments").select("id").gte("created_at", todayIso),
-          supabase.from("branches").select("*").eq("is_active", true),
-          supabase.from("invoices").select("*, branches(name)").order("created_at", { ascending: false }).limit(10),
+    const [{ data: invToday }, { data: trAll }, { data: prods }, { data: shipsToday }, { data: branches }, { data: recentInv }] =
+      await Promise.all([
+        supabase.from("invoices").select("total").eq("status", "active").gte("created_at", todayIso),
+        supabase.from("treasury").select("type, amount, branch_id"),
+        supabase.from("products").select("quantity, low_stock_alert"),
+        supabase.from("shipments").select("id").gte("created_at", todayIso),
+        supabase.from("branches").select("*").eq("is_active", true),
+        supabase.from("invoices").select("*, branches(name)").order("created_at", { ascending: false }).limit(10),
+      ]);
+
+    setSalesToday((invToday ?? []).reduce((s, x) => s + Number(x.total), 0));
+    setTreasury((trAll ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
+    setLowStock((prods ?? []).filter((p) => p.quantity <= p.low_stock_alert).length);
+    setShipmentsToday((shipsToday ?? []).length);
+    setRecent(recentInv ?? []);
+
+    const summary = await Promise.all(
+      (branches ?? []).map(async (b) => {
+        const [{ data: sales }, { data: exp }, { data: tr }] = await Promise.all([
+          supabase.from("invoices").select("total").eq("branch_id", b.id).eq("status", "active"),
+          supabase.from("expenses").select("amount").eq("branch_id", b.id),
+          supabase.from("treasury").select("type, amount").eq("branch_id", b.id),
         ]);
-
-      setSalesToday((invToday ?? []).reduce((s, x) => s + Number(x.total), 0));
-      setTreasury((trAll ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
-      setLowStock((prods ?? []).filter((p) => p.quantity <= p.low_stock_alert).length);
-      setShipmentsToday((shipsToday ?? []).length);
-      setRecent(recentInv ?? []);
-
-      // Per-branch summary
-      const summary = await Promise.all(
-        (branches ?? []).map(async (b) => {
-          const [{ data: sales }, { data: exp }, { data: tr }] = await Promise.all([
-            supabase.from("invoices").select("total").eq("branch_id", b.id).eq("status", "active"),
-            supabase.from("expenses").select("amount").eq("branch_id", b.id),
-            supabase.from("treasury").select("type, amount").eq("branch_id", b.id),
-          ]);
-          const totalSales = (sales ?? []).reduce((s, x) => s + Number(x.total), 0);
-          const totalExp = (exp ?? []).reduce((s, x) => s + Number(x.amount), 0);
-          const trBal = (tr ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0);
-          return { ...b, sales: totalSales, expenses: totalExp, profit: totalSales - totalExp, treasury: trBal };
-        })
-      );
-      setBranchSummary(summary);
-      setChartData(summary.map((s) => ({ name: s.name, sales: s.sales, profit: s.profit })));
-      setLoading(false);
-    })();
+        const totalSales = (sales ?? []).reduce((s, x) => s + Number(x.total), 0);
+        const totalExp = (exp ?? []).reduce((s, x) => s + Number(x.amount), 0);
+        const trBal = (tr ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0);
+        return { ...b, sales: totalSales, expenses: totalExp, profit: totalSales - totalExp, treasury: trBal };
+      })
+    );
+    setBranchSummary(summary);
+    setChartData(summary.map((s) => ({ name: s.name, sales: s.sales, profit: s.profit })));
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(
+    ["invoices", "treasury", "products", "shipments", "branches", "expenses"],
+    load
+  );
 
   return (
     <AdminLayout>
