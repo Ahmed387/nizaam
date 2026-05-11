@@ -75,6 +75,7 @@ export default function Settings() {
           <TabsTrigger value="company"><Building2 className="w-4 h-4 ml-1" /> بيانات الشركة</TabsTrigger>
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
+          <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="mt-4">
