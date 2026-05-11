@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { exportToExcel, printReport } from "@/lib/export";
-import { fmtMoney } from "@/lib/format";
+import { formatEGP as fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { CalendarRange, Download, FileText, Loader2, Play } from "lucide-react";
 
