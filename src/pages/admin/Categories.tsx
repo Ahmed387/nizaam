@@ -22,18 +22,30 @@ export default function Categories() {
   };
   useEffect(() => { load(); }, []);
 
+  const openNew = () => { setEditing(null); setForm({ name: "", parent_id: "" }); setOpen(true); };
+  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, parent_id: c.parent_id ?? "" }); setOpen(true); };
+
   const submit = async () => {
     if (!form.name.trim()) return toast.error("الاسم مطلوب");
-    const { error } = await supabase.from("categories").insert({ name: form.name, parent_id: form.parent_id || null });
-    if (error) return toast.error(error.message);
-    toast.success("تمت الإضافة");
-    setOpen(false); setForm({ name: "", parent_id: "" }); load();
+    if (editing) {
+      const { error } = await supabase.from("categories").update({ name: form.name, parent_id: form.parent_id || null }).eq("id", editing.id);
+      if (error) return toast.error(error.message);
+      toast.success("تم التعديل");
+    } else {
+      const { error } = await supabase.from("categories").insert({ name: form.name, parent_id: form.parent_id || null });
+      if (error) return toast.error(error.message);
+      toast.success("تمت الإضافة");
+    }
+    setOpen(false); setEditing(null); setForm({ name: "", parent_id: "" }); load();
   };
 
   const remove = async (id: string) => {
+    if (!confirm("تأكيد الحذف؟")) return;
     const { count } = await supabase.from("products").select("id", { head: true, count: "exact" }).eq("category_id", id);
     if ((count ?? 0) > 0) return toast.error("لا يمكن الحذف، يوجد منتجات بهذا التصنيف");
-    await supabase.from("categories").delete().eq("id", id);
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("تم الحذف");
     load();
   };
 
