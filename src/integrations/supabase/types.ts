@@ -1511,6 +1511,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_reset_branch_data: {
+        Args: { p_branch_id: string; p_options: Json }
+        Returns: Json
+      }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       has_role: {

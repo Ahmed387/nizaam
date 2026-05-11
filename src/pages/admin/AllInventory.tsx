@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -75,6 +76,7 @@ export default function AllInventory() {
   };
 
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["products", "branches", "categories"], load);
 
   const filtered = useMemo(() => rows.filter((p) => {
     if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;

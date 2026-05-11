@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -54,6 +55,7 @@ export default function AllEmployees() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["employees", "branches", "advances"], load);
 
   const enriched = useMemo(() => emps.map((e) => ({
     ...e,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -34,6 +35,7 @@ export default function Branches() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["branches"], load);
 
   const openNew = () => { setEditing(null); setForm({ name: "", address: "", phone: "" }); setOpen(true); };
   const openEdit = (b: any) => { setEditing(b); setForm({ name: b.name, address: b.address ?? "", phone: b.phone ?? "" }); setOpen(true); };
