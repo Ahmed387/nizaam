@@ -29,9 +29,12 @@ export default function AllEmployees() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     name: "", job_title: "", phone: "", base_salary: "",
-    hire_date: new Date().toISOString().slice(0, 10), branch_id: "",
+    hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
 
   const load = async () => {
