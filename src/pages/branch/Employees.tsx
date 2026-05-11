@@ -12,7 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet } from "lucide-react";
+import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" as const },
@@ -30,6 +31,7 @@ export default function Employees() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -106,7 +108,12 @@ export default function Employees() {
       <PageHeader
         title="الموظفين"
         subtitle={`${rows.length} موظف`}
-        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>}
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
+            <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>
+          </div>
+        }
       />
 
       <DataTable
@@ -207,6 +214,37 @@ export default function Employees() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ExcelImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="استيراد موظفين من Excel"
+        templateName="employees-template"
+        columns={[
+          { key: "name", header: "الاسم", required: true },
+          { key: "job_title", header: "الوظيفة", required: true },
+          { key: "role", header: "الدور (cashier/branch_manager/warehouse/accountant)" },
+          { key: "phone", header: "التليفون" },
+          { key: "base_salary", header: "الراتب الأساسي", type: "number" },
+          { key: "hire_date", header: "تاريخ التعيين", type: "date" },
+        ]}
+        sampleRow={{ name: "أحمد محمد", job_title: "كاشير", role: "cashier", phone: "01000000000", base_salary: 5000, hire_date: new Date().toISOString().slice(0, 10) }}
+        onImport={async (importRows) => {
+          let inserted = 0;
+          for (const r of importRows) {
+            const { error } = await supabase.from("employees").insert({
+              branch_id: branchId!, tenant_id: tenant?.id ?? null,
+              name: r.name, job_title: r.job_title,
+              role: r.role || null, phone: r.phone || null,
+              base_salary: r.base_salary ?? 0,
+              hire_date: r.hire_date ?? new Date().toISOString().slice(0, 10),
+            });
+            if (!error) inserted++;
+          }
+          load();
+          return { inserted };
+        }}
+      />
     </BranchLayout>
   );
 }
