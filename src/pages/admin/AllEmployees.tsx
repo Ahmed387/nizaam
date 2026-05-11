@@ -229,7 +229,13 @@ export default function AllEmployees() {
               {r.is_active ? "نشط" : "موقوف"}
             </span>
           )},
-          { key: "go", header: "", render: () => <ArrowRight className="w-4 h-4 text-muted-foreground" /> },
+          { key: "actions", header: "", render: (r: any) => (
+            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              <ArrowRight className="w-4 h-4 text-muted-foreground self-center" />
+            </div>
+          )},
         ]}
       />
 
