@@ -120,6 +120,7 @@ export default function AllSuppliers() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["suppliers", "shipments", "supplier_payments", "branches"], load);
 
   // إجمالي مشتريات + مدفوعات + فروع لكل مورد
   const enriched = useMemo(() => {
