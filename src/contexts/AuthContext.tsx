@@ -9,6 +9,8 @@ interface Tenant {
   slug: string;
   logo_url: string | null;
   primary_color: string | null;
+  is_suspended?: boolean;
+  suspension_reason?: string | null;
 }
 
 interface AuthCtx {
