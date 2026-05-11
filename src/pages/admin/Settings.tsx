@@ -85,6 +85,11 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground mt-1">يظهر في الفواتير ورأس التقارير</p>
             </div>
             <div>
+              <Label>رابط شعار الشركة (URL)</Label>
+              <Input dir="ltr" className="text-right mt-1.5" placeholder="https://..." value={company.logo_url} onChange={(e) => setCompany({ ...company, logo_url: e.target.value })} />
+              {company.logo_url && <img src={company.logo_url} alt="logo" className="mt-2 h-16 rounded border bg-white p-1" />}
+            </div>
+            <div>
               <Label>العنوان</Label>
               <Textarea rows={2} value={company.address} onChange={(e) => setCompany({ ...company, address: e.target.value })} className="mt-1.5" />
             </div>
