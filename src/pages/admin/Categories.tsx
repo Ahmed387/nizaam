@@ -22,6 +22,7 @@ export default function Categories() {
     setCats(data ?? []);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["categories", "products"], load);
 
   const openNew = () => { setEditing(null); setForm({ name: "", parent_id: "" }); setOpen(true); };
   const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, parent_id: c.parent_id ?? "" }); setOpen(true); };
