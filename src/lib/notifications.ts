@@ -4,7 +4,7 @@ export async function notify(params: {
   userId: string;
   title: string;
   body?: string;
-  type?: "advance_request" | "advance_approved" | "advance_rejected" | "general";
+  type?: "advance_request" | "advance_approved" | "advance_rejected" | "advance_pending_funds" | "general";
   link?: string;
   relatedEntity?: string;
   relatedEntityId?: string;
