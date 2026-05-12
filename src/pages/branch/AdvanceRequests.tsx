@@ -34,6 +34,7 @@ export default function AdvanceRequests() {
 
   const [rows, setRows] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: "", amount: "", monthly_deduct: "", reason: "" });
@@ -44,12 +45,14 @@ export default function AdvanceRequests() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: r }, { data: e }] = await Promise.all([
+    const [{ data: r }, { data: e }, { data: t }] = await Promise.all([
       supabase.from("advance_requests").select("*, employees(name, job_title)").eq("branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("employees").select("id, name, job_title, base_salary").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("treasury").select("type, amount").eq("branch_id", branchId),
     ]);
     setRows(r ?? []);
     setEmployees(e ?? []);
+    setBalance((t ?? []).reduce((s: number, x: any) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
     setLoading(false);
   };
 
