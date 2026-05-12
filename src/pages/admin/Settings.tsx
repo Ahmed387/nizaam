@@ -211,7 +211,78 @@ export default function Settings() {
             </Button>
           </div>
         </TabsContent>
+        {isAdminOnly && (
+          <TabsContent value="data" className="mt-4">
+            <div className="card-elevated p-6 space-y-4 max-w-3xl border border-destructive/40">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-lg font-bold text-destructive">مسح البيانات التجريبية / إعادة تشغيل بيانات الفروع</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    تحذير: الإجراء يحذف نهائيًا البيانات المحددة من الفرع المختار ولا يمكن التراجع عنه.
+                    لا يتم حذف بيانات الإعداد الأساسية (الموظفين، الموردين، المنتجات، التصنيفات).
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label>الفرع</Label>
+                <Select value={resetBranch} onValueChange={setResetBranch}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر فرع" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">كل الفروع</SelectItem>
+                    {branches.map((b) => (<SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">نوع البيانات المراد مسحها</Label>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {RESET_OPTIONS.map((o) => (
+                    <label key={o.key} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/50 cursor-pointer">
+                      <Checkbox checked={!!resetOpts[o.key]} onCheckedChange={(v) => setResetOpts((s) => ({ ...s, [o.key]: !!v }))} />
+                      <span className="text-sm">{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button variant="destructive" disabled={!resetBranch || selectedKeys.length === 0}
+                  onClick={() => { setResetConfirm(""); setResetOpen(true); }}>
+                  <Trash2 className="w-4 h-4 ml-1" /> مسح البيانات
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> تأكيد مسح البيانات
+            </DialogTitle>
+            <DialogDescription className="text-foreground/80 pt-2">
+              هتمسح: <b>{selectedLabels.join(" + ")}</b> من <b>{branchLabel}</b>.
+              <br />
+              <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
+            <Input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="تأكيد" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>إلغاء</Button>
+            <Button variant="destructive" disabled={resetConfirm.trim() !== "تأكيد" || resetting} onClick={runReset}>
+              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
