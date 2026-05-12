@@ -166,7 +166,8 @@ export default function AdvanceRequests() {
           update.branch_manager_decision_at = new Date().toISOString();
           update.branch_manager_note = decisionNote || null;
         } else {
-          newStatus = "approved";
+          // Admin approval — check treasury balance
+          newStatus = balance >= Number(row.amount) ? "approved" : "approved_pending_funds";
           update.admin_id = user!.id;
           update.admin_decision_at = new Date().toISOString();
           update.admin_note = decisionNote || null;
