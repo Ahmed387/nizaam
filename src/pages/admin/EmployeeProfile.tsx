@@ -38,7 +38,7 @@ export default function EmployeeProfile() {
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", base_salary: "", hire_date: "", notes: "" });
+  const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: "", notes: "" });
   const [delOpen, setDelOpen] = useState(false);
 
   const [advOpen, setAdvOpen] = useState(false);
