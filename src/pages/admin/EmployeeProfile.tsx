@@ -109,11 +109,16 @@ export default function EmployeeProfile() {
 
   const submitEdit = async () => {
     if (!editForm.name || !editForm.job_title) return toast.error("املأ الاسم والوظيفة");
-    const { error } = await supabase.from("employees").update({
+    const updatePayload: any = {
       name: editForm.name, job_title: editForm.job_title, phone: editForm.phone || null,
+      email: editForm.email?.trim() || null,
       base_salary: Number(editForm.base_salary) || 0, hire_date: editForm.hire_date,
       notes: editForm.notes || null,
-    }).eq("id", emp.id);
+    };
+    if (editForm.login_password) {
+      updatePayload.login_password = editForm.login_password;
+    }
+    const { error } = await supabase.from("employees").update(updatePayload).eq("id", emp.id);
     if (error) return toast.error(error.message);
     toast.success("تم التحديث");
     setEditOpen(false);
