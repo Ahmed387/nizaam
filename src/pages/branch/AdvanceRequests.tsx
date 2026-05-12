@@ -67,8 +67,8 @@ export default function AdvanceRequests() {
 
   const myRequests = useMemo(() => rows.filter((r) => r.requested_by === user?.id), [rows, user?.id]);
   const pendingForMe = useMemo(() => {
-    if (isAdmin) return rows.filter((r) => r.status === "pending_admin");
-    if (isBranchManager) return rows.filter((r) => r.status === "pending_branch_manager");
+    if (isAdmin) return rows.filter((r) => r.status === "pending_admin" || r.status === "approved_pending_funds");
+    if (isBranchManager) return rows.filter((r) => r.status === "pending_branch_manager" || r.status === "approved_pending_funds");
     return [];
   }, [rows, isAdmin, isBranchManager]);
   const allRequests = rows;
