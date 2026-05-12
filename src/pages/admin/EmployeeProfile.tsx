@@ -100,7 +100,7 @@ export default function EmployeeProfile() {
   const openEdit = () => {
     if (!emp) return;
     setEditForm({
-      name: emp.name, job_title: emp.job_title, phone: emp.phone ?? "",
+      name: emp.name, job_title: emp.job_title, phone: emp.phone ?? "", email: emp.email ?? "", login_password: "",
       base_salary: String(emp.base_salary), hire_date: emp.hire_date,
       notes: emp.notes ?? "",
     });
