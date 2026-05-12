@@ -326,6 +326,24 @@ export default function AdvanceRequests() {
             const canActOnStage =
               (r.status === "pending_branch_manager" && (isBranchManager || isAdmin)) ||
               (r.status === "pending_admin" && isAdmin);
+            const canDisburse =
+              r.status === "approved_pending_funds" && (isAdmin || isBranchManager);
+            if (canDisburse) {
+              const enough = balance >= Number(r.amount);
+              return (
+                <div className="flex flex-col gap-1">
+                  <Button size="sm" disabled={!enough || busy}
+                    className="h-7 btn-gradient" onClick={() => disburse(r)}>
+                    <HandCoins className="w-3 h-3 ml-1" /> صرف السلفة
+                  </Button>
+                  {!enough && (
+                    <span className="text-[10px] text-orange-400">
+                      الرصيد غير كافٍ ({formatEGP(balance)})
+                    </span>
+                  )}
+                </div>
+              );
+            }
             if (!canActOnStage) return <span className="text-xs text-muted-foreground">—</span>;
             return (
               <div className="flex gap-1">
