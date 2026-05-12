@@ -7,11 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, User as UserIcon, Phone, Mail, MapPin, Briefcase, KeyRound, Eye, EyeOff, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, ArrowRight, User as UserIcon, Phone, Mail, MapPin, Briefcase, KeyRound, Eye, EyeOff } from "lucide-react";
 import { formatEGP, formatDate } from "@/lib/format";
 
 export default function Profile() {
