@@ -15,14 +15,15 @@ import { logAudit } from "@/lib/roles";
 import { notify, notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Check, X, Clock, AlertCircle } from "lucide-react";
+import { Plus, Check, X, Clock, AlertCircle, Wallet, HandCoins } from "lucide-react";
 
-type Status = "pending_branch_manager" | "pending_admin" | "approved" | "rejected";
+type Status = "pending_branch_manager" | "pending_admin" | "approved" | "approved_pending_funds" | "rejected";
 
 const STATUS_INFO: Record<Status, { label: string; color: string; icon: any }> = {
   pending_branch_manager: { label: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning", icon: Clock },
   pending_admin: { label: "بانتظار المدير العام", color: "bg-blue-500/15 text-blue-400", icon: Clock },
-  approved: { label: "موافق عليها ✓", color: "bg-success/15 text-success", icon: Check },
+  approved: { label: "معتمدة وتم الصرف ✓", color: "bg-success/15 text-success", icon: Check },
+  approved_pending_funds: { label: "معتمدة — في انتظار توفر الرصيد", color: "bg-orange-500/15 text-orange-400", icon: Wallet },
   rejected: { label: "مرفوضة", color: "bg-destructive/15 text-destructive", icon: X },
 };
 
