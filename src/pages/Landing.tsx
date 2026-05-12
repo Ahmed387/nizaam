@@ -92,35 +92,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 max-w-md">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">باقة مجانية بالكامل</h2>
-            <p className="text-muted-foreground">استمتع بكل المزايا بدون أي رسوم</p>
-          </div>
-          <div className="card-elevated p-8 border-2 border-primary/30">
-            <div className="text-center mb-6">
-              <div className="text-sm text-muted-foreground mb-2">الباقة الكاملة</div>
-              <div className="text-5xl font-extrabold gradient-text mb-1">مجاناً</div>
-              <div className="text-sm text-muted-foreground">للأبد</div>
-            </div>
-            <ul className="space-y-3 mb-8">
-              {planFeatures.map((f, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-primary" />
-                  </div>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link to="/signup" className="block">
-              <Button className="w-full h-11 btn-gradient">ابدأ الآن</Button>
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="border-t border-border/40 py-8">
