@@ -38,7 +38,7 @@ export default function EmployeeProfile() {
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", base_salary: "", hire_date: "", notes: "" });
+  const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: "", notes: "" });
   const [delOpen, setDelOpen] = useState(false);
 
   const [advOpen, setAdvOpen] = useState(false);
@@ -100,7 +100,7 @@ export default function EmployeeProfile() {
   const openEdit = () => {
     if (!emp) return;
     setEditForm({
-      name: emp.name, job_title: emp.job_title, phone: emp.phone ?? "",
+      name: emp.name, job_title: emp.job_title, phone: emp.phone ?? "", email: emp.email ?? "", login_password: "",
       base_salary: String(emp.base_salary), hire_date: emp.hire_date,
       notes: emp.notes ?? "",
     });
@@ -109,11 +109,16 @@ export default function EmployeeProfile() {
 
   const submitEdit = async () => {
     if (!editForm.name || !editForm.job_title) return toast.error("املأ الاسم والوظيفة");
-    const { error } = await supabase.from("employees").update({
+    const updatePayload: any = {
       name: editForm.name, job_title: editForm.job_title, phone: editForm.phone || null,
+      email: editForm.email?.trim() || null,
       base_salary: Number(editForm.base_salary) || 0, hire_date: editForm.hire_date,
       notes: editForm.notes || null,
-    }).eq("id", emp.id);
+    };
+    if (editForm.login_password) {
+      updatePayload.login_password = editForm.login_password;
+    }
+    const { error } = await supabase.from("employees").update(updatePayload).eq("id", emp.id);
     if (error) return toast.error(error.message);
     toast.success("تم التحديث");
     setEditOpen(false);
@@ -422,6 +427,8 @@ export default function EmployeeProfile() {
             <div><Label>الاسم *</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الوظيفة *</Label><Input value={editForm.job_title} onChange={(e) => setEditForm({ ...editForm, job_title: e.target.value })} className="mt-1.5" /></div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
+            <div><Label>البريد الإلكتروني</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="employee@company.com" /></div>
+            <div><Label>كلمة المرور (للدخول كموظف)</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={editForm.login_password} onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })} placeholder="اتركه فارغاً إذا لا تريد تغييره" /></div>
             <div><Label>الراتب الأساسي</Label><Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-1.5" /></div>
             <div><Label>تاريخ التعيين</Label><Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-1.5" /></div>
             <div><Label>ملاحظات</Label><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} className="mt-1.5" /></div>

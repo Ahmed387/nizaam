@@ -34,7 +34,8 @@ export default function AllEmployees() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
-    name: "", job_title: "", phone: "", base_salary: "",
+    name: "", job_title: "", phone: "", email: "", login_password: "",
+    base_salary: "",
     hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
 
@@ -80,13 +81,13 @@ export default function AllEmployees() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", job_title: "", phone: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
+    setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setOpen(true);
   };
   const openEdit = (e: any) => {
     setEditing(e);
     setForm({
-      name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "",
+      name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "", email: e.email ?? "", login_password: "",
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
     });
@@ -100,6 +101,8 @@ export default function AllEmployees() {
       name: form.name,
       job_title: form.job_title,
       phone: form.phone || null,
+      email: form.email?.trim() || null,
+      login_password: form.login_password || null,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
       role: form.role || null,
@@ -270,8 +273,9 @@ export default function AllEmployees() {
               </Select>
             </div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div><Label>البريد الإلكتروني</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
+            <div><Label>كلمة المرور (للدخول كموظف)</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>تاريخ التعيين</Label><Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" /></div>
             {editing && (
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
