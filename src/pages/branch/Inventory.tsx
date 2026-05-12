@@ -34,6 +34,8 @@ export default function Inventory() {
   });
   const [uploading, setUploading] = useState(false);
 
+  const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
+
   const uploadImage = async (file: File) => {
     setUploading(true);
     try {
