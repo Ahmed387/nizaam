@@ -1618,6 +1618,7 @@ export type Database = {
         | "pending_admin"
         | "approved"
         | "rejected"
+        | "approved_pending_funds"
       app_role:
         | "admin"
         | "branch_manager"
@@ -1760,6 +1761,7 @@ export const Constants = {
         "pending_admin",
         "approved",
         "rejected",
+        "approved_pending_funds",
       ],
       app_role: [
         "admin",
