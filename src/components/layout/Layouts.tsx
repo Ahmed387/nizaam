@@ -92,20 +92,27 @@ export function BranchLayout({ children }: { children: ReactNode }) {
 
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
+  const can = (allowed: string[]) =>
+    isAdmin || hasRole("branch_manager") || allowed.some((r) => hasRole(r as any));
+
+  const allNav: (NavItem & { allow: string[] })[] = [
+    { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
+    { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" />, allow: ["cashier", "accountant"] },
+    { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" />, allow: ["warehouse", "accountant"] },
+    { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, allow: ["cashier", "warehouse", "accountant"] },
+    { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" />, allow: ["warehouse"] },
+    { to: `/branch/${id}/customers`, label: "العملاء", icon: <UserCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
+    { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" />, allow: ["warehouse", "accountant"] },
+    { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, allow: ["accountant"] },
+    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: [] },
+    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: [] },
+    { to: `/branch/${id}/expenses`, label: "المصروفات", icon: <Receipt className="w-4 h-4" />, allow: ["accountant"] },
+    { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, allow: ["accountant"] },
+  ];
+
   const nav: NavItem[] = [
     ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
-    { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
-    { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" /> },
-    { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" /> },
-    { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount },
-    { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" /> },
-    { to: `/branch/${id}/customers`, label: "العملاء", icon: <UserCircle className="w-4 h-4" /> },
-    { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" /> },
-    { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" /> },
-    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" /> },
-    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount },
-    { to: `/branch/${id}/expenses`, label: "المصروفات", icon: <Receipt className="w-4 h-4" /> },
-    { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
+    ...allNav.filter((i) => can(i.allow)).map(({ allow, ...rest }) => rest),
   ];
 
   return (
