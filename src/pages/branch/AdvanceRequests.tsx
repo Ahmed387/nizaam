@@ -208,6 +208,16 @@ export default function AdvanceRequests() {
           relatedEntity: "advance_request",
           relatedEntityId: row.id,
         });
+      } else if (newStatus === "approved_pending_funds") {
+        await notify({
+          userId: row.requested_by,
+          title: "⏳ السلفة معتمدة — في انتظار توفر الرصيد",
+          body: `وافق المدير العام على السلفة بقيمة ${formatEGP(row.amount)} لكن رصيد الخزنة غير كافٍ حالياً. سيتم الصرف فور توفر الرصيد.`,
+          type: "advance_pending_funds",
+          link: `/branch/${branchId}/advance-requests`,
+          relatedEntity: "advance_request",
+          relatedEntityId: row.id,
+        });
       } else if (newStatus === "rejected") {
         await notify({
           userId: row.requested_by,
