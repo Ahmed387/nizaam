@@ -20,7 +20,7 @@ import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { user, profile, tenantId } = useAuth();
+  const { user, profile, tenantId, isAdmin, hasRole } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +33,8 @@ export default function Inventory() {
     low_stock_alert: "5", quantity: "0", image: "",
   });
   const [uploading, setUploading] = useState(false);
+
+  const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
   const uploadImage = async (file: File) => {
     setUploading(true);
@@ -107,9 +109,11 @@ export default function Inventory() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
-            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
-              <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
-            </Button>
+            {canManageInventory && (
+              <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
+                <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
+              </Button>
+            )}
             <Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>
           </div>
         }
@@ -144,9 +148,11 @@ export default function Inventory() {
             return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
           }},
           { key: "actions", header: "حركة", render: (r: any) => (
-            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
-              <Activity className="w-3.5 h-3.5 ml-1" /> عرض
-            </Button>
+            canManageInventory ? (
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
+                <Activity className="w-3.5 h-3.5 ml-1" /> عرض
+              </Button>
+            ) : null
           )},
         ]}
       />
