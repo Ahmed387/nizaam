@@ -20,7 +20,7 @@ import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { user, profile, tenantId } = useAuth();
+  const { user, profile, tenantId, isAdmin, hasRole } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
