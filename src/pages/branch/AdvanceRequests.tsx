@@ -468,8 +468,28 @@ export default function AdvanceRequests() {
                 </div>
               )}
               {decisionRow.status === "pending_admin" && decision === "approve" && (
-                <div className="text-xs text-success bg-success/10 rounded-lg p-2">
-                  ⚠️ ده هيصرف المبلغ من الخزنة فوراً ويسجل سلفة على الموظف.
+                <div className="space-y-2">
+                  <div className="bg-surface-2 rounded-lg p-3 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">رصيد خزنة الفرع:</span>
+                      <b className={balance >= Number(decisionRow.amount) ? "text-success" : "text-orange-400"}>
+                        {formatEGP(balance)}
+                      </b>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">السلفة المطلوبة:</span>
+                      <b>{formatEGP(decisionRow.amount)}</b>
+                    </div>
+                  </div>
+                  {balance >= Number(decisionRow.amount) ? (
+                    <div className="text-xs text-success bg-success/10 rounded-lg p-2">
+                      ✅ الرصيد كافٍ — هيتم صرف المبلغ من الخزنة فوراً وتسجيل السلفة على الموظف.
+                    </div>
+                  ) : (
+                    <div className="text-xs text-orange-400 bg-orange-500/10 rounded-lg p-2">
+                      ⚠️ رصيد الخزنة غير كافٍ. لو وافقت، السلفة هتتسجل بحالة <b>"معتمدة — في انتظار توفر الرصيد"</b> ومش هتتخصم من راتب الموظف لحد ما يتم صرفها فعلياً. القرار ليك.
+                    </div>
+                  )}
                 </div>
               )}
               <div>
