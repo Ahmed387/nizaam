@@ -14,51 +14,6 @@ import { formatEGP, formatDate } from "@/lib/format";
 export default function Profile() {
   const nav = useNavigate();
   const { user, profile, roles, branches, loading, refresh } = useAuth();
-  const isAdminOnly = roles.includes("admin") && !roles.includes("super_admin");
-
-  // Reset tool state
-  const RESET_OPTIONS: { key: string; label: string }[] = [
-    { key: "sales", label: "المبيعات والفواتير" },
-    { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
-    { key: "shipments", label: "الشحنات" },
-    { key: "returns", label: "المرتجعات" },
-    { key: "expenses", label: "المصروفات" },
-    { key: "treasury", label: "بيانات الخزينة" },
-    { key: "stock_movements", label: "سجل حركات المخزون" },
-    { key: "customers", label: "بيانات العملاء" },
-    { key: "payroll", label: "الرواتب وطلبات السلف" },
-  ];
-  const [resetBranch, setResetBranch] = useState<string>("");
-  const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
-  const [resetConfirm, setResetConfirm] = useState("");
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const selectedKeys = Object.keys(resetOpts).filter((k) => resetOpts[k]);
-  const selectedLabels = RESET_OPTIONS.filter((o) => resetOpts[o.key]).map((o) => o.label);
-  const branchLabel = !resetBranch
-    ? "—"
-    : resetBranch === "__all__"
-    ? "كل الفروع"
-    : (branches.find((b) => b.id === resetBranch)?.name ?? "—");
-
-  const runReset = async () => {
-    setResetting(true);
-    try {
-      const { error } = await supabase.rpc("admin_reset_branch_data", {
-        p_branch_id: resetBranch === "__all__" ? null : resetBranch,
-        p_options: Object.fromEntries(selectedKeys.map((k) => [k, true])),
-      } as any);
-      if (error) throw error;
-      toast.success("تم إعادة تشغيل البيانات المحددة");
-      setResetOpen(false);
-      setResetOpts({});
-      setResetConfirm("");
-    } catch (e: any) {
-      toast.error(e.message ?? "خطأ في التنفيذ");
-    } finally {
-      setResetting(false);
-    }
-  };
 
 
   const [emp, setEmp] = useState<any>(null);
