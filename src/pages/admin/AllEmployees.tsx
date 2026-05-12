@@ -102,12 +102,14 @@ export default function AllEmployees() {
       job_title: form.job_title,
       phone: form.phone || null,
       email: form.email?.trim() || null,
-      login_password: form.login_password || null,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
       role: form.role || null,
       is_active: form.is_active,
     };
+    if (!editing || form.login_password) {
+      payload.login_password = form.login_password || null;
+    }
     if (editing) {
       const { error } = await supabase.from("employees").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
