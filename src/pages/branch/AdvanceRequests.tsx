@@ -270,6 +270,30 @@ export default function AdvanceRequests() {
     }
   };
 
+  const disburse = async (row: any) => {
+    if (!confirm(`صرف السلفة بقيمة ${formatEGP(row.amount)}؟ سيتم خصم المبلغ من الخزنة.`)) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("disburse_pending_advance", { p_request_id: row.id });
+      if (error) throw error;
+      await notify({
+        userId: row.requested_by,
+        title: "✅ تم صرف السلفة",
+        body: `تم صرف السلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""}.`,
+        type: "advance_approved",
+        link: `/branch/${branchId}/advance-requests`,
+        relatedEntity: "advance_request",
+        relatedEntityId: row.id,
+      });
+      toast.success("تم صرف السلفة بنجاح");
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const StatusBadge = ({ status }: { status: Status }) => {
     const info = STATUS_INFO[status];
     const Icon = info.icon;
