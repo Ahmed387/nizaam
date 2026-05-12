@@ -1557,6 +1557,10 @@ export type Database = {
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
+      disburse_pending_advance: {
+        Args: { p_request_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1618,6 +1622,7 @@ export type Database = {
         | "pending_admin"
         | "approved"
         | "rejected"
+        | "approved_pending_funds"
       app_role:
         | "admin"
         | "branch_manager"
@@ -1760,6 +1765,7 @@ export const Constants = {
         "pending_admin",
         "approved",
         "rejected",
+        "approved_pending_funds",
       ],
       app_role: [
         "admin",

@@ -15,14 +15,15 @@ import { logAudit } from "@/lib/roles";
 import { notify, notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Check, X, Clock, AlertCircle } from "lucide-react";
+import { Plus, Check, X, Clock, AlertCircle, Wallet, HandCoins } from "lucide-react";
 
-type Status = "pending_branch_manager" | "pending_admin" | "approved" | "rejected";
+type Status = "pending_branch_manager" | "pending_admin" | "approved" | "approved_pending_funds" | "rejected";
 
 const STATUS_INFO: Record<Status, { label: string; color: string; icon: any }> = {
   pending_branch_manager: { label: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning", icon: Clock },
   pending_admin: { label: "بانتظار المدير العام", color: "bg-blue-500/15 text-blue-400", icon: Clock },
-  approved: { label: "موافق عليها ✓", color: "bg-success/15 text-success", icon: Check },
+  approved: { label: "معتمدة وتم الصرف ✓", color: "bg-success/15 text-success", icon: Check },
+  approved_pending_funds: { label: "معتمدة — في انتظار توفر الرصيد", color: "bg-orange-500/15 text-orange-400", icon: Wallet },
   rejected: { label: "مرفوضة", color: "bg-destructive/15 text-destructive", icon: X },
 };
 
@@ -33,6 +34,7 @@ export default function AdvanceRequests() {
 
   const [rows, setRows] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: "", amount: "", monthly_deduct: "", reason: "" });
@@ -43,12 +45,14 @@ export default function AdvanceRequests() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: r }, { data: e }] = await Promise.all([
+    const [{ data: r }, { data: e }, { data: t }] = await Promise.all([
       supabase.from("advance_requests").select("*, employees(name, job_title)").eq("branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("employees").select("id, name, job_title, base_salary").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("treasury").select("type, amount").eq("branch_id", branchId),
     ]);
     setRows(r ?? []);
     setEmployees(e ?? []);
+    setBalance((t ?? []).reduce((s: number, x: any) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
     setLoading(false);
   };
 
@@ -63,8 +67,8 @@ export default function AdvanceRequests() {
 
   const myRequests = useMemo(() => rows.filter((r) => r.requested_by === user?.id), [rows, user?.id]);
   const pendingForMe = useMemo(() => {
-    if (isAdmin) return rows.filter((r) => r.status === "pending_admin");
-    if (isBranchManager) return rows.filter((r) => r.status === "pending_branch_manager");
+    if (isAdmin) return rows.filter((r) => r.status === "pending_admin" || r.status === "approved_pending_funds");
+    if (isBranchManager) return rows.filter((r) => r.status === "pending_branch_manager" || r.status === "approved_pending_funds");
     return [];
   }, [rows, isAdmin, isBranchManager]);
   const allRequests = rows;
@@ -162,7 +166,8 @@ export default function AdvanceRequests() {
           update.branch_manager_decision_at = new Date().toISOString();
           update.branch_manager_note = decisionNote || null;
         } else {
-          newStatus = "approved";
+          // Admin approval — check treasury balance
+          newStatus = balance >= Number(row.amount) ? "approved" : "approved_pending_funds";
           update.admin_id = user!.id;
           update.admin_decision_at = new Date().toISOString();
           update.admin_note = decisionNote || null;
@@ -199,6 +204,16 @@ export default function AdvanceRequests() {
           title: "✅ تمت الموافقة على طلب السلفة",
           body: `طلبك بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""} تمت الموافقة عليه نهائياً وتم صرف المبلغ.`,
           type: "advance_approved",
+          link: `/branch/${branchId}/advance-requests`,
+          relatedEntity: "advance_request",
+          relatedEntityId: row.id,
+        });
+      } else if (newStatus === "approved_pending_funds") {
+        await notify({
+          userId: row.requested_by,
+          title: "⏳ السلفة معتمدة — في انتظار توفر الرصيد",
+          body: `وافق المدير العام على السلفة بقيمة ${formatEGP(row.amount)} لكن رصيد الخزنة غير كافٍ حالياً. سيتم الصرف فور توفر الرصيد.`,
+          type: "advance_pending_funds",
           link: `/branch/${branchId}/advance-requests`,
           relatedEntity: "advance_request",
           relatedEntityId: row.id,
@@ -255,6 +270,30 @@ export default function AdvanceRequests() {
     }
   };
 
+  const disburse = async (row: any) => {
+    if (!confirm(`صرف السلفة بقيمة ${formatEGP(row.amount)}؟ سيتم خصم المبلغ من الخزنة.`)) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("disburse_pending_advance", { p_request_id: row.id });
+      if (error) throw error;
+      await notify({
+        userId: row.requested_by,
+        title: "✅ تم صرف السلفة",
+        body: `تم صرف السلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""}.`,
+        type: "advance_approved",
+        link: `/branch/${branchId}/advance-requests`,
+        relatedEntity: "advance_request",
+        relatedEntityId: row.id,
+      });
+      toast.success("تم صرف السلفة بنجاح");
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const StatusBadge = ({ status }: { status: Status }) => {
     const info = STATUS_INFO[status];
     const Icon = info.icon;
@@ -287,6 +326,24 @@ export default function AdvanceRequests() {
             const canActOnStage =
               (r.status === "pending_branch_manager" && (isBranchManager || isAdmin)) ||
               (r.status === "pending_admin" && isAdmin);
+            const canDisburse =
+              r.status === "approved_pending_funds" && (isAdmin || isBranchManager);
+            if (canDisburse) {
+              const enough = balance >= Number(r.amount);
+              return (
+                <div className="flex flex-col gap-1">
+                  <Button size="sm" disabled={!enough || busy}
+                    className="h-7 btn-gradient" onClick={() => disburse(r)}>
+                    <HandCoins className="w-3 h-3 ml-1" /> صرف السلفة
+                  </Button>
+                  {!enough && (
+                    <span className="text-[10px] text-orange-400">
+                      الرصيد غير كافٍ ({formatEGP(balance)})
+                    </span>
+                  )}
+                </div>
+              );
+            }
             if (!canActOnStage) return <span className="text-xs text-muted-foreground">—</span>;
             return (
               <div className="flex gap-1">
@@ -411,8 +468,28 @@ export default function AdvanceRequests() {
                 </div>
               )}
               {decisionRow.status === "pending_admin" && decision === "approve" && (
-                <div className="text-xs text-success bg-success/10 rounded-lg p-2">
-                  ⚠️ ده هيصرف المبلغ من الخزنة فوراً ويسجل سلفة على الموظف.
+                <div className="space-y-2">
+                  <div className="bg-surface-2 rounded-lg p-3 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">رصيد خزنة الفرع:</span>
+                      <b className={balance >= Number(decisionRow.amount) ? "text-success" : "text-orange-400"}>
+                        {formatEGP(balance)}
+                      </b>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">السلفة المطلوبة:</span>
+                      <b>{formatEGP(decisionRow.amount)}</b>
+                    </div>
+                  </div>
+                  {balance >= Number(decisionRow.amount) ? (
+                    <div className="text-xs text-success bg-success/10 rounded-lg p-2">
+                      ✅ الرصيد كافٍ — هيتم صرف المبلغ من الخزنة فوراً وتسجيل السلفة على الموظف.
+                    </div>
+                  ) : (
+                    <div className="text-xs text-orange-400 bg-orange-500/10 rounded-lg p-2">
+                      ⚠️ رصيد الخزنة غير كافٍ. لو وافقت، السلفة هتتسجل بحالة <b>"معتمدة — في انتظار توفر الرصيد"</b> ومش هتتخصم من راتب الموظف لحد ما يتم صرفها فعلياً. القرار ليك.
+                    </div>
+                  )}
                 </div>
               )}
               <div>
