@@ -7,61 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, User as UserIcon, Phone, Mail, MapPin, Briefcase, KeyRound, Eye, EyeOff, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, ArrowRight, User as UserIcon, Phone, Mail, MapPin, Briefcase, KeyRound, Eye, EyeOff } from "lucide-react";
 import { formatEGP, formatDate } from "@/lib/format";
 
 export default function Profile() {
   const nav = useNavigate();
   const { user, profile, roles, branches, loading, refresh } = useAuth();
-  const isAdminOnly = roles.includes("admin") && !roles.includes("super_admin");
-
-  // Reset tool state
-  const RESET_OPTIONS: { key: string; label: string }[] = [
-    { key: "sales", label: "المبيعات والفواتير" },
-    { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
-    { key: "shipments", label: "الشحنات" },
-    { key: "returns", label: "المرتجعات" },
-    { key: "expenses", label: "المصروفات" },
-    { key: "treasury", label: "بيانات الخزينة" },
-    { key: "stock_movements", label: "سجل حركات المخزون" },
-    { key: "customers", label: "بيانات العملاء" },
-    { key: "payroll", label: "الرواتب وطلبات السلف" },
-  ];
-  const [resetBranch, setResetBranch] = useState<string>("");
-  const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
-  const [resetConfirm, setResetConfirm] = useState("");
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const selectedKeys = Object.keys(resetOpts).filter((k) => resetOpts[k]);
-  const selectedLabels = RESET_OPTIONS.filter((o) => resetOpts[o.key]).map((o) => o.label);
-  const branchLabel = !resetBranch
-    ? "—"
-    : resetBranch === "__all__"
-    ? "كل الفروع"
-    : (branches.find((b) => b.id === resetBranch)?.name ?? "—");
-
-  const runReset = async () => {
-    setResetting(true);
-    try {
-      const { error } = await supabase.rpc("admin_reset_branch_data", {
-        p_branch_id: resetBranch === "__all__" ? null : resetBranch,
-        p_options: Object.fromEntries(selectedKeys.map((k) => [k, true])),
-      } as any);
-      if (error) throw error;
-      toast.success("تم إعادة تشغيل البيانات المحددة");
-      setResetOpen(false);
-      setResetOpts({});
-      setResetConfirm("");
-    } catch (e: any) {
-      toast.error(e.message ?? "خطأ في التنفيذ");
-    } finally {
-      setResetting(false);
-    }
-  };
 
 
   const [emp, setEmp] = useState<any>(null);
@@ -327,92 +279,6 @@ export default function Profile() {
           </div>
         </Card>
 
-        {/* Admin-only: data reset tool */}
-        {isAdminOnly && (
-          <Card className="p-5 mt-4 border-destructive/40">
-            <div className="flex items-start gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
-              <div>
-                <h2 className="text-lg font-bold text-destructive">إعادة تشغيل بيانات الفروع</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  تحذير: هذا الإجراء يحذف نهائيًا البيانات المحددة من الفرع المختار ولا يمكن التراجع عنه.
-                  لا يتم حذف بيانات الإعداد الأساسية (الموظفين، الموردين، المنتجات، التصنيفات).
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label>الفرع</Label>
-                <Select value={resetBranch} onValueChange={setResetBranch}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="اختر فرع" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">كل الفروع</SelectItem>
-                    {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">نوع البيانات المراد مسحها</Label>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {RESET_OPTIONS.map((o) => (
-                    <label key={o.key} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/50 cursor-pointer">
-                      <Checkbox
-                        checked={!!resetOpts[o.key]}
-                        onCheckedChange={(v) => setResetOpts((s) => ({ ...s, [o.key]: !!v }))}
-                      />
-                      <span className="text-sm">{o.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  variant="destructive"
-                  disabled={!resetBranch || selectedKeys.length === 0}
-                  onClick={() => { setResetConfirm(""); setResetOpen(true); }}
-                >
-                  <Trash2 className="w-4 h-4 ml-1" /> إعادة تشغيل
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        <Dialog open={resetOpen} onOpenChange={setResetOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-destructive flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" /> تأكيد إعادة تشغيل البيانات
-              </DialogTitle>
-              <DialogDescription className="text-foreground/80 pt-2">
-                هتمسح: <b>{selectedLabels.join(" + ")}</b> من <b>{branchLabel}</b>.
-                <br />
-                <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
-              <Input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="تأكيد" />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>إلغاء</Button>
-              <Button
-                variant="destructive"
-                disabled={resetConfirm.trim() !== "تأكيد" || resetting}
-                onClick={runReset}
-              >
-                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

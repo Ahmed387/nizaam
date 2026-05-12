@@ -7,18 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2 } from "lucide-react";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
 interface InventorySettings { default_low_stock_alert: number }
 
 export default function Settings() {
-  const { user, profile } = useAuth();
+  const { user, profile, branches, roles } = useAuth();
+  const isAdminOnly = roles.includes("admin") && !roles.includes("super_admin");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
@@ -26,6 +30,49 @@ export default function Settings() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
+
+  const RESET_OPTIONS: { key: string; label: string }[] = [
+    { key: "sales", label: "المبيعات والفواتير" },
+    { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
+    { key: "shipments", label: "الشحنات" },
+    { key: "returns", label: "المرتجعات" },
+    { key: "expenses", label: "المصروفات" },
+    { key: "treasury", label: "بيانات الخزينة" },
+    { key: "stock_movements", label: "سجل حركات المخزون" },
+    { key: "customers", label: "بيانات العملاء" },
+    { key: "payroll", label: "الرواتب وطلبات السلف" },
+  ];
+  const [resetBranch, setResetBranch] = useState<string>("");
+  const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const selectedKeys = Object.keys(resetOpts).filter((k) => resetOpts[k]);
+  const selectedLabels = RESET_OPTIONS.filter((o) => resetOpts[o.key]).map((o) => o.label);
+  const branchLabel = !resetBranch
+    ? "—"
+    : resetBranch === "__all__"
+    ? "كل الفروع"
+    : (branches.find((b) => b.id === resetBranch)?.name ?? "—");
+
+  const runReset = async () => {
+    setResetting(true);
+    try {
+      const { error } = await supabase.rpc("admin_reset_branch_data", {
+        p_branch_id: resetBranch === "__all__" ? null : resetBranch,
+        p_options: Object.fromEntries(selectedKeys.map((k) => [k, true])),
+      } as any);
+      if (error) throw error;
+      toast.success("تم مسح البيانات المحددة");
+      setResetOpen(false);
+      setResetOpts({});
+      setResetConfirm("");
+    } catch (e: any) {
+      toast.error(e.message ?? "خطأ في التنفيذ");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -76,6 +123,7 @@ export default function Settings() {
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
           <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
+          {isAdminOnly && <TabsTrigger value="data" className="text-destructive"><Trash2 className="w-4 h-4 ml-1" /> إدارة البيانات</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="company" className="mt-4">
@@ -163,7 +211,78 @@ export default function Settings() {
             </Button>
           </div>
         </TabsContent>
+        {isAdminOnly && (
+          <TabsContent value="data" className="mt-4">
+            <div className="card-elevated p-6 space-y-4 max-w-3xl border border-destructive/40">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-lg font-bold text-destructive">مسح البيانات التجريبية / إعادة تشغيل بيانات الفروع</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    تحذير: الإجراء يحذف نهائيًا البيانات المحددة من الفرع المختار ولا يمكن التراجع عنه.
+                    لا يتم حذف بيانات الإعداد الأساسية (الموظفين، الموردين، المنتجات، التصنيفات).
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label>الفرع</Label>
+                <Select value={resetBranch} onValueChange={setResetBranch}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر فرع" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">كل الفروع</SelectItem>
+                    {branches.map((b) => (<SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">نوع البيانات المراد مسحها</Label>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {RESET_OPTIONS.map((o) => (
+                    <label key={o.key} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/50 cursor-pointer">
+                      <Checkbox checked={!!resetOpts[o.key]} onCheckedChange={(v) => setResetOpts((s) => ({ ...s, [o.key]: !!v }))} />
+                      <span className="text-sm">{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button variant="destructive" disabled={!resetBranch || selectedKeys.length === 0}
+                  onClick={() => { setResetConfirm(""); setResetOpen(true); }}>
+                  <Trash2 className="w-4 h-4 ml-1" /> مسح البيانات
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> تأكيد مسح البيانات
+            </DialogTitle>
+            <DialogDescription className="text-foreground/80 pt-2">
+              هتمسح: <b>{selectedLabels.join(" + ")}</b> من <b>{branchLabel}</b>.
+              <br />
+              <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
+            <Input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="تأكيد" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>إلغاء</Button>
+            <Button variant="destructive" disabled={resetConfirm.trim() !== "تأكيد" || resetting} onClick={runReset}>
+              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
