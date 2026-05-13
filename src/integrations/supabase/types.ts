@@ -1201,6 +1201,7 @@ export type Database = {
           confirmed_by: string | null
           created_at: string
           from_branch_id: string
+          group_id: string | null
           id: string
           product_id: string
           quantity: number
@@ -1214,6 +1215,7 @@ export type Database = {
           confirmed_by?: string | null
           created_at?: string
           from_branch_id: string
+          group_id?: string | null
           id?: string
           product_id: string
           quantity: number
@@ -1227,6 +1229,7 @@ export type Database = {
           confirmed_by?: string | null
           created_at?: string
           from_branch_id?: string
+          group_id?: string | null
           id?: string
           product_id?: string
           quantity?: number
@@ -1554,6 +1557,7 @@ export type Database = {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
       }
+      confirm_transfer_group: { Args: { p_group: string }; Returns: number }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
@@ -1587,12 +1591,22 @@ export type Database = {
         }
         Returns: string
       }
+      reject_transfer_group: { Args: { p_group: string }; Returns: number }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
         Args: {
           p_from_branch: string
           p_product_id: string
           p_quantity: number
+          p_reason: string
+          p_to_branch: string
+        }
+        Returns: string
+      }
+      transfer_stock_multi_atomic: {
+        Args: {
+          p_from_branch: string
+          p_items: Json
           p_reason: string
           p_to_branch: string
         }
