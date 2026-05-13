@@ -123,8 +123,8 @@ export default function StockTransfers() {
 
     const senderMgrs = await getBranchManagers(t.from_branch_id);
     await notifyMany(senderMgrs, {
-      title: "تم استلام طلب النقل ✅",
-      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      title: "✅ تم استلام صنف",
+      body: `استلم الفرع المستلم: ${t.products?.name ?? "منتج"} × ${t.quantity}`,
       type: "general",
       link: `/branch/${t.from_branch_id}/transfers`,
       relatedEntity: "stock_transfer", relatedEntityId: t.id,
@@ -134,7 +134,7 @@ export default function StockTransfers() {
   };
 
   const rejectTransfer = async (t: any) => {
-    if (!confirm("رفض الطلب وإرجاع الكمية لفرع المرسل؟")) return;
+    if (!confirm("رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟")) return;
     const { data: src } = await supabase.from("products").select("quantity").eq("id", t.product_id).maybeSingle();
     if (src) await supabase.from("products").update({ quantity: src.quantity + t.quantity }).eq("id", t.product_id);
     await supabase.from("stock_transfers").update({ status: "rejected", confirmed_by: user!.id }).eq("id", t.id);
@@ -142,24 +142,25 @@ export default function StockTransfers() {
 
     const senderMgrs = await getBranchManagers(t.from_branch_id);
     await notifyMany(senderMgrs, {
-      title: "تم رفض طلب النقل ❌",
-      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      title: "❌ تم رفض صنف وإرجاعه للمخزن",
+      body: `رُفض: ${t.products?.name ?? "منتج"} × ${t.quantity} — تم إرجاع الكمية لمخزن فرعك`,
       type: "general",
       link: `/branch/${t.from_branch_id}/transfers`,
       relatedEntity: "stock_transfer", relatedEntityId: t.id,
     });
-    toast.info("تم الرفض وإرجاع الكمية");
+    toast.info("تم الرفض وإرجاع الكمية لمخزن الفرع المرسل");
     load();
   };
 
   // Group bulk actions
-  const confirmGroup = async (groupId: string, fromBranchId: string, count: number) => {
+  const confirmGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
     const { data, error } = await supabase.rpc("confirm_transfer_group", { p_group: groupId });
     if (error) return toast.error(error.message);
+    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
     const senderMgrs = await getBranchManagers(fromBranchId);
     await notifyMany(senderMgrs, {
-      title: "تم استلام كل الأصناف ✅",
-      body: `${data} صنف تم استلامها`,
+      title: `✅ تم استلام كل الأصناف (${data})`,
+      body: `الأصناف المستلمة:\n${list}`,
       type: "general",
       link: `/branch/${fromBranchId}/transfers`,
       relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
@@ -168,19 +169,20 @@ export default function StockTransfers() {
     load();
   };
 
-  const rejectGroup = async (groupId: string, fromBranchId: string) => {
-    if (!confirm("رفض كل الأصناف وإرجاع الكميات؟")) return;
+  const rejectGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
+    if (!confirm("رفض كل الأصناف وإرجاع الكميات لمخزن فرعك المرسل؟")) return;
     const { data, error } = await supabase.rpc("reject_transfer_group", { p_group: groupId });
     if (error) return toast.error(error.message);
+    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
     const senderMgrs = await getBranchManagers(fromBranchId);
     await notifyMany(senderMgrs, {
-      title: "تم رفض كل الأصناف ❌",
-      body: `${data} صنف تم رفضها وإرجاع الكميات`,
+      title: `❌ تم رفض كل الأصناف (${data}) — رجعت للمخزن`,
+      body: `الأصناف المرفوضة وتم إرجاعها لمخزن فرعك:\n${list}`,
       type: "general",
       link: `/branch/${fromBranchId}/transfers`,
       relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
     });
-    toast.info(`تم رفض ${data} صنف`);
+    toast.info(`تم رفض ${data} صنف وإرجاعها للمخزن`);
     load();
   };
 
@@ -253,10 +255,10 @@ export default function StockTransfers() {
                 </div>
                 {g.groupId && g.pendingCount > 1 && (
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.pendingCount)} className="gap-1">
+                    <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
                       <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id)} className="gap-1 text-destructive">
+                    <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
                       <X className="w-3 h-3" /> رفض الكل
                     </Button>
                   </div>
