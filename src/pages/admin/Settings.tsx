@@ -41,7 +41,11 @@ export default function Settings() {
     { key: "treasury", label: "بيانات الخزينة" },
     { key: "stock_movements", label: "سجل حركات المخزون" },
     { key: "customers", label: "بيانات العملاء" },
+    { key: "suppliers", label: "الموردين (اللي مش مرتبطين بشحنات)" },
+    { key: "employees", label: "الموظفين (مع رواتبهم وسلفهم)" },
     { key: "payroll", label: "الرواتب وطلبات السلف" },
+    { key: "notifications", label: "الإشعارات" },
+    { key: "audit_log", label: "سجل العمليات" },
   ];
   const [resetBranch, setResetBranch] = useState<string>("");
   const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
