@@ -114,6 +114,8 @@ export default function AllEmployees() {
     if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
     if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
     const emailLower = form.email.trim().toLowerCase();
+    const { data: dup } = await supabase.from("employees").select("id").ilike("email", emailLower).maybeSingle();
+    if (dup && dup.id !== editing?.id) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
     const payload: any = {
       branch_id: form.branch_id,
       name: form.name.trim(),
