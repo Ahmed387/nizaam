@@ -28,9 +28,9 @@ Deno.serve(async (req) => {
     const jobTitle = String(body.job_title ?? "").trim();
     const password = String(body.password ?? "");
 
-    if (!email || !phone || !jobTitle || !password) {
+    if (!email || !phone || !password) {
       return new Response(
-        JSON.stringify({ error: "البريد، التليفون، الوظيفة، وكلمة المرور كلها مطلوبة" }),
+        JSON.stringify({ error: "البريد، التليفون، وكلمة المرور كلها مطلوبة" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Find candidate employee
+    // Find candidate employee by email + phone (job_title is a label, not a credential)
     const { data: candidates, error: lookupErr } = await admin
       .from("employees")
       .select("*")
@@ -49,9 +49,7 @@ Deno.serve(async (req) => {
     if (lookupErr) throw lookupErr;
 
     const emp = (candidates ?? []).find(
-      (e: any) =>
-        normalizePhone(e.phone ?? "") === phone &&
-        (e.job_title ?? "").trim() === jobTitle,
+      (e: any) => normalizePhone(e.phone ?? "") === phone,
     );
 
     if (!emp || !emp.login_password) {
