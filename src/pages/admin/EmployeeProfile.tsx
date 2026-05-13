@@ -189,6 +189,28 @@ export default function EmployeeProfile() {
       amount: net, description: `راتب ${salForm.month} - ${emp.name}`, reference_id: sal.id, created_by: user!.id,
     });
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "salary", entityId: sal.id, details: { employee: emp.name, month: salForm.month, net } });
+
+    // Notify employee that their salary has been paid
+    if (emp.user_id) {
+      const parts = [
+        `صافي: ${formatEGP(net)}`,
+        `أساسي: ${formatEGP(base)}`,
+      ];
+      if (bonuses > 0) parts.push(`حوافز: ${formatEGP(bonuses)}`);
+      if (ded > 0) parts.push(`خصومات: ${formatEGP(ded)}`);
+      if (advDed > 0) parts.push(`خصم سلف: ${formatEGP(advDed)}`);
+      const { notify } = await import("@/lib/notifications");
+      await notify({
+        userId: emp.user_id,
+        title: `💰 تم صرف مرتبك لشهر ${salForm.month}`,
+        body: parts.join(" — "),
+        type: "salary_paid",
+        link: "/profile",
+        relatedEntity: "salary",
+        relatedEntityId: sal.id,
+      });
+    }
+
     toast.success("تم دفع الراتب");
     setSalOpen(false);
     setSalForm({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
