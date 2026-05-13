@@ -255,10 +255,10 @@ export default function StockTransfers() {
                 </div>
                 {g.groupId && g.pendingCount > 1 && (
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.pendingCount)} className="gap-1">
+                    <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
                       <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id)} className="gap-1 text-destructive">
+                    <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
                       <X className="w-3 h-3" /> رفض الكل
                     </Button>
                   </div>
