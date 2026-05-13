@@ -153,13 +153,14 @@ export default function StockTransfers() {
   };
 
   // Group bulk actions
-  const confirmGroup = async (groupId: string, fromBranchId: string, count: number) => {
+  const confirmGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
     const { data, error } = await supabase.rpc("confirm_transfer_group", { p_group: groupId });
     if (error) return toast.error(error.message);
+    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
     const senderMgrs = await getBranchManagers(fromBranchId);
     await notifyMany(senderMgrs, {
-      title: "تم استلام كل الأصناف ✅",
-      body: `${data} صنف تم استلامها`,
+      title: `✅ تم استلام كل الأصناف (${data})`,
+      body: `الأصناف المستلمة:\n${list}`,
       type: "general",
       link: `/branch/${fromBranchId}/transfers`,
       relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
@@ -168,19 +169,20 @@ export default function StockTransfers() {
     load();
   };
 
-  const rejectGroup = async (groupId: string, fromBranchId: string) => {
-    if (!confirm("رفض كل الأصناف وإرجاع الكميات؟")) return;
+  const rejectGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
+    if (!confirm("رفض كل الأصناف وإرجاع الكميات لمخزن فرعك المرسل؟")) return;
     const { data, error } = await supabase.rpc("reject_transfer_group", { p_group: groupId });
     if (error) return toast.error(error.message);
+    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
     const senderMgrs = await getBranchManagers(fromBranchId);
     await notifyMany(senderMgrs, {
-      title: "تم رفض كل الأصناف ❌",
-      body: `${data} صنف تم رفضها وإرجاع الكميات`,
+      title: `❌ تم رفض كل الأصناف (${data}) — رجعت للمخزن`,
+      body: `الأصناف المرفوضة وتم إرجاعها لمخزن فرعك:\n${list}`,
       type: "general",
       link: `/branch/${fromBranchId}/transfers`,
       relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
     });
-    toast.info(`تم رفض ${data} صنف`);
+    toast.info(`تم رفض ${data} صنف وإرجاعها للمخزن`);
     load();
   };
 
