@@ -34,6 +34,7 @@ export default function Settings() {
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
     { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
+    { key: "products", label: "حذف المنتجات نهائياً (مع كل الفواتير والمرتجعات والشحنات المرتبطة)" },
     { key: "shipments", label: "الشحنات" },
     { key: "returns", label: "المرتجعات" },
     { key: "expenses", label: "المصروفات" },
