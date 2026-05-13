@@ -1,5 +1,5 @@
 // Employee unified sign-in (secure):
-// Receives: email, phone, job_title, password
+// Receives: email, password (+ optional phone/job_title from older UI)
 // Verifies password against bcrypt hash in DB via verify_employee_password()
 // If valid → ensures auth user exists, syncs auth password, returns credentials
 // Plaintext passwords are NEVER stored in DB.
@@ -13,7 +13,10 @@ const corsHeaders = {
 };
 
 function normalizePhone(p: string): string {
-  return (p ?? "").replace(/\D/g, "");
+  const normalizedDigits = (p ?? "")
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+  return normalizedDigits.replace(/\D/g, "");
 }
 
 Deno.serve(async (req) => {
@@ -25,12 +28,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const email = String(body.email ?? "").trim().toLowerCase();
     const phone = normalizePhone(String(body.phone ?? ""));
-    const jobTitle = String(body.job_title ?? "").trim();
     const password = String(body.password ?? "");
 
-    if (!email || !phone || !password) {
+    if (!email || !password) {
       return new Response(
-        JSON.stringify({ error: "البريد، التليفون، وكلمة المرور كلها مطلوبة" }),
+        JSON.stringify({ error: "البريد الإلكتروني وكلمة المرور مطلوبين" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -40,7 +42,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Find candidate employee by email + phone (job_title is a label, not a credential)
+    // Find active employees by email. Phone/job_title are labels or optional hints, not login blockers.
     const { data: candidates, error: lookupErr } = await admin
       .from("employees")
       .select("*")
@@ -48,26 +50,37 @@ Deno.serve(async (req) => {
       .eq("is_active", true);
     if (lookupErr) throw lookupErr;
 
-    const emp = (candidates ?? []).find(
-      (e: any) => normalizePhone(e.phone ?? "") === phone,
-    );
+    const orderedCandidates = [...(candidates ?? [])].sort((a: any, b: any) => {
+      if (!phone) return 0;
+      const aMatch = normalizePhone(a.phone ?? "") === phone ? 0 : 1;
+      const bMatch = normalizePhone(b.phone ?? "") === phone ? 0 : 1;
+      return aMatch - bMatch;
+    });
 
-    if (!emp || !emp.login_password) {
+    if (!orderedCandidates.length) {
       return new Response(
-        JSON.stringify({ error: "Access Denied — البيانات غير مطابقة" }),
+        JSON.stringify({ error: "Access Denied — البريد أو كلمة المرور غير صحيحة" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Verify password against bcrypt hash via DB function
-    const { data: ok, error: verifyErr } = await admin.rpc("verify_employee_password", {
-      _employee_id: emp.id,
-      _password: password,
-    });
-    if (verifyErr) throw verifyErr;
-    if (!ok) {
+    let emp: any = null;
+    for (const candidate of orderedCandidates) {
+      if (!candidate.login_password) continue;
+      const { data: ok, error: verifyErr } = await admin.rpc("verify_employee_password", {
+        _employee_id: candidate.id,
+        _password: password,
+      });
+      if (verifyErr) throw verifyErr;
+      if (ok) {
+        emp = candidate;
+        break;
+      }
+    }
+
+    if (!emp) {
       return new Response(
-        JSON.stringify({ error: "كلمة المرور غير صحيحة" }),
+        JSON.stringify({ error: "Access Denied — البريد أو كلمة المرور غير صحيحة" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

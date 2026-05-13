@@ -17,6 +17,15 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2 } from "lucide-react";
 
+const POSITIONS = [
+  { value: "كاشير", role: "cashier" },
+  { value: "مدير فرع", role: "branch_manager" },
+  { value: "أمين مخزن", role: "warehouse" },
+  { value: "محاسب", role: "cashier" },
+  { value: "مندوب مبيعات", role: "cashier" },
+  { value: "موظف خدمة عملاء", role: "cashier" },
+];
+
 export default function AllEmployees() {
   const nav = useNavigate();
   const { tenantId } = useAuth();
@@ -94,14 +103,25 @@ export default function AllEmployees() {
     setOpen(true);
   };
 
+  const onPositionChange = (val: string) => {
+    const pos = POSITIONS.find((p) => p.value === val);
+    setForm({ ...form, job_title: val, role: pos?.role ?? form.role });
+  };
+
   const submit = async () => {
-    if (!form.name || !form.job_title || !form.branch_id) return toast.error("املأ الاسم والوظيفة والفرع");
+    if (!form.name || !form.job_title || !form.branch_id || !form.role) return toast.error("املأ الاسم والوظيفة والفرع والصلاحية");
+    if (!form.email || !form.phone) return toast.error("الإيميل والتليفون مطلوبين لدخول الموظف");
+    if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    const emailLower = form.email.trim().toLowerCase();
+    const { data: dup } = await supabase.from("employees").select("id").ilike("email", emailLower).maybeSingle();
+    if (dup && dup.id !== editing?.id) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
     const payload: any = {
       branch_id: form.branch_id,
-      name: form.name,
+      name: form.name.trim(),
       job_title: form.job_title,
-      phone: form.phone || null,
-      email: form.email?.trim() || null,
+      phone: form.phone.trim(),
+      email: emailLower,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
       role: form.role || null,
@@ -260,23 +280,29 @@ export default function AllEmployees() {
               </Select>
             </div>
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الوظيفة *</Label><Input value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} className="mt-1.5" /></div>
             <div>
-              <Label>الدور (الصلاحية)</Label>
-              <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— بدون —" /></SelectTrigger>
+              <Label>الوظيفة *</Label>
+              <Select value={form.job_title} onValueChange={onPositionChange}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الوظيفة" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— بدون —</SelectItem>
-                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
-                  <SelectItem value="cashier">كاشير</SelectItem>
-                  <SelectItem value="warehouse">مخزن</SelectItem>
-                  <SelectItem value="accountant">محاسب</SelectItem>
+                  {POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.value}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><Label>البريد الإلكتروني</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
-            <div><Label>كلمة المرور (للدخول كموظف)</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
+            <div>
+              <Label>الدور (الصلاحية) *</Label>
+              <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الصلاحية" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="cashier">كاشير</SelectItem>
+                  <SelectItem value="warehouse">مخزن</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>التليفون *</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
+            <div><Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور (للدخول كموظف) *"}</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
             {editing && (
               <label className="flex items-center gap-2 text-sm">
