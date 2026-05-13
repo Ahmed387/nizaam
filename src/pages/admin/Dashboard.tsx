@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, Package } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, Package, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export default function AdminDashboard() {
