@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, Package } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, Package, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export default function AdminDashboard() {
@@ -66,7 +68,13 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة شاملة على كل الفروع" />
+      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة شاملة على كل الفروع"
+        actions={
+          <Button asChild variant="destructive" size="sm" className="gap-2">
+            <Link to="/admin/settings#reset"><Trash2 className="w-4 h-4" /> إعادة تعيين بيانات الشركة</Link>
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="مبيعات اليوم" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" />
