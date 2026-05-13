@@ -68,7 +68,13 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة شاملة على كل الفروع" />
+      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة شاملة على كل الفروع"
+        actions={
+          <Button asChild variant="destructive" size="sm" className="gap-2">
+            <Link to="/admin/settings#reset"><Trash2 className="w-4 h-4" /> إعادة تعيين بيانات الشركة</Link>
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="مبيعات اليوم" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" />
