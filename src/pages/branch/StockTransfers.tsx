@@ -123,8 +123,8 @@ export default function StockTransfers() {
 
     const senderMgrs = await getBranchManagers(t.from_branch_id);
     await notifyMany(senderMgrs, {
-      title: "تم استلام طلب النقل ✅",
-      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      title: "✅ تم استلام صنف",
+      body: `استلم الفرع المستلم: ${t.products?.name ?? "منتج"} × ${t.quantity}`,
       type: "general",
       link: `/branch/${t.from_branch_id}/transfers`,
       relatedEntity: "stock_transfer", relatedEntityId: t.id,
@@ -134,7 +134,7 @@ export default function StockTransfers() {
   };
 
   const rejectTransfer = async (t: any) => {
-    if (!confirm("رفض الطلب وإرجاع الكمية لفرع المرسل؟")) return;
+    if (!confirm("رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟")) return;
     const { data: src } = await supabase.from("products").select("quantity").eq("id", t.product_id).maybeSingle();
     if (src) await supabase.from("products").update({ quantity: src.quantity + t.quantity }).eq("id", t.product_id);
     await supabase.from("stock_transfers").update({ status: "rejected", confirmed_by: user!.id }).eq("id", t.id);
@@ -142,13 +142,13 @@ export default function StockTransfers() {
 
     const senderMgrs = await getBranchManagers(t.from_branch_id);
     await notifyMany(senderMgrs, {
-      title: "تم رفض طلب النقل ❌",
-      body: `${t.from_branch?.name ?? ""} → ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      title: "❌ تم رفض صنف وإرجاعه للمخزن",
+      body: `رُفض: ${t.products?.name ?? "منتج"} × ${t.quantity} — تم إرجاع الكمية لمخزن فرعك`,
       type: "general",
       link: `/branch/${t.from_branch_id}/transfers`,
       relatedEntity: "stock_transfer", relatedEntityId: t.id,
     });
-    toast.info("تم الرفض وإرجاع الكمية");
+    toast.info("تم الرفض وإرجاع الكمية لمخزن الفرع المرسل");
     load();
   };
 
