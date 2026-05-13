@@ -17,6 +17,15 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2 } from "lucide-react";
 
+const POSITIONS = [
+  { value: "كاشير", role: "cashier" },
+  { value: "مدير فرع", role: "branch_manager" },
+  { value: "أمين مخزن", role: "warehouse" },
+  { value: "محاسب", role: "cashier" },
+  { value: "مندوب مبيعات", role: "cashier" },
+  { value: "موظف خدمة عملاء", role: "cashier" },
+];
+
 export default function AllEmployees() {
   const nav = useNavigate();
   const { tenantId } = useAuth();
@@ -94,14 +103,23 @@ export default function AllEmployees() {
     setOpen(true);
   };
 
+  const onPositionChange = (val: string) => {
+    const pos = POSITIONS.find((p) => p.value === val);
+    setForm({ ...form, job_title: val, role: pos?.role ?? form.role });
+  };
+
   const submit = async () => {
-    if (!form.name || !form.job_title || !form.branch_id) return toast.error("املأ الاسم والوظيفة والفرع");
+    if (!form.name || !form.job_title || !form.branch_id || !form.role) return toast.error("املأ الاسم والوظيفة والفرع والصلاحية");
+    if (!form.email || !form.phone) return toast.error("الإيميل والتليفون مطلوبين لدخول الموظف");
+    if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    const emailLower = form.email.trim().toLowerCase();
     const payload: any = {
       branch_id: form.branch_id,
-      name: form.name,
+      name: form.name.trim(),
       job_title: form.job_title,
-      phone: form.phone || null,
-      email: form.email?.trim() || null,
+      phone: form.phone.trim(),
+      email: emailLower,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
       role: form.role || null,
