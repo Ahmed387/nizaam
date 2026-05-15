@@ -35,6 +35,8 @@ export default function PreOrders() {
 
   const [completeFor, setCompleteFor] = useState<any | null>(null);
   const [cancelFor, setCancelFor] = useState<any | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickedItem, setPickedItem] = useState<any | null>(null);
 
   const load = async () => {
     if (!branchId) return;
