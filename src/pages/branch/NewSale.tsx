@@ -429,11 +429,6 @@ export default function NewSale() {
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
                   <div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{formatEGP(totalProfit)}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{profitPct.toFixed(2)}%</span></div>
-                  {hasOffStock && (
-                    <div className="text-[11px] text-warning bg-warning/10 rounded px-2 py-1 border border-warning/30">
-                      ⓘ يحتوي على بنود خارج المخزون — الربح هنا للبنود المخزنية فقط، والربح الكامل سيظهر في تقارير الإدارة.
-                    </div>
-                  )}
                 </div>
               )}
             </div>
