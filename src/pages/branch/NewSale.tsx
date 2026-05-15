@@ -12,15 +12,17 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, Plus, ScanLine } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, Plus, ScanLine, PackageOpen } from "lucide-react";
 
 interface Item {
-  product_id: string;
+  product_id: string | null;
   product_name: string;
   quantity: number;
   cost_price: number;
   selling_price: number;
   market_price: number;
+  is_off_stock?: boolean;
+  price_list_item_id?: string | null;
 }
 
 export default function NewSale() {
