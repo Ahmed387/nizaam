@@ -516,7 +516,6 @@ export type Database = {
           cost_price: number
           id: string
           invoice_id: string
-          is_off_stock: boolean
           market_price: number
           price_list_cost: number | null
           price_list_item_id: string | null
@@ -531,7 +530,6 @@ export type Database = {
           cost_price?: number
           id?: string
           invoice_id: string
-          is_off_stock?: boolean
           market_price?: number
           price_list_cost?: number | null
           price_list_item_id?: string | null
@@ -546,7 +544,6 @@ export type Database = {
           cost_price?: number
           id?: string
           invoice_id?: string
-          is_off_stock?: boolean
           market_price?: number
           price_list_cost?: number | null
           price_list_item_id?: string | null
@@ -1746,7 +1743,7 @@ export type Database = {
         Returns: undefined
       }
       complete_pre_order_sale: {
-        Args: { p_payment_method: string; p_pre_order_id: string }
+        Args: { p_payment_method?: string; p_pre_order_id: string }
         Returns: string
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
