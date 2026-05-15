@@ -311,14 +311,14 @@ export default function NewSale() {
             )}
           </div>
 
-          {/* Price-list catalog (off-stock items) */}
+          {/* Price-list catalog — pre-order only */}
           <div className="card-elevated p-4">
             <Label className="mb-2 flex items-center gap-2">
-              <PackageOpen className="w-4 h-4 text-warning" />
-              بيع من قائمة الأسعار (خارج المخزون)
+              <BookmarkPlus className="w-4 h-4 text-primary" />
+              حجز منتج من قائمة الأسعار
             </Label>
             <div className="text-xs text-muted-foreground mb-2">
-              لو الصنف مش موجود في المخزن، ابحث في كتالوج الموردين وأضفه كبند خارج المخزون (لن يخصم من المخزون).
+              لو الصنف مش موجود في المخزن، ابحث في كتالوج الموردين واعمل حجز للعميل لحد ما البضاعة توصل.
             </div>
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -329,16 +329,16 @@ export default function NewSale() {
                 {filteredCatalog.map((c: any) => (
                   <div key={c.id} className="p-3 rounded-lg border border-border hover:bg-surface-2 transition">
                     <div className="flex items-center justify-between gap-2">
-                      <button onClick={() => addOffStockItem(c)} className="flex-1 text-right">
+                      <div className="flex-1 text-right">
                         <div className="font-semibold">{c.product_name}</div>
                         <div className="text-xs text-muted-foreground">
                           {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
                         </div>
-                      </button>
+                      </div>
                       <div className="text-left text-sm shrink-0">
                         <div>💰 <span className="text-primary font-bold">{formatEGP(c.display_price)}</span></div>
                       </div>
-                      <Button size="sm" variant="outline" className="shrink-0 gap-1" onClick={(e) => { e.stopPropagation(); setPreOrderItem(c); }}>
+                      <Button size="sm" variant="outline" className="shrink-0 gap-1" onClick={() => setPreOrderItem(c)}>
                         <BookmarkPlus className="w-3 h-3" /> حجز
                       </Button>
                     </div>
