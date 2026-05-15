@@ -12,15 +12,17 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, Plus, ScanLine } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, Plus, ScanLine, PackageOpen } from "lucide-react";
 
 interface Item {
-  product_id: string;
+  product_id: string | null;
   product_name: string;
   quantity: number;
   cost_price: number;
   selling_price: number;
   market_price: number;
+  is_off_stock?: boolean;
+  price_list_item_id?: string | null;
 }
 
 export default function NewSale() {
@@ -33,6 +35,8 @@ export default function NewSale() {
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
+  const [catalog, setCatalog] = useState<any[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
@@ -50,9 +54,11 @@ export default function NewSale() {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
     supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
-    supabase.from("price_list_items_public").select("product_name, display_price").then(({ data }) => {
+    supabase.from("price_list_items_public").select("id, product_name, model_code, category, supplier_name, display_price").eq("is_active", true).then(({ data }) => {
+      const list = data ?? [];
+      setCatalog(list);
       const m: Record<string, number> = {};
-      (data ?? []).forEach((p: any) => { m[p.product_name] = Number(p.display_price); });
+      list.forEach((p: any) => { if (p.product_name) m[p.product_name] = Number(p.display_price); });
       setPricesMap(m);
     });
   }, [branchId]);
@@ -64,9 +70,12 @@ export default function NewSale() {
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.quantity * i.selling_price, 0), [items]);
   const total = Math.max(0, subtotal - discountAmt);
-  const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
-  const totalProfit = total - totalCost;
+  const knownItems = useMemo(() => items.filter((i) => !i.is_off_stock), [items]);
+  const totalCost = useMemo(() => knownItems.reduce((s, i) => s + i.quantity * i.cost_price, 0), [knownItems]);
+  const knownRevenue = useMemo(() => knownItems.reduce((s, i) => s + i.quantity * i.selling_price, 0), [knownItems]);
+  const totalProfit = knownRevenue - totalCost;
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+  const hasOffStock = items.some((i) => i.is_off_stock);
 
   const setDiscByAmt = (v: number) => {
     setDiscountAmt(v);
@@ -76,6 +85,19 @@ export default function NewSale() {
     setDiscountPct(v);
     setDiscountAmt(+(subtotal * v / 100).toFixed(2));
   };
+
+  const filteredCatalog = useMemo(
+    () => catalogSearch
+      ? catalog.filter((p: any) =>
+          p.product_name?.includes(catalogSearch) ||
+          p.model_code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+          p.supplier_name?.toLowerCase().includes(catalogSearch.toLowerCase())
+        ).slice(0, 10)
+      : [],
+    [catalog, catalogSearch]
+  );
+
+  const itemKey = (i: Item) => i.product_id ?? `pli:${i.price_list_item_id}`;
 
   const addItem = (p: any) => {
     const existing = items.find((i) => i.product_id === p.id);
@@ -96,7 +118,26 @@ export default function NewSale() {
     setSearch("");
   };
 
-  // Scan by SKU exact match
+  const addOffStockItem = (c: any) => {
+    const existing = items.find((i) => i.price_list_item_id === c.id);
+    if (existing) {
+      setItems(items.map((i) => i.price_list_item_id === c.id ? { ...i, quantity: i.quantity + 1 } : i));
+    } else {
+      setItems([...items, {
+        product_id: null,
+        product_name: c.product_name + (c.model_code ? ` (${c.model_code})` : ""),
+        quantity: 1,
+        cost_price: 0,
+        selling_price: Number(c.display_price) || 0,
+        market_price: Number(c.display_price) || 0,
+        is_off_stock: true,
+        price_list_item_id: c.id,
+      }]);
+    }
+    setCatalogSearch("");
+    toast.success("تم إضافة منتج خارج المخزون");
+  };
+
   const handleScan = (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
@@ -109,7 +150,6 @@ export default function NewSale() {
     toast.success(`تم إضافة ${found.name}`, { duration: 1500 });
   };
 
-  // Keep scanner input focused in scanner mode
   useEffect(() => {
     if (!scannerMode) return;
     const focus = () => {
@@ -123,15 +163,19 @@ export default function NewSale() {
     return () => clearInterval(interval);
   }, [scannerMode]);
 
-  const updateQty = (pid: string, q: number) => {
-    const prod = products.find((x) => x.id === pid);
-    if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
-    if (q <= 0) return setItems(items.filter((i) => i.product_id !== pid));
-    setItems(items.map((i) => i.product_id === pid ? { ...i, quantity: q } : i));
+  const updateQty = (key: string, q: number) => {
+    const it = items.find((i) => itemKey(i) === key);
+    if (!it) return;
+    if (!it.is_off_stock && it.product_id) {
+      const prod = products.find((x) => x.id === it.product_id);
+      if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
+    }
+    if (q <= 0) return setItems(items.filter((i) => itemKey(i) !== key));
+    setItems(items.map((i) => itemKey(i) === key ? { ...i, quantity: q } : i));
   };
 
-  const updatePrice = (pid: string, price: number) => {
-    setItems(items.map((i) => i.product_id === pid ? { ...i, selling_price: Math.max(0, price) } : i));
+  const updatePrice = (key: string, price: number) => {
+    setItems(items.map((i) => itemKey(i) === key ? { ...i, selling_price: Math.max(0, price) } : i));
   };
 
   const submit = async () => {
@@ -290,6 +334,41 @@ export default function NewSale() {
             )}
           </div>
 
+          {/* Price-list catalog (off-stock items) */}
+          <div className="card-elevated p-4">
+            <Label className="mb-2 flex items-center gap-2">
+              <PackageOpen className="w-4 h-4 text-warning" />
+              بيع من قائمة الأسعار (خارج المخزون)
+            </Label>
+            <div className="text-xs text-muted-foreground mb-2">
+              لو الصنف مش موجود في المخزن، ابحث في كتالوج الموردين وأضفه كبند خارج المخزون (لن يخصم من المخزون).
+            </div>
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="ابحث بالاسم / الموديل / المورد" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} className="pr-10" />
+            </div>
+            {catalogSearch && (
+              <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
+                {filteredCatalog.map((c: any) => (
+                  <button key={c.id} onClick={() => addOffStockItem(c)} className="w-full text-right p-3 rounded-lg border border-border hover:bg-surface-2 hover:border-warning/50 transition">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">{c.product_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
+                        </div>
+                      </div>
+                      <div className="text-left text-sm">
+                        <div>💰 السعر: <span className="text-primary font-bold">{formatEGP(c.display_price)}</span></div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                {filteredCatalog.length === 0 && <div className="text-center py-4 text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>}
+              </div>
+            )}
+          </div>
+
           {/* Items */}
           <div className="card-elevated overflow-hidden">
             <div className="p-4 border-b border-border font-bold">عناصر الفاتورة ({items.length})</div>
@@ -307,28 +386,41 @@ export default function NewSale() {
                 </tr></thead>
                 <tbody>
                   {items.map((i) => {
+                    const k = itemKey(i);
                     const lineProfit = (i.selling_price - i.cost_price) * i.quantity;
                     const linePct = i.cost_price > 0 ? ((i.selling_price - i.cost_price) / i.cost_price) * 100 : 0;
                     return (
-                      <tr key={i.product_id} className="border-t border-border">
+                      <tr key={k} className="border-t border-border">
                         <td className="p-2 font-medium">
-                          {i.product_name}
-                          {showCost && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span>{i.product_name}</span>
+                            {i.is_off_stock && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30 font-bold">خارج المخزون</span>
+                            )}
+                          </div>
+                          {showCost && !i.is_off_stock && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
+                          {showCost && i.is_off_stock && <div className="text-xs text-muted-foreground">التكلفة من القائمة (يحفظها النظام تلقائياً)</div>}
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(i.product_id, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
+                          <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(i.product_id, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
+                          <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         {showCost && (
                           <td className="p-2 text-center">
-                            <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
-                            <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
+                            {i.is_off_stock ? (
+                              <div className="text-xs text-muted-foreground">يُحسب لاحقاً</div>
+                            ) : (
+                              <>
+                                <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
+                                <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
+                              </>
+                            )}
                           </td>
                         )}
                         <td className="p-2 text-center font-bold">{formatEGP(i.quantity * i.selling_price)}</td>
-                        <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(i.product_id, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
+                        <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(k, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
                       </tr>
                     );
                   })}
@@ -369,6 +461,11 @@ export default function NewSale() {
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
                   <div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{formatEGP(totalProfit)}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{profitPct.toFixed(2)}%</span></div>
+                  {hasOffStock && (
+                    <div className="text-[11px] text-warning bg-warning/10 rounded px-2 py-1 border border-warning/30">
+                      ⓘ يحتوي على بنود خارج المخزون — الربح هنا للبنود المخزنية فقط، والربح الكامل سيظهر في تقارير الإدارة.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
