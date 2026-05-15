@@ -372,14 +372,8 @@ export default function NewSale() {
                     return (
                       <tr key={k} className="border-t border-border">
                         <td className="p-2 font-medium">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span>{i.product_name}</span>
-                            {i.is_off_stock && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30 font-bold">خارج المخزون</span>
-                            )}
-                          </div>
-                          {showCost && !i.is_off_stock && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
-                          {showCost && i.is_off_stock && <div className="text-xs text-muted-foreground">التكلفة من القائمة (يحفظها النظام تلقائياً)</div>}
+                          <span>{i.product_name}</span>
+                          {showCost && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
@@ -389,14 +383,8 @@ export default function NewSale() {
                         </td>
                         {showCost && (
                           <td className="p-2 text-center">
-                            {i.is_off_stock ? (
-                              <div className="text-xs text-muted-foreground">يُحسب لاحقاً</div>
-                            ) : (
-                              <>
-                                <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
-                                <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
-                              </>
-                            )}
+                            <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
+                            <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
                           </td>
                         )}
                         <td className="p-2 text-center font-bold">{formatEGP(i.quantity * i.selling_price)}</td>
