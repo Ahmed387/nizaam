@@ -164,6 +164,20 @@ export default function PreOrders() {
       {cancelFor && (
         <CancelDialog po={cancelFor} onClose={() => setCancelFor(null)} onDone={() => { setCancelFor(null); load(); }} />
       )}
+
+      <CatalogPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={(item) => { setPickerOpen(false); setPickedItem(item); }}
+      />
+
+      <PreOrderDialog
+        open={!!pickedItem}
+        onOpenChange={(v) => { if (!v) setPickedItem(null); }}
+        branchId={branchId!}
+        catalogItem={pickedItem}
+        onCreated={() => { setPickedItem(null); load(); }}
+      />
     </BranchLayout>
   );
 }
