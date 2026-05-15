@@ -699,6 +699,125 @@ export type Database = {
         }
         Relationships: []
       }
+      pre_order_transactions: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          payment_method: string
+          pre_order_id: string
+          tenant_id: string
+          treasury_id: string | null
+          type: Database["public"]["Enums"]["pre_order_tx_type"]
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          payment_method?: string
+          pre_order_id: string
+          tenant_id: string
+          treasury_id?: string | null
+          type: Database["public"]["Enums"]["pre_order_tx_type"]
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          payment_method?: string
+          pre_order_id?: string
+          tenant_id?: string
+          treasury_id?: string | null
+          type?: Database["public"]["Enums"]["pre_order_tx_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_order_transactions_pre_order_id_fkey"
+            columns: ["pre_order_id"]
+            isOneToOne: false
+            referencedRelation: "pre_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_orders: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string
+          created_by_name: string | null
+          customer_id: string | null
+          customer_name: string
+          customer_phone: string | null
+          deposit_amount: number
+          deposit_refunded: boolean
+          expected_price: number
+          id: string
+          invoice_id: string | null
+          model_code: string | null
+          notes: string | null
+          order_number: string
+          price_list_item_id: string | null
+          product_name: string
+          quantity: number
+          status: Database["public"]["Enums"]["pre_order_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by: string
+          created_by_name?: string | null
+          customer_id?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          deposit_amount?: number
+          deposit_refunded?: boolean
+          expected_price?: number
+          id?: string
+          invoice_id?: string | null
+          model_code?: string | null
+          notes?: string | null
+          order_number?: string
+          price_list_item_id?: string | null
+          product_name: string
+          quantity: number
+          status?: Database["public"]["Enums"]["pre_order_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          created_by_name?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          deposit_amount?: number
+          deposit_refunded?: boolean
+          expected_price?: number
+          id?: string
+          invoice_id?: string | null
+          model_code?: string | null
+          notes?: string | null
+          order_number?: string
+          price_list_item_id?: string | null
+          product_name?: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["pre_order_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       price_list_items: {
         Row: {
           category: string | null
@@ -1622,7 +1741,32 @@ export type Database = {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
       }
+      cancel_pre_order: {
+        Args: { p_pre_order_id: string; p_refund: boolean }
+        Returns: undefined
+      }
+      complete_pre_order_sale: {
+        Args: { p_payment_method: string; p_pre_order_id: string }
+        Returns: string
+      }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
+      create_pre_order: {
+        Args: {
+          p_branch_id: string
+          p_customer_id: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_deposit_amount: number
+          p_expected_price: number
+          p_model_code: string
+          p_notes: string
+          p_payment_method: string
+          p_price_list_item_id: string
+          p_product_name: string
+          p_quantity: number
+        }
+        Returns: string
+      }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
@@ -1641,6 +1785,7 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
+      next_pre_order_number: { Args: never; Returns: string }
       next_sku: { Args: never; Returns: string }
       process_sale: {
         Args: {
@@ -1710,6 +1855,11 @@ export type Database = {
         | "accountant"
         | "super_admin"
       invoice_status: "active" | "cancelled"
+      pre_order_status: "pending" | "received" | "completed" | "cancelled"
+      pre_order_tx_type:
+        | "deposit_received"
+        | "deposit_refunded"
+        | "final_payment"
       transfer_status: "pending" | "confirmed" | "rejected"
       treasury_type: "income" | "expense"
     }
@@ -1855,6 +2005,12 @@ export const Constants = {
         "super_admin",
       ],
       invoice_status: ["active", "cancelled"],
+      pre_order_status: ["pending", "received", "completed", "cancelled"],
+      pre_order_tx_type: [
+        "deposit_received",
+        "deposit_refunded",
+        "final_payment",
+      ],
       transfer_status: ["pending", "confirmed", "rejected"],
       treasury_type: ["income", "expense"],
     },
