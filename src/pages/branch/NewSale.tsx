@@ -331,6 +331,41 @@ export default function NewSale() {
             )}
           </div>
 
+          {/* Price-list catalog (off-stock items) */}
+          <div className="card-elevated p-4">
+            <Label className="mb-2 flex items-center gap-2">
+              <PackageOpen className="w-4 h-4 text-warning" />
+              بيع من قائمة الأسعار (خارج المخزون)
+            </Label>
+            <div className="text-xs text-muted-foreground mb-2">
+              لو الصنف مش موجود في المخزن، ابحث في كتالوج الموردين وأضفه كبند خارج المخزون (لن يخصم من المخزون).
+            </div>
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="ابحث بالاسم / الموديل / المورد" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} className="pr-10" />
+            </div>
+            {catalogSearch && (
+              <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
+                {filteredCatalog.map((c: any) => (
+                  <button key={c.id} onClick={() => addOffStockItem(c)} className="w-full text-right p-3 rounded-lg border border-border hover:bg-surface-2 hover:border-warning/50 transition">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">{c.product_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
+                        </div>
+                      </div>
+                      <div className="text-left text-sm">
+                        <div>💰 السعر: <span className="text-primary font-bold">{formatEGP(c.display_price)}</span></div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                {filteredCatalog.length === 0 && <div className="text-center py-4 text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>}
+              </div>
+            )}
+          </div>
+
           {/* Items */}
           <div className="card-elevated overflow-hidden">
             <div className="p-4 border-b border-border font-bold">عناصر الفاتورة ({items.length})</div>
@@ -348,28 +383,41 @@ export default function NewSale() {
                 </tr></thead>
                 <tbody>
                   {items.map((i) => {
+                    const k = itemKey(i);
                     const lineProfit = (i.selling_price - i.cost_price) * i.quantity;
                     const linePct = i.cost_price > 0 ? ((i.selling_price - i.cost_price) / i.cost_price) * 100 : 0;
                     return (
-                      <tr key={i.product_id} className="border-t border-border">
+                      <tr key={k} className="border-t border-border">
                         <td className="p-2 font-medium">
-                          {i.product_name}
-                          {showCost && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span>{i.product_name}</span>
+                            {i.is_off_stock && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30 font-bold">خارج المخزون</span>
+                            )}
+                          </div>
+                          {showCost && !i.is_off_stock && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
+                          {showCost && i.is_off_stock && <div className="text-xs text-muted-foreground">التكلفة من القائمة (يحفظها النظام تلقائياً)</div>}
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(i.product_id, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
+                          <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(i.product_id, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
+                          <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         {showCost && (
                           <td className="p-2 text-center">
-                            <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
-                            <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
+                            {i.is_off_stock ? (
+                              <div className="text-xs text-muted-foreground">يُحسب لاحقاً</div>
+                            ) : (
+                              <>
+                                <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
+                                <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
+                              </>
+                            )}
                           </td>
                         )}
                         <td className="p-2 text-center font-bold">{formatEGP(i.quantity * i.selling_price)}</td>
-                        <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(i.product_id, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
+                        <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(k, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
                       </tr>
                     );
                   })}
