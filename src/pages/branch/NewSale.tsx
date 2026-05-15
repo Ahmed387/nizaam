@@ -50,9 +50,9 @@ export default function NewSale() {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
     supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
-    supabase.from("price_list").select("product_name, market_price").then(({ data }) => {
+    supabase.from("price_list_items_public").select("product_name, display_price").then(({ data }) => {
       const m: Record<string, number> = {};
-      (data ?? []).forEach((p: any) => { m[p.product_name] = Number(p.market_price); });
+      (data ?? []).forEach((p: any) => { m[p.product_name] = Number(p.display_price); });
       setPricesMap(m);
     });
   }, [branchId]);
