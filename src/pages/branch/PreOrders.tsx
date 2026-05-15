@@ -10,7 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, BookmarkPlus, Search } from "lucide-react";
+import { PreOrderDialog } from "@/components/PreOrderDialog";
 
 const STATUS_LABEL: Record<string, { ar: string; cls: string }> = {
   pending:   { ar: "في الانتظار", cls: "bg-warning/15 text-warning" },
