@@ -22,6 +22,7 @@ import BranchProfile from "./pages/admin/BranchProfile";
 
 import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
+import AllPreOrders from "./pages/admin/AllPreOrders";
 
 import AllInventory from "./pages/admin/AllInventory";
 import AllSuppliers from "./pages/admin/AllSuppliers";
