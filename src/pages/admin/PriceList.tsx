@@ -148,7 +148,13 @@ export default function PriceList() {
       let parsed: ParsedItem[] = [];
       if (file.name.toLowerCase().endsWith(".pdf")) {
         const buf = await file.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as any);
+        }
+        const b64 = btoa(binary);
         const { data, error } = await supabase.functions.invoke("parse-price-list-pdf", {
           body: { pdfBase64: b64, supplierName: currentSource.supplier_name },
         });
