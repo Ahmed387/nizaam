@@ -60,7 +60,7 @@ export default function AllPreOrders() {
 
   return (
     <AdminLayout>
-      <PageHeader label="الحجوزات (كل الفروع)" sublabel="عرض موحد لكل حجوزات العملاء" />
+      <PageHeader title="الحجوزات (كل الفروع)" subtitle="عرض موحد لكل حجوزات العملاء" />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
         <StatCard label="في الانتظار" value={String(stats.pending)} icon={<Clock className="w-5 h-5" />} />
