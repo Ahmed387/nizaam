@@ -16,14 +16,12 @@ import { Search, Trash2, Printer, Loader2, Plus, ScanLine, BookmarkPlus } from "
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 
 interface Item {
-  product_id: string | null;
+  product_id: string;
   product_name: string;
   quantity: number;
   cost_price: number;
   selling_price: number;
   market_price: number;
-  is_off_stock?: boolean;
-  price_list_item_id?: string | null;
 }
 
 export default function NewSale() {
