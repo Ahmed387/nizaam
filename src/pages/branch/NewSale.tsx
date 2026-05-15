@@ -83,6 +83,19 @@ export default function NewSale() {
     setDiscountAmt(+(subtotal * v / 100).toFixed(2));
   };
 
+  const filteredCatalog = useMemo(
+    () => catalogSearch
+      ? catalog.filter((p: any) =>
+          p.product_name?.includes(catalogSearch) ||
+          p.model_code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+          p.supplier_name?.toLowerCase().includes(catalogSearch.toLowerCase())
+        ).slice(0, 10)
+      : [],
+    [catalog, catalogSearch]
+  );
+
+  const itemKey = (i: Item) => i.product_id ?? `pli:${i.price_list_item_id}`;
+
   const addItem = (p: any) => {
     const existing = items.find((i) => i.product_id === p.id);
     if (existing) {
@@ -102,7 +115,26 @@ export default function NewSale() {
     setSearch("");
   };
 
-  // Scan by SKU exact match
+  const addOffStockItem = (c: any) => {
+    const existing = items.find((i) => i.price_list_item_id === c.id);
+    if (existing) {
+      setItems(items.map((i) => i.price_list_item_id === c.id ? { ...i, quantity: i.quantity + 1 } : i));
+    } else {
+      setItems([...items, {
+        product_id: null,
+        product_name: c.product_name + (c.model_code ? ` (${c.model_code})` : ""),
+        quantity: 1,
+        cost_price: 0,
+        selling_price: Number(c.display_price) || 0,
+        market_price: Number(c.display_price) || 0,
+        is_off_stock: true,
+        price_list_item_id: c.id,
+      }]);
+    }
+    setCatalogSearch("");
+    toast.success("تم إضافة منتج خارج المخزون");
+  };
+
   const handleScan = (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
@@ -115,7 +147,6 @@ export default function NewSale() {
     toast.success(`تم إضافة ${found.name}`, { duration: 1500 });
   };
 
-  // Keep scanner input focused in scanner mode
   useEffect(() => {
     if (!scannerMode) return;
     const focus = () => {
@@ -129,15 +160,19 @@ export default function NewSale() {
     return () => clearInterval(interval);
   }, [scannerMode]);
 
-  const updateQty = (pid: string, q: number) => {
-    const prod = products.find((x) => x.id === pid);
-    if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
-    if (q <= 0) return setItems(items.filter((i) => i.product_id !== pid));
-    setItems(items.map((i) => i.product_id === pid ? { ...i, quantity: q } : i));
+  const updateQty = (key: string, q: number) => {
+    const it = items.find((i) => itemKey(i) === key);
+    if (!it) return;
+    if (!it.is_off_stock && it.product_id) {
+      const prod = products.find((x) => x.id === it.product_id);
+      if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
+    }
+    if (q <= 0) return setItems(items.filter((i) => itemKey(i) !== key));
+    setItems(items.map((i) => itemKey(i) === key ? { ...i, quantity: q } : i));
   };
 
-  const updatePrice = (pid: string, price: number) => {
-    setItems(items.map((i) => i.product_id === pid ? { ...i, selling_price: Math.max(0, price) } : i));
+  const updatePrice = (key: string, price: number) => {
+    setItems(items.map((i) => itemKey(i) === key ? { ...i, selling_price: Math.max(0, price) } : i));
   };
 
   const submit = async () => {
