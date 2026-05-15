@@ -31,6 +31,7 @@ import AuditLog from "./pages/admin/AuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
 import NewSale from "./pages/branch/NewSale";
+import PreOrders from "./pages/branch/PreOrders";
 import SalesHistory from "./pages/branch/SalesHistory";
 import InvoiceView from "./pages/branch/InvoiceView";
 import Inventory from "./pages/branch/Inventory";
@@ -111,6 +112,7 @@ const App = () => (
             <Route path="/branch/:id/sales/returns" element={<ProtectedRoute roles={["branch_manager","cashier","accountant"]}><Returns /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/returns/new" element={<ProtectedRoute roles={["branch_manager","cashier"]}><NewReturn /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute><InvoiceView /></ProtectedRoute>} />
+            <Route path="/branch/:id/pre-orders" element={<ProtectedRoute roles={["branch_manager","cashier","warehouse","accountant"]}><PreOrders /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><Shipments /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments/new" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><NewShipment /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments/:shipmentId" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><ShipmentView /></ProtectedRoute>} />
