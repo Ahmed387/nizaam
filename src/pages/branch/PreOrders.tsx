@@ -323,3 +323,61 @@ function CancelDialog({ po, onClose, onDone }: { po: any; onClose: () => void; o
     </Dialog>
   );
 }
+
+function CatalogPicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (item: any) => void }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    supabase.from("price_list_items_public")
+      .select("id, product_name, model_code, category, supplier_name, display_price")
+      .eq("is_active", true)
+      .order("product_name")
+      .then(({ data }) => { setItems(data ?? []); setLoading(false); });
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!q.trim()) return items.slice(0, 50);
+    const s = q.toLowerCase();
+    return items.filter((i: any) =>
+      i.product_name?.toLowerCase().includes(s) ||
+      i.model_code?.toLowerCase().includes(s) ||
+      i.category?.toLowerCase().includes(s) ||
+      i.supplier_name?.toLowerCase().includes(s)
+    ).slice(0, 100);
+  }, [items, q]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>اختر منتج للحجز</DialogTitle></DialogHeader>
+        <div className="relative">
+          <Search className="w-4 h-4 absolute right-3 top-3 text-muted-foreground" />
+          <Input className="pr-9" placeholder="ابحث بالاسم / الموديل / المورد" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        </div>
+        <div className="max-h-[400px] overflow-y-auto space-y-1 mt-2">
+          {loading ? (
+            <div className="text-center p-6"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center p-6 text-muted-foreground text-sm">لا توجد منتجات في قائمة الأسعار</div>
+          ) : filtered.map((i: any) => (
+            <button key={i.id} onClick={() => onPick(i)} className="w-full text-right p-3 rounded-lg bg-surface-2 hover:bg-primary/10 border border-border transition flex justify-between items-center">
+              <div>
+                <div className="font-semibold">{i.product_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {i.model_code && <span>موديل: {i.model_code} · </span>}
+                  {i.supplier_name && <span>{i.supplier_name}</span>}
+                </div>
+              </div>
+              <div className="text-primary font-bold">{formatEGP(i.display_price)}</div>
+            </button>
+          ))}
+        </div>
+        <DialogFooter><Button variant="ghost" onClick={onClose}>إلغاء</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
