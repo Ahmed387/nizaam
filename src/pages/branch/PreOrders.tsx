@@ -10,7 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, BookmarkPlus, Search } from "lucide-react";
+import { PreOrderDialog } from "@/components/PreOrderDialog";
 
 const STATUS_LABEL: Record<string, { ar: string; cls: string }> = {
   pending:   { ar: "في الانتظار", cls: "bg-warning/15 text-warning" },
@@ -34,6 +35,8 @@ export default function PreOrders() {
 
   const [completeFor, setCompleteFor] = useState<any | null>(null);
   const [cancelFor, setCancelFor] = useState<any | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickedItem, setPickedItem] = useState<any | null>(null);
 
   const load = async () => {
     if (!branchId) return;
@@ -77,7 +80,15 @@ export default function PreOrders() {
 
   return (
     <BranchLayout>
-      <PageHeader title="طلبات الحجز" subtitle="إدارة حجوزات العملاء" />
+      <PageHeader
+        title="طلبات الحجز"
+        subtitle="إدارة حجوزات العملاء"
+        actions={
+          <Button className="btn-gradient" onClick={() => setPickerOpen(true)}>
+            <BookmarkPlus className="w-4 h-4 ml-1" /> حجز جديد
+          </Button>
+        }
+      />
 
       <div className="card-elevated p-4 mb-4 flex flex-wrap items-center gap-2">
         <Input className="max-w-xs" placeholder="ابحث برقم/عميل/منتج" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -153,6 +164,20 @@ export default function PreOrders() {
       {cancelFor && (
         <CancelDialog po={cancelFor} onClose={() => setCancelFor(null)} onDone={() => { setCancelFor(null); load(); }} />
       )}
+
+      <CatalogPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={(item) => { setPickerOpen(false); setPickedItem(item); }}
+      />
+
+      <PreOrderDialog
+        open={!!pickedItem}
+        onOpenChange={(v) => { if (!v) setPickedItem(null); }}
+        branchId={branchId!}
+        catalogItem={pickedItem}
+        onCreated={() => { setPickedItem(null); load(); }}
+      />
     </BranchLayout>
   );
 }
@@ -294,6 +319,64 @@ function CancelDialog({ po, onClose, onDone }: { po: any; onClose: () => void; o
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد الإلغاء"}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CatalogPicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (item: any) => void }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    supabase.from("price_list_items_public")
+      .select("id, product_name, model_code, category, supplier_name, display_price")
+      .eq("is_active", true)
+      .order("product_name")
+      .then(({ data }) => { setItems(data ?? []); setLoading(false); });
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!q.trim()) return items.slice(0, 50);
+    const s = q.toLowerCase();
+    return items.filter((i: any) =>
+      i.product_name?.toLowerCase().includes(s) ||
+      i.model_code?.toLowerCase().includes(s) ||
+      i.category?.toLowerCase().includes(s) ||
+      i.supplier_name?.toLowerCase().includes(s)
+    ).slice(0, 100);
+  }, [items, q]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>اختر منتج للحجز</DialogTitle></DialogHeader>
+        <div className="relative">
+          <Search className="w-4 h-4 absolute right-3 top-3 text-muted-foreground" />
+          <Input className="pr-9" placeholder="ابحث بالاسم / الموديل / المورد" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        </div>
+        <div className="max-h-[400px] overflow-y-auto space-y-1 mt-2">
+          {loading ? (
+            <div className="text-center p-6"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center p-6 text-muted-foreground text-sm">لا توجد منتجات في قائمة الأسعار</div>
+          ) : filtered.map((i: any) => (
+            <button key={i.id} onClick={() => onPick(i)} className="w-full text-right p-3 rounded-lg bg-surface-2 hover:bg-primary/10 border border-border transition flex justify-between items-center">
+              <div>
+                <div className="font-semibold">{i.product_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {i.model_code && <span>موديل: {i.model_code} · </span>}
+                  {i.supplier_name && <span>{i.supplier_name}</span>}
+                </div>
+              </div>
+              <div className="text-primary font-bold">{formatEGP(i.display_price)}</div>
+            </button>
+          ))}
+        </div>
+        <DialogFooter><Button variant="ghost" onClick={onClose}>إلغاء</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
