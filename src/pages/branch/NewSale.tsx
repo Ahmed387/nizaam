@@ -94,7 +94,7 @@ export default function NewSale() {
     [catalog, catalogSearch]
   );
 
-  const itemKey = (i: Item) => i.product_id ?? `pli:${i.price_list_item_id}`;
+  const itemKey = (i: Item) => i.product_id;
 
   const addItem = (p: any) => {
     const existing = items.find((i) => i.product_id === p.id);
@@ -113,26 +113,6 @@ export default function NewSale() {
       }]);
     }
     setSearch("");
-  };
-
-  const addOffStockItem = (c: any) => {
-    const existing = items.find((i) => i.price_list_item_id === c.id);
-    if (existing) {
-      setItems(items.map((i) => i.price_list_item_id === c.id ? { ...i, quantity: i.quantity + 1 } : i));
-    } else {
-      setItems([...items, {
-        product_id: null,
-        product_name: c.product_name + (c.model_code ? ` (${c.model_code})` : ""),
-        quantity: 1,
-        cost_price: 0,
-        selling_price: Number(c.display_price) || 0,
-        market_price: Number(c.display_price) || 0,
-        is_off_stock: true,
-        price_list_item_id: c.id,
-      }]);
-    }
-    setCatalogSearch("");
-    toast.success("تم إضافة منتج خارج المخزون");
   };
 
   const handleScan = (code: string) => {
@@ -163,7 +143,7 @@ export default function NewSale() {
   const updateQty = (key: string, q: number) => {
     const it = items.find((i) => itemKey(i) === key);
     if (!it) return;
-    if (!it.is_off_stock && it.product_id) {
+    if (it.product_id) {
       const prod = products.find((x) => x.id === it.product_id);
       if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
     }
