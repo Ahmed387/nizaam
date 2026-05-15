@@ -70,12 +70,9 @@ export default function NewSale() {
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.quantity * i.selling_price, 0), [items]);
   const total = Math.max(0, subtotal - discountAmt);
-  const knownItems = useMemo(() => items.filter((i) => !i.is_off_stock), [items]);
-  const totalCost = useMemo(() => knownItems.reduce((s, i) => s + i.quantity * i.cost_price, 0), [knownItems]);
-  const knownRevenue = useMemo(() => knownItems.reduce((s, i) => s + i.quantity * i.selling_price, 0), [knownItems]);
-  const totalProfit = knownRevenue - totalCost;
+  const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
+  const totalProfit = (subtotal - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
-  const hasOffStock = items.some((i) => i.is_off_stock);
 
   const setDiscByAmt = (v: number) => {
     setDiscountAmt(v);
