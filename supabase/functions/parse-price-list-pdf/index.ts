@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { pdfBase64 } = await req.json();
+    const { pdfBase64, supplierName } = await req.json();
     if (!pdfBase64) {
       return new Response(JSON.stringify({ error: "pdfBase64 required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -18,23 +18,26 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    console.log("Received PDF, base64 length:", pdfBase64.length);
+    console.log("Parsing PDF for supplier:", supplierName, "size:", pdfBase64.length);
 
-    const systemPrompt = `أنت خبير في استخراج البيانات من ملفات PDF لقوائم الأسعار العربية.
-سيُعطى لك ملف PDF يحتوي على قائمة منتجات وأسعارها. مهمتك استخراج كل صف منتج وإرجاع JSON منظم.
-- استخرج: SKU/الكود (إن وجد)، اسم المنتج، التصنيف (إن وجد)، الوصف (إن وجد)، السعر القديم، السعر الجديد، سعر السوق.
-- لو لم يوجد سعر قديم، اجعله 0.
-- لو لم يوجد سعر سوق، استخدم نفس السعر الجديد.
-- تجاهل الرؤوس والتذييلات والصفوف الفارغة.
-- الأسعار أرقام فقط (بدون عملة أو فواصل).
-- استخرج كل المنتجات بدون استثناء.`;
+    const systemPrompt = `أنت خبير في استخراج البيانات من قوائم أسعار الموردين.
+المورد: ${supplierName ?? 'غير محدد'}
+استخرج كل صف منتج وأرجع JSON منظم:
+- product_name: اسم المنتج
+- model_code: رقم الموديل أو الكود (إن وجد)
+- category: الفئة (ثلاجات، غسالات، تكييف، بوتاجازات، مراوح، ميكروويف، ديب فريزر، مبردات هواء)
+- cost_price: سعر الشراء من المورد (هذا هو السعر الأساسي في القائمة)
+- suggested_sell_price: سعر البيع المقترح (إن وجد، وإلا اتركه 0)
+
+ملاحظات:
+- الأسعار أرقام فقط بدون فواصل أو عملة
+- تجاهل الرؤوس والتذييلات والصفوف الفارغة
+- استخرج كل المنتجات بدون استثناء
+- إذا لم تجد فئة واضحة، خمنها من اسم المنتج`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
@@ -60,15 +63,13 @@ Deno.serve(async (req) => {
                   items: {
                     type: "object",
                     properties: {
-                      sku: { type: "string", description: "الكود/SKU، أو فارغ لو غير موجود" },
-                      product_name: { type: "string", description: "اسم المنتج" },
-                      category_name: { type: "string", description: "التصنيف، أو فارغ" },
-                      description: { type: "string", description: "وصف اختياري" },
-                      old_price: { type: "number", description: "السعر القديم، 0 لو غير موجود" },
-                      new_price: { type: "number", description: "السعر الجديد" },
-                      market_price: { type: "number", description: "سعر السوق" },
+                      product_name: { type: "string" },
+                      model_code: { type: "string" },
+                      category: { type: "string" },
+                      cost_price: { type: "number" },
+                      suggested_sell_price: { type: "number" },
                     },
-                    required: ["product_name", "new_price", "old_price", "market_price"],
+                    required: ["product_name", "cost_price"],
                     additionalProperties: false,
                   },
                 },
@@ -82,8 +83,6 @@ Deno.serve(async (req) => {
       }),
     });
 
-    console.log("AI gateway status:", response.status);
-
     if (!response.ok) {
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
@@ -93,11 +92,11 @@ Deno.serve(async (req) => {
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "رصيد AI غير كافٍ، أضف رصيد من إعدادات Lovable Cloud" }), {
+        return new Response(JSON.stringify({ error: "رصيد AI غير كافٍ" }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: `خطأ في خدمة AI: ${t.slice(0, 200)}` }), {
+      return new Response(JSON.stringify({ error: `خطأ AI: ${t.slice(0, 200)}` }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -105,14 +104,13 @@ Deno.serve(async (req) => {
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
-      console.error("No tool call returned. Full response:", JSON.stringify(data).slice(0, 1000));
       return new Response(JSON.stringify({ error: "لم يتم استخراج أي بيانات من الملف" }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const args = JSON.parse(toolCall.function.arguments);
-    console.log("Extracted products count:", args.products?.length ?? 0);
+    console.log("Extracted products:", args.products?.length ?? 0);
     return new Response(JSON.stringify({ products: args.products ?? [] }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
