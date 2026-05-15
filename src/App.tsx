@@ -22,7 +22,7 @@ import BranchProfile from "./pages/admin/BranchProfile";
 
 import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
-import OffStockSales from "./pages/admin/OffStockSales";
+
 import AllInventory from "./pages/admin/AllInventory";
 import AllSuppliers from "./pages/admin/AllSuppliers";
 import AllEmployees from "./pages/admin/AllEmployees";
