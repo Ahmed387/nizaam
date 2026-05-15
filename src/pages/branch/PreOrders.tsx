@@ -80,7 +80,11 @@ export default function PreOrders() {
 
   return (
     <BranchLayout>
-      <PageHeader title="طلبات الحجز" subtitle="إدارة حجوزات العملاء" />
+      <PageHeader title="طلبات الحجز" subtitle="إدارة حجوزات العملاء">
+        <Button className="btn-gradient" onClick={() => setPickerOpen(true)}>
+          <BookmarkPlus className="w-4 h-4 ml-1" /> حجز جديد
+        </Button>
+      </PageHeader>
 
       <div className="card-elevated p-4 mb-4 flex flex-wrap items-center gap-2">
         <Input className="max-w-xs" placeholder="ابحث برقم/عميل/منتج" value={search} onChange={(e) => setSearch(e.target.value)} />
