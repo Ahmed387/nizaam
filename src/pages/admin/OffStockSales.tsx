@@ -86,7 +86,6 @@ export default function OffStockSales() {
       <PageHeader
         title="مبيعات خارج المخزون"
         subtitle="بنود تم بيعها من قائمة أسعار الموردين بدون خصم من المخزون — أضف الأصناف المتكررة للمخزن"
-        icon={<PackageOpen className="w-6 h-6" />}
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
