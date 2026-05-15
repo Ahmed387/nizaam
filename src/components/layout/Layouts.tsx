@@ -13,6 +13,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/branches", label: "إدارة الفروع", icon: <Store className="w-4 h-4" /> },
   { to: "/admin/categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
   { to: "/admin/pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
+  { to: "/admin/off-stock-sales", label: "مبيعات خارج المخزون", icon: <PackageOpen className="w-4 h-4" /> },
   { to: "/admin/inventory", label: "مخزون كل الفروع", icon: <Warehouse className="w-4 h-4" /> },
   { to: "/admin/suppliers", label: "الموردين (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
   { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },

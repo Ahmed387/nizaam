@@ -22,6 +22,7 @@ import BranchProfile from "./pages/admin/BranchProfile";
 
 import Categories from "./pages/admin/Categories";
 import PriceList from "./pages/admin/PriceList";
+import OffStockSales from "./pages/admin/OffStockSales";
 import AllInventory from "./pages/admin/AllInventory";
 import AllSuppliers from "./pages/admin/AllSuppliers";
 import AllEmployees from "./pages/admin/AllEmployees";
@@ -91,6 +92,7 @@ const App = () => (
             
             <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
+            <Route path="/admin/off-stock-sales" element={<ProtectedRoute adminOnly><OffStockSales /></ProtectedRoute>} />
             <Route path="/admin/inventory" element={<ProtectedRoute adminOnly><AllInventory /></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/suppliers" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
