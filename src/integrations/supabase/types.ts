@@ -516,7 +516,10 @@ export type Database = {
           cost_price: number
           id: string
           invoice_id: string
+          is_off_stock: boolean
           market_price: number
+          price_list_cost: number | null
+          price_list_item_id: string | null
           product_id: string | null
           product_name: string
           quantity: number
@@ -528,7 +531,10 @@ export type Database = {
           cost_price?: number
           id?: string
           invoice_id: string
+          is_off_stock?: boolean
           market_price?: number
+          price_list_cost?: number | null
+          price_list_item_id?: string | null
           product_id?: string | null
           product_name: string
           quantity: number
@@ -540,7 +546,10 @@ export type Database = {
           cost_price?: number
           id?: string
           invoice_id?: string
+          is_off_stock?: boolean
           market_price?: number
+          price_list_cost?: number | null
+          price_list_item_id?: string | null
           product_id?: string | null
           product_name?: string
           quantity?: number
@@ -690,61 +699,91 @@ export type Database = {
         }
         Relationships: []
       }
-      price_list: {
+      price_list_items: {
         Row: {
-          category_name: string | null
-          description: string | null
+          category: string | null
+          cost_price: number
+          created_at: string
+          display_price: number
           id: string
-          image: string | null
-          market_price: number
-          new_price: number
-          old_price: number
+          is_active: boolean
+          model_code: string | null
           product_name: string
-          sku: string | null
-          source: string
-          tenant_id: string | null
-          uploaded_at: string
-          uploaded_by: string | null
+          source_id: string
+          suggested_sell_price: number
+          tenant_id: string
+          updated_at: string
         }
         Insert: {
-          category_name?: string | null
-          description?: string | null
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          display_price?: number
           id?: string
-          image?: string | null
-          market_price: number
-          new_price?: number
-          old_price?: number
+          is_active?: boolean
+          model_code?: string | null
           product_name: string
-          sku?: string | null
-          source?: string
-          tenant_id?: string | null
-          uploaded_at?: string
-          uploaded_by?: string | null
+          source_id: string
+          suggested_sell_price?: number
+          tenant_id: string
+          updated_at?: string
         }
         Update: {
-          category_name?: string | null
-          description?: string | null
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          display_price?: number
           id?: string
-          image?: string | null
-          market_price?: number
-          new_price?: number
-          old_price?: number
+          is_active?: boolean
+          model_code?: string | null
           product_name?: string
-          sku?: string | null
-          source?: string
-          tenant_id?: string | null
-          uploaded_at?: string
-          uploaded_by?: string | null
+          source_id?: string
+          suggested_sell_price?: number
+          tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "price_list_tenant_fk"
-            columns: ["tenant_id"]
+            foreignKeyName: "price_list_items_source_id_fkey"
+            columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
+            referencedRelation: "price_list_sources"
             referencedColumns: ["id"]
           },
         ]
+      }
+      price_list_sources: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_updated: string | null
+          supplier_name: string
+          tenant_id: string
+          updated_by_id: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_updated?: string | null
+          supplier_name: string
+          tenant_id: string
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_updated?: string | null
+          supplier_name?: string
+          tenant_id?: string
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: []
       }
       products: {
         Row: {
@@ -1550,11 +1589,37 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      price_list_items_public: {
+        Row: {
+          category: string | null
+          display_price: number | null
+          id: string | null
+          is_active: boolean | null
+          model_code: string | null
+          product_name: string | null
+          source_id: string | null
+          supplier_name: string | null
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_items_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "price_list_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_reset_branch_data: {
         Args: { p_branch_id: string; p_options: Json }
+        Returns: Json
+      }
+      apply_price_list_update: {
+        Args: { p_items: Json; p_source_id: string }
         Returns: Json
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
