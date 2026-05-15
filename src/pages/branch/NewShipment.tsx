@@ -49,7 +49,7 @@ export default function NewShipment() {
     if (!branchId) return;
     supabase.from("suppliers").select("*").order("company_name").then(({ data }) => setSuppliers(data ?? []));
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
-    supabase.from("price_list").select("*").order("product_name").then(({ data }) => setPriceList(data ?? []));
+    supabase.from("price_list_items_public").select("product_name, display_price").order("product_name").then(({ data }) => setPriceList((data ?? []).map((d: any) => ({ product_name: d.product_name, market_price: d.display_price, new_price: d.display_price }))));
   }, [branchId]);
 
   useEffect(() => {
