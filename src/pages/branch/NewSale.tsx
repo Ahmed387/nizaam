@@ -35,6 +35,8 @@ export default function NewSale() {
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
+  const [catalog, setCatalog] = useState<any[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
@@ -52,9 +54,11 @@ export default function NewSale() {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
     supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
-    supabase.from("price_list_items_public").select("product_name, display_price").then(({ data }) => {
+    supabase.from("price_list_items_public").select("id, product_name, model_code, category, supplier_name, display_price").eq("is_active", true).then(({ data }) => {
+      const list = data ?? [];
+      setCatalog(list);
       const m: Record<string, number> = {};
-      (data ?? []).forEach((p: any) => { m[p.product_name] = Number(p.display_price); });
+      list.forEach((p: any) => { if (p.product_name) m[p.product_name] = Number(p.display_price); });
       setPricesMap(m);
     });
   }, [branchId]);
