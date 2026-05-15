@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, PackageOpen,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, PackageOpen, BookmarkPlus,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,6 +99,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
   const allNav: (NavItem & { allow: string[] })[] = [
     { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" />, allow: ["cashier", "accountant"] },
+    { to: `/branch/${id}/pre-orders`, label: "طلبات الحجز", icon: <BookmarkPlus className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" />, allow: ["warehouse", "accountant"] },
     { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" />, allow: ["warehouse"] },

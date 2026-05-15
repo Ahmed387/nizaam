@@ -12,7 +12,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, Plus, ScanLine, PackageOpen } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, Plus, ScanLine, PackageOpen, BookmarkPlus } from "lucide-react";
+import { PreOrderDialog } from "@/components/PreOrderDialog";
 
 interface Item {
   product_id: string | null;
@@ -49,6 +50,7 @@ export default function NewSale() {
   const [scannerMode, setScannerMode] = useState(true);
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const [scanBuffer, setScanBuffer] = useState("");
+  const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
 
   useEffect(() => {
     if (!branchId) return;
@@ -350,19 +352,22 @@ export default function NewSale() {
             {catalogSearch && (
               <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
                 {filteredCatalog.map((c: any) => (
-                  <button key={c.id} onClick={() => addOffStockItem(c)} className="w-full text-right p-3 rounded-lg border border-border hover:bg-surface-2 hover:border-warning/50 transition">
-                    <div className="flex items-center justify-between">
-                      <div>
+                  <div key={c.id} className="p-3 rounded-lg border border-border hover:bg-surface-2 transition">
+                    <div className="flex items-center justify-between gap-2">
+                      <button onClick={() => addOffStockItem(c)} className="flex-1 text-right">
                         <div className="font-semibold">{c.product_name}</div>
                         <div className="text-xs text-muted-foreground">
                           {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
                         </div>
+                      </button>
+                      <div className="text-left text-sm shrink-0">
+                        <div>💰 <span className="text-primary font-bold">{formatEGP(c.display_price)}</span></div>
                       </div>
-                      <div className="text-left text-sm">
-                        <div>💰 السعر: <span className="text-primary font-bold">{formatEGP(c.display_price)}</span></div>
-                      </div>
+                      <Button size="sm" variant="outline" className="shrink-0 gap-1" onClick={(e) => { e.stopPropagation(); setPreOrderItem(c); }}>
+                        <BookmarkPlus className="w-3 h-3" /> حجز
+                      </Button>
                     </div>
-                  </button>
+                  </div>
                 ))}
                 {filteredCatalog.length === 0 && <div className="text-center py-4 text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>}
               </div>
@@ -475,6 +480,13 @@ export default function NewSale() {
           </div>
         </div>
       </div>
+
+      <PreOrderDialog
+        open={!!preOrderItem}
+        onOpenChange={(v) => { if (!v) setPreOrderItem(null); }}
+        branchId={branchId!}
+        catalogItem={preOrderItem}
+      />
     </BranchLayout>
   );
 }
