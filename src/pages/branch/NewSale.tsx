@@ -12,7 +12,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, Plus, ScanLine, PackageOpen, BookmarkPlus } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, Plus, ScanLine, BookmarkPlus } from "lucide-react";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 
 interface Item {
