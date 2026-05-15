@@ -60,14 +60,14 @@ export default function AllPreOrders() {
 
   return (
     <AdminLayout>
-      <PageHeader title="الحجوزات (كل الفروع)" subtitle="عرض موحد لكل حجوزات العملاء" />
+      <PageHeader label="الحجوزات (كل الفروع)" sublabel="عرض موحد لكل حجوزات العملاء" />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-        <StatCard title="في الانتظار" value={String(stats.pending)} icon={<Clock className="w-5 h-5" />} />
-        <StatCard title="وصل — جاهز" value={String(stats.received)} icon={<PackageCheck className="w-5 h-5" />} />
-        <StatCard title="اكتمل" value={String(stats.completed)} icon={<CheckCircle2 className="w-5 h-5" />} />
-        <StatCard title="ملغي" value={String(stats.cancelled)} icon={<XCircle className="w-5 h-5" />} />
-        <StatCard title="إجمالي العربون" value={formatEGP(stats.deposits)} icon={<BookmarkPlus className="w-5 h-5" />} />
+        <StatCard label="في الانتظار" value={String(stats.pending)} icon={<Clock className="w-5 h-5" />} />
+        <StatCard label="وصل — جاهز" value={String(stats.received)} icon={<PackageCheck className="w-5 h-5" />} />
+        <StatCard label="اكتمل" value={String(stats.completed)} icon={<CheckCircle2 className="w-5 h-5" />} />
+        <StatCard label="ملغي" value={String(stats.cancelled)} icon={<XCircle className="w-5 h-5" />} />
+        <StatCard label="إجمالي العربون" value={formatEGP(stats.deposits)} icon={<BookmarkPlus className="w-5 h-5" />} />
       </div>
 
       <div className="card-elevated p-4 mb-4 flex flex-wrap items-center gap-2">
