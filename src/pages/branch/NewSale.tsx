@@ -12,7 +12,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, Plus, ScanLine, BookmarkPlus } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle } from "lucide-react";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 
 interface Item {
@@ -22,6 +22,23 @@ interface Item {
   cost_price: number;
   selling_price: number;
   market_price: number;
+  line_discount: number;
+}
+
+const PAYMENT_METHODS = [
+  { v: "cash", label: "كاش" },
+  { v: "visa", label: "فيزا" },
+  { v: "vodafone_cash", label: "فودافون كاش" },
+  { v: "instapay", label: "انستاباي" },
+  { v: "bank_transfer", label: "تحويل بنكي" },
+];
+
+interface PaymentSplit {
+  payment_method: string;
+  amount: number;
+  reference_number: string;
+  received_by_name: string;
+  transfer_to_account: string;
 }
 
 export default function NewSale() {
@@ -49,6 +66,7 @@ export default function NewSale() {
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const [scanBuffer, setScanBuffer] = useState("");
   const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
+  const [payments, setPayments] = useState<PaymentSplit[]>([]);
 
   useEffect(() => {
     if (!branchId) return;
@@ -68,11 +86,24 @@ export default function NewSale() {
     [products, search]
   );
 
-  const subtotal = useMemo(() => items.reduce((s, i) => s + i.quantity * i.selling_price, 0), [items]);
+  // Subtotal = sum of (qty*price - line_discount)
+  const subtotal = useMemo(
+    () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
+    [items]
+  );
   const total = Math.max(0, subtotal - discountAmt);
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
   const totalProfit = (subtotal - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+
+  // Loss detection per line — effective unit price after discount vs cost
+  const lossItems = useMemo(() => items.filter((i) => {
+    if (i.cost_price <= 0) return false;
+    const lineTotal = i.quantity * i.selling_price - i.line_discount;
+    const effUnit = lineTotal / Math.max(1, i.quantity);
+    return effUnit < i.cost_price;
+  }), [items]);
+  const hasLoss = lossItems.length > 0;
 
   const setDiscByAmt = (v: number) => {
     setDiscountAmt(v);
@@ -110,6 +141,7 @@ export default function NewSale() {
         cost_price: Number(p.cost_price),
         selling_price: Number(p.selling_price),
         market_price: pricesMap[p.name] ?? Number(p.market_price),
+        line_discount: 0,
       }]);
     }
     setSearch("");
@@ -155,8 +187,28 @@ export default function NewSale() {
     setItems(items.map((i) => itemKey(i) === key ? { ...i, selling_price: Math.max(0, price) } : i));
   };
 
+  const updateLineDiscount = (key: string, d: number) => {
+    setItems(items.map((i) => itemKey(i) === key ? { ...i, line_discount: Math.max(0, d) } : i));
+  };
+
+  // Payments management
+  const addPayment = () => {
+    const used = payments.reduce((s, p) => s + p.amount, 0);
+    const remaining = Math.max(0, total - used);
+    setPayments([...payments, { payment_method: "cash", amount: remaining, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "" }]);
+  };
+  const removePayment = (idx: number) => setPayments(payments.filter((_, i) => i !== idx));
+  const updatePayment = (idx: number, patch: Partial<PaymentSplit>) =>
+    setPayments(payments.map((p, i) => i === idx ? { ...p, ...patch } : p));
+
+  const paymentsSum = useMemo(() => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0), [payments]);
+  const paymentsValid = payments.length === 0 || Math.abs(paymentsSum - total) < 0.01;
+
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
+    if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
+    if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
+
     setBusy(true);
     try {
       let custId = customerId || null;
@@ -167,6 +219,8 @@ export default function NewSale() {
         custId = c?.id ?? null;
       }
 
+      const primaryMethod = payments.length > 0 ? payments[0].payment_method : "cash";
+
       const payload = {
         p_branch_id: branchId!,
         p_customer_id: custId,
@@ -175,11 +229,11 @@ export default function NewSale() {
         p_discount_percent: discountPct,
         p_discount_reason: discountReason || null,
         p_total: total,
-        p_payment_method: "cash",
+        p_payment_method: primaryMethod,
         p_items: items as any,
+        p_payments: payments.length > 0 ? payments : null,
       };
 
-      // If offline, queue locally and exit
       if (!navigator.onLine) {
         await enqueueSale(payload);
         toast.success("لا يوجد اتصال — تم حفظ الفاتورة محلياً وستُرفع تلقائياً");
@@ -187,10 +241,8 @@ export default function NewSale() {
         return;
       }
 
-      // Atomic sale: invoice + items + stock deduction + treasury — all in one transaction with row locks
-      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale", payload);
+      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale", payload as any);
       if (rpcErr) {
-        // Network failure → queue
         if (rpcErr.message?.includes("Failed to fetch") || rpcErr.message?.includes("NetworkError")) {
           await enqueueSale(payload);
           toast.success("انقطع الاتصال — تم حفظ الفاتورة محلياً");
@@ -205,7 +257,6 @@ export default function NewSale() {
         entity: "Invoice", entityId: invId as string, details: { total },
       });
 
-      // Try to sync any older pending sales now that we know we're online
       syncPendingSales(true);
 
       toast.success("تم إنشاء الفاتورة");
@@ -242,13 +293,7 @@ export default function NewSale() {
           <div className="card-elevated p-4">
             <div className="flex items-center justify-between mb-2">
               <Label>إضافة منتج</Label>
-              <Button
-                type="button"
-                size="sm"
-                variant={scannerMode ? "default" : "outline"}
-                onClick={() => setScannerMode((s) => !s)}
-                className="gap-2"
-              >
+              <Button type="button" size="sm" variant={scannerMode ? "default" : "outline"} onClick={() => setScannerMode((s) => !s)} className="gap-2">
                 <ScanLine className="w-4 h-4" />
                 {scannerMode ? "وضع الباركود مُفعّل" : "تفعيل الباركود"}
               </Button>
@@ -263,16 +308,8 @@ export default function NewSale() {
                     ref={scannerInputRef}
                     value={scanBuffer}
                     onChange={(e) => setScanBuffer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleScan(scanBuffer);
-                        setScanBuffer("");
-                      }
-                    }}
-                    placeholder="انتظار المسح..."
-                    className="mt-1 h-8 font-mono text-sm"
-                    dir="ltr"
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleScan(scanBuffer); setScanBuffer(""); } }}
+                    placeholder="انتظار المسح..." className="mt-1 h-8 font-mono text-sm" dir="ltr"
                   />
                 </div>
               </div>
@@ -359,7 +396,8 @@ export default function NewSale() {
                 <thead><tr className="bg-surface-2 text-xs">
                   <th className="p-2 text-right">المنتج</th>
                   <th className="p-2">الكمية</th>
-                  <th className="p-2">سعر البيع (قابل للتعديل)</th>
+                  <th className="p-2">سعر البيع</th>
+                  <th className="p-2">خصم السطر</th>
                   {showCost && <th className="p-2">الربح</th>}
                   <th className="p-2">الإجمالي</th>
                   <th></th>
@@ -367,13 +405,21 @@ export default function NewSale() {
                 <tbody>
                   {items.map((i) => {
                     const k = itemKey(i);
-                    const lineProfit = (i.selling_price - i.cost_price) * i.quantity;
-                    const linePct = i.cost_price > 0 ? ((i.selling_price - i.cost_price) / i.cost_price) * 100 : 0;
+                    const lineTotal = Math.max(0, i.quantity * i.selling_price - i.line_discount);
+                    const effUnit = lineTotal / Math.max(1, i.quantity);
+                    const isLoss = i.cost_price > 0 && effUnit < i.cost_price;
+                    const isProfit = i.cost_price > 0 && effUnit >= i.cost_price;
+                    const lineProfit = (i.selling_price - i.cost_price) * i.quantity - i.line_discount;
+                    const linePct = i.cost_price > 0 ? ((effUnit - i.cost_price) / i.cost_price) * 100 : 0;
                     return (
-                      <tr key={k} className="border-t border-border">
+                      <tr key={k} className={`border-t border-border ${isLoss ? "bg-destructive/5" : ""}`}>
                         <td className="p-2 font-medium">
-                          <span>{i.product_name}</span>
-                          {showCost && <div className="text-xs text-muted-foreground">شراء: {formatEGP(i.cost_price)}</div>}
+                          <div className="flex items-center gap-2">
+                            {isLoss && <span title="بيع بخسارة" className="inline-block w-3 h-3 rounded-full bg-destructive shrink-0" />}
+                            {isProfit && <span title="بيع بمكسب" className="inline-block w-3 h-3 rounded-full bg-success shrink-0" />}
+                            <span>{i.product_name}</span>
+                          </div>
+                          {showCost && <div className="text-xs text-muted-foreground mt-1">شراء: {formatEGP(i.cost_price)}</div>}
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
@@ -381,13 +427,16 @@ export default function NewSale() {
                         <td className="p-2 text-center">
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
+                        <td className="p-2 text-center">
+                          <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 mx-auto text-center" placeholder="0" />
+                        </td>
                         {showCost && (
                           <td className="p-2 text-center">
                             <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
                             <div className="text-xs text-muted-foreground">{linePct.toFixed(1)}%</div>
                           </td>
                         )}
-                        <td className="p-2 text-center font-bold">{formatEGP(i.quantity * i.selling_price)}</td>
+                        <td className="p-2 text-center font-bold">{formatEGP(lineTotal)}</td>
                         <td className="p-2"><Button variant="ghost" size="sm" onClick={() => updateQty(k, 0)}><Trash2 className="w-4 h-4 text-destructive" /></Button></td>
                       </tr>
                     );
@@ -401,7 +450,7 @@ export default function NewSale() {
         {/* Summary */}
         <div className="space-y-4">
           <div className="card-elevated p-5">
-            <h3 className="font-bold mb-4">الخصم</h3>
+            <h3 className="font-bold mb-4">خصم على إجمالي الفاتورة</h3>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs">خصم بالمبلغ</Label>
@@ -419,6 +468,47 @@ export default function NewSale() {
             </div>
           </div>
 
+          {/* Multi-payment methods */}
+          <div className="card-elevated p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold">طرق الدفع</h3>
+              <Button size="sm" variant="outline" onClick={addPayment} className="gap-1" disabled={total <= 0}>
+                <Plus className="w-3 h-3" /> إضافة طريقة
+              </Button>
+            </div>
+            {payments.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-3 rounded bg-surface-2 text-center">
+                لو سايبها فاضية = الدفع كله كاش<br/>اضغط "إضافة طريقة" لتقسيم الدفع
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {payments.map((p, idx) => (
+                  <div key={idx} className="p-3 rounded-lg border border-border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-muted-foreground">دفعة #{idx + 1}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removePayment(idx)}><X className="w-3 h-3" /></Button>
+                    </div>
+                    <select className="w-full bg-input border border-border rounded p-1.5 text-sm" value={p.payment_method} onChange={(e) => updatePayment(idx, { payment_method: e.target.value })}>
+                      {PAYMENT_METHODS.map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
+                    </select>
+                    <Input type="number" min="0" step="0.01" placeholder="المبلغ" value={p.amount || ""} onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })} />
+                    {p.payment_method !== "cash" && (
+                      <>
+                        <Input placeholder="رقم العملية / المرجع" value={p.reference_number} onChange={(e) => updatePayment(idx, { reference_number: e.target.value })} />
+                        <Input placeholder="رقم الحساب / التليفون" dir="ltr" className="text-right" value={p.transfer_to_account} onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })} />
+                      </>
+                    )}
+                    <Input placeholder="اسم المستلم" value={p.received_by_name} onChange={(e) => updatePayment(idx, { received_by_name: e.target.value })} />
+                  </div>
+                ))}
+                <div className={`text-xs flex justify-between p-2 rounded ${paymentsValid ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                  <span>مجموع الدفعات</span>
+                  <span className="font-bold">{formatEGP(paymentsSum)} / {formatEGP(total)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي قبل الخصم</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
@@ -432,7 +522,21 @@ export default function NewSale() {
                 </div>
               )}
             </div>
-            <Button className="w-full mt-4 h-12 btn-gradient text-base" disabled={busy || !items.length} onClick={submit}>
+
+            {hasLoss && (
+              <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs">
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <AlertTriangle className="w-4 h-4" /> مش ممكن إصدار الفاتورة
+                </div>
+                <div>المنتجات التالية بتتباع بأقل من سعر التكلفة:</div>
+                <ul className="mt-1 list-disc list-inside">
+                  {lossItems.map((i) => <li key={i.product_id}>{i.product_name}</li>)}
+                </ul>
+                <div className="mt-1">عدّل السعر أو خفّض الخصم أو تواصل مع المدير.</div>
+              </div>
+            )}
+
+            <Button className="w-full mt-4 h-12 btn-gradient text-base" disabled={busy || !items.length || hasLoss || !paymentsValid} onClick={submit}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Printer className="w-4 h-4 ml-2" /> إنشاء وطباعة</>}
             </Button>
           </div>
