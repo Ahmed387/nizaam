@@ -96,7 +96,14 @@ export default function Treasury() {
     toast.success("تم التعديل"); setEditing(null); load();
   };
 
+  const acknowledge = async (t: any) => {
+    const { error } = await supabase.rpc("acknowledge_treasury_transfer", { p_transfer_id: t.id });
+    if (error) return toast.error(error.message);
+    toast.success("تم تأكيد الاستلام"); load();
+  };
+
   const otherBranches = branches.filter((b) => b.id !== branchId);
+  const canAck = isAdmin || hasRole("branch_manager");
 
   return (
     <BranchLayout>
