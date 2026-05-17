@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "admin" | "branch_manager" | "cashier" | "warehouse" | "accountant" | "super_admin";
+export type AppRole = "admin" | "branch_manager" | "cashier" | "warehouse" | "accountant" | "super_admin" | "viewer";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "مالك المنصة",
@@ -9,6 +9,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   cashier: "كاشير",
   warehouse: "مخزن",
   accountant: "محاسب",
+  viewer: "مراقب (قراءة فقط)",
 };
 
 export async function fetchUserContext(userId: string) {
