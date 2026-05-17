@@ -621,7 +621,7 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
       const { error: upErr } = await supabase.storage.from("employee-ids").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
-      const { error } = await supabase.from("employees").update({ [col]: path }).eq("id", emp.id);
+      const { error } = await supabase.from("employees").update({ [col]: path } as any).eq("id", emp.id);
       if (error) throw error;
       toast.success("تم رفع الصورة");
       onUpdated();
@@ -635,7 +635,7 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
     const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
     const oldPath = side === "front" ? emp.national_id_front_url : emp.national_id_back_url;
     if (oldPath) await supabase.storage.from("employee-ids").remove([oldPath]);
-    await supabase.from("employees").update({ [col]: null }).eq("id", emp.id);
+    await supabase.from("employees").update({ [col]: null } as any).eq("id", emp.id);
     toast.success("تم الحذف");
     onUpdated();
   };
