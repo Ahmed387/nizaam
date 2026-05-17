@@ -21,6 +21,7 @@ export interface PendingSale {
     p_total: number;
     p_payment_method: string;
     p_items: any;
+    p_payments?: any;
   };
 }
 
