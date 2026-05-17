@@ -516,6 +516,7 @@ export type Database = {
           cost_price: number
           id: string
           invoice_id: string
+          line_discount: number
           market_price: number
           price_list_cost: number | null
           price_list_item_id: string | null
@@ -530,6 +531,7 @@ export type Database = {
           cost_price?: number
           id?: string
           invoice_id: string
+          line_discount?: number
           market_price?: number
           price_list_cost?: number | null
           price_list_item_id?: string | null
@@ -544,6 +546,7 @@ export type Database = {
           cost_price?: number
           id?: string
           invoice_id?: string
+          line_discount?: number
           market_price?: number
           price_list_cost?: number | null
           price_list_item_id?: string | null
@@ -577,6 +580,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          payment_method: string
+          received_by_name: string | null
+          reference_number: string | null
+          tenant_id: string | null
+          transfer_to_account: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payment_method: string
+          received_by_name?: string | null
+          reference_number?: string | null
+          tenant_id?: string | null
+          transfer_to_account?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payment_method?: string
+          received_by_name?: string | null
+          reference_number?: string | null
+          tenant_id?: string | null
+          transfer_to_account?: string | null
+        }
+        Relationships: []
       }
       invoices: {
         Row: {
@@ -1793,6 +1835,7 @@ export type Database = {
           p_discount_reason: string
           p_items: Json
           p_payment_method: string
+          p_payments?: Json
           p_subtotal: number
           p_total: number
         }
