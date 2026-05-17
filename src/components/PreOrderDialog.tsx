@@ -67,6 +67,8 @@ export function PreOrderDialog({
     if (qty < 1) return toast.error("كمية غير صحيحة");
     if (deposit < 0 || deposit > total) return toast.error("مبلغ العربون غير صحيح");
 
+    if (deposit > 0 && payment !== "cash" && !refNum.trim()) return toast.error("أدخل رقم المرجع/التحويل لطريقة الدفع الإلكترونية");
+
     setBusy(true);
     try {
       const { data, error } = await supabase.rpc("create_pre_order", {
@@ -82,6 +84,9 @@ export function PreOrderDialog({
         p_deposit_amount: deposit,
         p_payment_method: payment,
         p_notes: notes || null,
+        p_reference_number: refNum.trim() || null,
+        p_transfer_to_account: transferAccount.trim() || null,
+        p_received_by_name: receivedBy.trim() || null,
       });
       if (error) throw error;
       toast.success("تم تسجيل طلب الحجز");
