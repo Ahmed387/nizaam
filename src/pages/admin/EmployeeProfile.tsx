@@ -396,6 +396,10 @@ export default function EmployeeProfile() {
           />
         </TabsContent>
 
+        <TabsContent value="id" className="mt-4">
+          <IdCardSection emp={emp} onUpdated={load} />
+        </TabsContent>
+
         <TabsContent value="account" className="mt-4">
           {emp.user_id && accountProfile ? (
             <div className="card-elevated p-5 space-y-4">
