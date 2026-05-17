@@ -170,6 +170,54 @@ export type Database = {
           },
         ]
       }
+      attendance: {
+        Row: {
+          branch_id: string
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          employee_id: string
+          employee_name: string
+          id: string
+          notes: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          employee_id: string
+          employee_name: string
+          id?: string
+          notes?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -401,6 +449,9 @@ export type Database = {
           job_title: string
           login_password: string | null
           name: string
+          national_id: string | null
+          national_id_back_url: string | null
+          national_id_front_url: string | null
           notes: string | null
           phone: string | null
           role: Database["public"]["Enums"]["app_role"] | null
@@ -419,6 +470,9 @@ export type Database = {
           job_title: string
           login_password?: string | null
           name: string
+          national_id?: string | null
+          national_id_back_url?: string | null
+          national_id_front_url?: string | null
           notes?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
@@ -437,6 +491,9 @@ export type Database = {
           job_title?: string
           login_password?: string | null
           name?: string
+          national_id?: string | null
+          national_id_back_url?: string | null
+          national_id_front_url?: string | null
           notes?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
