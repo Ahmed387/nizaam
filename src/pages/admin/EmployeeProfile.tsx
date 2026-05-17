@@ -17,7 +17,7 @@ import { logAudit } from "@/lib/roles";
 import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink } from "lucide-react";
+import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye } from "lucide-react";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
