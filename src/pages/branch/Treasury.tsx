@@ -177,6 +177,13 @@ export default function Treasury() {
               { key: "to", header: "إلى", render: (r: any) => r.to_branch?.name ?? "—" },
               { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold">{formatEGP(r.amount)}</span> },
               { key: "reason", header: "السبب", render: (r: any) => r.reason ?? "—" },
+              { key: "ack", header: "الاستلام", render: (r: any) => (
+                r.acknowledged_at
+                  ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">✓ مؤكد {formatDateTime(r.acknowledged_at)}</span>
+                  : r.to_branch_id === branchId && canAck
+                    ? <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد الاستلام</Button>
+                    : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار التأكيد</span>
+              )},
             ]} />
         </TabsContent>
       </Tabs>
