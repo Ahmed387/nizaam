@@ -134,6 +134,7 @@ const App = () => (
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute roles={["branch_manager"]}><AdvanceRequests /></ProtectedRoute>} />
             <Route path="/branch/:id/expenses" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Expenses /></ProtectedRoute>} />
             <Route path="/branch/:id/reports" element={<ProtectedRoute roles={["branch_manager","accountant"]}><BranchReports /></ProtectedRoute>} />
+            <Route path="/branch/:id/attendance" element={<ProtectedRoute roles={["branch_manager","cashier","accountant"]}><Attendance /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
