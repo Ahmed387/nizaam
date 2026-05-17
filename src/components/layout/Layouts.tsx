@@ -111,6 +111,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: [] },
     { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: [] },
     { to: `/branch/${id}/expenses`, label: "المصروفات", icon: <Receipt className="w-4 h-4" />, allow: ["accountant"] },
+    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier","accountant"] },
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, allow: ["accountant"] },
   ];
 
