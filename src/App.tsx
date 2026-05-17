@@ -57,6 +57,8 @@ import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
+import AllAttendance from "./pages/admin/AllAttendance";
+import Attendance from "./pages/branch/Attendance";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 import SuperDashboard from "./pages/super/Dashboard";
@@ -106,6 +108,7 @@ const App = () => (
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
             <Route path="/admin/scheduled-reports" element={<ProtectedRoute adminOnly><ScheduledReports /></ProtectedRoute>} />
+            <Route path="/admin/attendance" element={<ProtectedRoute adminOnly><AllAttendance /></ProtectedRoute>} />
 
             {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
@@ -131,6 +134,7 @@ const App = () => (
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute roles={["branch_manager"]}><AdvanceRequests /></ProtectedRoute>} />
             <Route path="/branch/:id/expenses" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Expenses /></ProtectedRoute>} />
             <Route path="/branch/:id/reports" element={<ProtectedRoute roles={["branch_manager","accountant"]}><BranchReports /></ProtectedRoute>} />
+            <Route path="/branch/:id/attendance" element={<ProtectedRoute roles={["branch_manager","cashier","accountant"]}><Attendance /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
