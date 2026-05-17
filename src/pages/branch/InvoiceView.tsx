@@ -17,6 +17,7 @@ export default function InvoiceView() {
   const { user, profile, hasRole, isAdmin, tenant } = useAuth();
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
