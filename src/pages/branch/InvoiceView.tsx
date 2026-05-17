@@ -17,6 +17,7 @@ export default function InvoiceView() {
   const { user, profile, hasRole, isAdmin, tenant } = useAuth();
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -48,6 +49,8 @@ export default function InvoiceView() {
         }
         const { data: its } = await supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId);
         setItems(its ?? []);
+        const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
+        setPayments(pays ?? []);
         const { data: b } = await supabase.from("branches").select("*").eq("id", id).maybeSingle();
         setBranch(b);
       } catch (err: any) {
@@ -137,6 +140,7 @@ export default function InvoiceView() {
               <th className="text-right p-2">المنتج</th>
               <th className="text-center p-2">الكمية</th>
               <th className="text-center p-2">سعر الوحدة</th>
+              <th className="text-center p-2">خصم</th>
               <th className="text-left p-2">الإجمالي</th>
             </tr>
           </thead>
@@ -147,6 +151,7 @@ export default function InvoiceView() {
                 <td className="p-2 font-medium">{it.product_name}</td>
                 <td className="text-center p-2">{it.quantity}</td>
                 <td className="text-center p-2">{formatEGP(it.selling_price)}</td>
+                <td className="text-center p-2 text-destructive">{Number(it.line_discount) > 0 ? `- ${formatEGP(it.line_discount)}` : "—"}</td>
                 <td className="text-left p-2 font-bold">{formatEGP(it.total)}</td>
               </tr>
             ))}
@@ -172,6 +177,32 @@ export default function InvoiceView() {
             <span className="text-primary font-extrabold">{formatEGP(inv.total)}</span>
           </div>
         </div>
+
+        {/* Payments breakdown */}
+        {payments.length > 0 && (
+          <div className="mt-4 p-3 rounded-lg bg-surface-2 border border-border">
+            <div className="font-bold mb-2">تفاصيل الدفع:</div>
+            <div className="space-y-1 text-sm">
+              {payments.map((p) => {
+                const label = ({ cash: "كاش", visa: "فيزا", vodafone_cash: "فودافون كاش", instapay: "انستاباي", bank_transfer: "تحويل بنكي" } as any)[p.payment_method] ?? p.payment_method;
+                return (
+                  <div key={p.id} className="flex justify-between flex-wrap gap-2 pb-1 border-b border-dashed border-border/50">
+                    <div>
+                      <span className="font-semibold">{label}:</span> {formatEGP(p.amount)}
+                      {p.received_by_name && <span className="text-xs text-muted-foreground"> — استلمها: {p.received_by_name}</span>}
+                    </div>
+                    {(p.reference_number || p.transfer_to_account) && (
+                      <div className="text-xs text-muted-foreground" dir="ltr">
+                        {p.transfer_to_account && `إلى: ${p.transfer_to_account} `}
+                        {p.reference_number && `مرجع: #${p.reference_number}`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {inv.status === "cancelled" && (
           <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-center text-destructive font-bold">
