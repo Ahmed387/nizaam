@@ -37,6 +37,9 @@ export function PreOrderDialog({
   const [price, setPrice] = useState(0);
   const [deposit, setDeposit] = useState(0);
   const [payment, setPayment] = useState("cash");
+  const [refNum, setRefNum] = useState("");
+  const [transferAccount, setTransferAccount] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -44,6 +47,7 @@ export function PreOrderDialog({
     if (!open) return;
     setCustomerId(""); setName(""); setPhone("");
     setQty(1); setDeposit(0); setNotes(""); setPayment("cash");
+    setRefNum(""); setTransferAccount(""); setReceivedBy("");
     setPrice(Number(catalogItem?.display_price ?? 0));
     supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
   }, [open, catalogItem, branchId]);
@@ -63,6 +67,8 @@ export function PreOrderDialog({
     if (qty < 1) return toast.error("كمية غير صحيحة");
     if (deposit < 0 || deposit > total) return toast.error("مبلغ العربون غير صحيح");
 
+    if (deposit > 0 && payment !== "cash" && !refNum.trim()) return toast.error("أدخل رقم المرجع/التحويل لطريقة الدفع الإلكترونية");
+
     setBusy(true);
     try {
       const { data, error } = await supabase.rpc("create_pre_order", {
@@ -78,6 +84,9 @@ export function PreOrderDialog({
         p_deposit_amount: deposit,
         p_payment_method: payment,
         p_notes: notes || null,
+        p_reference_number: refNum.trim() || null,
+        p_transfer_to_account: transferAccount.trim() || null,
+        p_received_by_name: receivedBy.trim() || null,
       });
       if (error) throw error;
       toast.success("تم تسجيل طلب الحجز");
@@ -150,10 +159,30 @@ export function PreOrderDialog({
               <select className="w-full bg-input border border-border rounded-lg p-2 text-sm h-10" value={payment} onChange={(e) => setPayment(e.target.value)}>
                 <option value="cash">كاش</option>
                 <option value="visa">فيزا</option>
-                <option value="transfer">تحويل</option>
+                <option value="vodafone_cash">فودافون كاش</option>
+                <option value="instapay">انستاباي</option>
+                <option value="bank_transfer">تحويل بنكي</option>
               </select>
             </div>
           </div>
+
+          {deposit > 0 && payment !== "cash" && (
+            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-surface-2 border border-border">
+              <div className="col-span-2 text-xs text-muted-foreground">بيانات التحويل / الدفع الإلكتروني</div>
+              <div>
+                <Label className="text-xs">رقم المرجع *</Label>
+                <Input value={refNum} dir="ltr" className="text-right" onChange={(e) => setRefNum(e.target.value)} placeholder="رقم العملية" />
+              </div>
+              <div>
+                <Label className="text-xs">حُوّل إلى حساب</Label>
+                <Input value={transferAccount} dir="ltr" className="text-right" onChange={(e) => setTransferAccount(e.target.value)} placeholder="رقم/اسم الحساب" />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs">المستلم في الفرع</Label>
+                <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اسم المستلم" />
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm space-y-1">
             <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(total)}</span></div>

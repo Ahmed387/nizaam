@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { exportToExcel, printReport } from "@/lib/export";
 import { formatEGP as fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { CalendarRange, Download, FileText, Loader2, Play } from "lucide-react";
+import { CalendarRange, Download, FileText, Loader2, Play, Sparkles } from "lucide-react";
 
 interface Report {
   id: string;
@@ -23,6 +23,8 @@ export default function ScheduledReports() {
   const [rows, setRows] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+  const [aiOutput, setAiOutput] = useState<Record<string, string>>({});
 
   const load = async () => {
     const { data } = await supabase
@@ -71,10 +73,34 @@ export default function ScheduledReports() {
     ]);
   };
 
+  const runAi = async (r: Report) => {
+    setAiBusy(r.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-report-analysis", { body: { report_id: r.id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setAiOutput((o) => ({ ...o, [r.id]: (data as any).analysis ?? "" }));
+      toast.success("تم إنشاء التحليل");
+    } catch (e: any) {
+      toast.error(e.message || "فشل التحليل");
+    } finally {
+      setAiBusy(null);
+    }
+  };
+
+  const mdToHtml = (md: string) =>
+    md.replace(/^## (.+)$/gm, "<h3>$1</h3>")
+      .replace(/^### (.+)$/gm, "<h4>$1</h4>")
+      .replace(/^- (.+)$/gm, "<li>$1</li>")
+      .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
+      .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+      .replace(/\n\n/g, "<br/>");
+
   const downloadPdf = (r: Report) => {
     const s = r.summary || {}; const t = s.totals || {};
     const ps = new Date(r.period_start).toLocaleDateString("ar-EG");
     const pe = new Date(r.period_end).toLocaleDateString("ar-EG");
+    const ai = aiOutput[r.id];
     const html = `
       <div class="kpi">
         <div>إجمالي المبيعات<b>${fmtMoney(t.sales ?? 0)}</b></div>
@@ -91,6 +117,10 @@ export default function ScheduledReports() {
       <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>
         ${(s.top_products ?? []).map((p: any) => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${fmtMoney(p.total)}</td></tr>`).join("")}
       </tbody></table>
+      ${ai ? `<div style="margin-top:24px;padding:16px;border:1px solid #ddd;border-radius:8px;background:#fafafa">
+        <h2 style="margin-top:0">🤖 تحليل ذكاء اصطناعي</h2>
+        ${mdToHtml(ai)}
+      </div>` : ""}
     `;
     printReport(`التقرير الأسبوعي ${ps} - ${pe}`, html);
   };
@@ -132,9 +162,13 @@ export default function ScheduledReports() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => runAi(r)} disabled={aiBusy === r.id} className="gap-1 border-primary/30">
+                      {aiBusy === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
+                      {aiOutput[r.id] ? "إعادة تحليل AI" : "تحليل AI"}
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => downloadPdf(r)} className="gap-1">
-                      <FileText className="w-4 h-4" /> PDF
+                      <FileText className="w-4 h-4" /> PDF{aiOutput[r.id] ? " + AI" : ""}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => downloadExcel(r)} className="gap-1">
                       <Download className="w-4 h-4" /> Excel
@@ -148,6 +182,12 @@ export default function ScheduledReports() {
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">صافي الربح</div><div className={`font-bold ${(t.net_profit ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtMoney(t.net_profit ?? 0)}</div></div>
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="font-bold">{t.invoice_count ?? 0}</div></div>
                 </div>
+                {aiOutput[r.id] && (
+                  <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2 text-primary font-bold"><Sparkles className="w-4 h-4" /> تحليل AI</div>
+                    <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-7" dir="rtl">{aiOutput[r.id]}</div>
+                  </div>
+                )}
               </div>
             );
           })}

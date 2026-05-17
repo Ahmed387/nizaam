@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { toast } from "sonner";
-import { Plus, ArrowLeftRight, Trash2, Pencil } from "lucide-react";
+import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2 } from "lucide-react";
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -96,7 +96,14 @@ export default function Treasury() {
     toast.success("تم التعديل"); setEditing(null); load();
   };
 
+  const acknowledge = async (t: any) => {
+    const { error } = await supabase.rpc("acknowledge_treasury_transfer", { p_transfer_id: t.id });
+    if (error) return toast.error(error.message);
+    toast.success("تم تأكيد الاستلام"); load();
+  };
+
   const otherBranches = branches.filter((b) => b.id !== branchId);
+  const canAck = isAdmin || hasRole("branch_manager");
 
   return (
     <BranchLayout>
@@ -170,6 +177,13 @@ export default function Treasury() {
               { key: "to", header: "إلى", render: (r: any) => r.to_branch?.name ?? "—" },
               { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold">{formatEGP(r.amount)}</span> },
               { key: "reason", header: "السبب", render: (r: any) => r.reason ?? "—" },
+              { key: "ack", header: "الاستلام", render: (r: any) => (
+                r.acknowledged_at
+                  ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">✓ مؤكد {formatDateTime(r.acknowledged_at)}</span>
+                  : r.to_branch_id === branchId && canAck
+                    ? <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد الاستلام</Button>
+                    : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار التأكيد</span>
+              )},
             ]} />
         </TabsContent>
       </Tabs>

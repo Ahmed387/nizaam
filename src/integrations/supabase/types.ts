@@ -804,7 +804,10 @@ export type Database = {
           id: string
           payment_method: string
           pre_order_id: string
+          received_by_name: string | null
+          reference_number: string | null
           tenant_id: string
+          transfer_to_account: string | null
           treasury_id: string | null
           type: Database["public"]["Enums"]["pre_order_tx_type"]
         }
@@ -816,7 +819,10 @@ export type Database = {
           id?: string
           payment_method?: string
           pre_order_id: string
+          received_by_name?: string | null
+          reference_number?: string | null
           tenant_id: string
+          transfer_to_account?: string | null
           treasury_id?: string | null
           type: Database["public"]["Enums"]["pre_order_tx_type"]
         }
@@ -828,7 +834,10 @@ export type Database = {
           id?: string
           payment_method?: string
           pre_order_id?: string
+          received_by_name?: string | null
+          reference_number?: string | null
           tenant_id?: string
+          transfer_to_account?: string | null
           treasury_id?: string | null
           type?: Database["public"]["Enums"]["pre_order_tx_type"]
         }
@@ -1720,6 +1729,8 @@ export type Database = {
       }
       treasury_transfers: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
           amount: number
           created_at: string
           from_branch_id: string
@@ -1727,11 +1738,14 @@ export type Database = {
           payment_method: string | null
           reason: string | null
           received_by: string | null
+          reference_number: string | null
           tenant_id: string | null
           to_branch_id: string
           transferred_by: string
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
           amount: number
           created_at?: string
           from_branch_id: string
@@ -1739,11 +1753,14 @@ export type Database = {
           payment_method?: string | null
           reason?: string | null
           received_by?: string | null
+          reference_number?: string | null
           tenant_id?: string | null
           to_branch_id: string
           transferred_by: string
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
           amount?: number
           created_at?: string
           from_branch_id?: string
@@ -1751,6 +1768,7 @@ export type Database = {
           payment_method?: string | null
           reason?: string | null
           received_by?: string | null
+          reference_number?: string | null
           tenant_id?: string | null
           to_branch_id?: string
           transferred_by?: string
@@ -1835,6 +1853,10 @@ export type Database = {
       }
     }
     Functions: {
+      acknowledge_treasury_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: undefined
+      }
       admin_reset_branch_data: {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
@@ -1852,23 +1874,44 @@ export type Database = {
         Returns: string
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
-      create_pre_order: {
-        Args: {
-          p_branch_id: string
-          p_customer_id: string
-          p_customer_name: string
-          p_customer_phone: string
-          p_deposit_amount: number
-          p_expected_price: number
-          p_model_code: string
-          p_notes: string
-          p_payment_method: string
-          p_price_list_item_id: string
-          p_product_name: string
-          p_quantity: number
-        }
-        Returns: string
-      }
+      create_pre_order:
+        | {
+            Args: {
+              p_branch_id: string
+              p_customer_id: string
+              p_customer_name: string
+              p_customer_phone: string
+              p_deposit_amount: number
+              p_expected_price: number
+              p_model_code: string
+              p_notes: string
+              p_payment_method: string
+              p_price_list_item_id: string
+              p_product_name: string
+              p_quantity: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_branch_id: string
+              p_customer_id: string
+              p_customer_name: string
+              p_customer_phone: string
+              p_deposit_amount: number
+              p_expected_price: number
+              p_model_code: string
+              p_notes: string
+              p_payment_method: string
+              p_price_list_item_id: string
+              p_product_name: string
+              p_quantity: number
+              p_received_by_name?: string
+              p_reference_number?: string
+              p_transfer_to_account?: string
+            }
+            Returns: string
+          }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
