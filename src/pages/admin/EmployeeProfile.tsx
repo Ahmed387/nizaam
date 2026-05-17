@@ -593,3 +593,100 @@ export default function EmployeeProfile() {
     </AdminLayout>
   );
 }
+
+function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) {
+  const [frontUrl, setFrontUrl] = useState<string | null>(null);
+  const [backUrl, setBackUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"front" | "back" | null>(null);
+
+  const sign = async (path: string | null | undefined, side: "front" | "back") => {
+    if (!path) return;
+    const { data } = await supabase.storage.from("employee-ids").createSignedUrl(path, 600);
+    if (data?.signedUrl) side === "front" ? setFrontUrl(data.signedUrl) : setBackUrl(data.signedUrl);
+  };
+
+  useEffect(() => {
+    setFrontUrl(null); setBackUrl(null);
+    sign(emp.national_id_front_url, "front");
+    sign(emp.national_id_back_url, "back");
+  }, [emp.national_id_front_url, emp.national_id_back_url]);
+
+  const upload = async (file: File, side: "front" | "back") => {
+    if (!file.type.startsWith("image/")) return toast.error("اختر صورة فقط");
+    if (file.size > 5 * 1024 * 1024) return toast.error("الحد الأقصى 5 ميجا");
+    setBusy(side);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${emp.id}/${side}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("employee-ids").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
+      const { error } = await supabase.from("employees").update({ [col]: path }).eq("id", emp.id);
+      if (error) throw error;
+      toast.success("تم رفع الصورة");
+      onUpdated();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setBusy(null); }
+  };
+
+  const remove = async (side: "front" | "back") => {
+    if (!confirm("حذف الصورة؟")) return;
+    const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
+    const oldPath = side === "front" ? emp.national_id_front_url : emp.national_id_back_url;
+    if (oldPath) await supabase.storage.from("employee-ids").remove([oldPath]);
+    await supabase.from("employees").update({ [col]: null }).eq("id", emp.id);
+    toast.success("تم الحذف");
+    onUpdated();
+  };
+
+  const SideCard = ({ side, label, url, path }: { side: "front" | "back"; label: string; url: string | null; path: string | null }) => (
+    <div className="card-elevated p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-bold flex items-center gap-2"><IdCard className="w-4 h-4 text-primary" /> {label}</div>
+        {path && url && (
+          <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline flex items-center gap-1"><Eye className="w-3 h-3" /> عرض كامل</a>
+        )}
+      </div>
+      {path && url ? (
+        <div className="aspect-[1.6/1] rounded-lg overflow-hidden bg-muted/30 border border-border mb-3">
+          <img src={url} alt={label} className="w-full h-full object-contain" />
+        </div>
+      ) : (
+        <div className="aspect-[1.6/1] rounded-lg bg-muted/20 border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground mb-3">
+          <IdCard className="w-10 h-10 mb-1 opacity-50" />
+          <div className="text-xs">لم يتم رفع الصورة</div>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <label className="flex-1">
+          <input type="file" accept="image/*" className="hidden" disabled={busy === side}
+            onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], side)} />
+          <Button asChild variant="outline" size="sm" className="w-full cursor-pointer" disabled={busy === side}>
+            <span><Upload className="w-3.5 h-3.5 ml-1" /> {busy === side ? "جاري الرفع..." : path ? "استبدال" : "رفع صورة"}</span>
+          </Button>
+        </label>
+        {path && (
+          <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={() => remove(side)}>
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="mb-4 p-3 rounded-lg bg-muted/30 text-sm">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div><b>الرقم القومي: </b>{emp.national_id ? <span dir="ltr">{emp.national_id}</span> : <span className="text-muted-foreground">غير مسجل</span>}</div>
+          <div className="text-xs text-muted-foreground">الصور محفوظة في تخزين آمن — يمكن للمدير والمسؤول فقط الاطلاع عليها</div>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <SideCard side="front" label="وش البطاقة" url={frontUrl} path={emp.national_id_front_url} />
+        <SideCard side="back" label="ظهر البطاقة" url={backUrl} path={emp.national_id_back_url} />
+      </div>
+    </div>
+  );
+}
