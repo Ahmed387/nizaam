@@ -1894,6 +1894,7 @@ export type Database = {
         | "warehouse"
         | "accountant"
         | "super_admin"
+        | "viewer"
       invoice_status: "active" | "cancelled"
       pre_order_status: "pending" | "received" | "completed" | "cancelled"
       pre_order_tx_type:
@@ -2043,6 +2044,7 @@ export const Constants = {
         "warehouse",
         "accountant",
         "super_admin",
+        "viewer",
       ],
       invoice_status: ["active", "cancelled"],
       pre_order_status: ["pending", "received", "completed", "cancelled"],
