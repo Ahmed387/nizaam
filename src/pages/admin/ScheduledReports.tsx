@@ -73,10 +73,34 @@ export default function ScheduledReports() {
     ]);
   };
 
+  const runAi = async (r: Report) => {
+    setAiBusy(r.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-report-analysis", { body: { report_id: r.id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setAiOutput((o) => ({ ...o, [r.id]: (data as any).analysis ?? "" }));
+      toast.success("تم إنشاء التحليل");
+    } catch (e: any) {
+      toast.error(e.message || "فشل التحليل");
+    } finally {
+      setAiBusy(null);
+    }
+  };
+
+  const mdToHtml = (md: string) =>
+    md.replace(/^## (.+)$/gm, "<h3>$1</h3>")
+      .replace(/^### (.+)$/gm, "<h4>$1</h4>")
+      .replace(/^- (.+)$/gm, "<li>$1</li>")
+      .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
+      .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+      .replace(/\n\n/g, "<br/>");
+
   const downloadPdf = (r: Report) => {
     const s = r.summary || {}; const t = s.totals || {};
     const ps = new Date(r.period_start).toLocaleDateString("ar-EG");
     const pe = new Date(r.period_end).toLocaleDateString("ar-EG");
+    const ai = aiOutput[r.id];
     const html = `
       <div class="kpi">
         <div>إجمالي المبيعات<b>${fmtMoney(t.sales ?? 0)}</b></div>
@@ -93,6 +117,10 @@ export default function ScheduledReports() {
       <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>
         ${(s.top_products ?? []).map((p: any) => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${fmtMoney(p.total)}</td></tr>`).join("")}
       </tbody></table>
+      ${ai ? `<div style="margin-top:24px;padding:16px;border:1px solid #ddd;border-radius:8px;background:#fafafa">
+        <h2 style="margin-top:0">🤖 تحليل ذكاء اصطناعي</h2>
+        ${mdToHtml(ai)}
+      </div>` : ""}
     `;
     printReport(`التقرير الأسبوعي ${ps} - ${pe}`, html);
   };
