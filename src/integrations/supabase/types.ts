@@ -1724,7 +1724,9 @@ export type Database = {
           created_at: string
           from_branch_id: string
           id: string
+          payment_method: string | null
           reason: string | null
+          received_by: string | null
           tenant_id: string | null
           to_branch_id: string
           transferred_by: string
@@ -1734,7 +1736,9 @@ export type Database = {
           created_at?: string
           from_branch_id: string
           id?: string
+          payment_method?: string | null
           reason?: string | null
+          received_by?: string | null
           tenant_id?: string | null
           to_branch_id: string
           transferred_by: string
@@ -1744,7 +1748,9 @@ export type Database = {
           created_at?: string
           from_branch_id?: string
           id?: string
+          payment_method?: string | null
           reason?: string | null
+          received_by?: string | null
           tenant_id?: string | null
           to_branch_id?: string
           transferred_by?: string
