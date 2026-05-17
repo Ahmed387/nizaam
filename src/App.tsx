@@ -59,6 +59,7 @@ import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
 import Attendance from "./pages/branch/Attendance";
+import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
