@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { toast } from "sonner";
-import { Plus, ArrowLeftRight, Trash2, Pencil } from "lucide-react";
+import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2 } from "lucide-react";
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
