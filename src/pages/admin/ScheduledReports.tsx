@@ -23,6 +23,8 @@ export default function ScheduledReports() {
   const [rows, setRows] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+  const [aiOutput, setAiOutput] = useState<Record<string, string>>({});
 
   const load = async () => {
     const { data } = await supabase
