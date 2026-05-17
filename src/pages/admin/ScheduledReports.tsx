@@ -162,9 +162,13 @@ export default function ScheduledReports() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => runAi(r)} disabled={aiBusy === r.id} className="gap-1 border-primary/30">
+                      {aiBusy === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
+                      {aiOutput[r.id] ? "إعادة تحليل AI" : "تحليل AI"}
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => downloadPdf(r)} className="gap-1">
-                      <FileText className="w-4 h-4" /> PDF
+                      <FileText className="w-4 h-4" /> PDF{aiOutput[r.id] ? " + AI" : ""}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => downloadExcel(r)} className="gap-1">
                       <Download className="w-4 h-4" /> Excel
@@ -178,6 +182,12 @@ export default function ScheduledReports() {
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">صافي الربح</div><div className={`font-bold ${(t.net_profit ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtMoney(t.net_profit ?? 0)}</div></div>
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="font-bold">{t.invoice_count ?? 0}</div></div>
                 </div>
+                {aiOutput[r.id] && (
+                  <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2 text-primary font-bold"><Sparkles className="w-4 h-4" /> تحليل AI</div>
+                    <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-7" dir="rtl">{aiOutput[r.id]}</div>
+                  </div>
+                )}
               </div>
             );
           })}
