@@ -103,6 +103,7 @@ export default function EmployeeProfile() {
       name: emp.name, job_title: emp.job_title, phone: emp.phone ?? "", email: emp.email ?? "", login_password: "",
       base_salary: String(emp.base_salary), hire_date: emp.hire_date,
       notes: emp.notes ?? "",
+      national_id: emp.national_id ?? "",
     });
     setEditOpen(true);
   };
