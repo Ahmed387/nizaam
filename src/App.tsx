@@ -57,7 +57,8 @@ import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
-import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
+import AllAttendance from "./pages/admin/AllAttendance";
+import Attendance from "./pages/branch/Attendance";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
