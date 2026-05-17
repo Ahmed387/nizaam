@@ -115,6 +115,7 @@ export default function EmployeeProfile() {
       email: editForm.email?.trim() || null,
       base_salary: Number(editForm.base_salary) || 0, hire_date: editForm.hire_date,
       notes: editForm.notes || null,
+      national_id: editForm.national_id?.trim() || null,
     };
     if (editForm.login_password) {
       updatePayload.login_password = editForm.login_password;
