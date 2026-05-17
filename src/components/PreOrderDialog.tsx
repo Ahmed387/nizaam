@@ -37,6 +37,9 @@ export function PreOrderDialog({
   const [price, setPrice] = useState(0);
   const [deposit, setDeposit] = useState(0);
   const [payment, setPayment] = useState("cash");
+  const [refNum, setRefNum] = useState("");
+  const [transferAccount, setTransferAccount] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -44,6 +47,7 @@ export function PreOrderDialog({
     if (!open) return;
     setCustomerId(""); setName(""); setPhone("");
     setQty(1); setDeposit(0); setNotes(""); setPayment("cash");
+    setRefNum(""); setTransferAccount(""); setReceivedBy("");
     setPrice(Number(catalogItem?.display_price ?? 0));
     supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
   }, [open, catalogItem, branchId]);
