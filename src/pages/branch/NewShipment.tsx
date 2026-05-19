@@ -267,6 +267,11 @@ export default function NewShipment() {
         </div>
       </div>
 
+      <div className="card-elevated p-4 mb-4">
+        <h3 className="font-bold mb-3">طريقة الدفع للمورد</h3>
+        <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
+      </div>
+
       <div className="card-elevated overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-bold">المنتجات</h3>
