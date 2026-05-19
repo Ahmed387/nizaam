@@ -172,15 +172,19 @@ export default function NewShipment() {
           .eq("id", pid);
       }
 
-      // Treasury expense
-      await supabase.from("treasury").insert({
-        branch_id: branchId!,
-        type: "expense",
-        category: "shipment",
-        amount: grandTotal,
-        description: `شحنة #${ship.id.slice(0, 8)}`,
-        reference_id: ship.id,
-        created_by: user!.id,
+      // Treasury / payment plan handling
+      const supplier = suppliers.find((s) => s.id === supplierId);
+      await createPaymentPlanWithInitial({
+        branchId: branchId!,
+        entityType: "supplier",
+        entityId: supplierId,
+        entityName: supplier?.company_name ?? "مورد",
+        totalAmount: grandTotal,
+        referenceType: "shipment",
+        referenceId: ship.id,
+        state: plan,
+        direction: "out",
+        createdBy: user!.id,
       });
 
       await logAudit({
