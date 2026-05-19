@@ -526,7 +526,10 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          payment_method: string
+          reference_number: string | null
           tenant_id: string | null
+          transfer_to_account: string | null
           type: string
         }
         Insert: {
@@ -537,7 +540,10 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          payment_method?: string
+          reference_number?: string | null
           tenant_id?: string | null
+          transfer_to_account?: string | null
           type: string
         }
         Update: {
@@ -548,7 +554,10 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          payment_method?: string
+          reference_number?: string | null
           tenant_id?: string | null
+          transfer_to_account?: string | null
           type?: string
         }
         Relationships: [
@@ -2216,6 +2225,10 @@ export type Database = {
         Returns: string
       }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
+      reject_treasury_transfer: {
+        Args: { p_reason: string; p_transfer_id: string }
+        Returns: undefined
+      }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
         Args: {
@@ -2239,9 +2252,13 @@ export type Database = {
       transfer_treasury_atomic: {
         Args: {
           p_amount: number
+          p_fee_amount?: number
           p_from_branch: string
+          p_payment_method?: string
           p_reason: string
+          p_reference_number?: string
           p_to_branch: string
+          p_transfer_to_account?: string
         }
         Returns: string
       }
