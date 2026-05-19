@@ -175,10 +175,14 @@ export default function Receivables() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           <Card className="p-4">
-            <div className="text-sm text-muted-foreground">مستحق علينا (موردين/موظفين)</div>
-            <div className="text-2xl font-bold text-warning mt-1">{formatEGP(totals.owe)}</div>
+            <div className="text-sm text-muted-foreground">مستحق للموردين</div>
+            <div className="text-2xl font-bold text-warning mt-1">{formatEGP(totals.oweSuppliers)}</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-sm text-muted-foreground">مستحق للموظفين</div>
+            <div className="text-2xl font-bold text-warning mt-1">{formatEGP(totals.oweEmployees)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-sm text-muted-foreground">مستحق لنا (عملاء)</div>
