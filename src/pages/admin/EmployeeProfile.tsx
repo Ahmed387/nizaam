@@ -159,7 +159,7 @@ export default function EmployeeProfile() {
       payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null,
     });
     if (advPm.fee_amount > 0) {
-      await supabase.from("expenses").insert({
+      await (supabase.from("expenses") as any).insert({
         branch_id: emp.branch_id, type: "عمولة تحويل", amount: advPm.fee_amount,
         description: `عمولة ${advPm.method} - سلفة ${emp.name}`, date: new Date().toISOString().split("T")[0],
         payment_method: advPm.method, is_fee: true, created_by: user!.id,
@@ -203,7 +203,7 @@ export default function EmployeeProfile() {
       payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null,
     });
     if (salPm.fee_amount > 0) {
-      await supabase.from("expenses").insert({
+      await (supabase.from("expenses") as any).insert({
         branch_id: emp.branch_id, type: "عمولة تحويل", amount: salPm.fee_amount,
         description: `عمولة ${salPm.method} - راتب ${emp.name}`, date: new Date().toISOString().split("T")[0],
         payment_method: salPm.method, is_fee: true, created_by: user!.id,
