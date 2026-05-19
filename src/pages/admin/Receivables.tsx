@@ -79,14 +79,19 @@ export default function Receivables() {
   const byType = (t: string) => filtered.filter((p) => p.entity_type === t);
 
   const totals = useMemo(() => {
-    const sum = (arr: Plan[], dir: "in" | "out") =>
-      arr.filter((p) => (dir === "in" ? p.entity_type === "customer" : p.entity_type !== "customer"))
+    const sumType = (t: string) =>
+      filtered.filter((p) => p.entity_type === t)
         .reduce((s, p) => s + Number(p.remaining_amount || 0), 0);
     const overdueAmt = installments.filter((i) => i.status === "overdue")
       .reduce((s, i) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0);
+    const due = sumType("customer");
+    const oweSuppliers = sumType("supplier");
+    const oweEmployees = sumType("employee");
     return {
-      due: sum(filtered, "in"),
-      owe: sum(filtered, "out"),
+      due,
+      oweSuppliers,
+      oweEmployees,
+      owe: oweSuppliers + oweEmployees,
       overdue: overdueAmt,
       overdueCount: installments.filter((i) => i.status === "overdue").length,
     };
