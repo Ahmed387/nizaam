@@ -13,6 +13,8 @@ import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
+import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
+import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 
 interface Line {
   product_id: string | null;
@@ -44,6 +46,7 @@ export default function NewShipment() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
 
   useEffect(() => {
     if (!branchId) return;
