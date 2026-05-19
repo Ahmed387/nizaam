@@ -217,7 +217,12 @@ export default function NewSale() {
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
-    if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
+    if (!paymentsValid) return toast.error(creditMode ? `المدفوع أكبر من الإجمالي` : `مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
+    if (creditMode && creditRemaining > 0 && !customerId && !quickName.trim()) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+    if (creditMode && scheduleType === "scheduled" && creditRemaining > 0) {
+      const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
+      if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
+    }
 
     setBusy(true);
     try {
@@ -267,9 +272,30 @@ export default function NewSale() {
         entity: "Invoice", entityId: invId as string, details: { total },
       });
 
+      // Create payment plan for credit remainder
+      if (creditMode && creditRemaining > 0 && custId) {
+        try {
+          const cust = customers.find((c) => c.id === custId);
+          await createPaymentPlanWithInitial({
+            branchId: branchId!,
+            entityType: "customer",
+            entityId: custId,
+            entityName: cust?.name ?? quickName ?? "عميل",
+            totalAmount: creditRemaining,
+            referenceType: "invoice",
+            referenceId: invId as string,
+            state: { ...defaultPlan(), mode: "credit", scheduleType, installments },
+            direction: "in",
+            createdBy: user!.id,
+          });
+        } catch (e: any) {
+          toast.error("الفاتورة اتسجلت لكن خطة الأقساط فشلت: " + e.message);
+        }
+      }
+
       syncPendingSales(true);
 
-      toast.success("تم إنشاء الفاتورة");
+      toast.success(creditMode && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
     } catch (e: any) {
       toast.error(e.message);
