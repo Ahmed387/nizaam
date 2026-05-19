@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/reports", label: "التقارير المركزية", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/admin/scheduled-reports", label: "التقارير المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
   { to: "/admin/attendance", label: "الحضور (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/admin/receivables", label: "الذمم المالية", icon: <Coins className="w-4 h-4" /> },
   { to: "/admin/audit-log", label: "سجل العمليات", icon: <ScrollText className="w-4 h-4" /> },
   { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
   
