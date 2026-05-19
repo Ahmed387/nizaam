@@ -526,6 +526,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          is_fee: boolean
           payment_method: string
           reference_number: string | null
           tenant_id: string | null
@@ -540,6 +541,7 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          is_fee?: boolean
           payment_method?: string
           reference_number?: string | null
           tenant_id?: string | null
@@ -554,6 +556,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          is_fee?: boolean
           payment_method?: string
           reference_number?: string | null
           tenant_id?: string | null
