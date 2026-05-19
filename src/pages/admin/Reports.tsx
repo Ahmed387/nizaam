@@ -415,6 +415,8 @@ export default function AdminReports() {
           <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
           <TabsTrigger value="lowstock">⚠️ مخزون منخفض</TabsTrigger>
           {scope === "global" && <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>}
+          <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
+          <TabsTrigger value="overdue">⏰ المتأخرات</TabsTrigger>
         </TabsList>
 
         {scope === "global" && (
