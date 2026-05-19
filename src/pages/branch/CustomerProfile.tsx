@@ -62,8 +62,10 @@ export default function CustomerProfile() {
         <StatCard label="آخر شراء" value={lastPurchase ? formatDateTime(lastPurchase).split(" ")[0] : "—"} icon={<Calendar className="w-5 h-5" />} accent="warning" />
       </div>
 
+      <h3 className="font-bold mb-3">المديونيات وخطط الدفع</h3>
+      {customerId && <div className="mb-6"><PaymentPlansPanel entityType="customer" entityId={customerId} direction="in" /></div>}
+
       <h3 className="font-bold mb-3">سجل الفواتير</h3>
-      <DataTable
         loading={loading}
         rows={invoices}
         onRowClick={(r: any) => nav(`/branch/${branchId}/sales/${r.id}`)}
