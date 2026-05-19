@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Receipt, DollarSign, Calendar, Phone, MapPin } from "lucide-react";
+import { PaymentPlansPanel } from "@/components/PaymentPlansPanel";
 
 export default function CustomerProfile() {
   const { id: branchId, customerId } = useParams<{ id: string; customerId: string }>();
