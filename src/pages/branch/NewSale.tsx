@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle } from "lucide-react";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
+import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
+import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
+import { defaultPlan } from "@/components/PaymentPlanSelector";
 
 interface Item {
   product_id: string;
@@ -67,6 +70,10 @@ export default function NewSale() {
   const [scanBuffer, setScanBuffer] = useState("");
   const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
   const [payments, setPayments] = useState<PaymentSplit[]>([]);
+  // Credit / installments
+  const [creditMode, setCreditMode] = useState(false);
+  const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
+  const [installments, setInstallments] = useState<InstallmentRow[]>([]);
 
   useEffect(() => {
     if (!branchId) return;
