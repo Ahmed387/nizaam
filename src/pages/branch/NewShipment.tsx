@@ -13,6 +13,8 @@ import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
+import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
+import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 
 interface Line {
   product_id: string | null;
@@ -44,6 +46,7 @@ export default function NewShipment() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
 
   useEffect(() => {
     if (!branchId) return;
@@ -169,15 +172,19 @@ export default function NewShipment() {
           .eq("id", pid);
       }
 
-      // Treasury expense
-      await supabase.from("treasury").insert({
-        branch_id: branchId!,
-        type: "expense",
-        category: "shipment",
-        amount: grandTotal,
-        description: `شحنة #${ship.id.slice(0, 8)}`,
-        reference_id: ship.id,
-        created_by: user!.id,
+      // Treasury / payment plan handling
+      const supplier = suppliers.find((s) => s.id === supplierId);
+      await createPaymentPlanWithInitial({
+        branchId: branchId!,
+        entityType: "supplier",
+        entityId: supplierId,
+        entityName: supplier?.company_name ?? "مورد",
+        totalAmount: grandTotal,
+        referenceType: "shipment",
+        referenceId: ship.id,
+        state: plan,
+        direction: "out",
+        createdBy: user!.id,
       });
 
       await logAudit({
@@ -258,6 +265,11 @@ export default function NewShipment() {
             حفظ الشحنة
           </Button>
         </div>
+      </div>
+
+      <div className="card-elevated p-4 mb-4">
+        <h3 className="font-bold mb-3">طريقة الدفع للمورد</h3>
+        <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
       </div>
 
       <div className="card-elevated overflow-hidden">

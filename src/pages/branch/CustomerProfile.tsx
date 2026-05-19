@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Receipt, DollarSign, Calendar, Phone, MapPin } from "lucide-react";
+import { PaymentPlansPanel } from "@/components/PaymentPlansPanel";
 
 export default function CustomerProfile() {
   const { id: branchId, customerId } = useParams<{ id: string; customerId: string }>();
@@ -60,6 +61,9 @@ export default function CustomerProfile() {
         <StatCard label="أول شراء" value={firstPurchase ? formatDateTime(firstPurchase).split(" ")[0] : "—"} icon={<Calendar className="w-5 h-5" />} accent="secondary" />
         <StatCard label="آخر شراء" value={lastPurchase ? formatDateTime(lastPurchase).split(" ")[0] : "—"} icon={<Calendar className="w-5 h-5" />} accent="warning" />
       </div>
+
+      <h3 className="font-bold mb-3">المديونيات وخطط الدفع</h3>
+      {customerId && <div className="mb-6"><PaymentPlansPanel entityType="customer" entityId={customerId} direction="in" /></div>}
 
       <h3 className="font-bold mb-3">سجل الفواتير</h3>
       <DataTable

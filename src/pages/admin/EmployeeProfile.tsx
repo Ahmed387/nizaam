@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,8 @@ export default function EmployeeProfile() {
   const [salOpen, setSalOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ amount: "", monthly_deduct: "", reason: "" });
   const [salForm, setSalForm] = useState({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
+  const [advPm, setAdvPm] = useState<PaymentMethodValue>(emptyPaymentValue());
+  const [salPm, setSalPm] = useState<PaymentMethodValue>(emptyPaymentValue());
 
   // Account dialog
   const [acctOpen, setAcctOpen] = useState(false);
@@ -153,8 +156,16 @@ export default function EmployeeProfile() {
     await supabase.from("treasury").insert({
       branch_id: emp.branch_id, type: "expense", category: "advance",
       amount: amt, description: `سلفة - ${emp.name}`, reference_id: adv.id, created_by: user!.id,
+      payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null,
     });
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "advance", entityId: adv.id, details: { employee: emp.name, amount: amt } });
+    if (advPm.fee_amount > 0) {
+      await (supabase.from("expenses") as any).insert({
+        branch_id: emp.branch_id, type: "عمولة تحويل", amount: advPm.fee_amount,
+        description: `عمولة ${advPm.method} - سلفة ${emp.name}`, date: new Date().toISOString().split("T")[0],
+        payment_method: advPm.method, is_fee: true, created_by: user!.id,
+      });
+    }
+    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "advance", entityId: adv.id, details: { employee: emp.name, amount: amt, method: advPm.method } });
     toast.success("تم صرف السلفة");
     setAdvOpen(false);
     setAdvForm({ amount: "", monthly_deduct: "", reason: "" });
@@ -189,8 +200,16 @@ export default function EmployeeProfile() {
     await supabase.from("treasury").insert({
       branch_id: emp.branch_id, type: "expense", category: "salary",
       amount: net, description: `راتب ${salForm.month} - ${emp.name}`, reference_id: sal.id, created_by: user!.id,
+      payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null,
     });
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "salary", entityId: sal.id, details: { employee: emp.name, month: salForm.month, net } });
+    if (salPm.fee_amount > 0) {
+      await (supabase.from("expenses") as any).insert({
+        branch_id: emp.branch_id, type: "عمولة تحويل", amount: salPm.fee_amount,
+        description: `عمولة ${salPm.method} - راتب ${emp.name}`, date: new Date().toISOString().split("T")[0],
+        payment_method: salPm.method, is_fee: true, created_by: user!.id,
+      });
+    }
+    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "salary", entityId: sal.id, details: { employee: emp.name, month: salForm.month, net, method: salPm.method } });
 
     // Notify employee that their salary has been paid
     if (emp.user_id) {
@@ -478,6 +497,7 @@ export default function EmployeeProfile() {
             <div><Label>المبلغ *</Label><Input type="number" value={advForm.amount} onChange={(e) => setAdvForm({ ...advForm, amount: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الخصم الشهري *</Label><Input type="number" value={advForm.monthly_deduct} onChange={(e) => setAdvForm({ ...advForm, monthly_deduct: e.target.value })} className="mt-1.5" /></div>
             <div><Label>السبب</Label><Textarea rows={2} value={advForm.reason} onChange={(e) => setAdvForm({ ...advForm, reason: e.target.value })} className="mt-1.5" /></div>
+            <PaymentMethodPicker amount={Number(advForm.amount) || 0} value={advPm} onChange={setAdvPm} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdvOpen(false)}>إلغاء</Button>
@@ -502,6 +522,7 @@ export default function EmployeeProfile() {
               <span>الصافي</span>
               <b className="text-primary">{formatEGP(Number(emp.base_salary) + Number(salForm.bonuses || 0) - Number(salForm.deductions || 0) - Number(salForm.advance_deduct || 0))}</b>
             </div>
+            <PaymentMethodPicker amount={Number(emp.base_salary) + Number(salForm.bonuses || 0) - Number(salForm.deductions || 0) - Number(salForm.advance_deduct || 0)} value={salPm} onChange={setSalPm} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSalOpen(false)}>إلغاء</Button>

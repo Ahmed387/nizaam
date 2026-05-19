@@ -526,6 +526,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          is_fee: boolean
           payment_method: string
           reference_number: string | null
           tenant_id: string | null
@@ -540,6 +541,7 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          is_fee?: boolean
           payment_method?: string
           reference_number?: string | null
           tenant_id?: string | null
@@ -554,6 +556,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          is_fee?: boolean
           payment_method?: string
           reference_number?: string | null
           tenant_id?: string | null
@@ -2205,10 +2208,22 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      mark_overdue_installments: { Args: never; Returns: number }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_pre_order_number: { Args: never; Returns: string }
       next_sku: { Args: never; Returns: string }
+      payment_plans_summary: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          due_this_month: number
+          due_this_week: number
+          entity_type: string
+          overdue_amount: number
+          plans_count: number
+          total_owed: number
+        }[]
+      }
       process_sale: {
         Args: {
           p_branch_id: string
@@ -2221,6 +2236,22 @@ export type Database = {
           p_payments?: Json
           p_subtotal: number
           p_total: number
+        }
+        Returns: string
+      }
+      record_payment_transaction: {
+        Args: {
+          p_amount: number
+          p_direction: string
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_fee_type: string
+          p_installment_id: string
+          p_payment_method: string
+          p_payment_plan_id: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_to_account: string
         }
         Returns: string
       }

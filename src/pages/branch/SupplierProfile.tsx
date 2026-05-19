@@ -4,6 +4,7 @@ import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
+import { PaymentPlansPanel } from "@/components/PaymentPlansPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -394,7 +395,12 @@ export default function SupplierProfile() {
           <TabsTrigger value="timeline" className="gap-2"><Activity className="w-4 h-4" /> Timeline</TabsTrigger>
           <TabsTrigger value="shipments" className="gap-2"><Truck className="w-4 h-4" /> الشحنات ({shipments.length})</TabsTrigger>
           <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
+          <TabsTrigger value="plans" className="gap-2"><DollarSign className="w-4 h-4" /> خطط الدفع</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="plans" className="mt-4">
+          {supplierId && <PaymentPlansPanel entityType="supplier" entityId={supplierId} direction="out" />}
+        </TabsContent>
 
         <TabsContent value="timeline" className="mt-4">
           {timeline.length === 0 ? (

@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle } from "lucide-react";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
+import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
+import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
+import { defaultPlan } from "@/components/PaymentPlanSelector";
 
 interface Item {
   product_id: string;
@@ -67,6 +70,10 @@ export default function NewSale() {
   const [scanBuffer, setScanBuffer] = useState("");
   const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
   const [payments, setPayments] = useState<PaymentSplit[]>([]);
+  // Credit / installments
+  const [creditMode, setCreditMode] = useState(false);
+  const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
+  const [installments, setInstallments] = useState<InstallmentRow[]>([]);
 
   useEffect(() => {
     if (!branchId) return;
@@ -202,12 +209,20 @@ export default function NewSale() {
     setPayments(payments.map((p, i) => i === idx ? { ...p, ...patch } : p));
 
   const paymentsSum = useMemo(() => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0), [payments]);
-  const paymentsValid = payments.length === 0 || Math.abs(paymentsSum - total) < 0.01;
+  const creditRemaining = Math.max(0, total - paymentsSum);
+  const paymentsValid = creditMode
+    ? paymentsSum <= total + 0.01
+    : (payments.length === 0 || Math.abs(paymentsSum - total) < 0.01);
 
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
-    if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
+    if (!paymentsValid) return toast.error(creditMode ? `المدفوع أكبر من الإجمالي` : `مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
+    if (creditMode && creditRemaining > 0 && !customerId && !quickName.trim()) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+    if (creditMode && scheduleType === "scheduled" && creditRemaining > 0) {
+      const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
+      if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
+    }
 
     setBusy(true);
     try {
@@ -257,9 +272,30 @@ export default function NewSale() {
         entity: "Invoice", entityId: invId as string, details: { total },
       });
 
+      // Create payment plan for credit remainder
+      if (creditMode && creditRemaining > 0 && custId) {
+        try {
+          const cust = customers.find((c) => c.id === custId);
+          await createPaymentPlanWithInitial({
+            branchId: branchId!,
+            entityType: "customer",
+            entityId: custId,
+            entityName: cust?.name ?? quickName ?? "عميل",
+            totalAmount: creditRemaining,
+            referenceType: "invoice",
+            referenceId: invId as string,
+            state: { ...defaultPlan(), mode: "credit", scheduleType, installments },
+            direction: "in",
+            createdBy: user!.id,
+          });
+        } catch (e: any) {
+          toast.error("الفاتورة اتسجلت لكن خطة الأقساط فشلت: " + e.message);
+        }
+      }
+
       syncPendingSales(true);
 
-      toast.success("تم إنشاء الفاتورة");
+      toast.success(creditMode && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
     } catch (e: any) {
       toast.error(e.message);
@@ -505,6 +541,33 @@ export default function NewSale() {
                   <span>مجموع الدفعات</span>
                   <span className="font-bold">{formatEGP(paymentsSum)} / {formatEGP(total)}</span>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Credit / installments */}
+          <div className="card-elevated p-5">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={creditMode} onChange={(e) => setCreditMode(e.target.checked)} className="w-4 h-4" />
+              <span className="font-bold">بيع بالآجل (تسجيل المتبقي كمديونية)</span>
+            </label>
+            {creditMode && (
+              <div className="mt-3 space-y-3">
+                <div className="text-sm flex justify-between p-2 rounded bg-warning/10 border border-warning/30">
+                  <span>المتبقي كآجل:</span>
+                  <b className="text-warning">{formatEGP(creditRemaining)}</b>
+                </div>
+                {creditRemaining > 0 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setScheduleType("open")} className={`px-2 py-1.5 text-sm rounded border ${scheduleType === "open" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>مفتوح</button>
+                      <button type="button" onClick={() => setScheduleType("scheduled")} className={`px-2 py-1.5 text-sm rounded border ${scheduleType === "scheduled" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>أقساط محددة</button>
+                    </div>
+                    {scheduleType === "scheduled" && (
+                      <InstallmentScheduler remaining={creditRemaining} value={installments} onChange={setInstallments} />
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
