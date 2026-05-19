@@ -79,14 +79,19 @@ export default function Receivables() {
   const byType = (t: string) => filtered.filter((p) => p.entity_type === t);
 
   const totals = useMemo(() => {
-    const sum = (arr: Plan[], dir: "in" | "out") =>
-      arr.filter((p) => (dir === "in" ? p.entity_type === "customer" : p.entity_type !== "customer"))
+    const sumType = (t: string) =>
+      filtered.filter((p) => p.entity_type === t)
         .reduce((s, p) => s + Number(p.remaining_amount || 0), 0);
     const overdueAmt = installments.filter((i) => i.status === "overdue")
       .reduce((s, i) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0);
+    const due = sumType("customer");
+    const oweSuppliers = sumType("supplier");
+    const oweEmployees = sumType("employee");
     return {
-      due: sum(filtered, "in"),
-      owe: sum(filtered, "out"),
+      due,
+      oweSuppliers,
+      oweEmployees,
+      owe: oweSuppliers + oweEmployees,
       overdue: overdueAmt,
       overdueCount: installments.filter((i) => i.status === "overdue").length,
     };
@@ -170,10 +175,14 @@ export default function Receivables() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           <Card className="p-4">
-            <div className="text-sm text-muted-foreground">مستحق علينا (موردين/موظفين)</div>
-            <div className="text-2xl font-bold text-warning mt-1">{formatEGP(totals.owe)}</div>
+            <div className="text-sm text-muted-foreground">مستحق للموردين</div>
+            <div className="text-2xl font-bold text-warning mt-1">{formatEGP(totals.oweSuppliers)}</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-sm text-muted-foreground">مستحق للموظفين</div>
+            <div className="text-2xl font-bold text-warning mt-1">{formatEGP(totals.oweEmployees)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-sm text-muted-foreground">مستحق لنا (عملاء)</div>
