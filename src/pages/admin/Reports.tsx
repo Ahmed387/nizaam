@@ -46,12 +46,15 @@ export default function AdminReports() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [allShipments, setAllShipments] = useState<any[]>([]);
   const [allSupPayments, setAllSupPayments] = useState<any[]>([]);
+  const [payTx, setPayTx] = useState<any[]>([]);
+  const [overdueIns, setOverdueIns] = useState<any[]>([]);
+  const [payPlans, setPayPlans] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp] = await Promise.all([
+    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("expenses").select("*").gte("date", from).lte("date", to),
@@ -65,6 +68,9 @@ export default function AdminReports() {
       supabase.from("customers").select("id,branch_id"),
       supabase.from("shipments").select("supplier_id,total_cost"),
       supabase.from("supplier_payments").select("supplier_id,amount"),
+      supabase.from("payment_transactions").select("*").gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("payment_installments").select("*, payment_plans!inner(entity_type,entity_name,branch_id)").eq("status", "overdue"),
+      supabase.from("payment_plans").select("*").neq("status", "completed"),
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
@@ -79,6 +85,9 @@ export default function AdminReports() {
     setCustomers(cu.data ?? []);
     setAllShipments(ash.data ?? []);
     setAllSupPayments(asp.data ?? []);
+    setPayTx(ptx.data ?? []);
+    setOverdueIns(oi.data ?? []);
+    setPayPlans(pp.data ?? []);
     setLoading(false);
   };
 
@@ -101,6 +110,39 @@ export default function AdminReports() {
   const scopedTreasury = treasury.filter((t) => inScope(t.branch_id));
   const scopedReturns = returns.filter((r) => inScope(r.branch_id));
   const scopedCustomers = customers.filter((c) => inScope(c.branch_id));
+  const scopedPayTx = payTx.filter((t) => inScope(t.branch_id));
+  const scopedOverdue = overdueIns.filter((o: any) => inScope(o.payment_plans?.branch_id));
+  const scopedPlans = payPlans.filter((p) => inScope(p.branch_id));
+
+  // ====== Payments / commissions analysis ======
+  const commissionAnalysis = useMemo(() => {
+    const methods = ["cash", "vodafone", "instapay", "bank"] as const;
+    const byMethod = methods.map((m) => {
+      const txs = scopedPayTx.filter((t) => t.payment_method === m);
+      const volume = txs.reduce((s, t) => s + Number(t.amount), 0);
+      const fees = txs.reduce((s, t) => s + Number(t.fee_amount || 0), 0);
+      return { method: m, label: m === "cash" ? "نقدي" : m === "vodafone" ? "فودافون كاش" : m === "instapay" ? "انستاباي" : "بنك", count: txs.length, volume, fees };
+    });
+    const totalFees = byMethod.reduce((s, x) => s + x.fees, 0);
+    const totalVolume = byMethod.reduce((s, x) => s + x.volume, 0);
+    return { byMethod, totalFees, totalVolume };
+  }, [scopedPayTx]);
+
+  // ====== Top overdue customers ======
+  const topOverdueCustomers = useMemo(() => {
+    const map = new Map<string, { name: string; type: string; branch_id: string; overdueCount: number; overdueAmount: number }>();
+    scopedOverdue.forEach((i: any) => {
+      const pp = i.payment_plans;
+      if (!pp) return;
+      const key = `${pp.entity_type}:${pp.entity_name}`;
+      const row = map.get(key) ?? { name: pp.entity_name, type: pp.entity_type, branch_id: pp.branch_id, overdueCount: 0, overdueAmount: 0 };
+      row.overdueCount += 1;
+      row.overdueAmount += Number(i.amount) - Number(i.paid_amount || 0);
+      map.set(key, row);
+    });
+    return Array.from(map.values()).sort((a, b) => b.overdueAmount - a.overdueAmount).slice(0, 20);
+  }, [scopedOverdue]);
+
 
   // ============ Aggregated KPIs for current scope ============
   const k = useMemo(() => {
@@ -373,6 +415,8 @@ export default function AdminReports() {
           <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
           <TabsTrigger value="lowstock">⚠️ مخزون منخفض</TabsTrigger>
           {scope === "global" && <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>}
+          <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
+          <TabsTrigger value="overdue">⏰ المتأخرات</TabsTrigger>
         </TabsList>
 
         {scope === "global" && (
@@ -508,6 +552,53 @@ export default function AdminReports() {
               ]} />
           </TabsContent>
         )}
+
+        <TabsContent value="payments" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي المعاملات" value={formatEGP(commissionAnalysis.totalVolume)} icon={<Wallet className="w-4 h-4" />} hint={`${scopedPayTx.length} معاملة`} />
+            <MiniKpi label="إجمالي العمولات" value={formatEGP(commissionAnalysis.totalFees)} icon={<Receipt className="w-4 h-4" />} accent="warning" />
+            <MiniKpi label="نسبة العمولة من الحجم" value={`${commissionAnalysis.totalVolume > 0 ? ((commissionAnalysis.totalFees / commissionAnalysis.totalVolume) * 100).toFixed(2) : "0"}%`} icon={<TrendingDown className="w-4 h-4" />} />
+          </div>
+          <div className="card-elevated p-5">
+            <h4 className="font-bold mb-4">المعاملات حسب طريقة الدفع</h4>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={commissionAnalysis.byMethod.map((m) => ({ name: m.label, "حجم المعاملات": m.volume, "عمولة": m.fees }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Legend />
+                <Bar dataKey="حجم المعاملات" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="عمولة" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <DataTable rows={commissionAnalysis.byMethod} loading={loading} empty="لا توجد معاملات"
+            columns={[
+              { key: "label", header: "طريقة الدفع", render: (r: any) => <b>{r.label}</b> },
+              { key: "count", header: "عدد المعاملات" },
+              { key: "volume", header: "إجمالي الحجم", render: (r: any) => formatEGP(r.volume) },
+              { key: "fees", header: "إجمالي العمولة", render: (r: any) => <b className="text-warning">{formatEGP(r.fees)}</b> },
+              { key: "ratio", header: "نسبة العمولة", render: (r: any) => <span className="text-muted-foreground">{r.volume > 0 ? ((r.fees / r.volume) * 100).toFixed(2) : "0"}%</span> },
+            ]} />
+        </TabsContent>
+
+        <TabsContent value="overdue" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي خطط نشطة" value={String(scopedPlans.length)} icon={<Layers className="w-4 h-4" />} />
+            <MiniKpi label="عدد الأقساط المتأخرة" value={String(scopedOverdue.length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
+            <MiniKpi label="إجمالي قيمة المتأخرات" value={formatEGP(scopedOverdue.reduce((s: number, i: any) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0))} icon={<Wallet className="w-4 h-4" />} accent="destructive" />
+          </div>
+          <h4 className="font-bold mt-4">أكثر العملاء/الجهات تأخرًا</h4>
+          <DataTable rows={topOverdueCustomers} loading={loading} empty="✅ لا توجد متأخرات"
+            columns={[
+              { key: "name", header: "الاسم", render: (r: any) => <b>{r.name}</b> },
+              { key: "type", header: "النوع", render: (r: any) => r.type === "customer" ? "عميل" : r.type === "supplier" ? "مورد" : "موظف" },
+              { key: "branch", header: "الفرع", render: (r: any) => branches.find((b) => b.id === r.branch_id)?.name ?? "—" },
+              { key: "overdueCount", header: "أقساط متأخرة", render: (r: any) => <b className="text-warning">{r.overdueCount}</b> },
+              { key: "overdueAmount", header: "إجمالي المتأخر", render: (r: any) => <b className="text-destructive">{formatEGP(r.overdueAmount)}</b> },
+            ]} />
+        </TabsContent>
       </Tabs>
     </AdminLayout>
   );
