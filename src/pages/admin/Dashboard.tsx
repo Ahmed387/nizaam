@@ -61,6 +61,10 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // Lazy overdue check on dashboard mount (no await, fire-and-forget)
+    supabase.rpc("mark_overdue_installments" as any).catch(() => {});
+  }, []);
   useRealtimeRefresh(
     ["invoices", "treasury", "products", "shipments", "branches", "expenses"],
     load
