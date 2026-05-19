@@ -110,6 +110,39 @@ export default function AdminReports() {
   const scopedTreasury = treasury.filter((t) => inScope(t.branch_id));
   const scopedReturns = returns.filter((r) => inScope(r.branch_id));
   const scopedCustomers = customers.filter((c) => inScope(c.branch_id));
+  const scopedPayTx = payTx.filter((t) => inScope(t.branch_id));
+  const scopedOverdue = overdueIns.filter((o: any) => inScope(o.payment_plans?.branch_id));
+  const scopedPlans = payPlans.filter((p) => inScope(p.branch_id));
+
+  // ====== Payments / commissions analysis ======
+  const commissionAnalysis = useMemo(() => {
+    const methods = ["cash", "vodafone", "instapay", "bank"] as const;
+    const byMethod = methods.map((m) => {
+      const txs = scopedPayTx.filter((t) => t.payment_method === m);
+      const volume = txs.reduce((s, t) => s + Number(t.amount), 0);
+      const fees = txs.reduce((s, t) => s + Number(t.fee_amount || 0), 0);
+      return { method: m, label: m === "cash" ? "نقدي" : m === "vodafone" ? "فودافون كاش" : m === "instapay" ? "انستاباي" : "بنك", count: txs.length, volume, fees };
+    });
+    const totalFees = byMethod.reduce((s, x) => s + x.fees, 0);
+    const totalVolume = byMethod.reduce((s, x) => s + x.volume, 0);
+    return { byMethod, totalFees, totalVolume };
+  }, [scopedPayTx]);
+
+  // ====== Top overdue customers ======
+  const topOverdueCustomers = useMemo(() => {
+    const map = new Map<string, { name: string; type: string; branch_id: string; overdueCount: number; overdueAmount: number }>();
+    scopedOverdue.forEach((i: any) => {
+      const pp = i.payment_plans;
+      if (!pp) return;
+      const key = `${pp.entity_type}:${pp.entity_name}`;
+      const row = map.get(key) ?? { name: pp.entity_name, type: pp.entity_type, branch_id: pp.branch_id, overdueCount: 0, overdueAmount: 0 };
+      row.overdueCount += 1;
+      row.overdueAmount += Number(i.amount) - Number(i.paid_amount || 0);
+      map.set(key, row);
+    });
+    return Array.from(map.values()).sort((a, b) => b.overdueAmount - a.overdueAmount).slice(0, 20);
+  }, [scopedOverdue]);
+
 
   // ============ Aggregated KPIs for current scope ============
   const k = useMemo(() => {
