@@ -545,6 +545,33 @@ export default function NewSale() {
             )}
           </div>
 
+          {/* Credit / installments */}
+          <div className="card-elevated p-5">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={creditMode} onChange={(e) => setCreditMode(e.target.checked)} className="w-4 h-4" />
+              <span className="font-bold">بيع بالآجل (تسجيل المتبقي كمديونية)</span>
+            </label>
+            {creditMode && (
+              <div className="mt-3 space-y-3">
+                <div className="text-sm flex justify-between p-2 rounded bg-warning/10 border border-warning/30">
+                  <span>المتبقي كآجل:</span>
+                  <b className="text-warning">{formatEGP(creditRemaining)}</b>
+                </div>
+                {creditRemaining > 0 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setScheduleType("open")} className={`px-2 py-1.5 text-sm rounded border ${scheduleType === "open" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>مفتوح</button>
+                      <button type="button" onClick={() => setScheduleType("scheduled")} className={`px-2 py-1.5 text-sm rounded border ${scheduleType === "scheduled" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>أقساط محددة</button>
+                    </div>
+                    {scheduleType === "scheduled" && (
+                      <InstallmentScheduler remaining={creditRemaining} value={installments} onChange={setInstallments} />
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي قبل الخصم</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
