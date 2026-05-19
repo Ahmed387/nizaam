@@ -209,7 +209,10 @@ export default function NewSale() {
     setPayments(payments.map((p, i) => i === idx ? { ...p, ...patch } : p));
 
   const paymentsSum = useMemo(() => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0), [payments]);
-  const paymentsValid = payments.length === 0 || Math.abs(paymentsSum - total) < 0.01;
+  const creditRemaining = Math.max(0, total - paymentsSum);
+  const paymentsValid = creditMode
+    ? paymentsSum <= total + 0.01
+    : (payments.length === 0 || Math.abs(paymentsSum - total) < 0.01);
 
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
