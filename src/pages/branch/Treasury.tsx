@@ -13,70 +13,138 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
+import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
+import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
-import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2 } from "lucide-react";
+import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark } from "lucide-react";
+
+interface WalletBalances {
+  cash_balance: number;
+  vodafone_balance: number;
+  instapay_balance: number;
+  bank_balance: number;
+  total_balance: number;
+}
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile, branches, isAdmin, hasRole } = useAuth();
   const canTransfer = isAdmin || hasRole("branch_manager");
+  const canSeeBalances = isAdmin || hasRole("branch_manager") || hasRole("viewer");
 
   const [rows, setRows] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
+  const [walletBalances, setWalletBalances] = useState<WalletBalances>({
+    cash_balance: 0, vodafone_balance: 0, instapay_balance: 0, bank_balance: 0, total_balance: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "income" | "expense">("all");
+  const [methodFilter, setMethodFilter] = useState<"all" | PaymentMethod>("all");
   const [openTransfer, setOpenTransfer] = useState(false);
   const [openExpense, setOpenExpense] = useState(false);
+  const [openReject, setOpenReject] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [tForm, setTForm] = useState({ to: "", amount: "", reason: "" });
+  const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [eForm, setEForm] = useState({ type: "operational", amount: "", description: "" });
+  const [ePayment, setEPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [editing, setEditing] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const [tr, tt] = await Promise.all([
+    const [tr, tt, wb] = await Promise.all([
       supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
+      supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
     ]);
-    setRows(tr.data ?? []); setTransfers(tt.data ?? []); setLoading(false);
+    setRows(tr.data ?? []);
+    setTransfers(tt.data ?? []);
+    if (wb.data && wb.data[0]) setWalletBalances(wb.data[0] as any);
+    setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
 
-  const balance = useMemo(() => rows.reduce((s, r) => s + (r.type === "income" ? 1 : -1) * Number(r.amount), 0), [rows]);
-  const filtered = rows.filter((r) => tab === "all" || r.type === tab);
+  const filtered = rows.filter((r) =>
+    (tab === "all" || r.type === tab) &&
+    (methodFilter === "all" || r.payment_method === methodFilter)
+  );
 
   const transfer = async () => {
     if (!tForm.to || !tForm.amount) return toast.error("املأ البيانات");
     const amt = Number(tForm.amount);
     if (amt <= 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
-    if (amt > balance) return toast.error(`الرصيد غير كافٍ — المتاح: ${formatEGP(balance)}`);
+    if (tPayment.method !== "cash" && !tPayment.reference_number) return toast.error("رقم العملية مطلوب");
+
+    const walletKey = `${tPayment.method}_balance` as keyof WalletBalances;
+    const available = walletBalances[walletKey];
+    if (available < amt + tPayment.fee_amount) {
+      return toast.error(`رصيد وعاء ${PAYMENT_METHOD_LABELS[tPayment.method]} غير كافٍ — المتاح: ${formatEGP(available)}`);
+    }
+
     const { error } = await supabase.rpc("transfer_treasury_atomic", {
-      p_from_branch: branchId!, p_to_branch: tForm.to, p_amount: amt, p_reason: tForm.reason || null,
-    });
+      p_from_branch: branchId!,
+      p_to_branch: tForm.to,
+      p_amount: amt,
+      p_reason: tForm.reason || null,
+      p_payment_method: tPayment.method,
+      p_fee_amount: tPayment.fee_amount,
+      p_reference_number: tPayment.reference_number || null,
+      p_transfer_to_account: tPayment.transfer_to_account || null,
+    } as any);
     if (error) return toast.error(error.message);
 
     const toBr = branches.find((b) => b.id === tForm.to);
     const recipients = await getBranchManagers(tForm.to);
     await notifyMany(recipients, {
-      title: "💰 تحويل خزنة وارد",
-      body: `استلمت خزنة فرعك ${formatEGP(amt)}${tForm.reason ? ` — ${tForm.reason}` : ""}`,
+      title: "💰 طلب استلام تحويل خزنة",
+      body: `${formatEGP(amt)} عبر ${PAYMENT_METHOD_LABELS[tPayment.method]}${tPayment.reference_number ? ` — رقم: ${tPayment.reference_number}` : ""}`,
       type: "general",
       link: `/branch/${tForm.to}/treasury`,
       relatedEntity: "treasury_transfer",
     });
 
     toast.success(`تم تحويل ${formatEGP(amt)} لـ ${toBr?.name ?? "الفرع"}`);
-    setOpenTransfer(false); setTForm({ to: "", amount: "", reason: "" }); load();
+    setOpenTransfer(false);
+    setTForm({ to: "", amount: "", reason: "" });
+    setTPayment(emptyPaymentValue("cash"));
+    load();
   };
 
   const expense = async () => {
     if (!eForm.amount) return toast.error("أدخل المبلغ");
-    await supabase.from("expenses").insert({
-      branch_id: branchId!, type: eForm.type, amount: Number(eForm.amount),
-      description: eForm.description, date: new Date().toISOString().slice(0, 10), created_by: user!.id,
-    });
-    // Note: expense_to_treasury trigger auto-creates the treasury entry
+    if (ePayment.method !== "cash" && !ePayment.reference_number) return toast.error("رقم العملية مطلوب");
+
+    const { error } = await supabase.from("expenses").insert({
+      branch_id: branchId!,
+      type: eForm.type,
+      amount: Number(eForm.amount),
+      description: eForm.description,
+      date: new Date().toISOString().slice(0, 10),
+      created_by: user!.id,
+      payment_method: ePayment.method,
+      reference_number: ePayment.reference_number || null,
+      transfer_to_account: ePayment.transfer_to_account || null,
+    } as any);
+    if (error) return toast.error(error.message);
+
+    // If non-cash and has fee, log fee as separate expense
+    if (ePayment.fee_amount > 0) {
+      await supabase.from("expenses").insert({
+        branch_id: branchId!,
+        type: "transfer_fee",
+        amount: ePayment.fee_amount,
+        description: `عمولة دفع ${PAYMENT_METHOD_LABELS[ePayment.method]} — ${eForm.description || ""}`.trim(),
+        date: new Date().toISOString().slice(0, 10),
+        created_by: user!.id,
+        payment_method: ePayment.method,
+      } as any);
+    }
+
     toast.success("تم تسجيل المصروف");
-    setOpenExpense(false); setEForm({ type: "operational", amount: "", description: "" }); load();
+    setOpenExpense(false);
+    setEForm({ type: "operational", amount: "", description: "" });
+    setEPayment(emptyPaymentValue("cash"));
+    load();
   };
 
   const removeRow = async (r: any) => {
@@ -102,12 +170,30 @@ export default function Treasury() {
     toast.success("تم تأكيد الاستلام"); load();
   };
 
+  const reject = async () => {
+    if (!openReject) return;
+    if (!rejectReason.trim()) return toast.error("اكتب سبب الرفض");
+    const { error } = await supabase.rpc("reject_treasury_transfer", {
+      p_transfer_id: openReject.id, p_reason: rejectReason,
+    } as any);
+    if (error) return toast.error(error.message);
+    toast.success("تم رفض التحويل وإرجاع المبلغ للمرسِل");
+    setOpenReject(null); setRejectReason(""); load();
+  };
+
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
 
+  const wallets = [
+    { key: "cash_balance" as const, label: "نقدي", icon: Wallet, color: "text-success", method: "cash" as const },
+    { key: "vodafone_balance" as const, label: "فودافون كاش", icon: Smartphone, color: "text-rose-500", method: "vodafone" as const },
+    { key: "instapay_balance" as const, label: "انستاباي", icon: CreditCard, color: "text-violet-500", method: "instapay" as const },
+    { key: "bank_balance" as const, label: "حساب بنكي", icon: Landmark, color: "text-blue-500", method: "bank" as const },
+  ];
+
   return (
     <BranchLayout>
-      <PageHeader title="الخزنة"
+      <PageHeader title="الخزينة"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setOpenExpense(true)}><Plus className="w-4 h-4 ml-1" /> مصروف</Button>
@@ -120,10 +206,30 @@ export default function Treasury() {
         }
       />
 
-      <div className="card-elevated p-6 mb-6 text-center">
-        <div className="text-sm text-muted-foreground mb-2">رصيد الخزنة الحالي</div>
-        <div className="text-4xl md:text-5xl font-extrabold gradient-text">{formatEGP(balance)}</div>
-      </div>
+      {canSeeBalances ? (
+        <div className="card-elevated p-6 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {wallets.map((w) => {
+              const Icon = w.icon;
+              return (
+                <div key={w.key} className="bg-surface-2 rounded-lg p-4 text-center">
+                  <Icon className={`w-6 h-6 mx-auto mb-2 ${w.color}`} />
+                  <div className="text-xs text-muted-foreground mb-1">{w.label}</div>
+                  <div className="text-lg font-bold">{formatEGP(walletBalances[w.key])}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t pt-4 text-center">
+            <div className="text-sm text-muted-foreground mb-1">الإجمالي</div>
+            <div className="text-3xl md:text-4xl font-extrabold gradient-text">{formatEGP(walletBalances.total_balance)}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="card-elevated p-6 mb-6 text-center text-muted-foreground">
+          أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
+        </div>
+      )}
 
       <Tabs defaultValue="movements">
         <TabsList>
@@ -132,10 +238,17 @@ export default function Treasury() {
         </TabsList>
 
         <TabsContent value="movements" className="mt-4">
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             {(["all", "income", "expense"] as const).map((t) => (
               <Button key={t} variant={tab === t ? "default" : "outline"} size="sm" onClick={() => setTab(t)}>
                 {t === "all" ? "الكل" : t === "income" ? "دخول" : "خروج"}
+              </Button>
+            ))}
+            <div className="w-px bg-border mx-1" />
+            <Button variant={methodFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setMethodFilter("all")}>كل الأوعية</Button>
+            {(["cash","vodafone","instapay","bank"] as PaymentMethod[]).map((m) => (
+              <Button key={m} variant={methodFilter === m ? "default" : "outline"} size="sm" onClick={() => setMethodFilter(m)}>
+                {PAYMENT_METHOD_LABELS[m]}
               </Button>
             ))}
           </div>
@@ -148,8 +261,14 @@ export default function Treasury() {
                   {r.type === "income" ? "💚 دخول" : "🔴 خروج"}
                 </span>
               )},
-              { key: "category", header: "التصنيف" },
+              { key: "payment_method", header: "الوعاء", render: (r: any) => (
+                <span className="text-xs px-2 py-0.5 rounded bg-muted">{PAYMENT_METHOD_LABELS[(r.payment_method ?? "cash") as PaymentMethod]}</span>
+              )},
+              { key: "category", header: "التصنيف", render: (r: any) => (
+                <span>{r.category}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
+              )},
               { key: "description", header: "الوصف" },
+              { key: "reference_number", header: "رقم العملية", render: (r: any) => r.reference_number ?? "—" },
               { key: "amount", header: "المبلغ", render: (r: any) => (
                 <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
@@ -176,12 +295,24 @@ export default function Treasury() {
               { key: "from", header: "من", render: (r: any) => r.from_branch?.name ?? "—" },
               { key: "to", header: "إلى", render: (r: any) => r.to_branch?.name ?? "—" },
               { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold">{formatEGP(r.amount)}</span> },
+              { key: "method", header: "طريقة الدفع", render: (r: any) => (
+                <span className="text-xs">{PAYMENT_METHOD_LABELS[(r.payment_method ?? "cash") as PaymentMethod]}</span>
+              )},
+              { key: "fee", header: "عمولة", render: (r: any) => Number(r.fee_amount) > 0 ? <span className="text-warning text-xs">{formatEGP(r.fee_amount)}</span> : "—" },
+              { key: "ref", header: "رقم العملية", render: (r: any) => r.reference_number ?? "—" },
               { key: "reason", header: "السبب", render: (r: any) => r.reason ?? "—" },
-              { key: "ack", header: "الاستلام", render: (r: any) => (
-                r.acknowledged_at
+              { key: "ack", header: "الحالة", render: (r: any) => (
+                r.rejected_at
+                  ? <span className="text-xs px-2 py-1 rounded bg-destructive/15 text-destructive font-bold">✗ مرفوض</span>
+                  : r.acknowledged_at
                   ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">✓ مؤكد {formatDateTime(r.acknowledged_at)}</span>
                   : r.to_branch_id === branchId && canAck
-                    ? <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد الاستلام</Button>
+                    ? (
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد</Button>
+                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => setOpenReject(r)}><XCircle className="w-3.5 h-3.5 ml-1" /> رفض</Button>
+                      </div>
+                    )
                     : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار التأكيد</span>
               )},
             ]} />
@@ -189,27 +320,35 @@ export default function Treasury() {
       </Tabs>
 
       <Dialog open={openTransfer} onOpenChange={setOpenTransfer}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>تحويل لفرع آخر</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="bg-muted/50 rounded-lg p-3 text-sm">
-              الرصيد المتاح: <span className="font-bold">{formatEGP(balance)}</span>
-            </div>
-            <div><Label>الفرع المستهدف *</Label>
+            {canSeeBalances && (
+              <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-0.5">
+                <div>وعاء {PAYMENT_METHOD_LABELS[tPayment.method]}: <span className="font-bold">{formatEGP(walletBalances[`${tPayment.method}_balance` as keyof WalletBalances])}</span></div>
+                <div>الإجمالي الكلي: <span className="font-bold">{formatEGP(walletBalances.total_balance)}</span></div>
+              </div>
+            )}
+            <div>
+              <Label>الفرع المستهدف *</Label>
               <select className="w-full bg-input border border-border rounded-lg p-2 mt-1.5" value={tForm.to} onChange={(e) => setTForm({...tForm, to: e.target.value})}>
                 <option value="">— اختر —</option>
                 {otherBranches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div><Label>المبلغ *</Label><Input type="number" value={tForm.amount} onChange={(e) => setTForm({...tForm, amount: e.target.value})} className="mt-1.5" /></div>
-            <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" /></div>
+            <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" rows={2} /></div>
+            <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" />
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpenTransfer(false)}>إلغاء</Button><Button className="btn-gradient" onClick={transfer}>تحويل</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenTransfer(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={transfer}>تحويل</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={openExpense} onOpenChange={setOpenExpense}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>تسجيل مصروف</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>النوع</Label>
@@ -220,9 +359,13 @@ export default function Treasury() {
               </select>
             </div>
             <div><Label>المبلغ *</Label><Input type="number" value={eForm.amount} onChange={(e) => setEForm({...eForm, amount: e.target.value})} className="mt-1.5" /></div>
-            <div><Label>الوصف</Label><Textarea value={eForm.description} onChange={(e) => setEForm({...eForm, description: e.target.value})} className="mt-1.5" /></div>
+            <div><Label>الوصف</Label><Textarea value={eForm.description} onChange={(e) => setEForm({...eForm, description: e.target.value})} className="mt-1.5" rows={2} /></div>
+            <PaymentMethodPicker amount={Number(eForm.amount) || 0} value={ePayment} onChange={setEPayment} />
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpenExpense(false)}>إلغاء</Button><Button className="btn-gradient" onClick={expense}>تسجيل</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenExpense(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={expense}>تسجيل</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -237,6 +380,25 @@ export default function Treasury() {
             </div>
           )}
           <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button><Button className="btn-gradient" onClick={saveEdit}>حفظ</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!openReject} onOpenChange={(v) => !v && setOpenReject(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="text-destructive">رفض التحويل</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              المبلغ {openReject && formatEGP(openReject.amount)} سيُعاد لخزينة المرسِل. العمولة (إن وُجدت) لا تُسترد.
+            </p>
+            <div>
+              <Label>سبب الرفض *</Label>
+              <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="mt-1.5" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOpenReject(null); setRejectReason(""); }}>إلغاء</Button>
+            <Button variant="destructive" onClick={reject}>تأكيد الرفض</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </BranchLayout>

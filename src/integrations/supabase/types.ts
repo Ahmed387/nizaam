@@ -526,7 +526,10 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          payment_method: string
+          reference_number: string | null
           tenant_id: string | null
+          transfer_to_account: string | null
           type: string
         }
         Insert: {
@@ -537,7 +540,10 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          payment_method?: string
+          reference_number?: string | null
           tenant_id?: string | null
+          transfer_to_account?: string | null
           type: string
         }
         Update: {
@@ -548,7 +554,10 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          payment_method?: string
+          reference_number?: string | null
           tenant_id?: string | null
+          transfer_to_account?: string | null
           type?: string
         }
         Relationships: [
@@ -794,6 +803,200 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      payment_installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          notes: string | null
+          paid_amount: number
+          paid_at: string | null
+          payment_plan_id: string
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          notes?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          payment_plan_id: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          payment_plan_id?: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_installments_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_plans: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          fee_on_customer: boolean
+          id: string
+          notes: string | null
+          paid_amount: number
+          plan_type: string
+          reference_id: string | null
+          reference_type: string | null
+          remaining_amount: number
+          status: string
+          tenant_id: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          fee_on_customer?: boolean
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          plan_type?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          remaining_amount?: number
+          status?: string
+          tenant_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          entity_id?: string
+          entity_name?: string
+          entity_type?: string
+          fee_on_customer?: boolean
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          plan_type?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          remaining_amount?: number
+          status?: string
+          tenant_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          created_by: string
+          direction: string
+          fee_amount: number
+          fee_treasury_id: string | null
+          fee_type: string | null
+          id: string
+          installment_id: string | null
+          payment_method: string
+          payment_plan_id: string | null
+          received_by_name: string | null
+          reference_number: string | null
+          tenant_id: string | null
+          total_with_fee: number
+          transfer_to_account: string | null
+          treasury_id: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          created_at?: string
+          created_by: string
+          direction: string
+          fee_amount?: number
+          fee_treasury_id?: string | null
+          fee_type?: string | null
+          id?: string
+          installment_id?: string | null
+          payment_method: string
+          payment_plan_id?: string | null
+          received_by_name?: string | null
+          reference_number?: string | null
+          tenant_id?: string | null
+          total_with_fee: number
+          transfer_to_account?: string | null
+          treasury_id?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          direction?: string
+          fee_amount?: number
+          fee_treasury_id?: string | null
+          fee_type?: string | null
+          id?: string
+          installment_id?: string | null
+          payment_method?: string
+          payment_plan_id?: string | null
+          received_by_name?: string | null
+          reference_number?: string | null
+          tenant_id?: string | null
+          total_with_fee?: number
+          transfer_to_account?: string | null
+          treasury_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pre_order_transactions: {
         Row: {
@@ -1673,6 +1876,39 @@ export type Database = {
         }
         Relationships: []
       }
+      transfer_fees: {
+        Row: {
+          created_at: string
+          fee_type: string
+          fee_value: number
+          id: string
+          payment_method: string
+          tenant_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          fee_type?: string
+          fee_value?: number
+          id?: string
+          payment_method: string
+          tenant_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          fee_type?: string
+          fee_value?: number
+          id?: string
+          payment_method?: string
+          tenant_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       treasury: {
         Row: {
           amount: number
@@ -1682,8 +1918,12 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          is_fee: boolean
+          payment_method: string
           reference_id: string | null
+          reference_number: string | null
           tenant_id: string | null
+          transfer_to_account: string | null
           type: Database["public"]["Enums"]["treasury_type"]
         }
         Insert: {
@@ -1694,8 +1934,12 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          is_fee?: boolean
+          payment_method?: string
           reference_id?: string | null
+          reference_number?: string | null
           tenant_id?: string | null
+          transfer_to_account?: string | null
           type: Database["public"]["Enums"]["treasury_type"]
         }
         Update: {
@@ -1706,8 +1950,12 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          is_fee?: boolean
+          payment_method?: string
           reference_id?: string | null
+          reference_number?: string | null
           tenant_id?: string | null
+          transfer_to_account?: string | null
           type?: Database["public"]["Enums"]["treasury_type"]
         }
         Relationships: [
@@ -1733,14 +1981,19 @@ export type Database = {
           acknowledged_by: string | null
           amount: number
           created_at: string
+          fee_amount: number
           from_branch_id: string
           id: string
           payment_method: string | null
           reason: string | null
           received_by: string | null
           reference_number: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           tenant_id: string | null
           to_branch_id: string
+          transfer_to_account: string | null
           transferred_by: string
         }
         Insert: {
@@ -1748,14 +2001,19 @@ export type Database = {
           acknowledged_by?: string | null
           amount: number
           created_at?: string
+          fee_amount?: number
           from_branch_id: string
           id?: string
           payment_method?: string | null
           reason?: string | null
           received_by?: string | null
           reference_number?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           tenant_id?: string | null
           to_branch_id: string
+          transfer_to_account?: string | null
           transferred_by: string
         }
         Update: {
@@ -1763,14 +2021,19 @@ export type Database = {
           acknowledged_by?: string | null
           amount?: number
           created_at?: string
+          fee_amount?: number
           from_branch_id?: string
           id?: string
           payment_method?: string | null
           reason?: string | null
           received_by?: string | null
           reference_number?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           tenant_id?: string | null
           to_branch_id?: string
+          transfer_to_account?: string | null
           transferred_by?: string
         }
         Relationships: [
@@ -1865,6 +2128,10 @@ export type Database = {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
       }
+      calculate_payment_fee: {
+        Args: { p_amount: number; p_method: string }
+        Returns: number
+      }
       cancel_pre_order: {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
@@ -1919,6 +2186,16 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: string
       }
+      get_branch_wallet_balances: {
+        Args: { p_branch_id: string }
+        Returns: {
+          bank_balance: number
+          cash_balance: number
+          instapay_balance: number
+          total_balance: number
+          vodafone_balance: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1948,6 +2225,10 @@ export type Database = {
         Returns: string
       }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
+      reject_treasury_transfer: {
+        Args: { p_reason: string; p_transfer_id: string }
+        Returns: undefined
+      }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
         Args: {
@@ -1971,9 +2252,13 @@ export type Database = {
       transfer_treasury_atomic: {
         Args: {
           p_amount: number
+          p_fee_amount?: number
           p_from_branch: string
+          p_payment_method?: string
           p_reason: string
+          p_reference_number?: string
           p_to_branch: string
+          p_transfer_to_account?: string
         }
         Returns: string
       }
