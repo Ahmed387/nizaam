@@ -497,6 +497,7 @@ export default function EmployeeProfile() {
             <div><Label>المبلغ *</Label><Input type="number" value={advForm.amount} onChange={(e) => setAdvForm({ ...advForm, amount: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الخصم الشهري *</Label><Input type="number" value={advForm.monthly_deduct} onChange={(e) => setAdvForm({ ...advForm, monthly_deduct: e.target.value })} className="mt-1.5" /></div>
             <div><Label>السبب</Label><Textarea rows={2} value={advForm.reason} onChange={(e) => setAdvForm({ ...advForm, reason: e.target.value })} className="mt-1.5" /></div>
+            <PaymentMethodPicker amount={Number(advForm.amount) || 0} value={advPm} onChange={setAdvPm} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdvOpen(false)}>إلغاء</Button>
@@ -521,6 +522,7 @@ export default function EmployeeProfile() {
               <span>الصافي</span>
               <b className="text-primary">{formatEGP(Number(emp.base_salary) + Number(salForm.bonuses || 0) - Number(salForm.deductions || 0) - Number(salForm.advance_deduct || 0))}</b>
             </div>
+            <PaymentMethodPicker amount={Number(emp.base_salary) + Number(salForm.bonuses || 0) - Number(salForm.deductions || 0) - Number(salForm.advance_deduct || 0)} value={salPm} onChange={setSalPm} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSalOpen(false)}>إلغاء</Button>
