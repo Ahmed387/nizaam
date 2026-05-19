@@ -552,6 +552,53 @@ export default function AdminReports() {
               ]} />
           </TabsContent>
         )}
+
+        <TabsContent value="payments" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي المعاملات" value={formatEGP(commissionAnalysis.totalVolume)} icon={<Wallet className="w-4 h-4" />} hint={`${scopedPayTx.length} معاملة`} />
+            <MiniKpi label="إجمالي العمولات" value={formatEGP(commissionAnalysis.totalFees)} icon={<Receipt className="w-4 h-4" />} accent="warning" />
+            <MiniKpi label="نسبة العمولة من الحجم" value={`${commissionAnalysis.totalVolume > 0 ? ((commissionAnalysis.totalFees / commissionAnalysis.totalVolume) * 100).toFixed(2) : "0"}%`} icon={<TrendingDown className="w-4 h-4" />} />
+          </div>
+          <div className="card-elevated p-5">
+            <h4 className="font-bold mb-4">المعاملات حسب طريقة الدفع</h4>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={commissionAnalysis.byMethod.map((m) => ({ name: m.label, "حجم المعاملات": m.volume, "عمولة": m.fees }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Legend />
+                <Bar dataKey="حجم المعاملات" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="عمولة" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <DataTable rows={commissionAnalysis.byMethod} loading={loading} empty="لا توجد معاملات"
+            columns={[
+              { key: "label", header: "طريقة الدفع", render: (r: any) => <b>{r.label}</b> },
+              { key: "count", header: "عدد المعاملات" },
+              { key: "volume", header: "إجمالي الحجم", render: (r: any) => formatEGP(r.volume) },
+              { key: "fees", header: "إجمالي العمولة", render: (r: any) => <b className="text-warning">{formatEGP(r.fees)}</b> },
+              { key: "ratio", header: "نسبة العمولة", render: (r: any) => <span className="text-muted-foreground">{r.volume > 0 ? ((r.fees / r.volume) * 100).toFixed(2) : "0"}%</span> },
+            ]} />
+        </TabsContent>
+
+        <TabsContent value="overdue" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي خطط نشطة" value={String(scopedPlans.length)} icon={<Layers className="w-4 h-4" />} />
+            <MiniKpi label="عدد الأقساط المتأخرة" value={String(scopedOverdue.length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
+            <MiniKpi label="إجمالي قيمة المتأخرات" value={formatEGP(scopedOverdue.reduce((s: number, i: any) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0))} icon={<Wallet className="w-4 h-4" />} accent="destructive" />
+          </div>
+          <h4 className="font-bold mt-4">أكثر العملاء/الجهات تأخرًا</h4>
+          <DataTable rows={topOverdueCustomers} loading={loading} empty="✅ لا توجد متأخرات"
+            columns={[
+              { key: "name", header: "الاسم", render: (r: any) => <b>{r.name}</b> },
+              { key: "type", header: "النوع", render: (r: any) => r.type === "customer" ? "عميل" : r.type === "supplier" ? "مورد" : "موظف" },
+              { key: "branch", header: "الفرع", render: (r: any) => branches.find((b) => b.id === r.branch_id)?.name ?? "—" },
+              { key: "overdueCount", header: "أقساط متأخرة", render: (r: any) => <b className="text-warning">{r.overdueCount}</b> },
+              { key: "overdueAmount", header: "إجمالي المتأخر", render: (r: any) => <b className="text-destructive">{formatEGP(r.overdueAmount)}</b> },
+            ]} />
+        </TabsContent>
       </Tabs>
     </AdminLayout>
   );
