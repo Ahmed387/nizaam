@@ -66,6 +66,7 @@ export default function CustomerProfile() {
       {customerId && <div className="mb-6"><PaymentPlansPanel entityType="customer" entityId={customerId} direction="in" /></div>}
 
       <h3 className="font-bold mb-3">سجل الفواتير</h3>
+      <DataTable
         loading={loading}
         rows={invoices}
         onRowClick={(r: any) => nav(`/branch/${branchId}/sales/${r.id}`)}
