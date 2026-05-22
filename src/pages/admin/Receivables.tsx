@@ -105,7 +105,8 @@ export default function Receivables() {
 
   const renderTable = (rows: Plan[]) => (
     <Card className="overflow-hidden">
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full text-sm min-w-[900px]">
         <thead className="bg-surface-2">
           <tr>
             <th className="px-3 py-2 text-right">الجهة</th>
