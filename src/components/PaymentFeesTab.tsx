@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
 import { Loader2, Save, Smartphone, CreditCard, Landmark } from "lucide-react";
 import { loadTransferFees } from "@/lib/paymentMethods";
