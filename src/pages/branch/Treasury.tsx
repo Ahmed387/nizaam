@@ -109,6 +109,7 @@ export default function Treasury() {
     setOpenTransfer(false);
     setTForm({ to: "", amount: "", reason: "" });
     setTPayment(emptyPaymentValue("cash"));
+    setTFeeCharged(true);
     load();
   };
 
