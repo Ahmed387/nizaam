@@ -568,7 +568,8 @@ export default function AllSuppliers() {
                         </div>
                       </div>
                       {items.length > 0 ? (
-                        <table className="w-full text-sm">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[500px]">
                           <thead className="bg-background">
                             <tr className="text-xs text-muted-foreground border-b">
                               <th className="text-right p-2">الصنف</th>
@@ -588,9 +589,11 @@ export default function AllSuppliers() {
                             ))}
                           </tbody>
                         </table>
+                        </div>
                       ) : (
                         <div className="p-3 text-xs text-muted-foreground">لا توجد أصناف مسجّلة لهذه الشحنة.</div>
                       )}
+
                       {sh.notes && <div className="p-2 text-xs text-muted-foreground border-t bg-muted/20">📝 {sh.notes}</div>}
                     </div>
                   );

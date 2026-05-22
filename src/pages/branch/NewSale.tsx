@@ -455,7 +455,8 @@ export default function NewSale() {
             {items.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">ابحث عن منتج لإضافته</div>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[700px]">
                 <thead><tr className="bg-surface-2 text-xs">
                   <th className="p-2 text-right">المنتج</th>
                   <th className="p-2">الكمية</th>
@@ -506,7 +507,9 @@ export default function NewSale() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
+
           </div>
         </div>
 

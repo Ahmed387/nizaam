@@ -155,7 +155,8 @@ export default function NewReturn() {
           </div>
 
           <div className="card-elevated overflow-hidden mb-4">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
               <thead><tr className="bg-surface-2 border-b border-border">
                 <th className="px-4 py-2 text-right">المنتج</th>
                 <th className="px-4 py-2 text-right">المباع</th>
@@ -183,6 +184,8 @@ export default function NewReturn() {
                 ))}
               </tbody>
             </table>
+            </div>
+
           </div>
 
           <div className="card-elevated p-4 grid md:grid-cols-3 gap-4 items-end">
