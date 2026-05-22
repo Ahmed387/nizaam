@@ -156,6 +156,7 @@ export default function Settings() {
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
           <TabsTrigger value="payments"><Wallet className="w-4 h-4 ml-1" /> إعدادات المدفوعات</TabsTrigger>
+          <TabsTrigger value="alerts"><BellRing className="w-4 h-4 ml-1" /> تنبيهات الخزينة</TabsTrigger>
           <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
           {isAdminOnly && <TabsTrigger value="data" className="text-destructive"><Trash2 className="w-4 h-4 ml-1" /> إدارة البيانات</TabsTrigger>}
         </TabsList>
