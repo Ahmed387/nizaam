@@ -23,7 +23,7 @@ const METHODS: { value: FeeRow["payment_method"]; label: string; Icon: any }[] =
 ];
 
 export function PaymentFeesTab() {
-  const { user } = useAuth();
+  const { user, profile, tenantId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [fees, setFees] = useState<Record<string, FeeRow>>({});
