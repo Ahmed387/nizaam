@@ -30,12 +30,14 @@ interface Item {
 }
 
 const PAYMENT_METHODS = [
-  { v: "cash", label: "كاش" },
-  { v: "visa", label: "فيزا" },
-  { v: "vodafone_cash", label: "فودافون كاش" },
-  { v: "instapay", label: "انستاباي" },
-  { v: "bank_transfer", label: "تحويل بنكي" },
-];
+  { v: "cash", label: "كاش", feeKey: null },
+  { v: "visa", label: "فيزا", feeKey: "bank" },
+  { v: "vodafone_cash", label: "فودافون كاش", feeKey: "vodafone" },
+  { v: "instapay", label: "انستاباي", feeKey: "instapay" },
+  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank" },
+] as const;
+
+const feeKeyFor = (m: string) => PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
 interface PaymentSplit {
   payment_method: string;
@@ -43,6 +45,8 @@ interface PaymentSplit {
   reference_number: string;
   received_by_name: string;
   transfer_to_account: string;
+  fee_amount: number;
+  fee_on_customer: boolean;
 }
 
 export default function NewSale() {
