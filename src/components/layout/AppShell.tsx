@@ -6,6 +6,7 @@ import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { OfflineQueueIndicator } from "@/components/OfflineQueueIndicator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface NavItem {
@@ -178,6 +179,7 @@ export function AppShell({
         </button>
         <div className="font-bold truncate">{title}</div>
         <div className="flex items-center gap-1">
+          <OfflineQueueIndicator />
           <ThemeToggle />
           <NotificationBell />
         </div>
@@ -202,6 +204,7 @@ export function AppShell({
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
           <div className="hidden lg:flex items-center justify-end gap-1 mb-2">
+            <OfflineQueueIndicator />
             <ThemeToggle />
             <NotificationBell />
           </div>

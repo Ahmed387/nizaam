@@ -12,8 +12,9 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera } from "lucide-react";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
@@ -75,6 +76,7 @@ export default function NewSale() {
   const [scanBuffer, setScanBuffer] = useState("");
   const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
   const [payments, setPayments] = useState<PaymentSplit[]>([]);
+  const [cameraOpen, setCameraOpen] = useState(false);
   // Credit / installments
   const [creditMode, setCreditMode] = useState(false);
   const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
@@ -354,12 +356,17 @@ export default function NewSale() {
 
           {/* Search & Scanner */}
           <div className="card-elevated p-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <Label>إضافة منتج</Label>
-              <Button type="button" size="sm" variant={scannerMode ? "default" : "outline"} onClick={() => setScannerMode((s) => !s)} className="gap-2">
-                <ScanLine className="w-4 h-4" />
-                {scannerMode ? "وضع الباركود مُفعّل" : "تفعيل الباركود"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => setCameraOpen(true)} className="gap-2">
+                  <Camera className="w-4 h-4" /> كاميرا
+                </Button>
+                <Button type="button" size="sm" variant={scannerMode ? "default" : "outline"} onClick={() => setScannerMode((s) => !s)} className="gap-2">
+                  <ScanLine className="w-4 h-4" />
+                  {scannerMode ? "وضع الباركود مُفعّل" : "تفعيل الباركود"}
+                </Button>
+              </div>
             </div>
 
             {scannerMode && (
@@ -673,6 +680,13 @@ export default function NewSale() {
         onOpenChange={(v) => { if (!v) setPreOrderItem(null); }}
         branchId={branchId!}
         catalogItem={preOrderItem}
+      />
+
+      <BarcodeCameraScanner
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onScan={(code) => handleScan(code)}
+        continuous
       />
     </BranchLayout>
   );
