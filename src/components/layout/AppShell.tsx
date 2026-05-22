@@ -6,6 +6,7 @@ import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { OfflineQueueIndicator } from "@/components/OfflineQueueIndicator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface NavItem {
