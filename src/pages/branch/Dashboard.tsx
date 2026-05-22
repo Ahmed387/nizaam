@@ -182,6 +182,35 @@ export default function BranchDashboard() {
         </div>
       </div>
 
+      {monthlyTarget > 0 && (() => {
+        const pct = Math.min(100, (salesMonth / monthlyTarget) * 100);
+        const remaining = Math.max(0, monthlyTarget - salesMonth);
+        const onTrack = pct >= 80;
+        return (
+          <div className="card-elevated p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target className={`w-5 h-5 ${onTrack ? "text-success" : "text-warning"}`} />
+                <h3 className="font-bold">هدف الشهر</h3>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {formatEGP(salesMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
+              </div>
+            </div>
+            <Progress value={pct} className="h-3" />
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <span className={onTrack ? "text-success font-semibold" : "text-warning font-semibold"}>
+                {pct.toFixed(1)}% من الهدف
+              </span>
+              <span className="text-muted-foreground">
+                {remaining > 0 ? `متبقي ${formatEGP(remaining)} لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
+
       {/* Charts row */}
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
         <div className="card-elevated p-4 lg:col-span-2">
