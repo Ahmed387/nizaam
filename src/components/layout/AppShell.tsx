@@ -179,6 +179,7 @@ export function AppShell({
         </button>
         <div className="font-bold truncate">{title}</div>
         <div className="flex items-center gap-1">
+          <OfflineQueueIndicator />
           <ThemeToggle />
           <NotificationBell />
         </div>
