@@ -342,6 +342,24 @@ export default function Treasury() {
             <div><Label>المبلغ *</Label><Input type="number" value={tForm.amount} onChange={(e) => setTForm({...tForm, amount: e.target.value})} className="mt-1.5" /></div>
             <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" rows={2} /></div>
             <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" />
+            {tPayment.fee_amount > 0 && (
+              <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm">
+                    <div className="font-medium">هل اتخصمت العمولة فعلاً؟ ({formatEGP(tPayment.fee_amount)})</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {tFeeCharged
+                        ? "العمولة هتفضل كمصروف لو الفرع التاني رفض"
+                        : "العمولة هترجع للخزنة لو الفرع التاني رفض"}
+                    </div>
+                  </div>
+                  <label className="inline-flex items-center gap-2 cursor-pointer shrink-0">
+                    <input type="checkbox" checked={tFeeCharged} onChange={(e) => setTFeeCharged(e.target.checked)} className="w-4 h-4" />
+                    <span className="text-xs">اتخصمت</span>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenTransfer(false)}>إلغاء</Button>
