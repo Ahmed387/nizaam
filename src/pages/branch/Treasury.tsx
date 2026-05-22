@@ -254,6 +254,12 @@ export default function Treasury() {
           <div className="border-t pt-4 text-center">
             <div className="text-sm text-muted-foreground mb-1">الإجمالي</div>
             <div className="text-3xl md:text-4xl font-extrabold gradient-text">{formatEGP(walletBalances.total_balance)}</div>
+            {lowThreshold > 0 && walletBalances.total_balance < lowThreshold && (
+              <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="font-semibold">تنبيه: الرصيد أقل من الحد المسموح ({formatEGP(lowThreshold)})</span>
+              </div>
+            )}
           </div>
         </div>
       ) : (
