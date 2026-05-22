@@ -52,7 +52,8 @@ export default function ShipmentView() {
 
       <div className="card-elevated overflow-hidden">
         <div className="p-4 border-b border-border font-bold">المنتجات ({items.length})</div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[500px]">
           <thead><tr className="bg-surface-2 border-b border-border">
             <th className="px-4 py-2 text-right">المنتج</th>
             <th className="px-4 py-2 text-right">الكمية</th>
@@ -70,6 +71,8 @@ export default function ShipmentView() {
             ))}
           </tbody>
         </table>
+        </div>
+
       </div>
     </BranchLayout>
   );
