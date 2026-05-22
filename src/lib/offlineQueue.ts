@@ -8,6 +8,16 @@ const DB_NAME = "pos_offline";
 const STORE = "pending_sales";
 const VERSION = 1;
 
+export const OFFLINE_QUEUE_EVENT = "offline-queue-change";
+export const OFFLINE_SYNC_STATE_EVENT = "offline-sync-state";
+
+function emitChange() {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OFFLINE_QUEUE_EVENT));
+}
+function emitSync(state: "idle" | "syncing") {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OFFLINE_SYNC_STATE_EVENT, { detail: state }));
+}
+
 export interface PendingSale {
   id?: number;
   created_at: number;
@@ -44,7 +54,7 @@ export async function enqueueSale(payload: PendingSale["payload"]) {
   return new Promise<number>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
     const req = tx.objectStore(STORE).add({ created_at: Date.now(), payload });
-    req.onsuccess = () => resolve(req.result as number);
+    req.onsuccess = () => { emitChange(); resolve(req.result as number); };
     req.onerror = () => reject(req.error);
   });
 }
@@ -63,16 +73,26 @@ export async function removePending(id: number) {
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => { emitChange(); resolve(); };
     tx.onerror = () => reject(tx.error);
   });
+}
+
+export async function countPending(): Promise<number> {
+  const list = await getPending().catch(() => []);
+  return list.length;
 }
 
 let syncing = false;
 
 export async function syncPendingSales(silent = false) {
-  if (syncing || !navigator.onLine) return;
+  if (syncing) return;
+  if (!navigator.onLine) {
+    if (!silent) toast.error("لا يوجد اتصال بالإنترنت");
+    return;
+  }
   syncing = true;
+  emitSync("syncing");
   try {
     const pending = await getPending();
     if (!pending.length) return;
@@ -84,10 +104,13 @@ export async function syncPendingSales(silent = false) {
       if (p.id != null) await removePending(p.id);
       ok++;
     }
-    if (!silent && ok > 0) toast.success(`تمت مزامنة ${ok} فاتورة محفوظة محلياً`);
+    if (ok > 0) toast.success(`تمت مزامنة ${ok} فاتورة محفوظة محلياً`);
     if (fail > 0) toast.error(`فشل مزامنة ${fail} فاتورة — راجع المخزون`);
+    if (ok === 0 && fail === 0 && !silent) toast.info("لا توجد عمليات معلقة");
   } finally {
     syncing = false;
+    emitSync("idle");
+    emitChange();
   }
 }
 
