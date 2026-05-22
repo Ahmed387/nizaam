@@ -356,12 +356,17 @@ export default function NewSale() {
 
           {/* Search & Scanner */}
           <div className="card-elevated p-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <Label>إضافة منتج</Label>
-              <Button type="button" size="sm" variant={scannerMode ? "default" : "outline"} onClick={() => setScannerMode((s) => !s)} className="gap-2">
-                <ScanLine className="w-4 h-4" />
-                {scannerMode ? "وضع الباركود مُفعّل" : "تفعيل الباركود"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => setCameraOpen(true)} className="gap-2">
+                  <Camera className="w-4 h-4" /> كاميرا
+                </Button>
+                <Button type="button" size="sm" variant={scannerMode ? "default" : "outline"} onClick={() => setScannerMode((s) => !s)} className="gap-2">
+                  <ScanLine className="w-4 h-4" />
+                  {scannerMode ? "وضع الباركود مُفعّل" : "تفعيل الباركود"}
+                </Button>
+              </div>
             </div>
 
             {scannerMode && (
