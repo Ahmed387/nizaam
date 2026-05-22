@@ -559,6 +559,32 @@ export default function NewSale() {
                       <>
                         <Input placeholder="رقم العملية / المرجع" value={p.reference_number} onChange={(e) => updatePayment(idx, { reference_number: e.target.value })} />
                         <Input placeholder="رقم الحساب / التليفون" dir="ltr" className="text-right" value={p.transfer_to_account} onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })} />
+                        {p.fee_amount > 0 && (
+                          <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs space-y-1.5">
+                            <div className="flex justify-between">
+                              <span>عمولة التحويل:</span>
+                              <span className="font-bold">{formatEGP(p.fee_amount)}</span>
+                            </div>
+                            <div>
+                              <div className="mb-1 text-muted-foreground">من يتحمل العمولة؟</div>
+                              <div className="flex gap-1.5">
+                                <button type="button" onClick={() => updatePayment(idx, { fee_on_customer: true })}
+                                  className={`flex-1 px-2 py-1 rounded border ${p.fee_on_customer ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>
+                                  العميل
+                                </button>
+                                <button type="button" onClick={() => updatePayment(idx, { fee_on_customer: false })}
+                                  className={`flex-1 px-2 py-1 rounded border ${!p.fee_on_customer ? "bg-destructive text-destructive-foreground border-destructive" : "bg-background"}`}>
+                                  الشركة (مصروف)
+                                </button>
+                              </div>
+                              {p.fee_on_customer ? (
+                                <div className="mt-1 text-success">العميل يحول {formatEGP(p.amount + p.fee_amount)} (المبلغ + العمولة)</div>
+                              ) : (
+                                <div className="mt-1 text-destructive">الشركة تتحمل {formatEGP(p.fee_amount)} كمصروف</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                     <Input placeholder="اسم المستلم" value={p.received_by_name} onChange={(e) => updatePayment(idx, { received_by_name: e.target.value })} />
@@ -568,6 +594,12 @@ export default function NewSale() {
                   <span>مجموع الدفعات</span>
                   <span className="font-bold">{formatEGP(paymentsSum)} / {formatEGP(total)}</span>
                 </div>
+                {companyFeeTotal > 0 && (
+                  <div className="text-xs flex justify-between p-2 rounded bg-destructive/10 text-destructive">
+                    <span>عمولات تتحملها الشركة</span>
+                    <span className="font-bold">- {formatEGP(companyFeeTotal)}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
