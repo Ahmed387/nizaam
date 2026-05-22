@@ -57,6 +57,13 @@ export function PaymentFeesTab() {
     if (error) return toast.error(error.message);
     toast.success(`تم حفظ عمولة ${METHODS.find((m) => m.value === method)?.label}`);
     await loadTransferFees(true); // invalidate cache
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "transfer_fees", entityId: method,
+        details: { method, fee_type: row.fee_type, fee_value: row.fee_value },
+      });
+    }
   };
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
