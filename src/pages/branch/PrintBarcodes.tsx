@@ -23,6 +23,8 @@ interface PrintItem {
 export default function PrintBarcodes() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autoAll = searchParams.get("all") === "1";
   const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Record<string, PrintItem>>({});
@@ -37,8 +39,28 @@ export default function PrintBarcodes() {
       .select("id, name, sku, selling_price")
       .eq("branch_id", branchId)
       .order("name")
-      .then(({ data }) => setProducts(data ?? []));
-  }, [branchId]);
+      .then(({ data }) => {
+        const list = data ?? [];
+        setProducts(list);
+        if (autoAll && list.length) {
+          const all: Record<string, PrintItem> = {};
+          list.forEach((p: any) => {
+            all[p.id] = { id: p.id, name: p.name, sku: p.sku, selling_price: Number(p.selling_price), copies: 1 };
+          });
+          setSelected(all);
+          toast.success(`تم اختيار ${list.length} منتج`);
+        }
+      });
+  }, [branchId, autoAll]);
+
+  const selectAll = () => {
+    const all: Record<string, PrintItem> = {};
+    (search ? filtered : products).forEach((p: any) => {
+      all[p.id] = { id: p.id, name: p.name, sku: p.sku, selling_price: Number(p.selling_price), copies: selected[p.id]?.copies ?? 1 };
+    });
+    setSelected(all);
+  };
+  const clearAll = () => setSelected({});
 
   const filtered = products.filter(
     (p) => !search || p.name.includes(search) || p.sku?.includes(search)
