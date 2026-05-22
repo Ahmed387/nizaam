@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X } from "lucide-react";
@@ -54,7 +55,7 @@ type DiffRow = {
 };
 
 export default function PriceList() {
-  const { tenantId } = useAuth();
+  const { tenantId, user, profile } = useAuth();
   const [sources, setSources] = useState<Source[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,9 +128,25 @@ export default function PriceList() {
 
   // -------- item edits --------
   const updateItemField = async (id: string, patch: Partial<Item>) => {
+    const before = items.find((i) => i.id === id);
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
     const { error } = await supabase.from("price_list_items").update(patch).eq("id", id);
-    if (error) { toast.error(error.message); load(); }
+    if (error) { toast.error(error.message); load(); return; }
+    // Audit price changes
+    const priceFields = ["cost_price", "suggested_sell_price", "display_price"] as const;
+    const changed: Record<string, { from: any; to: any }> = {};
+    for (const f of priceFields) {
+      if (f in patch && before && (patch as any)[f] !== (before as any)[f]) {
+        changed[f] = { from: (before as any)[f], to: (patch as any)[f] };
+      }
+    }
+    if (Object.keys(changed).length && user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "price_list_item", entityId: id,
+        details: { item: before?.product_name, changes: changed },
+      });
+    }
   };
 
   const deleteItem = async (id: string) => {

@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
 import { Loader2, Save, Smartphone, CreditCard, Landmark } from "lucide-react";
 import { loadTransferFees } from "@/lib/paymentMethods";
@@ -22,7 +23,7 @@ const METHODS: { value: FeeRow["payment_method"]; label: string; Icon: any }[] =
 ];
 
 export function PaymentFeesTab() {
-  const { user } = useAuth();
+  const { user, profile, tenantId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [fees, setFees] = useState<Record<string, FeeRow>>({});
@@ -56,6 +57,13 @@ export function PaymentFeesTab() {
     if (error) return toast.error(error.message);
     toast.success(`تم حفظ عمولة ${METHODS.find((m) => m.value === method)?.label}`);
     await loadTransferFees(true); // invalidate cache
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "transfer_fees", entityId: method,
+        details: { method, fee_type: row.fee_type, fee_value: row.fee_value },
+      });
+    }
   };
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
