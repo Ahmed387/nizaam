@@ -681,6 +681,13 @@ export default function NewSale() {
         branchId={branchId!}
         catalogItem={preOrderItem}
       />
+
+      <BarcodeCameraScanner
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onScan={(code) => handleScan(code)}
+        continuous
+      />
     </BranchLayout>
   );
 }
