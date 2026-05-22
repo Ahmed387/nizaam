@@ -46,6 +46,7 @@ export default function Treasury() {
   const [rejectReason, setRejectReason] = useState("");
   const [tForm, setTForm] = useState({ to: "", amount: "", reason: "" });
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
+  const [tFeeCharged, setTFeeCharged] = useState(true);
   const [eForm, setEForm] = useState({ type: "operational", amount: "", description: "" });
   const [ePayment, setEPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [editing, setEditing] = useState<any | null>(null);
