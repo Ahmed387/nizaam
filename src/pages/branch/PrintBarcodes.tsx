@@ -146,6 +146,10 @@ export default function PrintBarcodes() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="بحث..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
           </div>
+          <div className="flex gap-2 mb-3">
+            <Button size="sm" variant="outline" className="flex-1" onClick={selectAll}>تحديد الكل</Button>
+            <Button size="sm" variant="ghost" className="flex-1" onClick={clearAll}>مسح</Button>
+          </div>
           <div className="space-y-1">
             {filtered.map((p) => (
               <label key={p.id} className="flex items-center gap-2 p-2 rounded hover:bg-surface-2 cursor-pointer">
