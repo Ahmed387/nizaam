@@ -1984,6 +1984,7 @@ export type Database = {
           acknowledged_by: string | null
           amount: number
           created_at: string
+          fee_actually_charged: boolean
           fee_amount: number
           from_branch_id: string
           id: string
@@ -2004,6 +2005,7 @@ export type Database = {
           acknowledged_by?: string | null
           amount: number
           created_at?: string
+          fee_actually_charged?: boolean
           fee_amount?: number
           from_branch_id: string
           id?: string
@@ -2024,6 +2026,7 @@ export type Database = {
           acknowledged_by?: string | null
           amount?: number
           created_at?: string
+          fee_actually_charged?: boolean
           fee_amount?: number
           from_branch_id?: string
           id?: string
@@ -2280,19 +2283,34 @@ export type Database = {
         }
         Returns: string
       }
-      transfer_treasury_atomic: {
-        Args: {
-          p_amount: number
-          p_fee_amount?: number
-          p_from_branch: string
-          p_payment_method?: string
-          p_reason: string
-          p_reference_number?: string
-          p_to_branch: string
-          p_transfer_to_account?: string
-        }
-        Returns: string
-      }
+      transfer_treasury_atomic:
+        | {
+            Args: {
+              p_amount: number
+              p_fee_amount?: number
+              p_from_branch: string
+              p_payment_method?: string
+              p_reason: string
+              p_reference_number?: string
+              p_to_branch: string
+              p_transfer_to_account?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_fee_actually_charged?: boolean
+              p_fee_amount?: number
+              p_from_branch: string
+              p_payment_method?: string
+              p_reason: string
+              p_reference_number?: string
+              p_to_branch: string
+              p_transfer_to_account?: string
+            }
+            Returns: string
+          }
       user_in_branch: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
