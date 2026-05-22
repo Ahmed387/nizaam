@@ -16,6 +16,7 @@ import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
 import Suspended from "./pages/Suspended";
+import InstallApp from "./pages/InstallApp";
 
 import AdminDashboard from "./pages/admin/Dashboard";
 import Branches from "./pages/admin/Branches";
@@ -85,6 +86,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/suspended" element={<Suspended />} />
+            <Route path="/install" element={<InstallApp />} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
             {/* Super Admin */}
