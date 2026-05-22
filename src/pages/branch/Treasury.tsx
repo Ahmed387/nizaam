@@ -91,6 +91,7 @@ export default function Treasury() {
       p_fee_amount: tPayment.fee_amount,
       p_reference_number: tPayment.reference_number || null,
       p_transfer_to_account: tPayment.transfer_to_account || null,
+      p_fee_actually_charged: tPayment.fee_amount > 0 ? tFeeCharged : true,
     } as any);
     if (error) return toast.error(error.message);
 
