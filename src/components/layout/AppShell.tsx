@@ -5,6 +5,7 @@ import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog } from "lu
 import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface NavItem {
