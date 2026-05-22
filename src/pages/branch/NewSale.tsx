@@ -216,7 +216,26 @@ export default function NewSale() {
   const updatePayment = (idx: number, patch: Partial<PaymentSplit>) =>
     setPayments(payments.map((p, i) => i === idx ? { ...p, ...patch } : p));
 
+  // Recompute fee for each payment when amount/method/fees change
+  useEffect(() => {
+    setPayments((curr) => {
+      let dirty = false;
+      const next = curr.map((p) => {
+        const fk = feeKeyFor(p.payment_method);
+        const fee = fk ? calculateFee(fk as any, Number(p.amount) || 0, transferFees) : 0;
+        if (fee !== p.fee_amount) { dirty = true; return { ...p, fee_amount: fee }; }
+        return p;
+      });
+      return dirty ? next : curr;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transferFees, JSON.stringify(payments.map((p) => [p.payment_method, p.amount]))]);
+
   const paymentsSum = useMemo(() => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0), [payments]);
+  const companyFeeTotal = useMemo(
+    () => payments.reduce((s, p) => s + (p.fee_on_customer ? 0 : (Number(p.fee_amount) || 0)), 0),
+    [payments]
+  );
   const creditRemaining = Math.max(0, total - paymentsSum);
   const paymentsValid = creditMode
     ? paymentsSum <= total + 0.01
