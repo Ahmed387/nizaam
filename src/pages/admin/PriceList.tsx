@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X } from "lucide-react";
