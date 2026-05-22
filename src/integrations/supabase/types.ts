@@ -655,6 +655,8 @@ export type Database = {
           amount: number
           branch_id: string
           created_at: string
+          fee_amount: number
+          fee_on_customer: boolean
           id: string
           invoice_id: string
           payment_method: string
@@ -667,6 +669,8 @@ export type Database = {
           amount: number
           branch_id: string
           created_at?: string
+          fee_amount?: number
+          fee_on_customer?: boolean
           id?: string
           invoice_id: string
           payment_method: string
@@ -679,6 +683,8 @@ export type Database = {
           amount?: number
           branch_id?: string
           created_at?: string
+          fee_amount?: number
+          fee_on_customer?: boolean
           id?: string
           invoice_id?: string
           payment_method?: string
