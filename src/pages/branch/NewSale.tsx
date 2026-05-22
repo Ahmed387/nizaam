@@ -79,6 +79,9 @@ export default function NewSale() {
   const [creditMode, setCreditMode] = useState(false);
   const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
+  const [transferFees, setTransferFees] = useState<TransferFee[]>([]);
+
+  useEffect(() => { loadTransferFees().then(setTransferFees); }, []);
 
   useEffect(() => {
     if (!branchId) return;
