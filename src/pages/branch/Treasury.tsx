@@ -12,11 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { notifyMany, getBranchManagers } from "@/lib/notifications";
+import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
-import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark } from "lucide-react";
+import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
 
 interface WalletBalances {
   cash_balance: number;
@@ -37,6 +37,7 @@ export default function Treasury() {
   const [walletBalances, setWalletBalances] = useState<WalletBalances>({
     cash_balance: 0, vodafone_balance: 0, instapay_balance: 0, bank_balance: 0, total_balance: 0,
   });
+  const [lowThreshold, setLowThreshold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "income" | "expense">("all");
   const [methodFilter, setMethodFilter] = useState<"all" | PaymentMethod>("all");
@@ -53,15 +54,42 @@ export default function Treasury() {
 
   const load = async () => {
     setLoading(true);
-    const [tr, tt, wb] = await Promise.all([
+    const [tr, tt, wb, br] = await Promise.all([
       supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
+      supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
     ]);
     setRows(tr.data ?? []);
     setTransfers(tt.data ?? []);
-    if (wb.data && wb.data[0]) setWalletBalances(wb.data[0] as any);
+    const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
+    if (balances) setWalletBalances(balances);
+    const threshold = Number((br.data as any)?.low_balance_threshold ?? 0);
+    setLowThreshold(threshold);
     setLoading(false);
+    // Low balance alert + once-per-day notification
+    if (balances && threshold > 0 && Number(balances.total_balance) < threshold) {
+      const key = `low_balance_notified_${branchId}_${new Date().toISOString().slice(0, 10)}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, "1");
+        const brName = (br.data as any)?.name ?? "الفرع";
+        const tenantId = (br.data as any)?.tenant_id;
+        const [managers, admins] = await Promise.all([
+          getBranchManagers(branchId!),
+          tenantId ? getTenantAdmins(tenantId) : Promise.resolve([] as string[]),
+        ]);
+        const recipients = Array.from(new Set([...(managers ?? []), ...(admins ?? [])]));
+        if (recipients.length) {
+          await notifyMany(recipients, {
+            title: "⚠️ تنبيه: رصيد الخزينة منخفض",
+            body: `${brName} — الرصيد الحالي ${formatEGP(Number(balances.total_balance))} أقل من الحد ${formatEGP(threshold)}`,
+            type: "general",
+            link: `/branch/${branchId}/treasury`,
+            relatedEntity: "treasury_low_balance",
+          });
+        }
+      }
+    }
   };
   useEffect(() => { load(); }, [branchId]);
 
@@ -226,6 +254,12 @@ export default function Treasury() {
           <div className="border-t pt-4 text-center">
             <div className="text-sm text-muted-foreground mb-1">الإجمالي</div>
             <div className="text-3xl md:text-4xl font-extrabold gradient-text">{formatEGP(walletBalances.total_balance)}</div>
+            {lowThreshold > 0 && walletBalances.total_balance < lowThreshold && (
+              <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="font-semibold">تنبيه: الرصيد أقل من الحد المسموح ({formatEGP(lowThreshold)})</span>
+              </div>
+            )}
           </div>
         </div>
       ) : (

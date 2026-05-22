@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing } from "lucide-react";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
@@ -31,6 +31,8 @@ export default function Settings() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
+  const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
+  const [savingThresholds, setSavingThresholds] = useState(false);
 
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
@@ -82,15 +84,39 @@ export default function Settings() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("settings").select("*");
+      const [{ data }, { data: brs }] = await Promise.all([
+        supabase.from("settings").select("*"),
+        supabase.from("branches").select("id, low_balance_threshold"),
+      ]);
       for (const row of data ?? []) {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
       }
+      const map: Record<string, number> = {};
+      for (const b of brs ?? []) map[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
+      setBranchThresholds(map);
       setLoading(false);
     })();
   }, []);
+
+  const saveThresholds = async () => {
+    setSavingThresholds(true);
+    try {
+      const updates = Object.entries(branchThresholds).map(([id, v]) =>
+        supabase.from("branches").update({ low_balance_threshold: Number(v) || 0 } as any).eq("id", id)
+      );
+      const results = await Promise.all(updates);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "branches_thresholds", details: branchThresholds });
+      toast.success("تم حفظ حدود التنبيه");
+    } catch (e: any) {
+      toast.error(e.message ?? "خطأ في الحفظ");
+    } finally {
+      setSavingThresholds(false);
+    }
+  };
 
   const saveKey = async (key: string, value: any) => {
     setSaving(true);
@@ -129,6 +155,7 @@ export default function Settings() {
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
           <TabsTrigger value="payments"><Wallet className="w-4 h-4 ml-1" /> إعدادات المدفوعات</TabsTrigger>
+          <TabsTrigger value="alerts"><BellRing className="w-4 h-4 ml-1" /> تنبيهات الخزينة</TabsTrigger>
           <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
           {isAdminOnly && <TabsTrigger value="data" className="text-destructive"><Trash2 className="w-4 h-4 ml-1" /> إدارة البيانات</TabsTrigger>}
         </TabsList>
@@ -201,6 +228,43 @@ export default function Settings() {
             </div>
             <Button onClick={() => saveKey("inventory", inventory)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              حفظ
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="mt-4">
+          <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <BellRing className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold">حد التنبيه لرصيد الخزينة (لكل فرع)</h3>
+                <p className="text-sm text-muted-foreground">
+                  لو الرصيد الإجمالي للفرع نزل تحت القيمة دي، هيظهر تحذير في صفحة الخزينة وهيتبعت إشعار للأدمن ومدير الفرع.
+                  اكتب صفر لتعطيل التنبيه.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {branches.length === 0 && <p className="text-sm text-muted-foreground">لا توجد فروع بعد.</p>}
+              {branches.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 p-2 rounded border">
+                  <div className="flex-1 font-medium">{b.name}</div>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="w-40 text-right"
+                    value={branchThresholds[b.id] ?? 0}
+                    onChange={(e) =>
+                      setBranchThresholds((s) => ({ ...s, [b.id]: Number(e.target.value) }))
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground w-12">جنيه</span>
+                </div>
+              ))}
+            </div>
+            <Button onClick={saveThresholds} disabled={savingThresholds || branches.length === 0} className="gap-2">
+              {savingThresholds ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
             </Button>
           </div>

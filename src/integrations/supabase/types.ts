@@ -315,6 +315,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          low_balance_threshold: number
           name: string
           phone: string | null
           tenant_id: string | null
@@ -325,6 +326,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          low_balance_threshold?: number
           name: string
           phone?: string | null
           tenant_id?: string | null
@@ -335,6 +337,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          low_balance_threshold?: number
           name?: string
           phone?: string | null
           tenant_id?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS low_balance_threshold numeric NOT NULL DEFAULT 0;
