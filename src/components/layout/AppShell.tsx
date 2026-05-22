@@ -5,6 +5,7 @@ import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog } from "lu
 import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface NavItem {
@@ -176,7 +177,10 @@ export function AppShell({
           <Menu className="w-5 h-5" />
         </button>
         <div className="font-bold truncate">{title}</div>
-        <NotificationBell />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <NotificationBell />
+        </div>
       </div>
 
       {/* Desktop sidebar */}
@@ -197,7 +201,8 @@ export function AppShell({
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
-          <div className="hidden lg:flex justify-end mb-2">
+          <div className="hidden lg:flex items-center justify-end gap-1 mb-2">
+            <ThemeToggle />
             <NotificationBell />
           </div>
           {children}
