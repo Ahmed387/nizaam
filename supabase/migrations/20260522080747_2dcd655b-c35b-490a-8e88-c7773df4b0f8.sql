@@ -1,0 +1,1 @@
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS monthly_sales_target numeric NOT NULL DEFAULT 0;

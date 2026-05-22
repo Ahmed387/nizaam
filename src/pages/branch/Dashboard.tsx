@@ -6,7 +6,8 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, Legend, PieChart, Pie, Cell,
@@ -29,6 +30,7 @@ export default function BranchDashboard() {
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [profitToday, setProfitToday] = useState(0);
   const [paymentBreakdown, setPaymentBreakdown] = useState<any[]>([]);
+  const [monthlyTarget, setMonthlyTarget] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -42,7 +44,7 @@ export default function BranchDashboard() {
     (async () => {
       const [
         invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
-        invLast30, invItemsToday, invAll30,
+        invLast30, invItemsToday, invAll30, branchRow,
       ] = await Promise.all([
         supabase.from("invoices").select("total, payment_method").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
         supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
@@ -55,7 +57,9 @@ export default function BranchDashboard() {
         supabase.from("invoices").select("created_at, total").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
         supabase.from("invoice_items").select("product_name, quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
         supabase.from("invoices").select("customer_id, total, customers(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("customer_id", "is", null),
+        supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
       ]);
+      setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
 
       setSalesToday((invToday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
       setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
@@ -177,6 +181,35 @@ export default function BranchDashboard() {
           </div>
         </div>
       </div>
+
+      {monthlyTarget > 0 && (() => {
+        const pct = Math.min(100, (salesMonth / monthlyTarget) * 100);
+        const remaining = Math.max(0, monthlyTarget - salesMonth);
+        const onTrack = pct >= 80;
+        return (
+          <div className="card-elevated p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target className={`w-5 h-5 ${onTrack ? "text-success" : "text-warning"}`} />
+                <h3 className="font-bold">هدف الشهر</h3>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {formatEGP(salesMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
+              </div>
+            </div>
+            <Progress value={pct} className="h-3" />
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <span className={onTrack ? "text-success font-semibold" : "text-warning font-semibold"}>
+                {pct.toFixed(1)}% من الهدف
+              </span>
+              <span className="text-muted-foreground">
+                {remaining > 0 ? `متبقي ${formatEGP(remaining)} لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
 
       {/* Charts row */}
       <div className="grid lg:grid-cols-3 gap-6 mb-6">

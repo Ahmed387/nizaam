@@ -14,8 +14,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target } from "lucide-react";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
+import { BackupTab } from "@/components/BackupTab";
+import { TwoFactorTab } from "@/components/TwoFactorTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -32,7 +34,9 @@ export default function Settings() {
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
   const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
+  const [branchTargets, setBranchTargets] = useState<Record<string, number>>({});
   const [savingThresholds, setSavingThresholds] = useState(false);
+  const [savingTargets, setSavingTargets] = useState(false);
 
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
@@ -86,16 +90,21 @@ export default function Settings() {
     (async () => {
       const [{ data }, { data: brs }] = await Promise.all([
         supabase.from("settings").select("*"),
-        supabase.from("branches").select("id, low_balance_threshold"),
+        supabase.from("branches").select("id, low_balance_threshold, monthly_sales_target"),
       ]);
       for (const row of data ?? []) {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
       }
-      const map: Record<string, number> = {};
-      for (const b of brs ?? []) map[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
-      setBranchThresholds(map);
+      const tmap: Record<string, number> = {};
+      const gmap: Record<string, number> = {};
+      for (const b of brs ?? []) {
+        tmap[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
+        gmap[(b as any).id] = Number((b as any).monthly_sales_target ?? 0);
+      }
+      setBranchThresholds(tmap);
+      setBranchTargets(gmap);
       setLoading(false);
     })();
   }, []);
@@ -115,6 +124,24 @@ export default function Settings() {
       toast.error(e.message ?? "خطأ في الحفظ");
     } finally {
       setSavingThresholds(false);
+    }
+  };
+
+  const saveTargets = async () => {
+    setSavingTargets(true);
+    try {
+      const updates = Object.entries(branchTargets).map(([id, v]) =>
+        supabase.from("branches").update({ monthly_sales_target: Number(v) || 0 } as any).eq("id", id)
+      );
+      const results = await Promise.all(updates);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "branches_targets", details: branchTargets });
+      toast.success("تم حفظ أهداف المبيعات");
+    } catch (e: any) {
+      toast.error(e.message ?? "خطأ في الحفظ");
+    } finally {
+      setSavingTargets(false);
     }
   };
 
@@ -150,12 +177,15 @@ export default function Settings() {
       <PageHeader title="الإعدادات" subtitle="إعدادات النظام العامة" />
 
       <Tabs defaultValue="company">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="company"><Building2 className="w-4 h-4 ml-1" /> بيانات الشركة</TabsTrigger>
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
           <TabsTrigger value="payments"><Wallet className="w-4 h-4 ml-1" /> إعدادات المدفوعات</TabsTrigger>
           <TabsTrigger value="alerts"><BellRing className="w-4 h-4 ml-1" /> تنبيهات الخزينة</TabsTrigger>
+          <TabsTrigger value="targets"><Target className="w-4 h-4 ml-1" /> أهداف المبيعات</TabsTrigger>
+          <TabsTrigger value="backup"><DatabaseBackup className="w-4 h-4 ml-1" /> نسخة احتياطية</TabsTrigger>
+          <TabsTrigger value="2fa"><ShieldCheck className="w-4 h-4 ml-1" /> المصادقة الثنائية</TabsTrigger>
           <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
           {isAdminOnly && <TabsTrigger value="data" className="text-destructive"><Trash2 className="w-4 h-4 ml-1" /> إدارة البيانات</TabsTrigger>}
         </TabsList>
@@ -268,6 +298,47 @@ export default function Settings() {
               حفظ
             </Button>
           </div>
+        </TabsContent>
+
+        <TabsContent value="targets" className="mt-4">
+          <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <Target className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold">هدف المبيعات الشهري (لكل فرع)</h3>
+                <p className="text-sm text-muted-foreground">
+                  حدّد الهدف الشهري للفرع. هيظهر مؤشر التقدم في لوحة الفرع علشان الفريق يتابع تحقيق الهدف.
+                  اكتب صفر لتعطيل الهدف.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {branches.length === 0 && <p className="text-sm text-muted-foreground">لا توجد فروع بعد.</p>}
+              {branches.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 p-2 rounded border">
+                  <div className="flex-1 font-medium">{b.name}</div>
+                  <Input
+                    type="number" min={0} className="w-40 text-right"
+                    value={branchTargets[b.id] ?? 0}
+                    onChange={(e) => setBranchTargets((s) => ({ ...s, [b.id]: Number(e.target.value) }))}
+                  />
+                  <span className="text-xs text-muted-foreground w-12">جنيه</span>
+                </div>
+              ))}
+            </div>
+            <Button onClick={saveTargets} disabled={savingTargets || branches.length === 0} className="gap-2">
+              {savingTargets ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              حفظ
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backup" className="mt-4">
+          <BackupTab />
+        </TabsContent>
+
+        <TabsContent value="2fa" className="mt-4">
+          <TwoFactorTab />
         </TabsContent>
 
         <TabsContent value="security" className="mt-4">
