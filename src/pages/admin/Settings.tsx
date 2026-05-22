@@ -15,7 +15,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
 import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing } from "lucide-react";
-import { formatEGP } from "@/lib/format";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
