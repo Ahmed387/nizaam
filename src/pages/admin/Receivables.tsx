@@ -162,8 +162,10 @@ export default function Receivables() {
           )}
         </tbody>
       </table>
+      </div>
     </Card>
   );
+
 
   return (
     <AdminLayout>
