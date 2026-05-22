@@ -2,9 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* NexaStore Design System — Dark RTL */
+/* NexaStore Design System — Light & Dark */
 @layer base {
   :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 217 91% 65%;
+
+    --secondary: 262 83% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 40% 94%;
+    --muted-foreground: 215 16% 40%;
+
+    --accent: 262 83% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 160 84% 34%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 88%;
+    --input: 215 20% 92%;
+    --ring: 217 91% 55%;
+
+    --radius: 0.75rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 60%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 96%));
+    --shadow-card: 0 4px 20px -4px hsl(215 25% 50% / 0.15);
+    --shadow-glow: 0 0 30px -5px hsl(217 91% 55% / 0.35);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 18%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 94%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 215 20% 88%;
+    --sidebar-ring: 217 91% 55%;
+  }
+
+  .dark {
     --background: 222 47% 11%;
     --foreground: 210 40% 96%;
 
@@ -41,8 +95,6 @@
     --input: 217 32% 22%;
     --ring: 217 91% 60%;
 
-    --radius: 0.75rem;
-
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(262 83% 66%));
     --gradient-surface: linear-gradient(180deg, hsl(217 33% 17%), hsl(222 47% 11%));
     --shadow-card: 0 4px 20px -4px hsl(222 47% 4% / 0.5);
@@ -56,9 +108,9 @@
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 217 32% 22%;
     --sidebar-ring: 217 91% 60%;
-  }
 
-  .dark { color-scheme: dark; }
+    color-scheme: dark;
+  }
 
   * { @apply border-border; }
 
