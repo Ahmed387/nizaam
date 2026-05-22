@@ -316,6 +316,7 @@ export type Database = {
           id: string
           is_active: boolean
           low_balance_threshold: number
+          monthly_sales_target: number
           name: string
           phone: string | null
           tenant_id: string | null
@@ -327,6 +328,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           low_balance_threshold?: number
+          monthly_sales_target?: number
           name: string
           phone?: string | null
           tenant_id?: string | null
@@ -338,6 +340,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           low_balance_threshold?: number
+          monthly_sales_target?: number
           name?: string
           phone?: string | null
           tenant_id?: string | null
