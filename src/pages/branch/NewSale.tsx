@@ -507,7 +507,9 @@ export default function NewSale() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
+
           </div>
         </div>
 
