@@ -138,7 +138,7 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="company" className="mt-4">
-          <div className="card-elevated p-6 space-y-4 max-w-2xl">
+          <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
             <div>
               <Label>اسم الشركة *</Label>
               <Input value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} className="mt-1.5" />
@@ -171,7 +171,7 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="invoice" className="mt-4">
-          <div className="card-elevated p-6 space-y-4 max-w-2xl">
+          <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
             <div>
               <Label>ملاحظة في تذييل الفاتورة</Label>
               <Textarea rows={3} value={invoice.footer_note} onChange={(e) => setInvoice({ ...invoice, footer_note: e.target.value })} className="mt-1.5" placeholder="شكراً لتعاملكم معنا" />
@@ -191,7 +191,7 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="inventory" className="mt-4">
-          <div className="card-elevated p-6 space-y-4 max-w-2xl">
+          <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
             <div>
               <Label>حد التنبيه الافتراضي للمخزون المنخفض</Label>
               <Input type="number" min={0} value={inventory.default_low_stock_alert}
@@ -207,7 +207,7 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="security" className="mt-4">
-          <div className="card-elevated p-6 space-y-4 max-w-md">
+          <div className="card-elevated p-6 space-y-4 max-w-md mx-auto">
             <div>
               <Label>كلمة المرور الجديدة</Label>
               <Input type="password" value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} className="mt-1.5" />
@@ -224,7 +224,7 @@ export default function Settings() {
         </TabsContent>
         {isAdminOnly && (
           <TabsContent value="data" className="mt-4">
-            <div className="card-elevated p-6 space-y-4 max-w-3xl border border-destructive/40">
+            <div className="card-elevated p-6 space-y-4 max-w-3xl mx-auto border border-destructive/40">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
                 <div>
