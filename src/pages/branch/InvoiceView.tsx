@@ -154,6 +154,11 @@ export default function InvoiceView() {
           </div>
         }
       />
+
+      <div className="print-area max-w-3xl mx-auto card-elevated p-8 bg-card">
+        {/* Header: Seller info */}
+        <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-border">
+          <div className="text-right">
             <div className="text-xs text-muted-foreground mb-1">الجهة البائعة</div>
             <h2 className="text-2xl font-extrabold gradient-text">🏢 {tenant?.name ?? branch?.name}</h2>
             <p className="text-sm font-semibold mt-1">📍 فرع: {branch?.name}</p>
