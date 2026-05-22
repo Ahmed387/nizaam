@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ interface PrintItem {
 export default function PrintBarcodes() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autoAll = searchParams.get("all") === "1";
   const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Record<string, PrintItem>>({});
@@ -37,8 +39,28 @@ export default function PrintBarcodes() {
       .select("id, name, sku, selling_price")
       .eq("branch_id", branchId)
       .order("name")
-      .then(({ data }) => setProducts(data ?? []));
-  }, [branchId]);
+      .then(({ data }) => {
+        const list = data ?? [];
+        setProducts(list);
+        if (autoAll && list.length) {
+          const all: Record<string, PrintItem> = {};
+          list.forEach((p: any) => {
+            all[p.id] = { id: p.id, name: p.name, sku: p.sku, selling_price: Number(p.selling_price), copies: 1 };
+          });
+          setSelected(all);
+          toast.success(`تم اختيار ${list.length} منتج`);
+        }
+      });
+  }, [branchId, autoAll]);
+
+  const selectAll = () => {
+    const all: Record<string, PrintItem> = {};
+    (search ? filtered : products).forEach((p: any) => {
+      all[p.id] = { id: p.id, name: p.name, sku: p.sku, selling_price: Number(p.selling_price), copies: selected[p.id]?.copies ?? 1 };
+    });
+    setSelected(all);
+  };
+  const clearAll = () => setSelected({});
 
   const filtered = products.filter(
     (p) => !search || p.name.includes(search) || p.sku?.includes(search)
@@ -123,6 +145,10 @@ export default function PrintBarcodes() {
           <div className="relative mb-3">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="بحث..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
+          </div>
+          <div className="flex gap-2 mb-3">
+            <Button size="sm" variant="outline" className="flex-1" onClick={selectAll}>تحديد الكل</Button>
+            <Button size="sm" variant="ghost" className="flex-1" onClick={clearAll}>مسح</Button>
           </div>
           <div className="space-y-1">
             {filtered.map((p) => (

@@ -110,9 +110,14 @@ export default function Inventory() {
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
             {canManageInventory && (
-              <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
-                <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
+                  <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
+                </Button>
+                <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes?all=1`)}>
+                  <Barcode className="w-4 h-4 ml-1" /> طباعة باركود الكل
+                </Button>
+              </>
             )}
             <Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>
           </div>
