@@ -234,6 +234,43 @@ export default function Settings() {
           </div>
         </TabsContent>
 
+        <TabsContent value="alerts" className="mt-4">
+          <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <BellRing className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold">حد التنبيه لرصيد الخزينة (لكل فرع)</h3>
+                <p className="text-sm text-muted-foreground">
+                  لو الرصيد الإجمالي للفرع نزل تحت القيمة دي، هيظهر تحذير في صفحة الخزينة وهيتبعت إشعار للأدمن ومدير الفرع.
+                  اكتب صفر لتعطيل التنبيه.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {branches.length === 0 && <p className="text-sm text-muted-foreground">لا توجد فروع بعد.</p>}
+              {branches.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 p-2 rounded border">
+                  <div className="flex-1 font-medium">{b.name}</div>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="w-40 text-right"
+                    value={branchThresholds[b.id] ?? 0}
+                    onChange={(e) =>
+                      setBranchThresholds((s) => ({ ...s, [b.id]: Number(e.target.value) }))
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground w-12">جنيه</span>
+                </div>
+              ))}
+            </div>
+            <Button onClick={saveThresholds} disabled={savingThresholds || branches.length === 0} className="gap-2">
+              {savingThresholds ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              حفظ
+            </Button>
+          </div>
+        </TabsContent>
+
         <TabsContent value="security" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-md mx-auto">
             <div>
