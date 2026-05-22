@@ -14,10 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye } from "lucide-react";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
 import { TwoFactorTab } from "@/components/TwoFactorTab";
+import { ViewersTab } from "@/components/ViewersTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -186,6 +187,7 @@ export default function Settings() {
           <TabsTrigger value="targets"><Target className="w-4 h-4 ml-1" /> أهداف المبيعات</TabsTrigger>
           <TabsTrigger value="backup"><DatabaseBackup className="w-4 h-4 ml-1" /> نسخة احتياطية</TabsTrigger>
           <TabsTrigger value="2fa"><ShieldCheck className="w-4 h-4 ml-1" /> المصادقة الثنائية</TabsTrigger>
+          <TabsTrigger value="viewers"><Eye className="w-4 h-4 ml-1" /> حسابات المراقبة</TabsTrigger>
           <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
           {isAdminOnly && <TabsTrigger value="data" className="text-destructive"><Trash2 className="w-4 h-4 ml-1" /> إدارة البيانات</TabsTrigger>}
         </TabsList>
@@ -339,6 +341,10 @@ export default function Settings() {
 
         <TabsContent value="2fa" className="mt-4">
           <TwoFactorTab />
+        </TabsContent>
+
+        <TabsContent value="viewers" className="mt-4">
+          <ViewersTab />
         </TabsContent>
 
         <TabsContent value="security" className="mt-4">
