@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing } from "lucide-react";
+import { formatEGP } from "@/lib/format";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
@@ -31,6 +32,8 @@ export default function Settings() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
+  const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
+  const [savingThresholds, setSavingThresholds] = useState(false);
 
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
@@ -82,15 +85,39 @@ export default function Settings() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("settings").select("*");
+      const [{ data }, { data: brs }] = await Promise.all([
+        supabase.from("settings").select("*"),
+        supabase.from("branches").select("id, low_balance_threshold"),
+      ]);
       for (const row of data ?? []) {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
       }
+      const map: Record<string, number> = {};
+      for (const b of brs ?? []) map[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
+      setBranchThresholds(map);
       setLoading(false);
     })();
   }, []);
+
+  const saveThresholds = async () => {
+    setSavingThresholds(true);
+    try {
+      const updates = Object.entries(branchThresholds).map(([id, v]) =>
+        supabase.from("branches").update({ low_balance_threshold: Number(v) || 0 } as any).eq("id", id)
+      );
+      const results = await Promise.all(updates);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "branches_thresholds", details: branchThresholds });
+      toast.success("تم حفظ حدود التنبيه");
+    } catch (e: any) {
+      toast.error(e.message ?? "خطأ في الحفظ");
+    } finally {
+      setSavingThresholds(false);
+    }
+  };
 
   const saveKey = async (key: string, value: any) => {
     setSaving(true);
