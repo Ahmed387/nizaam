@@ -1984,6 +1984,7 @@ export type Database = {
           acknowledged_by: string | null
           amount: number
           created_at: string
+          fee_actually_charged: boolean
           fee_amount: number
           from_branch_id: string
           id: string
@@ -2004,6 +2005,7 @@ export type Database = {
           acknowledged_by?: string | null
           amount: number
           created_at?: string
+          fee_actually_charged?: boolean
           fee_amount?: number
           from_branch_id: string
           id?: string
@@ -2024,6 +2026,7 @@ export type Database = {
           acknowledged_by?: string | null
           amount?: number
           created_at?: string
+          fee_actually_charged?: boolean
           fee_amount?: number
           from_branch_id?: string
           id?: string
