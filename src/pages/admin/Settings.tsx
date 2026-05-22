@@ -34,7 +34,9 @@ export default function Settings() {
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
   const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
+  const [branchTargets, setBranchTargets] = useState<Record<string, number>>({});
   const [savingThresholds, setSavingThresholds] = useState(false);
+  const [savingTargets, setSavingTargets] = useState(false);
 
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
@@ -88,16 +90,21 @@ export default function Settings() {
     (async () => {
       const [{ data }, { data: brs }] = await Promise.all([
         supabase.from("settings").select("*"),
-        supabase.from("branches").select("id, low_balance_threshold"),
+        supabase.from("branches").select("id, low_balance_threshold, monthly_sales_target"),
       ]);
       for (const row of data ?? []) {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
       }
-      const map: Record<string, number> = {};
-      for (const b of brs ?? []) map[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
-      setBranchThresholds(map);
+      const tmap: Record<string, number> = {};
+      const gmap: Record<string, number> = {};
+      for (const b of brs ?? []) {
+        tmap[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
+        gmap[(b as any).id] = Number((b as any).monthly_sales_target ?? 0);
+      }
+      setBranchThresholds(tmap);
+      setBranchTargets(gmap);
       setLoading(false);
     })();
   }, []);
@@ -117,6 +124,24 @@ export default function Settings() {
       toast.error(e.message ?? "خطأ في الحفظ");
     } finally {
       setSavingThresholds(false);
+    }
+  };
+
+  const saveTargets = async () => {
+    setSavingTargets(true);
+    try {
+      const updates = Object.entries(branchTargets).map(([id, v]) =>
+        supabase.from("branches").update({ monthly_sales_target: Number(v) || 0 } as any).eq("id", id)
+      );
+      const results = await Promise.all(updates);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "branches_targets", details: branchTargets });
+      toast.success("تم حفظ أهداف المبيعات");
+    } catch (e: any) {
+      toast.error(e.message ?? "خطأ في الحفظ");
+    } finally {
+      setSavingTargets(false);
     }
   };
 
