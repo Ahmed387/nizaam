@@ -6,7 +6,8 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, Legend, PieChart, Pie, Cell,
@@ -29,6 +30,7 @@ export default function BranchDashboard() {
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [profitToday, setProfitToday] = useState(0);
   const [paymentBreakdown, setPaymentBreakdown] = useState<any[]>([]);
+  const [monthlyTarget, setMonthlyTarget] = useState(0);
 
   useEffect(() => {
     if (!id) return;
