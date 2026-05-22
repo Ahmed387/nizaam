@@ -69,7 +69,7 @@ export function PaymentFeesTab() {
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 max-w-2xl mx-auto">
       <div className="card-elevated p-4 text-sm bg-info/5 border border-info/20">
         <p className="text-muted-foreground">
           العمولة تُحسب تلقائياً على أي عملية دفع غير نقدية (تحويلات الفروع، مدفوعات الموردين، الرواتب، السلف، فواتير العملاء بالتحويل).
