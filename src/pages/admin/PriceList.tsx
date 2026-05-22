@@ -55,7 +55,7 @@ type DiffRow = {
 };
 
 export default function PriceList() {
-  const { tenantId } = useAuth();
+  const { tenantId, user, profile } = useAuth();
   const [sources, setSources] = useState<Source[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
