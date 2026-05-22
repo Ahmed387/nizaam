@@ -201,7 +201,8 @@ export function AppShell({
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
-          <div className="hidden lg:flex justify-end mb-2">
+          <div className="hidden lg:flex items-center justify-end gap-1 mb-2">
+            <ThemeToggle />
             <NotificationBell />
           </div>
           {children}
