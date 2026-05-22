@@ -76,6 +76,7 @@ export default function NewSale() {
   const [scanBuffer, setScanBuffer] = useState("");
   const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
   const [payments, setPayments] = useState<PaymentSplit[]>([]);
+  const [cameraOpen, setCameraOpen] = useState(false);
   // Credit / installments
   const [creditMode, setCreditMode] = useState(false);
   const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
