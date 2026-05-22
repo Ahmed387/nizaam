@@ -17,6 +17,7 @@ import { PreOrderDialog } from "@/components/PreOrderDialog";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
+import { loadTransferFees, calculateFee, TransferFee } from "@/lib/paymentMethods";
 
 interface Item {
   product_id: string;
