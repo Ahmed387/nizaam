@@ -177,7 +177,10 @@ export function AppShell({
           <Menu className="w-5 h-5" />
         </button>
         <div className="font-bold truncate">{title}</div>
-        <NotificationBell />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <NotificationBell />
+        </div>
       </div>
 
       {/* Desktop sidebar */}
