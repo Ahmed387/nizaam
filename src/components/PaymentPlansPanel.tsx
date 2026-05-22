@@ -82,7 +82,8 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
               </div>
             </div>
             {ins.length > 0 && (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead className="bg-surface-2">
                   <tr>
                     <th className="px-3 py-2 text-right">#</th>
@@ -119,7 +120,9 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
+
           </div>
         );
       })}
