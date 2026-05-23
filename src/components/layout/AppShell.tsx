@@ -208,16 +208,16 @@ export function AppShell({
       {/* Desktop sidebar */}
       <div className="hidden lg:block">{renderSidebar(collapsed, false)}</div>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — opens from the right (RTL) */}
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
           <div className="relative">
+            {renderSidebar(false, true)}
             <button onClick={() => setOpen(false)} className="absolute -left-12 top-4 p-2 rounded-lg bg-sidebar text-sidebar-foreground">
               <X className="w-5 h-5" />
             </button>
-            {renderSidebar(false, true)}
           </div>
+          <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
         </div>
       )}
 
