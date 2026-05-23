@@ -30,7 +30,10 @@ export function AppShell({
   const { profile, roles, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const loc = useLocation();
+  const navigate = useNavigate();
+  const canGoBack = typeof window !== "undefined" && window.history.length > 1;
 
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
     <aside
