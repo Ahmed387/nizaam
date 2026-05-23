@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
-import { notify, notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
+import { notify, notifyMany, getTenantAdmins } from "@/lib/notifications";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, Clock, AlertCircle, Wallet, HandCoins } from "lucide-react";
@@ -46,8 +46,8 @@ export default function AdvanceRequests() {
   const load = async () => {
     setLoading(true);
     const [{ data: r }, { data: e }, { data: t }] = await Promise.all([
-      supabase.from("advance_requests").select("*, employees(name, job_title)").eq("branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("employees").select("id, name, job_title, base_salary").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("advance_requests").select("*, employees(name, job_title, user_id)").eq("branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("employees").select("id, name, job_title, base_salary, user_id").eq("branch_id", branchId).eq("is_active", true).order("name"),
       supabase.from("treasury").select("type, amount").eq("branch_id", branchId),
     ]);
     setRows(r ?? []);
@@ -68,7 +68,7 @@ export default function AdvanceRequests() {
   const myRequests = useMemo(() => rows.filter((r) => r.requested_by === user?.id), [rows, user?.id]);
   const pendingForMe = useMemo(() => {
     if (isAdmin) return rows.filter((r) => r.status === "pending_admin" || r.status === "approved_pending_funds");
-    if (isBranchManager) return rows.filter((r) => r.status === "pending_branch_manager" || r.status === "approved_pending_funds");
+    if (isBranchManager) return rows.filter((r) => r.status === "approved_pending_funds");
     return [];
   }, [rows, isAdmin, isBranchManager]);
   const allRequests = rows;
@@ -90,20 +90,25 @@ export default function AdvanceRequests() {
         amount: amt,
         monthly_deduct: md,
         reason: form.reason || null,
+        status: "pending_admin",
+        branch_manager_id: user!.id,
+        branch_manager_decision_at: new Date().toISOString(),
       }).select().single();
       if (error) throw error;
 
-      // Notify branch managers
-      const managerIds = await getBranchManagers(branchId!);
-      const targets = managerIds.filter((id) => id !== user!.id);
-      await notifyMany(targets, {
-        title: "طلب سلفة جديد",
-        body: `${profile?.name} طلب سلفة بقيمة ${formatEGP(amt)} للموظف ${emp?.name}`,
-        type: "advance_request",
-        link: `/branch/${branchId}/advance-requests`,
-        relatedEntity: "advance_request",
-        relatedEntityId: req.id,
-      });
+      // Notify tenant admins directly
+      if (tenantId) {
+        const admins = await getTenantAdmins(tenantId);
+        const targets = admins.filter((id) => id !== user!.id);
+        await notifyMany(targets, {
+          title: "طلب سلفة بانتظار موافقتك",
+          body: `${profile?.name} طلب سلفة بقيمة ${formatEGP(amt)} للموظف ${emp?.name}`,
+          type: "advance_request",
+          link: `/branch/${branchId}/advance-requests`,
+          relatedEntity: "advance_request",
+          relatedEntityId: req.id,
+        });
+      }
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId,
@@ -111,7 +116,7 @@ export default function AdvanceRequests() {
         details: { employee: emp?.name, amount: amt },
       });
 
-      toast.success("تم إرسال الطلب لمدير الفرع");
+      toast.success("تم إرسال الطلب للمدير العام");
       setOpen(false);
       setForm({ employee_id: "", amount: "", monthly_deduct: "", reason: "" });
       load();
@@ -128,59 +133,46 @@ export default function AdvanceRequests() {
     setDecisionNote("");
   };
 
+  const notifyParties = async (row: any, payload: { title: string; body: string; type: string }) => {
+    const targets = new Set<string>();
+    if (row.requested_by) targets.add(row.requested_by);
+    if (row.branch_manager_id) targets.add(row.branch_manager_id);
+    if (row.employees?.user_id) targets.add(row.employees.user_id);
+    targets.delete(user!.id);
+    if (targets.size === 0) return;
+    await notifyMany(Array.from(targets), {
+      ...payload,
+      link: `/branch/${row.branch_id}/advance-requests`,
+      relatedEntity: "advance_request",
+      relatedEntityId: row.id,
+    });
+  };
+
   const submitDecision = async () => {
     if (!decisionRow) return;
     if (decision === "reject" && !decisionNote.trim()) return toast.error("سبب الرفض مطلوب");
+    if (!isAdmin) return toast.error("الموافقة/الرفض للمدير العام فقط");
     setBusy(true);
     try {
       const row = decisionRow;
-      const isBmStage = row.status === "pending_branch_manager";
-      const isAdminStage = row.status === "pending_admin";
-
-      // Validate role for stage
-      if (isBmStage && !isBranchManager && !isAdmin) {
-        throw new Error("غير مصرح: هذه المرحلة لمدير الفرع");
-      }
-      if (isAdminStage && !isAdmin) {
-        throw new Error("غير مصرح: هذه المرحلة للمدير العام");
-      }
-
       let newStatus: Status;
-      const update: any = {};
+      const update: any = {
+        admin_id: user!.id,
+        admin_decision_at: new Date().toISOString(),
+        admin_note: decisionNote || null,
+      };
       if (decision === "reject") {
         newStatus = "rejected";
         update.rejection_reason = decisionNote;
-        if (isBmStage) {
-          update.branch_manager_id = user!.id;
-          update.branch_manager_decision_at = new Date().toISOString();
-          update.branch_manager_note = decisionNote;
-        } else {
-          update.admin_id = user!.id;
-          update.admin_decision_at = new Date().toISOString();
-          update.admin_note = decisionNote;
-        }
       } else {
-        if (isBmStage) {
-          newStatus = "pending_admin";
-          update.branch_manager_id = user!.id;
-          update.branch_manager_decision_at = new Date().toISOString();
-          update.branch_manager_note = decisionNote || null;
-        } else {
-          // Admin approval — check treasury balance
-          newStatus = balance >= Number(row.amount) ? "approved" : "approved_pending_funds";
-          update.admin_id = user!.id;
-          update.admin_decision_at = new Date().toISOString();
-          update.admin_note = decisionNote || null;
-        }
+        newStatus = balance >= Number(row.amount) ? "approved" : "approved_pending_funds";
       }
       update.status = newStatus;
 
       const { error: upErr } = await supabase.from("advance_requests").update(update).eq("id", row.id);
       if (upErr) throw upErr;
 
-      // Side effects
       if (newStatus === "approved") {
-        // Create the actual advance + treasury expense
         const { data: adv, error: advErr } = await supabase.from("advances").insert({
           employee_id: row.employee_id,
           amount: row.amount,
@@ -198,59 +190,22 @@ export default function AdvanceRequests() {
 
         await supabase.from("advance_requests").update({ resulting_advance_id: adv.id }).eq("id", row.id);
 
-        // Notify requester
-        await notify({
-          userId: row.requested_by,
+        await notifyParties(row, {
           title: "✅ تمت الموافقة على طلب السلفة",
-          body: `طلبك بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""} تمت الموافقة عليه نهائياً وتم صرف المبلغ.`,
+          body: `سلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""} تمت الموافقة عليها وتم صرف المبلغ.`,
           type: "advance_approved",
-          link: `/branch/${branchId}/advance-requests`,
-          relatedEntity: "advance_request",
-          relatedEntityId: row.id,
         });
       } else if (newStatus === "approved_pending_funds") {
-        await notify({
-          userId: row.requested_by,
+        await notifyParties(row, {
           title: "⏳ السلفة معتمدة — في انتظار توفر الرصيد",
-          body: `وافق المدير العام على السلفة بقيمة ${formatEGP(row.amount)} لكن رصيد الخزنة غير كافٍ حالياً. سيتم الصرف فور توفر الرصيد.`,
+          body: `وافق المدير العام على السلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""}، لكن رصيد الخزنة غير كافٍ. سيتم الصرف فور توفر الرصيد.`,
           type: "advance_pending_funds",
-          link: `/branch/${branchId}/advance-requests`,
-          relatedEntity: "advance_request",
-          relatedEntityId: row.id,
         });
       } else if (newStatus === "rejected") {
-        await notify({
-          userId: row.requested_by,
+        await notifyParties(row, {
           title: "❌ تم رفض طلب السلفة",
-          body: `سبب الرفض: ${decisionNote}`,
+          body: `طلب سلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""} تم رفضه. السبب: ${decisionNote}`,
           type: "advance_rejected",
-          link: `/branch/${branchId}/advance-requests`,
-          relatedEntity: "advance_request",
-          relatedEntityId: row.id,
-        });
-      } else if (newStatus === "pending_admin") {
-        // Notify tenant admins
-        if (tenantId) {
-          const admins = await getTenantAdmins(tenantId);
-          const targets = admins.filter((id) => id !== user!.id);
-          await notifyMany(targets, {
-            title: "طلب سلفة بانتظار موافقتك",
-            body: `وافق مدير الفرع على طلب سلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""}`,
-            type: "advance_request",
-            link: `/branch/${branchId}/advance-requests`,
-            relatedEntity: "advance_request",
-            relatedEntityId: row.id,
-          });
-        }
-        // Notify requester progress
-        await notify({
-          userId: row.requested_by,
-          title: "تقدم طلب السلفة",
-          body: "وافق مدير الفرع على طلبك. الطلب الآن بانتظار المدير العام.",
-          type: "advance_request",
-          link: `/branch/${branchId}/advance-requests`,
-          relatedEntity: "advance_request",
-          relatedEntityId: row.id,
         });
       }
 
@@ -276,14 +231,10 @@ export default function AdvanceRequests() {
     try {
       const { error } = await supabase.rpc("disburse_pending_advance", { p_request_id: row.id });
       if (error) throw error;
-      await notify({
-        userId: row.requested_by,
+      await notifyParties(row, {
         title: "✅ تم صرف السلفة",
         body: `تم صرف السلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""}.`,
         type: "advance_approved",
-        link: `/branch/${branchId}/advance-requests`,
-        relatedEntity: "advance_request",
-        relatedEntityId: row.id,
       });
       toast.success("تم صرف السلفة بنجاح");
       load();
@@ -323,11 +274,8 @@ export default function AdvanceRequests() {
         { key: "status", header: "الحالة", render: (r: any) => <StatusBadge status={r.status} /> },
         ...(showActions ? [{
           key: "actions", header: "إجراء", render: (r: any) => {
-            const canActOnStage =
-              (r.status === "pending_branch_manager" && (isBranchManager || isAdmin)) ||
-              (r.status === "pending_admin" && isAdmin);
-            const canDisburse =
-              r.status === "approved_pending_funds" && (isAdmin || isBranchManager);
+            const canActOnStage = r.status === "pending_admin" && isAdmin;
+            const canDisburse = r.status === "approved_pending_funds" && (isAdmin || isBranchManager);
             if (canDisburse) {
               const enough = balance >= Number(r.amount);
               return (
@@ -361,18 +309,19 @@ export default function AdvanceRequests() {
     />
   );
 
-  const canApprove = isBranchManager || isAdmin;
+  const canApprove = isAdmin || isBranchManager;
+  const canCreate = isBranchManager || isAdmin;
 
   return (
     <BranchLayout>
       <PageHeader
         title="طلبات السلف"
-        subtitle="نظام موافقات: مدير الفرع → المدير العام"
-        actions={
+        subtitle="مدير الفرع يرفع الطلب — المدير العام يوافق أو يرفض"
+        actions={canCreate && (
           <Button onClick={() => setOpen(true)} className="gap-2 btn-gradient">
             <Plus className="w-4 h-4" /> طلب سلفة جديد
           </Button>
-        }
+        )}
       />
 
       <div className="grid md:grid-cols-3 gap-3 mb-6">
@@ -405,7 +354,7 @@ export default function AdvanceRequests() {
         </TabsList>
 
         <TabsContent value="mine" className="mt-4">
-          {renderTable(myRequests, false)}
+          {renderTable(myRequests, true)}
         </TabsContent>
         {canApprove && (
           <TabsContent value="pending" className="mt-4">
@@ -436,7 +385,7 @@ export default function AdvanceRequests() {
             <div><Label>الخصم الشهري *</Label><Input type="number" value={form.monthly_deduct} onChange={(e) => setForm({ ...form, monthly_deduct: e.target.value })} className="mt-1.5" /></div>
             <div><Label>السبب</Label><Textarea rows={2} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="mt-1.5" /></div>
             <div className="text-xs text-muted-foreground bg-surface-2 rounded-lg p-3">
-              💡 الطلب هيتبعت لمدير الفرع للموافقة الأولى، وبعدين للمدير العام للموافقة النهائية. مفيش صرف للفلوس قبل الموافقتين.
+              💡 الطلب هيتبعت للمدير العام مباشرة للموافقة. عند الموافقة هيتم خصم المبلغ من الخزنة وتسجيل السلفة على الموظف تلقائياً.
             </div>
           </div>
           <DialogFooter>
@@ -462,12 +411,7 @@ export default function AdvanceRequests() {
                 <div><span className="text-muted-foreground">الخصم الشهري:</span> {formatEGP(decisionRow.monthly_deduct)}</div>
                 {decisionRow.reason && <div><span className="text-muted-foreground">السبب:</span> {decisionRow.reason}</div>}
               </div>
-              {decisionRow.status === "pending_branch_manager" && decision === "approve" && (
-                <div className="text-xs text-blue-400 bg-blue-500/10 rounded-lg p-2">
-                  ℹ️ بعد موافقتك، الطلب هيتنقل للمدير العام للموافقة النهائية.
-                </div>
-              )}
-              {decisionRow.status === "pending_admin" && decision === "approve" && (
+              {decision === "approve" && (
                 <div className="space-y-2">
                   <div className="bg-surface-2 rounded-lg p-3 text-sm space-y-1">
                     <div className="flex justify-between">
@@ -487,7 +431,7 @@ export default function AdvanceRequests() {
                     </div>
                   ) : (
                     <div className="text-xs text-orange-400 bg-orange-500/10 rounded-lg p-2">
-                      ⚠️ رصيد الخزنة غير كافٍ. لو وافقت، السلفة هتتسجل بحالة <b>"معتمدة — في انتظار توفر الرصيد"</b> ومش هتتخصم من راتب الموظف لحد ما يتم صرفها فعلياً. القرار ليك.
+                      ⚠️ رصيد الخزنة غير كافٍ. لو وافقت، السلفة هتتسجل بحالة <b>"معتمدة — في انتظار توفر الرصيد"</b> ومش هتتخصم من راتب الموظف لحد ما يتم صرفها فعلياً.
                     </div>
                   )}
                 </div>
