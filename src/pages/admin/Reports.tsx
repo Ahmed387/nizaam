@@ -97,7 +97,7 @@ export default function AdminReports() {
 
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(
-    ["invoices", "expenses", "products", "suppliers", "shipments", "supplier_payments", "employees", "treasury", "returns", "customers", "branches"],
+    ["invoices", "vouchers", "products", "suppliers", "shipments", "supplier_payments", "employees", "treasury", "returns", "customers", "branches"],
     load
   );
 
