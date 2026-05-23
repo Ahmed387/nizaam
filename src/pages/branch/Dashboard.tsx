@@ -50,7 +50,7 @@ export default function BranchDashboard() {
         supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
         supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
         supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
-        supabase.from("treasury").select("type, amount").eq("branch_id", id),
+        supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
         supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
         supabase.from("customers").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
         supabase.from("invoices").select("*, customers(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
@@ -65,7 +65,7 @@ export default function BranchDashboard() {
       setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
       setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
       setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-      setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
+      setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
       setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
       setNewCust((custs.data ?? []).length);
       setRecent(recentInv.data ?? []);

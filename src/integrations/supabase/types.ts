@@ -2688,6 +2688,10 @@ export type Database = {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
       }
+      approve_advance_request: {
+        Args: { p_decision: string; p_note?: string; p_request_id: string }
+        Returns: Json
+      }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number

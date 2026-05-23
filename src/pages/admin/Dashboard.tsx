@@ -29,7 +29,7 @@ export default function AdminDashboard() {
     const [{ data: invToday }, { data: trAll }, { data: prods }, { data: shipsToday }, { data: branches }, { data: recentInv }] =
       await Promise.all([
         supabase.from("invoices").select("total").eq("status", "active").gte("created_at", todayIso),
-        supabase.from("treasury").select("type, amount, branch_id"),
+        supabase.from("vouchers" as any).select("type, amount, branch_id").eq("status", "active"),
         supabase.from("products").select("quantity, low_stock_alert"),
         supabase.from("shipments").select("id").gte("created_at", todayIso),
         supabase.from("branches").select("*").eq("is_active", true),
@@ -37,7 +37,7 @@ export default function AdminDashboard() {
       ]);
 
     setSalesToday((invToday ?? []).reduce((s, x) => s + Number(x.total), 0));
-    setTreasury((trAll ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
+    setTreasury((trAll ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
     setLowStock((prods ?? []).filter((p) => p.quantity <= p.low_stock_alert).length);
     setShipmentsToday((shipsToday ?? []).length);
     setRecent(recentInv ?? []);
@@ -47,11 +47,11 @@ export default function AdminDashboard() {
         const [{ data: sales }, { data: exp }, { data: tr }] = await Promise.all([
           supabase.from("invoices").select("total").eq("branch_id", b.id).eq("status", "active"),
           supabase.from("vouchers").select("amount").eq("branch_id", b.id).eq("type", "payment").eq("status", "active"),
-          supabase.from("treasury").select("type, amount").eq("branch_id", b.id),
+          supabase.from("vouchers" as any).select("type, amount").eq("branch_id", b.id).eq("status", "active"),
         ]);
         const totalSales = (sales ?? []).reduce((s, x) => s + Number(x.total), 0);
         const totalExp = (exp ?? []).reduce((s, x) => s + Number(x.amount), 0);
-        const trBal = (tr ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0);
+        const trBal = (tr ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0);
         return { ...b, sales: totalSales, expenses: totalExp, profit: totalSales - totalExp, treasury: trBal };
       })
     );

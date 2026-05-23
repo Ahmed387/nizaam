@@ -63,7 +63,7 @@ export default function AdminReports() {
       supabase.from("shipments").select("*").gte("arrival_date", from).lte("arrival_date", to),
       supabase.from("supplier_payments").select("*").gte("paid_at", fromIso).lte("paid_at", toIso),
       supabase.from("employees").select("*").eq("is_active", true),
-      supabase.from("treasury").select("*").gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("vouchers" as any).select("type, amount, branch_id, voucher_date").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("returns").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("customers").select("id,branch_id"),
       supabase.from("shipments").select("supplier_id,total_cost"),
@@ -158,8 +158,8 @@ export default function AdminReports() {
     const lowStock = scopedProducts.filter((p) => p.quantity <= p.low_stock_alert);
     const shipmentsCost = scopedShipments.reduce((s, x) => s + Number(x.total_cost), 0);
     const supPaid = scopedSupPayments.reduce((s, x) => s + Number(x.amount), 0);
-    const cashIn = scopedTreasury.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
-    const cashOut = scopedTreasury.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+    const cashIn = scopedTreasury.filter((t) => t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0);
+    const cashOut = scopedTreasury.filter((t) => t.type === "payment").reduce((s, t) => s + Number(t.amount), 0);
     const returnsTotal = scopedReturns.reduce((s, r) => s + Number(r.total_refund), 0);
     return {
       sales, cost, profit: sales - cost, exp, net: sales - cost - exp,
@@ -186,8 +186,8 @@ export default function AdminReports() {
       inventoryQty: bProducts.reduce((s, p) => s + p.quantity, 0),
       employees: employees.filter((e) => e.branch_id === b.id).length,
       treasuryBalance:
-        treasury.filter((t) => t.branch_id === b.id && t.type === "income").reduce((s, t) => s + Number(t.amount), 0) -
-        treasury.filter((t) => t.branch_id === b.id && t.type === "expense").reduce((s, t) => s + Number(t.amount), 0),
+        treasury.filter((t) => t.branch_id === b.id && t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0) -
+        treasury.filter((t) => t.branch_id === b.id && t.type === "payment").reduce((s, t) => s + Number(t.amount), 0),
     };
   }), [branches, invoices, expenses, products, employees, treasury]);
 

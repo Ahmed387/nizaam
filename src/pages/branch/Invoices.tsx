@@ -52,11 +52,21 @@ export default function Invoices() {
         const r = await supabase.from("purchase_returns" as any).select("*, suppliers(company_name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
         data = r.data ?? [];
       } else if (tab === "income") {
-        const r = await supabase.from("treasury").select("*").eq("branch_id", branchId).eq("type", "income").order("created_at", { ascending: false }).limit(200);
-        data = r.data ?? [];
+        const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "receipt").eq("status", "active").order("voucher_date", { ascending: false }).limit(200);
+        data = (r.data ?? []).map((v: any) => ({
+          ...v,
+          created_at: v.voucher_date ?? v.created_at,
+          category: v.voucher_categories?.name ?? "—",
+          description: v.description ?? v.voucher_number,
+        }));
       } else if (tab === "expense") {
-        const r = await supabase.from("treasury").select("*").eq("branch_id", branchId).eq("type", "expense").order("created_at", { ascending: false }).limit(200);
-        data = r.data ?? [];
+        const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).limit(200);
+        data = (r.data ?? []).map((v: any) => ({
+          ...v,
+          created_at: v.voucher_date ?? v.created_at,
+          category: v.voucher_categories?.name ?? "—",
+          description: v.description ?? v.voucher_number,
+        }));
       } else if (tab === "transfer") {
         const r = await supabase.from("stock_transfers").select("*").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).limit(200);
         data = r.data ?? [];
