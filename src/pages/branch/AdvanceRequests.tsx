@@ -48,11 +48,11 @@ export default function AdvanceRequests() {
     const [{ data: r }, { data: e }, { data: t }] = await Promise.all([
       supabase.from("advance_requests").select("*, employees(name, job_title, user_id)").eq("branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("employees").select("id, name, job_title, base_salary, user_id").eq("branch_id", branchId).eq("is_active", true).order("name"),
-      supabase.from("treasury").select("type, amount").eq("branch_id", branchId),
+      supabase.from("vouchers" as any).select("type, amount").eq("branch_id", branchId!).eq("status", "active"),
     ]);
     setRows(r ?? []);
     setEmployees(e ?? []);
-    setBalance((t ?? []).reduce((s: number, x: any) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
+    setBalance((t ?? []).reduce((s: number, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
     setLoading(false);
   };
 
@@ -155,41 +155,15 @@ export default function AdvanceRequests() {
     setBusy(true);
     try {
       const row = decisionRow;
-      let newStatus: Status;
-      const update: any = {
-        admin_id: user!.id,
-        admin_decision_at: new Date().toISOString(),
-        admin_note: decisionNote || null,
-      };
-      if (decision === "reject") {
-        newStatus = "rejected";
-        update.rejection_reason = decisionNote;
-      } else {
-        newStatus = balance >= Number(row.amount) ? "approved" : "approved_pending_funds";
-      }
-      update.status = newStatus;
-
-      const { error: upErr } = await supabase.from("advance_requests").update(update).eq("id", row.id);
-      if (upErr) throw upErr;
+      const { data, error } = await supabase.rpc("approve_advance_request" as any, {
+        p_request_id: row.id,
+        p_decision: decision,
+        p_note: decisionNote || null,
+      });
+      if (error) throw error;
+      const newStatus = (data as any)?.status as Status;
 
       if (newStatus === "approved") {
-        const { data: adv, error: advErr } = await supabase.from("advances").insert({
-          employee_id: row.employee_id,
-          amount: row.amount,
-          monthly_deduct: row.monthly_deduct,
-          remaining: row.amount,
-          reason: row.reason ?? null,
-        }).select().single();
-        if (advErr) throw advErr;
-
-        await supabase.from("treasury").insert({
-          branch_id: row.branch_id, type: "expense", category: "advance",
-          amount: row.amount, description: `سلفة معتمدة - ${row.employees?.name ?? ""}`,
-          reference_id: adv.id, created_by: user!.id,
-        });
-
-        await supabase.from("advance_requests").update({ resulting_advance_id: adv.id }).eq("id", row.id);
-
         await notifyParties(row, {
           title: "✅ تمت الموافقة على طلب السلفة",
           body: `سلفة بقيمة ${formatEGP(row.amount)} للموظف ${row.employees?.name ?? ""} تمت الموافقة عليها وتم صرف المبلغ.`,
@@ -325,10 +299,12 @@ export default function AdvanceRequests() {
       />
 
       <div className="grid md:grid-cols-3 gap-3 mb-6">
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground">طلباتي</div>
-          <div className="text-2xl font-extrabold mt-1">{myRequests.length}</div>
-        </div>
+        {!isAdmin && (
+          <div className="card-elevated p-4">
+            <div className="text-xs text-muted-foreground">طلباتي</div>
+            <div className="text-2xl font-extrabold mt-1">{myRequests.length}</div>
+          </div>
+        )}
         <div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">بانتظار قراري</div>
           <div className="text-2xl font-extrabold mt-1 text-warning flex items-center gap-2">
@@ -342,9 +318,9 @@ export default function AdvanceRequests() {
         </div>
       </div>
 
-      <Tabs defaultValue={canApprove && pendingForMe.length > 0 ? "pending" : "mine"}>
+      <Tabs defaultValue={canApprove && pendingForMe.length > 0 ? "pending" : (isAdmin ? "all" : "mine")}>
         <TabsList>
-          <TabsTrigger value="mine">طلباتي ({myRequests.length})</TabsTrigger>
+          {!isAdmin && <TabsTrigger value="mine">طلباتي ({myRequests.length})</TabsTrigger>}
           {canApprove && (
             <TabsTrigger value="pending">
               بانتظار قراري ({pendingForMe.length})
@@ -353,9 +329,11 @@ export default function AdvanceRequests() {
           {canApprove && <TabsTrigger value="all">كل الطلبات ({allRequests.length})</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="mine" className="mt-4">
-          {renderTable(myRequests, true)}
-        </TabsContent>
+        {!isAdmin && (
+          <TabsContent value="mine" className="mt-4">
+            {renderTable(myRequests, true)}
+          </TabsContent>
+        )}
         {canApprove && (
           <TabsContent value="pending" className="mt-4">
             {renderTable(pendingForMe, true)}
