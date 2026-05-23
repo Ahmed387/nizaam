@@ -67,6 +67,9 @@ import Invoices from "./pages/branch/Invoices";
 import NewPurchaseReturn from "./pages/branch/NewPurchaseReturn";
 import NewQuote from "./pages/branch/NewQuote";
 import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
+import PaymentVouchers from "./pages/branch/PaymentVouchers";
+import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
+import AllVouchers from "./pages/admin/AllVouchers";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
