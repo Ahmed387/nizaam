@@ -46,7 +46,7 @@ export default function Settings() {
     { key: "products", label: "حذف المنتجات نهائياً (مع كل الفواتير والمرتجعات والشحنات المرتبطة)" },
     { key: "shipments", label: "الشحنات" },
     { key: "returns", label: "المرتجعات" },
-    { key: "expenses", label: "المصروفات" },
+    { key: "vouchers", label: "السندات المالية (قبض/صرف)" },
     { key: "treasury", label: "بيانات الخزينة" },
     { key: "stock_movements", label: "سجل حركات المخزون" },
     { key: "customers", label: "بيانات العملاء" },

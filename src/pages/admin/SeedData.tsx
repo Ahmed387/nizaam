@@ -113,21 +113,7 @@ export default function SeedData() {
         );
         addLog(`    ✓ ${employees.length} موظف`);
 
-        // Expenses
-        const today = new Date();
-        const expenses = [
-          { type: "إيجار", amount: 5000, description: "إيجار المحل الشهري" },
-          { type: "كهرباء", amount: 850, description: "فاتورة كهرباء" },
-          { type: "صيانة", amount: 320, description: "صيانة دورية" },
-          { type: "مواصلات", amount: 200, description: "مواصلات الموظفين" },
-        ];
-        await supabase.from("expenses").insert(
-          expenses.map((e) => ({
-            ...e, branch_id: branch.id, created_by: user!.id,
-            date: today.toISOString().slice(0, 10),
-          }))
-        );
-        addLog(`    ✓ ${expenses.length} مصروف`);
+        // (Expenses seeded via vouchers/treasury — see opening balance below)
 
         // Treasury opening balance
         await supabase.from("treasury").insert({
@@ -163,7 +149,7 @@ export default function SeedData() {
       await supabase.from("stock_transfers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("treasury_transfers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("treasury").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("expenses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      
       await supabase.from("advance_payments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("advances").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("salaries").delete().neq("id", "00000000-0000-0000-0000-000000000000");

@@ -53,25 +53,31 @@ export function VoucherCategoriesTab() {
       <div className="space-y-3">
         {roots.map((r) => {
           const children = cats.filter((c) => c.parent_id === r.id);
+          const isAuto = r.is_system && !!r.system_key;
           return (
             <div key={r.id} className="card-elevated p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-bold">{r.name}</span>
                   {r.is_system && <Badge variant="outline" className="text-xs">نظام</Badge>}
+                  {isAuto && <Badge variant="secondary" className="text-xs">تلقائي — للقراءة فقط</Badge>}
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setDialog({ open: true, parent: r })} className="gap-1">
-                  <Plus className="w-3.5 h-3.5" /> فرعي
-                </Button>
+                {!isAuto && (
+                  <Button size="sm" variant="outline" onClick={() => setDialog({ open: true, parent: r })} className="gap-1">
+                    <Plus className="w-3.5 h-3.5" /> فرعي
+                  </Button>
+                )}
               </div>
               {children.length > 0 && (
                 <div className="mt-2 ps-4 border-s-2 border-muted space-y-1">
                   {children.map((c) => (
                     <div key={c.id} className="flex items-center justify-between text-sm py-1">
                       <span>— {c.name}</span>
-                      <Button size="icon" variant="ghost" onClick={() => removeCat(c)} className="h-7 w-7 text-destructive">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      {!isAuto && (
+                        <Button size="icon" variant="ghost" onClick={() => removeCat(c)} className="h-7 w-7 text-destructive">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

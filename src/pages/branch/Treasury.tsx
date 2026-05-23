@@ -51,12 +51,22 @@ export default function Treasury() {
   const load = async () => {
     setLoading(true);
     const [tr, tt, wb, br] = await Promise.all([
-      supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("status", "active").order("voucher_date", { ascending: false }).limit(500),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
     ]);
-    setRows(tr.data ?? []);
+    setRows((tr.data ?? []).map((v: any) => ({
+      id: v.id,
+      created_at: v.voucher_date ?? v.created_at,
+      type: v.type === "receipt" ? "income" : "expense",
+      payment_method: v.payment_method,
+      category: v.voucher_categories?.name ?? "—",
+      is_fee: v.source === "system" && v.source_type === "voucher_fee",
+      description: v.description ?? v.voucher_number,
+      reference_number: v.reference_number,
+      amount: v.amount,
+    })));
     setTransfers(tt.data ?? []);
     const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
     if (balances) setWalletBalances(balances);
