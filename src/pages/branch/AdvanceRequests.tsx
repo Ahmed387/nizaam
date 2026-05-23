@@ -133,7 +133,7 @@ export default function AdvanceRequests() {
     setDecisionNote("");
   };
 
-  const notifyParties = async (row: any, payload: { title: string; body: string; type: string }) => {
+  const notifyParties = async (row: any, payload: { title: string; body: string; type: "advance_approved" | "advance_pending_funds" | "advance_rejected" | "advance_request" }) => {
     const targets = new Set<string>();
     if (row.requested_by) targets.add(row.requested_by);
     if (row.branch_manager_id) targets.add(row.branch_manager_id);
