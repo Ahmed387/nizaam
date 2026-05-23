@@ -130,7 +130,7 @@ export default function ShipmentView() {
         {items.length === 1 && (
           <div className="p-4 border-t border-border bg-surface-2/30">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-muted-foreground">المنتج:</span> <b>{items[ 0 ].product_name}</b></div>
+              <div><span className="text-muted-foreground">المنتج:</span> <b>{items[0].product_name}</b></div>
               <div><span className="text-muted-foreground">الكود:</span> <b>{items[0].products?.sku ?? "—"}</b></div>
               <div><span className="text-muted-foreground">الكمية:</span> <b>{items[0].quantity}</b></div>
               <div><span className="text-muted-foreground">الإجمالي:</span> <b className="text-primary">{formatEGP(items[0].total)}</b></div>
