@@ -74,7 +74,11 @@ export default function AdminReports() {
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
-    setExpenses(exp.data ?? []);
+    setExpenses((exp.data ?? []).map((v: any) => ({
+      id: v.id, branch_id: v.branch_id, date: v.voucher_date, amount: v.amount,
+      type: v.voucher_categories?.name ?? "أخرى",
+      description: v.description ?? v.voucher_number,
+    })));
     setProducts(pr.data ?? []);
     setSuppliers(sup.data ?? []);
     setShipments(sh.data ?? []);
