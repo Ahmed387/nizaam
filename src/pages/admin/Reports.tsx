@@ -57,7 +57,7 @@ export default function AdminReports() {
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
-      supabase.from("expenses").select("*").gte("date", from).lte("date", to),
+      supabase.from("vouchers").select("*, voucher_categories(name)").eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*"),
       supabase.from("suppliers").select("*"),
       supabase.from("shipments").select("*").gte("arrival_date", from).lte("arrival_date", to),
