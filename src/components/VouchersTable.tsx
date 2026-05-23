@@ -15,7 +15,7 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { exportToExcel, exportToPDF } from "@/lib/export";
+import { exportToExcel, printReport } from "@/lib/export";
 
 interface Props {
   branchId?: string;
