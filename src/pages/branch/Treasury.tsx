@@ -402,41 +402,6 @@ export default function Treasury() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openExpense} onOpenChange={setOpenExpense}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>تسجيل مصروف</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>النوع</Label>
-              <select className="w-full bg-input border border-border rounded-lg p-2 mt-1.5" value={eForm.type} onChange={(e) => setEForm({...eForm, type: e.target.value})}>
-                <option value="operational">تشغيلية</option>
-                <option value="shipping">شحن ونقل</option>
-                <option value="admin">إدارية</option>
-              </select>
-            </div>
-            <div><Label>المبلغ *</Label><Input type="number" value={eForm.amount} onChange={(e) => setEForm({...eForm, amount: e.target.value})} className="mt-1.5" /></div>
-            <div><Label>الوصف</Label><Textarea value={eForm.description} onChange={(e) => setEForm({...eForm, description: e.target.value})} className="mt-1.5" rows={2} /></div>
-            <PaymentMethodPicker amount={Number(eForm.amount) || 0} value={ePayment} onChange={setEPayment} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenExpense(false)}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={expense}>تسجيل</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>تعديل قيد الخزنة</DialogTitle></DialogHeader>
-          {editing && (
-            <div className="space-y-3">
-              <div><Label>التصنيف</Label><Input value={editing.category ?? ""} onChange={(e) => setEditing({...editing, category: e.target.value})} className="mt-1.5" /></div>
-              <div><Label>المبلغ</Label><Input type="number" value={editing.amount} onChange={(e) => setEditing({...editing, amount: e.target.value})} className="mt-1.5" /></div>
-              <div><Label>الوصف</Label><Textarea value={editing.description ?? ""} onChange={(e) => setEditing({...editing, description: e.target.value})} className="mt-1.5" /></div>
-            </div>
-          )}
-          <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button><Button className="btn-gradient" onClick={saveEdit}>حفظ</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={!!openReject} onOpenChange={(v) => !v && setOpenReject(null)}>
         <DialogContent>
