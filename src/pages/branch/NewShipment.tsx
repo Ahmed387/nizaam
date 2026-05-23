@@ -396,6 +396,32 @@ export default function NewShipment() {
         </div>
       </div>
 
+      {/* 4) Payment plan for supplier */}
+      <div className="card-elevated p-4 mb-4">
+        <h3 className="font-bold mb-3">٤. طريقة الدفع للمورد</h3>
+        <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
+      </div>
+
+      {/* 5) Summary + save */}
+      <div className="card-elevated p-4 mb-4">
+        <h3 className="font-bold mb-3">٥. الملخص والحفظ</h3>
+        <div className="grid md:grid-cols-2 gap-4 items-end">
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة</span><b>{formatEGP(itemsTotal)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
+            <div className="border-t border-border pt-2 flex justify-between text-lg">
+              <span>الإجمالي</span>
+              <b className="text-primary">{formatEGP(grandTotal)}</b>
+            </div>
+          </div>
+          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            حفظ الشحنة
+          </Button>
+        </div>
+      </div>
+
       <Dialog open={supplierDlg} onOpenChange={setSupplierDlg}>
         <DialogContent>
           <DialogHeader><DialogTitle>إضافة مورد جديد</DialogTitle></DialogHeader>
