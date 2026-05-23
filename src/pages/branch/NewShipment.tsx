@@ -410,6 +410,34 @@ export default function NewShipment() {
           </table>
         </div>
       </div>
+
+      <Dialog open={supplierDlg} onOpenChange={setSupplierDlg}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>إضافة مورد جديد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>اسم الشركة *</Label>
+              <Input value={newSup.company_name} onChange={(e) => setNewSup({ ...newSup, company_name: e.target.value })} className="mt-1.5" />
+            </div>
+            <div>
+              <Label>اسم المسؤول</Label>
+              <Input value={newSup.contact_name} onChange={(e) => setNewSup({ ...newSup, contact_name: e.target.value })} className="mt-1.5" />
+            </div>
+            <div>
+              <Label>التليفون</Label>
+              <Input dir="ltr" className="text-right mt-1.5" value={newSup.phone} onChange={(e) => setNewSup({ ...newSup, phone: e.target.value })} />
+            </div>
+            <div>
+              <Label>العنوان</Label>
+              <Input value={newSup.address} onChange={(e) => setNewSup({ ...newSup, address: e.target.value })} className="mt-1.5" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSupplierDlg(false)} disabled={savingSup}>إلغاء</Button>
+            <Button onClick={createSupplier} disabled={savingSup}>{savingSup ? "جاري الحفظ..." : "إضافة"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
