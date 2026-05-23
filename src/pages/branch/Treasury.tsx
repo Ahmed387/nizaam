@@ -137,59 +137,6 @@ export default function Treasury() {
     load();
   };
 
-  const expense = async () => {
-    if (!eForm.amount) return toast.error("أدخل المبلغ");
-    if (ePayment.method !== "cash" && !ePayment.reference_number) return toast.error("رقم العملية مطلوب");
-
-    const { error } = await supabase.from("expenses").insert({
-      branch_id: branchId!,
-      type: eForm.type,
-      amount: Number(eForm.amount),
-      description: eForm.description,
-      date: new Date().toISOString().slice(0, 10),
-      created_by: user!.id,
-      payment_method: ePayment.method,
-      reference_number: ePayment.reference_number || null,
-      transfer_to_account: ePayment.transfer_to_account || null,
-    } as any);
-    if (error) return toast.error(error.message);
-
-    // If non-cash and has fee, log fee as separate expense
-    if (ePayment.fee_amount > 0) {
-      await supabase.from("expenses").insert({
-        branch_id: branchId!,
-        type: "transfer_fee",
-        amount: ePayment.fee_amount,
-        description: `عمولة دفع ${PAYMENT_METHOD_LABELS[ePayment.method]} — ${eForm.description || ""}`.trim(),
-        date: new Date().toISOString().slice(0, 10),
-        created_by: user!.id,
-        payment_method: ePayment.method,
-      } as any);
-    }
-
-    toast.success("تم تسجيل المصروف");
-    setOpenExpense(false);
-    setEForm({ type: "operational", amount: "", description: "" });
-    setEPayment(emptyPaymentValue("cash"));
-    load();
-  };
-
-  const removeRow = async (r: any) => {
-    if (!isAdmin) return;
-    if (!confirm(`حذف هذا القيد (${formatEGP(r.amount)})؟`)) return;
-    const { error } = await supabase.from("treasury").delete().eq("id", r.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم الحذف"); load();
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    const { error } = await supabase.from("treasury").update({
-      amount: Number(editing.amount), description: editing.description, category: editing.category,
-    }).eq("id", editing.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم التعديل"); setEditing(null); load();
-  };
 
   const acknowledge = async (t: any) => {
     const { error } = await supabase.rpc("acknowledge_treasury_transfer", { p_transfer_id: t.id });
