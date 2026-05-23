@@ -16,7 +16,7 @@ import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notificati
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
-import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
 
 interface WalletBalances {
   cash_balance: number;
@@ -42,15 +42,11 @@ export default function Treasury() {
   const [tab, setTab] = useState<"all" | "income" | "expense">("all");
   const [methodFilter, setMethodFilter] = useState<"all" | PaymentMethod>("all");
   const [openTransfer, setOpenTransfer] = useState(false);
-  const [openExpense, setOpenExpense] = useState(false);
   const [openReject, setOpenReject] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [tForm, setTForm] = useState({ to: "", amount: "", reason: "" });
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [tFeeCharged, setTFeeCharged] = useState(true);
-  const [eForm, setEForm] = useState({ type: "operational", amount: "", description: "" });
-  const [ePayment, setEPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
-  const [editing, setEditing] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -141,59 +137,6 @@ export default function Treasury() {
     load();
   };
 
-  const expense = async () => {
-    if (!eForm.amount) return toast.error("أدخل المبلغ");
-    if (ePayment.method !== "cash" && !ePayment.reference_number) return toast.error("رقم العملية مطلوب");
-
-    const { error } = await supabase.from("expenses").insert({
-      branch_id: branchId!,
-      type: eForm.type,
-      amount: Number(eForm.amount),
-      description: eForm.description,
-      date: new Date().toISOString().slice(0, 10),
-      created_by: user!.id,
-      payment_method: ePayment.method,
-      reference_number: ePayment.reference_number || null,
-      transfer_to_account: ePayment.transfer_to_account || null,
-    } as any);
-    if (error) return toast.error(error.message);
-
-    // If non-cash and has fee, log fee as separate expense
-    if (ePayment.fee_amount > 0) {
-      await supabase.from("expenses").insert({
-        branch_id: branchId!,
-        type: "transfer_fee",
-        amount: ePayment.fee_amount,
-        description: `عمولة دفع ${PAYMENT_METHOD_LABELS[ePayment.method]} — ${eForm.description || ""}`.trim(),
-        date: new Date().toISOString().slice(0, 10),
-        created_by: user!.id,
-        payment_method: ePayment.method,
-      } as any);
-    }
-
-    toast.success("تم تسجيل المصروف");
-    setOpenExpense(false);
-    setEForm({ type: "operational", amount: "", description: "" });
-    setEPayment(emptyPaymentValue("cash"));
-    load();
-  };
-
-  const removeRow = async (r: any) => {
-    if (!isAdmin) return;
-    if (!confirm(`حذف هذا القيد (${formatEGP(r.amount)})؟`)) return;
-    const { error } = await supabase.from("treasury").delete().eq("id", r.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم الحذف"); load();
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    const { error } = await supabase.from("treasury").update({
-      amount: Number(editing.amount), description: editing.description, category: editing.category,
-    }).eq("id", editing.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم التعديل"); setEditing(null); load();
-  };
 
   const acknowledge = async (t: any) => {
     const { error } = await supabase.rpc("acknowledge_treasury_transfer", { p_transfer_id: t.id });
@@ -224,10 +167,9 @@ export default function Treasury() {
 
   return (
     <BranchLayout>
-      <PageHeader title="الخزينة"
+      <PageHeader title="الخزينة" subtitle="عرض فقط — كل الحركات تتم عبر سندات القبض والصرف"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpenExpense(true)}><Plus className="w-4 h-4 ml-1" /> مصروف</Button>
             {canTransfer && otherBranches.length > 0 && (
               <Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
@@ -311,12 +253,6 @@ export default function Treasury() {
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
                 </span>
               )},
-              ...(isAdmin ? [{ key: "actions", header: "إجراءات", render: (r: any) => (
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => setEditing({ ...r })}><Pencil className="w-3.5 h-3.5" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => removeRow(r)} className="text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
-                </div>
-              )}] : []),
             ]} />
         </TabsContent>
 
@@ -402,41 +338,6 @@ export default function Treasury() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openExpense} onOpenChange={setOpenExpense}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>تسجيل مصروف</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>النوع</Label>
-              <select className="w-full bg-input border border-border rounded-lg p-2 mt-1.5" value={eForm.type} onChange={(e) => setEForm({...eForm, type: e.target.value})}>
-                <option value="operational">تشغيلية</option>
-                <option value="shipping">شحن ونقل</option>
-                <option value="admin">إدارية</option>
-              </select>
-            </div>
-            <div><Label>المبلغ *</Label><Input type="number" value={eForm.amount} onChange={(e) => setEForm({...eForm, amount: e.target.value})} className="mt-1.5" /></div>
-            <div><Label>الوصف</Label><Textarea value={eForm.description} onChange={(e) => setEForm({...eForm, description: e.target.value})} className="mt-1.5" rows={2} /></div>
-            <PaymentMethodPicker amount={Number(eForm.amount) || 0} value={ePayment} onChange={setEPayment} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenExpense(false)}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={expense}>تسجيل</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>تعديل قيد الخزنة</DialogTitle></DialogHeader>
-          {editing && (
-            <div className="space-y-3">
-              <div><Label>التصنيف</Label><Input value={editing.category ?? ""} onChange={(e) => setEditing({...editing, category: e.target.value})} className="mt-1.5" /></div>
-              <div><Label>المبلغ</Label><Input type="number" value={editing.amount} onChange={(e) => setEditing({...editing, amount: e.target.value})} className="mt-1.5" /></div>
-              <div><Label>الوصف</Label><Textarea value={editing.description ?? ""} onChange={(e) => setEditing({...editing, description: e.target.value})} className="mt-1.5" /></div>
-            </div>
-          )}
-          <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button><Button className="btn-gradient" onClick={saveEdit}>حفظ</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={!!openReject} onOpenChange={(v) => !v && setOpenReject(null)}>
         <DialogContent>

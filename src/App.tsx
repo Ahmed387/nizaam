@@ -52,7 +52,7 @@ import NewShipment from "./pages/branch/NewShipment";
 import ShipmentView from "./pages/branch/ShipmentView";
 import Returns from "./pages/branch/Returns";
 import NewReturn from "./pages/branch/NewReturn";
-import Expenses from "./pages/branch/Expenses";
+
 import BranchReports from "./pages/branch/Reports";
 import AdminReports from "./pages/admin/Reports";
 import StockTransfers from "./pages/branch/StockTransfers";
@@ -154,7 +154,7 @@ const App = () => (
             <Route path="/branch/:id/treasury" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Treasury /></ProtectedRoute>} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute roles={["branch_manager"]}><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute roles={["branch_manager"]}><AdvanceRequests /></ProtectedRoute>} />
-            <Route path="/branch/:id/expenses" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Expenses /></ProtectedRoute>} />
+            
             <Route path="/branch/:id/reports" element={<ProtectedRoute roles={["branch_manager","accountant"]}><BranchReports /></ProtectedRoute>} />
             <Route path="/branch/:id/attendance" element={<ProtectedRoute roles={["branch_manager","cashier","accountant"]}><Attendance /></ProtectedRoute>} />
 
