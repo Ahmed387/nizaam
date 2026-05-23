@@ -72,7 +72,7 @@ export default function BranchProfile() {
     setProducts(prods ?? []);
     setInvoices((invs ?? []).map((r: any) => ({ ...r, cashier_name: cashierMap.get(r.cashier_id) ?? "—" })));
     setShipments(ships ?? []);
-    setExpenses(exps ?? []);
+    setExpenses((exps ?? []).map((v: any) => ({ id: v.id, date: v.voucher_date, amount: v.amount, type: v.voucher_categories?.name ?? "أخرى", description: v.description ?? v.voucher_number })));
     setTreasury(trs ?? []);
     setReturns(rets ?? []);
     setLoading(false);
