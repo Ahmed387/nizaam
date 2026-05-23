@@ -232,8 +232,10 @@ export default function NewShipment() {
     <BranchLayout>
       <PageHeader title="شحنة جديدة" subtitle="استلام بضاعة من مورد" />
 
-      <div className="grid lg:grid-cols-3 gap-4 mb-4">
-        <div className="card-elevated p-4 space-y-3">
+      {/* 1) Supplier */}
+      <div className="card-elevated p-4 mb-4">
+        <h3 className="font-bold mb-3">١. بيانات المورد</h3>
+        <div className="grid md:grid-cols-3 gap-3">
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label>المورد *</Label>
@@ -267,8 +269,12 @@ export default function NewShipment() {
             <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} />
           </div>
         </div>
+      </div>
 
-        <div className="card-elevated p-4 space-y-3">
+      {/* 2) Costs & notes */}
+      <div className="card-elevated p-4 mb-4">
+        <h3 className="font-bold mb-3">٢. التكاليف والملاحظات</h3>
+        <div className="grid md:grid-cols-3 gap-3">
           <div>
             <Label>تكلفة الشحن</Label>
             <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} />
@@ -282,27 +288,6 @@ export default function NewShipment() {
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
-
-        <div className="card-elevated p-4 flex flex-col justify-between">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة</span><b>{formatEGP(itemsTotal)}</b></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
-            <div className="border-t border-border pt-2 flex justify-between text-lg">
-              <span>الإجمالي</span>
-              <b className="text-primary">{formatEGP(grandTotal)}</b>
-            </div>
-          </div>
-          <Button onClick={submit} disabled={busy} className="w-full mt-4 gap-2">
-            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            حفظ الشحنة
-          </Button>
-        </div>
-      </div>
-
-      <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">طريقة الدفع للمورد</h3>
-        <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
       </div>
 
       <div className="card-elevated overflow-hidden">
