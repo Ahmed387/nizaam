@@ -184,6 +184,7 @@ export default function Settings() {
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
           <TabsTrigger value="payments"><Wallet className="w-4 h-4 ml-1" /> إعدادات المدفوعات</TabsTrigger>
+          <TabsTrigger value="voucher-cats"><BookOpen className="w-4 h-4 ml-1" /> تصنيفات السندات</TabsTrigger>
           <TabsTrigger value="alerts"><BellRing className="w-4 h-4 ml-1" /> تنبيهات الخزينة</TabsTrigger>
           <TabsTrigger value="targets"><Target className="w-4 h-4 ml-1" /> أهداف المبيعات</TabsTrigger>
           <TabsTrigger value="backup"><DatabaseBackup className="w-4 h-4 ml-1" /> نسخة احتياطية</TabsTrigger>
