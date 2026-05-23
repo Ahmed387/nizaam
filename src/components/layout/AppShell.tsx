@@ -1,7 +1,7 @@
-import { NavLink, useLocation, Link } from "react-router-dom";
+import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
-import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download } from "lucide-react";
+import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -30,7 +30,10 @@ export function AppShell({
   const { profile, roles, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const loc = useLocation();
+  const navigate = useNavigate();
+  const canGoBack = typeof window !== "undefined" && window.history.length > 1;
 
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
     <aside
@@ -194,9 +197,19 @@ export function AppShell({
     <div className="min-h-screen flex bg-background w-full">
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 inset-x-0 z-40 h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4">
-        <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent">
-          <Menu className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent">
+            <Menu className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-lg hover:bg-sidebar-accent"
+            aria-label="رجوع"
+            title="رجوع"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
         <div className="font-bold truncate">{title}</div>
         <div className="flex items-center gap-1">
           <OfflineQueueIndicator />
@@ -206,7 +219,7 @@ export function AppShell({
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:block">{renderSidebar(collapsed, false)}</div>
+      {!hidden && <div className="hidden lg:block">{renderSidebar(collapsed, false)}</div>}
 
       {/* Mobile drawer — opens from the right (RTL) */}
       {open && (
@@ -223,10 +236,35 @@ export function AppShell({
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
-          <div className="hidden lg:flex items-center justify-end gap-1 mb-2">
-            <OfflineQueueIndicator />
-            <ThemeToggle />
-            <NotificationBell />
+          <div className="hidden lg:flex items-center justify-between gap-1 mb-2">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHidden((h) => !h)}
+                title={hidden ? "إظهار القائمة" : "إخفاء القائمة"}
+                className="gap-2"
+              >
+                {hidden ? <PanelRightOpen className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
+                {hidden ? "إظهار القائمة" : "إخفاء القائمة"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(-1)}
+                disabled={!canGoBack}
+                className="gap-2"
+                title="رجوع"
+              >
+                <ArrowRight className="w-4 h-4" />
+                رجوع
+              </Button>
+            </div>
+            <div className="flex items-center gap-1">
+              <OfflineQueueIndicator />
+              <ThemeToggle />
+              <NotificationBell />
+            </div>
           </div>
           {children}
         </div>
