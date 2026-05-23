@@ -224,10 +224,9 @@ export default function Treasury() {
 
   return (
     <BranchLayout>
-      <PageHeader title="الخزينة"
+      <PageHeader title="الخزينة" subtitle="عرض فقط — كل الحركات تتم عبر سندات القبض والصرف"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpenExpense(true)}><Plus className="w-4 h-4 ml-1" /> مصروف</Button>
             {canTransfer && otherBranches.length > 0 && (
               <Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
