@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Printer, X, FileDown, Receipt, Bluetooth } from "lucide-react";
+import { Printer, X, FileDown, Receipt, Bluetooth, Trash2 } from "lucide-react";
 import { printThermalReceipt, buildESCPOSReceipt, printRawESCPOS, isWebBluetoothSupported, getBluetoothConnection } from "@/lib/thermalPrinter";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
@@ -18,6 +18,7 @@ import {
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
+  const nav = useNavigate();
   const { user, profile, hasRole, isAdmin, tenant } = useAuth();
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -26,6 +27,8 @@ export default function InvoiceView() {
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +88,16 @@ export default function InvoiceView() {
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
 
   const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
+  const canDelete = isAdmin || hasRole("branch_manager");
+
+  const hardDelete = async () => {
+    setDeleting(true);
+    const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: invoiceId! });
+    if (error) { setDeleting(false); return toast.error(error.message); }
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId: id, action: "DELETE", entity: "Invoice", entityId: invoiceId, details: { invoice_number: inv.invoice_number } });
+    toast.success("تم حذف الفاتورة نهائياً + رجعت البضاعة + اتشالت الفلوس من الخزنة");
+    nav(`/branch/${id}/sales`);
+  };
 
   const thermalData = () => ({
     storeName: tenant?.name ?? branch?.name ?? "",
@@ -121,8 +134,9 @@ export default function InvoiceView() {
     <BranchLayout>
       <PageHeader title={`فاتورة ${inv.invoice_number}`}
         actions={
-          <div className="flex gap-2 no-print">
+          <div className="flex gap-2 no-print flex-wrap">
             {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء</Button>}
+            {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
             <Button variant="outline" onClick={() => window.print()}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -288,6 +302,27 @@ export default function InvoiceView() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancelOpen(false)}>تراجع</Button>
             <Button variant="destructive" onClick={cancel}>تأكيد الإلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="text-destructive">حذف الفاتورة نهائياً</DialogTitle></DialogHeader>
+          <div className="space-y-2 text-sm">
+            <p className="font-semibold">هتمسح الفاتورة <span className="font-mono text-primary">{inv.invoice_number}</span> نهائياً من النظام.</p>
+            <ul className="list-disc pr-5 space-y-1 text-muted-foreground">
+              <li>كل البضاعة هترجع للمخزن تلقائياً</li>
+              <li>أي فلوس اتقبضت هتتشال من الخزنة</li>
+              <li>الأقساط والمدفوعات المرتبطة بالفاتورة هتتمسح</li>
+              <li><b className="text-destructive">العملية دي مش بترجع — استخدمها بحذر</b></li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>تراجع</Button>
+            <Button variant="destructive" onClick={hardDelete} disabled={deleting}>
+              {deleting ? "جاري الحذف..." : "أوافق — احذف نهائياً"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
