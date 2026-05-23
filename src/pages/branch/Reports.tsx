@@ -41,13 +41,17 @@ export default function BranchReports() {
     const [b, inv, exp, tr, pr] = await Promise.all([
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
       supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso).order("created_at", { ascending: false }),
-      supabase.from("expenses").select("*").eq("branch_id", branchId).gte("date", from).lte("date", to),
+      supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("treasury").select("*").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("products").select("*").eq("branch_id", branchId),
     ]);
     setBranchName(b.data?.name ?? "");
     setInvoices(inv.data ?? []);
-    setExpenses(exp.data ?? []);
+    setExpenses((exp.data ?? []).map((v: any) => ({
+      id: v.id, date: v.voucher_date, amount: v.amount,
+      type: v.voucher_categories?.name ?? "أخرى",
+      description: v.description ?? v.voucher_number,
+    })));
     setTreasury(tr.data ?? []);
     setProducts(pr.data ?? []);
     setLoading(false);
