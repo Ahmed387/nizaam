@@ -233,62 +233,70 @@ export default function NewShipment() {
       <PageHeader title="شحنة جديدة" subtitle="استلام بضاعة من مورد" />
 
       {/* 1) Supplier */}
-      <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">١. بيانات المورد</h3>
-        <div className="grid md:grid-cols-3 gap-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label>المورد *</Label>
-              <Button type="button" size="sm" variant="outline" onClick={() => setSupplierDlg(true)} className="h-7 px-2 text-xs gap-1">
-                <UserPlus className="w-3 h-3" /> مورد جديد
-              </Button>
-            </div>
+      <div className="card-elevated p-5 mb-4">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+          <h3 className="font-bold text-base flex items-center gap-2">
+            <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">١</span>
+            بيانات المورد
+          </h3>
+          <Button type="button" size="sm" variant="outline" onClick={() => setSupplierDlg(true)} className="gap-1.5">
+            <UserPlus className="w-3.5 h-3.5" /> مورد جديد
+          </Button>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">المورد *</Label>
             <select
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full mt-1 bg-surface border border-border rounded-md px-3 py-2 text-sm"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <option value="">— اختر —</option>
+              <option value="">— اختر مورد —</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.company_name}</option>
               ))}
             </select>
-            {suppliers.length === 0 && (
-              <button type="button" onClick={() => setSupplierDlg(true)}
-                className="mt-2 w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
-                <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
-              </button>
-            )}
           </div>
-          <div>
-            <Label>تاريخ الوصول</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">تاريخ الوصول</Label>
             <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
           </div>
-          <div>
-            <Label>اسم المستلم</Label>
-            <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">اسم المستلم</Label>
+            <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" />
+          </div>
+        </div>
+        {suppliers.length === 0 && (
+          <button type="button" onClick={() => setSupplierDlg(true)}
+            className="mt-4 w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
+            <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
+          </button>
+        )}
+      </div>
+
+      {/* 2) Costs & notes */}
+      <div className="card-elevated p-5 mb-4">
+        <h3 className="font-bold text-base flex items-center gap-2 mb-4 pb-3 border-b border-border">
+          <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٢</span>
+          التكاليف والملاحظات
+        </h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">تكلفة الشحن (جنيه)</Label>
+            <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (جنيه)</Label>
+            <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
+          </div>
+          <div className="space-y-1.5 md:row-span-2">
+            <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
+            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
           </div>
         </div>
       </div>
 
-      {/* 2) Costs & notes */}
-      <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">٢. التكاليف والملاحظات</h3>
-        <div className="grid md:grid-cols-3 gap-3">
-          <div>
-            <Label>تكلفة الشحن</Label>
-            <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>مصاريف إدارية</Label>
-            <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-        </div>
-      </div>
+
 
       <div className="card-elevated overflow-hidden mb-4">
         <div className="flex items-center justify-between p-4 border-b border-border">
