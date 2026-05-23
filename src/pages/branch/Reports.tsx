@@ -42,7 +42,7 @@ export default function BranchReports() {
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
       supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso).order("created_at", { ascending: false }),
       supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("treasury").select("*").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("vouchers" as any).select("type, amount, voucher_date").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*").eq("branch_id", branchId),
     ]);
     setBranchName(b.data?.name ?? "");
@@ -65,8 +65,8 @@ export default function BranchReports() {
   const grossProfit = totalSales - totalCost;
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const netProfit = grossProfit - totalExpenses;
-  const cashIn = treasury.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
-  const cashOut = treasury.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+  const cashIn = treasury.filter((t) => t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0);
+  const cashOut = treasury.filter((t) => t.type === "payment").reduce((s, t) => s + Number(t.amount), 0);
 
   // Top products
   const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
@@ -169,7 +169,7 @@ export default function BranchReports() {
         <TabsList>
           <TabsTrigger value="charts">📊 التحليل البصري</TabsTrigger>
           <TabsTrigger value="products">أكثر مبيعاً</TabsTrigger>
-          <TabsTrigger value="expenses">المصروفات</TabsTrigger>
+          <TabsTrigger value="expenses">سندات الصرف</TabsTrigger>
           <TabsTrigger value="lowstock">مخزون منخفض</TabsTrigger>
         </TabsList>
 
