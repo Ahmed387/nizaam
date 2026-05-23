@@ -310,12 +310,6 @@ export default function Treasury() {
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
                 </span>
               )},
-              ...(isAdmin ? [{ key: "actions", header: "إجراءات", render: (r: any) => (
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => setEditing({ ...r })}><Pencil className="w-3.5 h-3.5" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => removeRow(r)} className="text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
-                </div>
-              )}] : []),
             ]} />
         </TabsContent>
 
