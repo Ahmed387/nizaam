@@ -46,9 +46,16 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     setPm(emptyPaymentValue());
   }, [open, type]);
 
+  // System categories produced automatically by other flows — hide from manual dialog
+  const AUTO_KEYS = new Set([
+    "advance", "salary", "supplier_payment", "cash_sale", "installment",
+    "customer_return", "transfer_fee", "branch_transfer_in", "branch_transfer_out",
+    "shipping",
+  ]);
   const grouped = useMemo(() => {
-    const roots = cats.filter((c) => !c.parent_id);
-    return roots.map((r) => ({ root: r, children: cats.filter((c) => c.parent_id === r.id) }));
+    const visible = cats.filter((c) => !c.system_key || !AUTO_KEYS.has(c.system_key));
+    const roots = visible.filter((c) => !c.parent_id);
+    return roots.map((r) => ({ root: r, children: visible.filter((c) => c.parent_id === r.id) }));
   }, [cats]);
 
   const submit = async () => {
