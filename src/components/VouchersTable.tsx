@@ -195,8 +195,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           </div>
         )}
         <div className="flex gap-2 ms-auto">
-          <Button size="sm" variant="outline" onClick={() => exportToExcel(exportRows, "vouchers")}>Excel</Button>
-          <Button size="sm" variant="outline" onClick={() => exportToPDF(exportRows, "vouchers", "السندات")}>PDF</Button>
+          <Button size="sm" variant="outline" onClick={() => exportToExcel("vouchers", [{ name: "السندات", rows: exportRows }])}>Excel</Button>
+          <Button size="sm" variant="outline" onClick={() => {
+            const html = `<table><thead><tr>${Object.keys(exportRows[0] ?? {}).map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>${exportRows.map(r => `<tr>${Object.values(r).map(v => `<td>${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+            printReport("السندات", html);
+          }}>PDF</Button>
           {canAdd && (
             <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" /> {type === "receipt" ? "سند قبض جديد" : "سند صرف جديد"}
