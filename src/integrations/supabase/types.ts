@@ -1335,6 +1335,240 @@ export type Database = {
           },
         ]
       }
+      purchase_return_items: {
+        Row: {
+          id: string
+          product_id: string
+          product_name: string
+          purchase_return_id: string
+          quantity: number
+          total: number
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          product_name: string
+          purchase_return_id: string
+          quantity: number
+          total: number
+          unit_cost: number
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          product_name?: string
+          purchase_return_id?: string
+          quantity?: number
+          total?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_return_items_purchase_return_id_fkey"
+            columns: ["purchase_return_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_returns: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          reason: string
+          return_number: string
+          shipment_id: string | null
+          supplier_id: string
+          tenant_id: string | null
+          total_amount: number
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          reason: string
+          return_number: string
+          shipment_id?: string | null
+          supplier_id: string
+          tenant_id?: string | null
+          total_amount?: number
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          return_number?: string
+          shipment_id?: string | null
+          supplier_id?: string
+          tenant_id?: string | null
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_returns_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_items: {
+        Row: {
+          id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          quote_id: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          quote_id: string
+          total: number
+          unit_price: number
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          quote_id?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name: string | null
+          discount: number
+          id: string
+          notes: string | null
+          quote_number: string
+          status: string
+          subtotal: number
+          tenant_id: string | null
+          total: number
+          valid_until: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          customer_name?: string | null
+          discount?: number
+          id?: string
+          notes?: string | null
+          quote_number: string
+          status?: string
+          subtotal?: number
+          tenant_id?: string | null
+          total?: number
+          valid_until?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          discount?: number
+          id?: string
+          notes?: string | null
+          quote_number?: string
+          status?: string
+          subtotal?: number
+          tenant_id?: string | null
+          total?: number
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       return_items: {
         Row: {
           id: string
@@ -1670,6 +1904,102 @@ export type Database = {
           },
           {
             foreignKeyName: "shipments_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_adjustment_items: {
+        Row: {
+          actual_quantity: number
+          adjustment_id: string
+          difference: number
+          id: string
+          product_id: string
+          product_name: string
+          system_quantity: number
+          unit_cost: number
+        }
+        Insert: {
+          actual_quantity: number
+          adjustment_id: string
+          difference: number
+          id?: string
+          product_id: string
+          product_name: string
+          system_quantity: number
+          unit_cost?: number
+        }
+        Update: {
+          actual_quantity?: number
+          adjustment_id?: string
+          difference?: number
+          id?: string
+          product_id?: string
+          product_name?: string
+          system_quantity?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_adjustment_items_adjustment_id_fkey"
+            columns: ["adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "stock_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustment_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_adjustments: {
+        Row: {
+          adjustment_number: string
+          branch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          reason: string
+          tenant_id: string | null
+        }
+        Insert: {
+          adjustment_number: string
+          branch_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          reason: string
+          tenant_id?: string | null
+        }
+        Update: {
+          adjustment_number?: string
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_adjustments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
