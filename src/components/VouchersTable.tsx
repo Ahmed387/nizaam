@@ -236,13 +236,14 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
               ? <Badge variant="default">نشط</Badge>
               : <Badge variant="destructive">ملغي</Badge>
           ) },
-          { key: "actions", header: "", render: (r: Voucher) => (
-            r.status === "active" && (isAdmin || hasRole("branch_manager")) ? (
+          { key: "actions", header: "", render: (r: Voucher) => {
+            const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
+            return canCancel ? (
               <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive">
                 <XCircle className="w-4 h-4" />
               </Button>
-            ) : null
-          ) },
+            ) : null;
+          } },
         ]}
       />
 
