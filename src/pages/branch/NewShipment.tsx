@@ -11,10 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Upload, ImageIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, ImageIcon, UserPlus } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface Line {
   product_id: string | null;
@@ -47,6 +48,27 @@ export default function NewShipment() {
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
+  const [supplierDlg, setSupplierDlg] = useState(false);
+  const [newSup, setNewSup] = useState({ company_name: "", contact_name: "", phone: "", address: "" });
+  const [savingSup, setSavingSup] = useState(false);
+
+  const createSupplier = async () => {
+    if (!newSup.company_name.trim()) return toast.error("اسم الشركة مطلوب");
+    setSavingSup(true);
+    const { data, error } = await supabase.from("suppliers").insert({
+      company_name: newSup.company_name.trim(),
+      contact_name: newSup.contact_name.trim() || null,
+      phone: newSup.phone.trim() || null,
+      address: newSup.address.trim() || null,
+    }).select().single();
+    setSavingSup(false);
+    if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
+    setSuppliers([data, ...suppliers]);
+    setSupplierId(data.id);
+    setSupplierDlg(false);
+    setNewSup({ company_name: "", contact_name: "", phone: "", address: "" });
+    toast.success("تمت إضافة المورد");
+  };
 
   useEffect(() => {
     if (!branchId) return;
@@ -213,7 +235,12 @@ export default function NewShipment() {
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <div className="card-elevated p-4 space-y-3">
           <div>
-            <Label>المورد *</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label>المورد *</Label>
+              <Button type="button" size="sm" variant="outline" onClick={() => setSupplierDlg(true)} className="h-7 px-2 text-xs gap-1">
+                <UserPlus className="w-3 h-3" /> مورد جديد
+              </Button>
+            </div>
             <select
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
@@ -224,6 +251,12 @@ export default function NewShipment() {
                 <option key={s.id} value={s.id}>{s.company_name}</option>
               ))}
             </select>
+            {suppliers.length === 0 && (
+              <button type="button" onClick={() => setSupplierDlg(true)}
+                className="mt-2 w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
+                <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
+              </button>
+            )}
           </div>
           <div>
             <Label>تاريخ الوصول</Label>
