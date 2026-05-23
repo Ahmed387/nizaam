@@ -31,7 +31,7 @@ export default function NewPurchaseReturn() {
     if (!branchId) return;
     (async () => {
       const [s, p] = await Promise.all([
-        supabase.from("suppliers").select("id, name").eq("branch_id", branchId).order("name"),
+        supabase.from("suppliers").select("id, company_name").order("company_name"),
         supabase.from("products").select("id, name, quantity, cost_price").eq("branch_id", branchId).gt("quantity", 0).order("name"),
       ]);
       setSuppliers(s.data ?? []);
@@ -84,7 +84,7 @@ export default function NewPurchaseReturn() {
             <Label>المورد *</Label>
             <Select value={supplierId} onValueChange={setSupplierId}>
               <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر المورد" /></SelectTrigger>
-              <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
