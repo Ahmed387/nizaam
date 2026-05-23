@@ -46,7 +46,7 @@ export default function AdminDashboard() {
       (branches ?? []).map(async (b) => {
         const [{ data: sales }, { data: exp }, { data: tr }] = await Promise.all([
           supabase.from("invoices").select("total").eq("branch_id", b.id).eq("status", "active"),
-          supabase.from("expenses").select("amount").eq("branch_id", b.id),
+          supabase.from("vouchers").select("amount").eq("branch_id", b.id).eq("type", "payment").eq("status", "active"),
           supabase.from("treasury").select("type, amount").eq("branch_id", b.id),
         ]);
         const totalSales = (sales ?? []).reduce((s, x) => s + Number(x.total), 0);
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
     (async () => { try { await supabase.rpc("mark_overdue_installments" as any); } catch {} })();
   }, []);
   useRealtimeRefresh(
-    ["invoices", "treasury", "products", "shipments", "branches", "expenses"],
+    ["invoices", "treasury", "products", "shipments", "branches", "vouchers"],
     load
   );
 

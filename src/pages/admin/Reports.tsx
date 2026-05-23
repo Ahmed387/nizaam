@@ -57,7 +57,7 @@ export default function AdminReports() {
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
-      supabase.from("expenses").select("*").gte("date", from).lte("date", to),
+      supabase.from("vouchers").select("*, voucher_categories(name)").eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*"),
       supabase.from("suppliers").select("*"),
       supabase.from("shipments").select("*").gte("arrival_date", from).lte("arrival_date", to),
@@ -74,7 +74,11 @@ export default function AdminReports() {
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
-    setExpenses(exp.data ?? []);
+    setExpenses((exp.data ?? []).map((v: any) => ({
+      id: v.id, branch_id: v.branch_id, date: v.voucher_date, amount: v.amount,
+      type: v.voucher_categories?.name ?? "أخرى",
+      description: v.description ?? v.voucher_number,
+    })));
     setProducts(pr.data ?? []);
     setSuppliers(sup.data ?? []);
     setShipments(sh.data ?? []);
@@ -93,7 +97,7 @@ export default function AdminReports() {
 
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(
-    ["invoices", "expenses", "products", "suppliers", "shipments", "supplier_payments", "employees", "treasury", "returns", "customers", "branches"],
+    ["invoices", "vouchers", "products", "suppliers", "shipments", "supplier_payments", "employees", "treasury", "returns", "customers", "branches"],
     load
   );
 

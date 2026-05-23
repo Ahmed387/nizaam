@@ -159,11 +159,11 @@ export default function EmployeeProfile() {
       payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null,
     });
     if (advPm.fee_amount > 0) {
-      await (supabase.from("expenses") as any).insert({
-        branch_id: emp.branch_id, type: "عمولة تحويل", amount: advPm.fee_amount,
-        description: `عمولة ${advPm.method} - سلفة ${emp.name}`, date: new Date().toISOString().split("T")[0],
-        payment_method: advPm.method, is_fee: true, created_by: user!.id,
-      });
+      await supabase.from("treasury").insert({
+        branch_id: emp.branch_id, type: "expense", category: "transfer_fee",
+        amount: advPm.fee_amount, description: `عمولة ${advPm.method} - سلفة ${emp.name}`,
+        is_fee: true, payment_method: advPm.method, created_by: user!.id,
+      } as any);
     }
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "advance", entityId: adv.id, details: { employee: emp.name, amount: amt, method: advPm.method } });
     toast.success("تم صرف السلفة");
@@ -203,11 +203,11 @@ export default function EmployeeProfile() {
       payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null,
     });
     if (salPm.fee_amount > 0) {
-      await (supabase.from("expenses") as any).insert({
-        branch_id: emp.branch_id, type: "عمولة تحويل", amount: salPm.fee_amount,
-        description: `عمولة ${salPm.method} - راتب ${emp.name}`, date: new Date().toISOString().split("T")[0],
-        payment_method: salPm.method, is_fee: true, created_by: user!.id,
-      });
+      await supabase.from("treasury").insert({
+        branch_id: emp.branch_id, type: "expense", category: "transfer_fee",
+        amount: salPm.fee_amount, description: `عمولة ${salPm.method} - راتب ${emp.name}`,
+        is_fee: true, payment_method: salPm.method, created_by: user!.id,
+      } as any);
     }
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "salary", entityId: sal.id, details: { employee: emp.name, month: salForm.month, net, method: salPm.method } });
 
