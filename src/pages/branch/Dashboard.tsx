@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target, ShoppingCart, RotateCcw, PackagePlus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, Undo2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -121,9 +121,38 @@ export default function BranchDashboard() {
   const todayVsYesterday = salesYesterday > 0 ? ((salesToday - salesYesterday) / salesYesterday) * 100 : 0;
   const monthVsLast = salesLastMonth > 0 ? ((salesMonth - salesLastMonth) / salesLastMonth) * 100 : 0;
 
+  const shortcuts = [
+    { to: `/branch/${id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
+    { to: `/branch/${id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/10" },
+    { to: `/branch/${id}/sales/returns/new`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/10" },
+    { to: `/branch/${id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/10" },
+    { to: `/branch/${id}/treasury?action=income`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/10" },
+    { to: `/branch/${id}/treasury?action=expense`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/10" },
+    { to: `/branch/${id}/transfers`, label: "تحويل مخازن", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/10" },
+    { to: `/branch/${id}/invoices?tab=quote`, label: "عرض أسعار", icon: FileText, color: "text-secondary", bg: "bg-secondary/10" },
+    { to: `/branch/${id}/invoices?tab=adjustment`, label: "تسوية مخزن", icon: ClipboardList, color: "text-muted-foreground", bg: "bg-muted" },
+  ];
+
   return (
     <BranchLayout>
       <PageHeader title="لوحة الفرع" subtitle="نظرة عامة على نشاط اليوم" />
+
+      {/* Quick actions */}
+      <div className="card-elevated p-4 mb-6">
+        <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة</h3>
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
+          {shortcuts.map((s) => (
+            <Link key={s.label} to={s.to}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all group">
+              <div className={`w-11 h-11 rounded-full ${s.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <span className="text-[11px] font-semibold text-center leading-tight">{s.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
 
       {/* KPI Cards with comparisons */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
