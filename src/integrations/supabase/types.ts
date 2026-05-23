@@ -2437,6 +2437,192 @@ export type Database = {
           },
         ]
       }
+      voucher_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_system: boolean
+          name: string
+          parent_id: string | null
+          system_key: string | null
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          parent_id?: string | null
+          system_key?: string | null
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          parent_id?: string | null
+          system_key?: string | null
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["voucher_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "voucher_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voucher_sequences: {
+        Row: {
+          last_number: number
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Insert: {
+          last_number?: number
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Update: {
+          last_number?: number
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["voucher_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_sequences_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vouchers: {
+        Row: {
+          amount: number
+          branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          category_id: string
+          created_at: string
+          created_by: string
+          created_by_name: string | null
+          description: string | null
+          fee_amount: number
+          id: string
+          party_id: string | null
+          party_name: string | null
+          party_type: Database["public"]["Enums"]["voucher_party_type"] | null
+          payment_method: string
+          reference_number: string | null
+          source: Database["public"]["Enums"]["voucher_source"]
+          source_id: string | null
+          source_type: string | null
+          status: Database["public"]["Enums"]["voucher_status"]
+          tenant_id: string
+          transferred_to: string | null
+          treasury_id: string | null
+          type: Database["public"]["Enums"]["voucher_type"]
+          voucher_date: string
+          voucher_number: string
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          category_id: string
+          created_at?: string
+          created_by: string
+          created_by_name?: string | null
+          description?: string | null
+          fee_amount?: number
+          id?: string
+          party_id?: string | null
+          party_name?: string | null
+          party_type?: Database["public"]["Enums"]["voucher_party_type"] | null
+          payment_method: string
+          reference_number?: string | null
+          source: Database["public"]["Enums"]["voucher_source"]
+          source_id?: string | null
+          source_type?: string | null
+          status?: Database["public"]["Enums"]["voucher_status"]
+          tenant_id: string
+          transferred_to?: string | null
+          treasury_id?: string | null
+          type: Database["public"]["Enums"]["voucher_type"]
+          voucher_date?: string
+          voucher_number: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          category_id?: string
+          created_at?: string
+          created_by?: string
+          created_by_name?: string | null
+          description?: string | null
+          fee_amount?: number
+          id?: string
+          party_id?: string | null
+          party_name?: string | null
+          party_type?: Database["public"]["Enums"]["voucher_party_type"] | null
+          payment_method?: string
+          reference_number?: string | null
+          source?: Database["public"]["Enums"]["voucher_source"]
+          source_id?: string | null
+          source_type?: string | null
+          status?: Database["public"]["Enums"]["voucher_status"]
+          tenant_id?: string
+          transferred_to?: string | null
+          treasury_id?: string | null
+          type?: Database["public"]["Enums"]["voucher_type"]
+          voucher_date?: string
+          voucher_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "voucher_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       price_list_items_public: {
@@ -2458,6 +2644,32 @@ export type Database = {
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "price_list_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voucher_treasury_balances: {
+        Row: {
+          balance: number | null
+          branch_id: string | null
+          payment_method: string | null
+          tenant_id: string | null
+          total_in: number | null
+          total_out: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -2484,11 +2696,33 @@ export type Database = {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
       }
+      cancel_voucher: {
+        Args: { p_reason: string; p_voucher_id: string }
+        Returns: undefined
+      }
       complete_pre_order_sale: {
         Args: { p_payment_method?: string; p_pre_order_id: string }
         Returns: string
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
+      create_manual_voucher: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_category_id: string
+          p_description?: string
+          p_fee_amount?: number
+          p_party_id?: string
+          p_party_name?: string
+          p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+          p_payment_method: string
+          p_reference_number?: string
+          p_transferred_to?: string
+          p_type: Database["public"]["Enums"]["voucher_type"]
+          p_voucher_date?: string
+        }
+        Returns: string
+      }
       create_pre_order:
         | {
             Args: {
@@ -2544,6 +2778,14 @@ export type Database = {
           vodafone_balance: number
         }[]
       }
+      get_system_category: {
+        Args: {
+          _key: string
+          _tenant: string
+          _type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Returns: string
+      }
       hard_delete_invoice: { Args: { _invoice_id: string }; Returns: undefined }
       has_role: {
         Args: {
@@ -2554,11 +2796,22 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      map_treasury_to_category_key: {
+        Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
+        Returns: string
+      }
       mark_overdue_installments: { Args: never; Returns: number }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_pre_order_number: { Args: never; Returns: string }
       next_sku: { Args: never; Returns: string }
+      next_voucher_number: {
+        Args: {
+          _tenant: string
+          _type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Returns: string
+      }
       payment_plans_summary: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -2606,6 +2859,7 @@ export type Database = {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: undefined
       }
+      seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
         Args: {
@@ -2686,6 +2940,10 @@ export type Database = {
         | "final_payment"
       transfer_status: "pending" | "confirmed" | "rejected"
       treasury_type: "income" | "expense"
+      voucher_party_type: "customer" | "supplier" | "employee" | "other"
+      voucher_source: "manual" | "system"
+      voucher_status: "active" | "cancelled"
+      voucher_type: "receipt" | "payment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2838,6 +3096,10 @@ export const Constants = {
       ],
       transfer_status: ["pending", "confirmed", "rejected"],
       treasury_type: ["income", "expense"],
+      voucher_party_type: ["customer", "supplier", "employee", "other"],
+      voucher_source: ["manual", "system"],
+      voucher_status: ["active", "cancelled"],
+      voucher_type: ["receipt", "payment"],
     },
   },
 } as const
