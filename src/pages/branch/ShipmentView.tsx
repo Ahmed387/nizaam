@@ -17,7 +17,7 @@ export default function ShipmentView() {
       const { data: s } = await supabase.from("shipments").select("*, suppliers(company_name, phone, address, tax_number)").eq("id", shipmentId!).maybeSingle();
       const { data: it } = await supabase
         .from("shipment_items")
-        .select("*, products(name, sku, selling_price, quantity, image)")
+        .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
         .eq("shipment_id", shipmentId!);
       setShip(s);
       setItems(it ?? []);
