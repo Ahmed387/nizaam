@@ -14,11 +14,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen } from "lucide-react";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
 import { TwoFactorTab } from "@/components/TwoFactorTab";
 import { ViewersTab } from "@/components/ViewersTab";
+import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -183,6 +184,7 @@ export default function Settings() {
           <TabsTrigger value="invoice"><Receipt className="w-4 h-4 ml-1" /> الفواتير</TabsTrigger>
           <TabsTrigger value="inventory"><Boxes className="w-4 h-4 ml-1" /> المخزون</TabsTrigger>
           <TabsTrigger value="payments"><Wallet className="w-4 h-4 ml-1" /> إعدادات المدفوعات</TabsTrigger>
+          <TabsTrigger value="voucher-cats"><BookOpen className="w-4 h-4 ml-1" /> تصنيفات السندات</TabsTrigger>
           <TabsTrigger value="alerts"><BellRing className="w-4 h-4 ml-1" /> تنبيهات الخزينة</TabsTrigger>
           <TabsTrigger value="targets"><Target className="w-4 h-4 ml-1" /> أهداف المبيعات</TabsTrigger>
           <TabsTrigger value="backup"><DatabaseBackup className="w-4 h-4 ml-1" /> نسخة احتياطية</TabsTrigger>
@@ -195,6 +197,11 @@ export default function Settings() {
         <TabsContent value="payments" className="mt-4">
           <PaymentFeesTab />
         </TabsContent>
+
+        <TabsContent value="voucher-cats" className="mt-4">
+          <VoucherCategoriesTab />
+        </TabsContent>
+
 
         <TabsContent value="company" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">

@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/scheduled-reports", label: "التقارير المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
   { to: "/admin/attendance", label: "الحضور (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/admin/receivables", label: "الذمم المالية", icon: <Coins className="w-4 h-4" /> },
+  { to: "/admin/vouchers", label: "السندات المالية", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/admin/audit-log", label: "سجل العمليات", icon: <ScrollText className="w-4 h-4" /> },
   { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
   
@@ -110,6 +111,8 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/customers`, label: "العملاء", icon: <UserCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" />, allow: ["warehouse", "accountant"] },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, allow: ["accountant"] },
+    { to: `/branch/${id}/receipt-vouchers`, label: "سندات القبض", icon: <ArrowDownCircle className="w-4 h-4" />, allow: ["accountant"] },
+    { to: `/branch/${id}/payment-vouchers`, label: "سندات الصرف", icon: <ArrowUpCircle className="w-4 h-4" />, allow: ["accountant"] },
     { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: [] },
     { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: [] },
     { to: `/branch/${id}/expenses`, label: "المصروفات", icon: <Receipt className="w-4 h-4" />, allow: ["accountant"] },

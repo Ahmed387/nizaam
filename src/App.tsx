@@ -67,6 +67,9 @@ import Invoices from "./pages/branch/Invoices";
 import NewPurchaseReturn from "./pages/branch/NewPurchaseReturn";
 import NewQuote from "./pages/branch/NewQuote";
 import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
+import PaymentVouchers from "./pages/branch/PaymentVouchers";
+import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
+import AllVouchers from "./pages/admin/AllVouchers";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
@@ -121,7 +124,12 @@ const App = () => (
             <Route path="/admin/receivables" element={<ProtectedRoute adminOnly><Receivables /></ProtectedRoute>} />
 
             {/* Branch */}
+            <Route path="/admin/vouchers" element={<ProtectedRoute adminOnly><AllVouchers /></ProtectedRoute>} />
+
+            {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
+            <Route path="/branch/:id/payment-vouchers" element={<ProtectedRoute roles={["branch_manager","accountant"]}><PaymentVouchers /></ProtectedRoute>} />
+            <Route path="/branch/:id/receipt-vouchers" element={<ProtectedRoute roles={["branch_manager","accountant"]}><ReceiptVouchers /></ProtectedRoute>} />
             <Route path="/branch/:id/sales" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
             <Route path="/branch/:id/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
             <Route path="/branch/:id/purchase-returns/new" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><NewPurchaseReturn /></ProtectedRoute>} />
