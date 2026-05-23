@@ -16,7 +16,7 @@ import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notificati
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
-import { Plus, ArrowLeftRight, Trash2, Pencil, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
 
 interface WalletBalances {
   cash_balance: number;
