@@ -290,9 +290,9 @@ export default function NewShipment() {
         </div>
       </div>
 
-      <div className="card-elevated overflow-hidden">
+      <div className="card-elevated overflow-hidden mb-4">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold">المنتجات</h3>
+          <h3 className="font-bold">٣. المنتجات</h3>
           <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
         </div>
         <div className="overflow-x-auto">
