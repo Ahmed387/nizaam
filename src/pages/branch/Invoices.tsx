@@ -42,13 +42,13 @@ export default function Invoices() {
         const r = await supabase.from("invoices").select("*, customers(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
         data = r.data ?? [];
       } else if (tab === "purchase") {
-        const r = await supabase.from("shipments").select("*, suppliers(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
+        const r = await supabase.from("shipments").select("*, suppliers(company_name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
         data = r.data ?? [];
       } else if (tab === "sale_return") {
         const r = await supabase.from("returns").select("*, invoices(invoice_number)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
         data = r.data ?? [];
       } else if (tab === "purchase_return") {
-        const r = await supabase.from("purchase_returns" as any).select("*, suppliers(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
+        const r = await supabase.from("purchase_returns" as any).select("*, suppliers(company_name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200);
         data = r.data ?? [];
       } else if (tab === "income") {
         const r = await supabase.from("treasury").select("*").eq("branch_id", branchId).eq("type", "income").order("created_at", { ascending: false }).limit(200);
@@ -88,7 +88,7 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة",
         columns: [
-          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
@@ -108,7 +108,7 @@ export default function Invoices() {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد",
         columns: [
           { key: "return_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.return_number}</span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
