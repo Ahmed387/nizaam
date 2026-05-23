@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
-import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList } from "lucide-react";
+import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer } from "lucide-react";
+import { exportToExcel, printReport } from "@/lib/export";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote" | "adjustment";
 
@@ -155,17 +156,54 @@ export default function Invoices() {
     }
   }, [tab, branchId, nav]);
 
+  const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
+
+  const handleExportExcel = () => {
+    const exportRows = rows.map((r) => {
+      const out: any = {};
+      for (const c of cfg.columns as any[]) {
+        let v: any;
+        try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
+        if (v && typeof v === "object") v = r[c.key] ?? "";
+        out[c.header] = v ?? "";
+      }
+      return out;
+    });
+    exportToExcel(currentTabLabel, [{ name: currentTabLabel, rows: exportRows }]);
+  };
+
+  const handleExportPDF = () => {
+    const cols = cfg.columns as any[];
+    const head = `<tr>${cols.map((c) => `<th>${c.header}</th>`).join("")}</tr>`;
+    const body = rows.map((r) => `<tr>${cols.map((c) => {
+      let v: any;
+      try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
+      if (v && typeof v === "object") v = r[c.key] ?? "";
+      return `<td>${v ?? ""}</td>`;
+    }).join("")}</tr>`).join("");
+    printReport(currentTabLabel, `<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
+  };
+
   return (
     <BranchLayout>
       <PageHeader
         title="الفواتير والمستندات"
         subtitle="كل فواتير ومستندات الفرع في مكان واحد"
         actions={
-          <Button asChild className="gap-2">
-            <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!rows.length} className="gap-2">
+              <FileSpreadsheet className="w-4 h-4" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!rows.length} className="gap-2">
+              <Printer className="w-4 h-4" /> PDF
+            </Button>
+            <Button asChild className="gap-2">
+              <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
+            </Button>
+          </div>
         }
       />
+
 
       {/* Quick action grid */}
       <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mb-5">
