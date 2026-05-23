@@ -198,6 +198,11 @@ export default function Settings() {
           <PaymentFeesTab />
         </TabsContent>
 
+        <TabsContent value="voucher-cats" className="mt-4">
+          <VoucherCategoriesTab />
+        </TabsContent>
+
+
         <TabsContent value="company" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
             <div>
