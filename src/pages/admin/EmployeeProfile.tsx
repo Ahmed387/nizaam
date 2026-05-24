@@ -289,6 +289,36 @@ export default function EmployeeProfile() {
       toast.error(e.message);
     }
   };
+
+  const openManageBranches = () => {
+    setBranchMgrIds([...accountBranchIds]);
+    setBranchMgrOpen(true);
+  };
+
+  const saveManageBranches = async () => {
+    if (!emp?.user_id) return;
+    setSavingBranches(true);
+    try {
+      const current = new Set(accountBranchIds);
+      const next = new Set(branchMgrIds);
+      const toAdd = [...next].filter((x) => !current.has(x));
+      const toRemove = [...current].filter((x) => !next.has(x));
+      if (toRemove.length) {
+        await supabase.from("branch_users").delete().eq("user_id", emp.user_id).in("branch_id", toRemove);
+      }
+      if (toAdd.length) {
+        await supabase.from("branch_users").insert(toAdd.map((bid) => ({ user_id: emp.user_id, branch_id: bid })));
+      }
+      toast.success("تم تحديث الفروع");
+      setBranchMgrOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSavingBranches(false);
+    }
+  };
+
   if (loading) return <AdminLayout><div className="text-center py-12 text-muted-foreground">جاري التحميل...</div></AdminLayout>;
   if (!emp) return <AdminLayout><div className="text-center py-12 text-muted-foreground">الموظف غير موجود</div></AdminLayout>;
 
