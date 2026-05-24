@@ -653,6 +653,41 @@ export default function EmployeeProfile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Manage branches for linked account */}
+      <Dialog open={branchMgrOpen} onOpenChange={setBranchMgrOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>إدارة الفروع المسموح بها</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
+              اختر الفروع التي يستطيع هذا الحساب الوصول لها. يمكن للمستخدم أن يكون في أكثر من فرع (مثلاً محاسب لكل الفروع).
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto border border-border rounded-lg p-2">
+              {allBranches.map((b) => (
+                <label key={b.id} className="flex items-center gap-2 p-2 rounded hover:bg-surface-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={branchMgrIds.includes(b.id)}
+                    onChange={(e) => setBranchMgrIds(
+                      e.target.checked ? [...branchMgrIds, b.id] : branchMgrIds.filter((x) => x !== b.id),
+                    )}
+                  />
+                  <span className="text-sm">{b.name}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 text-xs">
+              <Button variant="outline" size="sm" onClick={() => setBranchMgrIds(allBranches.map((b) => b.id))}>كل الفروع</Button>
+              <Button variant="outline" size="sm" onClick={() => setBranchMgrIds([])}>مسح الكل</Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBranchMgrOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveManageBranches} disabled={savingBranches}>
+              {savingBranches ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
