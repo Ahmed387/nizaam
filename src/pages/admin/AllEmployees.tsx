@@ -299,13 +299,16 @@ export default function AllEmployees() {
           <DialogHeader><DialogTitle>{editing ? "تعديل موظف" : "موظف جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>الفرع *</Label>
+              <Label>الفرع الأساسي *</Label>
               <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
                 <SelectContent>
                   {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <div className="text-[11px] text-muted-foreground mt-1">
+                ده الفرع الرئيسي للموظف. لو محتاج تربطه بأكتر من فرع (مثلاً محاسب على كل الفروع) — افتح صفحته بعد الإنشاء واستخدم زر "إدارة الفروع".
+              </div>
             </div>
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div>
