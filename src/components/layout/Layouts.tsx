@@ -120,10 +120,10 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, allow: ["accountant"] },
     { to: `/branch/${id}/receipt-vouchers`, label: "سندات القبض", icon: <ArrowDownCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/payment-vouchers`, label: "سندات الصرف", icon: <ArrowUpCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
-    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: [] },
-    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: [] },
+    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: ["accountant", "warehouse"] },
+    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: ["accountant", "warehouse"] },
     
-    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier","accountant"] },
+    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier","accountant","warehouse"] },
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, allow: ["accountant"] },
   ];
 
