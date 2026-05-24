@@ -639,7 +639,8 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
     setBusy(side);
     try {
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${emp.id}/${side}-${Date.now()}.${ext}`;
+      if (!tenantId) throw new Error("Tenant context missing");
+      const path = `${tenantId}/${emp.id}/${side}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("employee-ids").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
