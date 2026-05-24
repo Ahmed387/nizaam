@@ -75,7 +75,7 @@ export default function AllEmployees() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  useRealtimeRefresh(["employees", "branches", "advances"], load);
+  useRealtimeRefresh(["employees", "branches", "advances", "branch_users"], load);
 
   const enriched = useMemo(() => emps.map((e) => ({
     ...e,
