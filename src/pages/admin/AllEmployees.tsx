@@ -323,8 +323,13 @@ export default function AllEmployees() {
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الصلاحية" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="accountant">محاسب</SelectItem>
                   <SelectItem value="cashier">كاشير</SelectItem>
-                  <SelectItem value="warehouse">مخزن</SelectItem>
+                  <SelectItem value="warehouse">أمين مخازن</SelectItem>
+                  <SelectItem value="supervisor">ملاحظ (حضور وانصراف)</SelectItem>
+                  <SelectItem value="viewer">مشاهد فقط</SelectItem>
+                  <SelectItem value="worker">عامل</SelectItem>
+                  <SelectItem value="driver">سواق</SelectItem>
                 </SelectContent>
               </Select>
             </div>
