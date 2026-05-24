@@ -104,10 +104,17 @@ export function RolePermissionsTab() {
         <p className="text-sm text-muted-foreground mb-2">
           المدير العام (admin) ومالك المنصة لهم كل الصلاحيات تلقائياً ولا يمكن تعديلها هنا.
         </p>
-        <div className="text-xs bg-primary/10 border border-primary/30 rounded p-2 mb-4">
+        <div className="text-xs bg-primary/10 border border-primary/30 rounded p-2 mb-3">
           💡 <b>ملاحظة:</b> هذه الصلاحيات تحدد <b>"إيه اللي الدور يقدر يعمله"</b> (عرض/إنشاء/تعديل/حذف).
           أما <b>"أي فرع"</b> يشتغل عليه المستخدم — فيتم تحديده من صفحة الموظف ← تاب "حساب الدخول" ← زر <b>"إدارة الفروع"</b>.
           (شخص واحد ممكن يكون مسؤول عن أكثر من فرع — مثلاً محاسب لكل الفروع.)
+        </div>
+        <div className="text-xs bg-amber-500/10 border border-amber-500/30 rounded p-2 mb-4">
+          ⚠️ <b>فرق مهم بين الملاحظ و Viewer (المراقب):</b>
+          <ul className="list-disc pr-5 mt-1 space-y-0.5">
+            <li><b>ملاحظ:</b> دوره <b>تشغيلي محدود</b> — مسؤول فقط عن متابعة <b>الحضور والانصراف</b> للموظفين وتسجيلهم. مش بيشوف فواتير ولا مخزون ولا خزينة.</li>
+            <li><b>Viewer (مراقب):</b> دوره <b>رقابي شامل</b> — بيشوف <b>كل</b> بيانات الشركة (فواتير، مخزون، خزينة، تقارير...) لكن <b>قراءة فقط</b>، مش بيقدر يعدل أو يحذف.</li>
+          </ul>
         </div>
         <Tabs defaultValue={MANAGED_ROLES[0]}>
           <TabsList className="flex flex-wrap h-auto">
