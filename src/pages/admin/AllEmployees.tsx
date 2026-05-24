@@ -21,10 +21,14 @@ const POSITIONS = [
   { value: "كاشير", role: "cashier" },
   { value: "مدير فرع", role: "branch_manager" },
   { value: "أمين مخزن", role: "warehouse" },
-  { value: "محاسب", role: "cashier" },
+  { value: "محاسب", role: "accountant" },
+  { value: "ملاحظ (حضور وانصراف)", role: "supervisor" },
+  { value: "عامل", role: "worker" },
+  { value: "سواق", role: "driver" },
   { value: "مندوب مبيعات", role: "cashier" },
   { value: "موظف خدمة عملاء", role: "cashier" },
 ];
+
 
 export default function AllEmployees() {
   const nav = useNavigate();
