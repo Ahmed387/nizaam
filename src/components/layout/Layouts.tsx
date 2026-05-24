@@ -29,17 +29,24 @@ const adminNav: NavItem[] = [
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant } = useAuth();
+  const { tenant, isAdmin, hasRole } = useAuth();
+  // Supervisor: limited admin sidebar (attendance + employees only)
+  const supervisorNav: NavItem[] = [
+    { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
+    { to: "/admin/attendance", label: "الحضور (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
+  ];
+  const nav = isAdmin ? adminNav : hasRole("supervisor") ? supervisorNav : [];
   return (
     <AppShell
       title={tenant?.name ?? "Nexa Store"}
-      subtitle="لوحة التحكم العامة"
-      nav={adminNav}
+      subtitle={isAdmin ? "لوحة التحكم العامة" : "ملاحظ — الحضور والانصراف"}
+      nav={nav}
     >
       {children}
     </AppShell>
   );
 }
+
 
 export function BranchLayout({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>();
@@ -113,10 +120,10 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, allow: ["accountant"] },
     { to: `/branch/${id}/receipt-vouchers`, label: "سندات القبض", icon: <ArrowDownCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/payment-vouchers`, label: "سندات الصرف", icon: <ArrowUpCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
-    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: [] },
-    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: [] },
+    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: ["accountant", "warehouse"] },
+    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: ["accountant", "warehouse"] },
     
-    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier","accountant"] },
+    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier","accountant","warehouse"] },
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, allow: ["accountant"] },
   ];
 
