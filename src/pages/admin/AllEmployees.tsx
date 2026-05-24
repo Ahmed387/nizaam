@@ -21,10 +21,14 @@ const POSITIONS = [
   { value: "كاشير", role: "cashier" },
   { value: "مدير فرع", role: "branch_manager" },
   { value: "أمين مخزن", role: "warehouse" },
-  { value: "محاسب", role: "cashier" },
+  { value: "محاسب", role: "accountant" },
+  { value: "ملاحظ (حضور وانصراف)", role: "supervisor" },
+  { value: "عامل", role: "worker" },
+  { value: "سواق", role: "driver" },
   { value: "مندوب مبيعات", role: "cashier" },
   { value: "موظف خدمة عملاء", role: "cashier" },
 ];
+
 
 export default function AllEmployees() {
   const nav = useNavigate();
@@ -295,13 +299,16 @@ export default function AllEmployees() {
           <DialogHeader><DialogTitle>{editing ? "تعديل موظف" : "موظف جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>الفرع *</Label>
+              <Label>الفرع الأساسي *</Label>
               <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
                 <SelectContent>
                   {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <div className="text-[11px] text-muted-foreground mt-1">
+                ده الفرع الرئيسي للموظف. لو محتاج تربطه بأكتر من فرع (مثلاً محاسب على كل الفروع) — افتح صفحته بعد الإنشاء واستخدم زر "إدارة الفروع".
+              </div>
             </div>
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div>
@@ -319,8 +326,13 @@ export default function AllEmployees() {
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الصلاحية" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="accountant">محاسب</SelectItem>
                   <SelectItem value="cashier">كاشير</SelectItem>
-                  <SelectItem value="warehouse">مخزن</SelectItem>
+                  <SelectItem value="warehouse">أمين مخازن</SelectItem>
+                  <SelectItem value="supervisor">ملاحظ (حضور وانصراف)</SelectItem>
+                  <SelectItem value="viewer">مشاهد فقط</SelectItem>
+                  <SelectItem value="worker">عامل</SelectItem>
+                  <SelectItem value="driver">سواق</SelectItem>
                 </SelectContent>
               </Select>
             </div>
