@@ -53,6 +53,9 @@ export default function EmployeeProfile() {
   const [acctOpen, setAcctOpen] = useState(false);
   const [acctForm, setAcctForm] = useState({ email: "", password: "", role: "cashier" as AppRole, branchIds: [] as string[] });
   const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [branchMgrOpen, setBranchMgrOpen] = useState(false);
+  const [branchMgrIds, setBranchMgrIds] = useState<string[]>([]);
+  const [savingBranches, setSavingBranches] = useState(false);
 
   const load = async () => {
     if (!id) return;
