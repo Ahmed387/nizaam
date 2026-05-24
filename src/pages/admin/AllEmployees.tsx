@@ -25,8 +25,6 @@ const POSITIONS = [
   { value: "ملاحظ (حضور وانصراف)", role: "supervisor" },
   { value: "عامل", role: "worker" },
   { value: "سواق", role: "driver" },
-  { value: "مندوب مبيعات", role: "cashier" },
-  { value: "موظف خدمة عملاء", role: "cashier" },
 ];
 
 

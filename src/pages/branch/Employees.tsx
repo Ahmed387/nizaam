@@ -19,11 +19,10 @@ const POSITIONS = [
   { value: "كاشير", role: "cashier" as const },
   { value: "مدير فرع", role: "branch_manager" as const },
   { value: "أمين مخزن", role: "warehouse" as const },
-  { value: "محاسب", role: "cashier" as const },
-  { value: "مندوب مبيعات", role: "cashier" as const },
-  { value: "موظف خدمة عملاء", role: "cashier" as const },
-  { value: "عامل", role: "warehouse" as const },
-  { value: "سواق", role: "warehouse" as const },
+  { value: "محاسب", role: "accountant" as const },
+  { value: "ملاحظ (حضور وانصراف)", role: "supervisor" as const },
+  { value: "عامل", role: "worker" as const },
+  { value: "سواق", role: "driver" as const },
 ];
 
 export default function Employees() {
