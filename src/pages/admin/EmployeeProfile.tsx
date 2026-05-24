@@ -616,6 +616,7 @@ export default function EmployeeProfile() {
 }
 
 function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) {
+  const { tenantId } = useAuth();
   const [frontUrl, setFrontUrl] = useState<string | null>(null);
   const [backUrl, setBackUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<"front" | "back" | null>(null);
