@@ -466,9 +466,16 @@ export default function EmployeeProfile() {
                     </span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:text-destructive" onClick={() => setUnlinkOpen(true)}>
-                  <Unlink className="w-4 h-4 ml-1" /> فك الربط
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  {!accountRoles.includes("admin") && (
+                    <Button variant="outline" size="sm" onClick={openManageBranches}>
+                      <MapPin className="w-4 h-4 ml-1" /> إدارة الفروع
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:text-destructive" onClick={() => setUnlinkOpen(true)}>
+                    <Unlink className="w-4 h-4 ml-1" /> فك الربط
+                  </Button>
+                </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
                 <div>
@@ -478,9 +485,11 @@ export default function EmployeeProfile() {
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">الفروع المسموح بها</div>
                   <div className="font-semibold">
-                    {accountBranchIds.length
-                      ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
-                      : "كل الفروع (مدير)"}
+                    {accountRoles.includes("admin")
+                      ? "كل الفروع (مدير عام)"
+                      : accountBranchIds.length
+                        ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
+                        : <span className="text-warning">لم يتم تحديد أي فرع — لن يرى أي بيانات</span>}
                   </div>
                 </div>
               </div>
