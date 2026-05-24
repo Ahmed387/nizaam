@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Loader2, Store, Eye, EyeOff } from "lucide-react";
 
-const POSITIONS = ["كاشير", "مدير فرع", "أمين مخزن", "محاسب", "مندوب مبيعات", "موظف خدمة عملاء"];
+const POSITIONS = ["كاشير", "مدير فرع", "أمين مخزن", "محاسب", "ملاحظ (حضور وانصراف)", "عامل", "سواق"];
 
 export default function Login() {
   const [email, setEmail] = useState("");
