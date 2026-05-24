@@ -19,8 +19,8 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   cashier: "كاشير",
   warehouse: "أمين مخازن",
   accountant: "محاسب",
-  viewer: "مراقب (قراءة فقط)",
-  supervisor: "ملاحظ (حضور وانصراف)",
+  viewer: "Viewer — مراقب (قراءة فقط لكل البيانات)",
+  supervisor: "ملاحظ (متابعة الحضور والانصراف فقط)",
   worker: "عامل",
   driver: "سواق",
 };
