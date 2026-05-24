@@ -246,9 +246,22 @@ export default function AllEmployees() {
               <div className="text-xs text-muted-foreground">{r.job_title}</div>
             </div>
           )},
-          { key: "branch_name", header: "الفرع", render: (r: any) => (
+          { key: "branch_name", header: "الفرع الأساسي", render: (r: any) => (
             <span className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary">{r.branch_name}</span>
           )},
+          { key: "allowed_branches", header: "الفروع المسموح بها (للدخول)", render: (r: any) => {
+            if (!r.user_id) return <span className="text-xs text-muted-foreground">بدون حساب</span>;
+            if (!r.allowed_branches.length) return <span className="text-xs text-warning">لا فروع — تحتاج إعداد</span>;
+            const names = r.allowed_branches.map((bid: string) => branches.find((b) => b.id === bid)?.name).filter(Boolean);
+            if (names.length === branches.length) return <span className="text-xs px-2 py-0.5 rounded bg-success/15 text-success">كل الفروع</span>;
+            return (
+              <div className="flex flex-wrap gap-1 max-w-[220px]">
+                {names.map((n: string, i: number) => (
+                  <span key={i} className="px-1.5 py-0.5 rounded text-[10px] bg-muted">{n}</span>
+                ))}
+              </div>
+            );
+          }},
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "base_salary", header: "الراتب", render: (r: any) => <b>{formatEGP(r.base_salary)}</b> },
           { key: "advance_remaining", header: "سلف متبقية", render: (r: any) => (
