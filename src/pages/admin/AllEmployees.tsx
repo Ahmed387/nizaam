@@ -327,8 +327,8 @@ export default function AllEmployees() {
                   <SelectItem value="accountant">محاسب</SelectItem>
                   <SelectItem value="cashier">كاشير</SelectItem>
                   <SelectItem value="warehouse">أمين مخازن</SelectItem>
-                  <SelectItem value="supervisor">ملاحظ (حضور وانصراف)</SelectItem>
-                  <SelectItem value="viewer">مشاهد فقط</SelectItem>
+                  <SelectItem value="supervisor">ملاحظ (متابعة الحضور والانصراف فقط)</SelectItem>
+                  <SelectItem value="viewer">Viewer — مراقب (قراءة فقط لكل البيانات)</SelectItem>
                   <SelectItem value="worker">عامل</SelectItem>
                   <SelectItem value="driver">سواق</SelectItem>
                 </SelectContent>
