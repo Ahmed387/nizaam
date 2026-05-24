@@ -101,9 +101,14 @@ export function RolePermissionsTab() {
         </Button>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground mb-2">
           المدير العام (admin) ومالك المنصة لهم كل الصلاحيات تلقائياً ولا يمكن تعديلها هنا.
         </p>
+        <div className="text-xs bg-primary/10 border border-primary/30 rounded p-2 mb-4">
+          💡 <b>ملاحظة:</b> هذه الصلاحيات تحدد <b>"إيه اللي الدور يقدر يعمله"</b> (عرض/إنشاء/تعديل/حذف).
+          أما <b>"أي فرع"</b> يشتغل عليه المستخدم — فيتم تحديده من صفحة الموظف ← تاب "حساب الدخول" ← زر <b>"إدارة الفروع"</b>.
+          (شخص واحد ممكن يكون مسؤول عن أكثر من فرع — مثلاً محاسب لكل الفروع.)
+        </div>
         <Tabs defaultValue={MANAGED_ROLES[0]}>
           <TabsList className="flex flex-wrap h-auto">
             {MANAGED_ROLES.map((r) => (

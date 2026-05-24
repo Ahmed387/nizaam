@@ -32,6 +32,7 @@ export default function AllEmployees() {
   const [emps, setEmps] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
+  const [userBranches, setUserBranches] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
@@ -62,16 +63,26 @@ export default function AllEmployees() {
       map[x.employee_id] = (map[x.employee_id] ?? 0) + Number(x.remaining);
     }
     setAdvRemaining(map);
+    const uids = (e ?? []).map((x: any) => x.user_id).filter(Boolean);
+    if (uids.length) {
+      const { data: bu } = await supabase.from("branch_users").select("user_id, branch_id").in("user_id", uids);
+      const ub: Record<string, string[]> = {};
+      for (const r of (bu ?? []) as any[]) {
+        (ub[r.user_id] = ub[r.user_id] || []).push(r.branch_id);
+      }
+      setUserBranches(ub);
+    } else setUserBranches({});
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  useRealtimeRefresh(["employees", "branches", "advances"], load);
+  useRealtimeRefresh(["employees", "branches", "advances", "branch_users"], load);
 
   const enriched = useMemo(() => emps.map((e) => ({
     ...e,
     branch_name: branches.find((b) => b.id === e.branch_id)?.name ?? "—",
     advance_remaining: advRemaining[e.id] ?? 0,
-  })), [emps, branches, advRemaining]);
+    allowed_branches: e.user_id ? (userBranches[e.user_id] ?? []) : [],
+  })), [emps, branches, advRemaining, userBranches]);
 
   const filtered = useMemo(() => enriched.filter((e) => {
     if (search && !e.name.includes(search) && !(e.job_title ?? "").includes(search) && !(e.phone ?? "").includes(search)) return false;
@@ -235,9 +246,22 @@ export default function AllEmployees() {
               <div className="text-xs text-muted-foreground">{r.job_title}</div>
             </div>
           )},
-          { key: "branch_name", header: "الفرع", render: (r: any) => (
+          { key: "branch_name", header: "الفرع الأساسي", render: (r: any) => (
             <span className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary">{r.branch_name}</span>
           )},
+          { key: "allowed_branches", header: "الفروع المسموح بها (للدخول)", render: (r: any) => {
+            if (!r.user_id) return <span className="text-xs text-muted-foreground">بدون حساب</span>;
+            if (!r.allowed_branches.length) return <span className="text-xs text-warning">لا فروع — تحتاج إعداد</span>;
+            const names = r.allowed_branches.map((bid: string) => branches.find((b) => b.id === bid)?.name).filter(Boolean);
+            if (names.length === branches.length) return <span className="text-xs px-2 py-0.5 rounded bg-success/15 text-success">كل الفروع</span>;
+            return (
+              <div className="flex flex-wrap gap-1 max-w-[220px]">
+                {names.map((n: string, i: number) => (
+                  <span key={i} className="px-1.5 py-0.5 rounded text-[10px] bg-muted">{n}</span>
+                ))}
+              </div>
+            );
+          }},
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "base_salary", header: "الراتب", render: (r: any) => <b>{formatEGP(r.base_salary)}</b> },
           { key: "advance_remaining", header: "سلف متبقية", render: (r: any) => (

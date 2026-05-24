@@ -53,6 +53,9 @@ export default function EmployeeProfile() {
   const [acctOpen, setAcctOpen] = useState(false);
   const [acctForm, setAcctForm] = useState({ email: "", password: "", role: "cashier" as AppRole, branchIds: [] as string[] });
   const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [branchMgrOpen, setBranchMgrOpen] = useState(false);
+  const [branchMgrIds, setBranchMgrIds] = useState<string[]>([]);
+  const [savingBranches, setSavingBranches] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -286,6 +289,36 @@ export default function EmployeeProfile() {
       toast.error(e.message);
     }
   };
+
+  const openManageBranches = () => {
+    setBranchMgrIds([...accountBranchIds]);
+    setBranchMgrOpen(true);
+  };
+
+  const saveManageBranches = async () => {
+    if (!emp?.user_id) return;
+    setSavingBranches(true);
+    try {
+      const current = new Set(accountBranchIds);
+      const next = new Set(branchMgrIds);
+      const toAdd = [...next].filter((x) => !current.has(x));
+      const toRemove = [...current].filter((x) => !next.has(x));
+      if (toRemove.length) {
+        await supabase.from("branch_users").delete().eq("user_id", emp.user_id).in("branch_id", toRemove);
+      }
+      if (toAdd.length) {
+        await supabase.from("branch_users").insert(toAdd.map((bid) => ({ user_id: emp.user_id, branch_id: bid })));
+      }
+      toast.success("تم تحديث الفروع");
+      setBranchMgrOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSavingBranches(false);
+    }
+  };
+
   if (loading) return <AdminLayout><div className="text-center py-12 text-muted-foreground">جاري التحميل...</div></AdminLayout>;
   if (!emp) return <AdminLayout><div className="text-center py-12 text-muted-foreground">الموظف غير موجود</div></AdminLayout>;
 
@@ -433,9 +466,16 @@ export default function EmployeeProfile() {
                     </span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:text-destructive" onClick={() => setUnlinkOpen(true)}>
-                  <Unlink className="w-4 h-4 ml-1" /> فك الربط
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  {!accountRoles.includes("admin") && (
+                    <Button variant="outline" size="sm" onClick={openManageBranches}>
+                      <MapPin className="w-4 h-4 ml-1" /> إدارة الفروع
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:text-destructive" onClick={() => setUnlinkOpen(true)}>
+                    <Unlink className="w-4 h-4 ml-1" /> فك الربط
+                  </Button>
+                </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
                 <div>
@@ -445,9 +485,11 @@ export default function EmployeeProfile() {
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">الفروع المسموح بها</div>
                   <div className="font-semibold">
-                    {accountBranchIds.length
-                      ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
-                      : "كل الفروع (مدير)"}
+                    {accountRoles.includes("admin")
+                      ? "كل الفروع (مدير عام)"
+                      : accountBranchIds.length
+                        ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
+                        : <span className="text-warning">لم يتم تحديد أي فرع — لن يرى أي بيانات</span>}
                   </div>
                 </div>
               </div>
@@ -611,6 +653,41 @@ export default function EmployeeProfile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Manage branches for linked account */}
+      <Dialog open={branchMgrOpen} onOpenChange={setBranchMgrOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>إدارة الفروع المسموح بها</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
+              اختر الفروع التي يستطيع هذا الحساب الوصول لها. يمكن للمستخدم أن يكون في أكثر من فرع (مثلاً محاسب لكل الفروع).
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto border border-border rounded-lg p-2">
+              {allBranches.map((b) => (
+                <label key={b.id} className="flex items-center gap-2 p-2 rounded hover:bg-surface-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={branchMgrIds.includes(b.id)}
+                    onChange={(e) => setBranchMgrIds(
+                      e.target.checked ? [...branchMgrIds, b.id] : branchMgrIds.filter((x) => x !== b.id),
+                    )}
+                  />
+                  <span className="text-sm">{b.name}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 text-xs">
+              <Button variant="outline" size="sm" onClick={() => setBranchMgrIds(allBranches.map((b) => b.id))}>كل الفروع</Button>
+              <Button variant="outline" size="sm" onClick={() => setBranchMgrIds([])}>مسح الكل</Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBranchMgrOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveManageBranches} disabled={savingBranches}>
+              {savingBranches ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
