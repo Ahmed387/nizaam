@@ -29,17 +29,24 @@ const adminNav: NavItem[] = [
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant } = useAuth();
+  const { tenant, isAdmin, hasRole } = useAuth();
+  // Supervisor: limited admin sidebar (attendance + employees only)
+  const supervisorNav: NavItem[] = [
+    { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
+    { to: "/admin/attendance", label: "الحضور (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
+  ];
+  const nav = isAdmin ? adminNav : hasRole("supervisor") ? supervisorNav : [];
   return (
     <AppShell
       title={tenant?.name ?? "Nexa Store"}
-      subtitle="لوحة التحكم العامة"
-      nav={adminNav}
+      subtitle={isAdmin ? "لوحة التحكم العامة" : "ملاحظ — الحضور والانصراف"}
+      nav={nav}
     >
       {children}
     </AppShell>
   );
 }
+
 
 export function BranchLayout({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>();
