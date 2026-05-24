@@ -81,7 +81,8 @@ export default function AllEmployees() {
     ...e,
     branch_name: branches.find((b) => b.id === e.branch_id)?.name ?? "—",
     advance_remaining: advRemaining[e.id] ?? 0,
-  })), [emps, branches, advRemaining]);
+    allowed_branches: e.user_id ? (userBranches[e.user_id] ?? []) : [],
+  })), [emps, branches, advRemaining, userBranches]);
 
   const filtered = useMemo(() => enriched.filter((e) => {
     if (search && !e.name.includes(search) && !(e.job_title ?? "").includes(search) && !(e.phone ?? "").includes(search)) return false;
