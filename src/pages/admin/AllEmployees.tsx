@@ -63,6 +63,15 @@ export default function AllEmployees() {
       map[x.employee_id] = (map[x.employee_id] ?? 0) + Number(x.remaining);
     }
     setAdvRemaining(map);
+    const uids = (e ?? []).map((x: any) => x.user_id).filter(Boolean);
+    if (uids.length) {
+      const { data: bu } = await supabase.from("branch_users").select("user_id, branch_id").in("user_id", uids);
+      const ub: Record<string, string[]> = {};
+      for (const r of (bu ?? []) as any[]) {
+        (ub[r.user_id] = ub[r.user_id] || []).push(r.branch_id);
+      }
+      setUserBranches(ub);
+    } else setUserBranches({});
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
