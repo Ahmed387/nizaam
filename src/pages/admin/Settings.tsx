@@ -192,8 +192,14 @@ export default function Settings() {
           <TabsTrigger value="2fa"><ShieldCheck className="w-4 h-4 ml-1" /> المصادقة الثنائية</TabsTrigger>
           <TabsTrigger value="viewers"><Eye className="w-4 h-4 ml-1" /> حسابات المراقبة</TabsTrigger>
           <TabsTrigger value="security"><KeyRound className="w-4 h-4 ml-1" /> كلمة المرور</TabsTrigger>
+          {isAdminOnly && <TabsTrigger value="permissions"><Users2 className="w-4 h-4 ml-1" /> صلاحيات الأدوار</TabsTrigger>}
           {isAdminOnly && <TabsTrigger value="data" className="text-destructive"><Trash2 className="w-4 h-4 ml-1" /> إدارة البيانات</TabsTrigger>}
         </TabsList>
+
+        <TabsContent value="permissions" className="mt-4">
+          <RolePermissionsTab />
+        </TabsContent>
+
 
         <TabsContent value="payments" className="mt-4">
           <PaymentFeesTab />
