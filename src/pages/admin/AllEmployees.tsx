@@ -32,6 +32,7 @@ export default function AllEmployees() {
   const [emps, setEmps] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
+  const [userBranches, setUserBranches] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
