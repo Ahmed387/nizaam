@@ -268,7 +268,8 @@ export default function NewSale() {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
     if (!paymentsValid) return toast.error(creditMode ? `المدفوع أكبر من الإجمالي` : `مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
-    if (creditMode && creditRemaining > 0 && !customerId && !quickName.trim()) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+    if (creditMode && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+
     if (creditMode && scheduleType === "scheduled" && creditRemaining > 0) {
       const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
@@ -276,13 +277,8 @@ export default function NewSale() {
 
     setBusy(true);
     try {
-      let custId = customerId || null;
-      if (!custId && quickName.trim()) {
-        const { data: c } = await supabase.from("customers").insert({
-          name: quickName, phone: quickPhone || null, branch_id: branchId!,
-        }).select().single();
-        custId = c?.id ?? null;
-      }
+      const custId = customerId || null;
+
 
       const primaryMethod = payments.length > 0 ? payments[0].payment_method : "cash";
 
@@ -330,7 +326,8 @@ export default function NewSale() {
             branchId: branchId!,
             entityType: "customer",
             entityId: custId,
-            entityName: cust?.name ?? quickName ?? "عميل",
+            entityName: cust?.name ?? "عميل",
+
             totalAmount: creditRemaining,
             referenceType: "invoice",
             referenceId: invId as string,
