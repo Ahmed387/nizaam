@@ -31,12 +31,12 @@ export default function SalesHistory() {
     <BranchLayout>
       <PageHeader title="سجل المبيعات"
         actions={
-          <div className="flex gap-2">
           <div className="flex gap-2 flex-wrap">
             <Link to={`/branch/${id}/pre-orders`}><Button variant="outline"><BookmarkPlus className="w-4 h-4 ml-1" /> طلبات الحجز</Button></Link>
             <Link to={`/branch/${id}/sales/returns`}><Button variant="outline"><RotateCcw className="w-4 h-4 ml-1" /> مرتجعات</Button></Link>
             <Link to={`/branch/${id}/sales/new`}><Button className="btn-gradient"><Plus className="w-4 h-4 ml-1" /> فاتورة جديدة</Button></Link>
           </div>
+        }
       />
       <DataTable
         loading={loading} rows={rows}
