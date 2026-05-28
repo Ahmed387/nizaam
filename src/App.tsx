@@ -77,6 +77,9 @@ import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
 import PaymentVouchers from "./pages/branch/PaymentVouchers";
 import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
 import AllVouchers from "./pages/admin/AllVouchers";
+import CatalogHub from "./pages/admin/CatalogHub";
+import ReportsHub from "./pages/admin/ReportsHub";
+import FinanceHub from "./pages/admin/FinanceHub";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
@@ -110,28 +113,32 @@ const App = () => (
 
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/branches" element={<ProtectedRoute adminOnly><Branches /></ProtectedRoute>} />
             <Route path="/admin/branches/:id" element={<ProtectedRoute adminOnly><BranchProfile /></ProtectedRoute>} />
-            
-            <Route path="/admin/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
-            <Route path="/admin/pricelist" element={<ProtectedRoute adminOnly><PriceList /></ProtectedRoute>} />
             <Route path="/admin/pre-orders" element={<ProtectedRoute adminOnly><AllPreOrders /></ProtectedRoute>} />
-            
-            <Route path="/admin/inventory" element={<ProtectedRoute adminOnly><AllInventory /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/suppliers" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
             <Route path="/admin/suppliers/:supplierId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
             <Route path="/admin/employees" element={<ProtectedRoute roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
-            <Route path="/admin/audit-log" element={<ProtectedRoute adminOnly><AuditLog /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
-            <Route path="/admin/scheduled-reports" element={<ProtectedRoute adminOnly><ScheduledReports /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
-            <Route path="/admin/receivables" element={<ProtectedRoute adminOnly><Receivables /></ProtectedRoute>} />
 
-            {/* Branch */}
-            <Route path="/admin/vouchers" element={<ProtectedRoute adminOnly><AllVouchers /></ProtectedRoute>} />
+            {/* Hubs */}
+            <Route path="/admin/catalog" element={<ProtectedRoute adminOnly><CatalogHub /></ProtectedRoute>} />
+            <Route path="/admin/reports-hub" element={<ProtectedRoute adminOnly><ReportsHub /></ProtectedRoute>} />
+            <Route path="/admin/finance" element={<ProtectedRoute adminOnly><FinanceHub /></ProtectedRoute>} />
+
+            {/* Legacy redirects → hubs */}
+            <Route path="/admin/branches" element={<Navigate to="/admin/catalog?tab=branches" replace />} />
+            <Route path="/admin/categories" element={<Navigate to="/admin/catalog?tab=categories" replace />} />
+            <Route path="/admin/pricelist" element={<Navigate to="/admin/catalog?tab=pricelist" replace />} />
+            <Route path="/admin/inventory" element={<Navigate to="/admin/catalog?tab=inventory" replace />} />
+            <Route path="/admin/reports" element={<Navigate to="/admin/reports-hub?tab=central" replace />} />
+            <Route path="/admin/scheduled-reports" element={<Navigate to="/admin/reports-hub?tab=scheduled" replace />} />
+            <Route path="/admin/audit-log" element={<Navigate to="/admin/reports-hub?tab=audit" replace />} />
+            <Route path="/admin/vouchers" element={<Navigate to="/admin/finance?tab=vouchers" replace />} />
+            <Route path="/admin/receivables" element={<Navigate to="/admin/finance?tab=receivables" replace />} />
+
 
             {/* Branch */}
             {/* Branch */}

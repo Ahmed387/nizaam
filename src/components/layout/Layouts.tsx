@@ -10,22 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
-  { to: "/admin/branches", label: "إدارة الفروع", icon: <Store className="w-4 h-4" /> },
-  { to: "/admin/categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
-  { to: "/admin/pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
-  
-  
-  { to: "/admin/inventory", label: "مخزون كل الفروع", icon: <Warehouse className="w-4 h-4" /> },
+  { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" /> },
   { to: "/admin/suppliers", label: "الموردين (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
   { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
-  { to: "/admin/reports", label: "التقارير المركزية", icon: <BarChart3 className="w-4 h-4" /> },
-  { to: "/admin/scheduled-reports", label: "التقارير المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
-  { to: "/admin/receivables", label: "الذمم المالية", icon: <Coins className="w-4 h-4" /> },
-  { to: "/admin/vouchers", label: "السندات المالية", icon: <BookOpen className="w-4 h-4" /> },
-  { to: "/admin/audit-log", label: "سجل العمليات", icon: <ScrollText className="w-4 h-4" /> },
+  { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
-  
 ];
+
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, isAdmin, hasRole } = useAuth();

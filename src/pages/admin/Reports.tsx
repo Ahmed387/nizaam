@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 
 type Branch = { id: string; name: string; code: string };
 
-export default function AdminReports() {
+export default function AdminReports({ embedded }: { embedded?: boolean } = {}) {
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);
@@ -310,7 +310,7 @@ export default function AdminReports() {
   };
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="التقارير"
         subtitle={`${currentBranchName} • ${from} → ${to}`}
@@ -604,7 +604,7 @@ export default function AdminReports() {
             ]} />
         </TabsContent>
       </Tabs>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }
 
