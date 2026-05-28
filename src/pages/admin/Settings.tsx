@@ -454,6 +454,7 @@ export default function Settings() {
             </div>
           </TabsContent>
         )}
+        </div>
       </Tabs>
 
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
