@@ -19,7 +19,8 @@ import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
-import { loadTransferFees, calculateFee, loadEnabledPaymentMethods, TransferFee, PaymentMethod } from "@/lib/paymentMethods";
+import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
+
 
 
 interface Item {
@@ -31,14 +32,8 @@ interface Item {
   market_price: number;
   line_discount: number;
 }
-const ALL_PAYMENT_METHODS = [
-  { v: "cash", label: "كاش", feeKey: null, methodKey: "cash" as PaymentMethod },
-  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone", methodKey: "vodafone" as PaymentMethod },
-  { v: "instapay", label: "انستاباي", feeKey: "instapay", methodKey: "instapay" as PaymentMethod },
-  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank", methodKey: "bank" as PaymentMethod },
-] as const;
-
-const feeKeyFor = (m: string) => ALL_PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
+// Payment methods are loaded dynamically from the database (built-ins + admin custom).
+const feeKeyFor = (m: string) => (m === "cash" ? null : m);
 
 
 interface PaymentSplit {
@@ -66,7 +61,8 @@ export default function NewSale() {
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
-  const [enabledMethodKeys, setEnabledMethodKeys] = useState<PaymentMethod[]>(["cash", "vodafone", "instapay", "bank"]);
+  const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 نقدي", is_builtin: true, is_enabled: true }]);
+
 
   const [discountAmt, setDiscountAmt] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
@@ -107,7 +103,8 @@ export default function NewSale() {
 
   useEffect(() => {
     loadTransferFees().then(setTransferFees);
-    loadEnabledPaymentMethods().then(setEnabledMethodKeys);
+    loadAllPaymentMethods().then((opts) => setMethodOptions(opts.filter((o) => o.is_enabled)));
+
   }, []);
 
 
@@ -586,7 +583,8 @@ export default function NewSale() {
                       <Button variant="ghost" size="sm" onClick={() => removePayment(idx)}><X className="w-3 h-3" /></Button>
                     </div>
                     <select className="w-full bg-input border border-border rounded p-1.5 text-sm" value={p.payment_method} onChange={(e) => updatePayment(idx, { payment_method: e.target.value })}>
-                      {ALL_PAYMENT_METHODS.filter((m) => enabledMethodKeys.includes(m.methodKey)).map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
+                      {methodOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+
                     </select>
 
                     <Input type="number" min="0" step="0.01" placeholder="المبلغ" value={p.amount || ""} onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })} />
