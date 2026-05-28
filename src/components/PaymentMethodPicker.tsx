@@ -55,6 +55,13 @@ export function PaymentMethodPicker({
     loadTransferFees().then(setFees);
   }, []);
 
+  const enabledOptions = PAYMENT_METHOD_OPTIONS.filter((o) => {
+    if (o.value === "cash") return true;
+    const f = fees.find((x) => x.payment_method === (o.value as any));
+    return f ? f.is_enabled !== false : true;
+  });
+
+
   // Recompute fee whenever amount/method/fees change
   useEffect(() => {
     const fee = calculateFee(value.method, amount, fees);
@@ -81,10 +88,11 @@ export function PaymentMethodPicker({
         >
           <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {PAYMENT_METHOD_OPTIONS.map((o) => (
+            {enabledOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
           </SelectContent>
+
         </Select>
       </div>
 

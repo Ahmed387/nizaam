@@ -19,7 +19,8 @@ import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
-import { loadTransferFees, calculateFee, TransferFee } from "@/lib/paymentMethods";
+import { loadTransferFees, calculateFee, loadEnabledPaymentMethods, TransferFee, PaymentMethod } from "@/lib/paymentMethods";
+
 
 interface Item {
   product_id: string;
@@ -30,15 +31,15 @@ interface Item {
   market_price: number;
   line_discount: number;
 }
-
-const PAYMENT_METHODS = [
-  { v: "cash", label: "كاش", feeKey: null },
-  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone" },
-  { v: "instapay", label: "انستاباي", feeKey: "instapay" },
-  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank" },
+const ALL_PAYMENT_METHODS = [
+  { v: "cash", label: "كاش", feeKey: null, methodKey: "cash" as PaymentMethod },
+  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone", methodKey: "vodafone" as PaymentMethod },
+  { v: "instapay", label: "انستاباي", feeKey: "instapay", methodKey: "instapay" as PaymentMethod },
+  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank", methodKey: "bank" as PaymentMethod },
 ] as const;
 
-const feeKeyFor = (m: string) => PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
+const feeKeyFor = (m: string) => ALL_PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
+
 
 interface PaymentSplit {
   payment_method: string;
@@ -65,8 +66,8 @@ export default function NewSale() {
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
-  const [quickName, setQuickName] = useState("");
-  const [quickPhone, setQuickPhone] = useState("");
+  const [enabledMethodKeys, setEnabledMethodKeys] = useState<PaymentMethod[]>(["cash", "vodafone", "instapay", "bank"]);
+
   const [discountAmt, setDiscountAmt] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
@@ -103,7 +104,12 @@ export default function NewSale() {
     setNewCust({ name: "", phone: "", address: "" });
     toast.success("تمت إضافة العميل");
   };
-  useEffect(() => { loadTransferFees().then(setTransferFees); }, []);
+
+  useEffect(() => {
+    loadTransferFees().then(setTransferFees);
+    loadEnabledPaymentMethods().then(setEnabledMethodKeys);
+  }, []);
+
 
   useEffect(() => {
     if (!branchId) return;
@@ -267,7 +273,8 @@ export default function NewSale() {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
     if (!paymentsValid) return toast.error(creditMode ? `المدفوع أكبر من الإجمالي` : `مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
-    if (creditMode && creditRemaining > 0 && !customerId && !quickName.trim()) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+    if (creditMode && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+
     if (creditMode && scheduleType === "scheduled" && creditRemaining > 0) {
       const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
@@ -275,13 +282,8 @@ export default function NewSale() {
 
     setBusy(true);
     try {
-      let custId = customerId || null;
-      if (!custId && quickName.trim()) {
-        const { data: c } = await supabase.from("customers").insert({
-          name: quickName, phone: quickPhone || null, branch_id: branchId!,
-        }).select().single();
-        custId = c?.id ?? null;
-      }
+      const custId = customerId || null;
+
 
       const primaryMethod = payments.length > 0 ? payments[0].payment_method : "cash";
 
@@ -329,7 +331,8 @@ export default function NewSale() {
             branchId: branchId!,
             entityType: "customer",
             entityId: custId,
-            entityName: cust?.name ?? quickName ?? "عميل",
+            entityName: cust?.name ?? "عميل",
+
             totalAmount: creditRemaining,
             referenceType: "invoice",
             referenceId: invId as string,
@@ -359,39 +362,20 @@ export default function NewSale() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          {/* Customer + Quick payment */}
-          <div className="card-elevated p-4 grid md:grid-cols-2 gap-3">
-            <div>
-              <Label className="mb-1.5 block">العميل</Label>
-              <div className="flex gap-2">
-                <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                  <option value="">— اختر عميل —</option>
-                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-                </select>
-                <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
-                  <UserPlus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            <div>
-              <Label className="mb-1.5 block">طريقة الدفع الأساسية</Label>
-              <select
-                className="w-full bg-input border border-border rounded-lg p-2"
-                value={payments[0]?.payment_method ?? "cash"}
-                onChange={(e) => {
-                  const m = e.target.value;
-                  if (payments.length === 0) {
-                    setPayments([{ payment_method: m, amount: total, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "", fee_amount: 0, fee_on_customer: false }]);
-                  } else {
-                    updatePayment(0, { payment_method: m });
-                  }
-                }}
-              >
-                {PAYMENT_METHODS.map((mm) => <option key={mm.v} value={mm.v}>{mm.label}</option>)}
+          {/* Customer */}
+          <div className="card-elevated p-4">
+            <Label className="mb-1.5 block">العميل</Label>
+            <div className="flex gap-2">
+              <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                <option value="">— اختر عميل (اختياري) —</option>
+                {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
               </select>
-              <div className="text-[11px] text-muted-foreground mt-1">للتقسيم على أكثر من طريقة استخدم لوحة "طرق الدفع" يمين</div>
+              <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                <UserPlus className="w-4 h-4" />
+              </Button>
             </div>
           </div>
+
 
           {/* Search & Scanner */}
           <div className="card-elevated p-4">
@@ -590,7 +574,8 @@ export default function NewSale() {
             </div>
             {payments.length === 0 ? (
               <div className="text-xs text-muted-foreground p-3 rounded bg-surface-2 text-center">
-                لو سايبها فاضية = الدفع كله كاش<br/>اضغط "إضافة طريقة" لتقسيم الدفع
+                الافتراضي: الدفع كله كاش.<br/>اضغط "إضافة طريقة" لاختيار طريقة دفع أخرى أو لتقسيم المبلغ.
+
               </div>
             ) : (
               <div className="space-y-3">
@@ -601,8 +586,9 @@ export default function NewSale() {
                       <Button variant="ghost" size="sm" onClick={() => removePayment(idx)}><X className="w-3 h-3" /></Button>
                     </div>
                     <select className="w-full bg-input border border-border rounded p-1.5 text-sm" value={p.payment_method} onChange={(e) => updatePayment(idx, { payment_method: e.target.value })}>
-                      {PAYMENT_METHODS.map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
+                      {ALL_PAYMENT_METHODS.filter((m) => enabledMethodKeys.includes(m.methodKey)).map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
                     </select>
+
                     <Input type="number" min="0" step="0.01" placeholder="المبلغ" value={p.amount || ""} onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })} />
                     {p.payment_method !== "cash" && (
                       <>
