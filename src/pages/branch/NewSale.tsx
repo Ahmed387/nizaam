@@ -103,12 +103,13 @@ export default function NewSale() {
     setNewCustOpen(false);
     setNewCust({ name: "", phone: "", address: "" });
     toast.success("تمت إضافة العميل");
+  };
+
   useEffect(() => {
     loadTransferFees().then(setTransferFees);
     loadEnabledPaymentMethods().then(setEnabledMethodKeys);
   }, []);
 
-  useEffect(() => { loadTransferFees().then(setTransferFees); }, []);
 
   useEffect(() => {
     if (!branchId) return;
