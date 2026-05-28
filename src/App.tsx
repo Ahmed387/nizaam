@@ -77,6 +77,9 @@ import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
 import PaymentVouchers from "./pages/branch/PaymentVouchers";
 import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
 import AllVouchers from "./pages/admin/AllVouchers";
+import CatalogHub from "./pages/admin/CatalogHub";
+import ReportsHub from "./pages/admin/ReportsHub";
+import FinanceHub from "./pages/admin/FinanceHub";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
