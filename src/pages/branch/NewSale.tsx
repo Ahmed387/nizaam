@@ -31,13 +31,14 @@ interface Item {
   market_price: number;
   line_discount: number;
 }
-
-const PAYMENT_METHODS = [
-  { v: "cash", label: "كاش", feeKey: null },
-  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone" },
-  { v: "instapay", label: "انستاباي", feeKey: "instapay" },
-  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank" },
+const ALL_PAYMENT_METHODS = [
+  { v: "cash", label: "كاش", feeKey: null, methodKey: "cash" as PaymentMethod },
+  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone", methodKey: "vodafone" as PaymentMethod },
+  { v: "instapay", label: "انستاباي", feeKey: "instapay", methodKey: "instapay" as PaymentMethod },
+  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank", methodKey: "bank" as PaymentMethod },
 ] as const;
+
+const feeKeyFor = (m: string) => ALL_PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
 const feeKeyFor = (m: string) => PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
