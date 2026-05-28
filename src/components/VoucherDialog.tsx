@@ -117,8 +117,6 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     })();
   }, [form.party_id, form.party_type]);
 
-    })();
-  }, [form.party_id, form.party_type]);
 
   const submit = async () => {
     const amt = Number(form.amount);
