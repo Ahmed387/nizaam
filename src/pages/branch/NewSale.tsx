@@ -363,10 +363,15 @@ export default function NewSale() {
           <div className="card-elevated p-4 grid md:grid-cols-2 gap-3">
             <div>
               <Label className="mb-1.5 block">العميل</Label>
-              <select className="w-full bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                <option value="">— اختر عميل —</option>
-                {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-              </select>
+              <div className="flex gap-2">
+                <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                  <option value="">— اختر عميل —</option>
+                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
+                </select>
+                <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                  <UserPlus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div>
               <Label className="mb-1.5 block">طريقة الدفع الأساسية</Label>
