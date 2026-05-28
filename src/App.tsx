@@ -47,6 +47,7 @@ import Inventory from "./pages/branch/Inventory";
 import StockMovements from "./pages/branch/StockMovements";
 import PrintBarcodes from "./pages/branch/PrintBarcodes";
 import Customers from "./pages/branch/Customers";
+import Contacts from "./pages/branch/Contacts";
 import CustomerProfile from "./pages/branch/CustomerProfile";
 import Suppliers from "./pages/branch/Suppliers";
 import SupplierProfile from "./pages/branch/SupplierProfile";
@@ -154,11 +155,13 @@ const App = () => (
             <Route path="/branch/:id/inventory/barcodes" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><PrintBarcodes /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><StockMovements /></ProtectedRoute>} />
             <Route path="/branch/:id/transfers" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><StockTransfers /></ProtectedRoute>} />
+            <Route path="/branch/:id/contacts" element={<ProtectedRoute roles={["branch_manager","cashier","warehouse","accountant"]}><Contacts /></ProtectedRoute>} />
+            <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customers" replace />} />
             <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers/:customerId" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/suppliers" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><Suppliers /></ProtectedRoute>} />
             <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><SupplierProfile /></ProtectedRoute>} />
-            <Route path="/branch/:id/treasury" element={<ProtectedRoute roles={["branch_manager","accountant"]}><Treasury /></ProtectedRoute>} />
+            <Route path="/branch/:id/suppliers" element={<Navigate to="../contacts?tab=suppliers" replace />} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute roles={["branch_manager"]}><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute roles={["branch_manager"]}><AdvanceRequests /></ProtectedRoute>} />
             
