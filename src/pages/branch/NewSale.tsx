@@ -357,39 +357,20 @@ export default function NewSale() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          {/* Customer + Quick payment */}
-          <div className="card-elevated p-4 grid md:grid-cols-2 gap-3">
-            <div>
-              <Label className="mb-1.5 block">العميل</Label>
-              <div className="flex gap-2">
-                <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                  <option value="">— اختر عميل —</option>
-                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-                </select>
-                <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
-                  <UserPlus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            <div>
-              <Label className="mb-1.5 block">طريقة الدفع الأساسية</Label>
-              <select
-                className="w-full bg-input border border-border rounded-lg p-2"
-                value={payments[0]?.payment_method ?? "cash"}
-                onChange={(e) => {
-                  const m = e.target.value;
-                  if (payments.length === 0) {
-                    setPayments([{ payment_method: m, amount: total, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "", fee_amount: 0, fee_on_customer: false }]);
-                  } else {
-                    updatePayment(0, { payment_method: m });
-                  }
-                }}
-              >
-                {PAYMENT_METHODS.map((mm) => <option key={mm.v} value={mm.v}>{mm.label}</option>)}
+          {/* Customer */}
+          <div className="card-elevated p-4">
+            <Label className="mb-1.5 block">العميل</Label>
+            <div className="flex gap-2">
+              <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                <option value="">— اختر عميل (اختياري) —</option>
+                {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
               </select>
-              <div className="text-[11px] text-muted-foreground mt-1">للتقسيم على أكثر من طريقة استخدم لوحة "طرق الدفع" يمين</div>
+              <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                <UserPlus className="w-4 h-4" />
+              </Button>
             </div>
           </div>
+
 
           {/* Search & Scanner */}
           <div className="card-elevated p-4">
