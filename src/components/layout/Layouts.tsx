@@ -121,8 +121,6 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, allow: ["accountant"] },
   ];
 
-  ];
-
   const nav: NavItem[] = [
     ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => can(i.allow)).map(({ allow, ...rest }) => rest),
