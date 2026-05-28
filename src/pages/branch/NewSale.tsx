@@ -31,10 +31,9 @@ interface Item {
   selling_price: number;
   market_price: number;
   line_discount: number;
-// Payment methods are now loaded dynamically from the database (built-ins + admin custom).
+}
+// Payment methods are loaded dynamically from the database (built-ins + admin custom).
 const feeKeyFor = (m: string) => (m === "cash" ? null : m);
-
-const feeKeyFor = (m: string) => ALL_PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
 
 interface PaymentSplit {
