@@ -236,7 +236,7 @@ export default function Treasury() {
           <VouchersTable branchId={branchId} type="payment" />
         </TabsContent>
 
-        </TabsList>
+
 
         <TabsContent value="movements" className="mt-4">
           <div className="flex flex-wrap gap-2 mb-4">
