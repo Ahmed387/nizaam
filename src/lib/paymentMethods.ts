@@ -4,7 +4,7 @@ export type PaymentMethod = "cash" | "vodafone" | "instapay" | "bank";
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "💵 نقدي",
-  vodafone: "📱 فودافون كاش",
+  vodafone: "📱 محفظة إلكترونية",
   instapay: "💳 انستاباي",
   bank: "🏦 حساب بنكي",
 };

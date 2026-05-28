@@ -12,7 +12,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
@@ -32,8 +33,7 @@ interface Item {
 
 const PAYMENT_METHODS = [
   { v: "cash", label: "كاش", feeKey: null },
-  { v: "visa", label: "فيزا", feeKey: "bank" },
-  { v: "vodafone_cash", label: "فودافون كاش", feeKey: "vodafone" },
+  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone" },
   { v: "instapay", label: "انستاباي", feeKey: "instapay" },
   { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank" },
 ] as const;
@@ -82,7 +82,27 @@ export default function NewSale() {
   const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [transferFees, setTransferFees] = useState<TransferFee[]>([]);
+  const [newCustOpen, setNewCustOpen] = useState(false);
+  const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
+  const [savingCust, setSavingCust] = useState(false);
 
+  const addNewCustomer = async () => {
+    if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
+    setSavingCust(true);
+    const { data, error } = await supabase.from("customers").insert({
+      name: newCust.name.trim(),
+      phone: newCust.phone || null,
+      address: newCust.address || null,
+      branch_id: branchId!,
+    }).select("id, name, phone").single();
+    setSavingCust(false);
+    if (error) return toast.error(error.message);
+    setCustomers((prev) => [...prev, data]);
+    setCustomerId(data.id);
+    setNewCustOpen(false);
+    setNewCust({ name: "", phone: "", address: "" });
+    toast.success("تمت إضافة العميل");
+  };
   useEffect(() => { loadTransferFees().then(setTransferFees); }, []);
 
   useEffect(() => {
@@ -343,10 +363,15 @@ export default function NewSale() {
           <div className="card-elevated p-4 grid md:grid-cols-2 gap-3">
             <div>
               <Label className="mb-1.5 block">العميل</Label>
-              <select className="w-full bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                <option value="">— اختر عميل —</option>
-                {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-              </select>
+              <div className="flex gap-2">
+                <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                  <option value="">— اختر عميل —</option>
+                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
+                </select>
+                <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                  <UserPlus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div>
               <Label className="mb-1.5 block">طريقة الدفع الأساسية</Label>
@@ -702,6 +727,20 @@ export default function NewSale() {
         onScan={(code) => handleScan(code)}
         continuous
       />
+      <Dialog open={newCustOpen} onOpenChange={setNewCustOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>عميل جديد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>الاسم *</Label><Input className="mt-1.5" value={newCust.name} onChange={(e) => setNewCust({ ...newCust, name: e.target.value })} /></div>
+            <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={newCust.phone} onChange={(e) => setNewCust({ ...newCust, phone: e.target.value })} /></div>
+            <div><Label>العنوان</Label><Input className="mt-1.5" value={newCust.address} onChange={(e) => setNewCust({ ...newCust, address: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCustOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={addNewCustomer} disabled={savingCust}>{savingCust ? "جاري الحفظ..." : "إضافة"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
