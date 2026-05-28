@@ -62,5 +62,3 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
     </ConditionalLayout>
   );
 }
-
-}
