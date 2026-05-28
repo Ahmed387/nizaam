@@ -31,25 +31,21 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
     return () => { cancelled = true; };
   }, [date, branchId]);
 
-  return (
-    <AdminLayout>
-      <PageHeader
-        title="الحضور (كل الفروع)"
-        subtitle={formatDate(date)}
-        actions={
-          <div className="flex gap-2">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الفروع</SelectItem>
-                {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        }
-      />
+  const actions = (
+    <div className="flex gap-2">
+      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+      <Select value={branchId} onValueChange={setBranchId}>
+        <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">كل الفروع</SelectItem>
+          {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
+  return (
+    <ConditionalLayout embedded={embedded} variant="admin" title="الحضور (كل الفروع)" subtitle={formatDate(date)} actions={actions}>
       <DataTable
         loading={loading}
         rows={rows}
@@ -63,6 +59,8 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
           { key: "notes", header: "ملاحظات", render: (r: any) => r.notes ?? "—" },
         ]}
       />
-    </AdminLayout>
+    </ConditionalLayout>
   );
+}
+
 }
