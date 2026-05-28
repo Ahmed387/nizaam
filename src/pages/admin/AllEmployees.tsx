@@ -297,6 +297,13 @@ export default function AllEmployees() {
           )},
         ]}
       />
+        </TabsContent>
+
+        <TabsContent value="attendance" className="mt-4">
+          <AllAttendance embedded />
+        </TabsContent>
+      </Tabs>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
