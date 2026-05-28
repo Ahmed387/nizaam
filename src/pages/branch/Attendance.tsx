@@ -174,7 +174,6 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
             <Button onClick={submitManual}>حفظ</Button>
           </DialogFooter>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
