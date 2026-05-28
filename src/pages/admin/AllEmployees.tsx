@@ -15,7 +15,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2 } from "lucide-react";
+import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AllAttendance from "./AllAttendance";
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" },
@@ -187,16 +189,20 @@ export default function AllEmployees() {
 
   return (
     <AdminLayout>
-      <PageHeader
-        title="الموظفين (كل الفروع)"
-        subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة"
-        actions={
-          <div className="flex gap-2 flex-wrap">
+      <PageHeader title="الموظفين (كل الفروع)" subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة" />
+
+
+      <Tabs defaultValue="list">
+        <TabsList>
+          <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4" /> الحضور (كل الفروع)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="mt-4 space-y-4">
+          <div className="flex gap-2 flex-wrap justify-end">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
           </div>
-        }
-      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="p-4 rounded-lg border bg-card">
@@ -291,6 +297,13 @@ export default function AllEmployees() {
           )},
         ]}
       />
+        </TabsContent>
+
+        <TabsContent value="attendance" className="mt-4">
+          <AllAttendance embedded />
+        </TabsContent>
+      </Tabs>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">

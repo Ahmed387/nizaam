@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { BranchLayout } from "@/components/layout/Layouts";
-import { PageHeader } from "@/components/layout/AppShell";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const STATUS_INFO: Record<Status, { label: string; color: string; icon: any }> =
   rejected: { label: "مرفوضة", color: "bg-destructive/15 text-destructive", icon: X },
 };
 
-export default function AdvanceRequests() {
+export default function AdvanceRequests({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
   const isBranchManager = hasRole("branch_manager");
@@ -286,17 +286,15 @@ export default function AdvanceRequests() {
   const canApprove = isAdmin || isBranchManager;
   const canCreate = isBranchManager || isAdmin;
 
+  const headerActions = canCreate && (
+    <Button onClick={() => setOpen(true)} className="gap-2 btn-gradient">
+      <Plus className="w-4 h-4" /> طلب سلفة جديد
+    </Button>
+  );
+
   return (
-    <BranchLayout>
-      <PageHeader
-        title="طلبات السلف"
-        subtitle="مدير الفرع يرفع الطلب — المدير العام يوافق أو يرفض"
-        actions={canCreate && (
-          <Button onClick={() => setOpen(true)} className="gap-2 btn-gradient">
-            <Plus className="w-4 h-4" /> طلب سلفة جديد
-          </Button>
-        )}
-      />
+    <ConditionalLayout embedded={embedded} title="طلبات السلف" subtitle="مدير الفرع يرفع الطلب — المدير العام يوافق أو يرفض" actions={headerActions}>
+
 
       <div className="grid md:grid-cols-3 gap-3 mb-6">
         {!isAdmin && (
@@ -433,6 +431,7 @@ export default function AdvanceRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </BranchLayout>
+    </ConditionalLayout>
+
   );
 }

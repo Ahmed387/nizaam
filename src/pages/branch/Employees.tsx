@@ -12,8 +12,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet } from "lucide-react";
+import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, ClipboardCheck, HandCoins } from "lucide-react";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Attendance from "./Attendance";
+import AdvanceRequests from "./AdvanceRequests";
+
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" as const },
@@ -106,36 +110,50 @@ export default function Employees() {
 
   return (
     <BranchLayout>
-      <PageHeader
-        title="الموظفين"
-        subtitle={`${rows.length} موظف`}
-        actions={
-          <div className="flex gap-2 flex-wrap">
+      <PageHeader title="الموظفين" subtitle={`${rows.length} موظف`} />
+
+      <Tabs defaultValue="list">
+        <TabsList>
+          <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4" /> الحضور والانصراف</TabsTrigger>
+          <TabsTrigger value="advances" className="gap-2"><HandCoins className="w-4 h-4" /> طلبات السلف</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="mt-4">
+          <div className="flex gap-2 flex-wrap justify-end mb-3">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
             <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>
           </div>
-        }
-      />
+          <DataTable
+            loading={loading}
+            rows={rows}
+            onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
+            empty="لا يوجد موظفين"
+            columns={[
+              { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+              { key: "job_title", header: "الوظيفة" },
+              { key: "email", header: "الإيميل", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
+              { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
+              { key: "base_salary", header: "الراتب", render: (r: any) => formatEGP(r.base_salary) },
+              { key: "hire_date", header: "تاريخ التعيين", render: (r: any) => formatDate(r.hire_date) },
+              {
+                key: "is_active", header: "الحالة",
+                render: (r: any) => <span className={r.is_active ? "text-success" : "text-muted-foreground"}>{r.is_active ? "نشط" : "موقوف"}</span>,
+              },
+              { key: "go", header: "", render: () => <ArrowRight className="w-4 h-4 text-muted-foreground" /> },
+            ]}
+          />
+        </TabsContent>
 
-      <DataTable
-        loading={loading}
-        rows={rows}
-        onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
-        empty="لا يوجد موظفين"
-        columns={[
-          { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
-          { key: "job_title", header: "الوظيفة" },
-          { key: "email", header: "الإيميل", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
-          { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-          { key: "base_salary", header: "الراتب", render: (r: any) => formatEGP(r.base_salary) },
-          { key: "hire_date", header: "تاريخ التعيين", render: (r: any) => formatDate(r.hire_date) },
-          {
-            key: "is_active", header: "الحالة",
-            render: (r: any) => <span className={r.is_active ? "text-success" : "text-muted-foreground"}>{r.is_active ? "نشط" : "موقوف"}</span>,
-          },
-          { key: "go", header: "", render: () => <ArrowRight className="w-4 h-4 text-muted-foreground" /> },
-        ]}
-      />
+        <TabsContent value="attendance" className="mt-4">
+          <Attendance embedded />
+        </TabsContent>
+
+        <TabsContent value="advances" className="mt-4">
+          <AdvanceRequests embedded />
+        </TabsContent>
+      </Tabs>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

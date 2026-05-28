@@ -21,7 +21,7 @@ const STATUS = {
   leave: "إجازة",
 };
 
-export default function Attendance() {
+export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const { tenant, user } = useAuth();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -82,18 +82,17 @@ export default function Attendance() {
     setForm({ employee_id: "", status: "present", notes: "" });
   };
 
-  return (
-    <BranchLayout>
-      <PageHeader
-        title="الحضور والانصراف"
-        subtitle={formatDate(date)}
-        actions={
-          <div className="flex gap-2 items-center">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
-            <Button onClick={() => setOpen(true)} className="gap-1"><Plus className="w-4 h-4" /> تسجيل يدوي</Button>
-          </div>
-        }
-      />
+  const controls = (
+    <div className="flex gap-2 items-center">
+      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+      <Button onClick={() => setOpen(true)} className="gap-1"><Plus className="w-4 h-4" /> تسجيل يدوي</Button>
+    </div>
+  );
+
+  const body = (
+    <>
+      {embedded && <div className="flex justify-end mb-3">{controls}</div>}
+
 
       <DataTable
         loading={loading}
@@ -177,6 +176,14 @@ export default function Attendance() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+
+  if (embedded) return body;
+  return (
+    <BranchLayout>
+      <PageHeader title="الحضور والانصراف" subtitle={formatDate(date)} actions={controls} />
+      {body}
     </BranchLayout>
   );
 }

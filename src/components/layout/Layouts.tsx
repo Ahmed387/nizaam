@@ -20,7 +20,6 @@ const adminNav: NavItem[] = [
   { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
   { to: "/admin/reports", label: "التقارير المركزية", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/admin/scheduled-reports", label: "التقارير المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
-  { to: "/admin/attendance", label: "الحضور (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/admin/receivables", label: "الذمم المالية", icon: <Coins className="w-4 h-4" /> },
   { to: "/admin/vouchers", label: "السندات المالية", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/admin/audit-log", label: "سجل العمليات", icon: <ScrollText className="w-4 h-4" /> },
@@ -32,9 +31,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, isAdmin, hasRole } = useAuth();
   // Supervisor: limited admin sidebar (attendance + employees only)
   const supervisorNav: NavItem[] = [
-    { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
-    { to: "/admin/attendance", label: "الحضور (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
+    { to: "/admin/employees", label: "الموظفين والحضور", icon: <ClipboardCheck className="w-4 h-4" /> },
   ];
+
   const nav = isAdmin ? adminNav : hasRole("supervisor") ? supervisorNav : [];
   return (
     <AppShell
@@ -117,10 +116,8 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" />, allow: ["warehouse"] },
     { to: `/branch/${id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, allow: ["accountant"] },
-    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: ["accountant", "warehouse"] },
-    { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: ["accountant", "warehouse"] },
-    
-    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier","accountant","warehouse"] },
+    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, badge: pendingAdvCount, allow: ["accountant", "warehouse"] },
+    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, allow: ["cashier"] },
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, allow: ["accountant"] },
   ];
 
