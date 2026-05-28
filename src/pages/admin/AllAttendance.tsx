@@ -12,7 +12,7 @@ const STATUS_LABEL: Record<string, string> = {
   present: "حاضر", late: "متأخر", absent: "غائب", leave: "إجازة",
 };
 
-export default function AllAttendance() {
+export default function AllAttendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { branches } = useAuth();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [branchId, setBranchId] = useState<string>("all");
