@@ -157,11 +157,9 @@ const App = () => (
             <Route path="/branch/:id/transfers" element={<ProtectedRoute roles={["branch_manager","warehouse"]}><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts" element={<ProtectedRoute roles={["branch_manager","cashier","warehouse","accountant"]}><Contacts /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customers" replace />} />
-            <Route path="/branch/:id/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/branch/:id/customers/:customerId" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
-            <Route path="/branch/:id/suppliers" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><Suppliers /></ProtectedRoute>} />
-            <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><SupplierProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/suppliers" element={<Navigate to="../contacts?tab=suppliers" replace />} />
+            <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><SupplierProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute roles={["branch_manager"]}><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute roles={["branch_manager"]}><AdvanceRequests /></ProtectedRoute>} />
             
