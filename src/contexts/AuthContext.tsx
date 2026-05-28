@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
-import { AppRole, fetchUserContext } from "@/lib/roles";
+import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission } from "@/lib/roles";
 
 interface Tenant {
   id: string;
@@ -25,6 +25,7 @@ interface AuthCtx {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   hasRole: (r: AppRole) => boolean;
+  can: (key: string) => boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -40,6 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [branches, setBranches] = useState<AuthCtx["branches"]>([]);
   const [loading, setLoading] = useState(true);
+  const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
+
+  const loadPerms = async (tid: string | null) => {
+    if (!tid) { setPermsByRole({}); return; }
+    const { data } = await supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tid);
+    const map: Record<string, Record<string, boolean>> = {};
+    (data ?? []).forEach((r: any) => {
+      map[r.role] = map[r.role] ?? {};
+      map[r.role][r.permission_key] = !!r.allowed;
+    });
+    // Merge defaults for any role not yet customised
+    Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([role, defaults]) => {
+      if (!map[role]) map[role] = { ...defaults };
+    });
+    setPermsByRole(map);
+  };
 
   const loadCtx = async (uid: string) => {
     const ctx = await fetchUserContext(uid);
@@ -48,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTenant(ctx.tenant);
     setRoles(ctx.roles);
     setBranches(ctx.branches as any);
+    await loadPerms(ctx.tenantId);
   };
+
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, sess) => {
@@ -113,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: roles.includes("admin") || roles.includes("super_admin"),
     isSuperAdmin: roles.includes("super_admin"),
     hasRole: (r) => roles.includes(r),
+    can: (key) => checkPermission(roles, permsByRole, key),
     signOut: async () => {
       await supabase.auth.signOut();
     },
