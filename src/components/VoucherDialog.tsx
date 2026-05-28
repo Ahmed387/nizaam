@@ -73,18 +73,23 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
   }, [cats]);
 
   // Load party options when party_type changes
+  // Load party options when party_type changes
   useEffect(() => {
     if (!open) return;
     setForm((f) => ({ ...f, party_id: "", party_name: "" }));
     setPartyBalance(null);
     if (!form.party_type || form.party_type === "other") { setPartyOptions([]); return; }
     (async () => {
-      const table = form.party_type === "employee" ? "employees" : form.party_type === "supplier" ? "suppliers" : "customers";
-      let q = supabase.from(table as any).select("id, name").order("name");
-      if (form.party_type !== "supplier") q = q.eq("branch_id", branchId);
-      const { data, error } = await q;
-      if (error) { toast.error(error.message); return; }
-      setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
+      if (form.party_type === "supplier") {
+        const { data, error } = await supabase.from("suppliers" as any).select("id, company_name").order("company_name");
+        if (error) { toast.error(error.message); return; }
+        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.company_name })));
+      } else {
+        const table = form.party_type === "employee" ? "employees" : "customers";
+        const { data, error } = await supabase.from(table as any).select("id, name").eq("branch_id", branchId).order("name");
+        if (error) { toast.error(error.message); return; }
+        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
+      }
     })();
   }, [form.party_type, open, branchId]);
 
@@ -98,17 +103,20 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
           const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining || 0), 0);
           setPartyBalance({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
         } else if (form.party_type === "supplier") {
-          const { data } = await supabase.rpc("get_supplier_balance" as any, { p_supplier_id: form.party_id } as any);
-          const amt = Number((data as any) ?? 0);
+          const { data } = await supabase.from("suppliers" as any).select("balance").eq("id", form.party_id).maybeSingle();
+          const amt = Number((data as any)?.balance ?? 0);
           setPartyBalance({ label: amt >= 0 ? "مستحق للمورد علينا" : "رصيد لصالحنا عند المورد", amount: Math.abs(amt), tone: amt > 0 ? "bad" : amt < 0 ? "good" : "neutral" });
         } else if (form.party_type === "customer") {
-          const { data } = await supabase.rpc("get_customer_balance" as any, { p_customer_id: form.party_id } as any);
-          const amt = Number((data as any) ?? 0);
-          setPartyBalance({ label: amt >= 0 ? "مستحق على العميل لنا" : "دفع زائد للعميل", amount: Math.abs(amt), tone: amt > 0 ? "good" : amt < 0 ? "bad" : "neutral" });
+          const { data } = await supabase.from("payment_plans" as any).select("remaining_amount").eq("entity_type", "customer").eq("entity_id", form.party_id).eq("status", "active");
+          const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining_amount || 0), 0);
+          setPartyBalance({ label: "مستحق على العميل لنا", amount: total, tone: total > 0 ? "good" : "neutral" });
         }
       } catch {
         setPartyBalance(null);
       }
+    })();
+  }, [form.party_id, form.party_type]);
+
     })();
   }, [form.party_id, form.party_type]);
 
