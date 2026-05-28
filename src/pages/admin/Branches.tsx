@@ -70,7 +70,9 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
         title="إدارة الفروع"
         subtitle={`${rows.length} فرع`}
         actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
+      />
       <DataTable
+
         loading={loading} rows={rows}
         onRowClick={(r: any) => nav(`/admin/branches/${r.id}`)}
         columns={[
