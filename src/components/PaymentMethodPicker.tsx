@@ -88,10 +88,11 @@ export function PaymentMethodPicker({
         >
           <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {PAYMENT_METHOD_OPTIONS.map((o) => (
+            {enabledOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
           </SelectContent>
+
         </Select>
       </div>
 
