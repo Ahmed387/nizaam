@@ -118,8 +118,6 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/customers`, label: "العملاء", icon: <UserCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/suppliers`, label: "الموردين", icon: <Factory className="w-4 h-4" />, allow: ["warehouse", "accountant"] },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, allow: ["accountant"] },
-    { to: `/branch/${id}/receipt-vouchers`, label: "سندات القبض", icon: <ArrowDownCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
-    { to: `/branch/${id}/payment-vouchers`, label: "سندات الصرف", icon: <ArrowUpCircle className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, allow: ["accountant", "warehouse"] },
     { to: `/branch/${id}/advance-requests`, label: "طلبات السلف", icon: <HandCoins className="w-4 h-4" />, badge: pendingAdvCount, allow: ["accountant", "warehouse"] },
     

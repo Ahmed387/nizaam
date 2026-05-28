@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
+import { VouchersTable } from "@/components/VouchersTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -219,12 +220,23 @@ export default function Treasury() {
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
-
       <Tabs defaultValue="movements">
         <TabsList>
           <TabsTrigger value="movements">حركات الخزنة</TabsTrigger>
+          <TabsTrigger value="receipts">سندات القبض</TabsTrigger>
+          <TabsTrigger value="payments">سندات الصرف</TabsTrigger>
           <TabsTrigger value="transfers">تحويلات بين الفروع ({transfers.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="receipts" className="mt-4">
+          <VouchersTable branchId={branchId} type="receipt" />
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-4">
+          <VouchersTable branchId={branchId} type="payment" />
+        </TabsContent>
+
+
 
         <TabsContent value="movements" className="mt-4">
           <div className="flex flex-wrap gap-2 mb-4">

@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useParams } from "react-router-dom";
+
+function RedirectToTreasury() {
+  const { id } = useParams();
+  return <Navigate to={`/branch/${id}/treasury`} replace />;
+}
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -128,8 +134,9 @@ const App = () => (
 
             {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
-            <Route path="/branch/:id/payment-vouchers" element={<ProtectedRoute roles={["branch_manager","accountant"]}><PaymentVouchers /></ProtectedRoute>} />
-            <Route path="/branch/:id/receipt-vouchers" element={<ProtectedRoute roles={["branch_manager","accountant"]}><ReceiptVouchers /></ProtectedRoute>} />
+            <Route path="/branch/:id/payment-vouchers" element={<RedirectToTreasury />} />
+            <Route path="/branch/:id/receipt-vouchers" element={<RedirectToTreasury />} />
+
             <Route path="/branch/:id/sales" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
             <Route path="/branch/:id/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
             <Route path="/branch/:id/purchase-returns/new" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><NewPurchaseReturn /></ProtectedRoute>} />
