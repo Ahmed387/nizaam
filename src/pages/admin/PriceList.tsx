@@ -306,13 +306,13 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>الفئة</TableHead>
                       <TableHead>اسم المنتج</TableHead>
                       <TableHead>الموديل</TableHead>
                       <TableHead>سعر الشراء</TableHead>
                       <TableHead>سعر البيع المقترح</TableHead>
                       <TableHead>السعر المعروض للكاشير</TableHead>
                       <TableHead>ظاهر</TableHead>
+                      <TableHead>الفئة</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -321,7 +321,6 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                       <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
                     ) : currentItems.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="text-sm">{item.category ?? "—"}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{item.model_code ?? "—"}</TableCell>
                         <TableCell>{formatEGP(item.cost_price)}</TableCell>
@@ -340,6 +339,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                         <TableCell>
                           <Switch checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
                         </TableCell>
+                        <TableCell className="text-sm">{item.category ?? "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -347,6 +347,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                         </TableCell>
                       </TableRow>
                     ))}
+
                   </TableBody>
                 </Table>
               </div>
