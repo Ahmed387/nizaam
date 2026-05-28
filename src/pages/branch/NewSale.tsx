@@ -19,7 +19,8 @@ import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
-import { loadTransferFees, calculateFee, loadEnabledPaymentMethods, TransferFee, PaymentMethod } from "@/lib/paymentMethods";
+import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
+
 
 
 interface Item {
