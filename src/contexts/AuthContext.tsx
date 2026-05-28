@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [branches, setBranches] = useState<AuthCtx["branches"]>([]);
   const [loading, setLoading] = useState(true);
   const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
 
