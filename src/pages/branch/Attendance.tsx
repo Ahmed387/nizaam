@@ -21,7 +21,7 @@ const STATUS = {
   leave: "إجازة",
 };
 
-export default function Attendance() {
+export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const { tenant, user } = useAuth();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
