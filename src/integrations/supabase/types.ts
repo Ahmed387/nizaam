@@ -2477,6 +2477,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_active: boolean
           is_system: boolean
           name: string
           parent_id: string | null
@@ -2487,6 +2488,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_active?: boolean
           is_system?: boolean
           name: string
           parent_id?: string | null
@@ -2497,6 +2499,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_active?: boolean
           is_system?: boolean
           name?: string
           parent_id?: string | null
