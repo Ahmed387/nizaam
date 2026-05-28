@@ -11,6 +11,7 @@ export interface VoucherCategory {
   name: string;
   type: VoucherType;
   is_system: boolean;
+  is_active: boolean;
   parent_id: string | null;
   system_key: string | null;
 }
@@ -57,9 +58,10 @@ export const PARTY_TYPE_LABEL: Record<VoucherPartyType, string> = {
   other: "أخرى",
 };
 
-export async function fetchVoucherCategories(type?: VoucherType) {
+export async function fetchVoucherCategories(type?: VoucherType, onlyActive = false) {
   let q = supabase.from("voucher_categories" as any).select("*").order("is_system", { ascending: false }).order("name");
   if (type) q = q.eq("type", type);
+  if (onlyActive) q = q.eq("is_active", true);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as unknown as VoucherCategory[];
