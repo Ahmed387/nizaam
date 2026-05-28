@@ -347,9 +347,12 @@ export default function Invoices() {
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length} className="gap-2">
               <Printer className="w-4 h-4" /> PDF
             </Button>
-            <Button asChild className="gap-2">
-              <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
-            </Button>
+            <PermGate perm={(cfg as any).newPerm ?? ""}>
+              <Button asChild className="gap-2">
+                <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
+              </Button>
+            </PermGate>
+
           </div>
         }
       />
