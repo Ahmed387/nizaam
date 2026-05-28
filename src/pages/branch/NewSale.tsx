@@ -727,6 +727,20 @@ export default function NewSale() {
         onScan={(code) => handleScan(code)}
         continuous
       />
+      <Dialog open={newCustOpen} onOpenChange={setNewCustOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>عميل جديد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>الاسم *</Label><Input className="mt-1.5" value={newCust.name} onChange={(e) => setNewCust({ ...newCust, name: e.target.value })} /></div>
+            <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={newCust.phone} onChange={(e) => setNewCust({ ...newCust, phone: e.target.value })} /></div>
+            <div><Label>العنوان</Label><Input className="mt-1.5" value={newCust.address} onChange={(e) => setNewCust({ ...newCust, address: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCustOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={addNewCustomer} disabled={savingCust}>{savingCust ? "جاري الحفظ..." : "إضافة"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
