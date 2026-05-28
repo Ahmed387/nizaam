@@ -187,16 +187,20 @@ export default function AllEmployees() {
     toast.success(`تم تصدير ${data.length} موظف`);
   };
 
-  return (
-    <AdminLayout>
-      <PageHeader
-        title="الموظفين (كل الفروع)"
-        subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة"
-        actions={
-          <div className="flex gap-2 flex-wrap">
+      <PageHeader title="الموظفين (كل الفروع)" subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة" />
+
+      <Tabs defaultValue="list">
+        <TabsList>
+          <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4" /> الحضور (كل الفروع)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="mt-4 space-y-4">
+          <div className="flex gap-2 flex-wrap justify-end">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
           </div>
+
         }
       />
 
