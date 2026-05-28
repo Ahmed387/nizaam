@@ -31,13 +31,8 @@ interface Item {
   selling_price: number;
   market_price: number;
   line_discount: number;
-}
-const ALL_PAYMENT_METHODS = [
-  { v: "cash", label: "كاش", feeKey: null, methodKey: "cash" as PaymentMethod },
-  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone", methodKey: "vodafone" as PaymentMethod },
-  { v: "instapay", label: "انستاباي", feeKey: "instapay", methodKey: "instapay" as PaymentMethod },
-  { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank", methodKey: "bank" as PaymentMethod },
-] as const;
+// Payment methods are now loaded dynamically from the database (built-ins + admin custom).
+const feeKeyFor = (m: string) => (m === "cash" ? null : m);
 
 const feeKeyFor = (m: string) => ALL_PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
