@@ -409,6 +409,7 @@ export default function PriceList() {
                 <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">تغير سعر: {changedCount}</Badge>
                 <Badge variant="outline">بدون تغيير: {sameCount}</Badge>
               </div>
+              <p className="text-xs text-muted-foreground">يمكنك تعديل السعر الجديد لأي صنف قبل الحفظ بالضغط على الخانة.</p>
               <div className="flex-1 overflow-auto border rounded-lg">
                 <Table>
                   <TableHeader className="sticky top-0 bg-background z-10">
@@ -417,8 +418,9 @@ export default function PriceList() {
                       <TableHead>المنتج</TableHead>
                       <TableHead>الموديل</TableHead>
                       <TableHead>السعر القديم</TableHead>
-                      <TableHead>السعر الجديد</TableHead>
+                      <TableHead>السعر الجديد (قابل للتعديل)</TableHead>
                       <TableHead>الفرق</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -432,9 +434,40 @@ export default function PriceList() {
                         <TableCell>{d.parsed.product_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
                         <TableCell>{d.existing ? formatEGP(d.existing.cost_price) : "—"}</TableCell>
-                        <TableCell className="font-medium">{formatEGP(d.parsed.cost_price)}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className="w-28 h-8"
+                            defaultValue={d.parsed.cost_price}
+                            onBlur={(e) => {
+                              const v = Number(e.target.value);
+                              if (isNaN(v) || v < 0) return;
+                              setParsedDiff((prev) => {
+                                if (!prev) return prev;
+                                const next = [...prev];
+                                const row = { ...next[idx] };
+                                row.parsed = { ...row.parsed, cost_price: v };
+                                const oldPrice = row.existing?.cost_price ?? 0;
+                                row.diff = v - oldPrice;
+                                row.status = !row.existing ? "new" : Math.abs(row.diff) > 0.01 ? "changed" : "same";
+                                next[idx] = row;
+                                return next;
+                              });
+                            }}
+                          />
+                        </TableCell>
                         <TableCell className={d.diff > 0 ? "text-red-600" : d.diff < 0 ? "text-green-600" : ""}>
                           {d.status === "new" ? "—" : d.diff > 0 ? `+${formatEGP(d.diff)}` : d.diff < 0 ? formatEGP(d.diff) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="استبعاد هذا الصنف من التحديث"
+                            onClick={() => setParsedDiff((prev) => prev?.filter((_, i) => i !== idx) ?? null)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -446,8 +479,11 @@ export default function PriceList() {
 
           <DialogFooter className="gap-2">
             {parsedDiff && (
-              <Button variant="outline" onClick={() => setParsedDiff(null)}><X className="h-4 w-4 ml-1" /> ملف آخر</Button>
+              <Button variant="outline" onClick={() => setParsedDiff(null)} title="إلغاء هذا الملف ورفع ملف مختلف">
+                <X className="h-4 w-4 ml-1" /> رفع ملف مختلف
+              </Button>
             )}
+
             <Button variant="outline" onClick={() => setUploadOpen(false)}>إلغاء</Button>
             {parsedDiff && (
               <Button onClick={confirmUpdate} disabled={applying}>
