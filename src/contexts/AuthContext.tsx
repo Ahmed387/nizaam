@@ -132,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: roles.includes("admin") || roles.includes("super_admin"),
     isSuperAdmin: roles.includes("super_admin"),
     hasRole: (r) => roles.includes(r),
+    can: (key) => checkPermission(roles, permsByRole, key),
     signOut: async () => {
       await supabase.auth.signOut();
     },
