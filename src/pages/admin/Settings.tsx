@@ -179,53 +179,41 @@ export default function Settings() {
     <AdminLayout>
       <PageHeader title="الإعدادات" subtitle="إعدادات النظام العامة" />
 
-      <Tabs defaultValue="company" orientation="vertical" className="flex flex-col lg:flex-row gap-4 items-start">
-        <aside className="w-full lg:w-64 shrink-0 card-elevated p-2 lg:sticky lg:top-4">
-          <TabsList className="flex flex-col h-auto w-full bg-transparent p-0 gap-0.5">
+      <Tabs defaultValue="company" className="flex flex-col lg:flex-row gap-6 items-start">
+        <aside className="w-full lg:w-56 shrink-0">
+          <TabsList className="flex flex-col h-auto w-full bg-transparent p-0 gap-1">
             {[
-              { group: "عام", items: [
-                { v: "company", icon: Building2, label: "بيانات الشركة" },
-                { v: "invoice", icon: Receipt, label: "الفواتير" },
-                { v: "inventory", icon: Boxes, label: "المخزون" },
-              ]},
-              { group: "المالية", items: [
-                { v: "payments", icon: Wallet, label: "إعدادات المدفوعات" },
-                { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
-                { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
-                { v: "targets", icon: Target, label: "أهداف المبيعات" },
-              ]},
-              { group: "الأمان والحسابات", items: [
-                { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
-                { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
-                { v: "security", icon: KeyRound, label: "كلمة المرور" },
-                ...(isAdminOnly ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
-              ]},
-              { group: "أدوات النظام", items: [
-                { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
-                ...(isAdminOnly ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
-              ]},
-            ].map((sec) => (
-              <div key={sec.group} className="w-full mt-2 first:mt-0">
-                <div className="px-3 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide">{sec.group}</div>
-                {sec.items.map((it: any) => {
-                  const Icon = it.icon;
-                  return (
-                    <TabsTrigger
-                      key={it.v}
-                      value={it.v}
-                      className={`w-full justify-start gap-2 px-3 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm ${it.danger ? "text-destructive data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground" : ""}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="text-sm">{it.label}</span>
-                    </TabsTrigger>
-                  );
-                })}
-              </div>
-            ))}
+              { v: "company", icon: Building2, label: "بيانات الشركة" },
+              { v: "invoice", icon: Receipt, label: "الفواتير" },
+              { v: "inventory", icon: Boxes, label: "المخزون" },
+              { v: "payments", icon: Wallet, label: "المدفوعات" },
+              { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
+              { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
+              { v: "targets", icon: Target, label: "أهداف المبيعات" },
+              { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
+              { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
+              { v: "security", icon: KeyRound, label: "كلمة المرور" },
+              { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
+              ...(isAdminOnly ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
+              ...(isAdminOnly ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
+            ].map((it: any) => {
+              const Icon = it.icon;
+              return (
+                <TabsTrigger
+                  key={it.v}
+                  value={it.v}
+                  className={`w-full justify-start gap-2 px-3 py-2 rounded-md data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:font-semibold ${it.danger ? "text-destructive" : ""}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm">{it.label}</span>
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
         </aside>
 
         <div className="flex-1 w-full min-w-0">
+
 
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsTab />
