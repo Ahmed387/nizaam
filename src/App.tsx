@@ -128,8 +128,9 @@ const App = () => (
 
             {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
-            <Route path="/branch/:id/payment-vouchers" element={<ProtectedRoute roles={["branch_manager","accountant"]}><PaymentVouchers /></ProtectedRoute>} />
-            <Route path="/branch/:id/receipt-vouchers" element={<ProtectedRoute roles={["branch_manager","accountant"]}><ReceiptVouchers /></ProtectedRoute>} />
+            <Route path="/branch/:id/payment-vouchers" element={<Navigate to=".." relative="path" replace />} />
+            <Route path="/branch/:id/receipt-vouchers" element={<Navigate to=".." relative="path" replace />} />
+
             <Route path="/branch/:id/sales" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
             <Route path="/branch/:id/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
             <Route path="/branch/:id/purchase-returns/new" element={<ProtectedRoute roles={["branch_manager","warehouse","accountant"]}><NewPurchaseReturn /></ProtectedRoute>} />
