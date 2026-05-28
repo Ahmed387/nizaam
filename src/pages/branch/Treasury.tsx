@@ -220,11 +220,22 @@ export default function Treasury() {
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
-
       <Tabs defaultValue="movements">
         <TabsList>
           <TabsTrigger value="movements">حركات الخزنة</TabsTrigger>
+          <TabsTrigger value="receipts">سندات القبض</TabsTrigger>
+          <TabsTrigger value="payments">سندات الصرف</TabsTrigger>
           <TabsTrigger value="transfers">تحويلات بين الفروع ({transfers.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="receipts" className="mt-4">
+          <VouchersTable branchId={branchId} type="receipt" />
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-4">
+          <VouchersTable branchId={branchId} type="payment" />
+        </TabsContent>
+
         </TabsList>
 
         <TabsContent value="movements" className="mt-4">
