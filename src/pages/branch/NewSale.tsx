@@ -103,27 +103,6 @@ export default function NewSale() {
     setNewCust({ name: "", phone: "", address: "" });
     toast.success("تمت إضافة العميل");
   };
-  const [newCustOpen, setNewCustOpen] = useState(false);
-  const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
-  const [savingCust, setSavingCust] = useState(false);
-
-  const addNewCustomer = async () => {
-    if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
-    setSavingCust(true);
-    const { data, error } = await supabase.from("customers").insert({
-      name: newCust.name.trim(),
-      phone: newCust.phone || null,
-      address: newCust.address || null,
-      branch_id: branchId!,
-    }).select("id, name, phone").single();
-    setSavingCust(false);
-    if (error) return toast.error(error.message);
-    setCustomers((prev) => [...prev, data]);
-    setCustomerId(data.id);
-    setNewCustOpen(false);
-    setNewCust({ name: "", phone: "", address: "" });
-    toast.success("تمت إضافة العميل");
-  };
   useEffect(() => { loadTransferFees().then(setTransferFees); }, []);
 
   useEffect(() => {
