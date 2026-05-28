@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
-import { PageHeader } from "@/components/layout/AppShell";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+
 import { DataTable } from "@/components/DataTable";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
