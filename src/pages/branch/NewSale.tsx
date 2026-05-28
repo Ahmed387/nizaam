@@ -574,7 +574,8 @@ export default function NewSale() {
             </div>
             {payments.length === 0 ? (
               <div className="text-xs text-muted-foreground p-3 rounded bg-surface-2 text-center">
-                لو سايبها فاضية = الدفع كله كاش<br/>اضغط "إضافة طريقة" لتقسيم الدفع
+                الافتراضي: الدفع كله كاش.<br/>اضغط "إضافة طريقة" لاختيار طريقة دفع أخرى أو لتقسيم المبلغ.
+
               </div>
             ) : (
               <div className="space-y-3">
