@@ -40,7 +40,6 @@ const ALL_PAYMENT_METHODS = [
 
 const feeKeyFor = (m: string) => ALL_PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
-const feeKeyFor = (m: string) => PAYMENT_METHODS.find((x) => x.v === m)?.feeKey ?? null;
 
 interface PaymentSplit {
   payment_method: string;
