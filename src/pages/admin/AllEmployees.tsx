@@ -201,9 +201,6 @@ export default function AllEmployees() {
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
           </div>
 
-        }
-      />
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> إجمالي الموظفين</div>
