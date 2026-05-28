@@ -302,34 +302,33 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Input placeholder="بحث في المنتجات..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
               </div>
 
-              <div className="border rounded-lg overflow-x-auto" dir="rtl">
+              <div className="border rounded-lg overflow-x-auto bg-card" dir="rtl">
                 <Table>
-
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>اسم المنتج</TableHead>
-                      <TableHead>الموديل</TableHead>
-                      <TableHead>سعر الشراء</TableHead>
-                      <TableHead>سعر البيع المقترح</TableHead>
-                      <TableHead>السعر المعروض للكاشير</TableHead>
-                      <TableHead>ظاهر</TableHead>
-                      <TableHead>الفئة</TableHead>
-                      <TableHead></TableHead>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="text-right font-semibold">اسم المنتج</TableHead>
+                      <TableHead className="text-right font-semibold">الموديل</TableHead>
+                      <TableHead className="text-center font-semibold whitespace-nowrap">سعر الشراء</TableHead>
+                      <TableHead className="text-center font-semibold whitespace-nowrap">سعر البيع المقترح</TableHead>
+                      <TableHead className="text-center font-semibold whitespace-nowrap">السعر المعروض للكاشير</TableHead>
+                      <TableHead className="text-center font-semibold">ظاهر</TableHead>
+                      <TableHead className="text-right font-semibold">الفئة</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {currentItems.length === 0 ? (
                       <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
                     ) : currentItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.model_code ?? "—"}</TableCell>
-                        <TableCell>{formatEGP(item.cost_price)}</TableCell>
-                        <TableCell className="text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
-                        <TableCell>
+                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell className="text-right font-medium">{item.product_name}</TableCell>
+                        <TableCell className="text-right text-sm text-muted-foreground font-mono">{item.model_code ?? "—"}</TableCell>
+                        <TableCell className="text-center tabular-nums whitespace-nowrap">{formatEGP(item.cost_price)}</TableCell>
+                        <TableCell className="text-center tabular-nums whitespace-nowrap text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
+                        <TableCell className="text-center">
                           <Input
                             type="number"
-                            className="w-32"
+                            className="w-28 mx-auto text-center tabular-nums font-semibold"
                             defaultValue={item.display_price}
                             onBlur={(e) => {
                               const v = Number(e.target.value);
@@ -337,21 +336,23 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                             }}
                           />
                         </TableCell>
-                        <TableCell>
-                          <Switch checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Switch checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
+                          </div>
                         </TableCell>
-                        <TableCell className="text-sm">{item.category ?? "—"}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-right text-sm">{item.category ?? "—"}</TableCell>
+                        <TableCell className="text-center">
                           <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
                     ))}
-
                   </TableBody>
                 </Table>
               </div>
+
             </TabsContent>
           ))}
         </Tabs>
