@@ -49,7 +49,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
 export function BranchLayout({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>();
-  const { branches, isAdmin, hasRole, user } = useAuth();
+  const { branches, isAdmin, hasRole, user, can: hasPerm } = useAuth();
   const branch = branches.find((b) => b.id === id);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [pendingAdvCount, setPendingAdvCount] = useState(0);
