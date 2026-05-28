@@ -16,6 +16,7 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { PartyCombobox } from "@/components/PartyCombobox";
 
 interface Line {
   product_id: string | null;
