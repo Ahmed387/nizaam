@@ -135,6 +135,7 @@ const App = () => (
 
             {/* Branch */}
             <Route path="/branch/:id/dashboard" element={<ProtectedRoute><BranchDashboard /></ProtectedRoute>} />
+            <Route path="/branch/:id/treasury" element={<ProtectedRoute><Treasury /></ProtectedRoute>} />
             <Route path="/branch/:id/payment-vouchers" element={<RedirectToTreasury />} />
             <Route path="/branch/:id/receipt-vouchers" element={<RedirectToTreasury />} />
 
