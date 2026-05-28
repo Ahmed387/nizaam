@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ export default function Branches() {
   };
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="إدارة الفروع"
         subtitle={`${rows.length} فرع`}
@@ -141,6 +141,6 @@ export default function Branches() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,7 +253,7 @@ export default function PriceList() {
   const sameCount = parsedDiff?.filter((d) => d.status === "same").length ?? 0;
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="قائمة الأسعار"
         actions={
@@ -494,6 +494,6 @@ export default function PriceList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

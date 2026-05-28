@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { VouchersTable } from "@/components/VouchersTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function AllVouchers() {
   const { tenantId } = useAuth();
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader title="السندات المالية" subtitle="كل سندات القبض والصرف من جميع الفروع" />
       <Tabs defaultValue="all">
         <TabsList>
@@ -25,6 +25,6 @@ export default function AllVouchers() {
           <VouchersTable adminAllBranches tenantId={tenantId ?? undefined} type="payment" />
         </TabsContent>
       </Tabs>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

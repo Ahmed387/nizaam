@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -219,7 +219,7 @@ export default function AllInventory() {
   };
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="إدارة المنتجات لكل الفروع"
         subtitle={`${stats.total} منتج · ${stats.out} نافد · ${stats.low} منخفض · قيمة المخزون: ${formatEGP(stats.value)}`}
@@ -422,7 +422,7 @@ export default function AllInventory() {
         cats={cats}
         onSaved={load}
       />
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,7 @@ export default function Categories() {
   const tree = cats.filter((c) => !c.parent_id);
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="التصنيفات"
         subtitle={`${cats.length} تصنيف`}
@@ -121,6 +121,6 @@ export default function Categories() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,7 +126,7 @@ export default function ScheduledReports() {
   };
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader title="التقارير المجدولة" subtitle="تقارير أسبوعية تلقائية كل يوم أحد" />
 
       <div className="flex justify-end mb-4">
@@ -193,6 +193,6 @@ export default function ScheduledReports() {
           })}
         </div>
       )}
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

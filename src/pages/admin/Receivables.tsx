@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -168,7 +168,7 @@ export default function Receivables() {
 
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h1 className="text-2xl font-bold">الذمم المالية</h1>
@@ -232,6 +232,6 @@ export default function Receivables() {
           </Tabs>
         )}
       </div>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }
