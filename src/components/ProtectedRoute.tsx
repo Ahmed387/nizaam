@@ -9,13 +9,16 @@ export function ProtectedRoute({
   roles,
   adminOnly,
   superAdminOnly,
+  perm,
 }: {
   children: ReactNode;
   roles?: AppRole[];
   adminOnly?: boolean;
   superAdminOnly?: boolean;
+  /** Optional permission key (e.g. "sales.view"). When provided, takes precedence over `roles`. */
+  perm?: string;
 }) {
-  const { user, loading, isAdmin, isSuperAdmin, hasRole, tenant, signOut } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, hasRole, tenant, signOut, can } = useAuth();
   const loc = useLocation();
 
   if (loading) {
@@ -28,7 +31,6 @@ export function ProtectedRoute({
 
   if (!user) return <Navigate to="/login" state={{ from: loc }} replace />;
 
-  // Suspended tenant — auto sign-out non-super users
   if (tenant?.is_suspended && !isSuperAdmin) {
     signOut();
     return <Navigate to={`/suspended?slug=${tenant.slug}`} replace />;
@@ -36,7 +38,14 @@ export function ProtectedRoute({
 
   if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  if (perm && !can(perm)) return <Navigate to="/" replace />;
   if (roles && !isAdmin && !roles.some((r) => hasRole(r))) return <Navigate to="/" replace />;
 
   return <>{children}</>;
+}
+
+/** Inline permission gate for buttons / sections inside pages. Hides children when permission is missing. */
+export function PermGate({ perm, fallback = null, children }: { perm: string; fallback?: ReactNode; children: ReactNode }) {
+  const { can } = useAuth();
+  return can(perm) ? <>{children}</> : <>{fallback}</>;
 }
