@@ -82,18 +82,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     setForm({ employee_id: "", status: "present", notes: "" });
   };
 
-  return (
-    <BranchLayout>
-      <PageHeader
-        title="الحضور والانصراف"
-        subtitle={formatDate(date)}
-        actions={
-          <div className="flex gap-2 items-center">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
-            <Button onClick={() => setOpen(true)} className="gap-1"><Plus className="w-4 h-4" /> تسجيل يدوي</Button>
-          </div>
-        }
-      />
+  const controls = (
+    <div className="flex gap-2 items-center">
+      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+      <Button onClick={() => setOpen(true)} className="gap-1"><Plus className="w-4 h-4" /> تسجيل يدوي</Button>
+    </div>
+  );
+
+  const body = (
+    <>
+      {embedded && <div className="flex justify-end mb-3">{controls}</div>}
+
 
       <DataTable
         loading={loading}
