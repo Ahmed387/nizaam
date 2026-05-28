@@ -187,7 +187,10 @@ export default function AllEmployees() {
     toast.success(`تم تصدير ${data.length} موظف`);
   };
 
+  return (
+    <AdminLayout>
       <PageHeader title="الموظفين (كل الفروع)" subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة" />
+
 
       <Tabs defaultValue="list">
         <TabsList>
