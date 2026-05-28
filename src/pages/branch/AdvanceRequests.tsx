@@ -286,17 +286,15 @@ export default function AdvanceRequests({ embedded = false }: { embedded?: boole
   const canApprove = isAdmin || isBranchManager;
   const canCreate = isBranchManager || isAdmin;
 
+  const headerActions = canCreate && (
+    <Button onClick={() => setOpen(true)} className="gap-2 btn-gradient">
+      <Plus className="w-4 h-4" /> طلب سلفة جديد
+    </Button>
+  );
+
   return (
-    <BranchLayout>
-      <PageHeader
-        title="طلبات السلف"
-        subtitle="مدير الفرع يرفع الطلب — المدير العام يوافق أو يرفض"
-        actions={canCreate && (
-          <Button onClick={() => setOpen(true)} className="gap-2 btn-gradient">
-            <Plus className="w-4 h-4" /> طلب سلفة جديد
-          </Button>
-        )}
-      />
+    <ConditionalLayout embedded={embedded} title="طلبات السلف" subtitle="مدير الفرع يرفع الطلب — المدير العام يوافق أو يرفض" actions={headerActions}>
+
 
       <div className="grid md:grid-cols-3 gap-3 mb-6">
         {!isAdmin && (
