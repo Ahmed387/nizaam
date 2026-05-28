@@ -32,8 +32,7 @@ interface Item {
 
 const PAYMENT_METHODS = [
   { v: "cash", label: "كاش", feeKey: null },
-  { v: "visa", label: "فيزا", feeKey: "bank" },
-  { v: "vodafone_cash", label: "فودافون كاش", feeKey: "vodafone" },
+  { v: "vodafone_cash", label: "محفظة إلكترونية", feeKey: "vodafone" },
   { v: "instapay", label: "انستاباي", feeKey: "instapay" },
   { v: "bank_transfer", label: "تحويل بنكي", feeKey: "bank" },
 ] as const;
