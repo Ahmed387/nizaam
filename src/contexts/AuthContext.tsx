@@ -39,8 +39,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
-  const [branches, setBranches] = useState<AuthCtx["branches"]>([]);
   const [loading, setLoading] = useState(true);
+  const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
+
+  const loadPerms = async (tid: string | null) => {
+    if (!tid) { setPermsByRole({}); return; }
+    const { data } = await supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tid);
+    const map: Record<string, Record<string, boolean>> = {};
+    (data ?? []).forEach((r: any) => {
+      map[r.role] = map[r.role] ?? {};
+      map[r.role][r.permission_key] = !!r.allowed;
+    });
+    // Merge defaults for any role not yet customised
+    Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([role, defaults]) => {
+      if (!map[role]) map[role] = { ...defaults };
+    });
+    setPermsByRole(map);
+  };
 
   const loadCtx = async (uid: string) => {
     const ctx = await fetchUserContext(uid);
@@ -49,7 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTenant(ctx.tenant);
     setRoles(ctx.roles);
     setBranches(ctx.branches as any);
+    await loadPerms(ctx.tenantId);
   };
+
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, sess) => {
