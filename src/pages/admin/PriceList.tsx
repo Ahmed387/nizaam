@@ -302,8 +302,9 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Input placeholder="بحث في المنتجات..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
               </div>
 
-              <div className="border rounded-lg overflow-x-auto">
+              <div className="border rounded-lg overflow-x-auto" dir="rtl">
                 <Table>
+
                   <TableHeader>
                     <TableRow>
                       <TableHead>اسم المنتج</TableHead>
