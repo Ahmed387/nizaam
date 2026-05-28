@@ -174,8 +174,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
             <Button onClick={submitManual}>حفظ</Button>
           </DialogFooter>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+
+  if (embedded) return body;
+  return (
+    <BranchLayout>
+      <PageHeader title="الحضور والانصراف" subtitle={formatDate(date)} actions={controls} />
+      {body}
     </BranchLayout>
   );
 }
