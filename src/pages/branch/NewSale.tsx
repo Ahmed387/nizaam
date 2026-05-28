@@ -580,8 +580,9 @@ export default function NewSale() {
                       <Button variant="ghost" size="sm" onClick={() => removePayment(idx)}><X className="w-3 h-3" /></Button>
                     </div>
                     <select className="w-full bg-input border border-border rounded p-1.5 text-sm" value={p.payment_method} onChange={(e) => updatePayment(idx, { payment_method: e.target.value })}>
-                      {PAYMENT_METHODS.map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
+                      {ALL_PAYMENT_METHODS.filter((m) => enabledMethodKeys.includes(m.methodKey)).map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
                     </select>
+
                     <Input type="number" min="0" step="0.01" placeholder="المبلغ" value={p.amount || ""} onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })} />
                     {p.payment_method !== "cash" && (
                       <>
