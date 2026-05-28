@@ -2257,6 +2257,7 @@ export type Database = {
           fee_type: string
           fee_value: number
           id: string
+          is_enabled: boolean
           payment_method: string
           tenant_id: string | null
           updated_at: string
@@ -2267,6 +2268,7 @@ export type Database = {
           fee_type?: string
           fee_value?: number
           id?: string
+          is_enabled?: boolean
           payment_method: string
           tenant_id?: string | null
           updated_at?: string
@@ -2277,6 +2279,7 @@ export type Database = {
           fee_type?: string
           fee_value?: number
           id?: string
+          is_enabled?: boolean
           payment_method?: string
           tenant_id?: string | null
           updated_at?: string
