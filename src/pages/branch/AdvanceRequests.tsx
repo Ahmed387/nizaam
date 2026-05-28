@@ -27,7 +27,7 @@ const STATUS_INFO: Record<Status, { label: string; color: string; icon: any }> =
   rejected: { label: "مرفوضة", color: "bg-destructive/15 text-destructive", icon: X },
 };
 
-export default function AdvanceRequests() {
+export default function AdvanceRequests({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
   const isBranchManager = hasRole("branch_manager");
