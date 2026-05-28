@@ -179,40 +179,38 @@ export default function Settings() {
     <AdminLayout>
       <PageHeader title="الإعدادات" subtitle="إعدادات النظام العامة" />
 
-      <Tabs defaultValue="company" className="flex flex-col lg:flex-row gap-6 items-start">
-        <aside className="w-full lg:w-56 shrink-0">
-          <TabsList className="flex flex-col h-auto w-full bg-transparent p-0 gap-1">
-            {[
-              { v: "company", icon: Building2, label: "بيانات الشركة" },
-              { v: "invoice", icon: Receipt, label: "الفواتير" },
-              { v: "inventory", icon: Boxes, label: "المخزون" },
-              { v: "payments", icon: Wallet, label: "المدفوعات" },
-              { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
-              { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
-              { v: "targets", icon: Target, label: "أهداف المبيعات" },
-              { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
-              { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
-              { v: "security", icon: KeyRound, label: "كلمة المرور" },
-              { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
-              ...(isAdminOnly ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
-              ...(isAdminOnly ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
-            ].map((it: any) => {
-              const Icon = it.icon;
-              return (
-                <TabsTrigger
-                  key={it.v}
-                  value={it.v}
-                  className={`w-full justify-start gap-2 px-3 py-2 rounded-md data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:font-semibold ${it.danger ? "text-destructive" : ""}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm">{it.label}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </aside>
+      <Tabs defaultValue="company" className="w-full">
+        <TabsList className="flex flex-wrap h-auto w-full gap-1 mb-6">
+          {[
+            { v: "company", icon: Building2, label: "بيانات الشركة" },
+            { v: "invoice", icon: Receipt, label: "الفواتير" },
+            { v: "inventory", icon: Boxes, label: "المخزون" },
+            { v: "payments", icon: Wallet, label: "المدفوعات" },
+            { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
+            { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
+            { v: "targets", icon: Target, label: "أهداف المبيعات" },
+            { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
+            { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
+            { v: "security", icon: KeyRound, label: "كلمة المرور" },
+            { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
+            ...(isAdminOnly ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
+            ...(isAdminOnly ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
+          ].map((it: any) => {
+            const Icon = it.icon;
+            return (
+              <TabsTrigger
+                key={it.v}
+                value={it.v}
+                className={`gap-1 px-3 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${it.danger ? "text-destructive data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground" : ""}`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-sm">{it.label}</span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
 
-        <div className="flex-1 w-full min-w-0">
+        <div className="w-full">
 
 
         <TabsContent value="permissions" className="mt-4">
