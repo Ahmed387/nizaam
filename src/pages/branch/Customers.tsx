@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
-export default function Customers() {
+export default function Customers({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
@@ -34,8 +34,8 @@ export default function Customers() {
     setOpen(false); setForm({ name: "", phone: "", address: "", notes: "" }); load();
   };
 
-  return (
-    <BranchLayout>
+  const body = (
+    <>
       <PageHeader title="العملاء" subtitle={`${rows.length} عميل`}
         actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> إضافة عميل</Button>} />
       <DataTable loading={loading} rows={rows}
@@ -58,6 +58,7 @@ export default function Customers() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button><Button className="btn-gradient" onClick={submit}>إضافة</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </BranchLayout>
+    </>
   );
+  return embedded ? body : <BranchLayout>{body}</BranchLayout>;
 }

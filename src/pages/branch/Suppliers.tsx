@@ -13,7 +13,7 @@ import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
-export default function Suppliers() {
+export default function Suppliers({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
@@ -35,8 +35,8 @@ export default function Suppliers() {
     setOpen(false); setForm({ company_name: "", contact_name: "", phone: "", address: "", notes: "" }); load();
   };
 
-  return (
-    <BranchLayout>
+  const body = (
+    <>
       <PageHeader title="الموردين" subtitle={`${rows.length} مورد`}
         actions={<Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> إضافة مورد</Button>} />
       <DataTable loading={loading} rows={rows}
@@ -64,6 +64,7 @@ export default function Suppliers() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button><Button className="btn-gradient" onClick={submit}>إضافة</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </BranchLayout>
+    </>
   );
+  return embedded ? body : <BranchLayout>{body}</BranchLayout>;
 }
