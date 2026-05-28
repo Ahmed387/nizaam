@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
+import { PermGate } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
@@ -34,11 +35,14 @@ export default function Shipments() {
         title="الشحنات"
         subtitle="استلام البضاعة من الموردين"
         actions={
-          <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
-            <Plus className="w-4 h-4" /> شحنة جديدة
-          </Button>
+          <PermGate perm="shipments.create">
+            <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
+              <Plus className="w-4 h-4" /> شحنة جديدة
+            </Button>
+          </PermGate>
         }
       />
+
       <DataTable
         loading={loading}
         rows={rows}

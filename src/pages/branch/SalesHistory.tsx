@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
+import { PermGate } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,11 @@ export default function SalesHistory() {
       <PageHeader title="سجل المبيعات"
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Link to={`/branch/${id}/pre-orders`}><Button variant="outline"><BookmarkPlus className="w-4 h-4 ml-1" /> طلبات الحجز</Button></Link>
-            <Link to={`/branch/${id}/sales/returns`}><Button variant="outline"><RotateCcw className="w-4 h-4 ml-1" /> مرتجعات</Button></Link>
-            <Link to={`/branch/${id}/sales/new`}><Button className="btn-gradient"><Plus className="w-4 h-4 ml-1" /> فاتورة جديدة</Button></Link>
+            <PermGate perm="preorders.view"><Link to={`/branch/${id}/pre-orders`}><Button variant="outline"><BookmarkPlus className="w-4 h-4 ml-1" /> طلبات الحجز</Button></Link></PermGate>
+            <PermGate perm="sales.view"><Link to={`/branch/${id}/sales/returns`}><Button variant="outline"><RotateCcw className="w-4 h-4 ml-1" /> مرتجعات</Button></Link></PermGate>
+            <PermGate perm="sales.create"><Link to={`/branch/${id}/sales/new`}><Button className="btn-gradient"><Plus className="w-4 h-4 ml-1" /> فاتورة جديدة</Button></Link></PermGate>
           </div>
+
         }
       />
       <DataTable

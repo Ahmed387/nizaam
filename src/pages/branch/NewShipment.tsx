@@ -16,6 +16,7 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { PartyCombobox } from "@/components/PartyCombobox";
 
 interface Line {
   product_id: string | null;
@@ -246,17 +247,9 @@ export default function NewShipment() {
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground">المورد *</Label>
-            <select
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="">— اختر مورد —</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>{s.company_name}</option>
-              ))}
-            </select>
+            <PartyCombobox type="supplier" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
           </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground">تاريخ الوصول</Label>
             <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
