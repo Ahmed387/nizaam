@@ -103,7 +103,8 @@ export default function NewSale() {
 
   useEffect(() => {
     loadTransferFees().then(setTransferFees);
-    loadEnabledPaymentMethods().then(setEnabledMethodKeys);
+    loadAllPaymentMethods().then((opts) => setMethodOptions(opts.filter((o) => o.is_enabled)));
+
   }, []);
 
 
