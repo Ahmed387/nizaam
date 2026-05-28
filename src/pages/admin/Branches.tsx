@@ -72,22 +72,23 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
         actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
       />
       <DataTable
+
         loading={loading} rows={rows}
         onRowClick={(r: any) => nav(`/admin/branches/${r.id}`)}
         columns={[
-          { key: "code", header: "الكود", render: (r: any) => <span className="font-mono text-primary">{r.code}</span> },
+          { key: "code", header: "الكود", width: "110px", render: (r: any) => <span className="font-mono text-primary font-semibold">{r.code}</span> },
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
-          { key: "address", header: "العنوان" },
-          { key: "phone", header: "التليفون" },
-          { key: "is_active", header: "الحالة", render: (r: any) => (
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          { key: "address", header: "العنوان", render: (r: any) => <span className="text-muted-foreground">{r.address || "—"}</span> },
+          { key: "phone", header: "التليفون", width: "140px", render: (r: any) => <span className="font-mono tabular-nums" dir="ltr">{r.phone || "—"}</span> },
+          { key: "is_active", header: "الحالة", align: "center", width: "120px", render: (r: any) => (
+            <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Switch checked={r.is_active} onCheckedChange={() => toggle(r)} />
-              <span className={r.is_active ? "text-success text-xs" : "text-muted-foreground text-xs"}>{r.is_active ? "نشط" : "موقوف"}</span>
+              <span className={r.is_active ? "text-success text-xs font-medium" : "text-muted-foreground text-xs"}>{r.is_active ? "نشط" : "موقوف"}</span>
             </div>
           )},
-          { key: "created_at", header: "تاريخ الإنشاء", render: (r: any) => formatDate(r.created_at) },
-          { key: "actions", header: "", render: (r: any) => (
-            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+          { key: "created_at", header: "تاريخ الإنشاء", width: "140px", render: (r: any) => <span className="text-muted-foreground text-xs">{formatDate(r.created_at)}</span> },
+          { key: "actions", header: "", align: "left", width: "100px", render: (r: any) => (
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
             </div>
@@ -97,6 +98,7 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
+
           <DialogHeader><DialogTitle>{editing ? "تعديل الفرع" : "إضافة فرع جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>اسم الفرع *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
