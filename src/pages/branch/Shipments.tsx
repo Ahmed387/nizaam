@@ -34,13 +34,15 @@ export default function Shipments() {
       <PageHeader
         title="الشحنات"
         subtitle="استلام البضاعة من الموردين"
-          <PermGate perm="shipments.create"><Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
-            <Plus className="w-4 h-4" /> شحنة جديدة
-          </Button></PermGate>
-
-          </Button>
+        actions={
+          <PermGate perm="shipments.create">
+            <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
+              <Plus className="w-4 h-4" /> شحنة جديدة
+            </Button>
+          </PermGate>
         }
       />
+
       <DataTable
         loading={loading}
         rows={rows}
