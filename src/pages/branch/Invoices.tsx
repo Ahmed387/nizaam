@@ -202,7 +202,7 @@ export default function Invoices() {
     const base = `/branch/${branchId}`;
     switch (tab) {
       case "sale": return {
-        newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة",
+        newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
           { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
           { key: "customer", header: "العميل", render: (r: any) => r.customers?.name ?? "نقدي" },
@@ -213,7 +213,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/sales/${r.id}`),
       };
       case "purchase": return {
-        newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة",
+        newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
           { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
@@ -223,7 +223,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/shipments/${r.id}`),
       };
       case "sale_return": return {
-        newLink: `${base}/sales/returns/new`, newLabel: "مرتجع بيع جديد",
+        newLink: `${base}/sales/returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "reason", header: "السبب" },
@@ -232,7 +232,7 @@ export default function Invoices() {
         ],
       };
       case "purchase_return": return {
-        newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد",
+        newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
           { key: "return_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.return_number}</span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
@@ -243,7 +243,7 @@ export default function Invoices() {
       };
       case "income":
       case "expense": return {
-        newLink: `${base}/treasury`, newLabel: tab === "income" ? "سند قبض جديد" : "سند صرف جديد",
+        newLink: `${base}/treasury`, newLabel: tab === "income" ? "سند قبض جديد" : "سند صرف جديد", newPerm: tab === "income" ? "receipt_vouchers.create" : "payment_vouchers.create",
         columns: [
           { key: "description", header: "البيان" },
           { key: "amount", header: "المبلغ", render: (r: any) => formatEGP(r.amount) },
@@ -252,7 +252,7 @@ export default function Invoices() {
         ],
       };
       case "transfer": return {
-        newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد",
+        newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
         columns: [
           { key: "from_branch_id", header: "من", render: (r: any) => branchName(r.from_branch_id) },
           { key: "to_branch_id", header: "إلى", render: (r: any) => branchName(r.to_branch_id) },
@@ -261,7 +261,7 @@ export default function Invoices() {
         ],
       };
       case "quote": return {
-        newLink: `${base}/quotes/new`, newLabel: "عرض سعر جديد",
+        newLink: `${base}/quotes/new`, newLabel: "عرض سعر جديد", newPerm: "sales.create",
         columns: [
           { key: "quote_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.quote_number}</span> },
           { key: "customer", header: "العميل", render: (r: any) => r.customers?.name ?? r.customer_name ?? "—" },
@@ -271,7 +271,7 @@ export default function Invoices() {
         ],
       };
       case "adjustment": return {
-        newLink: `${base}/adjustments/new`, newLabel: "تسوية مخزن جديدة",
+        newLink: `${base}/adjustments/new`, newLabel: "تسوية مخزن جديدة", newPerm: "inventory.update",
         columns: [
           { key: "adjustment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.adjustment_number}</span> },
           { key: "reason", header: "السبب" },
