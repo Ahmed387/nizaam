@@ -61,7 +61,8 @@ export default function NewSale() {
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
-  const [enabledMethodKeys, setEnabledMethodKeys] = useState<PaymentMethod[]>(["cash", "vodafone", "instapay", "bank"]);
+  const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 نقدي", is_builtin: true, is_enabled: true }]);
+
 
   const [discountAmt, setDiscountAmt] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
