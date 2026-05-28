@@ -70,13 +70,6 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
         title="إدارة الفروع"
         subtitle={`${rows.length} فرع`}
         actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
-      />
-      <DataTable
-        loading={loading} rows={rows}
-        onRowClick={(r: any) => nav(`/admin/branches/${r.id}`)}
-        columns={[
-          { key: "code", header: "الكود", render: (r: any) => <span className="font-mono text-primary">{r.code}</span> },
-          { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
       <DataTable
         loading={loading} rows={rows}
         onRowClick={(r: any) => nav(`/admin/branches/${r.id}`)}
@@ -100,6 +93,9 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
           )},
         ]}
       />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
 
           <DialogHeader><DialogTitle>{editing ? "تعديل الفرع" : "إضافة فرع جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
