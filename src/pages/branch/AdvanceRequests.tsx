@@ -431,6 +431,7 @@ export default function AdvanceRequests({ embedded = false }: { embedded?: boole
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </BranchLayout>
+    </ConditionalLayout>
+
   );
 }
