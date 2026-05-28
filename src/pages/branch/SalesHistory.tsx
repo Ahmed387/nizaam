@@ -6,7 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Plus, RotateCcw } from "lucide-react";
+import { Plus, RotateCcw, BookmarkPlus } from "lucide-react";
 
 export default function SalesHistory() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +31,8 @@ export default function SalesHistory() {
     <BranchLayout>
       <PageHeader title="سجل المبيعات"
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link to={`/branch/${id}/pre-orders`}><Button variant="outline"><BookmarkPlus className="w-4 h-4 ml-1" /> طلبات الحجز</Button></Link>
             <Link to={`/branch/${id}/sales/returns`}><Button variant="outline"><RotateCcw className="w-4 h-4 ml-1" /> مرتجعات</Button></Link>
             <Link to={`/branch/${id}/sales/new`}><Button className="btn-gradient"><Plus className="w-4 h-4 ml-1" /> فاتورة جديدة</Button></Link>
           </div>

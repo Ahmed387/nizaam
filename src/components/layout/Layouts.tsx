@@ -13,7 +13,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/branches", label: "إدارة الفروع", icon: <Store className="w-4 h-4" /> },
   { to: "/admin/categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
   { to: "/admin/pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
-  { to: "/admin/pre-orders", label: "الحجوزات (كل الفروع)", icon: <BookmarkPlus className="w-4 h-4" /> },
+  
   
   { to: "/admin/inventory", label: "مخزون كل الفروع", icon: <Warehouse className="w-4 h-4" /> },
   { to: "/admin/suppliers", label: "الموردين (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
@@ -111,7 +111,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" />, allow: ["cashier", "accountant"] },
     { to: `/branch/${id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
-    { to: `/branch/${id}/pre-orders`, label: "طلبات الحجز", icon: <BookmarkPlus className="w-4 h-4" />, allow: ["cashier", "warehouse", "accountant"] },
+    
     { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" />, allow: ["warehouse", "accountant"] },
     { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, allow: ["cashier", "warehouse", "accountant"] },
     { to: `/branch/${id}/transfers`, label: "نقل المخزون", icon: <ArrowLeftRight className="w-4 h-4" />, allow: ["warehouse"] },
