@@ -33,7 +33,7 @@ type Installment = {
   status: string;
 };
 
-export default function Receivables() {
+export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [branches, setBranches] = useState<Record<string, string>>({});

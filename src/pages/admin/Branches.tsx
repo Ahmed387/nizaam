@@ -17,7 +17,7 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-export default function Branches() {
+export default function Branches({ embedded }: { embedded?: boolean } = {}) {
   const { profile } = useAuth();
   const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);

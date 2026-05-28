@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, FolderTree, Folder, Trash2, Pencil } from "lucide-react";
 
-export default function Categories() {
+export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const [cats, setCats] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);

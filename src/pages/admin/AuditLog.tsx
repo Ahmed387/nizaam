@@ -10,7 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
-export default function AuditLog() {
+export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
   const { tenant, profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

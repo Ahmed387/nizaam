@@ -54,7 +54,7 @@ type DiffRow = {
   status: "new" | "changed" | "same";
 };
 
-export default function PriceList() {
+export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   const { tenantId, user, profile } = useAuth();
   const [sources, setSources] = useState<Source[]>([]);
   const [items, setItems] = useState<Item[]>([]);

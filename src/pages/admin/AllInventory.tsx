@@ -36,7 +36,7 @@ interface Row {
   category_name?: string;
 }
 
-export default function AllInventory() {
+export default function AllInventory({ embedded }: { embedded?: boolean } = {}) {
   const { user, profile, tenantId } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);

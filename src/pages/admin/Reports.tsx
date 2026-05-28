@@ -27,7 +27,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 
 type Branch = { id: string; name: string; code: string };
 
-export default function AdminReports() {
+export default function AdminReports({ embedded }: { embedded?: boolean } = {}) {
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);

@@ -18,7 +18,7 @@ interface Report {
   created_at: string;
 }
 
-export default function ScheduledReports() {
+export default function ScheduledReports({ embedded }: { embedded?: boolean } = {}) {
   const { tenantId } = useAuth();
   const [rows, setRows] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);

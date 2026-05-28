@@ -4,7 +4,7 @@ import { VouchersTable } from "@/components/VouchersTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function AllVouchers() {
+export default function AllVouchers({ embedded }: { embedded?: boolean } = {}) {
   const { tenantId } = useAuth();
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
