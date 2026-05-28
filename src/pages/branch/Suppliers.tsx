@@ -68,4 +68,3 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
   );
   return embedded ? body : <BranchLayout>{body}</BranchLayout>;
 }
-}

@@ -62,4 +62,3 @@ export default function Customers({ embedded = false }: { embedded?: boolean } =
   );
   return embedded ? body : <BranchLayout>{body}</BranchLayout>;
 }
-}
