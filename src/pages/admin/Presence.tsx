@@ -114,7 +114,6 @@ export default function Presence() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-      <Card className="p-0 overflow-hidden">
         <DataTable
           columns={[
             {
