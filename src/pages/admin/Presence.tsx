@@ -114,37 +114,42 @@ export default function Presence() {
       </div>
 
       <Card className="p-0 overflow-hidden">
+      <Card className="p-0 overflow-hidden">
         <DataTable
           columns={[
             {
+              key: "status",
               header: "الحالة",
-              cell: (r: Row) => (
+              render: (r: Row) => (
                 <Badge variant={isOnline(r.last_seen_at) ? "default" : "secondary"}>
                   {isOnline(r.last_seen_at) ? "متصل الآن" : "غير متصل"}
                 </Badge>
               ),
             },
-            { header: "الاسم", cell: (r: Row) => r.name ?? "—" },
-            { header: "اسم المستخدم", cell: (r: Row) => r.username ?? "—" },
+            { key: "name", header: "الاسم", render: (r: Row) => r.name ?? "—" },
+            { key: "username", header: "اسم المستخدم", render: (r: Row) => r.username ?? "—" },
             {
+              key: "roles",
               header: "الدور",
-              cell: (r: Row) => (r.roles?.length ? r.roles.join(", ") : "—"),
+              render: (r: Row) => (r.roles?.length ? r.roles.join(", ") : "—"),
             },
             {
+              key: "last_login",
               header: "آخر دخول",
-              cell: (r: Row) => (
+              render: (r: Row) => (
                 <span title={r.last_login_at ?? ""}>{timeAgo(r.last_login_at)}</span>
               ),
             },
             {
+              key: "last_seen",
               header: "آخر ظهور",
-              cell: (r: Row) => (
+              render: (r: Row) => (
                 <span title={r.last_seen_at}>{timeAgo(r.last_seen_at)}</span>
               ),
             },
           ]}
           rows={filtered}
-          emptyMessage="لا يوجد بيانات تواجد بعد"
+          empty="لا يوجد بيانات تواجد بعد"
         />
       </Card>
     </div>
