@@ -23,7 +23,18 @@ const STATUS = {
 
 export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { tenant, user } = useAuth();
+  const { tenant, user, roles, isAdmin } = useAuth();
+
+  // Determine which target employee roles the current user can manage
+  const canManageRole = (targetRole: string | null) => {
+    if (isAdmin || roles.includes("super_admin") || roles.includes("supervisor")) return true;
+    if (!targetRole) return false;
+    if (["worker", "driver"].includes(targetRole)) {
+      return roles.includes("accountant") || roles.includes("warehouse");
+    }
+    if (targetRole === "cashier") return roles.includes("branch_manager");
+    return false;
+  };
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [employees, setEmployees] = useState<any[]>([]);
   const [rows, setRows] = useState<any[]>([]);
