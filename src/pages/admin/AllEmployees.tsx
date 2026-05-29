@@ -48,10 +48,11 @@ export default function AllEmployees() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
-    name: "", job_title: "", phone: "", email: "", login_password: "",
+    name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "",
     base_salary: "",
     hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
+  const isSimpleRole = form.role === "worker" || form.role === "driver";
 
   const load = async () => {
     setLoading(true);
@@ -104,14 +105,15 @@ export default function AllEmployees() {
   }), [enriched]);
 
   const openNew = () => {
+    setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setEditing(null);
-    setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setOpen(true);
   };
   const openEdit = (e: any) => {
     setEditing(e);
     setForm({
       name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "", email: e.email ?? "", login_password: "",
+      national_id: e.national_id ?? "",
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
     });
@@ -125,26 +127,38 @@ export default function AllEmployees() {
 
   const submit = async () => {
     if (!form.name || !form.job_title || !form.branch_id || !form.role) return toast.error("املأ الاسم والوظيفة والفرع والصلاحية");
-    if (!form.email || !form.phone) return toast.error("الإيميل والتليفون مطلوبين لدخول الموظف");
-    if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
-    if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
-    const emailLower = form.email.trim().toLowerCase();
-    const { data: dup } = await supabase.from("employees").select("id").ilike("email", emailLower).maybeSingle();
-    if (dup && dup.id !== editing?.id) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
+    if (!form.phone) return toast.error("التليفون مطلوب");
+
     const payload: any = {
       branch_id: form.branch_id,
       name: form.name.trim(),
       job_title: form.job_title,
       phone: form.phone.trim(),
-      email: emailLower,
+      national_id: form.national_id.trim() || null,
       base_salary: Number(form.base_salary) || 0,
       hire_date: form.hire_date,
       role: form.role || null,
       is_active: form.is_active,
+      has_system_access: !isSimpleRole,
     };
-    if (!editing || form.login_password) {
-      payload.login_password = form.login_password || null;
+
+    if (isSimpleRole) {
+      // Workers/Drivers: no email/password — they don't log in
+      payload.email = null;
+      if (!editing) payload.login_password = null;
+    } else {
+      if (!form.email) return toast.error("الإيميل مطلوب لدخول الموظف");
+      if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
+      if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+      const emailLower = form.email.trim().toLowerCase();
+      const { data: dup } = await supabase.from("employees").select("id").ilike("email", emailLower).maybeSingle();
+      if (dup && dup.id !== editing?.id) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
+      payload.email = emailLower;
+      if (!editing || form.login_password) {
+        payload.login_password = form.login_password || null;
+      }
     }
+
     if (editing) {
       const { error } = await supabase.from("employees").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
@@ -157,6 +171,7 @@ export default function AllEmployees() {
     setOpen(false);
     load();
   };
+
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -348,8 +363,18 @@ export default function AllEmployees() {
               </Select>
             </div>
             <div><Label>التليفون *</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
-            <div><Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور (للدخول كموظف) *"}</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
+            <div><Label>الرقم القومي</Label><Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" /></div>
+            {!isSimpleRole && (
+              <>
+                <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
+                <div><Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور (للدخول كموظف) *"}</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
+              </>
+            )}
+            {isSimpleRole && (
+              <div className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+                {form.role === "worker" ? "العمال" : "السواقين"} لا يدخلون على السيستم — يتابعهم المحاسب أو أمين المخزن.
+              </div>
+            )}
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
             {editing && (
               <label className="flex items-center gap-2 text-sm">
