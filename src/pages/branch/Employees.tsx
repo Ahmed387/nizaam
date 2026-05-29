@@ -43,12 +43,16 @@ export default function Employees() {
     job_title: "",
     email: "",
     phone: "",
+    national_id: "",
     address: "",
     base_salary: "",
     login_password: "",
     role: "cashier",
     hire_date: new Date().toISOString().slice(0, 10),
   });
+
+  // Workers & Drivers don't need system access — minimal form
+  const isSimpleRole = form.role === "worker" || form.role === "driver";
 
   const load = async () => {
     setLoading(true);
@@ -63,40 +67,58 @@ export default function Employees() {
   useEffect(() => { load(); }, [branchId]);
 
   const submit = async () => {
-    if (!form.name || !form.job_title || !form.email || !form.phone) {
-      return toast.error("الاسم، الإيميل، التليفون، الوظيفة كلها مطلوبة");
+    if (!form.name || !form.job_title || !form.phone) {
+      return toast.error("الاسم والتليفون والوظيفة مطلوبة");
     }
-    if (!form.login_password || form.login_password.length < 6) {
-      return toast.error("كلمة المرور 6 أحرف على الأقل");
+
+    if (isSimpleRole) {
+      // Workers/Drivers: no login, no email
+      const { error } = await supabase.from("employees").insert({
+        branch_id: branchId!,
+        tenant_id: tenant?.id ?? null,
+        name: form.name.trim(),
+        job_title: form.job_title,
+        phone: form.phone.trim(),
+        national_id: form.national_id.trim() || null,
+        base_salary: Number(form.base_salary) || 0,
+        hire_date: form.hire_date,
+        role: form.role as any,
+        has_system_access: false,
+      });
+      if (error) return toast.error(error.message);
+      toast.success("تمت الإضافة");
+    } else {
+      if (!form.email) return toast.error("الإيميل مطلوب");
+      if (!form.login_password || form.login_password.length < 6) {
+        return toast.error("كلمة المرور 6 أحرف على الأقل");
+      }
+      const emailLower = form.email.trim().toLowerCase();
+      const { data: dup } = await supabase
+        .from("employees").select("id").ilike("email", emailLower).maybeSingle();
+      if (dup) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
+
+      const { error } = await supabase.from("employees").insert({
+        branch_id: branchId!,
+        tenant_id: tenant?.id ?? null,
+        name: form.name.trim(),
+        job_title: form.job_title,
+        email: emailLower,
+        phone: form.phone.trim(),
+        national_id: form.national_id.trim() || null,
+        address: form.address.trim() || null,
+        base_salary: Number(form.base_salary) || 0,
+        hire_date: form.hire_date,
+        login_password: form.login_password,
+        role: form.role as any,
+        has_system_access: true,
+      });
+      if (error) return toast.error(error.message);
+      toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
     }
-    const emailLower = form.email.trim().toLowerCase();
 
-    // Prevent duplicates within same tenant
-    const { data: dup } = await supabase
-      .from("employees")
-      .select("id")
-      .ilike("email", emailLower)
-      .maybeSingle();
-    if (dup) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
-
-    const { error } = await supabase.from("employees").insert({
-      branch_id: branchId!,
-      tenant_id: tenant?.id ?? null,
-      name: form.name.trim(),
-      job_title: form.job_title,
-      email: emailLower,
-      phone: form.phone.trim(),
-      address: form.address.trim() || null,
-      base_salary: Number(form.base_salary) || 0,
-      hire_date: form.hire_date,
-      login_password: form.login_password,
-      role: form.role as any,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
     setOpen(false);
     setForm({
-      name: "", job_title: "", email: "", phone: "", address: "",
+      name: "", job_title: "", email: "", phone: "", national_id: "", address: "",
       base_salary: "", login_password: "", role: "cashier",
       hire_date: new Date().toISOString().slice(0, 10),
     });
