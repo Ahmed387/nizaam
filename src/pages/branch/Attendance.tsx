@@ -23,7 +23,18 @@ const STATUS = {
 
 export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { tenant, user } = useAuth();
+  const { tenant, user, roles, isAdmin } = useAuth();
+
+  // Determine which target employee roles the current user can manage
+  const canManageRole = (targetRole: string | null) => {
+    if (isAdmin || roles.includes("super_admin") || roles.includes("supervisor")) return true;
+    if (!targetRole) return false;
+    if (["worker", "driver"].includes(targetRole)) {
+      return roles.includes("accountant") || roles.includes("warehouse");
+    }
+    if (targetRole === "cashier") return roles.includes("branch_manager");
+    return false;
+  };
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [employees, setEmployees] = useState<any[]>([]);
   const [rows, setRows] = useState<any[]>([]);
@@ -34,7 +45,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const load = async () => {
     setLoading(true);
     const [{ data: emps }, { data: att }] = await Promise.all([
-      supabase.from("employees").select("id,name,job_title").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("employees").select("id,name,job_title,role").eq("branch_id", branchId).eq("is_active", true).order("name"),
       supabase.from("attendance").select("*").eq("branch_id", branchId).eq("date", date).order("created_at"),
     ]);
     setEmployees(emps ?? []);
@@ -128,6 +139,8 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             key: "actions", header: "",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
+              const allowed = canManageRole(e.role);
+              if (!allowed) return <span className="text-xs text-muted-foreground">—</span>;
               return (
                 <div className="flex gap-1">
                   <Button size="sm" variant="outline" onClick={() => checkIn(e.id)} disabled={!!a?.check_in}>

@@ -43,12 +43,16 @@ export default function Employees() {
     job_title: "",
     email: "",
     phone: "",
+    national_id: "",
     address: "",
     base_salary: "",
     login_password: "",
     role: "cashier",
     hire_date: new Date().toISOString().slice(0, 10),
   });
+
+  // Workers & Drivers don't need system access — minimal form
+  const isSimpleRole = form.role === "worker" || form.role === "driver";
 
   const load = async () => {
     setLoading(true);
@@ -63,40 +67,58 @@ export default function Employees() {
   useEffect(() => { load(); }, [branchId]);
 
   const submit = async () => {
-    if (!form.name || !form.job_title || !form.email || !form.phone) {
-      return toast.error("الاسم، الإيميل، التليفون، الوظيفة كلها مطلوبة");
+    if (!form.name || !form.job_title || !form.phone) {
+      return toast.error("الاسم والتليفون والوظيفة مطلوبة");
     }
-    if (!form.login_password || form.login_password.length < 6) {
-      return toast.error("كلمة المرور 6 أحرف على الأقل");
+
+    if (isSimpleRole) {
+      // Workers/Drivers: no login, no email
+      const { error } = await supabase.from("employees").insert({
+        branch_id: branchId!,
+        tenant_id: tenant?.id ?? null,
+        name: form.name.trim(),
+        job_title: form.job_title,
+        phone: form.phone.trim(),
+        national_id: form.national_id.trim() || null,
+        base_salary: Number(form.base_salary) || 0,
+        hire_date: form.hire_date,
+        role: form.role as any,
+        has_system_access: false,
+      });
+      if (error) return toast.error(error.message);
+      toast.success("تمت الإضافة");
+    } else {
+      if (!form.email) return toast.error("الإيميل مطلوب");
+      if (!form.login_password || form.login_password.length < 6) {
+        return toast.error("كلمة المرور 6 أحرف على الأقل");
+      }
+      const emailLower = form.email.trim().toLowerCase();
+      const { data: dup } = await supabase
+        .from("employees").select("id").ilike("email", emailLower).maybeSingle();
+      if (dup) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
+
+      const { error } = await supabase.from("employees").insert({
+        branch_id: branchId!,
+        tenant_id: tenant?.id ?? null,
+        name: form.name.trim(),
+        job_title: form.job_title,
+        email: emailLower,
+        phone: form.phone.trim(),
+        national_id: form.national_id.trim() || null,
+        address: form.address.trim() || null,
+        base_salary: Number(form.base_salary) || 0,
+        hire_date: form.hire_date,
+        login_password: form.login_password,
+        role: form.role as any,
+        has_system_access: true,
+      });
+      if (error) return toast.error(error.message);
+      toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
     }
-    const emailLower = form.email.trim().toLowerCase();
 
-    // Prevent duplicates within same tenant
-    const { data: dup } = await supabase
-      .from("employees")
-      .select("id")
-      .ilike("email", emailLower)
-      .maybeSingle();
-    if (dup) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
-
-    const { error } = await supabase.from("employees").insert({
-      branch_id: branchId!,
-      tenant_id: tenant?.id ?? null,
-      name: form.name.trim(),
-      job_title: form.job_title,
-      email: emailLower,
-      phone: form.phone.trim(),
-      address: form.address.trim() || null,
-      base_salary: Number(form.base_salary) || 0,
-      hire_date: form.hire_date,
-      login_password: form.login_password,
-      role: form.role as any,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
     setOpen(false);
     setForm({
-      name: "", job_title: "", email: "", phone: "", address: "",
+      name: "", job_title: "", email: "", phone: "", national_id: "", address: "",
       base_salary: "", login_password: "", role: "cashier",
       hire_date: new Date().toISOString().slice(0, 10),
     });
@@ -154,7 +176,6 @@ export default function Employees() {
         </TabsContent>
       </Tabs>
 
-
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>موظف جديد</DialogTitle></DialogHeader>
@@ -174,20 +195,34 @@ export default function Employees() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>البريد الإلكتروني *</Label>
-                <Input dir="ltr" type="email" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            {!isSimpleRole && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>البريد الإلكتروني *</Label>
+                  <Input dir="ltr" type="email" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                </div>
+                <div>
+                  <Label>التليفون *</Label>
+                  <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                </div>
               </div>
+            )}
+            {isSimpleRole && (
               <div>
                 <Label>التليفون *</Label>
                 <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
-            </div>
+            )}
             <div>
-              <Label>العنوان</Label>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1.5" />
+              <Label>رقم البطاقة</Label>
+              <Input dir="ltr" className="text-right mt-1.5" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} />
             </div>
+            {!isSimpleRole && (
+              <div>
+                <Label>العنوان</Label>
+                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1.5" />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>الراتب الأساسي</Label>
@@ -198,34 +233,45 @@ export default function Employees() {
                 <Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" />
               </div>
             </div>
-            <div>
-              <Label>الصلاحية *</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cashier">كاشير</SelectItem>
-                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
-                  <SelectItem value="warehouse">مخزن</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>كلمة مرور الدخول *</Label>
-              <div className="relative mt-1.5">
-                <Input
-                  type={showPwd ? "text" : "password"}
-                  value={form.login_password}
-                  onChange={(e) => setForm({ ...form, login_password: e.target.value })}
-                  className="pl-10"
-                  placeholder="6 أحرف على الأقل"
-                />
-                <button type="button" onClick={() => setShowPwd((v) => !v)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">سيستخدمها الموظف عند أول دخول مع بياناته</p>
-            </div>
+            {!isSimpleRole && (
+              <>
+                <div>
+                  <Label>الصلاحية *</Label>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cashier">كاشير</SelectItem>
+                      <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                      <SelectItem value="warehouse">أمين مخزن</SelectItem>
+                      <SelectItem value="accountant">محاسب</SelectItem>
+                      <SelectItem value="supervisor">ملاحظ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>كلمة مرور الدخول *</Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      type={showPwd ? "text" : "password"}
+                      value={form.login_password}
+                      onChange={(e) => setForm({ ...form, login_password: e.target.value })}
+                      className="pl-10"
+                      placeholder="6 أحرف على الأقل"
+                    />
+                    <button type="button" onClick={() => setShowPwd((v) => !v)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">سيستخدمها الموظف عند أول دخول مع بياناته</p>
+                </div>
+              </>
+            )}
+            {isSimpleRole && (
+              <p className="text-xs text-info bg-info/10 p-2 rounded">
+                {form.role === "worker" ? "العمال" : "السواقين"} لا يدخلون على السيستم — يتابعهم المحاسب أو أمين المخزن.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
