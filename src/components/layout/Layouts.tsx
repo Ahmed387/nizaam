@@ -22,10 +22,10 @@ const adminNav: NavItem[] = [
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, isAdmin, hasRole } = useAuth();
-  // Supervisor: limited admin sidebar (attendance + employees only)
+  // Supervisor: limited admin sidebar (attendance + employees + presence)
+  const supervisorNav: NavItem[] = [
     { to: "/admin/employees", label: "الموظفين والحضور", icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> },
-  ];
   ];
 
   const nav = isAdmin ? adminNav : hasRole("supervisor") ? supervisorNav : [];
