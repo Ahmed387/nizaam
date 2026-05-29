@@ -48,10 +48,11 @@ export default function AllEmployees() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
-    name: "", job_title: "", phone: "", email: "", login_password: "",
+    name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "",
     base_salary: "",
     hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
+  const isSimpleRole = form.role === "worker" || form.role === "driver";
 
   const load = async () => {
     setLoading(true);
