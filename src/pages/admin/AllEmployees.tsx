@@ -113,6 +113,7 @@ export default function AllEmployees() {
     setEditing(e);
     setForm({
       name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "", email: e.email ?? "", login_password: "",
+      national_id: e.national_id ?? "",
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
     });
