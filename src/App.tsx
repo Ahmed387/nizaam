@@ -73,6 +73,7 @@ import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
+import Presence from "./pages/admin/Presence";
 import Attendance from "./pages/branch/Attendance";
 import Receivables from "./pages/admin/Receivables";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
