@@ -18,7 +18,6 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StockTransfers from "./StockTransfers";
-import { useAuth as _useAuth } from "@/contexts/AuthContext";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
