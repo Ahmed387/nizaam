@@ -18,7 +18,7 @@ import { Plus, Check, X, ArrowLeftRight, Trash2 } from "lucide-react";
 
 type Item = { product_id: string; quantity: string };
 
-export default function StockTransfers() {
+export default function StockTransfers({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile } = useAuth();
   const [branches, setBranches] = useState<any[]>([]);
@@ -229,13 +229,12 @@ export default function StockTransfers() {
   const totalPendingIncoming = incoming.filter((t) => t.status === "pending").length;
 
   return (
-    <BranchLayout>
-      <PageHeader
-        title="نقل المخزون"
-        subtitle="إرسال واستقبال البضاعة بين الفروع"
-        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> طلب نقل جديد</Button>}
-      />
-
+    <ConditionalLayout
+      embedded={embedded}
+      title="نقل المخزون"
+      subtitle="إرسال واستقبال البضاعة بين الفروع"
+      actions={<Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> طلب نقل جديد</Button>}
+    >
       <Tabs defaultValue="incoming">
         <TabsList>
           <TabsTrigger value="incoming">واردة ({totalPendingIncoming})</TabsTrigger>
@@ -361,6 +360,6 @@ export default function StockTransfers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </BranchLayout>
+    </ConditionalLayout>
   );
 }
