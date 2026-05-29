@@ -449,6 +449,7 @@ export type Database = {
           branch_id: string
           created_at: string
           email: string | null
+          has_system_access: boolean
           hire_date: string
           id: string
           is_active: boolean
@@ -470,6 +471,7 @@ export type Database = {
           branch_id: string
           created_at?: string
           email?: string | null
+          has_system_access?: boolean
           hire_date: string
           id?: string
           is_active?: boolean
@@ -491,6 +493,7 @@ export type Database = {
           branch_id?: string
           created_at?: string
           email?: string | null
+          has_system_access?: boolean
           hire_date?: string
           id?: string
           is_active?: boolean
@@ -2734,6 +2737,10 @@ export type Database = {
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number
+      }
+      can_manage_attendance_for: {
+        Args: { _target_employee_id: string }
+        Returns: boolean
       }
       cancel_pre_order: {
         Args: { p_pre_order_id: string; p_refund: boolean }
