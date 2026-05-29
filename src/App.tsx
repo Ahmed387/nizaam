@@ -94,6 +94,7 @@ const App = () => (
         <Sonner position="top-center" dir="rtl" />
         <BrowserRouter>
           <AuthProvider>
+          <PresenceTracker />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
