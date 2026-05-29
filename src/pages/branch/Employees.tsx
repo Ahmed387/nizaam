@@ -174,6 +174,27 @@ export default function Employees() {
         <TabsContent value="advances" className="mt-4">
           <AdvanceRequests embedded />
         </TabsContent>
+      </Tabs>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>موظف جديد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>الاسم *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" />
+            </div>
+            <div>
+              <Label>الوظيفة *</Label>
+              <Select value={form.job_title} onValueChange={onPositionChange}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الوظيفة" /></SelectTrigger>
+                <SelectContent>
+                  {POSITIONS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.value}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {!isSimpleRole && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
