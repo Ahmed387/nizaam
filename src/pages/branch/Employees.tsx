@@ -174,42 +174,34 @@ export default function Employees() {
         <TabsContent value="advances" className="mt-4">
           <AdvanceRequests embedded />
         </TabsContent>
-      </Tabs>
-
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>موظف جديد</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>الاسم *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>الوظيفة *</Label>
-              <Select value={form.job_title} onValueChange={onPositionChange}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الوظيفة" /></SelectTrigger>
-                <SelectContent>
-                  {POSITIONS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.value}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>البريد الإلكتروني *</Label>
-                <Input dir="ltr" type="email" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            {!isSimpleRole && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>البريد الإلكتروني *</Label>
+                  <Input dir="ltr" type="email" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                </div>
+                <div>
+                  <Label>التليفون *</Label>
+                  <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                </div>
               </div>
+            )}
+            {isSimpleRole && (
               <div>
                 <Label>التليفون *</Label>
                 <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
-            </div>
+            )}
             <div>
-              <Label>العنوان</Label>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1.5" />
+              <Label>رقم البطاقة</Label>
+              <Input dir="ltr" className="text-right mt-1.5" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} />
             </div>
+            {!isSimpleRole && (
+              <div>
+                <Label>العنوان</Label>
+                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1.5" />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>الراتب الأساسي</Label>
@@ -220,12 +212,46 @@ export default function Employees() {
                 <Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" />
               </div>
             </div>
-            <div>
-              <Label>الصلاحية *</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cashier">كاشير</SelectItem>
+            {!isSimpleRole && (
+              <>
+                <div>
+                  <Label>الصلاحية *</Label>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cashier">كاشير</SelectItem>
+                      <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                      <SelectItem value="warehouse">أمين مخزن</SelectItem>
+                      <SelectItem value="accountant">محاسب</SelectItem>
+                      <SelectItem value="supervisor">ملاحظ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>كلمة مرور الدخول *</Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      type={showPwd ? "text" : "password"}
+                      value={form.login_password}
+                      onChange={(e) => setForm({ ...form, login_password: e.target.value })}
+                      className="pl-10"
+                      placeholder="6 أحرف على الأقل"
+                    />
+                    <button type="button" onClick={() => setShowPwd((v) => !v)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">سيستخدمها الموظف عند أول دخول مع بياناته</p>
+                </div>
+              </>
+            )}
+            {isSimpleRole && (
+              <p className="text-xs text-info bg-info/10 p-2 rounded">
+                {form.role === "worker" ? "العمال" : "السواقين"} لا يدخلون على السيستم — يتابعهم المحاسب أو أمين المخزن.
+              </p>
+            )}
+
                   <SelectItem value="branch_manager">مدير فرع</SelectItem>
                   <SelectItem value="warehouse">مخزن</SelectItem>
                 </SelectContent>
