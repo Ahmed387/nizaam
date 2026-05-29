@@ -139,6 +139,8 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             key: "actions", header: "",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
+              const allowed = canManageRole(e.role);
+              if (!allowed) return <span className="text-xs text-muted-foreground">—</span>;
               return (
                 <div className="flex gap-1">
                   <Button size="sm" variant="outline" onClick={() => checkIn(e.id)} disabled={!!a?.check_in}>
