@@ -11,6 +11,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
+
+function PresenceTracker() {
+  usePresenceHeartbeat();
+  return null;
+}
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
