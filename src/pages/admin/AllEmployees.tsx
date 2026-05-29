@@ -105,7 +105,7 @@ export default function AllEmployees() {
   }), [enriched]);
 
   const openNew = () => {
-    setEditing(null);
+    setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setOpen(true);
   };
