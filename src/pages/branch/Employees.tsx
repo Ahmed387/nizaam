@@ -251,29 +251,6 @@ export default function Employees() {
                 {form.role === "worker" ? "العمال" : "السواقين"} لا يدخلون على السيستم — يتابعهم المحاسب أو أمين المخزن.
               </p>
             )}
-
-                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
-                  <SelectItem value="warehouse">مخزن</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>كلمة مرور الدخول *</Label>
-              <div className="relative mt-1.5">
-                <Input
-                  type={showPwd ? "text" : "password"}
-                  value={form.login_password}
-                  onChange={(e) => setForm({ ...form, login_password: e.target.value })}
-                  className="pl-10"
-                  placeholder="6 أحرف على الأقل"
-                />
-                <button type="button" onClick={() => setShowPwd((v) => !v)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">سيستخدمها الموظف عند أول دخول مع بياناته</p>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
