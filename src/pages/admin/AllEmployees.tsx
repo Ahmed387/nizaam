@@ -363,8 +363,18 @@ export default function AllEmployees() {
               </Select>
             </div>
             <div><Label>التليفون *</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
-            <div><Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور (للدخول كموظف) *"}</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
+            <div><Label>الرقم القومي</Label><Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" /></div>
+            {!isSimpleRole && (
+              <>
+                <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
+                <div><Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور (للدخول كموظف) *"}</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
+              </>
+            )}
+            {isSimpleRole && (
+              <div className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+                {form.role === "worker" ? "العمال" : "السواقين"} لا يدخلون على السيستم — يتابعهم المحاسب أو أمين المخزن.
+              </div>
+            )}
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
             {editing && (
               <label className="flex items-center gap-2 text-sm">
