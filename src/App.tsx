@@ -11,6 +11,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
+
+function PresenceTracker() {
+  usePresenceHeartbeat();
+  return null;
+}
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -67,6 +73,7 @@ import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
+import Presence from "./pages/admin/Presence";
 import Attendance from "./pages/branch/Attendance";
 import Receivables from "./pages/admin/Receivables";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
@@ -94,6 +101,7 @@ const App = () => (
         <Sonner position="top-center" dir="rtl" />
         <BrowserRouter>
           <AuthProvider>
+          <PresenceTracker />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
@@ -122,6 +130,7 @@ const App = () => (
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
+            <Route path="/admin/presence" element={<ProtectedRoute roles={["supervisor"]}><Presence /></ProtectedRoute>} />
 
             {/* Hubs */}
             <Route path="/admin/catalog" element={<ProtectedRoute adminOnly><CatalogHub /></ProtectedRoute>} />

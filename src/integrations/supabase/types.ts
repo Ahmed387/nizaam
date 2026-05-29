@@ -2447,6 +2447,33 @@ export type Database = {
           },
         ]
       }
+      user_presence: {
+        Row: {
+          last_login_at: string | null
+          last_seen_at: string
+          tenant_id: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          last_login_at?: string | null
+          last_seen_at?: string
+          tenant_id: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          last_login_at?: string | null
+          last_seen_at?: string
+          tenant_id?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
