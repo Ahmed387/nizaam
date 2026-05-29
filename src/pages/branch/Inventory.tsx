@@ -16,6 +16,9 @@ import { toast } from "sonner";
 import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import StockTransfers from "./StockTransfers";
+import { useAuth as _useAuth } from "@/contexts/AuthContext";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
