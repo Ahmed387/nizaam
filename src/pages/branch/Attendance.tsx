@@ -42,17 +42,32 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: "", status: "present", notes: "" });
 
+  const [presence, setPresence] = useState<Record<string, { last_login_at: string | null; last_seen_at: string }>>({});
+
   const load = async () => {
     setLoading(true);
     const [{ data: emps }, { data: att }] = await Promise.all([
-      supabase.from("employees").select("id,name,job_title,role").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("employees").select("id,name,job_title,role,user_id,has_system_access").eq("branch_id", branchId).eq("is_active", true).order("name"),
       supabase.from("attendance").select("*").eq("branch_id", branchId).eq("date", date).order("created_at"),
     ]);
     setEmployees(emps ?? []);
     setRows(att ?? []);
+    const uids = (emps ?? []).map((e: any) => e.user_id).filter(Boolean);
+    if (uids.length) {
+      const { data: pres } = await supabase
+        .from("user_presence" as any)
+        .select("user_id, last_login_at, last_seen_at")
+        .in("user_id", uids);
+      const m: Record<string, any> = {};
+      (pres ?? []).forEach((p: any) => { m[p.user_id] = p; });
+      setPresence(m);
+    } else setPresence({});
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId, date]);
+
+  const fmtTime = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "—";
+  const isToday = (iso?: string | null) => iso ? new Date(iso).toISOString().slice(0, 10) === date : false;
 
   const byEmployee = useMemo(() => {
     const m = new Map<string, any>();
