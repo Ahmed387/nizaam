@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
+import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ export default function EmployeeProfile() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: "", notes: "", national_id: "" });
+  const [editShift, setEditShift] = useState<ShiftValue>(emptyShift());
   const [delOpen, setDelOpen] = useState(false);
 
   const [advOpen, setAdvOpen] = useState(false);
@@ -111,6 +113,12 @@ export default function EmployeeProfile() {
       notes: emp.notes ?? "",
       national_id: emp.national_id ?? "",
     });
+    setEditShift({
+      work_start: emp.work_start ?? null,
+      work_end: emp.work_end ?? null,
+      work_days: Array.isArray(emp.work_days) ? emp.work_days : [0,1,2,3,4,5],
+      late_grace_minutes: emp.late_grace_minutes ?? 15,
+    });
     setEditOpen(true);
   };
 
@@ -122,6 +130,10 @@ export default function EmployeeProfile() {
       base_salary: Number(editForm.base_salary) || 0, hire_date: editForm.hire_date,
       notes: editForm.notes || null,
       national_id: editForm.national_id?.trim() || null,
+      work_start: editShift.work_start,
+      work_end: editShift.work_end,
+      work_days: editShift.work_days,
+      late_grace_minutes: editShift.late_grace_minutes,
     };
     if (editForm.login_password) {
       updatePayload.login_password = editForm.login_password;
@@ -526,9 +538,8 @@ export default function EmployeeProfile() {
             )}
             <div><Label>الراتب الأساسي</Label><Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-1.5" /></div>
             <div><Label>تاريخ التعيين</Label><Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الراتب الأساسي</Label><Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>تاريخ التعيين</Label><Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الرقم القومي</Label><Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={editForm.national_id} onChange={(e) => setEditForm({ ...editForm, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" /></div>
+            <ShiftEditor value={editShift} onChange={setEditShift} />
             <div><Label>ملاحظات</Label><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} className="mt-1.5" /></div>
           </div>
           <DialogFooter>

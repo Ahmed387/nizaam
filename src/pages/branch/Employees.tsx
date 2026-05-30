@@ -14,6 +14,7 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, ClipboardCheck, HandCoins } from "lucide-react";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Attendance from "./Attendance";
 import AdvanceRequests from "./AdvanceRequests";
@@ -50,6 +51,7 @@ export default function Employees() {
     role: "cashier",
     hire_date: new Date().toISOString().slice(0, 10),
   });
+  const [shift, setShift] = useState<ShiftValue>(emptyShift());
 
   // Workers & Drivers don't need system access — minimal form
   const isSimpleRole = form.role === "worker" || form.role === "driver";
@@ -84,6 +86,10 @@ export default function Employees() {
         hire_date: form.hire_date,
         role: form.role as any,
         has_system_access: false,
+        work_start: shift.work_start,
+        work_end: shift.work_end,
+        work_days: shift.work_days,
+        late_grace_minutes: shift.late_grace_minutes,
       });
       if (error) return toast.error(error.message);
       toast.success("تمت الإضافة");
@@ -111,6 +117,10 @@ export default function Employees() {
         login_password: form.login_password,
         role: form.role as any,
         has_system_access: true,
+        work_start: shift.work_start,
+        work_end: shift.work_end,
+        work_days: shift.work_days,
+        late_grace_minutes: shift.late_grace_minutes,
       });
       if (error) return toast.error(error.message);
       toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
@@ -122,6 +132,7 @@ export default function Employees() {
       base_salary: "", login_password: "", role: "cashier",
       hire_date: new Date().toISOString().slice(0, 10),
     });
+    setShift(emptyShift());
     load();
   };
 
@@ -233,6 +244,7 @@ export default function Employees() {
                 <Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" />
               </div>
             </div>
+            <ShiftEditor value={shift} onChange={setShift} />
             {!isSimpleRole && (
               <>
                 <div>

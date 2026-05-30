@@ -454,6 +454,7 @@ export type Database = {
           id: string
           is_active: boolean
           job_title: string
+          late_grace_minutes: number
           login_password: string | null
           name: string
           national_id: string | null
@@ -464,6 +465,9 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"] | null
           tenant_id: string | null
           user_id: string | null
+          work_days: Json
+          work_end: string | null
+          work_start: string | null
         }
         Insert: {
           address?: string | null
@@ -476,6 +480,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           job_title: string
+          late_grace_minutes?: number
           login_password?: string | null
           name: string
           national_id?: string | null
@@ -486,6 +491,9 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"] | null
           tenant_id?: string | null
           user_id?: string | null
+          work_days?: Json
+          work_end?: string | null
+          work_start?: string | null
         }
         Update: {
           address?: string | null
@@ -498,6 +506,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           job_title?: string
+          late_grace_minutes?: number
           login_password?: string | null
           name?: string
           national_id?: string | null
@@ -508,6 +517,9 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"] | null
           tenant_id?: string | null
           user_id?: string | null
+          work_days?: Json
+          work_end?: string | null
+          work_start?: string | null
         }
         Relationships: [
           {

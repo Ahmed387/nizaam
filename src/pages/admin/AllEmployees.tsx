@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -53,6 +54,7 @@ export default function AllEmployees() {
     base_salary: "",
     hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
+  const [shift, setShift] = useState<ShiftValue>(emptyShift());
   const isSimpleRole = form.role === "worker" || form.role === "driver";
 
   const load = async () => {
@@ -109,6 +111,7 @@ export default function AllEmployees() {
 
   const openNew = () => {
     setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
+    setShift(emptyShift());
     setEditing(null);
     setOpen(true);
   };
@@ -119,6 +122,12 @@ export default function AllEmployees() {
       national_id: e.national_id ?? "",
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
+    });
+    setShift({
+      work_start: e.work_start ?? null,
+      work_end: e.work_end ?? null,
+      work_days: Array.isArray(e.work_days) ? e.work_days : [0,1,2,3,4,5],
+      late_grace_minutes: e.late_grace_minutes ?? 15,
     });
     setOpen(true);
   };
@@ -143,6 +152,10 @@ export default function AllEmployees() {
       role: form.role || null,
       is_active: form.is_active,
       has_system_access: !isSimpleRole,
+      work_start: shift.work_start,
+      work_end: shift.work_end,
+      work_days: shift.work_days,
+      late_grace_minutes: shift.late_grace_minutes,
     };
 
     if (isSimpleRole) {
@@ -389,6 +402,7 @@ export default function AllEmployees() {
               </div>
             )}
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
+            <ShiftEditor value={shift} onChange={setShift} />
             {editing && (
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />

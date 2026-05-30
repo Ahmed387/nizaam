@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, LogIn, LogOut } from "lucide-react";
+import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
 const STATUS = {
   present: "حاضر",
@@ -47,7 +48,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const load = async () => {
     setLoading(true);
     const [{ data: emps }, { data: att }] = await Promise.all([
-      supabase.from("employees").select("id,name,job_title,role,user_id,has_system_access").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("employees").select("id,name,job_title,role,user_id,has_system_access,work_start,work_end,work_days,late_grace_minutes").eq("branch_id", branchId).eq("is_active", true).order("name"),
       supabase.from("attendance").select("*").eq("branch_id", branchId).eq("date", date).order("created_at"),
     ]);
     setEmployees(emps ?? []);
@@ -97,7 +98,12 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     load();
   };
 
-  const checkIn = (employeeId: string) => upsert(employeeId, { check_in: new Date().toISOString(), status: "present" });
+  const checkIn = (employeeId: string) => {
+    const emp = employees.find((e) => e.id === employeeId);
+    const now = new Date().toISOString();
+    const status = computeLate(now, emp) ?? "present";
+    return upsert(employeeId, { check_in: now, status });
+  };
   const checkOut = (employeeId: string) => upsert(employeeId, { check_out: new Date().toISOString() });
 
   const submitManual = async () => {
@@ -127,6 +133,19 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         columns={[
           { key: "name", header: "الموظف", render: (e: any) => <span className="font-semibold">{e.name}</span> },
           { key: "job_title", header: "الوظيفة" },
+          {
+            key: "shift", header: "الشيفت",
+            render: (e: any) => {
+              if (!e.work_start) return <span className="text-xs text-muted-foreground">—</span>;
+              const off = !isWorkDay(date, e.work_days);
+              return (
+                <div className="text-xs">
+                  <span dir="ltr">{e.work_start?.slice(0,5)} - {e.work_end?.slice(0,5) ?? "?"}</span>
+                  {off && <span className="ms-1 text-warning">(إجازة)</span>}
+                </div>
+              );
+            },
+          },
           {
             key: "status", header: "الحالة",
             render: (e: any) => {
@@ -181,7 +200,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                   </Button>
                   {canUsePresence && (
                     <Button size="sm" variant="ghost" title="استخدم وقت أول دخول للسيستم"
-                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: "present" })}>
+                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: computeLate(p!.last_login_at!, e) ?? "present" })}>
                       من السيستم
                     </Button>
                   )}
