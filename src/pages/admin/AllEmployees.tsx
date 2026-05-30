@@ -95,8 +95,10 @@ export default function AllEmployees() {
     if (branchFilter !== "all" && e.branch_id !== branchFilter) return false;
     if (statusFilter === "active" && !e.is_active) return false;
     if (statusFilter === "inactive" && e.is_active) return false;
+    if (accessFilter === "with" && e.has_system_access === false) return false;
+    if (accessFilter === "without" && e.has_system_access !== false) return false;
     return true;
-  }), [enriched, search, branchFilter, statusFilter]);
+  }), [enriched, search, branchFilter, statusFilter, accessFilter]);
 
   const stats = useMemo(() => ({
     total: enriched.length,
