@@ -54,6 +54,7 @@ export default function AllEmployees() {
     base_salary: "",
     hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
+  const [shift, setShift] = useState<ShiftValue>(emptyShift());
   const isSimpleRole = form.role === "worker" || form.role === "driver";
 
   const load = async () => {
