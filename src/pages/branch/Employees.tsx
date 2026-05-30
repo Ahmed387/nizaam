@@ -132,6 +132,7 @@ export default function Employees() {
       base_salary: "", login_password: "", role: "cashier",
       hire_date: new Date().toISOString().slice(0, 10),
     });
+    setShift(emptyShift());
     load();
   };
 
