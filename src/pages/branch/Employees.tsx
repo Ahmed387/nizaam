@@ -51,6 +51,7 @@ export default function Employees() {
     role: "cashier",
     hire_date: new Date().toISOString().slice(0, 10),
   });
+  const [shift, setShift] = useState<ShiftValue>(emptyShift());
 
   // Workers & Drivers don't need system access — minimal form
   const isSimpleRole = form.role === "worker" || form.role === "driver";
