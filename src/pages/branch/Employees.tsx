@@ -244,6 +244,7 @@ export default function Employees() {
                 <Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" />
               </div>
             </div>
+            <ShiftEditor value={shift} onChange={setShift} />
             {!isSimpleRole && (
               <>
                 <div>
