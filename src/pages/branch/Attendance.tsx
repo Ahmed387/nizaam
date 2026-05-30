@@ -98,7 +98,12 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     load();
   };
 
-  const checkIn = (employeeId: string) => upsert(employeeId, { check_in: new Date().toISOString(), status: "present" });
+  const checkIn = (employeeId: string) => {
+    const emp = employees.find((e) => e.id === employeeId);
+    const now = new Date().toISOString();
+    const status = computeLate(now, emp) ?? "present";
+    return upsert(employeeId, { check_in: now, status });
+  };
   const checkOut = (employeeId: string) => upsert(employeeId, { check_out: new Date().toISOString() });
 
   const submitManual = async () => {
