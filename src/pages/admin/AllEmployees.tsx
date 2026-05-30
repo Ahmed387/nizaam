@@ -402,6 +402,7 @@ export default function AllEmployees() {
               </div>
             )}
             <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
+            <ShiftEditor value={shift} onChange={setShift} />
             {editing && (
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
