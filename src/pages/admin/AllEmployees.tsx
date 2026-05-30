@@ -42,6 +42,7 @@ export default function AllEmployees() {
   const [search, setSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -94,8 +95,10 @@ export default function AllEmployees() {
     if (branchFilter !== "all" && e.branch_id !== branchFilter) return false;
     if (statusFilter === "active" && !e.is_active) return false;
     if (statusFilter === "inactive" && e.is_active) return false;
+    if (accessFilter === "with" && e.has_system_access === false) return false;
+    if (accessFilter === "without" && e.has_system_access !== false) return false;
     return true;
-  }), [enriched, search, branchFilter, statusFilter]);
+  }), [enriched, search, branchFilter, statusFilter, accessFilter]);
 
   const stats = useMemo(() => ({
     total: enriched.length,
@@ -255,6 +258,14 @@ export default function AllEmployees() {
             <SelectItem value="inactive">موقوف</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={accessFilter} onValueChange={(v: any) => setAccessFilter(v)}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">الكل (دخول وبدون دخول)</SelectItem>
+            <SelectItem value="with">له دخول على السيستم</SelectItem>
+            <SelectItem value="without">بدون دخول (عامل/سواق)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
@@ -294,9 +305,11 @@ export default function AllEmployees() {
           )},
           { key: "hire_date", header: "التعيين", render: (r: any) => formatDate(r.hire_date) },
           { key: "user_id", header: "حساب دخول", render: (r: any) => (
-            r.user_id
-              ? <span className="px-2 py-0.5 rounded text-xs bg-success/15 text-success">مرتبط</span>
-              : <span className="text-xs text-muted-foreground">—</span>
+            r.has_system_access === false
+              ? <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">بدون دخول</span>
+              : r.user_id
+                ? <span className="px-2 py-0.5 rounded text-xs bg-success/15 text-success">مرتبط</span>
+                : <span className="text-xs text-warning">يحتاج ربط</span>
           )},
           { key: "is_active", header: "الحالة", render: (r: any) => (
             <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>

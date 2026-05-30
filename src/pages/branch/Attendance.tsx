@@ -42,17 +42,32 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: "", status: "present", notes: "" });
 
+  const [presence, setPresence] = useState<Record<string, { last_login_at: string | null; last_seen_at: string }>>({});
+
   const load = async () => {
     setLoading(true);
     const [{ data: emps }, { data: att }] = await Promise.all([
-      supabase.from("employees").select("id,name,job_title,role").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("employees").select("id,name,job_title,role,user_id,has_system_access").eq("branch_id", branchId).eq("is_active", true).order("name"),
       supabase.from("attendance").select("*").eq("branch_id", branchId).eq("date", date).order("created_at"),
     ]);
     setEmployees(emps ?? []);
     setRows(att ?? []);
+    const uids = (emps ?? []).map((e: any) => e.user_id).filter(Boolean);
+    if (uids.length) {
+      const { data: pres } = await supabase
+        .from("user_presence" as any)
+        .select("user_id, last_login_at, last_seen_at")
+        .in("user_id", uids);
+      const m: Record<string, any> = {};
+      (pres ?? []).forEach((p: any) => { m[p.user_id] = p; });
+      setPresence(m);
+    } else setPresence({});
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId, date]);
+
+  const fmtTime = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "—";
+  const isToday = (iso?: string | null) => iso ? new Date(iso).toISOString().slice(0, 10) === date : false;
 
   const byEmployee = useMemo(() => {
     const m = new Map<string, any>();
@@ -136,16 +151,40 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             },
           },
           {
+            key: "presence", header: "تواجد على السيستم (اليوم)",
+            render: (e: any) => {
+              if (!e.user_id) return <span className="text-xs text-muted-foreground">بدون دخول</span>;
+              const p = presence[e.user_id];
+              if (!p) return <span className="text-xs text-muted-foreground">—</span>;
+              const loginToday = isToday(p.last_login_at);
+              const seenToday = isToday(p.last_seen_at);
+              return (
+                <div className="text-xs leading-tight">
+                  <div className={loginToday ? "text-success" : "text-muted-foreground"}>دخول: {loginToday ? fmtTime(p.last_login_at) : "لم يدخل"}</div>
+                  <div className={seenToday ? "text-info" : "text-muted-foreground"}>آخر ظهور: {seenToday ? fmtTime(p.last_seen_at) : "—"}</div>
+                </div>
+              );
+            },
+          },
+          {
             key: "actions", header: "",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
               const allowed = canManageRole(e.role);
               if (!allowed) return <span className="text-xs text-muted-foreground">—</span>;
+              const p = e.user_id ? presence[e.user_id] : null;
+              const canUsePresence = !!(p && isToday(p.last_login_at) && !a?.check_in);
               return (
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => checkIn(e.id)} disabled={!!a?.check_in}>
                     <LogIn className="w-3.5 h-3.5 ml-1" /> حضور
                   </Button>
+                  {canUsePresence && (
+                    <Button size="sm" variant="ghost" title="استخدم وقت أول دخول للسيستم"
+                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: "present" })}>
+                      من السيستم
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => checkOut(e.id)} disabled={!a?.check_in || !!a?.check_out}>
                     <LogOut className="w-3.5 h-3.5 ml-1" /> انصراف
                   </Button>
