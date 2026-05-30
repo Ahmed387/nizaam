@@ -538,9 +538,8 @@ export default function EmployeeProfile() {
             )}
             <div><Label>الراتب الأساسي</Label><Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-1.5" /></div>
             <div><Label>تاريخ التعيين</Label><Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الراتب الأساسي</Label><Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>تاريخ التعيين</Label><Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الرقم القومي</Label><Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={editForm.national_id} onChange={(e) => setEditForm({ ...editForm, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" /></div>
+            <ShiftEditor value={editShift} onChange={setEditShift} />
             <div><Label>ملاحظات</Label><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} className="mt-1.5" /></div>
           </div>
           <DialogFooter>
