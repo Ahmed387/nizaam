@@ -258,6 +258,14 @@ export default function AllEmployees() {
             <SelectItem value="inactive">موقوف</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={accessFilter} onValueChange={(v: any) => setAccessFilter(v)}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">الكل (دخول وبدون دخول)</SelectItem>
+            <SelectItem value="with">له دخول على السيستم</SelectItem>
+            <SelectItem value="without">بدون دخول (عامل/سواق)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
