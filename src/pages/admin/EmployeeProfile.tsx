@@ -113,6 +113,12 @@ export default function EmployeeProfile() {
       notes: emp.notes ?? "",
       national_id: emp.national_id ?? "",
     });
+    setEditShift({
+      work_start: emp.work_start ?? null,
+      work_end: emp.work_end ?? null,
+      work_days: Array.isArray(emp.work_days) ? emp.work_days : [0,1,2,3,4,5],
+      late_grace_minutes: emp.late_grace_minutes ?? 15,
+    });
     setEditOpen(true);
   };
 
@@ -124,6 +130,10 @@ export default function EmployeeProfile() {
       base_salary: Number(editForm.base_salary) || 0, hire_date: editForm.hire_date,
       notes: editForm.notes || null,
       national_id: editForm.national_id?.trim() || null,
+      work_start: editShift.work_start,
+      work_end: editShift.work_end,
+      work_days: editShift.work_days,
+      late_grace_minutes: editShift.late_grace_minutes,
     };
     if (editForm.login_password) {
       updatePayload.login_password = editForm.login_password;
