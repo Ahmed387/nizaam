@@ -268,6 +268,7 @@ export default function EmployeeProfile() {
     toast.success("تم دفع الراتب");
     setSalOpen(false);
     setSalForm({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
+    setSalSummary(null);
     load();
   };
 
