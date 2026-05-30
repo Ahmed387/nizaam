@@ -107,7 +107,6 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, perm: "customers.view" },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, perm: "treasury.view" },
     { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, badge: pendingAdvCount, perm: "employees.view" },
-    { to: `/branch/${id}/attendance`, label: "الحضور والانصراف", icon: <ClipboardCheck className="w-4 h-4" />, perm: "attendance.view" },
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, perm: "reports.view" },
   ];
 
