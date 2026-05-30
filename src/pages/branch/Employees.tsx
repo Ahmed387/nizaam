@@ -14,6 +14,7 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, ClipboardCheck, HandCoins } from "lucide-react";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Attendance from "./Attendance";
 import AdvanceRequests from "./AdvanceRequests";
