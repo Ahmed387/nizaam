@@ -49,6 +49,23 @@ export default function EmployeeProfile() {
   const [salOpen, setSalOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ amount: "", monthly_deduct: "", reason: "" });
   const [salForm, setSalForm] = useState({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
+  const [salSummary, setSalSummary] = useState<AttendanceSummary | null>(null);
+  const [calcLoading, setCalcLoading] = useState(false);
+
+  const computeFromAttendance = async () => {
+    if (!emp) return;
+    setCalcLoading(true);
+    try {
+      const s = await summarizeMonth(emp, salForm.month);
+      setSalSummary(s);
+      setSalForm((f) => ({ ...f, deductions: String(s.totalDeduction) }));
+      toast.success(`غياب: ${s.absentDays} يوم — تأخير: ${s.totalLateMinutes} دقيقة`);
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل الحساب");
+    } finally {
+      setCalcLoading(false);
+    }
+  };
   const [advPm, setAdvPm] = useState<PaymentMethodValue>(emptyPaymentValue());
   const [salPm, setSalPm] = useState<PaymentMethodValue>(emptyPaymentValue());
 
