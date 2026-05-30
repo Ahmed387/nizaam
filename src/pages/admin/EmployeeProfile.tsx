@@ -40,6 +40,7 @@ export default function EmployeeProfile() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: "", notes: "", national_id: "" });
+  const [editShift, setEditShift] = useState<ShiftValue>(emptyShift());
   const [delOpen, setDelOpen] = useState(false);
 
   const [advOpen, setAdvOpen] = useState(false);
