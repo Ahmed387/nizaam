@@ -152,6 +152,10 @@ export default function AllEmployees() {
       role: form.role || null,
       is_active: form.is_active,
       has_system_access: !isSimpleRole,
+      work_start: shift.work_start,
+      work_end: shift.work_end,
+      work_days: shift.work_days,
+      late_grace_minutes: shift.late_grace_minutes,
     };
 
     if (isSimpleRole) {
