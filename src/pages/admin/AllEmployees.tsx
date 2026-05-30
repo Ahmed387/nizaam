@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
