@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, LogIn, LogOut } from "lucide-react";
+import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
 const STATUS = {
   present: "حاضر",
