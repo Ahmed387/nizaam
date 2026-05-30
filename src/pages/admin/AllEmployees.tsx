@@ -42,6 +42,7 @@ export default function AllEmployees() {
   const [search, setSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
