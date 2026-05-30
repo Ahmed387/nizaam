@@ -305,9 +305,11 @@ export default function AllEmployees() {
           )},
           { key: "hire_date", header: "التعيين", render: (r: any) => formatDate(r.hire_date) },
           { key: "user_id", header: "حساب دخول", render: (r: any) => (
-            r.user_id
-              ? <span className="px-2 py-0.5 rounded text-xs bg-success/15 text-success">مرتبط</span>
-              : <span className="text-xs text-muted-foreground">—</span>
+            r.has_system_access === false
+              ? <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">بدون دخول</span>
+              : r.user_id
+                ? <span className="px-2 py-0.5 rounded text-xs bg-success/15 text-success">مرتبط</span>
+                : <span className="text-xs text-warning">يحتاج ربط</span>
           )},
           { key: "is_active", header: "الحالة", render: (r: any) => (
             <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
