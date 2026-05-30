@@ -589,7 +589,24 @@ export default function EmployeeProfile() {
         <DialogContent>
           <DialogHeader><DialogTitle>دفع راتب شهر</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>الشهر (YYYY-MM) *</Label><Input value={salForm.month} onChange={(e) => setSalForm({ ...salForm, month: e.target.value })} className="mt-1.5" placeholder="2026-04" /></div>
+            <div className="flex items-end gap-2">
+              <div className="flex-1"><Label>الشهر (YYYY-MM) *</Label><Input value={salForm.month} onChange={(e) => { setSalForm({ ...salForm, month: e.target.value }); setSalSummary(null); }} className="mt-1.5" placeholder="2026-04" /></div>
+              <Button type="button" variant="outline" onClick={computeFromAttendance} disabled={calcLoading}>
+                <Calculator className="w-4 h-4 ml-1" /> {calcLoading ? "..." : "احسب من الحضور"}
+              </Button>
+            </div>
+            {salSummary && (
+              <div className="bg-surface-2 rounded-lg p-3 text-xs space-y-1">
+                <div className="flex justify-between"><span>أيام العمل في الشهر</span><b>{salSummary.workDaysInMonth}</b></div>
+                <div className="flex justify-between"><span>حضور / تأخير / غياب / إجازة</span>
+                  <b>{salSummary.presentDays} / {salSummary.lateDays} / <span className="text-destructive">{salSummary.absentDays}</span> / {salSummary.leaveDays}</b>
+                </div>
+                <div className="flex justify-between"><span>أجر اليوم</span><b>{formatEGP(salSummary.dailyRate)}</b></div>
+                <div className="flex justify-between"><span>خصم غياب</span><b>{formatEGP(salSummary.absentDeduction)}</b></div>
+                <div className="flex justify-between"><span>خصم تأخير ({salSummary.totalLateMinutes} د)</span><b>{formatEGP(salSummary.lateDeduction)}</b></div>
+                <div className="flex justify-between border-t border-border pt-1 mt-1"><span>إجمالي الخصم المقترح</span><b className="text-destructive">{formatEGP(salSummary.totalDeduction)}</b></div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div><Label>الأساسي</Label><Input disabled value={emp.base_salary} className="mt-1.5" /></div>
               <div><Label>الحوافز</Label><Input type="number" value={salForm.bonuses} onChange={(e) => setSalForm({ ...salForm, bonuses: e.target.value })} className="mt-1.5" /></div>
