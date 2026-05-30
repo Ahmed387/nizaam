@@ -187,7 +187,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                   </Button>
                   {canUsePresence && (
                     <Button size="sm" variant="ghost" title="استخدم وقت أول دخول للسيستم"
-                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: "present" })}>
+                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: computeLate(p!.last_login_at!, e) ?? "present" })}>
                       من السيستم
                     </Button>
                   )}
