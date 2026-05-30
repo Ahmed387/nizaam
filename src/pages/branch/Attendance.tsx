@@ -134,6 +134,19 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
           { key: "name", header: "الموظف", render: (e: any) => <span className="font-semibold">{e.name}</span> },
           { key: "job_title", header: "الوظيفة" },
           {
+            key: "shift", header: "الشيفت",
+            render: (e: any) => {
+              if (!e.work_start) return <span className="text-xs text-muted-foreground">—</span>;
+              const off = !isWorkDay(date, e.work_days);
+              return (
+                <div className="text-xs">
+                  <span dir="ltr">{e.work_start?.slice(0,5)} - {e.work_end?.slice(0,5) ?? "?"}</span>
+                  {off && <span className="ms-1 text-warning">(إجازة)</span>}
+                </div>
+              );
+            },
+          },
+          {
             key: "status", header: "الحالة",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
