@@ -86,6 +86,10 @@ export default function Employees() {
         hire_date: form.hire_date,
         role: form.role as any,
         has_system_access: false,
+        work_start: shift.work_start,
+        work_end: shift.work_end,
+        work_days: shift.work_days,
+        late_grace_minutes: shift.late_grace_minutes,
       });
       if (error) return toast.error(error.message);
       toast.success("تمت الإضافة");
