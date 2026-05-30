@@ -48,7 +48,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const load = async () => {
     setLoading(true);
     const [{ data: emps }, { data: att }] = await Promise.all([
-      supabase.from("employees").select("id,name,job_title,role,user_id,has_system_access").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("employees").select("id,name,job_title,role,user_id,has_system_access,work_start,work_end,work_days,late_grace_minutes").eq("branch_id", branchId).eq("is_active", true).order("name"),
       supabase.from("attendance").select("*").eq("branch_id", branchId).eq("date", date).order("created_at"),
     ]);
     setEmployees(emps ?? []);
