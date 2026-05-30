@@ -117,6 +117,10 @@ export default function Employees() {
         login_password: form.login_password,
         role: form.role as any,
         has_system_access: true,
+        work_start: shift.work_start,
+        work_end: shift.work_end,
+        work_days: shift.work_days,
+        late_grace_minutes: shift.late_grace_minutes,
       });
       if (error) return toast.error(error.message);
       toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
