@@ -707,13 +707,16 @@ export default function NewSale() {
           </div>
 
 
-          {/* Credit / installments */}
+          {/* Credit / installments — auto-active when payments < total */}
           <div className="card-elevated p-5">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={creditMode} onChange={(e) => setCreditMode(e.target.checked)} className="w-4 h-4" />
               <span className="font-bold">بيع بالآجل (تسجيل المتبقي كمديونية)</span>
+              {creditRemaining > 0 && !creditMode && (
+                <span className="text-xs text-warning mr-2">— مُفعّل تلقائياً (يوجد متبقي)</span>
+              )}
             </label>
-            {creditMode && (
+            {isCredit && (
               <div className="mt-3 space-y-3">
                 <div className="text-sm flex justify-between p-2 rounded bg-warning/10 border border-warning/30">
                   <span>المتبقي كآجل:</span>
@@ -733,6 +736,7 @@ export default function NewSale() {
               </div>
             )}
           </div>
+
 
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
