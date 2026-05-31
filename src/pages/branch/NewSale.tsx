@@ -340,8 +340,8 @@ export default function NewSale() {
         entity: "Invoice", entityId: invId as string, details: { total },
       });
 
-      // Create payment plan for credit remainder
-      if (creditMode && creditRemaining > 0 && custId) {
+      // Create payment plan for credit remainder (auto-triggered on any shortfall)
+      if (isCredit && creditRemaining > 0 && custId) {
         try {
           const cust = customers.find((c) => c.id === custId);
           await createPaymentPlanWithInitial({
@@ -364,7 +364,7 @@ export default function NewSale() {
 
       syncPendingSales(true);
 
-      toast.success(creditMode && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
+      toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
     } catch (e: any) {
       toast.error(e.message);
