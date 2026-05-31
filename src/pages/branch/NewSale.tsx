@@ -508,7 +508,17 @@ export default function NewSale() {
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 mx-auto text-center" placeholder="0" />
+                          <div className="flex flex-col gap-1 items-center">
+                            <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 text-center" placeholder="مبلغ" />
+                            <Input type="number" min="0" max="100" step="0.1"
+                              value={i.quantity * i.selling_price > 0 ? +((i.line_discount / (i.quantity * i.selling_price)) * 100).toFixed(2) || "" : ""}
+                              onChange={(e) => {
+                                const pct = parseFloat(e.target.value) || 0;
+                                const amt = +(i.quantity * i.selling_price * pct / 100).toFixed(2);
+                                updateLineDiscount(k, amt);
+                              }}
+                              className="w-24 text-center" placeholder="%" />
+                          </div>
                         </td>
                         {showCost && (
                           <td className="p-2 text-center">
