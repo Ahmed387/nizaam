@@ -64,9 +64,6 @@ export default function NewSale() {
   const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 نقدي", is_builtin: true, is_enabled: true }]);
 
 
-  const [discountAmt, setDiscountAmt] = useState(0);
-  const [discountPct, setDiscountPct] = useState(0);
-  const [discountReason, setDiscountReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [scannerMode, setScannerMode] = useState(true);
   const scannerInputRef = useRef<HTMLInputElement>(null);
