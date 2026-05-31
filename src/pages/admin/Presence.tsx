@@ -103,11 +103,16 @@ export default function Presence() {
   return (
     <div className="p-4 md:p-6 space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">تتبع تواجد المستخدمين</h1>
-          <p className="text-muted-foreground text-sm">
-            متصل الآن: <span className="font-semibold text-foreground">{onlineCount}</span> من {rows.length}
-          </p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => nav(-1)} aria-label="رجوع">
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">تتبع تواجد المستخدمين</h1>
+            <p className="text-muted-foreground text-sm">
+              متصل الآن: <span className="font-semibold text-foreground">{onlineCount}</span> من {rows.length}
+            </p>
+          </div>
         </div>
         <Input
           placeholder="بحث بالاسم أو الدور..."
