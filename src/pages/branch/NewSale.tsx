@@ -637,8 +637,7 @@ export default function NewSale() {
 
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي قبل الخصم</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">الخصم ({discountPct}%)</span><span className="text-destructive font-bold">- {formatEGP(discountAmt)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className="text-primary font-extrabold text-xl">{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
