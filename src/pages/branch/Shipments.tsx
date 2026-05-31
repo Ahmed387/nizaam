@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PermGate } from "@/components/ProtectedRoute";
@@ -8,6 +8,7 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
 import { Plus, Eye } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -15,19 +16,20 @@ export default function Shipments() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!branchId) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("shipments")
-        .select("*, suppliers(company_name)")
-        .eq("branch_id", branchId)
-        .order("created_at", { ascending: false });
-      setRows(data ?? []);
-      setLoading(false);
-    })();
+    setLoading(true);
+    const { data } = await supabase
+      .from("shipments")
+      .select("*, suppliers(company_name)")
+      .eq("branch_id", branchId)
+      .order("created_at", { ascending: false });
+    setRows(data ?? []);
+    setLoading(false);
   }, [branchId]);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(["shipments"], load);
 
   return (
     <BranchLayout>
