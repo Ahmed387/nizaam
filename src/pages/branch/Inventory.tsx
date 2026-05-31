@@ -58,6 +58,7 @@ export default function Inventory() {
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); supabase.from("categories").select("*").then(({ data }) => setCats(data ?? [])); }, [branchId]);
+  useRealtimeRefresh(["products", "categories"], load);
 
   const filtered = rows.filter((p) => {
     if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
