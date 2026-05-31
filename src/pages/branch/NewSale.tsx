@@ -531,24 +531,6 @@ export default function NewSale() {
 
         {/* Summary */}
         <div className="space-y-4">
-          <div className="card-elevated p-5">
-            <h3 className="font-bold mb-4">خصم على إجمالي الفاتورة</h3>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">خصم بالمبلغ</Label>
-                <Input type="number" min="0" value={discountAmt || ""} onChange={(e) => setDiscByAmt(parseFloat(e.target.value) || 0)} className="mt-1" />
-              </div>
-              <div className="text-center text-muted-foreground text-xs">↕ مرتبطين تلقائياً</div>
-              <div>
-                <Label className="text-xs">نسبة %</Label>
-                <Input type="number" min="0" max="100" step="0.1" value={discountPct || ""} onChange={(e) => setDiscByPct(parseFloat(e.target.value) || 0)} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">السبب</Label>
-                <Textarea rows={2} value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} className="mt-1 text-sm" />
-              </div>
-            </div>
-          </div>
 
           {/* Multi-payment methods */}
           <div className="card-elevated p-5">
