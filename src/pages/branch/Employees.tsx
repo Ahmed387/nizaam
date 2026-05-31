@@ -68,6 +68,7 @@ export default function Employees() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["employees", "advances", "advance_requests", "salaries"], load);
 
   const submit = async () => {
     if (!form.name || !form.job_title || !form.phone) {
