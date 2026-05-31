@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/DataTable";
+import { ArrowRight } from "lucide-react";
 
 interface Row {
   user_id: string;
@@ -30,6 +33,7 @@ function isOnline(iso: string) {
 
 export default function Presence() {
   const { tenantId, isAdmin, hasRole } = useAuth();
+  const nav = useNavigate();
   const allowed = isAdmin || hasRole("supervisor") || hasRole("super_admin");
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
@@ -99,11 +103,16 @@ export default function Presence() {
   return (
     <div className="p-4 md:p-6 space-y-4" dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">تتبع تواجد المستخدمين</h1>
-          <p className="text-muted-foreground text-sm">
-            متصل الآن: <span className="font-semibold text-foreground">{onlineCount}</span> من {rows.length}
-          </p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => nav(-1)} aria-label="رجوع">
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">تتبع تواجد المستخدمين</h1>
+            <p className="text-muted-foreground text-sm">
+              متصل الآن: <span className="font-semibold text-foreground">{onlineCount}</span> من {rows.length}
+            </p>
+          </div>
         </div>
         <Input
           placeholder="بحث بالاسم أو الدور..."

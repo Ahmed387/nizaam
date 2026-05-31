@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export default function Suppliers({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
@@ -27,6 +28,7 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["suppliers"], load);
 
   const submit = async () => {
     if (!form.company_name) return toast.error("اسم الشركة مطلوب");

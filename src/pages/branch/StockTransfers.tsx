@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useParams } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -47,6 +48,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["stock_transfers"], load);
 
   const resetForm = () => {
     setToBranch(""); setReason(""); setItems([{ product_id: "", quantity: "" }]);

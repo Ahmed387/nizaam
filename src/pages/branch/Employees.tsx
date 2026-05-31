@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -67,6 +68,7 @@ export default function Employees() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["employees", "advances", "advance_requests", "salaries"], load);
 
   const submit = async () => {
     if (!form.name || !form.job_title || !form.phone) {

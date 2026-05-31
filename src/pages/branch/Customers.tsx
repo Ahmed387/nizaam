@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -26,6 +27,7 @@ export default function Customers({ embedded = false }: { embedded?: boolean } =
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["customers"], load);
 
   const submit = async () => {
     if (!form.name) return toast.error("الاسم مطلوب");

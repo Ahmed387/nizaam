@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -7,6 +7,7 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Plus } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export default function Returns() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -14,19 +15,20 @@ export default function Returns() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!branchId) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("returns")
-        .select("*, invoices(invoice_number)")
-        .eq("branch_id", branchId)
-        .order("created_at", { ascending: false });
-      setRows(data ?? []);
-      setLoading(false);
-    })();
+    setLoading(true);
+    const { data } = await supabase
+      .from("returns")
+      .select("*, invoices(invoice_number)")
+      .eq("branch_id", branchId)
+      .order("created_at", { ascending: false });
+    setRows(data ?? []);
+    setLoading(false);
   }, [branchId]);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(["returns"], load);
 
   return (
     <BranchLayout>
