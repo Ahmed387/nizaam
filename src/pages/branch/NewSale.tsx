@@ -251,17 +251,48 @@ export default function NewSale() {
     [payments]
   );
   const creditRemaining = Math.max(0, total - paymentsSum);
-  const paymentsValid = creditMode
-    ? paymentsSum <= total + 0.01
-    : (payments.length === 0 || Math.abs(paymentsSum - total) < 0.01);
+  // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
+  const isCredit = creditMode || creditRemaining > 0.01;
+  const paymentsValid = paymentsSum <= total + 0.01;
+
+  // Auto-rescale scheduled installments whenever the credit remainder changes,
+  // so partial payments by any method update the installment plan automatically.
+  useEffect(() => {
+    if (!isCredit || scheduleType !== "scheduled" || installments.length === 0) return;
+    const sum = installments.reduce((s, r) => s + Number(r.amount || 0), 0);
+    if (Math.abs(sum - creditRemaining) < 0.01) return;
+    if (sum <= 0) {
+      const each = Math.round((creditRemaining / installments.length) * 100) / 100;
+      const next = installments.map((r, i) => ({
+        ...r,
+        amount: i === installments.length - 1
+          ? Math.round((creditRemaining - each * (installments.length - 1)) * 100) / 100
+          : each,
+      }));
+      setInstallments(next);
+    } else {
+      const ratio = creditRemaining / sum;
+      let acc = 0;
+      const next = installments.map((r, i) => {
+        if (i === installments.length - 1) {
+          return { ...r, amount: Math.max(0, Math.round((creditRemaining - acc) * 100) / 100) };
+        }
+        const v = Math.max(0, Math.round(Number(r.amount || 0) * ratio * 100) / 100);
+        acc += v;
+        return { ...r, amount: v };
+      });
+      setInstallments(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditRemaining, isCredit, scheduleType]);
 
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
-    if (!paymentsValid) return toast.error(creditMode ? `المدفوع أكبر من الإجمالي` : `مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
-    if (creditMode && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+    if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
+    if (isCredit && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل المتبقي كآجل");
 
-    if (creditMode && scheduleType === "scheduled" && creditRemaining > 0) {
+    if (isCredit && scheduleType === "scheduled" && creditRemaining > 0) {
       const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
     }
@@ -309,8 +340,8 @@ export default function NewSale() {
         entity: "Invoice", entityId: invId as string, details: { total },
       });
 
-      // Create payment plan for credit remainder
-      if (creditMode && creditRemaining > 0 && custId) {
+      // Create payment plan for credit remainder (auto-triggered on any shortfall)
+      if (isCredit && creditRemaining > 0 && custId) {
         try {
           const cust = customers.find((c) => c.id === custId);
           await createPaymentPlanWithInitial({
@@ -333,7 +364,7 @@ export default function NewSale() {
 
       syncPendingSales(true);
 
-      toast.success(creditMode && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
+      toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
     } catch (e: any) {
       toast.error(e.message);
@@ -676,13 +707,16 @@ export default function NewSale() {
           </div>
 
 
-          {/* Credit / installments */}
+          {/* Credit / installments — auto-active when payments < total */}
           <div className="card-elevated p-5">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={creditMode} onChange={(e) => setCreditMode(e.target.checked)} className="w-4 h-4" />
               <span className="font-bold">بيع بالآجل (تسجيل المتبقي كمديونية)</span>
+              {creditRemaining > 0 && !creditMode && (
+                <span className="text-xs text-warning mr-2">— مُفعّل تلقائياً (يوجد متبقي)</span>
+              )}
             </label>
-            {creditMode && (
+            {isCredit && (
               <div className="mt-3 space-y-3">
                 <div className="text-sm flex justify-between p-2 rounded bg-warning/10 border border-warning/30">
                   <span>المتبقي كآجل:</span>
@@ -702,6 +736,7 @@ export default function NewSale() {
               </div>
             )}
           </div>
+
 
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
