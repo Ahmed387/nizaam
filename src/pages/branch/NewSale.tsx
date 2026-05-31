@@ -128,7 +128,7 @@ export default function NewSale() {
     () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
     [items]
   );
-  const total = Math.max(0, subtotal - discountAmt);
+  const total = subtotal;
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
   const totalProfit = (subtotal - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
@@ -142,14 +142,6 @@ export default function NewSale() {
   }), [items]);
   const hasLoss = lossItems.length > 0;
 
-  const setDiscByAmt = (v: number) => {
-    setDiscountAmt(v);
-    setDiscountPct(subtotal > 0 ? +(v / subtotal * 100).toFixed(2) : 0);
-  };
-  const setDiscByPct = (v: number) => {
-    setDiscountPct(v);
-    setDiscountAmt(+(subtotal * v / 100).toFixed(2));
-  };
 
   const filteredCatalog = useMemo(
     () => catalogSearch
