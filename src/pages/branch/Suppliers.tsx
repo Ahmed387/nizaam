@@ -28,6 +28,7 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["suppliers"], load);
 
   const submit = async () => {
     if (!form.company_name) return toast.error("اسم الشركة مطلوب");
