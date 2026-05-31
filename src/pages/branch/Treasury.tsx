@@ -100,6 +100,7 @@ export default function Treasury() {
     }
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["vouchers", "treasury_transfers"], load);
 
   const filtered = rows.filter((r) =>
     (tab === "all" || r.type === tab) &&
