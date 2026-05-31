@@ -64,9 +64,6 @@ export default function NewSale() {
   const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 نقدي", is_builtin: true, is_enabled: true }]);
 
 
-  const [discountAmt, setDiscountAmt] = useState(0);
-  const [discountPct, setDiscountPct] = useState(0);
-  const [discountReason, setDiscountReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [scannerMode, setScannerMode] = useState(true);
   const scannerInputRef = useRef<HTMLInputElement>(null);
@@ -131,7 +128,7 @@ export default function NewSale() {
     () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
     [items]
   );
-  const total = Math.max(0, subtotal - discountAmt);
+  const total = subtotal;
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
   const totalProfit = (subtotal - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
@@ -145,14 +142,6 @@ export default function NewSale() {
   }), [items]);
   const hasLoss = lossItems.length > 0;
 
-  const setDiscByAmt = (v: number) => {
-    setDiscountAmt(v);
-    setDiscountPct(subtotal > 0 ? +(v / subtotal * 100).toFixed(2) : 0);
-  };
-  const setDiscByPct = (v: number) => {
-    setDiscountPct(v);
-    setDiscountAmt(+(subtotal * v / 100).toFixed(2));
-  };
 
   const filteredCatalog = useMemo(
     () => catalogSearch
@@ -288,9 +277,9 @@ export default function NewSale() {
         p_branch_id: branchId!,
         p_customer_id: custId,
         p_subtotal: subtotal,
-        p_discount_amount: discountAmt,
-        p_discount_percent: discountPct,
-        p_discount_reason: discountReason || null,
+        p_discount_amount: 0,
+        p_discount_percent: 0,
+        p_discount_reason: null,
         p_total: total,
         p_payment_method: primaryMethod,
         p_items: items as any,
@@ -519,7 +508,17 @@ export default function NewSale() {
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 mx-auto text-center" placeholder="0" />
+                          <div className="flex flex-col gap-1 items-center">
+                            <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 text-center" placeholder="مبلغ" />
+                            <Input type="number" min="0" max="100" step="0.1"
+                              value={i.quantity * i.selling_price > 0 ? +((i.line_discount / (i.quantity * i.selling_price)) * 100).toFixed(2) || "" : ""}
+                              onChange={(e) => {
+                                const pct = parseFloat(e.target.value) || 0;
+                                const amt = +(i.quantity * i.selling_price * pct / 100).toFixed(2);
+                                updateLineDiscount(k, amt);
+                              }}
+                              className="w-24 text-center" placeholder="%" />
+                          </div>
                         </td>
                         {showCost && (
                           <td className="p-2 text-center">
@@ -542,24 +541,6 @@ export default function NewSale() {
 
         {/* Summary */}
         <div className="space-y-4">
-          <div className="card-elevated p-5">
-            <h3 className="font-bold mb-4">خصم على إجمالي الفاتورة</h3>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">خصم بالمبلغ</Label>
-                <Input type="number" min="0" value={discountAmt || ""} onChange={(e) => setDiscByAmt(parseFloat(e.target.value) || 0)} className="mt-1" />
-              </div>
-              <div className="text-center text-muted-foreground text-xs">↕ مرتبطين تلقائياً</div>
-              <div>
-                <Label className="text-xs">نسبة %</Label>
-                <Input type="number" min="0" max="100" step="0.1" value={discountPct || ""} onChange={(e) => setDiscByPct(parseFloat(e.target.value) || 0)} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">السبب</Label>
-                <Textarea rows={2} value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} className="mt-1 text-sm" />
-              </div>
-            </div>
-          </div>
 
           {/* Multi-payment methods */}
           <div className="card-elevated p-5">
@@ -666,8 +647,7 @@ export default function NewSale() {
 
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي قبل الخصم</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">الخصم ({discountPct}%)</span><span className="text-destructive font-bold">- {formatEGP(discountAmt)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className="text-primary font-extrabold text-xl">{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
