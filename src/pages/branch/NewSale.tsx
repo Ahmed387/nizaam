@@ -545,34 +545,80 @@ export default function NewSale() {
           {/* Multi-payment methods */}
           <div className="card-elevated p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold">طرق الدفع</h3>
+              <div>
+                <h3 className="font-bold">طرق الدفع</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">اختر طريقة واحدة أو قسّم المبلغ على أكثر من طريقة</p>
+              </div>
               <Button size="sm" variant="outline" onClick={addPayment} className="gap-1" disabled={total <= 0}>
-                <Plus className="w-3 h-3" /> إضافة طريقة
+                <Plus className="w-3 h-3" /> إضافة دفعة
               </Button>
             </div>
-            {payments.length === 0 ? (
-              <div className="text-xs text-muted-foreground p-3 rounded bg-surface-2 text-center">
-                الافتراضي: الدفع كله كاش.<br/>اضغط "إضافة طريقة" لاختيار طريقة دفع أخرى أو لتقسيم المبلغ.
 
+            {payments.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-4 rounded-lg bg-surface-2 text-center border border-dashed border-border">
+                💵 الافتراضي: المبلغ كله كاش.<br/>
+                اضغط <b>«إضافة دفعة»</b> لاختيار طريقة أخرى أو لتقسيم المبلغ.
               </div>
             ) : (
               <div className="space-y-3">
                 {payments.map((p, idx) => (
-                  <div key={idx} className="p-3 rounded-lg border border-border space-y-2">
+                  <div key={idx} className="p-3 rounded-lg border border-border bg-surface-1 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-muted-foreground">دفعة #{idx + 1}</span>
-                      <Button variant="ghost" size="sm" onClick={() => removePayment(idx)}><X className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => removePayment(idx)} title="حذف الدفعة">
+                        <X className="w-3 h-3" />
+                      </Button>
                     </div>
-                    <select className="w-full bg-input border border-border rounded p-1.5 text-sm" value={p.payment_method} onChange={(e) => updatePayment(idx, { payment_method: e.target.value })}>
-                      {methodOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
 
-                    </select>
+                    {/* Method chips — clearer than dropdown */}
+                    <div>
+                      <Label className="text-xs mb-1.5 block">طريقة الدفع</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {methodOptions.map((m) => (
+                          <button
+                            key={m.value}
+                            type="button"
+                            onClick={() => updatePayment(idx, { payment_method: m.value })}
+                            className={`px-2.5 py-1.5 rounded-md text-xs border transition-all ${
+                              p.payment_method === m.value
+                                ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
+                                : "bg-background hover:bg-muted border-border"
+                            }`}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                    <Input type="number" min="0" step="0.01" placeholder="المبلغ" value={p.amount || ""} onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })} />
+                    <div>
+                      <Label className="text-xs mb-1.5 block">المبلغ</Label>
+                      <Input
+                        type="number" min="0" step="0.01" placeholder="0.00"
+                        value={p.amount || ""}
+                        onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+
                     {p.payment_method !== "cash" && (
-                      <>
-                        <Input placeholder="رقم العملية / المرجع" value={p.reference_number} onChange={(e) => updatePayment(idx, { reference_number: e.target.value })} />
-                        <Input placeholder="رقم الحساب / التليفون" dir="ltr" className="text-right" value={p.transfer_to_account} onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })} />
+                      <div className="space-y-2 p-2.5 rounded-md bg-muted/40 border border-border/60">
+                        <div>
+                          <Label className="text-xs mb-1 block">رقم العملية / المرجع</Label>
+                          <Input
+                            placeholder="رقم التحويل أو الإيصال"
+                            value={p.reference_number}
+                            onChange={(e) => updatePayment(idx, { reference_number: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل إليه</Label>
+                          <Input
+                            dir="ltr" className="text-right"
+                            placeholder="مثال: 0100xxxxxxx"
+                            value={p.transfer_to_account}
+                            onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })}
+                          />
+                        </div>
                         {p.fee_amount > 0 && (
                           <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs space-y-1.5">
                             <div className="flex justify-between">
@@ -599,9 +645,20 @@ export default function NewSale() {
                             </div>
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
-                    <Input placeholder="اسم المستلم" value={p.received_by_name} onChange={(e) => updatePayment(idx, { received_by_name: e.target.value })} />
+
+                    <div>
+                      <Label className="text-xs mb-1 block">
+                        الموظف اللي استلم الفلوس
+                        <span className="text-muted-foreground font-normal mr-1">(اسم الكاشير أو المسؤول)</span>
+                      </Label>
+                      <Input
+                        placeholder="اسم المستلم"
+                        value={p.received_by_name}
+                        onChange={(e) => updatePayment(idx, { received_by_name: e.target.value })}
+                      />
+                    </div>
                   </div>
                 ))}
                 <div className={`text-xs flex justify-between p-2 rounded ${paymentsValid ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
@@ -617,6 +674,7 @@ export default function NewSale() {
               </div>
             )}
           </div>
+
 
           {/* Credit / installments */}
           <div className="card-elevated p-5">

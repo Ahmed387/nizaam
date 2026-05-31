@@ -40,18 +40,31 @@ export async function loadTransferFees(force = false): Promise<TransferFee[]> {
   return _feesCache;
 }
 
-/** Full list of payment methods (cash + all rows in transfer_fees). */
+/** Full list of payment methods (cash + built-ins + custom rows in transfer_fees). */
 export async function loadAllPaymentMethods(force = false): Promise<PaymentMethodOption[]> {
   const fees = await loadTransferFees(force);
   const list: PaymentMethodOption[] = [
     { value: "cash", label: BUILTIN_LABELS.cash, is_builtin: true, is_enabled: true },
   ];
+  // Built-ins always appear (enabled by default) even if no DB row exists yet
+  const builtins: BuiltinPaymentMethod[] = ["vodafone", "instapay", "bank"];
+  for (const b of builtins) {
+    const f = fees.find((x) => x.payment_method === b);
+    list.push({
+      value: b,
+      label: f?.label || BUILTIN_LABELS[b],
+      is_builtin: true,
+      is_enabled: f ? f.is_enabled !== false : true,
+      fee_type: f?.fee_type,
+      fee_value: f ? Number(f.fee_value) || 0 : 0,
+    });
+  }
   for (const f of fees) {
-    const isBuiltin = (["vodafone", "instapay", "bank"] as string[]).includes(f.payment_method);
+    if ((builtins as string[]).includes(f.payment_method)) continue;
     list.push({
       value: f.payment_method,
-      label: f.label || BUILTIN_LABELS[f.payment_method as BuiltinPaymentMethod] || f.payment_method,
-      is_builtin: isBuiltin,
+      label: f.label || f.payment_method,
+      is_builtin: false,
       is_enabled: f.is_enabled !== false,
       fee_type: f.fee_type,
       fee_value: Number(f.fee_value) || 0,
