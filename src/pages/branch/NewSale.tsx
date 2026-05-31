@@ -251,17 +251,48 @@ export default function NewSale() {
     [payments]
   );
   const creditRemaining = Math.max(0, total - paymentsSum);
-  const paymentsValid = creditMode
-    ? paymentsSum <= total + 0.01
-    : (payments.length === 0 || Math.abs(paymentsSum - total) < 0.01);
+  // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
+  const isCredit = creditMode || creditRemaining > 0.01;
+  const paymentsValid = paymentsSum <= total + 0.01;
+
+  // Auto-rescale scheduled installments whenever the credit remainder changes,
+  // so partial payments by any method update the installment plan automatically.
+  useEffect(() => {
+    if (!isCredit || scheduleType !== "scheduled" || installments.length === 0) return;
+    const sum = installments.reduce((s, r) => s + Number(r.amount || 0), 0);
+    if (Math.abs(sum - creditRemaining) < 0.01) return;
+    if (sum <= 0) {
+      const each = Math.round((creditRemaining / installments.length) * 100) / 100;
+      const next = installments.map((r, i) => ({
+        ...r,
+        amount: i === installments.length - 1
+          ? Math.round((creditRemaining - each * (installments.length - 1)) * 100) / 100
+          : each,
+      }));
+      setInstallments(next);
+    } else {
+      const ratio = creditRemaining / sum;
+      let acc = 0;
+      const next = installments.map((r, i) => {
+        if (i === installments.length - 1) {
+          return { ...r, amount: Math.max(0, Math.round((creditRemaining - acc) * 100) / 100) };
+        }
+        const v = Math.max(0, Math.round(Number(r.amount || 0) * ratio * 100) / 100);
+        acc += v;
+        return { ...r, amount: v };
+      });
+      setInstallments(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditRemaining, isCredit, scheduleType]);
 
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
-    if (!paymentsValid) return toast.error(creditMode ? `المدفوع أكبر من الإجمالي` : `مجموع طرق الدفع (${formatEGP(paymentsSum)}) لا يساوي الإجمالي (${formatEGP(total)})`);
-    if (creditMode && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل بيع بالآجل");
+    if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
+    if (isCredit && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل المتبقي كآجل");
 
-    if (creditMode && scheduleType === "scheduled" && creditRemaining > 0) {
+    if (isCredit && scheduleType === "scheduled" && creditRemaining > 0) {
       const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
     }
