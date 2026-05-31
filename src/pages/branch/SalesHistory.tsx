@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PermGate } from "@/components/ProtectedRoute";
@@ -8,25 +8,27 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Plus, RotateCcw, BookmarkPlus } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export default function SalesHistory() {
   const { id } = useParams<{ id: string }>();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    (async () => {
-      const { data } = await supabase.from("invoices").select("*, customers(name)").eq("branch_id", id).order("created_at", { ascending: false });
-      const cashierIds = [...new Set((data ?? []).map((r: any) => r.cashier_id).filter(Boolean))];
-      const { data: cashiers } = cashierIds.length
-        ? await supabase.from("profiles").select("id, name").in("id", cashierIds)
-        : { data: [] as any[] };
-      const cashierMap = new Map((cashiers ?? []).map((c: any) => [c.id, c.name]));
-      setRows((data ?? []).map((r: any) => ({ ...r, cashier_name: cashierMap.get(r.cashier_id) ?? "—" })));
-      setLoading(false);
-    })();
+    const { data } = await supabase.from("invoices").select("*, customers(name)").eq("branch_id", id).order("created_at", { ascending: false });
+    const cashierIds = [...new Set((data ?? []).map((r: any) => r.cashier_id).filter(Boolean))];
+    const { data: cashiers } = cashierIds.length
+      ? await supabase.from("profiles").select("id, name").in("id", cashierIds)
+      : { data: [] as any[] };
+    const cashierMap = new Map((cashiers ?? []).map((c: any) => [c.id, c.name]));
+    setRows((data ?? []).map((r: any) => ({ ...r, cashier_name: cashierMap.get(r.cashier_id) ?? "—" })));
+    setLoading(false);
   }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(["invoices"], load);
 
   return (
     <BranchLayout>
