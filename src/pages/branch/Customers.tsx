@@ -27,6 +27,7 @@ export default function Customers({ embedded = false }: { embedded?: boolean } =
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["customers"], load);
 
   const submit = async () => {
     if (!form.name) return toast.error("الاسم مطلوب");
