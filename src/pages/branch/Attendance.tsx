@@ -67,6 +67,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId, date]);
+  useRealtimeRefresh(["attendance", "employees", "user_presence"], load);
 
   const fmtTime = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "—";
   const isToday = (iso?: string | null) => iso ? new Date(iso).toISOString().slice(0, 10) === date : false;
