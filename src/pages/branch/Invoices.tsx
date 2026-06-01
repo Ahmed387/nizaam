@@ -526,6 +526,25 @@ export default function Invoices() {
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
       />
+
+      <AlertDialog open={!!delTarget} onOpenChange={(o) => !o && setDelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">حذف الفاتورة نهائياً</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-1">
+              <div>هتمسح الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> نهائياً.</div>
+              <div>• كل البضاعة هترجع للمخزن • الفلوس هتتشال من الخزنة • الأقساط هتتمسح</div>
+              <div className="text-destructive font-semibold">العملية دي مش بترجع.</div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteInvoice} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {delBusy ? "جاري الحذف..." : "احذف نهائياً"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BranchLayout>
   );
 }
