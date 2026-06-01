@@ -60,7 +60,21 @@ const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin:
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { branches } = useAuth();
+  const { branches, isAdmin, hasRole } = useAuth();
+  const [delTarget, setDelTarget] = useState<any>(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const canDeleteInvoice = isAdmin || hasRole("branch_manager");
+
+  const handleDeleteInvoice = async () => {
+    if (!delTarget) return;
+    setDelBusy(true);
+    const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: delTarget.id });
+    setDelBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(`تم حذف الفاتورة ${delTarget.invoice_number} نهائياً`);
+    setDelTarget(null);
+    load();
+  };
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
