@@ -60,6 +60,12 @@ export default function InvoiceView() {
         setItems(its ?? []);
         const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
         setPayments(pays ?? []);
+        const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
+        setPlan(pp ?? null);
+        if (pp?.id) {
+          const { data: ins } = await supabase.from("payment_installments").select("*").eq("payment_plan_id", pp.id).order("installment_number");
+          setInstallments(ins ?? []);
+        }
         const { data: b } = await supabase.from("branches").select("*").eq("id", id).maybeSingle();
         setBranch(b);
       } catch (err: any) {
