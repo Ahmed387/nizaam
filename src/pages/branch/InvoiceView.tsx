@@ -147,6 +147,7 @@ export default function InvoiceView() {
         actions={
           <div className="flex gap-2 no-print flex-wrap">
             {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء</Button>}
+            {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
             {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
             <Button variant="outline" onClick={() => window.print()}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
             <DropdownMenu>
