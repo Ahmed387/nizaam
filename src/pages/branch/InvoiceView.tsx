@@ -23,6 +23,8 @@ export default function InvoiceView() {
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [installments, setInstallments] = useState<any[]>([]);
+  const [plan, setPlan] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
