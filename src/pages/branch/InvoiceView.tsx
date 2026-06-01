@@ -99,6 +99,7 @@ export default function InvoiceView() {
 
   const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
   const canDelete = isAdmin || hasRole("branch_manager");
+  const canEdit = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
 
   const hardDelete = async () => {
     setDeleting(true);
