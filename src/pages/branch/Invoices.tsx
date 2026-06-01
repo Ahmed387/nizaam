@@ -229,6 +229,20 @@ export default function Invoices() {
           { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / إدارة" onClick={() => nav(`${base}/sales/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                {canDeleteInvoice && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي" onClick={() => setDelTarget(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/sales/${r.id}`),
       };
