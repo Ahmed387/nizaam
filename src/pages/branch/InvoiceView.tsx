@@ -31,6 +31,7 @@ export default function InvoiceView() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
