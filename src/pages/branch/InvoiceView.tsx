@@ -23,6 +23,8 @@ export default function InvoiceView() {
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [installments, setInstallments] = useState<any[]>([]);
+  const [plan, setPlan] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -58,6 +60,12 @@ export default function InvoiceView() {
         setItems(its ?? []);
         const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
         setPayments(pays ?? []);
+        const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
+        setPlan(pp ?? null);
+        if (pp?.id) {
+          const { data: ins } = await supabase.from("payment_installments").select("*").eq("payment_plan_id", pp.id).order("installment_number");
+          setInstallments(ins ?? []);
+        }
         const { data: b } = await supabase.from("branches").select("*").eq("id", id).maybeSingle();
         setBranch(b);
       } catch (err: any) {
@@ -278,6 +286,80 @@ export default function InvoiceView() {
             </div>
           </div>
         )}
+
+        {/* Payment summary: total / paid / remaining + installments schedule */}
+        {(() => {
+          const totalDue = Number(inv.total ?? 0);
+          const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          const remaining = Math.max(totalDue - paidNow, 0);
+          if (totalDue <= 0) return null;
+          return (
+            <div className="mt-4 p-4 rounded-lg border-2 border-primary/30 bg-primary/5">
+              <div className="font-bold mb-3 text-primary">💳 ملخص الدفع</div>
+              <div className="grid grid-cols-3 gap-3 text-center text-sm mb-3">
+                <div className="bg-card rounded p-2 border border-border">
+                  <div className="text-xs text-muted-foreground">إجمالي الفاتورة</div>
+                  <div className="font-extrabold text-lg">{formatEGP(totalDue)}</div>
+                </div>
+                <div className="bg-card rounded p-2 border border-success/40">
+                  <div className="text-xs text-muted-foreground">المدفوع الآن</div>
+                  <div className="font-extrabold text-lg text-success">{formatEGP(paidNow)}</div>
+                </div>
+                <div className="bg-card rounded p-2 border border-warning/40">
+                  <div className="text-xs text-muted-foreground">المتبقي (آجل)</div>
+                  <div className="font-extrabold text-lg text-warning">{formatEGP(remaining)}</div>
+                </div>
+              </div>
+              {installments.length > 0 && (
+                <div>
+                  <div className="text-sm font-bold mb-2">
+                    📅 جدول الأقساط — {installments.length} قسط على مدار{" "}
+                    {(() => {
+                      const first = new Date(installments[0].due_date);
+                      const last = new Date(installments[installments.length - 1].due_date);
+                      const months = Math.max(1, Math.round((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24 * 30)) + 1);
+                      return `${months} شهر`;
+                    })()}
+                  </div>
+                  <table className="w-full text-xs border border-border">
+                    <thead>
+                      <tr className="bg-surface-2">
+                        <th className="p-2 text-right">#</th>
+                        <th className="p-2 text-right">تاريخ الاستحقاق</th>
+                        <th className="p-2 text-center">المبلغ</th>
+                        <th className="p-2 text-center">المسدد</th>
+                        <th className="p-2 text-left">الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {installments.map((ins) => {
+                        const st = ins.status === "paid" ? { label: "مدفوع", cls: "text-success" }
+                          : ins.status === "partial" ? { label: "جزئي", cls: "text-warning" }
+                          : { label: "مستحق", cls: "text-muted-foreground" };
+                        return (
+                          <tr key={ins.id} className="border-t border-border">
+                            <td className="p-2 font-mono">{ins.installment_number}</td>
+                            <td className="p-2">{formatDateTime(ins.due_date).split(" ")[0]}</td>
+                            <td className="p-2 text-center font-bold">{formatEGP(ins.amount)}</td>
+                            <td className="p-2 text-center">{formatEGP(ins.paid_amount ?? 0)}</td>
+                            <td className={`p-2 text-left font-semibold ${st.cls}`}>{st.label}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {installments.length === 0 && remaining > 0 && (
+                <div className="text-xs text-muted-foreground text-center">
+                  المبلغ المتبقي مسجل كآجل بدون جدول أقساط محدد.
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+
 
         {inv.status === "cancelled" && (
           <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-center text-destructive font-bold">

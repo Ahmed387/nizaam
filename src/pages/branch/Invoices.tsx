@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
-import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X } from "lucide-react";
+import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Trash2 } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
+import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote" | "adjustment";
 
@@ -58,7 +60,21 @@ const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin:
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { branches } = useAuth();
+  const { branches, isAdmin, hasRole } = useAuth();
+  const [delTarget, setDelTarget] = useState<any>(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const canDeleteInvoice = isAdmin || hasRole("branch_manager");
+
+  const handleDeleteInvoice = async () => {
+    if (!delTarget) return;
+    setDelBusy(true);
+    const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: delTarget.id });
+    setDelBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(`تم حذف الفاتورة ${delTarget.invoice_number} نهائياً`);
+    setDelTarget(null);
+    load();
+  };
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
@@ -213,6 +229,20 @@ export default function Invoices() {
           { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / إدارة" onClick={() => nav(`${base}/sales/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                {canDeleteInvoice && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي" onClick={() => setDelTarget(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/sales/${r.id}`),
       };
@@ -496,6 +526,25 @@ export default function Invoices() {
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
       />
+
+      <AlertDialog open={!!delTarget} onOpenChange={(o) => !o && setDelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">حذف الفاتورة نهائياً</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-1">
+              <div>هتمسح الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> نهائياً.</div>
+              <div>• كل البضاعة هترجع للمخزن • الفلوس هتتشال من الخزنة • الأقساط هتتمسح</div>
+              <div className="text-destructive font-semibold">العملية دي مش بترجع.</div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteInvoice} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {delBusy ? "جاري الحذف..." : "احذف نهائياً"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BranchLayout>
   );
 }
