@@ -412,6 +412,14 @@ export default function InvoiceView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EditInvoiceDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        invoice={inv}
+        branchId={id!}
+        onSaved={() => location.reload()}
+      />
     </BranchLayout>
   );
 }
