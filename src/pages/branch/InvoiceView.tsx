@@ -10,8 +10,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Printer, X, FileDown, Receipt, Bluetooth, Trash2 } from "lucide-react";
+import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil } from "lucide-react";
 import { printThermalReceipt, buildESCPOSReceipt, printRawESCPOS, isWebBluetoothSupported, getBluetoothConnection } from "@/lib/thermalPrinter";
+import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -30,6 +31,7 @@ export default function InvoiceView() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +99,7 @@ export default function InvoiceView() {
 
   const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
   const canDelete = isAdmin || hasRole("branch_manager");
+  const canEdit = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
 
   const hardDelete = async () => {
     setDeleting(true);
@@ -144,6 +147,7 @@ export default function InvoiceView() {
         actions={
           <div className="flex gap-2 no-print flex-wrap">
             {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء</Button>}
+            {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
             {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
             <Button variant="outline" onClick={() => window.print()}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
             <DropdownMenu>
@@ -408,6 +412,14 @@ export default function InvoiceView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EditInvoiceDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        invoice={inv}
+        branchId={id!}
+        onSaved={() => location.reload()}
+      />
     </BranchLayout>
   );
 }
