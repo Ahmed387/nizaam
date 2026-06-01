@@ -35,7 +35,9 @@ export function EditInvoiceDialog({
   const [items, setItems] = useState<Item[]>([]);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [openSuggestIdx, setOpenSuggestIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open || !invoice?.id) return;
@@ -54,8 +56,12 @@ export function EditInvoiceDialog({
         }))
       );
       setCustomerId(invoice.customer_id ?? null);
-      const { data: c } = await supabase.from("customers").select("id, name").eq("branch_id", branchId).order("name");
+      const [{ data: c }, { data: p }] = await Promise.all([
+        supabase.from("customers").select("id, name").eq("branch_id", branchId).order("name"),
+        supabase.from("products").select("id, name, sku, quantity, cost_price, selling_price, market_price").eq("branch_id", branchId).order("name"),
+      ]);
       setCustomers(c ?? []);
+      setProducts(p ?? []);
     })();
   }, [open, invoice?.id, branchId]);
 
@@ -64,11 +70,30 @@ export function EditInvoiceDialog({
 
   const removeItem = (idx: number) => setItems((arr) => arr.filter((_, i) => i !== idx));
 
-  const addBlankItem = () =>
+  const addBlankItem = () => {
     setItems((arr) => [
       ...arr,
       { product_id: null, product_name: "", quantity: 1, cost_price: 0, selling_price: 0, market_price: 0, line_discount: 0 },
     ]);
+    setOpenSuggestIdx(items.length);
+  };
+
+  const pickProduct = (idx: number, p: any) => {
+    updateItem(idx, {
+      product_id: p.id,
+      product_name: p.name,
+      cost_price: Number(p.cost_price ?? 0),
+      selling_price: Number(p.selling_price ?? 0),
+      market_price: Number(p.market_price ?? 0),
+    });
+    setOpenSuggestIdx(null);
+  };
+
+  const suggestionsFor = (q: string) => {
+    const s = q.trim().toLowerCase();
+    if (!s) return products.slice(0, 8);
+    return products.filter((p) => `${p.name} ${p.sku ?? ""}`.toLowerCase().includes(s)).slice(0, 8);
+  };
 
   const subtotal = items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
   const lineDiscounts = items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
