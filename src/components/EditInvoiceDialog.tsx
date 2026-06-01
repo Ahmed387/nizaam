@@ -160,8 +160,43 @@ export function EditInvoiceDialog({
                 <tbody>
                   {items.map((it, idx) => (
                     <tr key={idx} className="border-t border-border">
-                      <td className="p-1">
-                        <Input value={it.product_name} onChange={(e) => updateItem(idx, { product_name: e.target.value })} className="h-8" />
+                      <td className="p-1 relative">
+                        <Input
+                          value={it.product_name}
+                          onChange={(e) => {
+                            updateItem(idx, { product_name: e.target.value, product_id: null });
+                            setOpenSuggestIdx(idx);
+                          }}
+                          onFocus={() => setOpenSuggestIdx(idx)}
+                          onBlur={() => setTimeout(() => setOpenSuggestIdx((cur) => (cur === idx ? null : cur)), 150)}
+                          placeholder="ابحث باسم المنتج أو SKU..."
+                          className={`h-8 ${!it.product_id ? "border-warning" : ""}`}
+                        />
+                        {openSuggestIdx === idx && (
+                          <div className="absolute z-50 mt-1 w-72 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg right-0">
+                            {suggestionsFor(it.product_name).length === 0 ? (
+                              <div className="p-2 text-xs text-muted-foreground text-center">لا توجد منتجات مطابقة في المخزن</div>
+                            ) : (
+                              suggestionsFor(it.product_name).map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onMouseDown={(e) => { e.preventDefault(); pickProduct(idx, p); }}
+                                  className="w-full text-right p-2 hover:bg-muted text-xs border-b border-border last:border-0"
+                                >
+                                  <div className="font-semibold">{p.name}</div>
+                                  <div className="text-[10px] text-muted-foreground flex justify-between">
+                                    <span>SKU: {p.sku ?? "—"}</span>
+                                    <span>متاح: {p.quantity} | {formatEGP(p.selling_price)}</span>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                        {!it.product_id && it.product_name && (
+                          <div className="text-[10px] text-warning mt-0.5">⚠️ منتج غير مربوط بالمخزون</div>
+                        )}
                       </td>
                       <td className="p-1">
                         <Input type="number" min="1" value={it.quantity} onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) || 0 })} className="h-8 text-center" />
