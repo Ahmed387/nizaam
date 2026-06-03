@@ -133,6 +133,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
         p_payment_method: pm.method,
         p_reference_number: pm.reference_number ?? null,
         p_transferred_to: pm.transfer_to_account ?? null,
+        p_transferred_from: pm.transfer_from_account ?? null,
         p_fee_amount: pm.fee_amount ?? 0,
         p_party_type: form.party_type || null,
         p_party_id: form.party_id || null,
@@ -190,13 +191,13 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
             </div>
           </div>
 
-          <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} />
+          <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom />
 
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label>الجهة</Label>
+              <Label>{type === "receipt" ? "نوع الحساب" : "الجهة"}</Label>
               <Select value={form.party_type} onValueChange={(v) => setForm({ ...form, party_type: v as any })}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر النوع" /></SelectTrigger>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder={type === "receipt" ? "اختر نوع الحساب" : "اختر النوع"} /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).map((k) => (
                     <SelectItem key={k} value={k}>{PARTY_TYPE_LABEL[k]}</SelectItem>
@@ -205,7 +206,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
               </Select>
             </div>
             <div>
-              <Label>{form.party_type && form.party_type !== "other" ? "اختر الجهة" : "اسم الجهة"}</Label>
+              <Label>{form.party_type && form.party_type !== "other" ? (type === "receipt" ? "اختر الحساب" : "اختر الجهة") : (type === "receipt" ? "اسم الحساب" : "اسم الجهة")}</Label>
               {form.party_type && form.party_type !== "other" ? (
                 <Popover open={partyOpen} onOpenChange={setPartyOpen}>
                   <PopoverTrigger asChild>

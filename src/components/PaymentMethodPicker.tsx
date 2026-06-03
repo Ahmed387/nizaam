@@ -17,6 +17,7 @@ export interface PaymentMethodValue {
   method: PaymentMethod;
   reference_number?: string;
   transfer_to_account?: string;
+  transfer_from_account?: string;
   received_by_name?: string;
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
@@ -29,6 +30,8 @@ interface Props {
   onChange: (v: PaymentMethodValue) => void;
   /** Show "received by" field for incoming payments */
   showReceivedBy?: boolean;
+  /** Show "transferred from account" field (source account number) */
+  showTransferFrom?: boolean;
   /** Allow toggling who pays the fee (customer vs company) */
   showFeeBearerToggle?: boolean;
   feeOnCustomer?: boolean;
@@ -43,6 +46,7 @@ export function PaymentMethodPicker({
   value,
   onChange,
   showReceivedBy = false,
+  showTransferFrom = false,
   showFeeBearerToggle = false,
   feeOnCustomer = false,
   onFeeBearerChange,
@@ -110,16 +114,31 @@ export function PaymentMethodPicker({
               />
             </div>
             <div>
-              <Label>{methodAccountLabel(value.method)}</Label>
+              <Label>{showTransferFrom ? `${methodAccountLabel(value.method)} (المُحوَّل إليه)` : methodAccountLabel(value.method)}</Label>
               <Input
                 disabled={disabled}
                 dir="ltr"
                 className="text-right mt-1.5"
                 value={value.transfer_to_account ?? ""}
                 onChange={(e) => onChange({ ...value, transfer_to_account: e.target.value })}
+                placeholder="حسابنا اللي وصل عليه"
               />
             </div>
           </div>
+
+          {showTransferFrom && (
+            <div>
+              <Label>{methodAccountLabel(value.method)} (المُحوَّل منه)</Label>
+              <Input
+                disabled={disabled}
+                dir="ltr"
+                className="text-right mt-1.5"
+                value={value.transfer_from_account ?? ""}
+                onChange={(e) => onChange({ ...value, transfer_from_account: e.target.value })}
+                placeholder="حساب العميل/المرسِل"
+              />
+            </div>
+          )}
 
           {value.fee_amount > 0 && (
             <div className="bg-warning/10 border border-warning/30 rounded-md p-2.5 text-sm space-y-1">
