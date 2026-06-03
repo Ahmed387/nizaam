@@ -2319,6 +2319,7 @@ export type Database = {
           reference_id: string | null
           reference_number: string | null
           tenant_id: string | null
+          transfer_from_account: string | null
           transfer_to_account: string | null
           type: Database["public"]["Enums"]["treasury_type"]
         }
@@ -2335,6 +2336,7 @@ export type Database = {
           reference_id?: string | null
           reference_number?: string | null
           tenant_id?: string | null
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           type: Database["public"]["Enums"]["treasury_type"]
         }
@@ -2351,6 +2353,7 @@ export type Database = {
           reference_id?: string | null
           reference_number?: string | null
           tenant_id?: string | null
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           type?: Database["public"]["Enums"]["treasury_type"]
         }
@@ -2616,6 +2619,7 @@ export type Database = {
           source_type: string | null
           status: Database["public"]["Enums"]["voucher_status"]
           tenant_id: string
+          transferred_from: string | null
           transferred_to: string | null
           treasury_id: string | null
           type: Database["public"]["Enums"]["voucher_type"]
@@ -2645,6 +2649,7 @@ export type Database = {
           source_type?: string | null
           status?: Database["public"]["Enums"]["voucher_status"]
           tenant_id: string
+          transferred_from?: string | null
           transferred_to?: string | null
           treasury_id?: string | null
           type: Database["public"]["Enums"]["voucher_type"]
@@ -2674,6 +2679,7 @@ export type Database = {
           source_type?: string | null
           status?: Database["public"]["Enums"]["voucher_status"]
           tenant_id?: string
+          transferred_from?: string | null
           transferred_to?: string | null
           treasury_id?: string | null
           type?: Database["public"]["Enums"]["voucher_type"]
@@ -2794,24 +2800,44 @@ export type Database = {
         Returns: string
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
-      create_manual_voucher: {
-        Args: {
-          p_amount: number
-          p_branch_id: string
-          p_category_id: string
-          p_description?: string
-          p_fee_amount?: number
-          p_party_id?: string
-          p_party_name?: string
-          p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
-          p_payment_method: string
-          p_reference_number?: string
-          p_transferred_to?: string
-          p_type: Database["public"]["Enums"]["voucher_type"]
-          p_voucher_date?: string
-        }
-        Returns: string
-      }
+      create_manual_voucher:
+        | {
+            Args: {
+              p_amount: number
+              p_branch_id: string
+              p_category_id: string
+              p_description?: string
+              p_fee_amount?: number
+              p_party_id?: string
+              p_party_name?: string
+              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+              p_payment_method: string
+              p_reference_number?: string
+              p_transferred_to?: string
+              p_type: Database["public"]["Enums"]["voucher_type"]
+              p_voucher_date?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_branch_id: string
+              p_category_id: string
+              p_description?: string
+              p_fee_amount?: number
+              p_party_id?: string
+              p_party_name?: string
+              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+              p_payment_method: string
+              p_reference_number?: string
+              p_transferred_from?: string
+              p_transferred_to?: string
+              p_type: Database["public"]["Enums"]["voucher_type"]
+              p_voucher_date?: string
+            }
+            Returns: string
+          }
       create_pre_order:
         | {
             Args: {
