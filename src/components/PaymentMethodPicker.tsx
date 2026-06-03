@@ -17,6 +17,7 @@ export interface PaymentMethodValue {
   method: PaymentMethod;
   reference_number?: string;
   transfer_to_account?: string;
+  transfer_from_account?: string;
   received_by_name?: string;
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
@@ -29,6 +30,8 @@ interface Props {
   onChange: (v: PaymentMethodValue) => void;
   /** Show "received by" field for incoming payments */
   showReceivedBy?: boolean;
+  /** Show "transferred from account" field (source account number) */
+  showTransferFrom?: boolean;
   /** Allow toggling who pays the fee (customer vs company) */
   showFeeBearerToggle?: boolean;
   feeOnCustomer?: boolean;
