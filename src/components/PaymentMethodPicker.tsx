@@ -46,6 +46,7 @@ export function PaymentMethodPicker({
   value,
   onChange,
   showReceivedBy = false,
+  showTransferFrom = false,
   showFeeBearerToggle = false,
   feeOnCustomer = false,
   onFeeBearerChange,
