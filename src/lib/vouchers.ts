@@ -32,6 +32,7 @@ export interface Voucher {
   fee_amount: number;
   reference_number: string | null;
   transferred_to: string | null;
+  transferred_from: string | null;
   party_type: VoucherPartyType | null;
   party_id: string | null;
   party_name: string | null;
