@@ -105,7 +105,7 @@ export default function Inventory() {
       cost_price: Number(form.cost_price) || 0,
       selling_price: Number(form.selling_price) || 0,
       market_price: Number(form.market_price) || 0,
-      low_stock_alert: parseInt(form.low_stock_alert) || 5,
+      low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
       quantity: parseInt(form.quantity) || 0,
       image: form.image || null,
       branch_id: branchId!,
