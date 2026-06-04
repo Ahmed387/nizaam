@@ -143,17 +143,17 @@ export default function AllSuppliers() {
   const filtered = useMemo(() => enriched.filter((s) => {
     if (search && !s.name.includes(search) && !(s.contact_person ?? "").includes(search)) return false;
     const bal = Number(s.balance) || 0;
-    if (balanceFilter === "owed_to_us" && bal >= 0) return false; // المورد مدين لنا (دفعنا أكتر) → balance سالب
-    if (balanceFilter === "owed_by_us" && bal <= 0) return false; // إحنا مدينين (لسه ندفع) → balance موجب
+    // الاتفاقية الجديدة: + = لنا (مرتجع/رصيد لصالحنا)، − = علينا للمورد
+    if (balanceFilter === "owed_to_us" && bal <= 0) return false;
+    if (balanceFilter === "owed_by_us" && bal >= 0) return false;
     if (balanceFilter === "settled" && bal !== 0) return false;
     if (branchFilter !== "all" && !s.branchIds.includes(branchFilter)) return false;
     return true;
   }), [enriched, search, balanceFilter, branchFilter]);
 
-  // إحصائيات إجمالية
   const stats = useMemo(() => {
-    const owedByUs = enriched.filter((s) => Number(s.balance) > 0).reduce((a, b) => a + Number(b.balance), 0);
-    const owedToUs = enriched.filter((s) => Number(s.balance) < 0).reduce((a, b) => a + Math.abs(Number(b.balance)), 0);
+    const owedByUs = enriched.filter((s) => Number(s.balance) < 0).reduce((a, b) => a + Math.abs(Number(b.balance)), 0);
+    const owedToUs = enriched.filter((s) => Number(s.balance) > 0).reduce((a, b) => a + Number(b.balance), 0);
     const totalPurchases = enriched.reduce((a, b) => a + b.totalShipments, 0);
     const totalPaid = enriched.reduce((a, b) => a + b.totalPayments, 0);
     return { owedByUs, owedToUs, totalPurchases, totalPaid, count: enriched.length };
