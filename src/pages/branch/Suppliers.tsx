@@ -24,15 +24,18 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("contacts").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("contacts").select("*")
+      .in("type", ["supplier", "both"])
+      .order("created_at", { ascending: false });
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  useRealtimeRefresh(["suppliers"], load);
+  useRealtimeRefresh(["contacts"], load);
 
   const submit = async () => {
     if (!form.name) return toast.error("اسم الشركة مطلوب");
-    await supabase.from("contacts").insert(form);
+    await supabase.from("contacts").insert({ ...form, type: "supplier" });
     toast.success("تمت الإضافة");
     setOpen(false); setForm({ name: "", contact_person: "", phone: "", address: "", notes: "" }); load();
   };
@@ -47,11 +50,14 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
           { key: "name", header: "الشركة", render: (r: any) => <span className="font-semibold">{r.name}</span> },
           { key: "contact_person", header: "المسؤول", render: (r: any) => r.contact_person ?? "—" },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-          { key: "balance", header: "الرصيد", render: (r: any) => (
-            <span className={Number(r.balance) > 0 ? "text-destructive font-bold" : "text-success font-bold"}>
-              {formatEGP(r.balance)} {Number(r.balance) > 0 ? "(مدين)" : "(دائن)"}
-            </span>
-          )},
+          { key: "balance", header: "الرصيد", render: (r: any) => {
+            const b = Number(r.balance);
+            if (b === 0) return <span className="text-muted-foreground">—</span>;
+            // + = لينا (مرتجع متبقي)، − = علينا للمورد
+            return b > 0
+              ? <span className="text-success font-bold">{formatEGP(b)} (لنا)</span>
+              : <span className="text-destructive font-bold">{formatEGP(Math.abs(b))} (علينا)</span>;
+          }},
         ]} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
