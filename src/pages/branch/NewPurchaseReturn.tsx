@@ -63,6 +63,7 @@ export default function NewPurchaseReturn() {
   // Print dialog
   const [printOpen, setPrintOpen] = useState(false);
   const [savedNumber, setSavedNumber] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
