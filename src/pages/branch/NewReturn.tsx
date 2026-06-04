@@ -9,13 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Search, Plus, Minus, CheckSquare, Square, Printer, History, AlertTriangle } from "lucide-react";
+import { Loader2, Search, Plus, Minus, CheckSquare, Square, Printer, History, AlertTriangle, Camera, Save } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 
 const COMMON_REASONS = [
   "منتج معيب / تالف",
