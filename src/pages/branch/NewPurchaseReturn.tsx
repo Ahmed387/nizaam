@@ -82,7 +82,7 @@ export default function NewPurchaseReturn() {
     loadProducts();
     loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
   }, [branchId, loadSuppliers, loadProducts]);
-  useRealtimeRefresh(["suppliers"], loadSuppliers);
+  useRealtimeRefresh(["contacts"], loadSuppliers);
   useRealtimeRefresh(["products"], loadProducts);
 
   const openShipments = async () => {
