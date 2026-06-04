@@ -79,6 +79,7 @@ async function callAI(messages: any[], apiKey: string) {
     body: JSON.stringify({
       model: "google/gemini-2.5-flash-lite",
       messages,
+      temperature: 0,
       tools: [TOOL],
       tool_choice: { type: "function", function: { name: "save_price_list" } },
     }),
