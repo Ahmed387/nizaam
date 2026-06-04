@@ -963,6 +963,7 @@ export type Database = {
         Row: {
           amount: number
           branch_id: string
+          contact_id: string | null
           created_at: string
           created_by: string
           direction: string
@@ -983,6 +984,7 @@ export type Database = {
         Insert: {
           amount: number
           branch_id: string
+          contact_id?: string | null
           created_at?: string
           created_by: string
           direction: string
@@ -1003,6 +1005,7 @@ export type Database = {
         Update: {
           amount?: number
           branch_id?: string
+          contact_id?: string | null
           created_at?: string
           created_by?: string
           direction?: string
@@ -1021,6 +1024,13 @@ export type Database = {
           treasury_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_transactions_installment_id_fkey"
             columns: ["installment_id"]
