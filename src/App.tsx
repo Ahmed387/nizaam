@@ -6,6 +6,21 @@ function RedirectToTreasury() {
   return <Navigate to={`/branch/${id}/treasury`} replace />;
 }
 
+function RedirectCustomerToContact() {
+  const { id, contactId } = useParams();
+  return <Navigate to={`/branch/${id}/contacts/${contactId}`} replace />;
+}
+
+function RedirectSupplierToContact() {
+  const { id, contactId } = useParams();
+  return <Navigate to={`/branch/${id}/contacts/${contactId}`} replace />;
+}
+
+function AdminRedirectToContact() {
+  const { contactId } = useParams();
+  return <Navigate to={`/admin/contacts/${contactId}`} replace />;
+}
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -52,10 +67,7 @@ import InvoiceView from "./pages/branch/InvoiceView";
 import Inventory from "./pages/branch/Inventory";
 import StockMovements from "./pages/branch/StockMovements";
 import PrintBarcodes from "./pages/branch/PrintBarcodes";
-import Customers from "./pages/branch/Customers";
 import Contacts from "./pages/branch/Contacts";
-import CustomerProfile from "./pages/branch/CustomerProfile";
-import Suppliers from "./pages/branch/Suppliers";
 import SupplierProfile from "./pages/branch/SupplierProfile";
 import Treasury from "./pages/branch/Treasury";
 import Employees from "./pages/branch/Employees";
@@ -125,8 +137,8 @@ const App = () => (
             <Route path="/admin/pre-orders" element={<ProtectedRoute adminOnly><AllPreOrders /></ProtectedRoute>} />
             <Route path="/admin/contacts" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
             <Route path="/admin/suppliers" element={<Navigate to="/admin/contacts?type=supplier" replace />} />
-            <Route path="/admin/contacts/:supplierId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
-            <Route path="/admin/suppliers/:supplierId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/admin/contacts/:contactId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/admin/suppliers/:contactId" element={<AdminRedirectToContact />} />
             <Route path="/admin/employees" element={<ProtectedRoute roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
@@ -176,10 +188,11 @@ const App = () => (
             <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute perm="inventory.view"><StockMovements /></ProtectedRoute>} />
             <Route path="/branch/:id/transfers" element={<ProtectedRoute perm="transfers.view"><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts" element={<ProtectedRoute perm="customers.view"><Contacts /></ProtectedRoute>} />
+            <Route path="/branch/:id/contacts/:contactId" element={<ProtectedRoute perm="customers.view"><SupplierProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customer" replace />} />
-            <Route path="/branch/:id/customers/:customerId" element={<ProtectedRoute perm="customers.view"><CustomerProfile /></ProtectedRoute>} />
+            <Route path="/branch/:id/customers/:contactId" element={<RedirectCustomerToContact />} />
             <Route path="/branch/:id/suppliers" element={<Navigate to="../contacts?tab=supplier" replace />} />
-            <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute perm="suppliers.view"><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/branch/:id/suppliers/:contactId" element={<RedirectSupplierToContact />} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute perm="employees.view"><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute perm="advances.view"><AdvanceRequests /></ProtectedRoute>} />
 

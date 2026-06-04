@@ -53,12 +53,14 @@ import {
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
 export default function SupplierProfile() {
-  const { id: branchId, supplierId } = useParams<{ id: string; supplierId: string }>();
+  const params = useParams<{ id: string; supplierId: string; contactId: string }>();
+  const branchId = params.id;
+  const supplierId = params.supplierId || params.contactId;
   const nav = useNavigate();
   const { user, profile, tenantId, branches, isAdmin } = useAuth();
   const isAdminView = !branchId;
   const Layout = isAdminView ? AdminLayout : BranchLayout;
-  const backTo = isAdminView ? `/admin/suppliers` : `/branch/${branchId}/suppliers`;
+  const backTo = isAdminView ? `/admin/contacts` : `/branch/${branchId}/contacts`;
   const [supplier, setSupplier] = useState<any>(null);
   const [shipments, setShipments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -344,14 +346,14 @@ export default function SupplierProfile() {
                 </Button>
               </>
             )}
-            {supplier && supplier.type === "supplier" && !isAdminView && (
+            {supplier && supplier.type !== "both" && (
               <Button variant="outline" onClick={async () => {
                 const { error } = await supabase.from("contacts").update({ type: "both" } as any).eq("id", supplierId!);
                 if (error) return toast.error(error.message);
-                toast.success("تمت إضافته كعميل أيضاً");
+                toast.success(supplier.type === "supplier" ? "تمت إضافته كعميل أيضاً" : "تمت إضافته كمورد أيضاً");
                 load();
               }}>
-                <Receipt className="w-4 h-4 ml-1" /> أيضاً عميل
+                <Receipt className="w-4 h-4 ml-1" /> {supplier.type === "supplier" ? "أيضاً عميل" : "أيضاً مورد"}
               </Button>
             )}
             <Button variant="outline" onClick={() => nav(backTo)}>
@@ -392,8 +394,12 @@ export default function SupplierProfile() {
       <Tabs defaultValue="timeline" className="w-full">
         <TabsList>
           <TabsTrigger value="timeline" className="gap-2"><Activity className="w-4 h-4" /> Timeline</TabsTrigger>
-          <TabsTrigger value="shipments" className="gap-2"><Truck className="w-4 h-4" /> الشحنات ({shipments.length})</TabsTrigger>
-          <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
+          {(supplier?.type === "supplier" || supplier?.type === "both") && (
+            <TabsTrigger value="shipments" className="gap-2"><Truck className="w-4 h-4" /> الشحنات ({shipments.length})</TabsTrigger>
+          )}
+          {(supplier?.type === "supplier" || supplier?.type === "both") && (
+            <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
+          )}
           {(supplier?.type === "customer" || supplier?.type === "both") && (
             <TabsTrigger value="sales" className="gap-2"><Receipt className="w-4 h-4" /> المبيعات ({invoices.length})</TabsTrigger>
           )}
