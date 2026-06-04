@@ -288,11 +288,23 @@ export default function Settings() {
               <Input type="number" min={0} value={inventory.default_low_stock_alert}
                 onChange={(e) => setInventory({ ...inventory, default_low_stock_alert: Number(e.target.value) })}
                 className="mt-1.5" />
-              <p className="text-xs text-muted-foreground mt-1">القيمة المستخدمة عند إنشاء منتج جديد</p>
+              <p className="text-xs text-muted-foreground mt-1">القيمة المستخدمة عند إنشاء منتج جديد، وعند الحفظ هتتطبق فوراً على كل المنتجات الموجودة</p>
             </div>
-            <Button onClick={() => saveKey("inventory", inventory)} disabled={saving} className="gap-2">
+            <Button
+              onClick={async () => {
+                await saveKey("inventory", inventory);
+                const { error: upErr } = await supabase
+                  .from("products")
+                  .update({ low_stock_alert: inventory.default_low_stock_alert })
+                  .gte("low_stock_alert", 0);
+                if (upErr) toast.error("تم حفظ الإعداد لكن فشل التطبيق على المنتجات: " + upErr.message);
+                else toast.success("تم التطبيق على كل المنتجات");
+              }}
+              disabled={saving}
+              className="gap-2"
+            >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              حفظ
+              حفظ وتطبيق على الكل
             </Button>
           </div>
         </TabsContent>
