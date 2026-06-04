@@ -397,6 +397,7 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          balance: number
           branch_id: string
           created_at: string
           id: string
@@ -407,6 +408,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          balance?: number
           branch_id: string
           created_at?: string
           id?: string
@@ -417,6 +419,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          balance?: number
           branch_id?: string
           created_at?: string
           id?: string
@@ -1411,6 +1414,7 @@ export type Database = {
           refund_transfer_amount: number
           return_number: string
           shipment_id: string | null
+          status: string
           supplier_id: string
           tenant_id: string | null
           total_amount: number
@@ -1430,6 +1434,7 @@ export type Database = {
           refund_transfer_amount?: number
           return_number: string
           shipment_id?: string | null
+          status?: string
           supplier_id: string
           tenant_id?: string | null
           total_amount?: number
@@ -1449,6 +1454,7 @@ export type Database = {
           refund_transfer_amount?: number
           return_number?: string
           shipment_id?: string | null
+          status?: string
           supplier_id?: string
           tenant_id?: string | null
           total_amount?: number
@@ -1666,6 +1672,7 @@ export type Database = {
           refund_method: string
           refund_reference: string | null
           refund_transfer_amount: number
+          status: string
           tenant_id: string | null
           total_refund: number
         }
@@ -1683,6 +1690,7 @@ export type Database = {
           refund_method?: string
           refund_reference?: string | null
           refund_transfer_amount?: number
+          status?: string
           tenant_id?: string | null
           total_refund: number
         }
@@ -1700,6 +1708,7 @@ export type Database = {
           refund_method?: string
           refund_reference?: string | null
           refund_transfer_amount?: number
+          status?: string
           tenant_id?: string | null
           total_refund?: number
         }
