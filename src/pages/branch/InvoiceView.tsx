@@ -41,7 +41,7 @@ export default function InvoiceView() {
       try {
         const { data: i, error: e1 } = await supabase
           .from("invoices")
-          .select("*, customers(name, phone, address)")
+          .select("*, contacts:contact_id(name, phone, address)")
           .eq("id", invoiceId)
           .maybeSingle();
         if (e1) throw e1;
@@ -117,8 +117,8 @@ export default function InvoiceView() {
     invoiceNumber: inv.invoice_number,
     dateTime: formatDateTime(inv.created_at),
     cashier: cashierName ?? undefined,
-    customer: inv.customers?.name ?? undefined,
-    customerPhone: inv.customers?.phone ?? undefined,
+    customer: inv.contacts?.name ?? undefined,
+    customerPhone: inv.contacts?.phone ?? undefined,
     items: items.map((it: any) => ({
       name: it.product_name,
       qty: Number(it.quantity),
@@ -202,15 +202,15 @@ export default function InvoiceView() {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
             <div className="text-xs text-muted-foreground mb-1">👤 الجهة المشترية (العميل)</div>
-            {inv.customer_id ? (
-              <a href={`/branch/${id}/customers/${inv.customer_id}`} className="font-bold text-primary hover:underline">
-                {inv.customers?.name ?? "عميل"}
+            {inv.contact_id ? (
+              <a href={`/branch/${id}/customers/${inv.contact_id}`} className="font-bold text-primary hover:underline">
+                {inv.contacts?.name ?? "عميل"}
               </a>
             ) : (
               <div className="font-bold">عميل نقدي</div>
             )}
-            {inv.customers?.phone && <div className="text-xs text-muted-foreground">☎ {inv.customers.phone}</div>}
-            {inv.customers?.address && <div className="text-xs text-muted-foreground">📍 {inv.customers.address}</div>}
+            {inv.contacts?.phone && <div className="text-xs text-muted-foreground">☎ {inv.contacts.phone}</div>}
+            {inv.contacts?.address && <div className="text-xs text-muted-foreground">📍 {inv.contacts.address}</div>}
           </div>
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
             <div className="text-xs text-muted-foreground mb-1">🧾 الكاشير المسؤول</div>

@@ -59,15 +59,15 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("vouchers").select("*, voucher_categories(name)").eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*"),
-      supabase.from("suppliers").select("*"),
+      supabase.from("contacts").select("*"),
       supabase.from("shipments").select("*").gte("arrival_date", from).lte("arrival_date", to),
       supabase.from("supplier_payments").select("*").gte("paid_at", fromIso).lte("paid_at", toIso),
       supabase.from("employees").select("*").eq("is_active", true),
       supabase.from("vouchers" as any).select("type, amount, branch_id, voucher_date").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("returns").select("*").gte("created_at", fromIso).lte("created_at", toIso),
-      supabase.from("customers").select("id,branch_id"),
-      supabase.from("shipments").select("supplier_id,total_cost"),
-      supabase.from("supplier_payments").select("supplier_id,amount"),
+      supabase.from("contacts").select("id,branch_id"),
+      supabase.from("shipments").select("contact_id,total_cost"),
+      supabase.from("supplier_payments").select("contact_id,amount"),
       supabase.from("payment_transactions").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("payment_installments").select("*, payment_plans!inner(entity_type,entity_name,branch_id)").eq("status", "overdue"),
       supabase.from("payment_plans").select("*").neq("status", "completed"),
@@ -215,10 +215,10 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const suppliersWithTotals = useMemo(() => {
     return suppliers.map((s) => {
       const totalOwed = allShipments
-        .filter((sh) => sh.supplier_id === s.id)
+        .filter((sh) => sh.contact_id === s.id)
         .reduce((sum, sh) => sum + Number(sh.total_cost ?? 0), 0);
       const totalPaid = allSupPayments
-        .filter((p) => p.supplier_id === s.id)
+        .filter((p) => p.contact_id === s.id)
         .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
       return { ...s, totalOwed, totalPaid, remaining: Number(s.balance ?? 0) };
     });

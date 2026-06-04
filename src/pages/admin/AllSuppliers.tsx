@@ -30,7 +30,7 @@ interface Supplier {
 }
 
 interface ShipmentSummary {
-  supplier_id: string;
+  contact_id: string;
   branch_id: string;
   branch_name: string;
   total: number;
@@ -38,7 +38,7 @@ interface ShipmentSummary {
 }
 
 interface PaymentSummary {
-  supplier_id: string;
+  contact_id: string;
   branch_id: string;
   branch_name: string;
   total: number;
@@ -70,7 +70,7 @@ export default function AllSuppliers() {
   // New shipment dialog
   const [newShipOpen, setNewShipOpen] = useState(false);
   const [shipForm, setShipForm] = useState({
-    supplier_id: "",
+    contact_id: "",
     branch_id: "",
     arrival_date: new Date().toISOString().split("T")[0],
     received_by: "",
@@ -85,10 +85,10 @@ export default function AllSuppliers() {
   const load = async () => {
     setLoading(true);
     const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
-      supabase.from("suppliers").select("*").order("created_at", { ascending: false }),
+      supabase.from("contacts").select("*").order("created_at", { ascending: false }),
       supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
-      supabase.from("shipments").select("supplier_id, branch_id, total_cost, branches(name)"),
-      supabase.from("supplier_payments").select("supplier_id, branch_id, amount, branches(name)"),
+      supabase.from("shipments").select("contact_id, branch_id, total_cost, branches(name)"),
+      supabase.from("supplier_payments").select("contact_id, branch_id, amount, branches(name)"),
     ]);
     setSuppliers((sups ?? []) as any);
     setBranches(brs ?? []);
@@ -96,9 +96,9 @@ export default function AllSuppliers() {
     // تجميع الشحنات لكل (مورد + فرع)
     const shipMap = new Map<string, ShipmentSummary>();
     for (const s of (ships ?? []) as any[]) {
-      if (!s.supplier_id || !s.branch_id) continue;
-      const key = `${s.supplier_id}|${s.branch_id}`;
-      const cur = shipMap.get(key) ?? { supplier_id: s.supplier_id, branch_id: s.branch_id, branch_name: s.branches?.name ?? "—", total: 0, count: 0 };
+      if (!s.contact_id || !s.branch_id) continue;
+      const key = `${s.contact_id}|${s.branch_id}`;
+      const cur = shipMap.get(key) ?? { contact_id: s.contact_id, branch_id: s.branch_id, branch_name: s.branches?.name ?? "—", total: 0, count: 0 };
       cur.total += Number(s.total_cost) || 0;
       cur.count += 1;
       shipMap.set(key, cur);
@@ -108,9 +108,9 @@ export default function AllSuppliers() {
     // تجميع المدفوعات لكل (مورد + فرع)
     const payMap = new Map<string, PaymentSummary>();
     for (const p of (pays ?? []) as any[]) {
-      if (!p.supplier_id || !p.branch_id) continue;
-      const key = `${p.supplier_id}|${p.branch_id}`;
-      const cur = payMap.get(key) ?? { supplier_id: p.supplier_id, branch_id: p.branch_id, branch_name: p.branches?.name ?? "—", total: 0, count: 0 };
+      if (!p.contact_id || !p.branch_id) continue;
+      const key = `${p.contact_id}|${p.branch_id}`;
+      const cur = payMap.get(key) ?? { contact_id: p.contact_id, branch_id: p.branch_id, branch_name: p.branches?.name ?? "—", total: 0, count: 0 };
       cur.total += Number(p.amount) || 0;
       cur.count += 1;
       payMap.set(key, cur);
@@ -125,8 +125,8 @@ export default function AllSuppliers() {
   // إجمالي مشتريات + مدفوعات + فروع لكل مورد
   const enriched = useMemo(() => {
     return suppliers.map((s) => {
-      const ships = shipSums.filter((x) => x.supplier_id === s.id);
-      const pays = paySums.filter((x) => x.supplier_id === s.id);
+      const ships = shipSums.filter((x) => x.contact_id === s.id);
+      const pays = paySums.filter((x) => x.contact_id === s.id);
       const totalShipments = ships.reduce((a, b) => a + b.total, 0);
       const totalPayments = pays.reduce((a, b) => a + b.total, 0);
       const branchesUsed = new Set([...ships.map((x) => x.branch_id), ...pays.map((x) => x.branch_id)]);
@@ -176,11 +176,11 @@ export default function AllSuppliers() {
       notes: form.notes || null,
     };
     if (editing) {
-      const { error } = await supabase.from("suppliers").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("تم تحديث المورد");
     } else {
-      const { error } = await supabase.from("suppliers").insert({ ...payload, tenant_id: tenantId });
+      const { error } = await supabase.from("contacts").insert({ ...payload, tenant_id: tenantId });
       if (error) return toast.error(error.message);
       toast.success("تمت إضافة المورد");
     }
@@ -189,7 +189,7 @@ export default function AllSuppliers() {
 
   const remove = async () => {
     if (!deleteConfirm) return;
-    const { error } = await supabase.from("suppliers").delete().eq("id", deleteConfirm.id);
+    const { error } = await supabase.from("contacts").delete().eq("id", deleteConfirm.id);
     if (error) return toast.error(error.message);
     toast.success("تم حذف المورد");
     setDeleteConfirm(null); load();
@@ -222,7 +222,7 @@ export default function AllSuppliers() {
     const { data, error } = await supabase
       .from("shipments")
       .select("id, arrival_date, branch_id, total_cost, shipping_cost, admin_cost, received_by, notes, created_at, branches(name), shipment_items(product_name, quantity, cost_price, total)")
-      .eq("supplier_id", s.id)
+      .eq("contact_id", s.id)
       .order("arrival_date", { ascending: false });
     if (error) toast.error(error.message);
     setShipmentsList(data ?? []);
@@ -263,7 +263,7 @@ export default function AllSuppliers() {
 
   const openNewShipment = (preSupplierId?: string) => {
     setShipForm({
-      supplier_id: preSupplierId ?? "",
+      contact_id: preSupplierId ?? "",
       branch_id: "",
       arrival_date: new Date().toISOString().split("T")[0],
       received_by: "",
@@ -296,7 +296,7 @@ export default function AllSuppliers() {
   const shipGrandTotal = shipItemsTotal + Number(shipForm.shipping_cost || 0) + Number(shipForm.admin_cost || 0);
 
   const submitNewShipment = async () => {
-    if (!shipForm.supplier_id) return toast.error("اختر المورد");
+    if (!shipForm.contact_id) return toast.error("اختر المورد");
     if (!shipForm.branch_id) return toast.error("اختر الفرع");
     if (!shipForm.received_by.trim()) return toast.error("أدخل اسم المستلم");
     if (!shipLines.length) return toast.error("أضف صنفاً واحداً على الأقل");
@@ -309,7 +309,7 @@ export default function AllSuppliers() {
       const { data: ship, error: e1 } = await supabase.from("shipments").insert({
         tenant_id: tenantId,
         branch_id: shipForm.branch_id,
-        supplier_id: shipForm.supplier_id,
+        contact_id: shipForm.contact_id,
         arrival_date: shipForm.arrival_date,
         received_by: shipForm.received_by.trim(),
         shipping_cost: Number(shipForm.shipping_cost || 0),
@@ -476,8 +476,8 @@ export default function AllSuppliers() {
             <DialogDescription>تفصيل الحركة على كل فرع</DialogDescription>
           </DialogHeader>
           {details && (() => {
-            const ships = shipSums.filter((x) => x.supplier_id === details.id);
-            const pays = paySums.filter((x) => x.supplier_id === details.id);
+            const ships = shipSums.filter((x) => x.contact_id === details.id);
+            const pays = paySums.filter((x) => x.contact_id === details.id);
             const branchIds = Array.from(new Set([...ships.map((x) => x.branch_id), ...pays.map((x) => x.branch_id)]));
             return (
               <div className="space-y-3">
@@ -617,7 +617,7 @@ export default function AllSuppliers() {
           <div className="grid md:grid-cols-3 gap-3">
             <div>
               <Label>المورد *</Label>
-              <Select value={shipForm.supplier_id} onValueChange={(v) => setShipForm({ ...shipForm, supplier_id: v })}>
+              <Select value={shipForm.contact_id} onValueChange={(v) => setShipForm({ ...shipForm, contact_id: v })}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
                 <SelectContent>
                   {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}

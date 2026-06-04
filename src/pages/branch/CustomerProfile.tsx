@@ -20,8 +20,8 @@ export default function CustomerProfile() {
   useEffect(() => {
     (async () => {
       const [{ data: c }, { data: invs }] = await Promise.all([
-        supabase.from("customers").select("*").eq("id", customerId!).maybeSingle(),
-        supabase.from("invoices").select("*").eq("customer_id", customerId!).order("created_at", { ascending: false }),
+        supabase.from("contacts").select("*").eq("id", customerId!).maybeSingle(),
+        supabase.from("invoices").select("*").eq("contact_id", customerId!).order("created_at", { ascending: false }),
       ]);
       setCustomer(c);
       setInvoices(invs ?? []);

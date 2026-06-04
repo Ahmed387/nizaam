@@ -33,7 +33,7 @@ export default function NewQuote() {
     if (!branchId) return;
     (async () => {
       const [c, p] = await Promise.all([
-        supabase.from("customers").select("id, name").eq("branch_id", branchId).order("name"),
+        supabase.from("contacts").select("id, name").eq("branch_id", branchId).order("name"),
         supabase.from("products").select("id, name, selling_price").eq("branch_id", branchId).order("name"),
       ]);
       setCustomers(c.data ?? []);
@@ -59,7 +59,7 @@ export default function NewQuote() {
     setBusy(true);
     const number = `Q-${Date.now().toString(36).toUpperCase()}`;
     const { data: q, error } = await supabase.from("quotes" as any).insert({
-      branch_id: branchId, customer_id: customerId || null, customer_name: customerName || null,
+      branch_id: branchId, contact_id: customerId || null, customer_name: customerName || null,
       quote_number: number, subtotal, discount, total,
       valid_until: validUntil || null, notes: notes.trim() || null,
       created_by: user!.id, status: "draft",

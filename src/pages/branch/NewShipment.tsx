@@ -56,7 +56,7 @@ export default function NewShipment() {
   const createSupplier = async () => {
     if (!newSup.company_name.trim()) return toast.error("اسم الشركة مطلوب");
     setSavingSup(true);
-    const { data, error } = await supabase.from("suppliers").insert({
+    const { data, error } = await supabase.from("contacts").insert({
       company_name: newSup.company_name.trim(),
       contact_name: newSup.contact_name.trim() || null,
       phone: newSup.phone.trim() || null,
@@ -64,7 +64,7 @@ export default function NewShipment() {
     }).select().single();
     setSavingSup(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
-    setSuppliers([data, ...suppliers]);
+    setSuppliers([data, ...contacts]);
     setSupplierId(data.id);
     setSupplierDlg(false);
     setNewSup({ company_name: "", contact_name: "", phone: "", address: "" });
@@ -73,7 +73,7 @@ export default function NewShipment() {
 
   useEffect(() => {
     if (!branchId) return;
-    supabase.from("suppliers").select("*").order("company_name").then(({ data }) => setSuppliers(data ?? []));
+    supabase.from("contacts").select("*").order("company_name").then(({ data }) => setSuppliers(data ?? []));
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
     supabase.from("price_list_items_public").select("product_name, display_price").order("product_name").then(({ data }) => setPriceList((data ?? []).map((d: any) => ({ product_name: d.product_name, market_price: d.display_price, new_price: d.display_price }))));
   }, [branchId]);
@@ -143,7 +143,7 @@ export default function NewShipment() {
         .from("shipments")
         .insert({
           branch_id: branchId!,
-          supplier_id: supplierId,
+          contact_id: supplierId,
           arrival_date: arrival,
           received_by: receivedBy.trim(),
           shipping_cost: Number(shipping || 0),

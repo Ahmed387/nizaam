@@ -71,8 +71,8 @@ export default function NewReturn() {
     const [itRes, retRes, custRes] = await Promise.all([
       supabase.from("invoice_items").select("*").eq("invoice_id", inv.id),
       supabase.from("returns").select("id, return_items(product_id, quantity)").eq("invoice_id", inv.id),
-      inv.customer_id
-        ? supabase.from("customers").select("id, name, phone").eq("id", inv.customer_id).maybeSingle()
+      inv.contact_id
+        ? supabase.from("contacts").select("id, name, phone").eq("id", inv.contact_id).maybeSingle()
         : Promise.resolve({ data: null } as any),
     ]);
     setItems(itRes.data ?? []);
@@ -114,7 +114,7 @@ export default function NewReturn() {
     setRecentOpen(true);
     const { data } = await supabase
       .from("invoices")
-      .select("id, invoice_number, total, created_at, status, customers(name)")
+      .select("id, invoice_number, total, created_at, status, contacts:contact_id(name)")
       .eq("branch_id", branchId!)
       .eq("status", "active")
       .order("created_at", { ascending: false })
@@ -200,8 +200,8 @@ export default function NewReturn() {
 
       if (!asDraft) {
         if (creditToBalance && customer?.id) {
-          const { data: c } = await supabase.from("customers").select("balance").eq("id", customer.id).maybeSingle();
-          if (c) await supabase.from("customers").update({ balance: Number((c as any).balance ?? 0) + totalRefund } as any).eq("id", customer.id);
+          const { data: c } = await supabase.from("contacts").select("balance").eq("id", customer.id).maybeSingle();
+          if (c) await supabase.from("contacts").update({ balance: Number((c as any).balance ?? 0) + totalRefund } as any).eq("id", customer.id);
         } else {
           await supabase.from("treasury").insert({
             branch_id: branchId!,
@@ -497,7 +497,7 @@ export default function NewReturn() {
                 {recentInvoices.map((inv) => (
                   <tr key={inv.id} className="border-b">
                     <td className="p-2 font-mono">{inv.invoice_number}</td>
-                    <td className="p-2">{inv.customers?.name ?? "نقدي"}</td>
+                    <td className="p-2">{inv.contacts?.name ?? "نقدي"}</td>
                     <td className="p-2 text-xs">{formatDateTime(inv.created_at)}</td>
                     <td className="p-2">{formatEGP(inv.total)}</td>
                     <td className="p-2"><Button size="sm" onClick={() => { setRecentOpen(false); setInvSearch(inv.invoice_number); loadInvoiceData(inv); }}>اختيار</Button></td>

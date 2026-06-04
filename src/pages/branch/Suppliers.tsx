@@ -24,7 +24,7 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("suppliers").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("contacts").select("*").order("created_at", { ascending: false });
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -32,7 +32,7 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
 
   const submit = async () => {
     if (!form.company_name) return toast.error("اسم الشركة مطلوب");
-    await supabase.from("suppliers").insert(form);
+    await supabase.from("contacts").insert(form);
     toast.success("تمت الإضافة");
     setOpen(false); setForm({ company_name: "", contact_name: "", phone: "", address: "", notes: "" }); load();
   };

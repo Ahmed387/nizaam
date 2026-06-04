@@ -67,7 +67,7 @@ export default function NewPurchaseReturn() {
   const [cameraOpen, setCameraOpen] = useState(false);
 
   const loadSuppliers = useCallback(async () => {
-    const { data } = await supabase.from("suppliers").select("id, company_name, phone, balance").order("company_name");
+    const { data } = await supabase.from("contacts").select("id, name, phone, balance").order("company_name");
     setSuppliers(data ?? []);
   }, []);
   const loadProducts = useCallback(async () => {
@@ -92,7 +92,7 @@ export default function NewPurchaseReturn() {
       .from("shipments")
       .select("id, arrival_date, total_cost, notes, shipment_items(product_id, product_name, quantity, cost_price)")
       .eq("branch_id", branchId!)
-      .eq("supplier_id", supplier.id)
+      .eq("contact_id", supplier.id)
       .order("arrival_date", { ascending: false })
       .limit(20);
     setShipments(data ?? []);
@@ -169,7 +169,7 @@ export default function NewPurchaseReturn() {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
       const { data: pr, error } = await supabase.from("purchase_returns" as any).insert({
         branch_id: branchId,
-        supplier_id: supplier.id,
+        contact_id: supplier.id,
         shipment_id: shipmentId,
         reason: finalReason,
         notes: notes.trim() || null,
@@ -220,7 +220,7 @@ export default function NewPurchaseReturn() {
         }
         if (balancePart > 0) {
           const newBal = Number(supplier.balance ?? 0) - balancePart;
-          await supabase.from("suppliers").update({ balance: newBal }).eq("id", supplier.id);
+          await supabase.from("contacts").update({ balance: newBal }).eq("id", supplier.id);
         }
       }
 

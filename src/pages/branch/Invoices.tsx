@@ -119,10 +119,10 @@ export default function Invoices() {
   const loadParties = useCallback(async () => {
     if (!active.party || !branchId) { setParties([]); return; }
     if (active.party === "customer") {
-      const { data } = await supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name");
+      const { data } = await supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name");
       setParties((data ?? []) as any);
     } else {
-      const { data } = await supabase.from("suppliers").select("id, company_name, phone").order("company_name");
+      const { data } = await supabase.from("contacts").select("id, name, phone").order("company_name");
       setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name, phone: d.phone })));
     }
   }, [active.party, branchId]);
@@ -134,16 +134,16 @@ export default function Invoices() {
     setLoading(true);
     let data: any[] = [];
     if (tab === "sale") {
-      const r = await supabase.from("invoices").select("*, customers(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "purchase") {
-      const r = await supabase.from("shipments").select("*, suppliers(company_name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "sale_return") {
-      const r = await supabase.from("returns").select("*, invoices(invoice_number, customer_id, customers(name, phone))").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("returns").select("*, invoices(invoice_number, contact_id, contacts:contact_id(name, phone))").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "purchase_return") {
-      const r = await supabase.from("purchase_returns" as any).select("*, suppliers(company_name, phone)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("purchase_returns" as any).select("*, contacts:contact_id(name, phone)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "income") {
       const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "receipt").eq("status", "active").order("voucher_date", { ascending: false }).limit(500);
@@ -165,7 +165,7 @@ export default function Invoices() {
       const r = await supabase.from("stock_transfers").select("*").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "quote") {
-      const r = await supabase.from("quotes" as any).select("*, customers(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("quotes" as any).select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "adjustment") {
       const r = await supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
@@ -191,13 +191,13 @@ export default function Invoices() {
 
     const searchableText = (r: any): string => {
       switch (tab) {
-        case "sale": return [r.invoice_number, r.customers?.name].filter(Boolean).join(" ").toLowerCase();
-        case "purchase": return [r.suppliers?.company_name, r.received_by, r.shipment_number].filter(Boolean).join(" ").toLowerCase();
-        case "sale_return": return [r.invoices?.invoice_number, r.invoices?.customers?.name, r.invoices?.customers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
-        case "purchase_return": return [r.return_number, r.suppliers?.company_name, r.suppliers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+        case "sale": return [r.invoice_number, r.contacts?.name].filter(Boolean).join(" ").toLowerCase();
+        case "purchase": return [r.contacts?.company_name, r.received_by, r.shipment_number].filter(Boolean).join(" ").toLowerCase();
+        case "sale_return": return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+        case "purchase_return": return [r.return_number, r.contacts?.company_name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
         case "income":
         case "expense": return [r.voucher_number, r.description, r.category, r.party_name].filter(Boolean).join(" ").toLowerCase();
-        case "quote": return [r.quote_number, r.customers?.name, r.customer_name].filter(Boolean).join(" ").toLowerCase();
+        case "quote": return [r.quote_number, r.contacts?.name, r.customer_name].filter(Boolean).join(" ").toLowerCase();
         case "adjustment": return [r.adjustment_number, r.reason, r.notes].filter(Boolean).join(" ").toLowerCase();
         default: return "";
       }
@@ -239,8 +239,8 @@ export default function Invoices() {
         if (filters.toBranch && r.to_branch_id !== filters.toBranch) return false;
       }
       if (filters.partyId && active.party) {
-        if (active.party === "customer" && r.invoices?.customer_id !== filters.partyId) return false;
-        if (active.party === "supplier" && r.supplier_id !== filters.partyId) return false;
+        if (active.party === "customer" && r.invoices?.contact_id !== filters.partyId) return false;
+        if (active.party === "supplier" && r.contact_id !== filters.partyId) return false;
       }
       return true;
     });
@@ -253,7 +253,7 @@ export default function Invoices() {
         newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
           { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
-          { key: "customer", header: "العميل", render: (r: any) => r.customers?.name ?? "نقدي" },
+          { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
           { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
@@ -278,7 +278,7 @@ export default function Invoices() {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
           { key: "shipment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.shipment_number ?? "—"}</span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.company_name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
@@ -290,7 +290,7 @@ export default function Invoices() {
         columns: [
           { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="font-mono text-primary">{r.return_number ?? "—"}</span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
-          { key: "customer", header: "العميل", render: (r: any) => r.invoices?.customers?.name ?? "نقدي" },
+          { key: "customer", header: "العميل", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب" },
           { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
@@ -300,7 +300,7 @@ export default function Invoices() {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
           { key: "return_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.return_number}</span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.company_name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
@@ -329,7 +329,7 @@ export default function Invoices() {
         newLink: `${base}/quotes/new`, newLabel: "عرض سعر جديد", newPerm: "sales.create",
         columns: [
           { key: "quote_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.quote_number}</span> },
-          { key: "customer", header: "العميل", render: (r: any) => r.customers?.name ?? r.customer_name ?? "—" },
+          { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? r.customer_name ?? "—" },
           { key: "total", header: "الإجمالي", render: (r: any) => formatEGP(r.total) },
           { key: "valid_until", header: "صالح حتى", render: (r: any) => r.valid_until ? formatDate(r.valid_until) : "—" },
           { key: "status", header: "الحالة" },
@@ -441,8 +441,8 @@ export default function Invoices() {
     const q = draftFilters.q.trim().toLowerCase();
     if (q.length < 2) return [];
     const text = (r: any) => {
-      if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.customers?.name, r.invoices?.customers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
-      return [r.return_number, r.suppliers?.company_name, r.suppliers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+      if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+      return [r.return_number, r.contacts?.company_name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
     };
     return rows.filter((r) => text(r).includes(q)).slice(0, 8);
   }, [isReturnTab, tab, draftFilters.q, rows]);
@@ -541,7 +541,7 @@ export default function Invoices() {
                 <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-72 overflow-y-auto">
                   {suggestions.map((r: any) => {
                     const num = r.return_number ?? (tab === "sale_return" ? r.invoices?.invoice_number : null);
-                    const party = tab === "sale_return" ? (r.invoices?.customers?.name ?? "نقدي") : (r.suppliers?.company_name ?? "—");
+                    const party = tab === "sale_return" ? (r.invoices?.contacts?.name ?? "نقدي") : (r.contacts?.company_name ?? "—");
                     const amt = Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0);
                     return (
                       <button

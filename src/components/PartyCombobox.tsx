@@ -26,10 +26,10 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
 
   const loadItems = useCallback(async () => {
     if (type === "supplier") {
-      const { data } = await supabase.from("suppliers").select("id, company_name").order("company_name");
+      const { data } = await supabase.from("contacts").select("id, name").order("company_name");
       setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name })));
     } else if (type === "customer") {
-      const { data } = await supabase.from("customers").select("id, name").order("name");
+      const { data } = await supabase.from("contacts").select("id, name").order("name");
       setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
     } else {
       const { data } = await supabase.from("employees").select("id, name").order("name");
@@ -48,7 +48,7 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
     (async () => {
       try {
         if (type === "supplier") {
-          const { data } = await supabase.from("suppliers" as any).select("balance").eq("id", value).maybeSingle();
+          const { data } = await supabase.from("contacts").select("balance").eq("id", value).maybeSingle();
           const amt = Number((data as any)?.balance ?? 0);
           setBal({
             label: amt > 0 ? "مستحق للمورد علينا" : amt < 0 ? "رصيد لصالحنا" : "لا توجد مديونية",
@@ -56,7 +56,7 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
             tone: amt > 0 ? "bad" : amt < 0 ? "good" : "neutral",
           });
         } else if (type === "customer") {
-          const { data } = await supabase.from("invoices" as any).select("total, paid_amount").eq("customer_id", value).eq("status", "active");
+          const { data } = await supabase.from("invoices" as any).select("total, paid_amount").eq("contact_id", value).eq("status", "active");
           const total = (data ?? []).reduce((s: number, r: any) => s + (Number(r.total) - Number(r.paid_amount ?? 0)), 0);
           setBal({ label: "مستحق على العميل", amount: total, tone: total > 0 ? "good" : "neutral" });
         } else {

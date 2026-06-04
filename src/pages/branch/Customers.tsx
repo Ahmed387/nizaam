@@ -23,7 +23,7 @@ export default function Customers({ embedded = false }: { embedded?: boolean } =
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("customers").select("*").eq("branch_id", branchId).order("created_at", { ascending: false });
+    const { data } = await supabase.from("contacts").select("*").eq("branch_id", branchId).order("created_at", { ascending: false });
     setRows(data ?? []); setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
@@ -31,7 +31,7 @@ export default function Customers({ embedded = false }: { embedded?: boolean } =
 
   const submit = async () => {
     if (!form.name) return toast.error("الاسم مطلوب");
-    await supabase.from("customers").insert({ ...form, branch_id: branchId! });
+    await supabase.from("contacts").insert({ ...form, branch_id: branchId! });
     toast.success("تمت الإضافة");
     setOpen(false); setForm({ name: "", phone: "", address: "", notes: "" }); load();
   };

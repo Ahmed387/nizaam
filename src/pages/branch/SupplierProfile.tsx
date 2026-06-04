@@ -74,16 +74,16 @@ export default function SupplierProfile() {
   const load = async () => {
     setLoading(true);
     const [{ data: s }, { data: ships }, { data: pays }] = await Promise.all([
-      supabase.from("suppliers").select("*").eq("id", supplierId!).maybeSingle(),
+      supabase.from("contacts").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
         .select("*, branches(name), shipment_items(id, quantity)")
-        .eq("supplier_id", supplierId!)
+        .eq("contact_id", supplierId!)
         .order("arrival_date", { ascending: false }),
       supabase
         .from("supplier_payments" as any)
         .select("*, branches(name), profiles:paid_by(name)")
-        .eq("supplier_id", supplierId!)
+        .eq("contact_id", supplierId!)
         .order("paid_at", { ascending: false }),
     ]);
     setSupplier(s);
@@ -171,7 +171,7 @@ export default function SupplierProfile() {
     if (trErr) return toast.error(trErr.message);
 
     const { error: payErr } = await supabase.from("supplier_payments" as any).insert({
-      supplier_id: supplierId,
+      contact_id: supplierId,
       branch_id: pay.branch_id,
       amount,
       notes: pay.notes || null,
@@ -201,7 +201,7 @@ export default function SupplierProfile() {
 
   const submitEdit = async () => {
     if (!edit.company_name) return toast.error("اسم الشركة مطلوب");
-    const { error } = await supabase.from("suppliers").update(edit).eq("id", supplierId!);
+    const { error } = await supabase.from("contacts").update(edit).eq("id", supplierId!);
     if (error) return toast.error(error.message);
     await logAudit({
       userId: user!.id,
@@ -221,7 +221,7 @@ export default function SupplierProfile() {
     if (shipments.length > 0) {
       return toast.error("لا يمكن حذف مورد له شحنات. احذف الشحنات أولاً.");
     }
-    const { error } = await supabase.from("suppliers").delete().eq("id", supplierId!);
+    const { error } = await supabase.from("contacts").delete().eq("id", supplierId!);
     if (error) return toast.error(error.message);
     await logAudit({
       userId: user!.id,

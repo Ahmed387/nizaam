@@ -72,10 +72,10 @@ export default function SeedData() {
       addLog(`→ التعبئة في ${branches.length} فرع...`);
 
       // 3) Suppliers (global)
-      const { data: existingSup } = await supabase.from("suppliers").select("company_name");
+      const { data: existingSup } = await supabase.from("contacts").select("name");
       const supNames = new Set((existingSup ?? []).map((s) => s.company_name));
       const newSups = SAMPLE_SUPPLIERS.filter((s) => !supNames.has(s.company_name));
-      if (newSups.length) await supabase.from("suppliers").insert(newSups);
+      if (newSups.length) await supabase.from("contacts").insert(newSups);
       addLog(`✓ ${SAMPLE_SUPPLIERS.length} مورد`);
 
       // 4) For each branch: products, customers, employees, expenses
@@ -99,7 +99,7 @@ export default function SeedData() {
 
         // Customers
         const customersToInsert = SAMPLE_CUSTOMERS.map((c) => ({ ...c, branch_id: branch.id }));
-        await supabase.from("customers").insert(customersToInsert);
+        await supabase.from("contacts").insert(customersToInsert);
         addLog(`    ✓ ${customersToInsert.length} عميل`);
 
         // Employees
@@ -155,7 +155,7 @@ export default function SeedData() {
       await supabase.from("salaries").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("employees").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("products").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("customers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("contacts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       addLog("✅ تم الحذف");
       toast.success("تم حذف البيانات التشغيلية");
     } catch (e: any) {
