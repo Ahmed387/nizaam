@@ -50,10 +50,11 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
         if (type === "supplier") {
           const { data } = await supabase.from("contacts").select("balance").eq("id", value).maybeSingle();
           const amt = Number((data as any)?.balance ?? 0);
+          // الجديد: + = لنا (مرتجع/رصيد لصالحنا)، − = علينا للمورد
           setBal({
-            label: amt > 0 ? "مستحق للمورد علينا" : amt < 0 ? "رصيد لصالحنا" : "لا توجد مديونية",
+            label: amt < 0 ? "مستحق للمورد علينا" : amt > 0 ? "رصيد لصالحنا" : "لا توجد مديونية",
             amount: Math.abs(amt),
-            tone: amt > 0 ? "bad" : amt < 0 ? "good" : "neutral",
+            tone: amt < 0 ? "bad" : amt > 0 ? "good" : "neutral",
           });
         } else if (type === "customer") {
           const { data } = await supabase.from("invoices" as any).select("total, paid_amount").eq("contact_id", value).eq("status", "active");
