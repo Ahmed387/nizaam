@@ -15,7 +15,8 @@ import {
   loadTransferFees,
   calculateFee,
   methodRequiresReference,
-  methodAccountLabel,
+  methodReceiverLabel,
+  methodSenderLabel,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
@@ -25,6 +26,7 @@ export interface PaymentLine {
   amount: number;
   reference_number?: string;
   transfer_to_account?: string;
+  transfer_from_account?: string;
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
   fee_on_customer: boolean; // per-line
