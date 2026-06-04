@@ -467,13 +467,24 @@ export default function NewPurchaseReturn() {
                 <span>رصيد المورد هيتعدل من {formatEGP(supplier.balance ?? 0)} إلى {formatEGP(Number(supplier.balance ?? 0) - total)}</span>
               </div>
             )}
-            <Button onClick={submit} disabled={busy || total === 0 || !supplier} className="w-full gap-2" size="lg">
+            <Button onClick={() => submit(false)} disabled={busy || total === 0 || !supplier} className="w-full gap-2" size="lg">
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               حفظ مرتجع الشراء
             </Button>
+            <Button onClick={() => submit(true)} disabled={busy || total === 0 || !supplier} variant="outline" className="w-full gap-2">
+              <Save className="w-4 h-4" /> حفظ كمسودة
+            </Button>
+            <p className="text-[11px] text-muted-foreground text-center">Ctrl+S للحفظ — Esc للإلغاء</p>
           </div>
         </aside>
       </div>
+
+      <BarcodeCameraScanner
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onScan={onBarcodeScan}
+        continuous={false}
+      />
 
       {/* Shipment picker */}
       <Dialog open={shipmentOpen} onOpenChange={setShipmentOpen}>
