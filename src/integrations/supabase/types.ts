@@ -1403,6 +1403,12 @@ export type Database = {
           id: string
           notes: string | null
           reason: string
+          refund_account: string | null
+          refund_balance_amount: number
+          refund_cash_amount: number
+          refund_method: string
+          refund_reference: string | null
+          refund_transfer_amount: number
           return_number: string
           shipment_id: string | null
           supplier_id: string
@@ -1416,6 +1422,12 @@ export type Database = {
           id?: string
           notes?: string | null
           reason: string
+          refund_account?: string | null
+          refund_balance_amount?: number
+          refund_cash_amount?: number
+          refund_method?: string
+          refund_reference?: string | null
+          refund_transfer_amount?: number
           return_number: string
           shipment_id?: string | null
           supplier_id: string
@@ -1429,6 +1441,12 @@ export type Database = {
           id?: string
           notes?: string | null
           reason?: string
+          refund_account?: string | null
+          refund_balance_amount?: number
+          refund_cash_amount?: number
+          refund_method?: string
+          refund_reference?: string | null
+          refund_transfer_amount?: number
           return_number?: string
           shipment_id?: string | null
           supplier_id?: string
@@ -1640,7 +1658,14 @@ export type Database = {
           created_by: string
           id: string
           invoice_id: string
+          notes: string | null
           reason: string
+          refund_account: string | null
+          refund_balance_amount: number
+          refund_cash_amount: number
+          refund_method: string
+          refund_reference: string | null
+          refund_transfer_amount: number
           tenant_id: string | null
           total_refund: number
         }
@@ -1650,7 +1675,14 @@ export type Database = {
           created_by: string
           id?: string
           invoice_id: string
+          notes?: string | null
           reason: string
+          refund_account?: string | null
+          refund_balance_amount?: number
+          refund_cash_amount?: number
+          refund_method?: string
+          refund_reference?: string | null
+          refund_transfer_amount?: number
           tenant_id?: string | null
           total_refund: number
         }
@@ -1660,7 +1692,14 @@ export type Database = {
           created_by?: string
           id?: string
           invoice_id?: string
+          notes?: string | null
           reason?: string
+          refund_account?: string | null
+          refund_balance_amount?: number
+          refund_cash_amount?: number
+          refund_method?: string
+          refund_reference?: string | null
+          refund_transfer_amount?: number
           tenant_id?: string | null
           total_refund?: number
         }
