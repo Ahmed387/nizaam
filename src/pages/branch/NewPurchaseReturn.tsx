@@ -160,13 +160,11 @@ export default function NewPurchaseReturn() {
 
     setBusy(true);
     try {
-      const number = `PR-${Date.now().toString(36).toUpperCase()}`;
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
       const { data: pr, error } = await supabase.from("purchase_returns" as any).insert({
         branch_id: branchId,
         supplier_id: supplier.id,
         shipment_id: shipmentId,
-        return_number: number,
         reason: finalReason,
         notes: notes.trim() || null,
         created_by: user!.id,
@@ -180,6 +178,8 @@ export default function NewPurchaseReturn() {
         refund_balance_amount: balancePart,
       }).select().single();
       if (error || !pr) throw error ?? new Error("فشل الحفظ");
+      const number = (pr as any).return_number as string;
+
 
       const items = lines.map((l) => ({
         purchase_return_id: (pr as any).id,

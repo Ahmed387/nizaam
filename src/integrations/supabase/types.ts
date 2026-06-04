@@ -1432,7 +1432,7 @@ export type Database = {
           refund_method?: string
           refund_reference?: string | null
           refund_transfer_amount?: number
-          return_number: string
+          return_number?: string
           shipment_id?: string | null
           status?: string
           supplier_id: string
@@ -1672,6 +1672,7 @@ export type Database = {
           refund_method: string
           refund_reference: string | null
           refund_transfer_amount: number
+          return_number: string
           status: string
           tenant_id: string | null
           total_refund: number
@@ -1690,6 +1691,7 @@ export type Database = {
           refund_method?: string
           refund_reference?: string | null
           refund_transfer_amount?: number
+          return_number?: string
           status?: string
           tenant_id?: string | null
           total_refund: number
@@ -1708,6 +1710,7 @@ export type Database = {
           refund_method?: string
           refund_reference?: string | null
           refund_transfer_amount?: number
+          return_number?: string
           status?: string
           tenant_id?: string | null
           total_refund?: number
@@ -1949,6 +1952,7 @@ export type Database = {
           id: string
           notes: string | null
           received_by: string
+          shipment_number: string
           shipping_cost: number
           supplier_id: string
           tenant_id: string | null
@@ -1962,6 +1966,7 @@ export type Database = {
           id?: string
           notes?: string | null
           received_by: string
+          shipment_number?: string
           shipping_cost?: number
           supplier_id: string
           tenant_id?: string | null
@@ -1975,6 +1980,7 @@ export type Database = {
           id?: string
           notes?: string | null
           received_by?: string
+          shipment_number?: string
           shipping_cost?: number
           supplier_id?: string
           tenant_id?: string | null
@@ -2975,6 +2981,9 @@ export type Database = {
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_pre_order_number: { Args: never; Returns: string }
+      next_purchase_return_number: { Args: never; Returns: string }
+      next_sale_return_number: { Args: never; Returns: string }
+      next_shipment_number: { Args: never; Returns: string }
       next_sku: { Args: never; Returns: string }
       next_voucher_number: {
         Args: {
