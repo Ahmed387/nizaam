@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
   { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" /> },
-  { to: "/admin/suppliers", label: "الموردين (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
+  { to: "/admin/contacts", label: "جهات التواصل (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
   { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
   { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },

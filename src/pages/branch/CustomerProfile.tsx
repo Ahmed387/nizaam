@@ -7,7 +7,8 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { ArrowRight, Receipt, DollarSign, Calendar, Phone, MapPin, Wallet } from "lucide-react";
+import { ArrowRight, Receipt, DollarSign, Calendar, Phone, MapPin, Wallet, Truck } from "lucide-react";
+import { toast } from "sonner";
 import { PaymentPlansPanel } from "@/components/PaymentPlansPanel";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
@@ -47,12 +48,26 @@ export default function CustomerProfile() {
         title={customer?.name ?? "ملف العميل"}
         subtitle={customer?.phone ?? ""}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {owedToUs > 0 && (
               <Button className="btn-gradient" onClick={() => setPayOpen(true)}>
                 <Wallet className="w-4 h-4 ml-1" /> استلام دفعة
               </Button>
             )}
+            {customer?.type === "supplier" || customer?.type === "both" ? (
+              <Button variant="outline" onClick={() => nav(`/branch/${branchId}/suppliers/${customerId}`)}>
+                <Truck className="w-4 h-4 ml-1" /> عرض كمورد
+              </Button>
+            ) : customer?.type === "customer" ? (
+              <Button variant="outline" onClick={async () => {
+                const { error } = await supabase.from("contacts").update({ type: "both" } as any).eq("id", customerId!);
+                if (error) return toast.error(error.message);
+                toast.success("تم تحويل العميل إلى عميل ومورد");
+                load();
+              }}>
+                <Truck className="w-4 h-4 ml-1" /> أيضاً مورد
+              </Button>
+            ) : null}
             <Button variant="outline" onClick={() => nav(`/branch/${branchId}/contacts?tab=customer`)}>
               <ArrowRight className="w-4 h-4 ml-1" /> رجوع
             </Button>

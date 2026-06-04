@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 type ContactType = "customer" | "supplier" | "both";
@@ -108,6 +108,15 @@ export default function Contacts() {
     }
   };
 
+  const promoteToBoth = async (r: any, asWhat: "customer" | "supplier") => {
+    if (r.type === "both") return;
+    // لو حاليًا عميل وعايز نضيفه كمورد، أو العكس → النوع يصبح both
+    const { error } = await supabase.from("contacts").update({ type: "both" } as any).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    toast.success(asWhat === "supplier" ? "تمت إضافته كمورد أيضاً" : "تمت إضافته كعميل أيضاً");
+    load();
+  };
+
   return (
     <BranchLayout>
       <PageHeader
@@ -178,6 +187,24 @@ export default function Contacts() {
                 ? <span className="text-success font-bold">{formatEGP(b)} <span className="text-xs">(لنا)</span></span>
                 : <span className="text-destructive font-bold">{formatEGP(Math.abs(b))} <span className="text-xs">(علينا)</span></span>;
             },
+          },
+          {
+            key: "actions",
+            header: "إجراءات",
+            render: (r: any) => (
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                {r.type === "customer" && (
+                  <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
+                    <TruckIcon className="w-3.5 h-3.5 ml-1" /> أيضاً مورد
+                  </Button>
+                )}
+                {r.type === "supplier" && (
+                  <Button size="sm" variant="outline" title="إضافة كعميل أيضاً" onClick={() => promoteToBoth(r, "customer")}>
+                    <UserPlus className="w-3.5 h-3.5 ml-1" /> أيضاً عميل
+                  </Button>
+                )}
+              </div>
+            ),
           },
         ]}
       />
