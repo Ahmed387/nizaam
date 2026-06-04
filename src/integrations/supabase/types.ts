@@ -394,50 +394,56 @@ export type Database = {
           },
         ]
       }
-      customers: {
+      contacts: {
         Row: {
           address: string | null
           balance: number
-          branch_id: string
+          branch_id: string | null
+          contact_person: string | null
           created_at: string
           id: string
           name: string
           notes: string | null
           phone: string | null
           tenant_id: string | null
+          type: string
         }
         Insert: {
           address?: string | null
           balance?: number
-          branch_id: string
+          branch_id?: string | null
+          contact_person?: string | null
           created_at?: string
           id?: string
           name: string
           notes?: string | null
           phone?: string | null
           tenant_id?: string | null
+          type?: string
         }
         Update: {
           address?: string | null
           balance?: number
-          branch_id?: string
+          branch_id?: string | null
+          contact_person?: string | null
           created_at?: string
           id?: string
           name?: string
           notes?: string | null
           phone?: string | null
           tenant_id?: string | null
+          type?: string
         }
         Relationships: [
           {
-            foreignKeyName: "customers_branch_id_fkey"
+            foreignKeyName: "contacts_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "customers_tenant_fk"
+            foreignKeyName: "contacts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -724,8 +730,8 @@ export type Database = {
           branch_id: string
           cancel_reason: string | null
           cashier_id: string
+          contact_id: string | null
           created_at: string
-          customer_id: string | null
           discount_amount: number
           discount_percent: number
           discount_reason: string | null
@@ -741,8 +747,8 @@ export type Database = {
           branch_id: string
           cancel_reason?: string | null
           cashier_id: string
+          contact_id?: string | null
           created_at?: string
-          customer_id?: string | null
           discount_amount?: number
           discount_percent?: number
           discount_reason?: string | null
@@ -758,8 +764,8 @@ export type Database = {
           branch_id?: string
           cancel_reason?: string | null
           cashier_id?: string
+          contact_id?: string | null
           created_at?: string
-          customer_id?: string | null
           discount_amount?: number
           discount_percent?: number
           discount_reason?: string | null
@@ -780,10 +786,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "invoices_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -1090,10 +1096,10 @@ export type Database = {
       pre_orders: {
         Row: {
           branch_id: string
+          contact_id: string | null
           created_at: string
           created_by: string
           created_by_name: string | null
-          customer_id: string | null
           customer_name: string
           customer_phone: string | null
           deposit_amount: number
@@ -1113,10 +1119,10 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          contact_id?: string | null
           created_at?: string
           created_by: string
           created_by_name?: string | null
-          customer_id?: string | null
           customer_name: string
           customer_phone?: string | null
           deposit_amount?: number
@@ -1136,10 +1142,10 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          contact_id?: string | null
           created_at?: string
           created_by?: string
           created_by_name?: string | null
-          customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
           deposit_amount?: number
@@ -1157,7 +1163,15 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pre_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_list_items: {
         Row: {
@@ -1401,6 +1415,7 @@ export type Database = {
       purchase_returns: {
         Row: {
           branch_id: string
+          contact_id: string
           created_at: string
           created_by: string
           id: string
@@ -1415,12 +1430,12 @@ export type Database = {
           return_number: string
           shipment_id: string | null
           status: string
-          supplier_id: string
           tenant_id: string | null
           total_amount: number
         }
         Insert: {
           branch_id: string
+          contact_id: string
           created_at?: string
           created_by: string
           id?: string
@@ -1435,12 +1450,12 @@ export type Database = {
           return_number?: string
           shipment_id?: string | null
           status?: string
-          supplier_id: string
           tenant_id?: string | null
           total_amount?: number
         }
         Update: {
           branch_id?: string
+          contact_id?: string
           created_at?: string
           created_by?: string
           id?: string
@@ -1455,7 +1470,6 @@ export type Database = {
           return_number?: string
           shipment_id?: string | null
           status?: string
-          supplier_id?: string
           tenant_id?: string | null
           total_amount?: number
         }
@@ -1468,17 +1482,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_returns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_returns_shipment_id_fkey"
             columns: ["shipment_id"]
             isOneToOne: false
             referencedRelation: "shipments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_returns_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
           {
@@ -1538,9 +1552,9 @@ export type Database = {
       quotes: {
         Row: {
           branch_id: string
+          contact_id: string | null
           created_at: string
           created_by: string
-          customer_id: string | null
           customer_name: string | null
           discount: number
           id: string
@@ -1554,9 +1568,9 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          contact_id?: string | null
           created_at?: string
           created_by: string
-          customer_id?: string | null
           customer_name?: string | null
           discount?: number
           id?: string
@@ -1570,9 +1584,9 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          contact_id?: string | null
           created_at?: string
           created_by?: string
-          customer_id?: string | null
           customer_name?: string | null
           discount?: number
           id?: string
@@ -1593,10 +1607,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "quotes_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "quotes_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -1948,13 +1962,13 @@ export type Database = {
           admin_cost: number
           arrival_date: string
           branch_id: string
+          contact_id: string
           created_at: string
           id: string
           notes: string | null
           received_by: string
           shipment_number: string
           shipping_cost: number
-          supplier_id: string
           tenant_id: string | null
           total_cost: number
         }
@@ -1962,13 +1976,13 @@ export type Database = {
           admin_cost?: number
           arrival_date: string
           branch_id: string
+          contact_id: string
           created_at?: string
           id?: string
           notes?: string | null
           received_by: string
           shipment_number?: string
           shipping_cost?: number
-          supplier_id: string
           tenant_id?: string | null
           total_cost?: number
         }
@@ -1976,13 +1990,13 @@ export type Database = {
           admin_cost?: number
           arrival_date?: string
           branch_id?: string
+          contact_id?: string
           created_at?: string
           id?: string
           notes?: string | null
           received_by?: string
           shipment_number?: string
           shipping_cost?: number
-          supplier_id?: string
           tenant_id?: string | null
           total_cost?: number
         }
@@ -1995,10 +2009,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "shipments_supplier_id_fkey"
-            columns: ["supplier_id"]
+            foreignKeyName: "shipments_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "suppliers"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -2184,81 +2198,45 @@ export type Database = {
         Row: {
           amount: number
           branch_id: string
+          contact_id: string
           created_at: string
           id: string
           notes: string | null
           paid_at: string
           paid_by: string
-          supplier_id: string
           tenant_id: string | null
           treasury_id: string | null
         }
         Insert: {
           amount: number
           branch_id: string
+          contact_id: string
           created_at?: string
           id?: string
           notes?: string | null
           paid_at?: string
           paid_by: string
-          supplier_id: string
           tenant_id?: string | null
           treasury_id?: string | null
         }
         Update: {
           amount?: number
           branch_id?: string
+          contact_id?: string
           created_at?: string
           id?: string
           notes?: string | null
           paid_at?: string
           paid_by?: string
-          supplier_id?: string
           tenant_id?: string | null
           treasury_id?: string | null
         }
-        Relationships: []
-      }
-      suppliers: {
-        Row: {
-          address: string | null
-          balance: number
-          company_name: string
-          contact_name: string | null
-          created_at: string
-          id: string
-          notes: string | null
-          phone: string | null
-          tenant_id: string | null
-        }
-        Insert: {
-          address?: string | null
-          balance?: number
-          company_name: string
-          contact_name?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          phone?: string | null
-          tenant_id?: string | null
-        }
-        Update: {
-          address?: string | null
-          balance?: number
-          company_name?: string
-          contact_name?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          phone?: string | null
-          tenant_id?: string | null
-        }
         Relationships: [
           {
-            foreignKeyName: "suppliers_tenant_fk"
-            columns: ["tenant_id"]
+            foreignKeyName: "supplier_payments_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -2854,6 +2832,10 @@ export type Database = {
         Returns: string
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
+      contact_balance_apply: {
+        Args: { _contact: string; _delta: number }
+        Returns: undefined
+      }
       create_manual_voucher:
         | {
             Args: {
