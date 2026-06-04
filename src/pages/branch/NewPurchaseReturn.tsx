@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -65,19 +66,24 @@ export default function NewPurchaseReturn() {
   const [savedNumber, setSavedNumber] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
 
+  const loadSuppliers = useCallback(async () => {
+    const { data } = await supabase.from("suppliers").select("id, company_name, phone, balance").order("company_name");
+    setSuppliers(data ?? []);
+  }, []);
+  const loadProducts = useCallback(async () => {
+    if (!branchId) return;
+    const { data } = await supabase.from("products").select("id, name, sku, quantity, cost_price").eq("branch_id", branchId).gt("quantity", 0).order("name");
+    setProducts(data ?? []);
+  }, [branchId]);
+
   useEffect(() => {
     if (!branchId) return;
-    (async () => {
-      const [s, p, m] = await Promise.all([
-        supabase.from("suppliers").select("id, company_name, phone, balance").order("company_name"),
-        supabase.from("products").select("id, name, sku, quantity, cost_price").eq("branch_id", branchId).gt("quantity", 0).order("name"),
-        loadAllPaymentMethods(),
-      ]);
-      setSuppliers(s.data ?? []);
-      setProducts(p.data ?? []);
-      setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash"));
-    })();
-  }, [branchId]);
+    loadSuppliers();
+    loadProducts();
+    loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
+  }, [branchId, loadSuppliers, loadProducts]);
+  useRealtimeRefresh(["suppliers"], loadSuppliers);
+  useRealtimeRefresh(["products"], loadProducts);
 
   const openShipments = async () => {
     if (!supplier) return toast.error("اختر المورد أولاً");

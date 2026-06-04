@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -23,20 +24,24 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
   const [items, setItems] = useState<{ id: string; name: string }[]>([]);
   const [bal, setBal] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      if (type === "supplier") {
-        const { data } = await supabase.from("suppliers").select("id, company_name").order("company_name");
-        setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name })));
-      } else if (type === "customer") {
-        const { data } = await supabase.from("customers").select("id, name").order("name");
-        setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
-      } else {
-        const { data } = await supabase.from("employees").select("id, name").order("name");
-        setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
-      }
-    })();
+  const loadItems = useCallback(async () => {
+    if (type === "supplier") {
+      const { data } = await supabase.from("suppliers").select("id, company_name").order("company_name");
+      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name })));
+    } else if (type === "customer") {
+      const { data } = await supabase.from("customers").select("id, name").order("name");
+      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
+    } else {
+      const { data } = await supabase.from("employees").select("id, name").order("name");
+      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
+    }
   }, [type]);
+
+  useEffect(() => { loadItems(); }, [loadItems]);
+  useRealtimeRefresh(
+    [type === "supplier" ? "suppliers" : type === "customer" ? "customers" : "employees"],
+    loadItems,
+  );
 
   useEffect(() => {
     if (!value) { setBal(null); return; }
