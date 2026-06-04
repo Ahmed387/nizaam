@@ -539,7 +539,7 @@ export default function Invoices() {
               {isReturnTab && suggestOpen && suggestions.length > 0 && (
                 <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-72 overflow-y-auto">
                   {suggestions.map((r: any) => {
-                    const num = tab === "sale_return" ? r.invoices?.invoice_number : r.return_number;
+                    const num = r.return_number ?? (tab === "sale_return" ? r.invoices?.invoice_number : null);
                     const party = tab === "sale_return" ? (r.invoices?.customers?.name ?? "نقدي") : (r.suppliers?.company_name ?? "—");
                     const amt = Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0);
                     return (
