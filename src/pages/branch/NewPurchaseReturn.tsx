@@ -233,6 +233,35 @@ export default function NewPurchaseReturn() {
     }
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        submit(false);
+      } else if (e.key === "Escape" && !busy) {
+        nav(`/branch/${branchId}/invoices?tab=purchase_return`);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, lines, supplier, refundMode, cashPart, transferPart, balancePart, refundRef, finalReason]);
+
+  // Barcode → add line by SKU/name match
+  const onBarcodeScan = (code: string) => {
+    setCameraOpen(false);
+    const p = products.find((x) => x.sku === code || x.name === code);
+    if (!p) return toast.error(`لم يتم العثور على منتج بالكود: ${code}`);
+    const existing = lines.findIndex((l) => l.product_id === p.id);
+    if (existing >= 0) {
+      updateLine(existing, { quantity: Math.min(lines[existing].quantity + 1, lines[existing].max_qty) });
+    } else {
+      setLines([...lines, { product_id: p.id, product_name: p.name, quantity: 1, unit_cost: Number(p.cost_price), max_qty: p.quantity }]);
+    }
+    toast.success(`تم إضافة ${p.name}`);
+  };
+
   const printReceipt = (size: "thermal" | "a4") => {
     const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${savedNumber}</title>
       <style>
