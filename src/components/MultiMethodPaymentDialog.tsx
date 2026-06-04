@@ -247,7 +247,7 @@ export function MultiMethodPaymentDialog({
                 </div>
 
                 {requiresRef && (
-                  <div className="grid sm:grid-cols-2 gap-2">
+                  <div className="space-y-2">
                     <div>
                       <Label className="text-xs">رقم العملية *</Label>
                       <Input
@@ -256,14 +256,29 @@ export function MultiMethodPaymentDialog({
                         className="mt-1 h-9" placeholder="مرجع التحويل"
                       />
                     </div>
-                    <div>
-                      <Label className="text-xs">{methodAccountLabel(l.method)}</Label>
-                      <Input
-                        dir="ltr" className="text-right mt-1 h-9"
-                        value={l.transfer_to_account ?? ""}
-                        onChange={(e) => updateLine(l.id, { transfer_to_account: e.target.value })}
-                        placeholder={direction === "in" ? "حسابنا" : "حساب المورد"}
-                      />
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">
+                          {direction === "in" ? methodSenderLabel(l.method) : "حسابنا (المُحوَّل منه)"}
+                        </Label>
+                        <Input
+                          dir="ltr" className="text-right mt-1 h-9"
+                          value={l.transfer_from_account ?? ""}
+                          onChange={(e) => updateLine(l.id, { transfer_from_account: e.target.value })}
+                          placeholder={direction === "in" ? "حساب العميل" : "حسابنا اللي اتحول منه"}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">
+                          {direction === "in" ? "حسابنا (المُستلِم)" : methodReceiverLabel(l.method)}
+                        </Label>
+                        <Input
+                          dir="ltr" className="text-right mt-1 h-9"
+                          value={l.transfer_to_account ?? ""}
+                          onChange={(e) => updateLine(l.id, { transfer_to_account: e.target.value })}
+                          placeholder={direction === "in" ? "حسابنا اللي وصل عليه" : "حساب المورد"}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
