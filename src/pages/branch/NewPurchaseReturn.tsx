@@ -141,7 +141,7 @@ export default function NewPurchaseReturn() {
 
   const finalReason = reasonPick === "أخرى" ? reasonOther.trim() : reasonPick;
 
-  const submit = async () => {
+  const submit = async (asDraft = false) => {
     if (busy) return;
     if (!supplier) return toast.error("اختر المورد");
     if (!finalReason) return toast.error("اكتب السبب");
@@ -151,10 +151,12 @@ export default function NewPurchaseReturn() {
       if (l.quantity <= 0) return toast.error("الكمية لازم تكون أكبر من صفر");
       if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name}`);
     }
-    if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
-    const needsTransferRef = (refundMode === "transfer") || (refundMode === "mixed" && transferPart > 0);
-    if (needsTransferRef && methodRequiresReference(transferMethod) && !refundRef.trim())
-      return toast.error("أدخل رقم العملية للتحويل");
+    if (!asDraft) {
+      if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
+      const needsTransferRef = (refundMode === "transfer") || (refundMode === "mixed" && transferPart > 0);
+      if (needsTransferRef && methodRequiresReference(transferMethod) && !refundRef.trim())
+        return toast.error("أدخل رقم العملية للتحويل");
+    }
 
     setBusy(true);
     try {
@@ -169,6 +171,7 @@ export default function NewPurchaseReturn() {
         notes: notes.trim() || null,
         created_by: user!.id,
         total_amount: total,
+        status: asDraft ? "draft" : "active",
         refund_method: refundMethodFinal,
         refund_reference: refundRef.trim() || null,
         refund_account: refundAccount.trim() || null,
@@ -189,38 +192,40 @@ export default function NewPurchaseReturn() {
       const { error: e2 } = await supabase.from("purchase_return_items" as any).insert(items);
       if (e2) throw e2;
 
-      // Decrement stock
-      for (const l of lines) {
-        const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
-        if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
+      if (!asDraft) {
+        for (const l of lines) {
+          const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
+          if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
+        }
+        const cashIn = cashPart + transferPart;
+        if (cashIn > 0) {
+          await supabase.from("treasury").insert({
+            branch_id: branchId!,
+            type: "income",
+            category: "purchase_return",
+            amount: cashIn,
+            description: `مرتجع شراء ${number} - ${supplier.company_name}`,
+            reference_id: (pr as any).id,
+            payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
+            reference_number: refundRef.trim() || null,
+            transfer_from_account: refundAccount.trim() || null,
+            created_by: user!.id,
+          } as any);
+        }
+        if (balancePart > 0) {
+          const newBal = Number(supplier.balance ?? 0) - balancePart;
+          await supabase.from("suppliers").update({ balance: newBal }).eq("id", supplier.id);
+        }
       }
 
-      // Treasury: cash + transfer received as income
-      const cashIn = cashPart + transferPart;
-      if (cashIn > 0) {
-        await supabase.from("treasury").insert({
-          branch_id: branchId!,
-          type: "income",
-          category: "purchase_return",
-          amount: cashIn,
-          description: `مرتجع شراء ${number} - ${supplier.company_name}`,
-          reference_id: (pr as any).id,
-          payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
-          reference_number: refundRef.trim() || null,
-          transfer_from_account: refundAccount.trim() || null,
-          created_by: user!.id,
-        } as any);
+      if (asDraft) {
+        toast.success("تم حفظ المرتجع كمسودة");
+        nav(`/branch/${branchId}/invoices?tab=purchase_return`);
+      } else {
+        toast.success("تم تسجيل مرتجع الشراء");
+        setSavedNumber(number);
+        setPrintOpen(true);
       }
-
-      // Supplier balance: balancePart increases what the supplier owes us (or reduces what we owe them)
-      if (balancePart > 0) {
-        const newBal = Number(supplier.balance ?? 0) - balancePart;
-        await supabase.from("suppliers").update({ balance: newBal }).eq("id", supplier.id);
-      }
-
-      toast.success("تم تسجيل مرتجع الشراء");
-      setSavedNumber(number);
-      setPrintOpen(true);
     } catch (err: any) {
       toast.error(err.message ?? "فشل الحفظ");
     } finally {
