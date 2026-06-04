@@ -81,9 +81,9 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     if (!form.party_type || form.party_type === "other") { setPartyOptions([]); return; }
     (async () => {
       if (form.party_type === "supplier") {
-        const { data, error } = await supabase.from("suppliers" as any).select("id, company_name").order("company_name");
+        const { data, error } = await supabase.from("contacts").select("id, name").order("name");
         if (error) { toast.error(error.message); return; }
-        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.company_name })));
+        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
       } else {
         const table = form.party_type === "employee" ? "employees" : "customers";
         const { data, error } = await supabase.from(table as any).select("id, name").eq("branch_id", branchId).order("name");
@@ -103,7 +103,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
           const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining || 0), 0);
           setPartyBalance({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
         } else if (form.party_type === "supplier") {
-          const { data } = await supabase.from("suppliers" as any).select("balance").eq("id", form.party_id).maybeSingle();
+          const { data } = await supabase.from("contacts").select("balance").eq("id", form.party_id).maybeSingle();
           const amt = Number((data as any)?.balance ?? 0);
           setPartyBalance({ label: amt >= 0 ? "مستحق للمورد علينا" : "رصيد لصالحنا عند المورد", amount: Math.abs(amt), tone: amt > 0 ? "bad" : amt < 0 ? "good" : "neutral" });
         } else if (form.party_type === "customer") {

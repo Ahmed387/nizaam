@@ -49,7 +49,7 @@ export function PreOrderDialog({
     setQty(1); setDeposit(0); setNotes(""); setPayment("cash");
     setRefNum(""); setTransferAccount(""); setReceivedBy("");
     setPrice(Number(catalogItem?.display_price ?? 0));
-    supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
+    supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
   }, [open, catalogItem, branchId]);
 
   const total = qty * price;

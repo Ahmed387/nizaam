@@ -14,7 +14,7 @@ export default function ShipmentView() {
 
   useEffect(() => {
     (async () => {
-      const { data: s } = await supabase.from("shipments").select("*, suppliers(company_name, phone, address, tax_number)").eq("id", shipmentId!).maybeSingle();
+      const { data: s } = await supabase.from("shipments").select("*, suppliers(name, phone, address, tax_number)").eq("id", shipmentId!).maybeSingle();
       const { data: it } = await supabase
         .from("shipment_items")
         .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
@@ -41,7 +41,7 @@ export default function ShipmentView() {
             <h3 className="font-bold text-sm">بيانات المورد</h3>
           </div>
           <div className="text-sm space-y-2">
-            <div className="flex items-center gap-2"><Package className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الاسم:</span> <b>{ship.suppliers?.company_name ?? "—"}</b></div>
+            <div className="flex items-center gap-2"><Package className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الاسم:</span> <b>{ship.suppliers?.name ?? "—"}</b></div>
             <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الهاتف:</span> {ship.suppliers?.phone ?? "—"}</div>
             {ship.suppliers?.address && <div className="flex items-center gap-2"><ClipboardList className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">العنوان:</span> {ship.suppliers.address}</div>}
             {ship.suppliers?.tax_number && <div className="flex items-center gap-2"><Receipt className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الرقم الضريبي:</span> {ship.suppliers.tax_number}</div>}

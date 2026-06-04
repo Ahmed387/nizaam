@@ -83,7 +83,7 @@ export default function NewSale() {
   const addNewCustomer = async () => {
     if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
     setSavingCust(true);
-    const { data, error } = await supabase.from("customers").insert({
+    const { data, error } = await supabase.from("contacts").insert({
       name: newCust.name.trim(),
       phone: newCust.phone || null,
       address: newCust.address || null,
@@ -108,7 +108,7 @@ export default function NewSale() {
   useEffect(() => {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
-    supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
+    supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
     supabase.from("price_list_items_public").select("id, product_name, model_code, category, supplier_name, display_price").eq("is_active", true).then(({ data }) => {
       const list = data ?? [];
       setCatalog(list);

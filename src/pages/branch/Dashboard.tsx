@@ -52,11 +52,11 @@ export default function BranchDashboard() {
         supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
         supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
         supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
-        supabase.from("customers").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
-        supabase.from("invoices").select("*, customers(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
+        supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
+        supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
         supabase.from("invoices").select("created_at, total").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
         supabase.from("invoice_items").select("product_name, quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
-        supabase.from("invoices").select("customer_id, total, customers(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("customer_id", "is", null),
+        supabase.from("invoices").select("contact_id, total, contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
         supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
       ]);
       setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
@@ -110,7 +110,7 @@ export default function BranchDashboard() {
       // Top customers
       const custMap: Record<string, { name: string; total: number }> = {};
       (invAll30.data ?? []).forEach((x: any) => {
-        const name = x.customers?.name || "غير معروف";
+        const name = x.contacts?.name || "غير معروف";
         if (!custMap[name]) custMap[name] = { name, total: 0 };
         custMap[name].total += Number(x.total);
       });
@@ -326,7 +326,7 @@ export default function BranchDashboard() {
           <h3 className="font-bold mb-3">آخر الفواتير</h3>
           <DataTable rows={recent} columns={[
             { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
-            { key: "customer", header: "العميل", render: (r: any) => r.customers?.name ?? "نقدي" },
+            { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
             { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
             { key: "created_at", header: "الوقت", render: (r: any) => formatDateTime(r.created_at) },
           ]} />

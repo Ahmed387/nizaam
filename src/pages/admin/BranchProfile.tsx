@@ -56,7 +56,7 @@ export default function BranchProfile() {
       supabase.from("employees").select("*").eq("branch_id", branchId).order("name"),
       supabase.from("products").select("*").eq("branch_id", branchId).order("quantity"),
       supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
-      supabase.from("shipments").select("*, suppliers(company_name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).limit(200),
+      supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).limit(200),
       supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).limit(200),
       supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("status", "active").order("voucher_date", { ascending: false }).limit(500),
       supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200),
@@ -147,7 +147,7 @@ export default function BranchProfile() {
         "طريقة الدفع": i.payment_method, الحالة: i.status,
       })) },
       { name: "الشحنات", rows: shipments.map((s) => ({
-        التاريخ: s.arrival_date, المورد: s.suppliers?.company_name ?? "—",
+        التاريخ: s.arrival_date, المورد: s.contacts?.name ?? "—",
         المستلم: s.received_by, "تكلفة الشحنة": Number(s.total_cost),
       })) },
       { name: "المصاريف", rows: expenses.map((x) => ({
@@ -289,7 +289,7 @@ export default function BranchProfile() {
             onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
             columns={[
               { key: "arrival_date", header: "التاريخ", render: (r: any) => formatDate(r.arrival_date) },
-              { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
+              { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
               { key: "received_by", header: "المستلم" },
               { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
               { key: "total_cost", header: "الإجمالي", render: (r: any) => <span className="font-bold text-warning">{formatEGP(r.total_cost)}</span> },

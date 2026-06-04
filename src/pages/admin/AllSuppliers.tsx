@@ -20,8 +20,8 @@ import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, Package
 
 interface Supplier {
   id: string;
-  company_name: string;
-  contact_name: string | null;
+  name: string;
+  contact_person: string | null;
   phone: string | null;
   address: string | null;
   notes: string | null;
@@ -30,7 +30,7 @@ interface Supplier {
 }
 
 interface ShipmentSummary {
-  supplier_id: string;
+  contact_id: string;
   branch_id: string;
   branch_name: string;
   total: number;
@@ -38,7 +38,7 @@ interface ShipmentSummary {
 }
 
 interface PaymentSummary {
-  supplier_id: string;
+  contact_id: string;
   branch_id: string;
   branch_name: string;
   total: number;
@@ -59,7 +59,7 @@ export default function AllSuppliers() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const [form, setForm] = useState({ company_name: "", contact_name: "", phone: "", address: "", notes: "" });
+  const [form, setForm] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null);
   const [details, setDetails] = useState<Supplier | null>(null);
   const [shipmentsView, setShipmentsView] = useState<Supplier | null>(null);
@@ -70,7 +70,7 @@ export default function AllSuppliers() {
   // New shipment dialog
   const [newShipOpen, setNewShipOpen] = useState(false);
   const [shipForm, setShipForm] = useState({
-    supplier_id: "",
+    contact_id: "",
     branch_id: "",
     arrival_date: new Date().toISOString().split("T")[0],
     received_by: "",
@@ -85,10 +85,10 @@ export default function AllSuppliers() {
   const load = async () => {
     setLoading(true);
     const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
-      supabase.from("suppliers").select("*").order("created_at", { ascending: false }),
+      supabase.from("contacts").select("*").order("created_at", { ascending: false }),
       supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
-      supabase.from("shipments").select("supplier_id, branch_id, total_cost, branches(name)"),
-      supabase.from("supplier_payments").select("supplier_id, branch_id, amount, branches(name)"),
+      supabase.from("shipments").select("contact_id, branch_id, total_cost, branches(name)"),
+      supabase.from("supplier_payments").select("contact_id, branch_id, amount, branches(name)"),
     ]);
     setSuppliers((sups ?? []) as any);
     setBranches(brs ?? []);
@@ -96,9 +96,9 @@ export default function AllSuppliers() {
     // تجميع الشحنات لكل (مورد + فرع)
     const shipMap = new Map<string, ShipmentSummary>();
     for (const s of (ships ?? []) as any[]) {
-      if (!s.supplier_id || !s.branch_id) continue;
-      const key = `${s.supplier_id}|${s.branch_id}`;
-      const cur = shipMap.get(key) ?? { supplier_id: s.supplier_id, branch_id: s.branch_id, branch_name: s.branches?.name ?? "—", total: 0, count: 0 };
+      if (!s.contact_id || !s.branch_id) continue;
+      const key = `${s.contact_id}|${s.branch_id}`;
+      const cur = shipMap.get(key) ?? { contact_id: s.contact_id, branch_id: s.branch_id, branch_name: s.branches?.name ?? "—", total: 0, count: 0 };
       cur.total += Number(s.total_cost) || 0;
       cur.count += 1;
       shipMap.set(key, cur);
@@ -108,9 +108,9 @@ export default function AllSuppliers() {
     // تجميع المدفوعات لكل (مورد + فرع)
     const payMap = new Map<string, PaymentSummary>();
     for (const p of (pays ?? []) as any[]) {
-      if (!p.supplier_id || !p.branch_id) continue;
-      const key = `${p.supplier_id}|${p.branch_id}`;
-      const cur = payMap.get(key) ?? { supplier_id: p.supplier_id, branch_id: p.branch_id, branch_name: p.branches?.name ?? "—", total: 0, count: 0 };
+      if (!p.contact_id || !p.branch_id) continue;
+      const key = `${p.contact_id}|${p.branch_id}`;
+      const cur = payMap.get(key) ?? { contact_id: p.contact_id, branch_id: p.branch_id, branch_name: p.branches?.name ?? "—", total: 0, count: 0 };
       cur.total += Number(p.amount) || 0;
       cur.count += 1;
       payMap.set(key, cur);
@@ -120,13 +120,13 @@ export default function AllSuppliers() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  useRealtimeRefresh(["suppliers", "shipments", "supplier_payments", "branches"], load);
+  useRealtimeRefresh(["contacts", "shipments", "supplier_payments", "branches"], load);
 
   // إجمالي مشتريات + مدفوعات + فروع لكل مورد
   const enriched = useMemo(() => {
     return suppliers.map((s) => {
-      const ships = shipSums.filter((x) => x.supplier_id === s.id);
-      const pays = paySums.filter((x) => x.supplier_id === s.id);
+      const ships = shipSums.filter((x) => x.contact_id === s.id);
+      const pays = paySums.filter((x) => x.contact_id === s.id);
       const totalShipments = ships.reduce((a, b) => a + b.total, 0);
       const totalPayments = pays.reduce((a, b) => a + b.total, 0);
       const branchesUsed = new Set([...ships.map((x) => x.branch_id), ...pays.map((x) => x.branch_id)]);
@@ -141,46 +141,46 @@ export default function AllSuppliers() {
   }, [suppliers, shipSums, paySums]);
 
   const filtered = useMemo(() => enriched.filter((s) => {
-    if (search && !s.company_name.includes(search) && !(s.contact_name ?? "").includes(search)) return false;
+    if (search && !s.name.includes(search) && !(s.contact_person ?? "").includes(search)) return false;
     const bal = Number(s.balance) || 0;
-    if (balanceFilter === "owed_to_us" && bal >= 0) return false; // المورد مدين لنا (دفعنا أكتر) → balance سالب
-    if (balanceFilter === "owed_by_us" && bal <= 0) return false; // إحنا مدينين (لسه ندفع) → balance موجب
+    // الاتفاقية الجديدة: + = لنا (مرتجع/رصيد لصالحنا)، − = علينا للمورد
+    if (balanceFilter === "owed_to_us" && bal <= 0) return false;
+    if (balanceFilter === "owed_by_us" && bal >= 0) return false;
     if (balanceFilter === "settled" && bal !== 0) return false;
     if (branchFilter !== "all" && !s.branchIds.includes(branchFilter)) return false;
     return true;
   }), [enriched, search, balanceFilter, branchFilter]);
 
-  // إحصائيات إجمالية
   const stats = useMemo(() => {
-    const owedByUs = enriched.filter((s) => Number(s.balance) > 0).reduce((a, b) => a + Number(b.balance), 0);
-    const owedToUs = enriched.filter((s) => Number(s.balance) < 0).reduce((a, b) => a + Math.abs(Number(b.balance)), 0);
+    const owedByUs = enriched.filter((s) => Number(s.balance) < 0).reduce((a, b) => a + Math.abs(Number(b.balance)), 0);
+    const owedToUs = enriched.filter((s) => Number(s.balance) > 0).reduce((a, b) => a + Number(b.balance), 0);
     const totalPurchases = enriched.reduce((a, b) => a + b.totalShipments, 0);
     const totalPaid = enriched.reduce((a, b) => a + b.totalPayments, 0);
     return { owedByUs, owedToUs, totalPurchases, totalPaid, count: enriched.length };
   }, [enriched]);
 
-  const openNew = () => { setEditing(null); setForm({ company_name: "", contact_name: "", phone: "", address: "", notes: "" }); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", contact_person: "", phone: "", address: "", notes: "" }); setOpen(true); };
   const openEdit = (s: Supplier) => {
     setEditing(s);
-    setForm({ company_name: s.company_name, contact_name: s.contact_name ?? "", phone: s.phone ?? "", address: s.address ?? "", notes: s.notes ?? "" });
+    setForm({ name: s.name, contact_person: s.contact_person ?? "", phone: s.phone ?? "", address: s.address ?? "", notes: s.notes ?? "" });
     setOpen(true);
   };
 
   const submit = async () => {
-    if (!form.company_name) return toast.error("اسم الشركة مطلوب");
+    if (!form.name) return toast.error("اسم الشركة مطلوب");
     const payload = {
-      company_name: form.company_name,
-      contact_name: form.contact_name || null,
+      name: form.name,
+      contact_person: form.contact_person || null,
       phone: form.phone || null,
       address: form.address || null,
       notes: form.notes || null,
     };
     if (editing) {
-      const { error } = await supabase.from("suppliers").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("تم تحديث المورد");
     } else {
-      const { error } = await supabase.from("suppliers").insert({ ...payload, tenant_id: tenantId });
+      const { error } = await supabase.from("contacts").insert({ ...payload, tenant_id: tenantId });
       if (error) return toast.error(error.message);
       toast.success("تمت إضافة المورد");
     }
@@ -189,7 +189,7 @@ export default function AllSuppliers() {
 
   const remove = async () => {
     if (!deleteConfirm) return;
-    const { error } = await supabase.from("suppliers").delete().eq("id", deleteConfirm.id);
+    const { error } = await supabase.from("contacts").delete().eq("id", deleteConfirm.id);
     if (error) return toast.error(error.message);
     toast.success("تم حذف المورد");
     setDeleteConfirm(null); load();
@@ -197,14 +197,14 @@ export default function AllSuppliers() {
 
   const exportExcel = () => {
     const data = filtered.map((s) => ({
-      "اسم الشركة": s.company_name,
-      "المسؤول": s.contact_name ?? "—",
+      "اسم الشركة": s.name,
+      "المسؤول": s.contact_person ?? "—",
       "التليفون": s.phone ?? "—",
       "الفروع": s.branchCount,
       "إجمالي المشتريات": s.totalShipments,
       "إجمالي المدفوعات": s.totalPayments,
       "الرصيد": Number(s.balance) || 0,
-      "الحالة": Number(s.balance) > 0 ? "علينا (مدينين)" : Number(s.balance) < 0 ? "لينا (دفعنا زيادة)" : "مسدد",
+      "الحالة": Number(s.balance) < 0 ? "علينا (مدينين)" : Number(s.balance) > 0 ? "لينا (دفعنا زيادة)" : "مسدد",
       "تاريخ الإضافة": formatDateTime(s.created_at),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -222,7 +222,7 @@ export default function AllSuppliers() {
     const { data, error } = await supabase
       .from("shipments")
       .select("id, arrival_date, branch_id, total_cost, shipping_cost, admin_cost, received_by, notes, created_at, branches(name), shipment_items(product_name, quantity, cost_price, total)")
-      .eq("supplier_id", s.id)
+      .eq("contact_id", s.id)
       .order("arrival_date", { ascending: false });
     if (error) toast.error(error.message);
     setShipmentsList(data ?? []);
@@ -257,13 +257,13 @@ export default function AllSuppliers() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "شحنات المورد");
-    XLSX.writeFile(wb, `shipments-${shipmentsView.company_name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `shipments-${shipmentsView.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success(`تم تصدير ${rows.length} سطر`);
   };
 
   const openNewShipment = (preSupplierId?: string) => {
     setShipForm({
-      supplier_id: preSupplierId ?? "",
+      contact_id: preSupplierId ?? "",
       branch_id: "",
       arrival_date: new Date().toISOString().split("T")[0],
       received_by: "",
@@ -296,7 +296,7 @@ export default function AllSuppliers() {
   const shipGrandTotal = shipItemsTotal + Number(shipForm.shipping_cost || 0) + Number(shipForm.admin_cost || 0);
 
   const submitNewShipment = async () => {
-    if (!shipForm.supplier_id) return toast.error("اختر المورد");
+    if (!shipForm.contact_id) return toast.error("اختر المورد");
     if (!shipForm.branch_id) return toast.error("اختر الفرع");
     if (!shipForm.received_by.trim()) return toast.error("أدخل اسم المستلم");
     if (!shipLines.length) return toast.error("أضف صنفاً واحداً على الأقل");
@@ -309,7 +309,7 @@ export default function AllSuppliers() {
       const { data: ship, error: e1 } = await supabase.from("shipments").insert({
         tenant_id: tenantId,
         branch_id: shipForm.branch_id,
-        supplier_id: shipForm.supplier_id,
+        contact_id: shipForm.contact_id,
         arrival_date: shipForm.arrival_date,
         received_by: shipForm.received_by.trim(),
         shipping_cost: Number(shipForm.shipping_cost || 0),
@@ -428,7 +428,7 @@ export default function AllSuppliers() {
       <DataTable loading={loading} rows={filtered}
         onRowClick={(r: any) => nav(`/admin/suppliers/${r.id}`)}
         columns={[
-          { key: "company_name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.contact_name ?? "—"}</div></div> },
+          { key: "name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "branches", header: "الفروع", render: (r: any) => <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">{r.branchCount} فرع</span> },
           { key: "totalShipments", header: "إجمالي المشتريات", render: (r: any) => <span className="font-semibold">{formatEGP(r.totalShipments)}</span> },
@@ -436,8 +436,8 @@ export default function AllSuppliers() {
           { key: "balance", header: "الرصيد", render: (r: any) => {
             const bal = Number(r.balance) || 0;
             if (bal === 0) return <span className="text-muted-foreground">— مسدد —</span>;
-            if (bal > 0) return <span className="text-destructive font-bold">{formatEGP(bal)} <span className="text-xs">علينا</span></span>;
-            return <span className="text-success font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">لينا</span></span>;
+            if (bal < 0) return <span className="text-destructive font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">علينا</span></span>;
+            return <span className="text-success font-bold">{formatEGP(bal)} <span className="text-xs">لينا</span></span>;
           }},
           { key: "actions", header: "إجراءات", render: (r: any) => (
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -455,8 +455,8 @@ export default function AllSuppliers() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "تعديل مورد" : "مورد جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>اسم الشركة *</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>المسؤول</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>اسم الشركة *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>المسؤول</Label><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="mt-1.5" /></div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>العنوان</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1.5" /></div>
             <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1.5" /></div>
@@ -472,12 +472,12 @@ export default function AllSuppliers() {
       <Dialog open={!!details} onOpenChange={(o) => !o && setDetails(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{details?.company_name}</DialogTitle>
+            <DialogTitle>{details?.name}</DialogTitle>
             <DialogDescription>تفصيل الحركة على كل فرع</DialogDescription>
           </DialogHeader>
           {details && (() => {
-            const ships = shipSums.filter((x) => x.supplier_id === details.id);
-            const pays = paySums.filter((x) => x.supplier_id === details.id);
+            const ships = shipSums.filter((x) => x.contact_id === details.id);
+            const pays = paySums.filter((x) => x.contact_id === details.id);
             const branchIds = Array.from(new Set([...ships.map((x) => x.branch_id), ...pays.map((x) => x.branch_id)]));
             return (
               <div className="space-y-3">
@@ -507,9 +507,9 @@ export default function AllSuppliers() {
                 <div className="p-3 rounded-md border-2 border-primary/30 bg-primary/5">
                   <div className="flex justify-between items-center">
                     <span className="text-sm">الرصيد الإجمالي:</span>
-                    <span className={`font-bold text-lg ${Number(details.balance) > 0 ? "text-destructive" : Number(details.balance) < 0 ? "text-success" : ""}`}>
+                    <span className={`font-bold text-lg ${Number(details.balance) < 0 ? "text-destructive" : Number(details.balance) > 0 ? "text-success" : ""}`}>
                       {formatEGP(Math.abs(Number(details.balance) || 0))}
-                      <span className="text-xs mr-2">{Number(details.balance) > 0 ? "علينا" : Number(details.balance) < 0 ? "لينا" : "مسدد"}</span>
+                      <span className="text-xs mr-2">{Number(details.balance) < 0 ? "علينا" : Number(details.balance) > 0 ? "لينا" : "مسدد"}</span>
                     </span>
                   </div>
                 </div>
@@ -526,7 +526,7 @@ export default function AllSuppliers() {
       <Dialog open={!!shipmentsView} onOpenChange={(o) => !o && setShipmentsView(null)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>شحنات: {shipmentsView?.company_name}</DialogTitle>
+            <DialogTitle>شحنات: {shipmentsView?.name}</DialogTitle>
             <DialogDescription>كل ما نزّله المورد، بالأصناف والكميات والفرع</DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 flex-wrap items-center mb-2">
@@ -617,10 +617,10 @@ export default function AllSuppliers() {
           <div className="grid md:grid-cols-3 gap-3">
             <div>
               <Label>المورد *</Label>
-              <Select value={shipForm.supplier_id} onValueChange={(v) => setShipForm({ ...shipForm, supplier_id: v })}>
+              <Select value={shipForm.contact_id} onValueChange={(v) => setShipForm({ ...shipForm, contact_id: v })}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}
+                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -733,7 +733,7 @@ export default function AllSuppliers() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف المورد</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف <b>{deleteConfirm?.company_name}</b>؟
+              هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟
               <br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).
             </AlertDialogDescription>
           </AlertDialogHeader>

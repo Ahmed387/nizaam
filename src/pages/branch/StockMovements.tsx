@@ -44,7 +44,7 @@ export default function StockMovements() {
       // Shipments (in) — to this branch
       const { data: shipItems } = await supabase
         .from("shipment_items")
-        .select("quantity, shipment_id, shipments!inner(arrival_date, branch_id, supplier_id, suppliers(company_name))")
+        .select("quantity, shipment_id, shipments!inner(arrival_date, branch_id, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
       // Transfers — confirmed only, where this branch is from or to
@@ -94,7 +94,7 @@ export default function StockMovements() {
           date: s.arrival_date,
           type: "شحنة واردة",
           qty: Number(it.quantity),
-          reason: s.suppliers?.company_name ?? "—",
+          reason: s.contacts?.name ?? "—",
           reference: "SHIP",
         });
       });

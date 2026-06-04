@@ -67,23 +67,23 @@ export default function SupplierProfile() {
   const [pay, setPay] = useState({ amount: "", branch_id: branchId ?? "", notes: "" });
 
   const [editOpen, setEditOpen] = useState(false);
-  const [edit, setEdit] = useState({ company_name: "", contact_name: "", phone: "", address: "", notes: "" });
+  const [edit, setEdit] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
 
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const [{ data: s }, { data: ships }, { data: pays }] = await Promise.all([
-      supabase.from("suppliers").select("*").eq("id", supplierId!).maybeSingle(),
+      supabase.from("contacts").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
         .select("*, branches(name), shipment_items(id, quantity)")
-        .eq("supplier_id", supplierId!)
+        .eq("contact_id", supplierId!)
         .order("arrival_date", { ascending: false }),
       supabase
         .from("supplier_payments" as any)
         .select("*, branches(name), profiles:paid_by(name)")
-        .eq("supplier_id", supplierId!)
+        .eq("contact_id", supplierId!)
         .order("paid_at", { ascending: false }),
     ]);
     setSupplier(s);
@@ -98,8 +98,8 @@ export default function SupplierProfile() {
   useEffect(() => {
     if (supplier) {
       setEdit({
-        company_name: supplier.company_name ?? "",
-        contact_name: supplier.contact_name ?? "",
+        name: supplier.name ?? "",
+        contact_person: supplier.contact_person ?? "",
         phone: supplier.phone ?? "",
         address: supplier.address ?? "",
         notes: supplier.notes ?? "",
@@ -109,7 +109,10 @@ export default function SupplierProfile() {
 
   const totalShipments = shipments.reduce((s, x) => s + Number(x.total_cost), 0);
   const totalPaid = payments.reduce((s, x) => s + Number(x.amount), 0);
+  // الاتفاقية الجديدة: +balance = لنا، −balance = علينا.
+  // المتبقي علينا = max(0, -balance)
   const balance = Number(supplier?.balance ?? 0);
+  const owedByUs = balance < 0 ? Math.abs(balance) : 0;
   const totalItemsCount = shipments.reduce(
     (s, x) => s + ((x.shipment_items ?? []) as any[]).length,
     0
@@ -161,7 +164,7 @@ export default function SupplierProfile() {
         type: "expense",
         category: "other",
         amount,
-        description: `سداد دفعة للمورد: ${supplier.company_name}${pay.notes ? " — " + pay.notes : ""}`,
+        description: `سداد دفعة للمورد: ${supplier.name}${pay.notes ? " — " + pay.notes : ""}`,
         reference_id: supplierId,
         created_by: user!.id,
         tenant_id: tenantId,
@@ -171,7 +174,7 @@ export default function SupplierProfile() {
     if (trErr) return toast.error(trErr.message);
 
     const { error: payErr } = await supabase.from("supplier_payments" as any).insert({
-      supplier_id: supplierId,
+      contact_id: supplierId,
       branch_id: pay.branch_id,
       amount,
       notes: pay.notes || null,
@@ -190,7 +193,7 @@ export default function SupplierProfile() {
       action: "CREATE",
       entity: "SupplierPayment",
       entityId: supplierId,
-      details: { amount, supplier: supplier.company_name, notes: pay.notes },
+      details: { amount, supplier: supplier.name, notes: pay.notes },
     });
 
     toast.success("تم تسجيل السداد");
@@ -200,8 +203,8 @@ export default function SupplierProfile() {
   };
 
   const submitEdit = async () => {
-    if (!edit.company_name) return toast.error("اسم الشركة مطلوب");
-    const { error } = await supabase.from("suppliers").update(edit).eq("id", supplierId!);
+    if (!edit.name) return toast.error("اسم الشركة مطلوب");
+    const { error } = await supabase.from("contacts").update(edit).eq("id", supplierId!);
     if (error) return toast.error(error.message);
     await logAudit({
       userId: user!.id,
@@ -221,7 +224,7 @@ export default function SupplierProfile() {
     if (shipments.length > 0) {
       return toast.error("لا يمكن حذف مورد له شحنات. احذف الشحنات أولاً.");
     }
-    const { error } = await supabase.from("suppliers").delete().eq("id", supplierId!);
+    const { error } = await supabase.from("contacts").delete().eq("id", supplierId!);
     if (error) return toast.error(error.message);
     await logAudit({
       userId: user!.id,
@@ -230,7 +233,7 @@ export default function SupplierProfile() {
       action: "DELETE",
       entity: "Supplier",
       entityId: supplierId,
-      details: { company_name: supplier.company_name },
+      details: { name: supplier.name },
     });
     toast.success("تم الحذف");
     nav(backTo);
@@ -267,12 +270,12 @@ export default function SupplierProfile() {
         <div>عدد الشحنات <b>${shipments.length}</b></div>
         <div>إجمالي الشحنات <b>${formatEGP(totalShipments)}</b></div>
         <div>إجمالي المدفوع <b class="pos">${formatEGP(totalPaid)}</b></div>
-        <div>المتبقي عليك <b class="${balance > 0 ? "neg" : "pos"}">${formatEGP(balance)}</b></div>
+        <div>المتبقي عليك <b class="${owedByUs > 0 ? "neg" : "pos"}">${formatEGP(owedByUs)}</b></div>
       </div>
 
       <h3>بيانات المورد</h3>
       <table>
-        <tr><th>الشركة</th><td>${supplier.company_name}</td><th>المسؤول</th><td>${supplier.contact_name ?? "—"}</td></tr>
+        <tr><th>الشركة</th><td>${supplier.name}</td><th>المسؤول</th><td>${supplier.contact_person ?? "—"}</td></tr>
         <tr><th>التليفون</th><td dir="ltr">${supplier.phone ?? "—"}</td><th>العنوان</th><td>${supplier.address ?? "—"}</td></tr>
       </table>
 
@@ -288,14 +291,14 @@ export default function SupplierProfile() {
         <tbody>${pays || '<tr><td colspan="5" style="text-align:center">لا توجد مدفوعات</td></tr>'}</tbody>
       </table>
     `;
-    printReport(`كشف حساب المورد — ${supplier.company_name}`, html);
+    printReport(`كشف حساب المورد — ${supplier.name}`, html);
   };
 
   const exportExcel = () => {
     if (!supplier) return;
     const summary = [
-      { البيان: "اسم الشركة", القيمة: supplier.company_name },
-      { البيان: "المسؤول", القيمة: supplier.contact_name ?? "—" },
+      { البيان: "اسم الشركة", القيمة: supplier.name },
+      { البيان: "المسؤول", القيمة: supplier.contact_person ?? "—" },
       { البيان: "التليفون", القيمة: supplier.phone ?? "—" },
       { البيان: "العنوان", القيمة: supplier.address ?? "—" },
       { البيان: "عدد الشحنات", القيمة: shipments.length },
@@ -303,7 +306,7 @@ export default function SupplierProfile() {
       { البيان: "إجمالي الوحدات", القيمة: totalUnits },
       { البيان: "إجمالي الشحنات (جنيه)", القيمة: totalShipments },
       { البيان: "إجمالي المدفوع (جنيه)", القيمة: totalPaid },
-      { البيان: "المتبقي عليك (جنيه)", القيمة: balance },
+      { البيان: "المتبقي عليك (جنيه)", القيمة: owedByUs },
     ];
     const shipRows = shipments.map((s) => ({
       التاريخ: formatDate(s.arrival_date),
@@ -323,7 +326,7 @@ export default function SupplierProfile() {
       المبلغ: Number(p.amount),
       ملاحظات: p.notes ?? "",
     }));
-    exportToExcel(`كشف حساب — ${supplier.company_name}`, [
+    exportToExcel(`كشف حساب — ${supplier.name}`, [
       { name: "ملخص", rows: summary },
       { name: "الشحنات", rows: shipRows },
       { name: "المدفوعات", rows: payRows },
@@ -332,8 +335,8 @@ export default function SupplierProfile() {
   return (
     <Layout>
       <PageHeader
-        title={supplier?.company_name ?? "ملف المورد"}
-        subtitle={supplier?.contact_name ?? ""}
+        title={supplier?.name ?? "ملف المورد"}
+        subtitle={supplier?.contact_person ?? ""}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button className="btn-gradient" onClick={() => setPayOpen(true)}>
@@ -365,7 +368,7 @@ export default function SupplierProfile() {
       {supplier && (
         <div className="card-elevated p-5 mb-6 grid md:grid-cols-3 gap-4 text-sm">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-muted-foreground" /> {supplier.contact_name ?? "—"}
+            <User className="w-4 h-4 text-muted-foreground" /> {supplier.contact_person ?? "—"}
           </div>
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-muted-foreground" /> <span dir="ltr">{supplier.phone ?? "—"}</span>
@@ -384,9 +387,9 @@ export default function SupplierProfile() {
         <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
         <StatCard
           label="المتبقي عليك"
-          value={formatEGP(balance)}
+          value={formatEGP(owedByUs)}
           icon={<DollarSign className="w-5 h-5" />}
-          accent={balance > 0 ? "warning" : "success"}
+          accent={owedByUs > 0 ? "warning" : "success"}
         />
       </div>
 
@@ -487,7 +490,7 @@ export default function SupplierProfile() {
           <div className="space-y-3">
             <div className="p-3 rounded-lg bg-surface-2 text-sm">
               <div>
-                المتبقي عليك: <span className="font-bold text-warning">{formatEGP(balance)}</span>
+                المتبقي عليك: <span className="font-bold text-warning">{formatEGP(owedByUs)}</span>
               </div>
             </div>
             <div>
@@ -539,11 +542,11 @@ export default function SupplierProfile() {
           <div className="space-y-3">
             <div>
               <Label>اسم الشركة *</Label>
-              <Input value={edit.company_name} onChange={(e) => setEdit({ ...edit, company_name: e.target.value })} className="mt-1.5" />
+              <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className="mt-1.5" />
             </div>
             <div>
               <Label>المسؤول</Label>
-              <Input value={edit.contact_name} onChange={(e) => setEdit({ ...edit, contact_name: e.target.value })} className="mt-1.5" />
+              <Input value={edit.contact_person} onChange={(e) => setEdit({ ...edit, contact_person: e.target.value })} className="mt-1.5" />
             </div>
             <div>
               <Label>التليفون</Label>
@@ -575,7 +578,7 @@ export default function SupplierProfile() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف المورد؟</AlertDialogTitle>
             <AlertDialogDescription>
-              هتفقد كل بيانات المورد <b>{supplier?.company_name}</b>. مينفعش الحذف لو ليه شحنات مسجلة.
+              هتفقد كل بيانات المورد <b>{supplier?.name}</b>. مينفعش الحذف لو ليه شحنات مسجلة.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
