@@ -58,7 +58,17 @@ export default function Inventory() {
     const { data } = await supabase.from("products").select("*, categories(name)").eq("branch_id", branchId).order("created_at", { ascending: false });
     setRows(data ?? []); setLoading(false);
   };
-  useEffect(() => { load(); supabase.from("categories").select("*").then(({ data }) => setCats(data ?? [])); }, [branchId]);
+  useEffect(() => {
+    load();
+    supabase.from("categories").select("*").then(({ data }) => setCats(data ?? []));
+    supabase.from("settings").select("value").eq("key", "inventory").maybeSingle().then(({ data }) => {
+      const v = Number((data?.value as any)?.default_low_stock_alert);
+      if (Number.isFinite(v) && v >= 0) {
+        setDefaultLowStock(v);
+        setForm((f) => ({ ...f, low_stock_alert: String(v) }));
+      }
+    });
+  }, [branchId]);
   useRealtimeRefresh(["products", "categories"], load);
 
   const filtered = rows.filter((p) => {
