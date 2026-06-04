@@ -13,8 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Link2, Printer, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Loader2, Link2, Printer, AlertTriangle, Camera, Save } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 
 interface Line { product_id: string; product_name: string; quantity: number; unit_cost: number; max_qty: number; }
 
