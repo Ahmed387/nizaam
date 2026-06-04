@@ -123,7 +123,9 @@ const App = () => (
             <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/branches/:id" element={<ProtectedRoute adminOnly><BranchProfile /></ProtectedRoute>} />
             <Route path="/admin/pre-orders" element={<ProtectedRoute adminOnly><AllPreOrders /></ProtectedRoute>} />
-            <Route path="/admin/suppliers" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
+            <Route path="/admin/contacts" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
+            <Route path="/admin/suppliers" element={<Navigate to="/admin/contacts?type=supplier" replace />} />
+            <Route path="/admin/contacts/:supplierId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
             <Route path="/admin/suppliers/:supplierId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
             <Route path="/admin/employees" element={<ProtectedRoute roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
