@@ -55,6 +55,8 @@ export default function NewReturn() {
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
   const [lastReturnId, setLastReturnId] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [creditToBalance, setCreditToBalance] = useState(false);
 
   useEffect(() => {
     loadAllPaymentMethods().then((m) => setMethodOptions(m.filter((x) => x.is_enabled)));
