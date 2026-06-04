@@ -16,6 +16,11 @@ function RedirectSupplierToContact() {
   return <Navigate to={`/branch/${id}/contacts/${contactId}`} replace />;
 }
 
+function AdminRedirectToContact() {
+  const { contactId } = useParams();
+  return <Navigate to={`/admin/contacts/${contactId}`} replace />;
+}
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -133,7 +138,7 @@ const App = () => (
             <Route path="/admin/contacts" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
             <Route path="/admin/suppliers" element={<Navigate to="/admin/contacts?type=supplier" replace />} />
             <Route path="/admin/contacts/:contactId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
-            <Route path="/admin/suppliers/:contactId" element={<AdminRedirectSupplierToContact />} />
+            <Route path="/admin/suppliers/:contactId" element={<AdminRedirectToContact />} />
             <Route path="/admin/employees" element={<ProtectedRoute roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
