@@ -137,7 +137,7 @@ export function MultiMethodPaymentDialog({
     try {
       for (const l of lines) {
         if (mode.kind === "plan") {
-          const { error } = await supabase.rpc("record_payment_transaction", {
+          const { error } = await supabase.rpc("record_payment_transaction" as any, {
             p_payment_plan_id: mode.planId,
             p_installment_id: mode.installmentId ?? null,
             p_amount: l.amount,
@@ -149,6 +149,7 @@ export function MultiMethodPaymentDialog({
             p_fee_type: l.fee_type ?? null,
             p_fee_on_customer: direction === "in" ? l.fee_on_customer : false,
             p_direction: direction,
+            p_transfer_from_account: l.transfer_from_account ?? null,
           });
           if (error) throw error;
         } else {
@@ -165,6 +166,7 @@ export function MultiMethodPaymentDialog({
             p_fee_type: l.fee_type ?? null,
             p_fee_on_customer: direction === "in" ? l.fee_on_customer : false,
             p_notes: notes || null,
+            p_transfer_from_account: l.transfer_from_account ?? null,
           });
           if (error) throw error;
         }
