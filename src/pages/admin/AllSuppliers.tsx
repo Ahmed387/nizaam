@@ -204,7 +204,7 @@ export default function AllSuppliers() {
       "إجمالي المشتريات": s.totalShipments,
       "إجمالي المدفوعات": s.totalPayments,
       "الرصيد": Number(s.balance) || 0,
-      "الحالة": Number(s.balance) > 0 ? "علينا (مدينين)" : Number(s.balance) < 0 ? "لينا (دفعنا زيادة)" : "مسدد",
+      "الحالة": Number(s.balance) < 0 ? "علينا (مدينين)" : Number(s.balance) > 0 ? "لينا (دفعنا زيادة)" : "مسدد",
       "تاريخ الإضافة": formatDateTime(s.created_at),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -436,8 +436,8 @@ export default function AllSuppliers() {
           { key: "balance", header: "الرصيد", render: (r: any) => {
             const bal = Number(r.balance) || 0;
             if (bal === 0) return <span className="text-muted-foreground">— مسدد —</span>;
-            if (bal > 0) return <span className="text-destructive font-bold">{formatEGP(bal)} <span className="text-xs">علينا</span></span>;
-            return <span className="text-success font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">لينا</span></span>;
+            if (bal < 0) return <span className="text-destructive font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">علينا</span></span>;
+            return <span className="text-success font-bold">{formatEGP(bal)} <span className="text-xs">لينا</span></span>;
           }},
           { key: "actions", header: "إجراءات", render: (r: any) => (
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -507,9 +507,9 @@ export default function AllSuppliers() {
                 <div className="p-3 rounded-md border-2 border-primary/30 bg-primary/5">
                   <div className="flex justify-between items-center">
                     <span className="text-sm">الرصيد الإجمالي:</span>
-                    <span className={`font-bold text-lg ${Number(details.balance) > 0 ? "text-destructive" : Number(details.balance) < 0 ? "text-success" : ""}`}>
+                    <span className={`font-bold text-lg ${Number(details.balance) < 0 ? "text-destructive" : Number(details.balance) > 0 ? "text-success" : ""}`}>
                       {formatEGP(Math.abs(Number(details.balance) || 0))}
-                      <span className="text-xs mr-2">{Number(details.balance) > 0 ? "علينا" : Number(details.balance) < 0 ? "لينا" : "مسدد"}</span>
+                      <span className="text-xs mr-2">{Number(details.balance) < 0 ? "علينا" : Number(details.balance) > 0 ? "لينا" : "مسدد"}</span>
                     </span>
                   </div>
                 </div>

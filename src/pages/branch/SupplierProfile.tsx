@@ -109,7 +109,10 @@ export default function SupplierProfile() {
 
   const totalShipments = shipments.reduce((s, x) => s + Number(x.total_cost), 0);
   const totalPaid = payments.reduce((s, x) => s + Number(x.amount), 0);
+  // الاتفاقية الجديدة: +balance = لنا، −balance = علينا.
+  // المتبقي علينا = max(0, -balance)
   const balance = Number(supplier?.balance ?? 0);
+  const owedByUs = balance < 0 ? Math.abs(balance) : 0;
   const totalItemsCount = shipments.reduce(
     (s, x) => s + ((x.shipment_items ?? []) as any[]).length,
     0
@@ -267,7 +270,7 @@ export default function SupplierProfile() {
         <div>عدد الشحنات <b>${shipments.length}</b></div>
         <div>إجمالي الشحنات <b>${formatEGP(totalShipments)}</b></div>
         <div>إجمالي المدفوع <b class="pos">${formatEGP(totalPaid)}</b></div>
-        <div>المتبقي عليك <b class="${balance > 0 ? "neg" : "pos"}">${formatEGP(balance)}</b></div>
+        <div>المتبقي عليك <b class="${owedByUs > 0 ? "neg" : "pos"}">${formatEGP(owedByUs)}</b></div>
       </div>
 
       <h3>بيانات المورد</h3>
@@ -303,7 +306,7 @@ export default function SupplierProfile() {
       { البيان: "إجمالي الوحدات", القيمة: totalUnits },
       { البيان: "إجمالي الشحنات (جنيه)", القيمة: totalShipments },
       { البيان: "إجمالي المدفوع (جنيه)", القيمة: totalPaid },
-      { البيان: "المتبقي عليك (جنيه)", القيمة: balance },
+      { البيان: "المتبقي عليك (جنيه)", القيمة: owedByUs },
     ];
     const shipRows = shipments.map((s) => ({
       التاريخ: formatDate(s.arrival_date),
@@ -384,9 +387,9 @@ export default function SupplierProfile() {
         <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
         <StatCard
           label="المتبقي عليك"
-          value={formatEGP(balance)}
+          value={formatEGP(owedByUs)}
           icon={<DollarSign className="w-5 h-5" />}
-          accent={balance > 0 ? "warning" : "success"}
+          accent={owedByUs > 0 ? "warning" : "success"}
         />
       </div>
 
@@ -487,7 +490,7 @@ export default function SupplierProfile() {
           <div className="space-y-3">
             <div className="p-3 rounded-lg bg-surface-2 text-sm">
               <div>
-                المتبقي عليك: <span className="font-bold text-warning">{formatEGP(balance)}</span>
+                المتبقي عليك: <span className="font-bold text-warning">{formatEGP(owedByUs)}</span>
               </div>
             </div>
             <div>
