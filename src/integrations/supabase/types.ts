@@ -560,6 +560,7 @@ export type Database = {
           payment_method: string
           reference_number: string | null
           tenant_id: string | null
+          transfer_from_account: string | null
           transfer_to_account: string | null
           type: string
         }
@@ -575,6 +576,7 @@ export type Database = {
           payment_method?: string
           reference_number?: string | null
           tenant_id?: string | null
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           type: string
         }
@@ -590,6 +592,7 @@ export type Database = {
           payment_method?: string
           reference_number?: string | null
           tenant_id?: string | null
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           type?: string
         }
@@ -693,6 +696,7 @@ export type Database = {
           received_by_name: string | null
           reference_number: string | null
           tenant_id: string | null
+          transfer_from_account: string | null
           transfer_to_account: string | null
         }
         Insert: {
@@ -707,6 +711,7 @@ export type Database = {
           received_by_name?: string | null
           reference_number?: string | null
           tenant_id?: string | null
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
         }
         Update: {
@@ -721,6 +726,7 @@ export type Database = {
           received_by_name?: string | null
           reference_number?: string | null
           tenant_id?: string | null
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
         }
         Relationships: []
@@ -978,6 +984,7 @@ export type Database = {
           reference_number: string | null
           tenant_id: string | null
           total_with_fee: number
+          transfer_from_account: string | null
           transfer_to_account: string | null
           treasury_id: string | null
         }
@@ -999,6 +1006,7 @@ export type Database = {
           reference_number?: string | null
           tenant_id?: string | null
           total_with_fee: number
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           treasury_id?: string | null
         }
@@ -1020,6 +1028,7 @@ export type Database = {
           reference_number?: string | null
           tenant_id?: string | null
           total_with_fee?: number
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           treasury_id?: string | null
         }
@@ -1059,6 +1068,7 @@ export type Database = {
           received_by_name: string | null
           reference_number: string | null
           tenant_id: string
+          transfer_from_account: string | null
           transfer_to_account: string | null
           treasury_id: string | null
           type: Database["public"]["Enums"]["pre_order_tx_type"]
@@ -1074,6 +1084,7 @@ export type Database = {
           received_by_name?: string | null
           reference_number?: string | null
           tenant_id: string
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           treasury_id?: string | null
           type: Database["public"]["Enums"]["pre_order_tx_type"]
@@ -1089,6 +1100,7 @@ export type Database = {
           received_by_name?: string | null
           reference_number?: string | null
           tenant_id?: string
+          transfer_from_account?: string | null
           transfer_to_account?: string | null
           treasury_id?: string | null
           type?: Database["public"]["Enums"]["pre_order_tx_type"]
@@ -3010,39 +3022,76 @@ export type Database = {
         }
         Returns: string
       }
-      record_contact_payment: {
-        Args: {
-          p_amount: number
-          p_branch_id: string
-          p_contact_id: string
-          p_direction: string
-          p_fee_amount: number
-          p_fee_on_customer: boolean
-          p_fee_type: string
-          p_notes?: string
-          p_payment_method: string
-          p_received_by_name: string
-          p_reference_number: string
-          p_transfer_to_account: string
-        }
-        Returns: string
-      }
-      record_payment_transaction: {
-        Args: {
-          p_amount: number
-          p_direction: string
-          p_fee_amount: number
-          p_fee_on_customer: boolean
-          p_fee_type: string
-          p_installment_id: string
-          p_payment_method: string
-          p_payment_plan_id: string
-          p_received_by_name: string
-          p_reference_number: string
-          p_transfer_to_account: string
-        }
-        Returns: string
-      }
+      record_contact_payment:
+        | {
+            Args: {
+              p_amount: number
+              p_branch_id: string
+              p_contact_id: string
+              p_direction: string
+              p_fee_amount: number
+              p_fee_on_customer: boolean
+              p_fee_type: string
+              p_notes?: string
+              p_payment_method: string
+              p_received_by_name: string
+              p_reference_number: string
+              p_transfer_to_account: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_branch_id: string
+              p_contact_id: string
+              p_direction: string
+              p_fee_amount: number
+              p_fee_on_customer: boolean
+              p_fee_type: string
+              p_notes?: string
+              p_payment_method: string
+              p_received_by_name: string
+              p_reference_number: string
+              p_transfer_from_account?: string
+              p_transfer_to_account: string
+            }
+            Returns: string
+          }
+      record_payment_transaction:
+        | {
+            Args: {
+              p_amount: number
+              p_direction: string
+              p_fee_amount: number
+              p_fee_on_customer: boolean
+              p_fee_type: string
+              p_installment_id: string
+              p_payment_method: string
+              p_payment_plan_id: string
+              p_received_by_name: string
+              p_reference_number: string
+              p_transfer_to_account: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_direction: string
+              p_fee_amount: number
+              p_fee_on_customer: boolean
+              p_fee_type: string
+              p_installment_id: string
+              p_payment_method: string
+              p_payment_plan_id: string
+              p_received_by_name: string
+              p_reference_number: string
+              p_transfer_from_account?: string
+              p_transfer_to_account: string
+            }
+            Returns: string
+          }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
