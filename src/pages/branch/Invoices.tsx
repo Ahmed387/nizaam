@@ -126,10 +126,10 @@ export default function Invoices() {
       const r = await supabase.from("shipments").select("*, suppliers(company_name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "sale_return") {
-      const r = await supabase.from("returns").select("*, invoices(invoice_number)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("returns").select("*, invoices(invoice_number, customer_id, customers(name, phone))").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "purchase_return") {
-      const r = await supabase.from("purchase_returns" as any).select("*, suppliers(company_name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("purchase_returns" as any).select("*, suppliers(company_name, phone)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "income") {
       const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "receipt").eq("status", "active").order("voucher_date", { ascending: false }).limit(500);
