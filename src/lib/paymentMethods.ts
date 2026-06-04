@@ -101,6 +101,26 @@ export function methodAccountLabel(method: string): string {
   }
 }
 
+/** Label for the receiver account (the one money was transferred TO). */
+export function methodReceiverLabel(method: string): string {
+  switch (method) {
+    case "vodafone": return "رقم التليفون المستلِم";
+    case "instapay": return "حساب الانستاباي المستلِم";
+    case "bank": return "رقم الحساب البنكي المستلِم";
+    default: return "الحساب المستلِم";
+  }
+}
+
+/** Label for the sender account (the one money was transferred FROM). */
+export function methodSenderLabel(method: string): string {
+  switch (method) {
+    case "vodafone": return "رقم التليفون المُرسِل";
+    case "instapay": return "حساب الانستاباي المُرسِل";
+    case "bank": return "رقم الحساب البنكي المُرسِل";
+    default: return "الحساب المُرسِل";
+  }
+}
+
 // Backwards compat exports used elsewhere
 export const PAYMENT_METHOD_LABELS = BUILTIN_LABELS;
 export const PAYMENT_METHOD_OPTIONS: { value: string; label: string }[] = [
