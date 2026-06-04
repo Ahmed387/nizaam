@@ -115,6 +115,20 @@ export default function Invoices() {
     })();
   }, [tab, active.category]);
 
+  // Load parties (customers / suppliers) for return tabs
+  useEffect(() => {
+    if (!active.party || !branchId) { setParties([]); return; }
+    (async () => {
+      if (active.party === "customer") {
+        const { data } = await supabase.from("customers").select("id, name, phone").eq("branch_id", branchId).order("name");
+        setParties((data ?? []) as any);
+      } else {
+        const { data } = await supabase.from("suppliers").select("id, company_name, phone").order("company_name");
+        setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name, phone: d.phone })));
+      }
+    })();
+  }, [tab, active.party, branchId]);
+
   const load = useCallback(async () => {
     if (!branchId) return;
     setLoading(true);
