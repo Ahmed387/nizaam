@@ -174,9 +174,9 @@ const App = () => (
             <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute perm="inventory.view"><StockMovements /></ProtectedRoute>} />
             <Route path="/branch/:id/transfers" element={<ProtectedRoute perm="transfers.view"><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts" element={<ProtectedRoute perm="customers.view"><Contacts /></ProtectedRoute>} />
-            <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customers" replace />} />
+            <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customer" replace />} />
             <Route path="/branch/:id/customers/:customerId" element={<ProtectedRoute perm="customers.view"><CustomerProfile /></ProtectedRoute>} />
-            <Route path="/branch/:id/suppliers" element={<Navigate to="../contacts?tab=suppliers" replace />} />
+            <Route path="/branch/:id/suppliers" element={<Navigate to="../contacts?tab=supplier" replace />} />
             <Route path="/branch/:id/suppliers/:supplierId" element={<ProtectedRoute perm="suppliers.view"><SupplierProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute perm="employees.view"><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute perm="advances.view"><AdvanceRequests /></ProtectedRoute>} />

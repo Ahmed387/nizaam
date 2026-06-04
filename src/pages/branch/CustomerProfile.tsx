@@ -7,32 +7,39 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { ArrowRight, Receipt, DollarSign, Calendar, Phone, MapPin } from "lucide-react";
+import { ArrowRight, Receipt, DollarSign, Calendar, Phone, MapPin, Wallet } from "lucide-react";
 import { PaymentPlansPanel } from "@/components/PaymentPlansPanel";
+import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
 export default function CustomerProfile() {
   const { id: branchId, customerId } = useParams<{ id: string; customerId: string }>();
   const nav = useNavigate();
   const [customer, setCustomer] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payOpen, setPayOpen] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: c }, { data: invs }] = await Promise.all([
-        supabase.from("contacts").select("*").eq("id", customerId!).maybeSingle(),
-        supabase.from("invoices").select("*").eq("contact_id", customerId!).order("created_at", { ascending: false }),
-      ]);
-      setCustomer(c);
-      setInvoices(invs ?? []);
-      setLoading(false);
-    })();
-  }, [customerId]);
+  const load = async () => {
+    const [{ data: c }, { data: invs }, { data: pays }] = await Promise.all([
+      supabase.from("contacts").select("*").eq("id", customerId!).maybeSingle(),
+      supabase.from("invoices").select("*").eq("contact_id", customerId!).order("created_at", { ascending: false }),
+      supabase.from("payment_transactions").select("*").eq("contact_id", customerId!).eq("direction", "in").order("created_at", { ascending: false }),
+    ]);
+    setCustomer(c);
+    setInvoices(invs ?? []);
+    setPayments(pays ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [customerId]);
 
   const activeInvs = invoices.filter((i) => i.status === "active");
   const totalSpent = activeInvs.reduce((s, i) => s + Number(i.total), 0);
   const firstPurchase = invoices[invoices.length - 1]?.created_at;
   const lastPurchase = invoices[0]?.created_at;
+  // الرصيد: + = لينا (مديونية على العميل)، − = علينا (دفع زيادة)
+  const balance = Number(customer?.balance ?? 0);
+  const owedToUs = balance > 0 ? balance : 0;
 
   return (
     <BranchLayout>
@@ -40,9 +47,16 @@ export default function CustomerProfile() {
         title={customer?.name ?? "ملف العميل"}
         subtitle={customer?.phone ?? ""}
         actions={
-          <Button variant="outline" onClick={() => nav(`/branch/${branchId}/customers`)}>
-            <ArrowRight className="w-4 h-4 ml-1" /> رجوع
-          </Button>
+          <div className="flex gap-2">
+            {owedToUs > 0 && (
+              <Button className="btn-gradient" onClick={() => setPayOpen(true)}>
+                <Wallet className="w-4 h-4 ml-1" /> استلام دفعة
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/contacts?tab=customer`)}>
+              <ArrowRight className="w-4 h-4 ml-1" /> رجوع
+            </Button>
+          </div>
         }
       />
 
@@ -58,12 +72,30 @@ export default function CustomerProfile() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="عدد الفواتير" value={activeInvs.length} icon={<Receipt className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي المشتريات" value={formatEGP(totalSpent)} icon={<DollarSign className="w-5 h-5" />} accent="success" />
-        <StatCard label="أول شراء" value={firstPurchase ? formatDateTime(firstPurchase).split(" ")[0] : "—"} icon={<Calendar className="w-5 h-5" />} accent="secondary" />
-        <StatCard label="آخر شراء" value={lastPurchase ? formatDateTime(lastPurchase).split(" ")[0] : "—"} icon={<Calendar className="w-5 h-5" />} accent="warning" />
+        <StatCard label="المستحق علينا" value={formatEGP(owedToUs)} icon={<Wallet className="w-5 h-5" />} accent={owedToUs > 0 ? "warning" : "success"} />
+        <StatCard label="آخر شراء" value={lastPurchase ? formatDateTime(lastPurchase).split(" ")[0] : "—"} icon={<Calendar className="w-5 h-5" />} accent="secondary" />
       </div>
 
       <h3 className="font-bold mb-3">المديونيات وخطط الدفع</h3>
       {customerId && <div className="mb-6"><PaymentPlansPanel entityType="customer" entityId={customerId} direction="in" /></div>}
+
+      {payments.length > 0 && (
+        <>
+          <h3 className="font-bold mb-3">المدفوعات المباشرة</h3>
+          <div className="mb-6">
+            <DataTable
+              rows={payments}
+              columns={[
+                { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+                { key: "payment_method", header: "الطريقة" },
+                { key: "reference_number", header: "المرجع", render: (r: any) => r.reference_number ?? "—" },
+                { key: "received_by_name", header: "بواسطة", render: (r: any) => r.received_by_name ?? "—" },
+                { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold text-success">{formatEGP(r.amount)}</span> },
+              ]}
+            />
+          </div>
+        </>
+      )}
 
       <h3 className="font-bold mb-3">سجل الفواتير</h3>
       <DataTable
@@ -82,6 +114,19 @@ export default function CustomerProfile() {
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ]}
       />
+
+      {payOpen && customerId && (
+        <MultiMethodPaymentDialog
+          open={payOpen}
+          onOpenChange={setPayOpen}
+          mode={{ kind: "contact", contactId: customerId, branchId: branchId! }}
+          defaultAmount={owedToUs}
+          direction="in"
+          title={`استلام دفعة — ${customer?.name ?? ""}`}
+          onSuccess={load}
+        />
+      )}
     </BranchLayout>
   );
 }
+

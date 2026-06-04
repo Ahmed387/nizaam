@@ -963,6 +963,7 @@ export type Database = {
         Row: {
           amount: number
           branch_id: string
+          contact_id: string | null
           created_at: string
           created_by: string
           direction: string
@@ -983,6 +984,7 @@ export type Database = {
         Insert: {
           amount: number
           branch_id: string
+          contact_id?: string | null
           created_at?: string
           created_by: string
           direction: string
@@ -1003,6 +1005,7 @@ export type Database = {
         Update: {
           amount?: number
           branch_id?: string
+          contact_id?: string | null
           created_at?: string
           created_by?: string
           direction?: string
@@ -1021,6 +1024,13 @@ export type Database = {
           treasury_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_transactions_installment_id_fkey"
             columns: ["installment_id"]
@@ -2997,6 +3007,23 @@ export type Database = {
           p_payments?: Json
           p_subtotal: number
           p_total: number
+        }
+        Returns: string
+      }
+      record_contact_payment: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_contact_id: string
+          p_direction: string
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_fee_type: string
+          p_notes?: string
+          p_payment_method: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_to_account: string
         }
         Returns: string
       }

@@ -50,6 +50,7 @@ import {
   Download,
   Package,
 } from "lucide-react";
+import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
 export default function SupplierProfile() {
   const { id: branchId, supplierId } = useParams<{ id: string; supplierId: string }>();
@@ -64,7 +65,6 @@ export default function SupplierProfile() {
   const [loading, setLoading] = useState(true);
 
   const [payOpen, setPayOpen] = useState(false);
-  const [pay, setPay] = useState({ amount: "", branch_id: branchId ?? "", notes: "" });
 
   const [editOpen, setEditOpen] = useState(false);
   const [edit, setEdit] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
@@ -73,7 +73,7 @@ export default function SupplierProfile() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: s }, { data: ships }, { data: pays }] = await Promise.all([
+    const [{ data: s }, { data: ships }, { data: oldPays }, { data: newPays }] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
@@ -85,10 +85,29 @@ export default function SupplierProfile() {
         .select("*, branches(name), profiles:paid_by(name)")
         .eq("contact_id", supplierId!)
         .order("paid_at", { ascending: false }),
+      supabase
+        .from("payment_transactions")
+        .select("*, branches(name)")
+        .eq("contact_id", supplierId!)
+        .eq("direction", "out")
+        .order("created_at", { ascending: false }),
     ]);
     setSupplier(s);
     setShipments(ships ?? []);
-    setPayments((pays as any[]) ?? []);
+    // ندمج الجديد مع القديم وننسق الحقول
+    const merged = [
+      ...((newPays as any[]) ?? []).map((p) => ({
+        id: p.id,
+        paid_at: p.created_at,
+        amount: Number(p.amount),
+        branches: p.branches,
+        profiles: { name: p.received_by_name },
+        notes: `${p.payment_method}${p.reference_number ? " #" + p.reference_number : ""}`,
+        _new: true,
+      })),
+      ...((oldPays as any[]) ?? []),
+    ].sort((a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime());
+    setPayments(merged);
     setLoading(false);
   };
   useEffect(() => {
@@ -152,55 +171,7 @@ export default function SupplierProfile() {
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [shipments, payments]);
 
-  const submitPayment = async () => {
-    const amount = Number(pay.amount);
-    if (!amount || amount <= 0) return toast.error("أدخل مبلغ صحيح");
-    if (!pay.branch_id) return toast.error("اختر الفرع");
-
-    const { data: tr, error: trErr } = await supabase
-      .from("treasury")
-      .insert({
-        branch_id: pay.branch_id,
-        type: "expense",
-        category: "other",
-        amount,
-        description: `سداد دفعة للمورد: ${supplier.name}${pay.notes ? " — " + pay.notes : ""}`,
-        reference_id: supplierId,
-        created_by: user!.id,
-        tenant_id: tenantId,
-      } as any)
-      .select()
-      .maybeSingle();
-    if (trErr) return toast.error(trErr.message);
-
-    const { error: payErr } = await supabase.from("supplier_payments" as any).insert({
-      contact_id: supplierId,
-      branch_id: pay.branch_id,
-      amount,
-      notes: pay.notes || null,
-      treasury_id: tr?.id ?? null,
-      paid_by: user!.id,
-      tenant_id: tenantId,
-    } as any);
-    if (payErr) return toast.error(payErr.message);
-    // ملاحظة: رصيد المورد بيتحدث تلقائياً عبر trigger في قاعدة البيانات
-
-    await logAudit({
-      userId: user!.id,
-      userName: profile?.name ?? "",
-      tenantId,
-      branchId: pay.branch_id,
-      action: "CREATE",
-      entity: "SupplierPayment",
-      entityId: supplierId,
-      details: { amount, supplier: supplier.name, notes: pay.notes },
-    });
-
-    toast.success("تم تسجيل السداد");
-    setPayOpen(false);
-    setPay({ amount: "", branch_id: branchId ?? "", notes: "" });
-    load();
-  };
+  // ملاحظة: السداد دلوقتي بيمشي عبر MultiMethodPaymentDialog → RPC record_contact_payment
 
   const submitEdit = async () => {
     if (!edit.name) return toast.error("اسم الشركة مطلوب");
@@ -481,57 +452,18 @@ export default function SupplierProfile() {
         </TabsContent>
       </Tabs>
 
-      {/* Pay Dialog */}
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>تسجيل دفعة للمورد</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="p-3 rounded-lg bg-surface-2 text-sm">
-              <div>
-                المتبقي عليك: <span className="font-bold text-warning">{formatEGP(owedByUs)}</span>
-              </div>
-            </div>
-            <div>
-              <Label>الفرع (يخصم من خزنته) *</Label>
-              <Select value={pay.branch_id} onValueChange={(v) => setPay({ ...pay, branch_id: v })}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="اختر الفرع" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((b: any) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>المبلغ *</Label>
-              <Input
-                type="number"
-                value={pay.amount}
-                onChange={(e) => setPay({ ...pay, amount: e.target.value })}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label>ملاحظات</Label>
-              <Textarea value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} className="mt-1.5" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPayOpen(false)}>
-              إلغاء
-            </Button>
-            <Button className="btn-gradient" onClick={submitPayment}>
-              تأكيد السداد
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Multi-method Pay Dialog */}
+      {payOpen && supplierId && (
+        <MultiMethodPaymentDialog
+          open={payOpen}
+          onOpenChange={setPayOpen}
+          mode={{ kind: "contact", contactId: supplierId, branchId: branchId ?? branches[0]?.id }}
+          defaultAmount={owedByUs}
+          direction="out"
+          title={`سداد للمورد — ${supplier?.name ?? ""}`}
+          onSuccess={load}
+        />
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

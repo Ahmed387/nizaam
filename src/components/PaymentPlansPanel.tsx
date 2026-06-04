@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatEGP } from "@/lib/format";
-import { RecordPaymentDialog } from "./RecordPaymentDialog";
+import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
 import { AlertCircle, Calendar, CreditCard } from "lucide-react";
 
 interface Props {
@@ -128,13 +128,13 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
       })}
 
       {paying && (
-        <RecordPaymentDialog
+        <MultiMethodPaymentDialog
           open={true}
           onOpenChange={(o) => !o && setPaying(null)}
-          planId={paying.planId}
-          installmentId={paying.installmentId}
+          mode={{ kind: "plan", planId: paying.planId, installmentId: paying.installmentId }}
           defaultAmount={paying.amount}
           direction={direction}
+          lockTotal={!!paying.installmentId}
           onSuccess={load}
         />
       )}
