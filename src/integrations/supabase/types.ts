@@ -3000,6 +3000,23 @@ export type Database = {
         }
         Returns: string
       }
+      record_contact_payment: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_contact_id: string
+          p_direction: string
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_fee_type: string
+          p_notes?: string
+          p_payment_method: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_to_account: string
+        }
+        Returns: string
+      }
       record_payment_transaction: {
         Args: {
           p_amount: number
