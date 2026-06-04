@@ -62,6 +62,8 @@ export default function SupplierProfile() {
   const [supplier, setSupplier] = useState<any>(null);
   const [shipments, setShipments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [custPayments, setCustPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [payOpen, setPayOpen] = useState(false);
@@ -73,7 +75,7 @@ export default function SupplierProfile() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: s }, { data: ships }, { data: oldPays }, { data: newPays }] = await Promise.all([
+    const [{ data: s }, { data: ships }, { data: oldPays }, { data: newPays }, { data: invs }, { data: custPays }] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
@@ -91,9 +93,22 @@ export default function SupplierProfile() {
         .eq("contact_id", supplierId!)
         .eq("direction", "out")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("invoices")
+        .select("*, branches(name)")
+        .eq("contact_id", supplierId!)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("payment_transactions")
+        .select("*, branches(name)")
+        .eq("contact_id", supplierId!)
+        .eq("direction", "in")
+        .order("created_at", { ascending: false }),
     ]);
     setSupplier(s);
     setShipments(ships ?? []);
+    setInvoices(invs ?? []);
+    setCustPayments(custPays ?? []);
     // ندمج الجديد مع القديم وننسق الحقول
     const merged = [
       ...((newPays as any[]) ?? []).map((p) => ({
