@@ -114,7 +114,7 @@ export default function Inventory() {
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: data.id, details: { name: form.name } });
     toast.success("تمت إضافة المنتج");
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: "5", quantity: "0", image: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" });
     load();
   };
 
