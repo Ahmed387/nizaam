@@ -9,6 +9,8 @@ import {
   calculateFee,
   loadTransferFees,
   methodAccountLabel,
+  methodReceiverLabel,
+  methodSenderLabel,
   methodRequiresReference,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
