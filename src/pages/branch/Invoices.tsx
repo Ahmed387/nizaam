@@ -288,6 +288,7 @@ export default function Invoices() {
         newLink: `${base}/sales/returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
+          { key: "customer", header: "العميل", render: (r: any) => r.invoices?.customers?.name ?? "نقدي" },
           { key: "reason", header: "السبب" },
           { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
