@@ -25,13 +25,22 @@ function b64ToBytes(b64: string): Uint8Array {
 
 const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانات قوائم أسعار الموردين.
 المورد: ${supplier}
-استخرج كل صف منتج وأرجع JSON منظم بحقول:
-- product_name: اسم المنتج
-- model_code: رقم الموديل أو الكود (إن وجد)
-- category: الفئة (ثلاجات، غسالات، تكييف، بوتاجازات، مراوح، ميكروويف، ديب فريزر، مبردات هواء)
-- cost_price: سعر الشراء من المورد (السعر الأساسي في القائمة) — رقم فقط
-- suggested_sell_price: سعر البيع المقترح (إن وجد، وإلا 0)
-تجاهل الرؤوس والتذييلات والصفوف الفارغة. استخرج كل المنتجات بدون استثناء.`;
+
+قواعد صارمة جداً — اتبعها حرفياً:
+1. انسخ اسم المنتج (product_name) **حرفياً كما هو مكتوب في الملف بدون أي تعديل**.
+   - ممنوع الترجمة بين العربي والإنجليزي.
+   - ممنوع التصحيح الإملائي أو إعادة الصياغة أو الاختصار أو التوسيع.
+   - ممنوع تغيير حالة الأحرف (Upper/Lower) أو ترتيب الكلمات.
+   - حافظ على المسافات والرموز والأرقام بنفس الترتيب.
+2. **لا تدمج رقم/كود الموديل داخل اسم المنتج**. ضعه في خانة model_code منفصلاً تماماً.
+   إن لم يكن هناك عمود موديل واضح، اترك model_code فارغاً ولا تخترعه من اسم المنتج.
+3. لا تخلط بين صفوف مختلفة. كل صف منتج مستقل بذاته.
+4. تجاهل الرؤوس والتذييلات وأسطر العناوين والصفوف الفارغة، لكن لا تتجاهل أي منتج حقيقي.
+5. category: اختر الأنسب من (ثلاجات، غسالات، تكييف، بوتاجازات، مراوح، ميكروويف، ديب فريزر، مبردات هواء) أو اتركها فارغة لو غير واضحة.
+6. cost_price: السعر الأساسي للشراء من المورد — رقم فقط بدون عملة أو فواصل.
+7. suggested_sell_price: لو موجود في القائمة، وإلا 0.
+
+ارجع البيانات كما هي تماماً. الأمانة في النقل أهم من أي تنظيم.`;
 
 const TOOL = {
   type: "function" as const,
@@ -70,6 +79,7 @@ async function callAI(messages: any[], apiKey: string) {
     body: JSON.stringify({
       model: "google/gemini-2.5-flash-lite",
       messages,
+      temperature: 0,
       tools: [TOOL],
       tool_choice: { type: "function", function: { name: "save_price_list" } },
     }),
@@ -92,13 +102,17 @@ Deno.serve(async (req) => {
     const bytes = b64ToBytes(pdfBase64);
     console.log(`[parse] supplier=${supplier} pdfBytes=${bytes.length}`);
 
-    // 1) Try fast text extraction
+    // 1) Try fast text extraction (keep page boundaries to preserve row layout)
     let extractedText = "";
     try {
       const pdf = await getDocumentProxy(bytes);
-      const { text } = await extractText(pdf, { mergePages: true });
-      extractedText = (Array.isArray(text) ? text.join("\n") : text)?.trim() ?? "";
-      console.log(`[parse] extracted text chars=${extractedText.length} in ${Date.now() - t0}ms`);
+      const { text } = await extractText(pdf, { mergePages: false });
+      const pages = Array.isArray(text) ? text : [text ?? ""];
+      extractedText = pages
+        .map((p, i) => `--- صفحة ${i + 1} ---\n${(p ?? "").trim()}`)
+        .join("\n\n")
+        .trim();
+      console.log(`[parse] extracted text chars=${extractedText.length} pages=${pages.length} in ${Date.now() - t0}ms`);
     } catch (e) {
       console.warn("[parse] text extraction failed:", e);
     }
