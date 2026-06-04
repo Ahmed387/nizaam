@@ -102,13 +102,17 @@ Deno.serve(async (req) => {
     const bytes = b64ToBytes(pdfBase64);
     console.log(`[parse] supplier=${supplier} pdfBytes=${bytes.length}`);
 
-    // 1) Try fast text extraction
+    // 1) Try fast text extraction (keep page boundaries to preserve row layout)
     let extractedText = "";
     try {
       const pdf = await getDocumentProxy(bytes);
-      const { text } = await extractText(pdf, { mergePages: true });
-      extractedText = (Array.isArray(text) ? text.join("\n") : text)?.trim() ?? "";
-      console.log(`[parse] extracted text chars=${extractedText.length} in ${Date.now() - t0}ms`);
+      const { text } = await extractText(pdf, { mergePages: false });
+      const pages = Array.isArray(text) ? text : [text ?? ""];
+      extractedText = pages
+        .map((p, i) => `--- صفحة ${i + 1} ---\n${(p ?? "").trim()}`)
+        .join("\n\n")
+        .trim();
+      console.log(`[parse] extracted text chars=${extractedText.length} pages=${pages.length} in ${Date.now() - t0}ms`);
     } catch (e) {
       console.warn("[parse] text extraction failed:", e);
     }
