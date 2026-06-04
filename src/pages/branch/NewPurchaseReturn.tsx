@@ -337,6 +337,7 @@ export default function NewPurchaseReturn() {
                   onChange={(e) => setProductSearch(e.target.value)}
                   className="h-9 w-56"
                 />
+                <Button size="sm" variant="outline" onClick={() => setCameraOpen(true)} title="مسح باركود"><Camera className="w-4 h-4" /></Button>
                 <Button size="sm" variant="outline" onClick={addLine} className="gap-1"><Plus className="w-3 h-3" /> إضافة سطر</Button>
               </div>
             </div>
