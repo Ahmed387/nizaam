@@ -147,7 +147,7 @@ export default function BranchProfile() {
         "طريقة الدفع": i.payment_method, الحالة: i.status,
       })) },
       { name: "الشحنات", rows: shipments.map((s) => ({
-        التاريخ: s.arrival_date, المورد: s.contacts?.company_name ?? "—",
+        التاريخ: s.arrival_date, المورد: s.contacts?.name ?? "—",
         المستلم: s.received_by, "تكلفة الشحنة": Number(s.total_cost),
       })) },
       { name: "المصاريف", rows: expenses.map((x) => ({
@@ -289,7 +289,7 @@ export default function BranchProfile() {
             onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
             columns={[
               { key: "arrival_date", header: "التاريخ", render: (r: any) => formatDate(r.arrival_date) },
-              { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.company_name ?? "—" },
+              { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
               { key: "received_by", header: "المستلم" },
               { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
               { key: "total_cost", header: "الإجمالي", render: (r: any) => <span className="font-bold text-warning">{formatEGP(r.total_cost)}</span> },

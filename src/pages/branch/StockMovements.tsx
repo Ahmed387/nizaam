@@ -94,7 +94,7 @@ export default function StockMovements() {
           date: s.arrival_date,
           type: "شحنة واردة",
           qty: Number(it.quantity),
-          reason: s.contacts?.company_name ?? "—",
+          reason: s.contacts?.name ?? "—",
           reference: "SHIP",
         });
       });

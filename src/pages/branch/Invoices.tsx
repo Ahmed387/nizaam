@@ -122,8 +122,8 @@ export default function Invoices() {
       const { data } = await supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name");
       setParties((data ?? []) as any);
     } else {
-      const { data } = await supabase.from("contacts").select("id, name, phone").order("company_name");
-      setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name, phone: d.phone })));
+      const { data } = await supabase.from("contacts").select("id, name, phone").order("name");
+      setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.name, phone: d.phone })));
     }
   }, [active.party, branchId]);
   useEffect(() => { loadParties(); }, [loadParties]);
@@ -192,9 +192,9 @@ export default function Invoices() {
     const searchableText = (r: any): string => {
       switch (tab) {
         case "sale": return [r.invoice_number, r.contacts?.name].filter(Boolean).join(" ").toLowerCase();
-        case "purchase": return [r.contacts?.company_name, r.received_by, r.shipment_number].filter(Boolean).join(" ").toLowerCase();
+        case "purchase": return [r.contacts?.name, r.received_by, r.shipment_number].filter(Boolean).join(" ").toLowerCase();
         case "sale_return": return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
-        case "purchase_return": return [r.return_number, r.contacts?.company_name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+        case "purchase_return": return [r.return_number, r.contacts?.name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
         case "income":
         case "expense": return [r.voucher_number, r.description, r.category, r.party_name].filter(Boolean).join(" ").toLowerCase();
         case "quote": return [r.quote_number, r.contacts?.name, r.customer_name].filter(Boolean).join(" ").toLowerCase();
@@ -278,7 +278,7 @@ export default function Invoices() {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
           { key: "shipment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.shipment_number ?? "—"}</span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.company_name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
@@ -300,7 +300,7 @@ export default function Invoices() {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
           { key: "return_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.return_number}</span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.company_name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
@@ -442,7 +442,7 @@ export default function Invoices() {
     if (q.length < 2) return [];
     const text = (r: any) => {
       if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
-      return [r.return_number, r.contacts?.company_name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+      return [r.return_number, r.contacts?.name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
     };
     return rows.filter((r) => text(r).includes(q)).slice(0, 8);
   }, [isReturnTab, tab, draftFilters.q, rows]);
@@ -541,7 +541,7 @@ export default function Invoices() {
                 <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-72 overflow-y-auto">
                   {suggestions.map((r: any) => {
                     const num = r.return_number ?? (tab === "sale_return" ? r.invoices?.invoice_number : null);
-                    const party = tab === "sale_return" ? (r.invoices?.contacts?.name ?? "نقدي") : (r.contacts?.company_name ?? "—");
+                    const party = tab === "sale_return" ? (r.invoices?.contacts?.name ?? "نقدي") : (r.contacts?.name ?? "—");
                     const amt = Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0);
                     return (
                       <button

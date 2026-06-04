@@ -67,7 +67,7 @@ export default function NewPurchaseReturn() {
   const [cameraOpen, setCameraOpen] = useState(false);
 
   const loadSuppliers = useCallback(async () => {
-    const { data } = await supabase.from("contacts").select("id, name, phone, balance").order("company_name");
+    const { data } = await supabase.from("contacts").select("id, name, phone, balance").order("name");
     setSuppliers(data ?? []);
   }, []);
   const loadProducts = useCallback(async () => {
@@ -210,7 +210,7 @@ export default function NewPurchaseReturn() {
             type: "income",
             category: "purchase_return",
             amount: cashIn,
-            description: `مرتجع شراء ${number} - ${supplier.company_name}`,
+            description: `مرتجع شراء ${number} - ${supplier.name}`,
             reference_id: (pr as any).id,
             payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
             reference_number: refundRef.trim() || null,
@@ -280,7 +280,7 @@ export default function NewPurchaseReturn() {
       </style></head><body>
       <h2>إيصال مرتجع شراء</h2>
       <div class="meta">رقم: ${savedNumber}</div>
-      <div class="meta">المورد: ${supplier?.company_name}</div>
+      <div class="meta">المورد: ${supplier?.name}</div>
       <div class="meta">التاريخ: ${formatDateTime(new Date().toISOString())}</div>
       <div class="meta">السبب: ${finalReason}</div>
       <table><thead><tr><th>المنتج</th><th>الكمية</th><th>التكلفة</th><th>الإجمالي</th></tr></thead><tbody>
@@ -310,7 +310,7 @@ export default function NewPurchaseReturn() {
                 <Label>المورد *</Label>
                 <Select value={supplier?.id ?? ""} onValueChange={(v) => { setSupplier(suppliers.find((s) => s.id === v)); setShipmentId(null); }}>
                   <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر المورد" /></SelectTrigger>
-                  <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                 </Select>
                 {supplier && (
                   <div className="text-xs text-muted-foreground mt-2 flex gap-3">
@@ -495,7 +495,7 @@ export default function NewPurchaseReturn() {
       {/* Shipment picker */}
       <Dialog open={shipmentOpen} onOpenChange={setShipmentOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>اختر فاتورة شراء — {supplier?.company_name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>اختر فاتورة شراء — {supplier?.name}</DialogTitle></DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto space-y-2">
             {shipments.map((sh) => (
               <button key={sh.id} onClick={() => useShipment(sh)} className="w-full text-right border rounded p-3 hover:bg-muted">

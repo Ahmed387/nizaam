@@ -50,15 +50,15 @@ export default function NewShipment() {
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
   const [supplierDlg, setSupplierDlg] = useState(false);
-  const [newSup, setNewSup] = useState({ company_name: "", contact_name: "", phone: "", address: "" });
+  const [newSup, setNewSup] = useState({ name: "", contact_person: "", phone: "", address: "" });
   const [savingSup, setSavingSup] = useState(false);
 
   const createSupplier = async () => {
-    if (!newSup.company_name.trim()) return toast.error("اسم الشركة مطلوب");
+    if (!newSup.name.trim()) return toast.error("اسم الشركة مطلوب");
     setSavingSup(true);
     const { data, error } = await supabase.from("contacts").insert({
-      company_name: newSup.company_name.trim(),
-      contact_name: newSup.contact_name.trim() || null,
+      name: newSup.name.trim(),
+      contact_person: newSup.contact_person.trim() || null,
       phone: newSup.phone.trim() || null,
       address: newSup.address.trim() || null,
     }).select().single();
@@ -67,13 +67,13 @@ export default function NewShipment() {
     setSuppliers([data, ...contacts]);
     setSupplierId(data.id);
     setSupplierDlg(false);
-    setNewSup({ company_name: "", contact_name: "", phone: "", address: "" });
+    setNewSup({ name: "", contact_person: "", phone: "", address: "" });
     toast.success("تمت إضافة المورد");
   };
 
   useEffect(() => {
     if (!branchId) return;
-    supabase.from("contacts").select("*").order("company_name").then(({ data }) => setSuppliers(data ?? []));
+    supabase.from("contacts").select("*").order("name").then(({ data }) => setSuppliers(data ?? []));
     supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
     supabase.from("price_list_items_public").select("product_name, display_price").order("product_name").then(({ data }) => setPriceList((data ?? []).map((d: any) => ({ product_name: d.product_name, market_price: d.display_price, new_price: d.display_price }))));
   }, [branchId]);
@@ -201,7 +201,7 @@ export default function NewShipment() {
         branchId: branchId!,
         entityType: "supplier",
         entityId: supplierId,
-        entityName: supplier?.company_name ?? "مورد",
+        entityName: supplier?.name ?? "مورد",
         totalAmount: grandTotal,
         referenceType: "shipment",
         referenceId: ship.id,
@@ -429,11 +429,11 @@ export default function NewShipment() {
           <div className="space-y-3">
             <div>
               <Label>اسم الشركة *</Label>
-              <Input value={newSup.company_name} onChange={(e) => setNewSup({ ...newSup, company_name: e.target.value })} className="mt-1.5" />
+              <Input value={newSup.name} onChange={(e) => setNewSup({ ...newSup, name: e.target.value })} className="mt-1.5" />
             </div>
             <div>
               <Label>اسم المسؤول</Label>
-              <Input value={newSup.contact_name} onChange={(e) => setNewSup({ ...newSup, contact_name: e.target.value })} className="mt-1.5" />
+              <Input value={newSup.contact_person} onChange={(e) => setNewSup({ ...newSup, contact_person: e.target.value })} className="mt-1.5" />
             </div>
             <div>
               <Label>التليفون</Label>

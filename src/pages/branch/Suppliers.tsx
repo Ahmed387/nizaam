@@ -20,7 +20,7 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ company_name: "", contact_name: "", phone: "", address: "", notes: "" });
+  const [form, setForm] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
 
   const load = async () => {
     setLoading(true);
@@ -31,10 +31,10 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
   useRealtimeRefresh(["suppliers"], load);
 
   const submit = async () => {
-    if (!form.company_name) return toast.error("اسم الشركة مطلوب");
+    if (!form.name) return toast.error("اسم الشركة مطلوب");
     await supabase.from("contacts").insert(form);
     toast.success("تمت الإضافة");
-    setOpen(false); setForm({ company_name: "", contact_name: "", phone: "", address: "", notes: "" }); load();
+    setOpen(false); setForm({ name: "", contact_person: "", phone: "", address: "", notes: "" }); load();
   };
 
   const body = (
@@ -44,8 +44,8 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
       <DataTable loading={loading} rows={rows}
         onRowClick={(r: any) => nav(`/branch/${branchId}/suppliers/${r.id}`)}
         columns={[
-          { key: "company_name", header: "الشركة", render: (r: any) => <span className="font-semibold">{r.company_name}</span> },
-          { key: "contact_name", header: "المسؤول", render: (r: any) => r.contact_name ?? "—" },
+          { key: "name", header: "الشركة", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+          { key: "contact_person", header: "المسؤول", render: (r: any) => r.contact_person ?? "—" },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "balance", header: "الرصيد", render: (r: any) => (
             <span className={Number(r.balance) > 0 ? "text-destructive font-bold" : "text-success font-bold"}>
@@ -57,8 +57,8 @@ export default function Suppliers({ embedded = false }: { embedded?: boolean } =
         <DialogContent>
           <DialogHeader><DialogTitle>مورد جديد</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>اسم الشركة *</Label><Input value={form.company_name} onChange={(e) => setForm({...form, company_name: e.target.value})} className="mt-1.5" /></div>
-            <div><Label>المسؤول</Label><Input value={form.contact_name} onChange={(e) => setForm({...form, contact_name: e.target.value})} className="mt-1.5" /></div>
+            <div><Label>اسم الشركة *</Label><Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} className="mt-1.5" /></div>
+            <div><Label>المسؤول</Label><Input value={form.contact_person} onChange={(e) => setForm({...form, contact_person: e.target.value})} className="mt-1.5" /></div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} /></div>
             <div><Label>العنوان</Label><Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} className="mt-1.5" /></div>
             <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} className="mt-1.5" /></div>

@@ -20,8 +20,8 @@ import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, Package
 
 interface Supplier {
   id: string;
-  company_name: string;
-  contact_name: string | null;
+  name: string;
+  contact_person: string | null;
   phone: string | null;
   address: string | null;
   notes: string | null;
@@ -59,7 +59,7 @@ export default function AllSuppliers() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const [form, setForm] = useState({ company_name: "", contact_name: "", phone: "", address: "", notes: "" });
+  const [form, setForm] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null);
   const [details, setDetails] = useState<Supplier | null>(null);
   const [shipmentsView, setShipmentsView] = useState<Supplier | null>(null);
@@ -141,7 +141,7 @@ export default function AllSuppliers() {
   }, [suppliers, shipSums, paySums]);
 
   const filtered = useMemo(() => enriched.filter((s) => {
-    if (search && !s.company_name.includes(search) && !(s.contact_name ?? "").includes(search)) return false;
+    if (search && !s.name.includes(search) && !(s.contact_person ?? "").includes(search)) return false;
     const bal = Number(s.balance) || 0;
     if (balanceFilter === "owed_to_us" && bal >= 0) return false; // المورد مدين لنا (دفعنا أكتر) → balance سالب
     if (balanceFilter === "owed_by_us" && bal <= 0) return false; // إحنا مدينين (لسه ندفع) → balance موجب
@@ -159,18 +159,18 @@ export default function AllSuppliers() {
     return { owedByUs, owedToUs, totalPurchases, totalPaid, count: enriched.length };
   }, [enriched]);
 
-  const openNew = () => { setEditing(null); setForm({ company_name: "", contact_name: "", phone: "", address: "", notes: "" }); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", contact_person: "", phone: "", address: "", notes: "" }); setOpen(true); };
   const openEdit = (s: Supplier) => {
     setEditing(s);
-    setForm({ company_name: s.company_name, contact_name: s.contact_name ?? "", phone: s.phone ?? "", address: s.address ?? "", notes: s.notes ?? "" });
+    setForm({ name: s.name, contact_person: s.contact_person ?? "", phone: s.phone ?? "", address: s.address ?? "", notes: s.notes ?? "" });
     setOpen(true);
   };
 
   const submit = async () => {
-    if (!form.company_name) return toast.error("اسم الشركة مطلوب");
+    if (!form.name) return toast.error("اسم الشركة مطلوب");
     const payload = {
-      company_name: form.company_name,
-      contact_name: form.contact_name || null,
+      name: form.name,
+      contact_person: form.contact_person || null,
       phone: form.phone || null,
       address: form.address || null,
       notes: form.notes || null,
@@ -197,8 +197,8 @@ export default function AllSuppliers() {
 
   const exportExcel = () => {
     const data = filtered.map((s) => ({
-      "اسم الشركة": s.company_name,
-      "المسؤول": s.contact_name ?? "—",
+      "اسم الشركة": s.name,
+      "المسؤول": s.contact_person ?? "—",
       "التليفون": s.phone ?? "—",
       "الفروع": s.branchCount,
       "إجمالي المشتريات": s.totalShipments,
@@ -257,7 +257,7 @@ export default function AllSuppliers() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "شحنات المورد");
-    XLSX.writeFile(wb, `shipments-${shipmentsView.company_name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `shipments-${shipmentsView.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success(`تم تصدير ${rows.length} سطر`);
   };
 
@@ -428,7 +428,7 @@ export default function AllSuppliers() {
       <DataTable loading={loading} rows={filtered}
         onRowClick={(r: any) => nav(`/admin/suppliers/${r.id}`)}
         columns={[
-          { key: "company_name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.contact_name ?? "—"}</div></div> },
+          { key: "name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "branches", header: "الفروع", render: (r: any) => <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">{r.branchCount} فرع</span> },
           { key: "totalShipments", header: "إجمالي المشتريات", render: (r: any) => <span className="font-semibold">{formatEGP(r.totalShipments)}</span> },
@@ -455,8 +455,8 @@ export default function AllSuppliers() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "تعديل مورد" : "مورد جديد"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>اسم الشركة *</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>المسؤول</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>اسم الشركة *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>المسؤول</Label><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="mt-1.5" /></div>
             <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>العنوان</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1.5" /></div>
             <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1.5" /></div>
@@ -472,7 +472,7 @@ export default function AllSuppliers() {
       <Dialog open={!!details} onOpenChange={(o) => !o && setDetails(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{details?.company_name}</DialogTitle>
+            <DialogTitle>{details?.name}</DialogTitle>
             <DialogDescription>تفصيل الحركة على كل فرع</DialogDescription>
           </DialogHeader>
           {details && (() => {
@@ -526,7 +526,7 @@ export default function AllSuppliers() {
       <Dialog open={!!shipmentsView} onOpenChange={(o) => !o && setShipmentsView(null)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>شحنات: {shipmentsView?.company_name}</DialogTitle>
+            <DialogTitle>شحنات: {shipmentsView?.name}</DialogTitle>
             <DialogDescription>كل ما نزّله المورد، بالأصناف والكميات والفرع</DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 flex-wrap items-center mb-2">
@@ -620,7 +620,7 @@ export default function AllSuppliers() {
               <Select value={shipForm.contact_id} onValueChange={(v) => setShipForm({ ...shipForm, contact_id: v })}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.company_name}</SelectItem>)}
+                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -733,7 +733,7 @@ export default function AllSuppliers() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف المورد</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف <b>{deleteConfirm?.company_name}</b>؟
+              هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟
               <br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).
             </AlertDialogDescription>
           </AlertDialogHeader>

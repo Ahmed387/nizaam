@@ -36,9 +36,9 @@ const SAMPLE_CUSTOMERS = [
 ];
 
 const SAMPLE_SUPPLIERS = [
-  { company_name: "شركة النور للإلكترونيات", contact_name: "م. أحمد فاروق", phone: "01000111222", address: "وسط البلد، القاهرة" },
-  { company_name: "مصنع الأمل للملابس", contact_name: "أ. سمير عبدالعزيز", phone: "01000333444", address: "شبرا الخيمة" },
-  { company_name: "موزع المواد الغذائية", contact_name: "أ. ياسر علي", phone: "01000555666", address: "العبور" },
+  { name: "شركة النور للإلكترونيات", contact_person: "م. أحمد فاروق", phone: "01000111222", address: "وسط البلد، القاهرة" },
+  { name: "مصنع الأمل للملابس", contact_person: "أ. سمير عبدالعزيز", phone: "01000333444", address: "شبرا الخيمة" },
+  { name: "موزع المواد الغذائية", contact_person: "أ. ياسر علي", phone: "01000555666", address: "العبور" },
 ];
 
 export default function SeedData() {
@@ -73,8 +73,8 @@ export default function SeedData() {
 
       // 3) Suppliers (global)
       const { data: existingSup } = await supabase.from("contacts").select("name");
-      const supNames = new Set((existingSup ?? []).map((s) => s.company_name));
-      const newSups = SAMPLE_SUPPLIERS.filter((s) => !supNames.has(s.company_name));
+      const supNames = new Set((existingSup ?? []).map((s) => s.name));
+      const newSups = SAMPLE_SUPPLIERS.filter((s) => !supNames.has(s.name));
       if (newSups.length) await supabase.from("contacts").insert(newSups);
       addLog(`✓ ${SAMPLE_SUPPLIERS.length} مورد`);
 

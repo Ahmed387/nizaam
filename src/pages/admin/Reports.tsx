@@ -267,7 +267,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         قيمة_المخزون: b.inventoryValue, الموظفين: b.employees, رصيد_الخزنة: b.treasuryBalance,
       })) });
       sheets.push({ name: "الموردين", rows: topSuppliers.map((s) => ({
-        الشركة: s.company_name,
+        الشركة: s.name,
         الهاتف: s.phone ?? "",
         "علينا (إجمالي)": s.totalOwed,
         "سددنا": s.totalPaid,
@@ -548,7 +548,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             </div>
             <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
               columns={[
-                { key: "company_name", header: "الشركة", render: (r: any) => <b>{r.company_name}</b> },
+                { key: "name", header: "الشركة", render: (r: any) => <b>{r.name}</b> },
                 { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
                 { key: "totalOwed", header: "علينا (إجمالي)", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
                 { key: "totalPaid", header: "سددنا", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },

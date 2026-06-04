@@ -81,9 +81,9 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     if (!form.party_type || form.party_type === "other") { setPartyOptions([]); return; }
     (async () => {
       if (form.party_type === "supplier") {
-        const { data, error } = await supabase.from("contacts").select("id, name").order("company_name");
+        const { data, error } = await supabase.from("contacts").select("id, name").order("name");
         if (error) { toast.error(error.message); return; }
-        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.company_name })));
+        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
       } else {
         const table = form.party_type === "employee" ? "employees" : "customers";
         const { data, error } = await supabase.from(table as any).select("id, name").eq("branch_id", branchId).order("name");

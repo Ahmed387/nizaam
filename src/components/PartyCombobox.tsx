@@ -26,8 +26,8 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
 
   const loadItems = useCallback(async () => {
     if (type === "supplier") {
-      const { data } = await supabase.from("contacts").select("id, name").order("company_name");
-      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.company_name })));
+      const { data } = await supabase.from("contacts").select("id, name").order("name");
+      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
     } else if (type === "customer") {
       const { data } = await supabase.from("contacts").select("id, name").order("name");
       setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
