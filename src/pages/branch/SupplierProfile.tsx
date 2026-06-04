@@ -344,6 +344,16 @@ export default function SupplierProfile() {
                 </Button>
               </>
             )}
+            {supplier && supplier.type === "supplier" && !isAdminView && (
+              <Button variant="outline" onClick={async () => {
+                const { error } = await supabase.from("contacts").update({ type: "both" } as any).eq("id", supplierId!);
+                if (error) return toast.error(error.message);
+                toast.success("تمت إضافته كعميل أيضاً");
+                load();
+              }}>
+                <Receipt className="w-4 h-4 ml-1" /> أيضاً عميل
+              </Button>
+            )}
             <Button variant="outline" onClick={() => nav(backTo)}>
               <ArrowRight className="w-4 h-4 ml-1" /> رجوع
             </Button>
@@ -384,8 +394,45 @@ export default function SupplierProfile() {
           <TabsTrigger value="timeline" className="gap-2"><Activity className="w-4 h-4" /> Timeline</TabsTrigger>
           <TabsTrigger value="shipments" className="gap-2"><Truck className="w-4 h-4" /> الشحنات ({shipments.length})</TabsTrigger>
           <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
+          {(supplier?.type === "customer" || supplier?.type === "both") && (
+            <TabsTrigger value="sales" className="gap-2"><Receipt className="w-4 h-4" /> المبيعات ({invoices.length})</TabsTrigger>
+          )}
           <TabsTrigger value="plans" className="gap-2"><DollarSign className="w-4 h-4" /> خطط الدفع</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="sales" className="mt-4">
+          <DataTable
+            rows={invoices}
+            empty="لا توجد فواتير بيع لهذه الجهة"
+            onRowClick={(r: any) => nav(`/branch/${r.branch_id}/sales/${r.id}`)}
+            columns={[
+              { key: "invoice_number", header: "رقم الفاتورة", render: (r: any) => <span className="font-semibold">{r.invoice_number}</span> },
+              { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+              { key: "total", header: "الإجمالي", render: (r: any) => <span className="font-bold text-success">{formatEGP(r.total)}</span> },
+              { key: "status", header: "الحالة", render: (r: any) => (
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${r.status === "active" ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}`}>
+                  {r.status === "active" ? "نشطة" : "ملغاة"}
+                </span>
+              )},
+              { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+            ]}
+          />
+          {custPayments.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-bold mb-2 text-sm">مدفوعات استلمناها منه كعميل</h4>
+              <DataTable
+                rows={custPayments}
+                columns={[
+                  { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+                  { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+                  { key: "payment_method", header: "الطريقة" },
+                  { key: "reference_number", header: "المرجع", render: (r: any) => r.reference_number ?? "—" },
+                  { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold text-success">{formatEGP(r.amount)}</span> },
+                ]}
+              />
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="plans" className="mt-4">
           {supplierId && <PaymentPlansPanel entityType="supplier" entityId={supplierId} direction="out" />}
