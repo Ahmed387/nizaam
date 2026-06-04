@@ -21,6 +21,7 @@ import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, Package
 interface Supplier {
   id: string;
   name: string;
+  type: "customer" | "supplier" | "both";
   contact_person: string | null;
   phone: string | null;
   address: string | null;
@@ -56,6 +57,9 @@ export default function AllSuppliers() {
   const [search, setSearch] = useState("");
   const [balanceFilter, setBalanceFilter] = useState<"all" | "owed_to_us" | "owed_by_us" | "settled">("all");
   const [branchFilter, setBranchFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "customer" | "supplier" | "both">(
+    (new URLSearchParams(window.location.search).get("type") as any) || "all"
+  );
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
@@ -143,13 +147,24 @@ export default function AllSuppliers() {
   const filtered = useMemo(() => enriched.filter((s) => {
     if (search && !s.name.includes(search) && !(s.contact_person ?? "").includes(search)) return false;
     const bal = Number(s.balance) || 0;
-    // الاتفاقية الجديدة: + = لنا (مرتجع/رصيد لصالحنا)، − = علينا للمورد
     if (balanceFilter === "owed_to_us" && bal <= 0) return false;
     if (balanceFilter === "owed_by_us" && bal >= 0) return false;
     if (balanceFilter === "settled" && bal !== 0) return false;
     if (branchFilter !== "all" && !s.branchIds.includes(branchFilter)) return false;
+    if (typeFilter !== "all") {
+      if (typeFilter === "customer" && s.type !== "customer" && s.type !== "both") return false;
+      if (typeFilter === "supplier" && s.type !== "supplier" && s.type !== "both") return false;
+      if (typeFilter === "both" && s.type !== "both") return false;
+    }
     return true;
-  }), [enriched, search, balanceFilter, branchFilter]);
+  }), [enriched, search, balanceFilter, branchFilter, typeFilter]);
+
+  const typeCounts = useMemo(() => ({
+    all: enriched.length,
+    customer: enriched.filter((s) => s.type === "customer" || s.type === "both").length,
+    supplier: enriched.filter((s) => s.type === "supplier" || s.type === "both").length,
+    both: enriched.filter((s) => s.type === "both").length,
+  }), [enriched]);
 
   const stats = useMemo(() => {
     const owedByUs = enriched.filter((s) => Number(s.balance) < 0).reduce((a, b) => a + Math.abs(Number(b.balance)), 0);
@@ -374,13 +389,13 @@ export default function AllSuppliers() {
   return (
     <AdminLayout>
       <PageHeader
-        title="الموردين (كل الفروع)"
-        subtitle="عرض موحّد لكل الموردين عبر فروع الشركة"
+        title="جهات التواصل (كل الفروع)"
+        subtitle="عرض موحّد لكل العملاء والموردين عبر فروع الشركة"
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> شحنة جديدة</Button>
-            <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> مورد جديد</Button>
+            <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> جهة جديدة</Button>
           </div>
         }
       />
@@ -405,6 +420,15 @@ export default function AllSuppliers() {
         </div>
       </div>
 
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {(["all", "customer", "supplier", "both"] as const).map((t) => (
+          <Button key={t} size="sm" variant={typeFilter === t ? "default" : "outline"} onClick={() => setTypeFilter(t)}>
+            {t === "all" ? "الكل" : t === "customer" ? "عملاء" : t === "supplier" ? "موردين" : "عميل ومورد"}
+            <span className="mr-1.5 opacity-70">({typeCounts[t]})</span>
+          </Button>
+        ))}
+      </div>
+
       <div className="flex gap-3 mb-4 flex-wrap">
         <Input placeholder="ابحث بالاسم أو المسؤول" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
         <Select value={branchFilter} onValueChange={setBranchFilter}>
@@ -426,9 +450,15 @@ export default function AllSuppliers() {
       </div>
 
       <DataTable loading={loading} rows={filtered}
-        onRowClick={(r: any) => nav(`/admin/suppliers/${r.id}`)}
+        onRowClick={(r: any) => nav(`/admin/contacts/${r.id}`)}
         columns={[
-          { key: "name", header: "الشركة", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
+          { key: "name", header: "الاسم", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
+          { key: "type", header: "النوع", render: (r: any) => {
+            const t = r.type as "customer" | "supplier" | "both";
+            const lbl = t === "customer" ? "عميل" : t === "supplier" ? "مورد" : "عميل ومورد";
+            const cls = t === "both" ? "bg-primary/10 text-primary" : t === "customer" ? "bg-success/10 text-success" : "bg-warning/10 text-warning";
+            return <span className={`px-2 py-1 rounded text-xs ${cls}`}>{lbl}</span>;
+          } },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "branches", header: "الفروع", render: (r: any) => <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">{r.branchCount} فرع</span> },
           { key: "totalShipments", header: "إجمالي المشتريات", render: (r: any) => <span className="font-semibold">{formatEGP(r.totalShipments)}</span> },
@@ -441,8 +471,8 @@ export default function AllSuppliers() {
           }},
           { key: "actions", header: "إجراءات", render: (r: any) => (
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <Button size="sm" variant="outline" title="فتح صفحة المورد" onClick={() => nav(`/admin/suppliers/${r.id}`)}><Eye className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="outline" title="شحنات المورد" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="فتح صفحة الجهة" onClick={() => nav(`/admin/contacts/${r.id}`)}><Eye className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="الشحنات" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
