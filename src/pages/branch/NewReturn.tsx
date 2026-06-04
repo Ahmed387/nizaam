@@ -440,6 +440,12 @@ export default function NewReturn() {
                     </div>
                   </div>
                 )}
+                {customer?.id && (
+                  <label className="flex items-center gap-2 p-2.5 rounded-md bg-muted/40 border cursor-pointer text-sm">
+                    <Checkbox checked={creditToBalance} onCheckedChange={(c) => setCreditToBalance(!!c)} />
+                    <span>إضافة قيمة المرتجع لرصيد العميل بدلاً من الصرف نقدي/تحويل</span>
+                  </label>
+                )}
                 <div>
                   <Label>ملاحظات</Label>
                   <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات إضافية..." className="mt-1.5" />
@@ -455,19 +461,30 @@ export default function NewReturn() {
             <div className="font-bold text-lg">ملخص المرتجع</div>
             <div className="flex justify-between text-sm"><span>عدد الأصناف</span><Badge variant="secondary">{Object.values(qty).filter((v) => v > 0).length}</Badge></div>
             <div className="flex justify-between text-sm"><span>إجمالي الكمية</span><Badge variant="secondary">{totalQty}</Badge></div>
-            <div className="flex justify-between text-sm"><span>طريقة الاسترداد</span><span className="text-xs">{methodOptions.find((m) => m.value === refundMethod)?.label ?? refundMethod}</span></div>
+            <div className="flex justify-between text-sm"><span>طريقة الاسترداد</span><span className="text-xs">{creditToBalance ? "📒 رصيد العميل" : (methodOptions.find((m) => m.value === refundMethod)?.label ?? refundMethod)}</span></div>
             <div className="border-t pt-3 flex justify-between text-xl">
               <span>المُسترد</span>
               <b className="text-destructive">{formatEGP(totalRefund)}</b>
             </div>
-            <Button onClick={submit} disabled={!invoice || busy || totalRefund === 0} className="w-full gap-2" size="lg">
+            <Button onClick={() => submit(false)} disabled={!invoice || busy || totalRefund === 0} className="w-full gap-2" size="lg">
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               تأكيد المرتجع
+            </Button>
+            <Button onClick={() => submit(true)} disabled={!invoice || busy || totalRefund === 0} variant="outline" className="w-full gap-2">
+              <Save className="w-4 h-4" /> حفظ كمسودة
             </Button>
             {invoice && totalRefund === 0 && <p className="text-xs text-muted-foreground text-center">حدد كمية لمنتج واحد على الأقل</p>}
           </div>
         </aside>
       </div>
+
+      {/* Camera scanner for invoice */}
+      <BarcodeCameraScanner
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onScan={(code) => { setInvSearch(code); setCameraOpen(false); setTimeout(findInvoice, 100); }}
+        continuous={false}
+      />
 
       {/* Recent invoices dialog */}
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
