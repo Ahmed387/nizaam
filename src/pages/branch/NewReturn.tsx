@@ -312,10 +312,14 @@ export default function NewReturn() {
                 {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 بحث
               </Button>
+              <Button variant="outline" onClick={() => setCameraOpen(true)} className="gap-2" title="مسح QR">
+                <Camera className="w-4 h-4" />
+              </Button>
               <Button variant="outline" onClick={openRecent} className="gap-2">
                 <History className="w-4 h-4" /> آخر الفواتير
               </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground mt-2">اختصارات: Ctrl+S للحفظ — Esc للإلغاء</p>
           </div>
 
           {invoice && (
