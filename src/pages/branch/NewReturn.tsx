@@ -9,13 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Search, Plus, Minus, CheckSquare, Square, Printer, History, AlertTriangle } from "lucide-react";
+import { Loader2, Search, Plus, Minus, CheckSquare, Square, Printer, History, AlertTriangle, Camera, Save } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 
 const COMMON_REASONS = [
   "منتج معيب / تالف",
@@ -53,6 +55,8 @@ export default function NewReturn() {
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
   const [lastReturnId, setLastReturnId] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [creditToBalance, setCreditToBalance] = useState(false);
 
   useEffect(() => {
     loadAllPaymentMethods().then((m) => setMethodOptions(m.filter((x) => x.is_enabled)));
@@ -146,16 +150,19 @@ export default function NewReturn() {
 
   const finalReason = reasonPick === "أخرى" ? reasonOther.trim() : reasonPick;
 
-  const submit = async () => {
+  const submit = async (asDraft = false) => {
     if (!invoice || busy) return;
     if (!finalReason) return toast.error("اذكر سبب الإرجاع");
     const selected = items.filter((it) => (qty[it.id] ?? 0) > 0);
     if (!selected.length) return toast.error("حدد كمية لمنتج واحد على الأقل");
-    if (methodRequiresReference(refundMethod) && !refundRef.trim())
+    if (!asDraft && methodRequiresReference(refundMethod) && !creditToBalance && !refundRef.trim())
       return toast.error("أدخل رقم العملية");
+    if (creditToBalance && !customer?.id)
+      return toast.error("لا يمكن إضافة الرصيد لعميل نقدي");
 
     setBusy(true);
     try {
+      const effectiveMethod = creditToBalance ? "balance" : refundMethod;
       const { data: ret, error } = await supabase
         .from("returns")
         .insert({
@@ -164,12 +171,13 @@ export default function NewReturn() {
           reason: finalReason,
           notes: notes.trim() || null,
           total_refund: totalRefund,
-          refund_method: refundMethod,
+          status: asDraft ? "draft" : "active",
+          refund_method: effectiveMethod,
           refund_reference: refundRef.trim() || null,
           refund_account: refundAccount.trim() || null,
-          refund_cash_amount: refundMethod === "cash" ? totalRefund : 0,
-          refund_transfer_amount: refundMethod !== "cash" ? totalRefund : 0,
-          refund_balance_amount: 0,
+          refund_cash_amount: creditToBalance ? 0 : (refundMethod === "cash" ? totalRefund : 0),
+          refund_transfer_amount: creditToBalance ? 0 : (refundMethod !== "cash" ? totalRefund : 0),
+          refund_balance_amount: creditToBalance ? totalRefund : 0,
           created_by: user!.id,
         } as any)
         .select()
@@ -184,24 +192,31 @@ export default function NewReturn() {
           quantity: q,
           refund: q * Number(it.selling_price),
         });
-        if (it.product_id) {
+        if (!asDraft && it.product_id) {
           const { data: p } = await supabase.from("products").select("quantity").eq("id", it.product_id).maybeSingle();
           if (p) await supabase.from("products").update({ quantity: (p.quantity ?? 0) + q }).eq("id", it.product_id);
         }
       }
 
-      await supabase.from("treasury").insert({
-        branch_id: branchId!,
-        type: "expense",
-        category: "return",
-        amount: totalRefund,
-        description: `مرتجع فاتورة ${invoice.invoice_number} - ${finalReason}`,
-        reference_id: ret.id,
-        payment_method: refundMethod,
-        reference_number: refundRef.trim() || null,
-        transfer_to_account: refundAccount.trim() || null,
-        created_by: user!.id,
-      } as any);
+      if (!asDraft) {
+        if (creditToBalance && customer?.id) {
+          const { data: c } = await supabase.from("customers").select("balance").eq("id", customer.id).maybeSingle();
+          if (c) await supabase.from("customers").update({ balance: Number((c as any).balance ?? 0) + totalRefund } as any).eq("id", customer.id);
+        } else {
+          await supabase.from("treasury").insert({
+            branch_id: branchId!,
+            type: "expense",
+            category: "return",
+            amount: totalRefund,
+            description: `مرتجع فاتورة ${invoice.invoice_number} - ${finalReason}`,
+            reference_id: ret.id,
+            payment_method: refundMethod,
+            reference_number: refundRef.trim() || null,
+            transfer_to_account: refundAccount.trim() || null,
+            created_by: user!.id,
+          } as any);
+        }
+      }
 
       await logAudit({
         userId: user!.id,
@@ -210,18 +225,42 @@ export default function NewReturn() {
         action: "CREATE",
         entity: "return",
         entityId: ret.id,
-        details: { invoice: invoice.invoice_number, total: totalRefund, method: refundMethod },
+        details: { invoice: invoice.invoice_number, total: totalRefund, method: effectiveMethod, draft: asDraft },
       });
 
-      toast.success("تم تسجيل المرتجع");
-      setLastReturnId(ret.id);
-      setPrintOpen(true);
+      if (asDraft) {
+        toast.success("تم حفظ المرتجع كمسودة");
+        nav(`/branch/${branchId}/invoices?tab=return`);
+      } else {
+        toast.success("تم تسجيل المرتجع");
+        setLastReturnId(ret.id);
+        setPrintOpen(true);
+      }
     } catch (err: any) {
       toast.error(err.message ?? "فشل حفظ المرتجع");
     } finally {
       setBusy(false);
     }
   };
+
+  // Keyboard shortcuts: Ctrl+S = save, Esc = cancel
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        submit(false);
+      } else if (e.key === "Escape" && !busy) {
+        if (invoice) {
+          setInvoice(null); setItems([]); setCustomer(null); setQty({});
+        } else {
+          nav(`/branch/${branchId}/invoices?tab=return`);
+        }
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice, busy, qty, refundMethod, refundRef, creditToBalance, finalReason]);
 
   const printReceipt = (size: "thermal" | "a4") => {
     const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>مرتجع ${invoice?.invoice_number}</title>
@@ -273,10 +312,14 @@ export default function NewReturn() {
                 {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 بحث
               </Button>
+              <Button variant="outline" onClick={() => setCameraOpen(true)} className="gap-2" title="مسح QR">
+                <Camera className="w-4 h-4" />
+              </Button>
               <Button variant="outline" onClick={openRecent} className="gap-2">
                 <History className="w-4 h-4" /> آخر الفواتير
               </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground mt-2">اختصارات: Ctrl+S للحفظ — Esc للإلغاء</p>
           </div>
 
           {invoice && (
@@ -317,6 +360,7 @@ export default function NewReturn() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm min-w-[640px]">
                       <thead><tr className="bg-surface-2 border-b border-border">
+                        <th className="px-2 py-2 w-8"></th>
                         <th className="px-4 py-2 text-right">المنتج</th>
                         <th className="px-4 py-2 text-right">المتاح</th>
                         <th className="px-4 py-2 text-right">سعر الوحدة</th>
@@ -329,6 +373,12 @@ export default function NewReturn() {
                           const v = qty[it.id] ?? 0;
                           return (
                             <tr key={it.id} className="border-b border-border">
+                              <td className="px-2 py-2 text-center">
+                                <Checkbox
+                                  checked={v > 0}
+                                  onCheckedChange={(c) => setLineQty(it, c ? max : 0)}
+                                />
+                              </td>
                               <td className="px-4 py-2">{it.product_name}</td>
                               <td className="px-4 py-2">{max}{alreadyReturned[it.product_id ?? ""] > 0 && <span className="text-xs text-muted-foreground"> (مُرتجع: {alreadyReturned[it.product_id ?? ""]})</span>}</td>
                               <td className="px-4 py-2">{formatEGP(it.selling_price)}</td>
@@ -390,6 +440,12 @@ export default function NewReturn() {
                     </div>
                   </div>
                 )}
+                {customer?.id && (
+                  <label className="flex items-center gap-2 p-2.5 rounded-md bg-muted/40 border cursor-pointer text-sm">
+                    <Checkbox checked={creditToBalance} onCheckedChange={(c) => setCreditToBalance(!!c)} />
+                    <span>إضافة قيمة المرتجع لرصيد العميل بدلاً من الصرف نقدي/تحويل</span>
+                  </label>
+                )}
                 <div>
                   <Label>ملاحظات</Label>
                   <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات إضافية..." className="mt-1.5" />
@@ -405,19 +461,30 @@ export default function NewReturn() {
             <div className="font-bold text-lg">ملخص المرتجع</div>
             <div className="flex justify-between text-sm"><span>عدد الأصناف</span><Badge variant="secondary">{Object.values(qty).filter((v) => v > 0).length}</Badge></div>
             <div className="flex justify-between text-sm"><span>إجمالي الكمية</span><Badge variant="secondary">{totalQty}</Badge></div>
-            <div className="flex justify-between text-sm"><span>طريقة الاسترداد</span><span className="text-xs">{methodOptions.find((m) => m.value === refundMethod)?.label ?? refundMethod}</span></div>
+            <div className="flex justify-between text-sm"><span>طريقة الاسترداد</span><span className="text-xs">{creditToBalance ? "📒 رصيد العميل" : (methodOptions.find((m) => m.value === refundMethod)?.label ?? refundMethod)}</span></div>
             <div className="border-t pt-3 flex justify-between text-xl">
               <span>المُسترد</span>
               <b className="text-destructive">{formatEGP(totalRefund)}</b>
             </div>
-            <Button onClick={submit} disabled={!invoice || busy || totalRefund === 0} className="w-full gap-2" size="lg">
+            <Button onClick={() => submit(false)} disabled={!invoice || busy || totalRefund === 0} className="w-full gap-2" size="lg">
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               تأكيد المرتجع
+            </Button>
+            <Button onClick={() => submit(true)} disabled={!invoice || busy || totalRefund === 0} variant="outline" className="w-full gap-2">
+              <Save className="w-4 h-4" /> حفظ كمسودة
             </Button>
             {invoice && totalRefund === 0 && <p className="text-xs text-muted-foreground text-center">حدد كمية لمنتج واحد على الأقل</p>}
           </div>
         </aside>
       </div>
+
+      {/* Camera scanner for invoice */}
+      <BarcodeCameraScanner
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onScan={(code) => { setInvSearch(code); setCameraOpen(false); setTimeout(findInvoice, 100); }}
+        continuous={false}
+      />
 
       {/* Recent invoices dialog */}
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>

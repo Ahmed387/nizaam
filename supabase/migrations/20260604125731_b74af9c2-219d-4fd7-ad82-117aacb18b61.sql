@@ -1,0 +1,9 @@
+
+ALTER TABLE public.customers
+  ADD COLUMN IF NOT EXISTS balance NUMERIC(12,2) NOT NULL DEFAULT 0;
+
+ALTER TABLE public.returns
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+
+ALTER TABLE public.purchase_returns
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';

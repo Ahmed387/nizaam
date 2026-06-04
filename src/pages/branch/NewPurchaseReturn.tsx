@@ -13,8 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Link2, Printer, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Loader2, Link2, Printer, AlertTriangle, Camera, Save } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 
 interface Line { product_id: string; product_name: string; quantity: number; unit_cost: number; max_qty: number; }
 
@@ -62,6 +63,7 @@ export default function NewPurchaseReturn() {
   // Print dialog
   const [printOpen, setPrintOpen] = useState(false);
   const [savedNumber, setSavedNumber] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
@@ -139,7 +141,7 @@ export default function NewPurchaseReturn() {
 
   const finalReason = reasonPick === "أخرى" ? reasonOther.trim() : reasonPick;
 
-  const submit = async () => {
+  const submit = async (asDraft = false) => {
     if (busy) return;
     if (!supplier) return toast.error("اختر المورد");
     if (!finalReason) return toast.error("اكتب السبب");
@@ -149,10 +151,12 @@ export default function NewPurchaseReturn() {
       if (l.quantity <= 0) return toast.error("الكمية لازم تكون أكبر من صفر");
       if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name}`);
     }
-    if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
-    const needsTransferRef = (refundMode === "transfer") || (refundMode === "mixed" && transferPart > 0);
-    if (needsTransferRef && methodRequiresReference(transferMethod) && !refundRef.trim())
-      return toast.error("أدخل رقم العملية للتحويل");
+    if (!asDraft) {
+      if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
+      const needsTransferRef = (refundMode === "transfer") || (refundMode === "mixed" && transferPart > 0);
+      if (needsTransferRef && methodRequiresReference(transferMethod) && !refundRef.trim())
+        return toast.error("أدخل رقم العملية للتحويل");
+    }
 
     setBusy(true);
     try {
@@ -167,6 +171,7 @@ export default function NewPurchaseReturn() {
         notes: notes.trim() || null,
         created_by: user!.id,
         total_amount: total,
+        status: asDraft ? "draft" : "active",
         refund_method: refundMethodFinal,
         refund_reference: refundRef.trim() || null,
         refund_account: refundAccount.trim() || null,
@@ -187,43 +192,74 @@ export default function NewPurchaseReturn() {
       const { error: e2 } = await supabase.from("purchase_return_items" as any).insert(items);
       if (e2) throw e2;
 
-      // Decrement stock
-      for (const l of lines) {
-        const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
-        if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
+      if (!asDraft) {
+        for (const l of lines) {
+          const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
+          if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
+        }
+        const cashIn = cashPart + transferPart;
+        if (cashIn > 0) {
+          await supabase.from("treasury").insert({
+            branch_id: branchId!,
+            type: "income",
+            category: "purchase_return",
+            amount: cashIn,
+            description: `مرتجع شراء ${number} - ${supplier.company_name}`,
+            reference_id: (pr as any).id,
+            payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
+            reference_number: refundRef.trim() || null,
+            transfer_from_account: refundAccount.trim() || null,
+            created_by: user!.id,
+          } as any);
+        }
+        if (balancePart > 0) {
+          const newBal = Number(supplier.balance ?? 0) - balancePart;
+          await supabase.from("suppliers").update({ balance: newBal }).eq("id", supplier.id);
+        }
       }
 
-      // Treasury: cash + transfer received as income
-      const cashIn = cashPart + transferPart;
-      if (cashIn > 0) {
-        await supabase.from("treasury").insert({
-          branch_id: branchId!,
-          type: "income",
-          category: "purchase_return",
-          amount: cashIn,
-          description: `مرتجع شراء ${number} - ${supplier.company_name}`,
-          reference_id: (pr as any).id,
-          payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
-          reference_number: refundRef.trim() || null,
-          transfer_from_account: refundAccount.trim() || null,
-          created_by: user!.id,
-        } as any);
+      if (asDraft) {
+        toast.success("تم حفظ المرتجع كمسودة");
+        nav(`/branch/${branchId}/invoices?tab=purchase_return`);
+      } else {
+        toast.success("تم تسجيل مرتجع الشراء");
+        setSavedNumber(number);
+        setPrintOpen(true);
       }
-
-      // Supplier balance: balancePart increases what the supplier owes us (or reduces what we owe them)
-      if (balancePart > 0) {
-        const newBal = Number(supplier.balance ?? 0) - balancePart;
-        await supabase.from("suppliers").update({ balance: newBal }).eq("id", supplier.id);
-      }
-
-      toast.success("تم تسجيل مرتجع الشراء");
-      setSavedNumber(number);
-      setPrintOpen(true);
     } catch (err: any) {
       toast.error(err.message ?? "فشل الحفظ");
     } finally {
       setBusy(false);
     }
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        submit(false);
+      } else if (e.key === "Escape" && !busy) {
+        nav(`/branch/${branchId}/invoices?tab=purchase_return`);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, lines, supplier, refundMode, cashPart, transferPart, balancePart, refundRef, finalReason]);
+
+  // Barcode → add line by SKU/name match
+  const onBarcodeScan = (code: string) => {
+    setCameraOpen(false);
+    const p = products.find((x) => x.sku === code || x.name === code);
+    if (!p) return toast.error(`لم يتم العثور على منتج بالكود: ${code}`);
+    const existing = lines.findIndex((l) => l.product_id === p.id);
+    if (existing >= 0) {
+      updateLine(existing, { quantity: Math.min(lines[existing].quantity + 1, lines[existing].max_qty) });
+    } else {
+      setLines([...lines, { product_id: p.id, product_name: p.name, quantity: 1, unit_cost: Number(p.cost_price), max_qty: p.quantity }]);
+    }
+    toast.success(`تم إضافة ${p.name}`);
   };
 
   const printReceipt = (size: "thermal" | "a4") => {
@@ -301,6 +337,7 @@ export default function NewPurchaseReturn() {
                   onChange={(e) => setProductSearch(e.target.value)}
                   className="h-9 w-56"
                 />
+                <Button size="sm" variant="outline" onClick={() => setCameraOpen(true)} title="مسح باركود"><Camera className="w-4 h-4" /></Button>
                 <Button size="sm" variant="outline" onClick={addLine} className="gap-1"><Plus className="w-3 h-3" /> إضافة سطر</Button>
               </div>
             </div>
@@ -430,13 +467,24 @@ export default function NewPurchaseReturn() {
                 <span>رصيد المورد هيتعدل من {formatEGP(supplier.balance ?? 0)} إلى {formatEGP(Number(supplier.balance ?? 0) - total)}</span>
               </div>
             )}
-            <Button onClick={submit} disabled={busy || total === 0 || !supplier} className="w-full gap-2" size="lg">
+            <Button onClick={() => submit(false)} disabled={busy || total === 0 || !supplier} className="w-full gap-2" size="lg">
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               حفظ مرتجع الشراء
             </Button>
+            <Button onClick={() => submit(true)} disabled={busy || total === 0 || !supplier} variant="outline" className="w-full gap-2">
+              <Save className="w-4 h-4" /> حفظ كمسودة
+            </Button>
+            <p className="text-[11px] text-muted-foreground text-center">Ctrl+S للحفظ — Esc للإلغاء</p>
           </div>
         </aside>
       </div>
+
+      <BarcodeCameraScanner
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onScan={onBarcodeScan}
+        continuous={false}
+      />
 
       {/* Shipment picker */}
       <Dialog open={shipmentOpen} onOpenChange={setShipmentOpen}>
