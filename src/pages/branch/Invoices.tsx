@@ -87,6 +87,7 @@ export default function Invoices() {
     next.set("tab", k);
     setParams(next);
     setFilters(EMPTY_FILTERS);
+    setDraftFilters(EMPTY_FILTERS);
   };
 
   const [rows, setRows] = useState<any[]>([]);
