@@ -178,6 +178,8 @@ export default function NewPurchaseReturn() {
         refund_balance_amount: balancePart,
       }).select().single();
       if (error || !pr) throw error ?? new Error("فشل الحفظ");
+      const number = (pr as any).return_number as string;
+
 
       const items = lines.map((l) => ({
         purchase_return_id: (pr as any).id,
