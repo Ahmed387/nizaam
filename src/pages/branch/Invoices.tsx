@@ -238,6 +238,10 @@ export default function Invoices() {
         if (filters.fromBranch && r.from_branch_id !== filters.fromBranch) return false;
         if (filters.toBranch && r.to_branch_id !== filters.toBranch) return false;
       }
+      if (filters.partyId && active.party) {
+        if (active.party === "customer" && r.invoices?.customer_id !== filters.partyId) return false;
+        if (active.party === "supplier" && r.supplier_id !== filters.partyId) return false;
+      }
       return true;
     });
   }, [rows, filters, tab, active]);
