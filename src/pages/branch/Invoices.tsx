@@ -127,7 +127,7 @@ export default function Invoices() {
     }
   }, [active.party, branchId]);
   useEffect(() => { loadParties(); }, [loadParties]);
-  useRealtimeRefresh([active.party === "customer" ? "customers" : "suppliers"], loadParties);
+  useRealtimeRefresh(["contacts"], loadParties);
 
   const load = useCallback(async () => {
     if (!branchId) return;
