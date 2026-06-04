@@ -193,8 +193,8 @@ export default function Invoices() {
       switch (tab) {
         case "sale": return [r.invoice_number, r.customers?.name].filter(Boolean).join(" ").toLowerCase();
         case "purchase": return [r.suppliers?.company_name, r.received_by, r.shipment_number].filter(Boolean).join(" ").toLowerCase();
-        case "sale_return": return [r.invoices?.invoice_number, r.reason].filter(Boolean).join(" ").toLowerCase();
-        case "purchase_return": return [r.return_number, r.suppliers?.company_name, r.reason].filter(Boolean).join(" ").toLowerCase();
+        case "sale_return": return [r.invoices?.invoice_number, r.invoices?.customers?.name, r.invoices?.customers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+        case "purchase_return": return [r.return_number, r.suppliers?.company_name, r.suppliers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
         case "income":
         case "expense": return [r.voucher_number, r.description, r.category, r.party_name].filter(Boolean).join(" ").toLowerCase();
         case "quote": return [r.quote_number, r.customers?.name, r.customer_name].filter(Boolean).join(" ").toLowerCase();
