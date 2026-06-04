@@ -360,6 +360,7 @@ export default function NewReturn() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm min-w-[640px]">
                       <thead><tr className="bg-surface-2 border-b border-border">
+                        <th className="px-2 py-2 w-8"></th>
                         <th className="px-4 py-2 text-right">المنتج</th>
                         <th className="px-4 py-2 text-right">المتاح</th>
                         <th className="px-4 py-2 text-right">سعر الوحدة</th>
@@ -372,6 +373,12 @@ export default function NewReturn() {
                           const v = qty[it.id] ?? 0;
                           return (
                             <tr key={it.id} className="border-b border-border">
+                              <td className="px-2 py-2 text-center">
+                                <Checkbox
+                                  checked={v > 0}
+                                  onCheckedChange={(c) => setLineQty(it, c ? max : 0)}
+                                />
+                              </td>
                               <td className="px-4 py-2">{it.product_name}</td>
                               <td className="px-4 py-2">{max}{alreadyReturned[it.product_id ?? ""] > 0 && <span className="text-xs text-muted-foreground"> (مُرتجع: {alreadyReturned[it.product_id ?? ""]})</span>}</td>
                               <td className="px-4 py-2">{formatEGP(it.selling_price)}</td>
