@@ -35,11 +35,11 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
 ];
 
 // Which filters apply to each tab
-const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean }> = {
+const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean; party?: "customer" | "supplier" }> = {
   sale:            { search: true, date: true, status: true,  amount: true,  payment: true },
   purchase:        { search: true, date: true,                 amount: true },
-  sale_return:     { search: true, date: true,                 amount: true },
-  purchase_return: { search: true, date: true, status: true,  amount: true },
+  sale_return:     { search: true, date: true,                 amount: true, party: "customer" },
+  purchase_return: { search: true, date: true, status: true,  amount: true, party: "supplier" },
   income:          { search: true, date: true,                 amount: true, payment: true, category: true },
   expense:         { search: true, date: true,                 amount: true, payment: true, category: true },
   transfer:        {              date: true, status: true,                                            transferBranch: true },
@@ -58,8 +58,9 @@ type Filters = {
   categoryId: string;
   fromBranch: string;
   toBranch: string;
+  partyId: string;
 };
-const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "" };
+const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "" };
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
