@@ -31,6 +31,7 @@ export default function Inventory() {
   const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
     low_stock_alert: "5", quantity: "0", image: "",
@@ -57,7 +58,17 @@ export default function Inventory() {
     const { data } = await supabase.from("products").select("*, categories(name)").eq("branch_id", branchId).order("created_at", { ascending: false });
     setRows(data ?? []); setLoading(false);
   };
-  useEffect(() => { load(); supabase.from("categories").select("*").then(({ data }) => setCats(data ?? [])); }, [branchId]);
+  useEffect(() => {
+    load();
+    supabase.from("categories").select("*").then(({ data }) => setCats(data ?? []));
+    supabase.from("settings").select("value").eq("key", "inventory").maybeSingle().then(({ data }) => {
+      const v = Number((data?.value as any)?.default_low_stock_alert);
+      if (Number.isFinite(v) && v >= 0) {
+        setDefaultLowStock(v);
+        setForm((f) => ({ ...f, low_stock_alert: String(v) }));
+      }
+    });
+  }, [branchId]);
   useRealtimeRefresh(["products", "categories"], load);
 
   const filtered = rows.filter((p) => {
@@ -94,7 +105,7 @@ export default function Inventory() {
       cost_price: Number(form.cost_price) || 0,
       selling_price: Number(form.selling_price) || 0,
       market_price: Number(form.market_price) || 0,
-      low_stock_alert: parseInt(form.low_stock_alert) || 5,
+      low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
       quantity: parseInt(form.quantity) || 0,
       image: form.image || null,
       branch_id: branchId!,
@@ -103,7 +114,7 @@ export default function Inventory() {
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: data.id, details: { name: form.name } });
     toast.success("تمت إضافة المنتج");
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: "5", quantity: "0", image: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" });
     load();
   };
 

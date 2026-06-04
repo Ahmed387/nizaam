@@ -568,6 +568,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
   onSaved: () => void;
 }) {
   const { user, profile, tenantId } = useAuth();
+  const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", branch_ids: [] as string[],
     cost_price: "", selling_price: "", market_price: "",
@@ -576,7 +577,14 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (!open) setForm({ name: "", category_id: "", branch_ids: [], cost_price: "", selling_price: "", market_price: "", low_stock_alert: "5", quantity: "0", image: "" }); }, [open]);
+  useEffect(() => {
+    supabase.from("settings").select("value").eq("key", "inventory").maybeSingle().then(({ data }) => {
+      const v = Number((data?.value as any)?.default_low_stock_alert);
+      if (Number.isFinite(v) && v >= 0) setDefaultLowStock(v);
+    });
+  }, []);
+  useEffect(() => { if (!open) setForm({ name: "", category_id: "", branch_ids: [], cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" }); }, [open, defaultLowStock]);
+  useEffect(() => { if (open) setForm((f) => ({ ...f, low_stock_alert: String(defaultLowStock) })); }, [open, defaultLowStock]);
 
   const toggleBranch = (id: string) => {
     setForm((f) => ({ ...f, branch_ids: f.branch_ids.includes(id) ? f.branch_ids.filter((x) => x !== id) : [...f.branch_ids, id] }));
@@ -613,7 +621,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
       const { data, error } = await supabase.from("products").insert({
         name: form.name, sku: sharedSku, category_id: form.category_id || null,
         cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
-        market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || 5,
+        market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
         quantity: parseInt(form.quantity) || 0, image: form.image || null, branch_id: branchId,
       }).select().single();
       if (!error && data) {
