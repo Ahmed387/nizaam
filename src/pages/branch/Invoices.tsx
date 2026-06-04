@@ -395,7 +395,64 @@ export default function Invoices() {
   const hasAnyFilter =
     filters.q || filters.from || filters.to || filters.status ||
     filters.amountMin || filters.amountMax || filters.payment ||
-    filters.categoryId || filters.fromBranch || filters.toBranch;
+    filters.categoryId || filters.fromBranch || filters.toBranch || filters.partyId;
+
+  // For return tabs: use draft filters (apply only when search button clicked)
+  const inputF = isReturnTab ? draftFilters : filters;
+  const setInputF = (next: Filters) => (isReturnTab ? setDraftFilters(next) : setFilters(next));
+
+  const applySearch = () => {
+    setFilters(draftFilters);
+    setSuggestOpen(false);
+  };
+  const clearAll = () => {
+    setFilters(EMPTY_FILTERS);
+    setDraftFilters(EMPTY_FILTERS);
+    setSuggestOpen(false);
+  };
+
+  // Quick date presets
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const applyQuickDate = (preset: "today" | "yesterday" | "7d" | "thisMonth" | "lastMonth") => {
+    const now = new Date();
+    let from = "", to = "";
+    if (preset === "today") { from = to = ymd(now); }
+    else if (preset === "yesterday") {
+      const y = new Date(now); y.setDate(y.getDate() - 1);
+      from = to = ymd(y);
+    } else if (preset === "7d") {
+      const s = new Date(now); s.setDate(s.getDate() - 6);
+      from = ymd(s); to = ymd(now);
+    } else if (preset === "thisMonth") {
+      from = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+      to = ymd(now);
+    } else if (preset === "lastMonth") {
+      from = ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      to = ymd(new Date(now.getFullYear(), now.getMonth(), 0));
+    }
+    setInputF({ ...inputF, from, to });
+  };
+
+  // Autocomplete suggestions for return tabs (uses already-loaded rows)
+  const suggestions = useMemo(() => {
+    if (!isReturnTab) return [];
+    const q = draftFilters.q.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const text = (r: any) => {
+      if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.customers?.name, r.invoices?.customers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+      return [r.return_number, r.suppliers?.company_name, r.suppliers?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
+    };
+    return rows.filter((r) => text(r).includes(q)).slice(0, 8);
+  }, [isReturnTab, tab, draftFilters.q, rows]);
+
+  // Summary (count + total) for return tabs
+  const summary = useMemo(() => {
+    if (!isReturnTab) return null;
+    const total = filteredRows.reduce((s, r) => s + Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0), 0);
+    return { count: filteredRows.length, total };
+  }, [isReturnTab, tab, filteredRows]);
+
+  const selectedParty = parties.find((p) => p.id === inputF.partyId);
 
   return (
     <BranchLayout>
@@ -435,7 +492,7 @@ export default function Invoices() {
 
       {/* Filters bar */}
       <div className="bg-card border rounded-lg p-3 mb-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Search className="w-4 h-4 text-muted-foreground" />
             <span>فلاتر {currentTabLabel}</span>
@@ -444,39 +501,122 @@ export default function Invoices() {
             </span>
           </div>
           {hasAnyFilter && (
-            <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)} className="gap-1 h-7">
+            <Button variant="ghost" size="sm" onClick={clearAll} className="gap-1 h-7">
               <X className="w-3 h-3" /> مسح الفلاتر
             </Button>
           )}
         </div>
+
+        {/* Quick date presets (return tabs only) */}
+        {isReturnTab && (
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <CalendarIcon className="w-3 h-3" /> اختصارات:
+            </span>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("today")}>النهاردة</Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("yesterday")}>امبارح</Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("7d")}>آخر 7 أيام</Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("thisMonth")}>الشهر ده</Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("lastMonth")}>الشهر اللي فات</Button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {active.search && (
-            <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">بحث (رقم / اسم / بيان)</Label>
+            <div className="space-y-1 lg:col-span-2 relative">
+              <Label className="text-xs">بحث (رقم / اسم / تليفون / سبب)</Label>
               <Input
-                value={filters.q}
-                onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-                placeholder="رقم الفاتورة، اسم العميل، المورد..."
+                value={inputF.q}
+                onChange={(e) => { setInputF({ ...inputF, q: e.target.value }); if (isReturnTab) setSuggestOpen(true); }}
+                onFocus={() => isReturnTab && setSuggestOpen(true)}
+                onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+                onKeyDown={(e) => { if (e.key === "Enter" && isReturnTab) applySearch(); }}
+                placeholder="رقم الفاتورة، اسم العميل، المورد، تليفون..."
                 className="h-9"
               />
+              {/* Autocomplete dropdown */}
+              {isReturnTab && suggestOpen && suggestions.length > 0 && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-72 overflow-y-auto">
+                  {suggestions.map((r: any) => {
+                    const num = tab === "sale_return" ? r.invoices?.invoice_number : r.return_number;
+                    const party = tab === "sale_return" ? (r.invoices?.customers?.name ?? "نقدي") : (r.suppliers?.company_name ?? "—");
+                    const amt = Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0);
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        className="w-full text-right px-3 py-2 hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setDraftFilters({ ...draftFilters, q: String(num ?? "") });
+                          setFilters({ ...draftFilters, q: String(num ?? "") });
+                          setSuggestOpen(false);
+                        }}
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-mono text-primary text-sm truncate">{num ?? "—"}</span>
+                          <span className="text-xs text-muted-foreground truncate">{party} • {formatDate(r.created_at)}</span>
+                        </div>
+                        <span className="text-xs font-semibold whitespace-nowrap">{formatEGP(amt)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
           {active.date && (
             <>
               <div className="space-y-1">
                 <Label className="text-xs">من تاريخ</Label>
-                <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} className="h-9" />
+                <Input type="date" value={inputF.from} onChange={(e) => setInputF({ ...inputF, from: e.target.value })} className="h-9" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">إلى تاريخ</Label>
-                <Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} className="h-9" />
+                <Input type="date" value={inputF.to} onChange={(e) => setInputF({ ...inputF, to: e.target.value })} className="h-9" />
               </div>
             </>
+          )}
+          {active.party && (
+            <div className="space-y-1">
+              <Label className="text-xs">{active.party === "customer" ? "العميل" : "المورد"}</Label>
+              <Popover open={partyOpen} onOpenChange={setPartyOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal h-9">
+                    <span className="truncate">{selectedParty?.name ?? "الكل"}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="ابحث بالاسم أو التليفون..." />
+                    <CommandList>
+                      <CommandEmpty>لا توجد نتائج</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="__all__" onSelect={() => { setInputF({ ...inputF, partyId: "" }); setPartyOpen(false); }}>
+                          <Check className={cn("ml-2 h-4 w-4", !inputF.partyId ? "opacity-100" : "opacity-0")} />
+                          الكل
+                        </CommandItem>
+                        {parties.map((p) => (
+                          <CommandItem key={p.id} value={`${p.name} ${p.phone ?? ""}`} onSelect={() => { setInputF({ ...inputF, partyId: p.id }); setPartyOpen(false); }}>
+                            <Check className={cn("ml-2 h-4 w-4", inputF.partyId === p.id ? "opacity-100" : "opacity-0")} />
+                            <div className="flex flex-col">
+                              <span>{p.name}</span>
+                              {p.phone && <span className="text-xs text-muted-foreground">{p.phone}</span>}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           )}
           {active.status && statusOptions.length > 0 && (
             <div className="space-y-1">
               <Label className="text-xs">الحالة</Label>
-              <Select value={filters.status || "__all__"} onValueChange={(v) => setFilters({ ...filters, status: v === "__all__" ? "" : v })}>
+              <Select value={inputF.status || "__all__"} onValueChange={(v) => setInputF({ ...inputF, status: v === "__all__" ? "" : v })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">الكل</SelectItem>
@@ -489,18 +629,18 @@ export default function Invoices() {
             <>
               <div className="space-y-1">
                 <Label className="text-xs">المبلغ من</Label>
-                <Input type="number" min="0" value={filters.amountMin} onChange={(e) => setFilters({ ...filters, amountMin: e.target.value })} className="h-9" placeholder="0" />
+                <Input type="number" min="0" value={inputF.amountMin} onChange={(e) => setInputF({ ...inputF, amountMin: e.target.value })} className="h-9" placeholder="0" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">المبلغ إلى</Label>
-                <Input type="number" min="0" value={filters.amountMax} onChange={(e) => setFilters({ ...filters, amountMax: e.target.value })} className="h-9" placeholder="—" />
+                <Input type="number" min="0" value={inputF.amountMax} onChange={(e) => setInputF({ ...inputF, amountMax: e.target.value })} className="h-9" placeholder="—" />
               </div>
             </>
           )}
           {active.payment && (
             <div className="space-y-1">
               <Label className="text-xs">طريقة الدفع</Label>
-              <Select value={filters.payment || "__all__"} onValueChange={(v) => setFilters({ ...filters, payment: v === "__all__" ? "" : v })}>
+              <Select value={inputF.payment || "__all__"} onValueChange={(v) => setInputF({ ...inputF, payment: v === "__all__" ? "" : v })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">الكل</SelectItem>
@@ -512,7 +652,7 @@ export default function Invoices() {
           {active.category && (
             <div className="space-y-1">
               <Label className="text-xs">التصنيف</Label>
-              <Select value={filters.categoryId || "__all__"} onValueChange={(v) => setFilters({ ...filters, categoryId: v === "__all__" ? "" : v })}>
+              <Select value={inputF.categoryId || "__all__"} onValueChange={(v) => setInputF({ ...inputF, categoryId: v === "__all__" ? "" : v })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">الكل</SelectItem>
@@ -525,7 +665,7 @@ export default function Invoices() {
             <>
               <div className="space-y-1">
                 <Label className="text-xs">من فرع</Label>
-                <Select value={filters.fromBranch || "__all__"} onValueChange={(v) => setFilters({ ...filters, fromBranch: v === "__all__" ? "" : v })}>
+                <Select value={inputF.fromBranch || "__all__"} onValueChange={(v) => setInputF({ ...inputF, fromBranch: v === "__all__" ? "" : v })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">الكل</SelectItem>
@@ -535,7 +675,7 @@ export default function Invoices() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">إلى فرع</Label>
-                <Select value={filters.toBranch || "__all__"} onValueChange={(v) => setFilters({ ...filters, toBranch: v === "__all__" ? "" : v })}>
+                <Select value={inputF.toBranch || "__all__"} onValueChange={(v) => setInputF({ ...inputF, toBranch: v === "__all__" ? "" : v })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">الكل</SelectItem>
@@ -546,7 +686,33 @@ export default function Invoices() {
             </>
           )}
         </div>
+
+        {/* Search / Clear buttons (return tabs only) */}
+        {isReturnTab && (
+          <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
+            <Button type="button" variant="outline" size="sm" onClick={clearAll} className="gap-1">
+              <X className="w-4 h-4" /> مسح
+            </Button>
+            <Button type="button" size="sm" onClick={applySearch} className="gap-1">
+              <Search className="w-4 h-4" /> بحث
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Summary (return tabs only) */}
+      {isReturnTab && summary && (
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-card border rounded-lg p-3">
+            <div className="text-xs text-muted-foreground">عدد المرتجعات</div>
+            <div className="text-xl font-bold text-primary">{summary.count}</div>
+          </div>
+          <div className="bg-card border rounded-lg p-3">
+            <div className="text-xs text-muted-foreground">إجمالي المبلغ المسترد</div>
+            <div className="text-xl font-bold text-warning">{formatEGP(summary.total)}</div>
+          </div>
+        </div>
+      )}
 
       <DataTable
         loading={loading}
@@ -555,6 +721,7 @@ export default function Invoices() {
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
       />
+
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => !o && setDelTarget(null)}>
         <AlertDialogContent>
