@@ -100,12 +100,7 @@ export default function Contacts() {
   };
 
   const goToProfile = (r: any) => {
-    // المورد له صفحة أغنى (شحنات + دفعات)؛ العميل صفحة الفواتير
-    if (r.type === "supplier" || r.type === "both") {
-      nav(`/branch/${branchId}/suppliers/${r.id}`);
-    } else {
-      nav(`/branch/${branchId}/customers/${r.id}`);
-    }
+    nav(`/branch/${branchId}/contacts/${r.id}`);
   };
 
   const promoteToBoth = async (r: any, asWhat: "customer" | "supplier") => {
