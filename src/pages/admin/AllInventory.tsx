@@ -621,7 +621,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
       const { data, error } = await supabase.from("products").insert({
         name: form.name, sku: sharedSku, category_id: form.category_id || null,
         cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
-        market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || 5,
+        market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
         quantity: parseInt(form.quantity) || 0, image: form.image || null, branch_id: branchId,
       }).select().single();
       if (!error && data) {
