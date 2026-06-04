@@ -46,7 +46,8 @@ export default function Settings() {
     { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
     { key: "products", label: "حذف المنتجات نهائياً (مع كل الفواتير والمرتجعات والشحنات المرتبطة)" },
     { key: "shipments", label: "الشحنات" },
-    { key: "returns", label: "المرتجعات" },
+    { key: "returns", label: "مرتجعات البيع" },
+    { key: "purchase_returns", label: "مرتجعات الشراء" },
     
     { key: "treasury", label: "بيانات الخزينة" },
     { key: "stock_movements", label: "سجل حركات المخزون" },
