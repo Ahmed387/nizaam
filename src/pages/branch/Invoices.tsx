@@ -92,9 +92,14 @@ export default function Invoices() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [parties, setParties] = useState<{ id: string; name: string; phone?: string }[]>([]);
+  const [partyOpen, setPartyOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   const active = FILTERS[tab];
+  const isReturnTab = tab === "sale_return" || tab === "purchase_return";
 
   // Load voucher categories when needed
   useEffect(() => {
