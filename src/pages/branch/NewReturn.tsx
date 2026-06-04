@@ -150,16 +150,19 @@ export default function NewReturn() {
 
   const finalReason = reasonPick === "أخرى" ? reasonOther.trim() : reasonPick;
 
-  const submit = async () => {
+  const submit = async (asDraft = false) => {
     if (!invoice || busy) return;
     if (!finalReason) return toast.error("اذكر سبب الإرجاع");
     const selected = items.filter((it) => (qty[it.id] ?? 0) > 0);
     if (!selected.length) return toast.error("حدد كمية لمنتج واحد على الأقل");
-    if (methodRequiresReference(refundMethod) && !refundRef.trim())
+    if (!asDraft && methodRequiresReference(refundMethod) && !creditToBalance && !refundRef.trim())
       return toast.error("أدخل رقم العملية");
+    if (creditToBalance && !customer?.id)
+      return toast.error("لا يمكن إضافة الرصيد لعميل نقدي");
 
     setBusy(true);
     try {
+      const effectiveMethod = creditToBalance ? "balance" : refundMethod;
       const { data: ret, error } = await supabase
         .from("returns")
         .insert({
@@ -168,12 +171,13 @@ export default function NewReturn() {
           reason: finalReason,
           notes: notes.trim() || null,
           total_refund: totalRefund,
-          refund_method: refundMethod,
+          status: asDraft ? "draft" : "active",
+          refund_method: effectiveMethod,
           refund_reference: refundRef.trim() || null,
           refund_account: refundAccount.trim() || null,
-          refund_cash_amount: refundMethod === "cash" ? totalRefund : 0,
-          refund_transfer_amount: refundMethod !== "cash" ? totalRefund : 0,
-          refund_balance_amount: 0,
+          refund_cash_amount: creditToBalance ? 0 : (refundMethod === "cash" ? totalRefund : 0),
+          refund_transfer_amount: creditToBalance ? 0 : (refundMethod !== "cash" ? totalRefund : 0),
+          refund_balance_amount: creditToBalance ? totalRefund : 0,
           created_by: user!.id,
         } as any)
         .select()
@@ -188,24 +192,31 @@ export default function NewReturn() {
           quantity: q,
           refund: q * Number(it.selling_price),
         });
-        if (it.product_id) {
+        if (!asDraft && it.product_id) {
           const { data: p } = await supabase.from("products").select("quantity").eq("id", it.product_id).maybeSingle();
           if (p) await supabase.from("products").update({ quantity: (p.quantity ?? 0) + q }).eq("id", it.product_id);
         }
       }
 
-      await supabase.from("treasury").insert({
-        branch_id: branchId!,
-        type: "expense",
-        category: "return",
-        amount: totalRefund,
-        description: `مرتجع فاتورة ${invoice.invoice_number} - ${finalReason}`,
-        reference_id: ret.id,
-        payment_method: refundMethod,
-        reference_number: refundRef.trim() || null,
-        transfer_to_account: refundAccount.trim() || null,
-        created_by: user!.id,
-      } as any);
+      if (!asDraft) {
+        if (creditToBalance && customer?.id) {
+          const { data: c } = await supabase.from("customers").select("balance").eq("id", customer.id).maybeSingle();
+          if (c) await supabase.from("customers").update({ balance: Number((c as any).balance ?? 0) + totalRefund } as any).eq("id", customer.id);
+        } else {
+          await supabase.from("treasury").insert({
+            branch_id: branchId!,
+            type: "expense",
+            category: "return",
+            amount: totalRefund,
+            description: `مرتجع فاتورة ${invoice.invoice_number} - ${finalReason}`,
+            reference_id: ret.id,
+            payment_method: refundMethod,
+            reference_number: refundRef.trim() || null,
+            transfer_to_account: refundAccount.trim() || null,
+            created_by: user!.id,
+          } as any);
+        }
+      }
 
       await logAudit({
         userId: user!.id,
@@ -214,18 +225,42 @@ export default function NewReturn() {
         action: "CREATE",
         entity: "return",
         entityId: ret.id,
-        details: { invoice: invoice.invoice_number, total: totalRefund, method: refundMethod },
+        details: { invoice: invoice.invoice_number, total: totalRefund, method: effectiveMethod, draft: asDraft },
       });
 
-      toast.success("تم تسجيل المرتجع");
-      setLastReturnId(ret.id);
-      setPrintOpen(true);
+      if (asDraft) {
+        toast.success("تم حفظ المرتجع كمسودة");
+        nav(`/branch/${branchId}/invoices?tab=return`);
+      } else {
+        toast.success("تم تسجيل المرتجع");
+        setLastReturnId(ret.id);
+        setPrintOpen(true);
+      }
     } catch (err: any) {
       toast.error(err.message ?? "فشل حفظ المرتجع");
     } finally {
       setBusy(false);
     }
   };
+
+  // Keyboard shortcuts: Ctrl+S = save, Esc = cancel
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        submit(false);
+      } else if (e.key === "Escape" && !busy) {
+        if (invoice) {
+          setInvoice(null); setItems([]); setCustomer(null); setQty({});
+        } else {
+          nav(`/branch/${branchId}/invoices?tab=return`);
+        }
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice, busy, qty, refundMethod, refundRef, creditToBalance, finalReason]);
 
   const printReceipt = (size: "thermal" | "a4") => {
     const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>مرتجع ${invoice?.invoice_number}</title>
