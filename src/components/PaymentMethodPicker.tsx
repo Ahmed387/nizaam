@@ -116,7 +116,7 @@ export function PaymentMethodPicker({
               />
             </div>
             <div>
-              <Label>{showTransferFrom ? `${methodAccountLabel(value.method)} (المُحوَّل إليه)` : methodAccountLabel(value.method)}</Label>
+              <Label>{showTransferFrom ? methodReceiverLabel(value.method) : methodAccountLabel(value.method)}</Label>
               <Input
                 disabled={disabled}
                 dir="ltr"
@@ -130,7 +130,7 @@ export function PaymentMethodPicker({
 
           {showTransferFrom && (
             <div>
-              <Label>{methodAccountLabel(value.method)} (المُحوَّل منه)</Label>
+              <Label>{methodSenderLabel(value.method)}</Label>
               <Input
                 disabled={disabled}
                 dir="ltr"
