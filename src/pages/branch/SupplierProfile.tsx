@@ -73,7 +73,7 @@ export default function SupplierProfile() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: s }, { data: ships }, { data: pays }] = await Promise.all([
+    const [{ data: s }, { data: ships }, { data: oldPays }, { data: newPays }] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
@@ -85,10 +85,29 @@ export default function SupplierProfile() {
         .select("*, branches(name), profiles:paid_by(name)")
         .eq("contact_id", supplierId!)
         .order("paid_at", { ascending: false }),
+      supabase
+        .from("payment_transactions")
+        .select("*, branches(name)")
+        .eq("contact_id", supplierId!)
+        .eq("direction", "out")
+        .order("created_at", { ascending: false }),
     ]);
     setSupplier(s);
     setShipments(ships ?? []);
-    setPayments((pays as any[]) ?? []);
+    // ندمج الجديد مع القديم وننسق الحقول
+    const merged = [
+      ...((newPays as any[]) ?? []).map((p) => ({
+        id: p.id,
+        paid_at: p.created_at,
+        amount: Number(p.amount),
+        branches: p.branches,
+        profiles: { name: p.received_by_name },
+        notes: `${p.payment_method}${p.reference_number ? " #" + p.reference_number : ""}`,
+        _new: true,
+      })),
+      ...((oldPays as any[]) ?? []),
+    ].sort((a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime());
+    setPayments(merged);
     setLoading(false);
   };
   useEffect(() => {
