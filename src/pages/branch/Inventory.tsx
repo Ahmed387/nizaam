@@ -31,6 +31,7 @@ export default function Inventory() {
   const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
     low_stock_alert: "5", quantity: "0", image: "",
