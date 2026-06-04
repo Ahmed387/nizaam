@@ -277,6 +277,7 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
+          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.shipment_number ?? "—"}</span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.company_name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
