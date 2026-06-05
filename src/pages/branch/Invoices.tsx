@@ -64,20 +64,33 @@ const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin:
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { branches, isAdmin, hasRole } = useAuth();
+  const { branches, isAdmin, hasRole, tenantId, user, profile } = useAuth();
+  const isManager = hasRole("branch_manager");
   const [delTarget, setDelTarget] = useState<any>(null);
   const [delBusy, setDelBusy] = useState(false);
-  const canDeleteInvoice = isAdmin || hasRole("branch_manager");
+  const [delReason, setDelReason] = useState("");
+  const canDeleteInvoice = isAdmin || isManager;
 
   const handleDeleteInvoice = async () => {
     if (!delTarget) return;
     setDelBusy(true);
-    const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: delTarget.id });
-    setDelBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success(`تم حذف الفاتورة ${delTarget.invoice_number} نهائياً`);
-    setDelTarget(null);
-    load();
+    if (isAdmin) {
+      const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: delTarget.id });
+      setDelBusy(false);
+      if (error) return toast.error(error.message);
+      toast.success(`تم حذف الفاتورة ${delTarget.invoice_number} نهائياً`);
+    } else if (isManager) {
+      if (!delReason.trim()) { setDelBusy(false); return toast.error("اكتب سبب الحذف"); }
+      const ok = await (await import("@/lib/approvalRequests")).createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "invoice", entityId: delTarget.id, entityLabel: `فاتورة ${delTarget.invoice_number}`,
+        action: "delete", reason: delReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      setDelBusy(false);
+      if (!ok) return;
+    } else { setDelBusy(false); return; }
+    setDelTarget(null); setDelReason(""); load();
   };
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
