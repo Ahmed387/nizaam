@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck, Loader2 } from "lucide-react";
+import { createApprovalRequest } from "@/lib/approvalRequests";
 
 interface Supplier {
   id: string;
