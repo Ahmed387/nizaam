@@ -71,7 +71,7 @@ export default function SupplierProfile() {
   const [payOpen, setPayOpen] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [edit, setEdit] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
+  const [edit, setEdit] = useState({ name: "", type: "supplier" as "customer" | "supplier" | "both", contact_person: "", phone: "", address: "", notes: "" });
 
   const [deleteOpen, setDeleteOpen] = useState(false);
 
