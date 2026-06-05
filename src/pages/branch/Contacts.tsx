@@ -116,7 +116,11 @@ export default function Contacts() {
     <BranchLayout>
       <PageHeader
         title="جهات التواصل"
-        subtitle={`${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`}
+        subtitle={
+          counts.both > 0
+            ? `${counts.all} جهة • ${counts.customer - counts.both} عميل • ${counts.supplier - counts.both} مورد • ${counts.both} عميل ومورد`
+            : `${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`
+        }
         actions={
           <Button className="btn-gradient" onClick={() => setOpen(true)}>
             <Plus className="w-4 h-4 ml-1" /> إضافة جهة
