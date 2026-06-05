@@ -110,6 +110,26 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [id, user?.id, isAdmin, hasRole]);
 
+  // My approval requests badge (branch manager only)
+  useEffect(() => {
+    if (!user || !hasRole("branch_manager")) { setPendingMyApprovals(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from("approval_requests" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("requested_by", user.id)
+        .eq("status", "pending");
+      if (!cancelled) setPendingMyApprovals(count ?? 0);
+    };
+    load();
+    const ch = supabase
+      .channel(`my-appr-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "approval_requests", filter: `requested_by=eq.${user.id}` }, load)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [user?.id, hasRole]);
+
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
   // Permission-driven sidebar (admins always see everything; others filtered via role_permissions matrix)
@@ -125,9 +145,11 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, perm: "reports.view" },
   ];
 
+  const isManager = hasRole("branch_manager");
   const nav: NavItem[] = [
     ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),
+    ...(isManager ? [{ to: `/branch/${id}/approval-requests`, label: "طلباتي للموافقة", icon: <Inbox className="w-4 h-4" />, badge: pendingMyApprovals || undefined }] : []),
   ];
 
 
