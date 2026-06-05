@@ -1,28 +1,42 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-
-const adminNav: NavItem[] = [
-  { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
-  { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" /> },
-  { to: "/admin/contacts", label: "جهات التواصل (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
-  { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
-  { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
-  { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
-  { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
-];
-
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, isAdmin, hasRole } = useAuth();
-  // Supervisor: limited admin sidebar (attendance + employees + presence)
+  const { tenant, tenantId, isAdmin, hasRole } = useAuth();
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  const loadPending = async () => {
+    if (!tenantId || !isAdmin) return;
+    const { count } = await supabase
+      .from("approval_requests" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending");
+    setPendingApprovals(count ?? 0);
+  };
+  useEffect(() => { loadPending(); }, [tenantId, isAdmin]);
+  useRealtimeRefresh(["approval_requests"], loadPending);
+
+  const adminNav: NavItem[] = [
+    { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
+    { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" /> },
+    { to: "/admin/contacts", label: "جهات التواصل (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
+    { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
+    { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
+    { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
+    { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
+    { to: "/admin/approval-requests", label: "طلبات الموافقة", icon: <ShieldCheck className="w-4 h-4" />, badge: pendingApprovals || undefined },
+    { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
+  ];
+
   const supervisorNav: NavItem[] = [
     { to: "/admin/employees", label: "الموظفين والحضور", icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> },

@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck, Loader2 } from "lucide-react";
+import { createApprovalRequest } from "@/lib/approvalRequests";
 
 interface Supplier {
   id: string;
@@ -47,7 +48,7 @@ interface PaymentSummary {
 }
 
 export default function AllSuppliers() {
-  const { tenantId, user } = useAuth();
+  const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
   const nav = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -191,6 +192,23 @@ export default function AllSuppliers() {
       notes: form.notes || null,
     };
     if (editing) {
+      // Branch manager (non-admin) → send approval request instead of direct update
+      if (!isAdmin && hasRole("branch_manager")) {
+        const ok = await createApprovalRequest({
+          tenantId: tenantId!,
+          branchId: (editing as any).branch_id ?? null,
+          entityType: "contact",
+          entityId: editing.id,
+          entityLabel: editing.name,
+          action: "update",
+          payload,
+          reason: "تعديل بيانات جهة تواصل",
+          requestedBy: user!.id,
+          requestedByName: profile?.name ?? "—",
+        });
+        if (ok) setOpen(false);
+        return;
+      }
       const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("تم تحديث المورد");
@@ -202,8 +220,26 @@ export default function AllSuppliers() {
     setOpen(false); load();
   };
 
+  const [deleteReason, setDeleteReason] = useState("");
+
   const remove = async () => {
     if (!deleteConfirm) return;
+    // Branch manager → send approval request
+    if (!isAdmin && hasRole("branch_manager")) {
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!,
+        branchId: (deleteConfirm as any).branch_id ?? null,
+        entityType: "contact",
+        entityId: deleteConfirm.id,
+        entityLabel: deleteConfirm.name,
+        action: "delete",
+        reason: deleteReason || "حذف جهة تواصل",
+        requestedBy: user!.id,
+        requestedByName: profile?.name ?? "—",
+      });
+      if (ok) { setDeleteConfirm(null); setDeleteReason(""); }
+      return;
+    }
     const { error } = await supabase.from("contacts").delete().eq("id", deleteConfirm.id);
     if (error) return toast.error(error.message);
     toast.success("تم حذف المورد");
@@ -758,18 +794,29 @@ export default function AllSuppliers() {
       </Dialog>
 
       {/* Delete confirm */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) { setDeleteConfirm(null); setDeleteReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف المورد</AlertDialogTitle>
+            <AlertDialogTitle>{!isAdmin && hasRole("branch_manager") ? "طلب حذف للموافقة" : "حذف المورد"}</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟
-              <br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).
+              {!isAdmin && hasRole("branch_manager") ? (
+                <>سيتم إرسال طلب حذف <b>{deleteConfirm?.name}</b> لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
+              ) : (
+                <>هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟<br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {!isAdmin && hasRole("branch_manager") && (
+            <div className="px-1">
+              <Label>سبب الحذف</Label>
+              <Textarea className="mt-1.5" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>حذف</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>
+              {!isAdmin && hasRole("branch_manager") ? "إرسال طلب الحذف" : "حذف"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
