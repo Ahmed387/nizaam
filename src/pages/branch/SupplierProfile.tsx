@@ -135,6 +135,7 @@ export default function SupplierProfile() {
     if (supplier) {
       setEdit({
         name: supplier.name ?? "",
+        type: (supplier.type ?? "supplier") as "customer" | "supplier" | "both",
         contact_person: supplier.contact_person ?? "",
         phone: supplier.phone ?? "",
         address: supplier.address ?? "",
