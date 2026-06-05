@@ -738,20 +738,34 @@ export default function Invoices() {
       />
 
 
-      <AlertDialog open={!!delTarget} onOpenChange={(o) => !o && setDelTarget(null)}>
+      <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setDelReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">حذف الفاتورة نهائياً</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">
+              {isManager && !isAdmin ? "طلب حذف فاتورة للموافقة" : "حذف الفاتورة نهائياً"}
+            </AlertDialogTitle>
             <AlertDialogDescription className="space-y-1">
-              <div>هتمسح الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> نهائياً.</div>
-              <div>• كل البضاعة هترجع للمخزن • الفلوس هتتشال من الخزنة • الأقساط هتتمسح</div>
-              <div className="text-destructive font-semibold">العملية دي مش بترجع.</div>
+              {isManager && !isAdmin ? (
+                <div>سيتم إرسال طلب حذف الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> لمدير الشركة للموافقة.</div>
+              ) : (
+                <>
+                  <div>هتمسح الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> نهائياً.</div>
+                  <div>• كل البضاعة هترجع للمخزن • الفلوس هتتشال من الخزنة • الأقساط هتتمسح</div>
+                  <div className="text-destructive font-semibold">العملية دي مش بترجع.</div>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {isManager && !isAdmin && (
+            <div className="px-1">
+              <Label>سبب الحذف *</Label>
+              <Input className="mt-1.5" value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteInvoice} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {delBusy ? "جاري الحذف..." : "احذف نهائياً"}
+              {delBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف نهائياً")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
