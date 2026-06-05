@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -32,7 +33,7 @@ export default function BranchDashboard() {
   const [paymentBreakdown, setPaymentBreakdown] = useState<any[]>([]);
   const [monthlyTarget, setMonthlyTarget] = useState(0);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
@@ -41,82 +42,78 @@ export default function BranchDashboard() {
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
     const last30 = new Date(today); last30.setDate(last30.getDate() - 29);
 
-    (async () => {
-      const [
-        invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
-        invLast30, invItemsToday, invAll30, branchRow,
-      ] = await Promise.all([
-        supabase.from("invoices").select("total, payment_method").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
-        supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
-        supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
-        supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
-        supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
-        supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
-        supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
-        supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
-        supabase.from("invoices").select("created_at, total").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
-        supabase.from("invoice_items").select("product_name, quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
-        supabase.from("invoices").select("contact_id, total, contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
-        supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
-      ]);
-      setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
+    const [
+      invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
+      invLast30, invItemsToday, invAll30, branchRow,
+    ] = await Promise.all([
+      supabase.from("invoices").select("total, payment_method").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
+      supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
+      supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
+      supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
+      supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
+      supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
+      supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
+      supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
+      supabase.from("invoices").select("created_at, total").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
+      supabase.from("invoice_items").select("product_name, quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
+      supabase.from("invoices").select("contact_id, total, contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
+      supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
+    ]);
+    setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
 
-      setSalesToday((invToday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-      setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-      setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-      setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-      setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
-      setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
-      setNewCust((custs.data ?? []).length);
-      setRecent(recentInv.data ?? []);
+    setSalesToday((invToday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
+    setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
+    setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
+    setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
+    setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
+    setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
+    setNewCust((custs.data ?? []).length);
+    setRecent(recentInv.data ?? []);
 
-      // Profit today
-      setProfitToday((invItemsToday.data ?? []).reduce(
-        (s, it: any) => s + (Number(it.selling_price) - Number(it.cost_price)) * it.quantity, 0
-      ));
+    setProfitToday((invItemsToday.data ?? []).reduce(
+      (s, it: any) => s + (Number(it.selling_price) - Number(it.cost_price)) * it.quantity, 0
+    ));
 
-      // Payment breakdown today
-      const payMap: Record<string, number> = {};
-      (invToday.data ?? []).forEach((x: any) => {
-        const k = x.payment_method || "cash";
-        payMap[k] = (payMap[k] || 0) + Number(x.total);
-      });
-      setPaymentBreakdown(Object.entries(payMap).map(([name, value]) => ({
-        name: name === "cash" ? "نقدي" : name === "card" ? "بطاقة" : name,
-        value,
-      })));
+    const payMap: Record<string, number> = {};
+    (invToday.data ?? []).forEach((x: any) => {
+      const k = x.payment_method || "cash";
+      payMap[k] = (payMap[k] || 0) + Number(x.total);
+    });
+    setPaymentBreakdown(Object.entries(payMap).map(([name, value]) => ({
+      name: name === "cash" ? "نقدي" : name === "card" ? "بطاقة" : name,
+      value,
+    })));
 
-      // Sales by day (last 30)
-      const dayMap: Record<string, number> = {};
-      for (let i = 0; i < 30; i++) {
-        const d = new Date(last30); d.setDate(d.getDate() + i);
-        dayMap[d.toISOString().slice(5, 10)] = 0;
-      }
-      (invLast30.data ?? []).forEach((x: any) => {
-        const k = x.created_at.slice(5, 10);
-        if (k in dayMap) dayMap[k] += Number(x.total);
-      });
-      setSalesByDay(Object.entries(dayMap).map(([date, total]) => ({ date, total })));
+    const dayMap: Record<string, number> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(last30); d.setDate(d.getDate() + i);
+      dayMap[d.toISOString().slice(5, 10)] = 0;
+    }
+    (invLast30.data ?? []).forEach((x: any) => {
+      const k = x.created_at.slice(5, 10);
+      if (k in dayMap) dayMap[k] += Number(x.total);
+    });
+    setSalesByDay(Object.entries(dayMap).map(([date, total]) => ({ date, total })));
 
-      // Top products
-      const prodMap: Record<string, { name: string; qty: number; revenue: number }> = {};
-      (invItemsToday.data ?? []).forEach((it: any) => {
-        if (!prodMap[it.product_name]) prodMap[it.product_name] = { name: it.product_name, qty: 0, revenue: 0 };
-        prodMap[it.product_name].qty += it.quantity;
-        prodMap[it.product_name].revenue += Number(it.total);
-      });
-      setTopProducts(Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5));
+    const prodMap: Record<string, { name: string; qty: number; revenue: number }> = {};
+    (invItemsToday.data ?? []).forEach((it: any) => {
+      if (!prodMap[it.product_name]) prodMap[it.product_name] = { name: it.product_name, qty: 0, revenue: 0 };
+      prodMap[it.product_name].qty += it.quantity;
+      prodMap[it.product_name].revenue += Number(it.total);
+    });
+    setTopProducts(Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5));
 
-      // Top customers
-      const custMap: Record<string, { name: string; total: number }> = {};
-      (invAll30.data ?? []).forEach((x: any) => {
-        const name = x.contacts?.name || "غير معروف";
-        if (!custMap[name]) custMap[name] = { name, total: 0 };
-        custMap[name].total += Number(x.total);
-      });
-      setTopCustomers(Object.values(custMap).sort((a, b) => b.total - a.total).slice(0, 5));
-    })();
+    const custMap: Record<string, { name: string; total: number }> = {};
+    (invAll30.data ?? []).forEach((x: any) => {
+      const name = x.contacts?.name || "غير معروف";
+      if (!custMap[name]) custMap[name] = { name, total: 0 };
+      custMap[name].total += Number(x.total);
+    });
+    setTopCustomers(Object.values(custMap).sort((a, b) => b.total - a.total).slice(0, 5));
   }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(["invoices", "invoice_items", "vouchers", "products", "contacts", "branches"], load);
 
   const todayVsYesterday = salesYesterday > 0 ? ((salesToday - salesYesterday) / salesYesterday) * 100 : 0;
   const monthVsLast = salesLastMonth > 0 ? ((salesMonth - salesLastMonth) / salesLastMonth) * 100 : 0;
