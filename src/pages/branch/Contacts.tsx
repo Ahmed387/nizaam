@@ -205,7 +205,7 @@ export default function Contacts() {
             : `${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`
         }
         actions={
-          <Button className="btn-gradient" onClick={() => setOpen(true)}>
+          <Button className="btn-gradient" onClick={openNew}>
             <Plus className="w-4 h-4 ml-1" /> إضافة جهة
           </Button>
         }
@@ -277,12 +277,22 @@ export default function Contacts() {
               <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {r.type === "customer" && (
                   <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
-                    <TruckIcon className="w-3.5 h-3.5 ml-1" /> أيضاً مورد
+                    <TruckIcon className="w-3.5 h-3.5" />
                   </Button>
                 )}
                 {r.type === "supplier" && (
                   <Button size="sm" variant="outline" title="إضافة كعميل أيضاً" onClick={() => promoteToBoth(r, "customer")}>
-                    <UserPlus className="w-3.5 h-3.5 ml-1" /> أيضاً عميل
+                    <UserPlus className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                {(isAdmin || isManager) && (
+                  <Button size="sm" variant="outline" title={isAdmin ? "تعديل" : "طلب تعديل"} onClick={() => openEdit(r)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                {(isAdmin || isManager) && (
+                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "حذف" : "طلب حذف"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 )}
               </div>
@@ -291,31 +301,31 @@ export default function Contacts() {
         ]}
       />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>إضافة جهة جديدة</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? (isAdmin ? "تعديل جهة" : "طلب تعديل جهة") : "إضافة جهة جديدة"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label>النوع *</Label>
-              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ContactType })}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="customer">عميل</SelectItem>
-                  <SelectItem value="supplier">مورد</SelectItem>
-                  <SelectItem value="both">عميل ومورد</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!editing && (
+              <div>
+                <Label>النوع *</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ContactType })}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="customer">عميل</SelectItem>
+                    <SelectItem value="supplier">مورد</SelectItem>
+                    <SelectItem value="both">عميل ومورد</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label>الاسم *</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" />
             </div>
-            {(form.type === "supplier" || form.type === "both") && (
-              <div>
-                <Label>المسؤول</Label>
-                <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="mt-1.5" />
-              </div>
-            )}
+            <div>
+              <Label>المسؤول</Label>
+              <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="mt-1.5" />
+            </div>
             <div>
               <Label>التليفون</Label>
               <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -328,13 +338,46 @@ export default function Contacts() {
               <Label>ملاحظات</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1.5" />
             </div>
+            {editing && isManager && !isAdmin && (
+              <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
+                <Label>سبب التعديل (للموافقة) *</Label>
+                <Textarea value={reqReason} onChange={(e) => setReqReason(e.target.value)} className="mt-1.5" placeholder="سيُرسل لمدير الشركة للموافقة" />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={submit}>إضافة</Button>
+            <Button className="btn-gradient" onClick={submit}>{editing ? (isAdmin ? "حفظ" : "إرسال طلب التعديل") : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setReqReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{isManager && !isAdmin ? "طلب حذف للموافقة" : "حذف الجهة"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isManager && !isAdmin ? (
+                <>سيتم إرسال طلب حذف <b>{deleteTarget?.name}</b> لمدير الشركة للموافقة.</>
+              ) : (
+                <>هل أنت متأكد من حذف <b>{deleteTarget?.name}</b>؟ لن يمكن التراجع.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isManager && !isAdmin && (
+            <div className="px-1">
+              <Label>سبب الحذف *</Label>
+              <Textarea className="mt-1.5" value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={onDelete}>
+              {isManager && !isAdmin ? "إرسال طلب الحذف" : "حذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BranchLayout>
   );
 }
