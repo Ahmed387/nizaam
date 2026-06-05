@@ -794,18 +794,29 @@ export default function AllSuppliers() {
       </Dialog>
 
       {/* Delete confirm */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) { setDeleteConfirm(null); setDeleteReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف المورد</AlertDialogTitle>
+            <AlertDialogTitle>{!isAdmin && hasRole("branch_manager") ? "طلب حذف للموافقة" : "حذف المورد"}</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟
-              <br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).
+              {!isAdmin && hasRole("branch_manager") ? (
+                <>سيتم إرسال طلب حذف <b>{deleteConfirm?.name}</b> لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
+              ) : (
+                <>هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟<br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {!isAdmin && hasRole("branch_manager") && (
+            <div className="px-1">
+              <Label>سبب الحذف</Label>
+              <Textarea className="mt-1.5" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>حذف</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>
+              {!isAdmin && hasRole("branch_manager") ? "إرسال طلب الحذف" : "حذف"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
