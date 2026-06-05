@@ -170,6 +170,66 @@ export type Database = {
           },
         ]
       }
+      approval_requests: {
+        Row: {
+          action: Database["public"]["Enums"]["approval_action"]
+          admin_id: string | null
+          admin_note: string | null
+          branch_id: string | null
+          created_at: string
+          decided_at: string | null
+          entity_id: string
+          entity_label: string
+          entity_type: string
+          id: string
+          payload: Json | null
+          reason: string | null
+          requested_by: string
+          requested_by_name: string
+          status: Database["public"]["Enums"]["approval_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["approval_action"]
+          admin_id?: string | null
+          admin_note?: string | null
+          branch_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          entity_id: string
+          entity_label: string
+          entity_type: string
+          id?: string
+          payload?: Json | null
+          reason?: string | null
+          requested_by: string
+          requested_by_name: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["approval_action"]
+          admin_id?: string | null
+          admin_note?: string | null
+          branch_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          entity_id?: string
+          entity_label?: string
+          entity_type?: string
+          id?: string
+          payload?: Json | null
+          reason?: string | null
+          requested_by?: string
+          requested_by_name?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           branch_id: string
@@ -3173,6 +3233,8 @@ export type Database = {
         | "supervisor"
         | "worker"
         | "driver"
+      approval_action: "delete" | "update"
+      approval_status: "pending" | "approved" | "rejected"
       invoice_status: "active" | "cancelled"
       pre_order_status: "pending" | "received" | "completed" | "cancelled"
       pre_order_tx_type:
@@ -3331,6 +3393,8 @@ export const Constants = {
         "worker",
         "driver",
       ],
+      approval_action: ["delete", "update"],
+      approval_status: ["pending", "approved", "rejected"],
       invoice_status: ["active", "cancelled"],
       pre_order_status: ["pending", "received", "completed", "cancelled"],
       pre_order_tx_type: [
