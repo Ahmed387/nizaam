@@ -14,8 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2 } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { useAuth } from "@/contexts/AuthContext";
+import { createApprovalRequest } from "@/lib/approvalRequests";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type ContactType = "customer" | "supplier" | "both";
 
@@ -27,6 +30,7 @@ const TYPE_LABELS: Record<ContactType, string> = {
 
 export default function Contacts() {
   const { id: branchId } = useParams<{ id: string }>();
+  const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
   const filter = (sp.get("tab") ?? "all") as "all" | ContactType;
@@ -34,6 +38,9 @@ export default function Contacts() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [reqReason, setReqReason] = useState("");
   const [form, setForm] = useState({
     name: "",
     type: "customer" as ContactType,
@@ -43,6 +50,7 @@ export default function Contacts() {
     notes: "",
   });
   const [search, setSearch] = useState("");
+  const isManager = hasRole("branch_manager");
 
   const load = async () => {
     setLoading(true);
@@ -79,8 +87,61 @@ export default function Contacts() {
     both: rows.filter((r) => r.type === "both").length,
   }), [rows]);
 
+  const openNew = () => {
+    setEditing(null);
+    setForm({ name: "", type: "customer", contact_person: "", phone: "", address: "", notes: "" });
+    setOpen(true);
+  };
+
+  const openEdit = (r: any) => {
+    setEditing(r);
+    setForm({
+      name: r.name ?? "",
+      type: (r.type ?? "customer") as ContactType,
+      contact_person: r.contact_person ?? "",
+      phone: r.phone ?? "",
+      address: r.address ?? "",
+      notes: r.notes ?? "",
+    });
+    setReqReason("");
+    setOpen(true);
+  };
+
   const submit = async () => {
     if (!form.name) return toast.error("الاسم مطلوب");
+
+    // EDIT
+    if (editing) {
+      const payload: any = {
+        name: form.name,
+        contact_person: form.contact_person || null,
+        phone: form.phone || null,
+        address: form.address || null,
+        notes: form.notes || null,
+      };
+      if (isAdmin) {
+        const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
+        if (error) return toast.error(error.message);
+        toast.success("تم التحديث");
+      } else if (isManager) {
+        if (!reqReason.trim()) return toast.error("اكتب سبب التعديل");
+        const ok = await createApprovalRequest({
+          tenantId: tenantId!, branchId: branchId ?? null,
+          entityType: "contact", entityId: editing.id, entityLabel: editing.name,
+          action: "update", payload, reason: reqReason,
+          requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+        });
+        if (!ok) return;
+      } else {
+        return toast.error("غير مصرح");
+      }
+      setOpen(false);
+      setEditing(null);
+      load();
+      return;
+    }
+
+    // NEW
     const payload: any = {
       name: form.name,
       type: form.type,
@@ -88,7 +149,6 @@ export default function Contacts() {
       phone: form.phone || null,
       address: form.address || null,
       notes: form.notes || null,
-      // الموردين عادة على مستوى الشركة (بدون فرع)، العميل مرتبط بالفرع
       branch_id: form.type === "supplier" ? null : branchId,
     };
     const { error } = await supabase.from("contacts").insert(payload);
@@ -96,6 +156,29 @@ export default function Contacts() {
     toast.success("تمت الإضافة");
     setOpen(false);
     setForm({ name: "", type: "customer", contact_person: "", phone: "", address: "", notes: "" });
+    load();
+  };
+
+  const onDelete = async () => {
+    if (!deleteTarget) return;
+    if (isAdmin) {
+      const { error } = await supabase.from("contacts").delete().eq("id", deleteTarget.id);
+      if (error) return toast.error(error.message);
+      toast.success("تم الحذف");
+    } else if (isManager) {
+      if (!reqReason.trim()) return toast.error("اكتب سبب الحذف");
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "contact", entityId: deleteTarget.id, entityLabel: deleteTarget.name,
+        action: "delete", reason: reqReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      if (!ok) return;
+    } else {
+      return toast.error("غير مصرح");
+    }
+    setDeleteTarget(null);
+    setReqReason("");
     load();
   };
 
