@@ -450,7 +450,7 @@ export default function AllSuppliers() {
       </div>
 
       <DataTable loading={loading} rows={filtered}
-        onRowClick={(r: any) => nav(`/admin/contacts/${r.id}`)}
+        onRowClick={(r: any) => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
           { key: "name", header: "الاسم", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
           { key: "type", header: "النوع", render: (r: any) => {
@@ -471,7 +471,7 @@ export default function AllSuppliers() {
           }},
           { key: "actions", header: "إجراءات", render: (r: any) => (
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <Button size="sm" variant="outline" title="فتح صفحة الجهة" onClick={() => nav(`/admin/contacts/${r.id}`)}><Eye className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="فتح صفحة الجهة في تبويب جديد" onClick={() => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}><Eye className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="الشحنات" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>

@@ -74,7 +74,7 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
       <DataTable
 
         loading={loading} rows={rows}
-        onRowClick={(r: any) => nav(`/admin/branches/${r.id}`)}
+        onRowClick={(r: any) => window.open(`/admin/branches/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
           { key: "code", header: "الكود", width: "110px", render: (r: any) => <span className="font-mono text-primary font-semibold">{r.code}</span> },
           { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },

@@ -285,7 +285,7 @@ export default function AllEmployees() {
         loading={loading}
         rows={filtered}
         empty="لا يوجد موظفين"
-        onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
+        onRowClick={(r: any) => window.open(`/admin/employees/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
           { key: "name", header: "الاسم", render: (r: any) => (
             <div>
