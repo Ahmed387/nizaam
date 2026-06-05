@@ -542,7 +542,18 @@ export default function SupplierProfile() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>اسم الشركة *</Label>
+              <Label>النوع *</Label>
+              <Select value={edit.type} onValueChange={(v) => setEdit({ ...edit, type: v as any })}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer">عميل</SelectItem>
+                  <SelectItem value="supplier">مورد</SelectItem>
+                  <SelectItem value="both">عميل ومورد</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>الاسم *</Label>
               <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className="mt-1.5" />
             </div>
             <div>
