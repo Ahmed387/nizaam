@@ -14,8 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2 } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { useAuth } from "@/contexts/AuthContext";
+import { createApprovalRequest } from "@/lib/approvalRequests";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type ContactType = "customer" | "supplier" | "both";
 
@@ -27,6 +30,7 @@ const TYPE_LABELS: Record<ContactType, string> = {
 
 export default function Contacts() {
   const { id: branchId } = useParams<{ id: string }>();
+  const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
   const filter = (sp.get("tab") ?? "all") as "all" | ContactType;
@@ -34,6 +38,9 @@ export default function Contacts() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [reqReason, setReqReason] = useState("");
   const [form, setForm] = useState({
     name: "",
     type: "customer" as ContactType,
@@ -43,6 +50,7 @@ export default function Contacts() {
     notes: "",
   });
   const [search, setSearch] = useState("");
+  const isManager = hasRole("branch_manager");
 
   const load = async () => {
     setLoading(true);
@@ -79,8 +87,61 @@ export default function Contacts() {
     both: rows.filter((r) => r.type === "both").length,
   }), [rows]);
 
+  const openNew = () => {
+    setEditing(null);
+    setForm({ name: "", type: "customer", contact_person: "", phone: "", address: "", notes: "" });
+    setOpen(true);
+  };
+
+  const openEdit = (r: any) => {
+    setEditing(r);
+    setForm({
+      name: r.name ?? "",
+      type: (r.type ?? "customer") as ContactType,
+      contact_person: r.contact_person ?? "",
+      phone: r.phone ?? "",
+      address: r.address ?? "",
+      notes: r.notes ?? "",
+    });
+    setReqReason("");
+    setOpen(true);
+  };
+
   const submit = async () => {
     if (!form.name) return toast.error("الاسم مطلوب");
+
+    // EDIT
+    if (editing) {
+      const payload: any = {
+        name: form.name,
+        contact_person: form.contact_person || null,
+        phone: form.phone || null,
+        address: form.address || null,
+        notes: form.notes || null,
+      };
+      if (isAdmin) {
+        const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
+        if (error) return toast.error(error.message);
+        toast.success("تم التحديث");
+      } else if (isManager) {
+        if (!reqReason.trim()) return toast.error("اكتب سبب التعديل");
+        const ok = await createApprovalRequest({
+          tenantId: tenantId!, branchId: branchId ?? null,
+          entityType: "contact", entityId: editing.id, entityLabel: editing.name,
+          action: "update", payload, reason: reqReason,
+          requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+        });
+        if (!ok) return;
+      } else {
+        return toast.error("غير مصرح");
+      }
+      setOpen(false);
+      setEditing(null);
+      load();
+      return;
+    }
+
+    // NEW
     const payload: any = {
       name: form.name,
       type: form.type,
@@ -88,7 +149,6 @@ export default function Contacts() {
       phone: form.phone || null,
       address: form.address || null,
       notes: form.notes || null,
-      // الموردين عادة على مستوى الشركة (بدون فرع)، العميل مرتبط بالفرع
       branch_id: form.type === "supplier" ? null : branchId,
     };
     const { error } = await supabase.from("contacts").insert(payload);
@@ -96,6 +156,29 @@ export default function Contacts() {
     toast.success("تمت الإضافة");
     setOpen(false);
     setForm({ name: "", type: "customer", contact_person: "", phone: "", address: "", notes: "" });
+    load();
+  };
+
+  const onDelete = async () => {
+    if (!deleteTarget) return;
+    if (isAdmin) {
+      const { error } = await supabase.from("contacts").delete().eq("id", deleteTarget.id);
+      if (error) return toast.error(error.message);
+      toast.success("تم الحذف");
+    } else if (isManager) {
+      if (!reqReason.trim()) return toast.error("اكتب سبب الحذف");
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "contact", entityId: deleteTarget.id, entityLabel: deleteTarget.name,
+        action: "delete", reason: reqReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      if (!ok) return;
+    } else {
+      return toast.error("غير مصرح");
+    }
+    setDeleteTarget(null);
+    setReqReason("");
     load();
   };
 
@@ -122,7 +205,7 @@ export default function Contacts() {
             : `${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`
         }
         actions={
-          <Button className="btn-gradient" onClick={() => setOpen(true)}>
+          <Button className="btn-gradient" onClick={openNew}>
             <Plus className="w-4 h-4 ml-1" /> إضافة جهة
           </Button>
         }
@@ -194,12 +277,22 @@ export default function Contacts() {
               <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {r.type === "customer" && (
                   <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
-                    <TruckIcon className="w-3.5 h-3.5 ml-1" /> أيضاً مورد
+                    <TruckIcon className="w-3.5 h-3.5" />
                   </Button>
                 )}
                 {r.type === "supplier" && (
                   <Button size="sm" variant="outline" title="إضافة كعميل أيضاً" onClick={() => promoteToBoth(r, "customer")}>
-                    <UserPlus className="w-3.5 h-3.5 ml-1" /> أيضاً عميل
+                    <UserPlus className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                {(isAdmin || isManager) && (
+                  <Button size="sm" variant="outline" title={isAdmin ? "تعديل" : "طلب تعديل"} onClick={() => openEdit(r)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                {(isAdmin || isManager) && (
+                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "حذف" : "طلب حذف"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 )}
               </div>
@@ -208,31 +301,31 @@ export default function Contacts() {
         ]}
       />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>إضافة جهة جديدة</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? (isAdmin ? "تعديل جهة" : "طلب تعديل جهة") : "إضافة جهة جديدة"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label>النوع *</Label>
-              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ContactType })}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="customer">عميل</SelectItem>
-                  <SelectItem value="supplier">مورد</SelectItem>
-                  <SelectItem value="both">عميل ومورد</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!editing && (
+              <div>
+                <Label>النوع *</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ContactType })}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="customer">عميل</SelectItem>
+                    <SelectItem value="supplier">مورد</SelectItem>
+                    <SelectItem value="both">عميل ومورد</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label>الاسم *</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" />
             </div>
-            {(form.type === "supplier" || form.type === "both") && (
-              <div>
-                <Label>المسؤول</Label>
-                <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="mt-1.5" />
-              </div>
-            )}
+            <div>
+              <Label>المسؤول</Label>
+              <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="mt-1.5" />
+            </div>
             <div>
               <Label>التليفون</Label>
               <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -245,13 +338,46 @@ export default function Contacts() {
               <Label>ملاحظات</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1.5" />
             </div>
+            {editing && isManager && !isAdmin && (
+              <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
+                <Label>سبب التعديل (للموافقة) *</Label>
+                <Textarea value={reqReason} onChange={(e) => setReqReason(e.target.value)} className="mt-1.5" placeholder="سيُرسل لمدير الشركة للموافقة" />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={submit}>إضافة</Button>
+            <Button className="btn-gradient" onClick={submit}>{editing ? (isAdmin ? "حفظ" : "إرسال طلب التعديل") : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setReqReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{isManager && !isAdmin ? "طلب حذف للموافقة" : "حذف الجهة"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isManager && !isAdmin ? (
+                <>سيتم إرسال طلب حذف <b>{deleteTarget?.name}</b> لمدير الشركة للموافقة.</>
+              ) : (
+                <>هل أنت متأكد من حذف <b>{deleteTarget?.name}</b>؟ لن يمكن التراجع.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isManager && !isAdmin && (
+            <div className="px-1">
+              <Label>سبب الحذف *</Label>
+              <Textarea className="mt-1.5" value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={onDelete}>
+              {isManager && !isAdmin ? "إرسال طلب الحذف" : "حذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BranchLayout>
   );
 }

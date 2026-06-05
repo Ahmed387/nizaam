@@ -100,6 +100,7 @@ import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
+import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
@@ -197,6 +198,7 @@ const App = () => (
             <Route path="/branch/:id/suppliers/:contactId" element={<RedirectSupplierToContact />} />
             <Route path="/branch/:id/employees" element={<ProtectedRoute perm="employees.view"><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute perm="advances.view"><AdvanceRequests /></ProtectedRoute>} />
+            <Route path="/branch/:id/approval-requests" element={<ProtectedRoute><MyApprovalRequests /></ProtectedRoute>} />
 
             <Route path="/branch/:id/reports" element={<ProtectedRoute perm="reports.view"><BranchReports /></ProtectedRoute>} />
             <Route path="/branch/:id/attendance" element={<ProtectedRoute perm="attendance.view"><Attendance /></ProtectedRoute>} />
