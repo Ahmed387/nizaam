@@ -192,6 +192,23 @@ export default function AllSuppliers() {
       notes: form.notes || null,
     };
     if (editing) {
+      // Branch manager (non-admin) → send approval request instead of direct update
+      if (!isAdmin && hasRole("branch_manager")) {
+        const ok = await createApprovalRequest({
+          tenantId: tenantId!,
+          branchId: (editing as any).branch_id ?? null,
+          entityType: "contact",
+          entityId: editing.id,
+          entityLabel: editing.name,
+          action: "update",
+          payload,
+          reason: "تعديل بيانات جهة تواصل",
+          requestedBy: user!.id,
+          requestedByName: profile?.name ?? "—",
+        });
+        if (ok) setOpen(false);
+        return;
+      }
       const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("تم تحديث المورد");
@@ -203,8 +220,26 @@ export default function AllSuppliers() {
     setOpen(false); load();
   };
 
+  const [deleteReason, setDeleteReason] = useState("");
+
   const remove = async () => {
     if (!deleteConfirm) return;
+    // Branch manager → send approval request
+    if (!isAdmin && hasRole("branch_manager")) {
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!,
+        branchId: (deleteConfirm as any).branch_id ?? null,
+        entityType: "contact",
+        entityId: deleteConfirm.id,
+        entityLabel: deleteConfirm.name,
+        action: "delete",
+        reason: deleteReason || "حذف جهة تواصل",
+        requestedBy: user!.id,
+        requestedByName: profile?.name ?? "—",
+      });
+      if (ok) { setDeleteConfirm(null); setDeleteReason(""); }
+      return;
+    }
     const { error } = await supabase.from("contacts").delete().eq("id", deleteConfirm.id);
     if (error) return toast.error(error.message);
     toast.success("تم حذف المورد");
