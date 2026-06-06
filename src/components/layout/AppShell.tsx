@@ -14,6 +14,7 @@ export interface NavItem {
   label: string;
   icon: ReactNode;
   badge?: number;
+  newTab?: boolean;
 }
 
 export function AppShell({
@@ -71,17 +72,11 @@ export function AppShell({
       <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "p-2" : "p-3"} space-y-1`}>
         {nav.map((item) => {
           const active = loc.pathname === item.to || loc.pathname.startsWith(item.to + "/");
-          const link = (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 ${isCollapsed ? "justify-center px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent"
-              }`}
-            >
+          const linkClass = `flex items-center gap-3 ${isCollapsed ? "justify-center px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            active ? "bg-primary text-primary-foreground shadow-sm" : "text-sidebar-foreground hover:bg-sidebar-accent"
+          }`;
+          const linkContent = (
+            <>
               <span className="shrink-0 relative">
                 {item.icon}
                 {isCollapsed && item.badge && item.badge > 0 ? (
@@ -96,6 +91,27 @@ export function AppShell({
                   {item.badge > 99 ? "99+" : item.badge}
                 </span>
               ) : null}
+            </>
+          );
+          const link = item.newTab ? (
+            <a
+              key={item.to}
+              href={item.to}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className={linkClass}
+            >
+              {linkContent}
+            </a>
+          ) : (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => setOpen(false)}
+              className={linkClass}
+            >
+              {linkContent}
             </NavLink>
           );
           if (isCollapsed) {
