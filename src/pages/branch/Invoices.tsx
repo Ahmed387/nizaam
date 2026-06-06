@@ -314,7 +314,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/shipments/${r.id}`),
       };
       case "sale_return": return {
-        newLink: "", newLabel: "", newPerm: "sales.create",
+        newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
           { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="font-mono text-primary">{r.return_number ?? "—"}</span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
@@ -504,13 +504,7 @@ export default function Invoices() {
                 </Button>
               </PermGate>
             )}
-            {tab === "sale_return" && (
-              <PermGate perm="sales.create">
-                <Button className="gap-2" onClick={() => setPickInvoiceOpen(true)}>
-                  <Plus className="w-4 h-4" /> إنشاء مرتجع بيع
-                </Button>
-              </PermGate>
-            )}
+          
 
           </div>
         }
@@ -795,48 +789,6 @@ export default function Invoices() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={pickInvoiceOpen} onOpenChange={setPickInvoiceOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>اختر فاتورة لإنشاء مرتجع</DialogTitle>
-            <DialogDescription>كل مرتجع بيع لازم يكون مربوط بفاتورة موجودة.</DialogDescription>
-          </DialogHeader>
-          <Input
-            placeholder="ابحث برقم الفاتورة أو اسم العميل أو رقم التليفون..."
-            value={pickInvoiceQuery}
-            onChange={(e) => setPickInvoiceQuery(e.target.value)}
-            autoFocus
-          />
-          <div className="max-h-[420px] overflow-y-auto border border-border rounded-lg">
-            {pickInvoiceLoading ? (
-              <div className="p-6 text-center text-muted-foreground text-sm">جاري التحميل...</div>
-            ) : (() => {
-              const q = pickInvoiceQuery.trim().toLowerCase();
-              const list = pickInvoiceList.filter((r: any) => {
-                if (!q) return true;
-                return [r.invoice_number, r.contacts?.name, r.contacts?.phone].filter(Boolean).join(" ").toLowerCase().includes(q);
-              });
-              if (!list.length) return <div className="p-6 text-center text-muted-foreground text-sm">مفيش فواتير مطابقة</div>;
-              return list.map((r: any) => (
-                <button
-                  key={r.id}
-                  onClick={() => { setPickInvoiceOpen(false); setPickInvoiceQuery(""); nav(`/branch/${branchId}/sales/${r.id}`); }}
-                  className="w-full flex items-center justify-between gap-3 p-3 border-b border-border last:border-b-0 hover:bg-accent text-right transition-colors"
-                >
-                  <div className="flex flex-col items-start gap-0.5">
-                    <span className="font-mono font-bold text-primary">{r.invoice_number}</span>
-                    <span className="text-xs text-muted-foreground">{r.contacts?.name ?? "نقدي"}{r.contacts?.phone ? ` • ${r.contacts.phone}` : ""}</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="font-bold">{formatEGP(r.total)}</span>
-                    <span className="text-xs text-muted-foreground">{formatDateTime(r.created_at)}</span>
-                  </div>
-                </button>
-              ));
-            })()}
-          </div>
-        </DialogContent>
-      </Dialog>
     </BranchLayout>
   );
 }
