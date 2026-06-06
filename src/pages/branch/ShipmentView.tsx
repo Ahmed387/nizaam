@@ -46,8 +46,8 @@ export default function ShipmentView() {
             <div className="flex items-center gap-2"><Package className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الاسم:</span> <b>{ship.contacts?.name ?? "—"}</b></div>
             <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الهاتف:</span> {ship.contacts?.phone ?? "—"}</div>
             {ship.contacts?.address && <div className="flex items-center gap-2"><ClipboardList className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">العنوان:</span> {ship.contacts.address}</div>}
-            {ship.contacts?.tax_number && <div className="flex items-center gap-2"><Receipt className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">الرقم الضريبي:</span> {ship.contacts.tax_number}</div>}
           </div>
+
         </div>
 
         <div className="card-elevated p-4 space-y-3">
