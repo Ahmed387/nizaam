@@ -71,6 +71,53 @@ export default function ShipmentView() {
     } else { setDelBusy(false); return toast.error("غير مصرح"); }
   };
 
+  const openEdit = () => {
+    setEdit({
+      arrival_date: (ship.arrival_date ?? "").slice(0, 10),
+      received_by: ship.received_by ?? "",
+      shipping_cost: Number(ship.shipping_cost ?? 0),
+      admin_cost: Number(ship.admin_cost ?? 0),
+      notes: ship.notes ?? "",
+    });
+    setEditReason("");
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!ship) return;
+    setEditBusy(true);
+    const goods = Number(ship.total_cost) - Number(ship.shipping_cost) - Number(ship.admin_cost);
+    const newTotal = goods + Number(edit.shipping_cost || 0) + Number(edit.admin_cost || 0);
+    const updates = {
+      arrival_date: edit.arrival_date,
+      received_by: edit.received_by,
+      shipping_cost: Number(edit.shipping_cost || 0),
+      admin_cost: Number(edit.admin_cost || 0),
+      notes: edit.notes || null,
+      total_cost: newTotal,
+    };
+    const label = `شحنة ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
+    if (isAdmin) {
+      const { error } = await supabase.from("shipments").update(updates).eq("id", ship.id);
+      setEditBusy(false);
+      if (error) return toast.error(error.message);
+      toast.success("تم حفظ التعديلات");
+      setEditOpen(false);
+      setShip({ ...ship, ...updates });
+    } else if (isManager) {
+      if (!editReason.trim()) { setEditBusy(false); return toast.error("اكتب سبب التعديل"); }
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "shipment", entityId: ship.id, entityLabel: label,
+        action: "update", payload: updates, reason: editReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      setEditBusy(false);
+      if (!ok) return;
+      setEditOpen(false);
+    } else { setEditBusy(false); return toast.error("غير مصرح"); }
+  };
+
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
 
