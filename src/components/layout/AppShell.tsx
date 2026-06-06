@@ -14,6 +14,7 @@ export interface NavItem {
   label: string;
   icon: ReactNode;
   badge?: number;
+  newTab?: boolean;
 }
 
 export function AppShell({
