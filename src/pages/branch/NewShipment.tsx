@@ -205,34 +205,50 @@ export default function NewShipment() {
           .eq("id", pid);
       }
 
-      // Treasury / payment plan handling
+      // Treasury / payment plan handling (non-fatal — shipment is already saved)
       const supplier = suppliers.find((s) => s.id === supplierId);
-      await createPaymentPlanWithInitial({
-        branchId: branchId!,
-        entityType: "supplier",
-        entityId: supplierId,
-        entityName: supplier?.name ?? "مورد",
-        totalAmount: grandTotal,
-        referenceType: "shipment",
-        referenceId: ship.id,
-        state: plan,
-        direction: "out",
-        createdBy: user!.id,
-      });
+      try {
+        await createPaymentPlanWithInitial({
+          branchId: branchId!,
+          entityType: "supplier",
+          entityId: supplierId,
+          entityName: supplier?.name ?? "مورد",
+          totalAmount: grandTotal,
+          referenceType: "shipment",
+          referenceId: ship.id,
+          state: plan,
+          direction: "out",
+          createdBy: user!.id,
+        });
+      } catch (planErr: any) {
+        console.error("payment plan failed:", planErr);
+        toast.warning("تم حفظ الشحنة ولكن فشل إنشاء خطة الدفع — راجعها يدوياً");
+      }
 
-      await logAudit({
-        userId: user!.id,
-        userName: profile?.name ?? "",
-        branchId,
-        action: "CREATE",
-        entity: "shipment",
-        entityId: ship.id,
-        details: { total: grandTotal, items: lines.length },
-      });
+      try {
+        await logAudit({
+          userId: user!.id,
+          userName: profile?.name ?? "",
+          branchId,
+          action: "CREATE",
+          entity: "shipment",
+          entityId: ship.id,
+          details: { total: grandTotal, items: lines.length },
+        });
+      } catch (e) { console.warn("audit failed", e); }
 
       toast.success("تم تسجيل الشحنة بنجاح");
-      nav(`/branch/${branchId}/shipments/${ship.id}`);
+      // Reset form for a new shipment
+      setSupplierId("");
+      setArrival(new Date().toISOString().split("T")[0]);
+      setShipping(0);
+      setAdmin(0);
+      setNotes("");
+      setLines([]);
+      setPlan(defaultPlan());
+      loadProducts();
     } catch (err: any) {
+      console.error("shipment save failed:", err);
       toast.error(err.message ?? "خطأ في حفظ الشحنة");
     } finally {
       setBusy(false);
