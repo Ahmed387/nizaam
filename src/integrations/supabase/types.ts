@@ -2218,6 +2218,7 @@ export type Database = {
           product_id: string
           quantity: number
           reason: string | null
+          received_quantity: number | null
           status: Database["public"]["Enums"]["transfer_status"]
           tenant_id: string | null
           to_branch_id: string
@@ -2232,6 +2233,7 @@ export type Database = {
           product_id: string
           quantity: number
           reason?: string | null
+          received_quantity?: number | null
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
           to_branch_id: string
@@ -2246,6 +2248,7 @@ export type Database = {
           product_id?: string
           quantity?: number
           reason?: string | null
+          received_quantity?: number | null
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
           to_branch_id?: string
@@ -3061,6 +3064,10 @@ export type Database = {
           _type: Database["public"]["Enums"]["voucher_type"]
         }
         Returns: string
+      }
+      partial_confirm_transfer: {
+        Args: { p_received: number; p_transfer_id: string }
+        Returns: Json
       }
       payment_plans_summary: {
         Args: { p_tenant_id: string }
