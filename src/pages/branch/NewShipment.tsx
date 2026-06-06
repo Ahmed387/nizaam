@@ -372,7 +372,10 @@ export default function NewShipment() {
 
   return (
     <BranchLayout>
-      <PageHeader title="شحنة جديدة" subtitle="استلام بضاعة من مورد" />
+      <PageHeader
+        title={isEdit ? "تعديل الشحنة" : "شحنة جديدة"}
+        subtitle={isEdit ? (isAdmin ? "تعديل مباشر" : "سيُرسل التعديل للمدير للموافقة") : "استلام بضاعة من مورد"}
+      />
 
       {/* 1) Supplier */}
       <div className="card-elevated p-5 mb-4">
