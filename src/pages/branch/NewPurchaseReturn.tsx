@@ -98,18 +98,40 @@ export default function NewPurchaseReturn() {
     setShipments(data ?? []);
   };
 
-  const useShipment = (ship: any) => {
+  const useShipment = async (ship: any) => {
+    // Compute already-returned per product for this shipment
+    const { data: prevReturns } = await supabase
+      .from("purchase_returns" as any)
+      .select("id, status")
+      .eq("shipment_id", ship.id)
+      .eq("status", "active");
+    const prevIds = (prevReturns ?? []).map((r: any) => r.id);
+    let prevByProduct: Record<string, number> = {};
+    if (prevIds.length) {
+      const { data: prevItems } = await supabase
+        .from("purchase_return_items" as any)
+        .select("product_id, quantity")
+        .in("purchase_return_id", prevIds);
+      (prevItems ?? []).forEach((it: any) => {
+        if (!it.product_id) return;
+        prevByProduct[it.product_id] = (prevByProduct[it.product_id] ?? 0) + Number(it.quantity);
+      });
+    }
+
     setShipmentId(ship.id);
     const newLines: Line[] = (ship.shipment_items ?? [])
       .filter((it: any) => it.product_id)
       .map((it: any) => {
-        const p = products.find((x) => x.id === it.product_id);
+        const shipped = Number(it.quantity);
+        const ret = prevByProduct[it.product_id] ?? 0;
+        const inStock = (products.find((x) => x.id === it.product_id)?.quantity) ?? 0;
+        const max = Math.max(0, Math.min(shipped - ret, inStock));
         return {
           product_id: it.product_id,
           product_name: it.product_name,
-          quantity: Math.min(it.quantity, p?.quantity ?? 0),
+          quantity: max,
           unit_cost: Number(it.cost_price),
-          max_qty: p?.quantity ?? 0,
+          max_qty: max,
         };
       });
     setLines(newLines);
@@ -117,14 +139,8 @@ export default function NewPurchaseReturn() {
     toast.success(`تم تحميل ${newLines.length} منتج من الفاتورة`);
   };
 
-  const addLine = () => setLines([...lines, { product_id: "", product_name: "", quantity: 1, unit_cost: 0, max_qty: 0 }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, patch: Partial<Line>) => setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
-  const onProduct = (i: number, pid: string) => {
-    const p = products.find((x) => x.id === pid);
-    if (!p) return;
-    updateLine(i, { product_id: pid, product_name: p.name, unit_cost: Number(p.cost_price), max_qty: p.quantity });
-  };
 
   const filteredProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
@@ -150,12 +166,12 @@ export default function NewPurchaseReturn() {
   const submit = async (asDraft = false) => {
     if (busy) return;
     if (!supplier) return toast.error("اختر المورد");
+    if (!shipmentId) return toast.error("اختر فاتورة شراء أولاً");
     if (!finalReason) return toast.error("اكتب السبب");
-    if (lines.length === 0) return toast.error("أضف منتج واحد على الأقل");
-    for (const l of lines) {
-      if (!l.product_id) return toast.error("اختر منتج لكل سطر");
-      if (l.quantity <= 0) return toast.error("الكمية لازم تكون أكبر من صفر");
-      if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name}`);
+    const activeLines = lines.filter((l) => l.quantity > 0);
+    if (activeLines.length === 0) return toast.error("اختر منتج واحد على الأقل لإرجاعه");
+    for (const l of activeLines) {
+      if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name} (متاح: ${l.max_qty})`);
     }
     if (!asDraft) {
       if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
@@ -187,7 +203,7 @@ export default function NewPurchaseReturn() {
       const number = (pr as any).return_number as string;
 
 
-      const items = lines.map((l) => ({
+      const items = activeLines.map((l) => ({
         purchase_return_id: (pr as any).id,
         product_id: l.product_id,
         product_name: l.product_name,
@@ -199,7 +215,7 @@ export default function NewPurchaseReturn() {
       if (e2) throw e2;
 
       if (!asDraft) {
-        for (const l of lines) {
+        for (const l of activeLines) {
           const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
           if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
         }
@@ -332,46 +348,48 @@ export default function NewPurchaseReturn() {
             )}
           </div>
 
-          {/* Lines */}
+          {/* Lines (locked to shipment) */}
           <div className="card-elevated p-4">
-            <div className="flex items-center justify-between mb-3 gap-2">
-              <Label>المنتجات المُرتجعة</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="بحث منتج بالاسم/الكود..."
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  className="h-9 w-56"
-                />
-                <Button size="sm" variant="outline" onClick={() => setCameraOpen(true)} title="مسح باركود"><Camera className="w-4 h-4" /></Button>
-                <Button size="sm" variant="outline" onClick={addLine} className="gap-1"><Plus className="w-3 h-3" /> إضافة سطر</Button>
+            <Label className="mb-3 block">المنتجات المُرتجعة</Label>
+            {!shipmentId ? (
+              <div className="text-center text-sm text-muted-foreground py-8">اختر فاتورة شراء لعرض المنتجات</div>
+            ) : lines.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-8">لا توجد منتجات قابلة للإرجاع في هذه الفاتورة</div>
+            ) : (
+              <div className="space-y-2">
+                {lines.map((l, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center p-2 border rounded">
+                    <div className="col-span-5 text-sm">
+                      <div className="font-medium">{l.product_name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        <b>متاح للإرجاع: {l.max_qty}</b>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={l.max_qty}
+                        value={l.quantity}
+                        disabled={l.max_qty === 0}
+                        onChange={(e) => {
+                          const v = Math.max(0, Math.min(l.max_qty, Number(e.target.value)));
+                          updateLine(i, { quantity: v });
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-3 text-sm text-muted-foreground text-center">
+                      التكلفة: <b>{formatEGP(l.unit_cost)}</b>
+                    </div>
+                    <div className="col-span-2 text-sm text-center font-bold text-primary">
+                      {formatEGP(l.quantity * l.unit_cost)}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="space-y-2">
-              {lines.map((l, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                  <div className="col-span-5">
-                    <Select value={l.product_id} onValueChange={(v) => onProduct(i, v)}>
-                      <SelectTrigger><SelectValue placeholder="منتج" /></SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {filteredProducts.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} (متاح: {p.quantity})</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2">
-                    <Input type="number" min={1} max={l.max_qty} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} placeholder="كمية" />
-                    {l.max_qty > 0 && <div className="text-[10px] text-muted-foreground mt-0.5">متاح: {l.max_qty}</div>}
-                  </div>
-                  <div className="col-span-3">
-                    <Input type="number" step="0.01" value={l.unit_cost} onChange={(e) => updateLine(i, { unit_cost: Number(e.target.value) })} placeholder="التكلفة" />
-                  </div>
-                  <div className="col-span-1 text-sm text-muted-foreground text-center">{formatEGP(l.quantity * l.unit_cost)}</div>
-                  <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => removeLine(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button></div>
-                </div>
-              ))}
-              {lines.length === 0 && <div className="text-center text-sm text-muted-foreground py-6">أضف سطر أو استخدم "اختيار من فاتورة شراء"</div>}
-            </div>
+            )}
           </div>
+
 
           {/* Reason + notes */}
           <div className="card-elevated p-4 space-y-3">
