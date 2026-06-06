@@ -817,6 +817,33 @@ export default function Invoices() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!delShipment} onOpenChange={(o) => { if (!o) { setDelShipment(null); setDelShipReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              {isManager && !isAdmin ? "طلب حذف شحنة للموافقة" : "حذف الشحنة"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isManager && !isAdmin
+                ? <>سيتم إرسال طلب حذف الشحنة <span className="font-mono text-primary">{delShipment?.shipment_number}</span> لمدير الشركة للموافقة.</>
+                : <>هل أنت متأكد من حذف الشحنة <span className="font-mono text-primary">{delShipment?.shipment_number}</span>؟ لن يمكن التراجع.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isManager && !isAdmin && (
+            <div className="px-1">
+              <Label>سبب الحذف *</Label>
+              <Input className="mt-1.5" value={delShipReason} onChange={(e) => setDelShipReason(e.target.value)} placeholder="اكتب السبب..." />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delShipBusy}>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteShipment} disabled={delShipBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {delShipBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </BranchLayout>
   );
 }
