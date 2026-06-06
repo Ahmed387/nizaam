@@ -31,6 +31,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [toBranch, setToBranch] = useState("");
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
+  const [recvQty, setRecvQty] = useState<Record<string, string>>({});
+
 
   const load = async () => {
     if (!branchId) return;
