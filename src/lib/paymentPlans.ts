@@ -58,22 +58,40 @@ export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promis
     if (ie) throw ie;
   }
 
-  // Record initial payment if any
+  // Record initial payment(s) — supports multi-method splits
   if (paidNow > 0) {
-    const { error: te } = await supabase.rpc("record_payment_transaction", {
-      p_payment_plan_id: plan.id,
-      p_installment_id: null,
-      p_amount: paidNow,
-      p_payment_method: state.method.method,
-      p_reference_number: state.method.reference_number ?? null,
-      p_transfer_to_account: state.method.transfer_to_account ?? null,
-      p_received_by_name: state.method.received_by_name ?? null,
-      p_fee_amount: state.method.fee_amount,
-      p_fee_type: state.method.fee_type ?? null,
-      p_fee_on_customer: direction === "in" ? state.feeOnCustomer : false,
-      p_direction: direction,
-    });
-    if (te) throw te;
+    const splits = (state.splits && state.splits.length > 0)
+      ? state.splits.filter((s) => Number(s.amount) > 0)
+      : (state.method
+          ? [{
+              method: state.method.method,
+              amount: paidNow,
+              reference_number: state.method.reference_number,
+              transfer_to_account: state.method.transfer_to_account,
+              transfer_from_account: state.method.transfer_from_account,
+              received_by_name: state.method.received_by_name,
+              fee_amount: state.method.fee_amount ?? 0,
+              fee_type: state.method.fee_type,
+            }]
+          : []);
+
+    for (const sp of splits) {
+      const { error: te } = await supabase.rpc("record_payment_transaction" as any, {
+        p_payment_plan_id: plan.id,
+        p_installment_id: null,
+        p_amount: sp.amount,
+        p_payment_method: sp.method,
+        p_reference_number: sp.reference_number ?? null,
+        p_transfer_to_account: sp.transfer_to_account ?? null,
+        p_received_by_name: sp.received_by_name ?? null,
+        p_fee_amount: sp.fee_amount ?? 0,
+        p_fee_type: sp.fee_type ?? null,
+        p_fee_on_customer: direction === "in" ? state.feeOnCustomer : false,
+        p_direction: direction,
+        p_transfer_from_account: sp.transfer_from_account ?? null,
+      });
+      if (te) throw te;
+    }
   }
 
   return plan.id;
