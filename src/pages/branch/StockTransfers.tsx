@@ -31,6 +31,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [toBranch, setToBranch] = useState("");
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
+  const [recvQty, setRecvQty] = useState<Record<string, string>>({});
+
 
   const load = async () => {
     if (!branchId) return;
@@ -98,42 +100,36 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     load();
   };
 
-  // Single-item confirm (existing)
-  const confirmTransfer = async (t: any) => {
-    const { data: existing } = await supabase
-      .from("products").select("*")
-      .eq("branch_id", t.to_branch_id)
-      .eq("name", t.products?.name).maybeSingle();
-
-    if (existing) {
-      await supabase.from("products").update({ quantity: (existing.quantity ?? 0) + t.quantity }).eq("id", existing.id);
-    } else {
-      const { data: src } = await supabase.from("products").select("*").eq("id", t.product_id).maybeSingle();
-      if (src) {
-        const sku = `T-${Date.now().toString().slice(-6)}`;
-        await supabase.from("products").insert({
-          branch_id: t.to_branch_id, name: src.name, sku,
-          category_id: src.category_id, image: src.image,
-          cost_price: src.cost_price, selling_price: src.selling_price, market_price: src.market_price,
-          quantity: t.quantity, low_stock_alert: src.low_stock_alert,
-        });
-      }
+  // Partial / full confirm with received quantity
+  const confirmTransfer = async (t: any, receivedOverride?: number) => {
+    const received = receivedOverride ?? Number(recvQty[t.id] ?? t.quantity);
+    if (!Number.isFinite(received) || received < 0 || received > t.quantity) {
+      return toast.error(`الكمية المستلمة يجب أن تكون بين 0 و ${t.quantity}`);
     }
+    const { data, error } = await supabase.rpc("partial_confirm_transfer" as any, {
+      p_transfer_id: t.id,
+      p_received: received,
+    });
+    if (error) return toast.error(error.message);
+    const res = (data ?? {}) as { received: number; returned: number; total: number };
 
-    await supabase.from("stock_transfers").update({ status: "confirmed", confirmed_by: user!.id }).eq("id", t.id);
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { confirmed: true } });
+    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { received: res.received, returned: res.returned } });
 
     const senderMgrs = await getBranchManagers(t.from_branch_id);
+    const isPartial = res.returned > 0 && res.received > 0;
+    const isNone = res.received === 0;
     await notifyMany(senderMgrs, {
-      title: "✅ تم استلام صنف",
-      body: `استلم الفرع المستلم: ${t.products?.name ?? "منتج"} × ${t.quantity}`,
+      title: isNone ? "❌ لم يتم استلام الصنف" : isPartial ? "⚠️ استلام جزئي" : "✅ تم استلام الصنف بالكامل",
+      body: `${t.products?.name ?? "منتج"}: مستلم ${res.received} / ${res.total}${res.returned > 0 ? ` — رجع ${res.returned} لمخزنك` : ""}`,
       type: "general",
       link: `/branch/${t.from_branch_id}/transfers`,
       relatedEntity: "stock_transfer", relatedEntityId: t.id,
     });
-    toast.success("تم تأكيد الاستلام");
+    toast.success(isNone ? `لم يُستلم — رجع ${res.returned} للمخزن المرسل` : isPartial ? `تم استلام ${res.received} ورجع ${res.returned} للمرسل` : "تم استلام الكمية كاملة");
+    setRecvQty((m) => { const n = { ...m }; delete n[t.id]; return n; });
     load();
   };
+
 
   const rejectTransfer = async (t: any) => {
     if (!confirm("رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟")) return;
@@ -267,11 +263,23 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
-                  <div key={r.id} className="flex items-center justify-between gap-2 py-2 border-t border-border text-sm">
-                    <div className="flex-1">{r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span></div>
+                  <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-t border-border text-sm">
+                    <div className="flex-1 min-w-[160px]">
+                      {r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span>
+                      {r.status === "confirmed" && r.received_quantity !== null && r.received_quantity !== r.quantity && (
+                        <span className="text-xs text-warning mr-2">(مستلم {r.received_quantity} / {r.quantity})</span>
+                      )}
+                    </div>
                     <div>{statusBadge(r.status)}</div>
                     {r.status === "pending" && (
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={r.quantity}
+                          value={recvQty[r.id] ?? String(r.quantity)}
+                          onChange={(e) => setRecvQty((m) => ({ ...m, [r.id]: e.target.value }))}
+                          className="w-20 h-8"
+                          title="الكمية المستلمة فعلياً"
+                        />
                         <Button size="sm" onClick={() => confirmTransfer(r)} className="gap-1"><Check className="w-3 h-3" /> استلام</Button>
                         <Button size="sm" variant="outline" onClick={() => rejectTransfer(r)} className="gap-1 text-destructive"><X className="w-3 h-3" /> رفض</Button>
                       </div>
@@ -279,6 +287,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   </div>
                 ))}
               </div>
+
             </div>
           ))}
         </TabsContent>
@@ -298,9 +307,15 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
                   <div key={r.id} className="flex items-center justify-between gap-2 py-2 border-t border-border text-sm">
-                    <div className="flex-1">{r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span></div>
+                    <div className="flex-1">
+                      {r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span>
+                      {r.status === "confirmed" && r.received_quantity !== null && r.received_quantity !== r.quantity && (
+                        <span className="text-xs text-warning mr-2">(مستلم {r.received_quantity} — رجع {r.quantity - r.received_quantity} لمخزنك)</span>
+                      )}
+                    </div>
                     <div>{statusBadge(r.status)}</div>
                   </div>
+
                 ))}
               </div>
             </div>
