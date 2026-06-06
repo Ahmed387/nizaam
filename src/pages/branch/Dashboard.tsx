@@ -127,7 +127,7 @@ export default function BranchDashboard() {
     { to: `/branch/${id}/treasury?action=expense`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/10" },
     { to: `/branch/${id}/transfers`, label: "تحويل مخازن", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/10" },
     { to: `/branch/${id}/invoices?tab=quote`, label: "عرض أسعار", icon: FileText, color: "text-secondary", bg: "bg-secondary/10" },
-    { to: `/branch/${id}/invoices?tab=adjustment`, label: "تسوية مخزن", icon: ClipboardList, color: "text-muted-foreground", bg: "bg-muted" },
+    { to: `/branch/${id}/invoices?tab=adjustment`, label: "جرد مخزن", icon: ClipboardList, color: "text-muted-foreground", bg: "bg-muted" },
   ];
 
   return (
