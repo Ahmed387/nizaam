@@ -45,7 +45,7 @@ export default function NewStockAdjustment() {
   };
 
   const submit = async () => {
-    if (!reason.trim()) return toast.error("اكتب سبب التسوية");
+    if (!reason.trim()) return toast.error("اكتب سبب الجرد");
     if (lines.length === 0) return toast.error("أضف منتج واحد على الأقل");
     for (const l of lines) if (!l.product_id) return toast.error("اختر منتج لكل سطر");
     setBusy(true);
@@ -62,13 +62,13 @@ export default function NewStockAdjustment() {
     }));
     const { error: e2 } = await supabase.from("stock_adjustment_items" as any).insert(items);
     if (e2) { setBusy(false); return toast.error(e2.message); }
-    toast.success("تم تسجيل التسوية وتعديل المخزون");
+    toast.success("تم تسجيل الجرد وتعديل المخزون");
     nav(`/branch/${branchId}/invoices?tab=adjustment`);
   };
 
   return (
     <BranchLayout>
-      <PageHeader title="تسوية مخزن جديدة" subtitle="بعد الجرد - عدّل الكميات الفعلية" />
+      <PageHeader title="جرد مخزن جديد" subtitle="بعد الجرد - عدّل الكميات الفعلية" />
       <div className="space-y-4 card-elevated p-5">
         <div className="grid md:grid-cols-2 gap-4">
           <div>
@@ -129,7 +129,7 @@ export default function NewStockAdjustment() {
 
         <div className="flex items-center justify-end pt-3 border-t">
           <Button onClick={submit} disabled={busy} size="lg">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ التسوية"}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ الجرد"}
           </Button>
         </div>
       </div>
