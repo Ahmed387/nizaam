@@ -528,15 +528,31 @@ export default function NewShipment() {
         </div>
       </div>
 
-      {/* 4) Payment plan for supplier */}
-      <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">٤. طريقة الدفع للمورد</h3>
-        <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
-      </div>
+      {/* 4) Payment plan for supplier — only in create mode */}
+      {!isEdit && (
+        <div className="card-elevated p-4 mb-4">
+          <h3 className="font-bold mb-3">٤. طريقة الدفع للمورد</h3>
+          <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
+        </div>
+      )}
+
+      {/* Edit reason (manager only) */}
+      {isEdit && isManager && !isAdmin && (
+        <div className="card-elevated p-4 mb-4">
+          <Label className="text-sm font-bold">سبب التعديل *</Label>
+          <Textarea
+            rows={2}
+            className="mt-2"
+            value={editReason}
+            onChange={(e) => setEditReason(e.target.value)}
+            placeholder="اكتب سبب التعديل ليراجعه المدير..."
+          />
+        </div>
+      )}
 
       {/* 5) Summary + save */}
       <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">٥. الملخص والحفظ</h3>
+        <h3 className="font-bold mb-3">{isEdit ? "الملخص والحفظ" : "٥. الملخص والحفظ"}</h3>
         <div className="grid md:grid-cols-2 gap-4 items-end">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
@@ -553,7 +569,7 @@ export default function NewShipment() {
           </div>
           <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            حفظ الشحنة
+            {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
           </Button>
         </div>
       </div>
