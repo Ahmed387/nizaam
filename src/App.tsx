@@ -80,7 +80,7 @@ import AdvanceRequests from "./pages/branch/AdvanceRequests";
 import Shipments from "./pages/branch/Shipments";
 import NewShipment from "./pages/branch/NewShipment";
 import ShipmentView from "./pages/branch/ShipmentView";
-import NewReturn from "./pages/branch/NewReturn";
+
 
 import BranchReports from "./pages/branch/Reports";
 import AdminReports from "./pages/admin/Reports";
@@ -184,7 +184,7 @@ const App = () => (
             <Route path="/branch/:id/adjustments/new" element={<ProtectedRoute perm="inventory.update"><NewStockAdjustment /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/new" element={<ProtectedRoute perm="sales.create"><NewSale /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/returns" element={<RedirectReturnsToInvoices />} />
-            <Route path="/branch/:id/sales/returns/new" element={<ProtectedRoute perm="sales.create"><NewReturn /></ProtectedRoute>} />
+            
             <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute perm="sales.view"><InvoiceView /></ProtectedRoute>} />
             <Route path="/branch/:id/pre-orders" element={<ProtectedRoute perm="preorders.view"><PreOrders /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments" element={<ProtectedRoute perm="shipments.view"><Shipments /></ProtectedRoute>} />

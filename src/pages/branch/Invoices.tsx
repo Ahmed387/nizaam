@@ -299,7 +299,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/shipments/${r.id}`),
       };
       case "sale_return": return {
-        newLink: `${base}/sales/returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
+        newLink: "", newLabel: "", newPerm: "sales.create",
         columns: [
           { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="font-mono text-primary">{r.return_number ?? "—"}</span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
@@ -482,11 +482,13 @@ export default function Invoices() {
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length} className="gap-2">
               <Printer className="w-4 h-4" /> PDF
             </Button>
-            <PermGate perm={(cfg as any).newPerm ?? ""}>
-              <Button asChild className="gap-2">
-                <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
-              </Button>
-            </PermGate>
+            {cfg.newLink && (
+              <PermGate perm={(cfg as any).newPerm ?? ""}>
+                <Button asChild className="gap-2">
+                  <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
+                </Button>
+              </PermGate>
+            )}
 
           </div>
         }
