@@ -111,6 +111,20 @@ export default function Invoices() {
   const [parties, setParties] = useState<{ id: string; name: string; phone?: string }[]>([]);
   const [partyOpen, setPartyOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [pickInvoiceOpen, setPickInvoiceOpen] = useState(false);
+  const [pickInvoiceQuery, setPickInvoiceQuery] = useState("");
+  const [pickInvoiceList, setPickInvoiceList] = useState<any[]>([]);
+  const [pickInvoiceLoading, setPickInvoiceLoading] = useState(false);
+
+  useEffect(() => {
+    if (!pickInvoiceOpen || !branchId) return;
+    setPickInvoiceLoading(true);
+    supabase.from("invoices")
+      .select("id, invoice_number, total, created_at, contact_id, contacts:contact_id(name, phone)")
+      .eq("branch_id", branchId).eq("status", "active")
+      .order("created_at", { ascending: false }).limit(200)
+      .then(({ data }) => { setPickInvoiceList(data ?? []); setPickInvoiceLoading(false); });
+  }, [pickInvoiceOpen, branchId]);
 
   const active = FILTERS[tab];
   const isReturnTab = tab === "sale_return" || tab === "purchase_return";
