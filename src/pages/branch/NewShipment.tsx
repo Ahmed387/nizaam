@@ -17,7 +17,7 @@ import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
-import { ProductPicker } from "@/components/ProductPicker";
+import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 interface Line {
@@ -340,24 +340,18 @@ export default function NewShipment() {
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2 min-w-[320px]">
-                    <ProductPicker
+                  <td className="px-3 py-2 min-w-[340px]">
+                    <ShipmentLineProductCell
                       branchId={branchId!}
-                      value={l.product_id}
-                      onPick={(p) => updateLine(i, {
-                        product_id: p.id,
-                        product_name: p.name,
-                        sku: p.sku,
-                        cost_price: Number(p.cost_price),
-                        image: p.image ?? "",
+                      value={{ product_id: l.product_id, product_name: l.product_name, sku: l.sku, image: l.image }}
+                      onChange={(p) => updateLine(i, {
+                        product_id: p.product_id,
+                        product_name: p.product_name,
+                        sku: p.sku || l.sku || genSku(),
+                        cost_price: p.cost_price || l.cost_price,
+                        image: p.image || l.image,
                       })}
-                      triggerLabel="— اختر من مخزون الفرع —"
                     />
-                    {l.product_id === null && l.product_name && (
-                      <div className="mt-1.5 text-[11px] text-success bg-success/10 rounded px-2 py-1">
-                        صنف جديد: {l.product_name}
-                      </div>
-                    )}
                   </td>
 
                   <td className="px-3 py-2 w-40">
