@@ -299,7 +299,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/shipments/${r.id}`),
       };
       case "sale_return": return {
-        newLink: `${base}/sales/returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
+        newLink: "", newLabel: "", newPerm: "sales.create",
         columns: [
           { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="font-mono text-primary">{r.return_number ?? "—"}</span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
