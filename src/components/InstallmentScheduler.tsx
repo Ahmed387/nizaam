@@ -25,7 +25,14 @@ export function InstallmentScheduler({ remaining, value, onChange }: Props) {
   });
 
   const autoCalc = () => {
-    if (count <= 0 || remaining <= 0) return;
+    if (count <= 0) {
+      alert("أدخل عدد أقساط صحيح");
+      return;
+    }
+    if (remaining <= 0) {
+      alert("لا يوجد مبلغ متبقي لتقسيمه — قلل المبلغ المدفوع الآن أولاً");
+      return;
+    }
     const each = Math.round((remaining / count) * 100) / 100;
     const rows: InstallmentRow[] = [];
     const start = new Date(firstDate);
