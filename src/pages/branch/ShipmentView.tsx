@@ -14,7 +14,7 @@ export default function ShipmentView() {
 
   useEffect(() => {
     (async () => {
-      const { data: s } = await supabase.from("shipments").select("*, suppliers(name, phone, address, tax_number)").eq("id", shipmentId!).maybeSingle();
+      const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
       const { data: it } = await supabase
         .from("shipment_items")
         .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
