@@ -21,12 +21,17 @@ export default function ShipmentView() {
   const { isAdmin, hasRole, tenantId, user, profile } = useAuth();
   const isManager = hasRole("branch_manager");
   const canDelete = isAdmin || isManager;
+  const canEdit = isAdmin || isManager;
   const [ship, setShip] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [delOpen, setDelOpen] = useState(false);
   const [delReason, setDelReason] = useState("");
   const [delBusy, setDelBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editReason, setEditReason] = useState("");
+  const [edit, setEdit] = useState({ arrival_date: "", received_by: "", shipping_cost: 0, admin_cost: 0, notes: "" });
 
   useEffect(() => {
     (async () => {
