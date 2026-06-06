@@ -21,6 +21,7 @@ import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 interface Line {
+  id?: string | null;
   product_id: string | null;
   product_name: string;
   sku: string;
