@@ -19,8 +19,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { PartyCombobox } from "@/components/PartyCombobox";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { createApprovalRequest } from "@/lib/approvalRequests";
 
 interface Line {
+  id?: string | null;
   product_id: string | null;
   product_name: string;
   sku: string;
@@ -44,8 +46,10 @@ const genSku = () =>
   `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export default function NewShipment() {
-  const { id: branchId } = useParams<{ id: string }>();
-  const { user, profile } = useAuth();
+  const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId?: string }>();
+  const isEdit = !!shipmentId;
+  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
+  const isManager = hasRole("branch_manager");
   const nav = useNavigate();
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -101,6 +105,37 @@ export default function NewShipment() {
     if (profile?.name && !receivedBy) setReceivedBy(profile.name);
   }, [profile]);
 
+  const [editReason, setEditReason] = useState("");
+  const [loadedEdit, setLoadedEdit] = useState(false);
+
+  // Load shipment data in edit mode
+  useEffect(() => {
+    if (!isEdit || !shipmentId || loadedEdit) return;
+    (async () => {
+      const { data: s } = await supabase.from("shipments").select("*").eq("id", shipmentId).maybeSingle();
+      const { data: it } = await supabase.from("shipment_items").select("*").eq("shipment_id", shipmentId);
+      if (!s) { toast.error("الشحنة غير موجودة"); return; }
+      setSupplierId(s.contact_id ?? "");
+      setArrival((s.arrival_date ?? "").slice(0, 10));
+      setReceivedBy(s.received_by ?? "");
+      setShipping(Number(s.shipping_cost ?? 0));
+      setAdmin(Number(s.admin_cost ?? 0));
+      setNotes(s.notes ?? "");
+      setLines((it ?? []).map((r: any) => ({
+        id: r.id,
+        product_id: r.product_id,
+        product_name: r.product_name,
+        sku: "",
+        quantity: Number(r.quantity),
+        cost_price: Number(r.cost_price),
+        discount_percent: Number(r.discount_percent ?? 0),
+        discount_amount: Number(r.discount_amount ?? 0),
+        image: "",
+      })));
+      setLoadedEdit(true);
+    })();
+  }, [isEdit, shipmentId, loadedEdit]);
+
   const addLine = () =>
     setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "" }]);
 
@@ -149,7 +184,71 @@ export default function NewShipment() {
     }
   };
 
+  const submitEdit = async () => {
+    if (!shipmentId) return;
+    if (!lines.length) return toast.error("لا يمكن حفظ شحنة بدون أصناف");
+    for (const l of lines) {
+      if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
+        return toast.error("تأكد من بيانات كل المنتجات");
+    }
+    const header = {
+      arrival_date: arrival,
+      received_by: receivedBy.trim(),
+      shipping_cost: Number(shipping || 0),
+      admin_cost: Number(admin || 0),
+      notes: notes.trim(),
+    };
+    const items = lines.map((l) => ({
+      id: l.id ?? null,
+      product_id: l.product_id,
+      product_name: l.product_name.trim(),
+      sku: l.sku || null,
+      image: l.image || null,
+      quantity: l.quantity,
+      cost_price: l.cost_price,
+      discount_percent: l.discount_percent || 0,
+      discount_amount: l.discount_amount || 0,
+    }));
+
+    setBusy(true);
+    try {
+      if (isAdmin) {
+        const { data, error } = await (supabase as any).rpc("edit_shipment", {
+          p_shipment_id: shipmentId,
+          p_header: header,
+          p_items: items,
+        });
+        if (error) throw error;
+        toast.success("تم حفظ التعديلات");
+        if ((data as any)?.plan_overpaid) {
+          toast.warning("تنبيه: المبلغ المدفوع أكبر من الإجمالي الجديد — راجع خطة الدفع");
+        }
+        nav(`/branch/${branchId}/shipments/${shipmentId}`);
+      } else if (isManager) {
+        if (!editReason.trim()) { setBusy(false); return toast.error("اكتب سبب التعديل"); }
+        const ok = await createApprovalRequest({
+          tenantId: tenantId!, branchId: branchId ?? null,
+          entityType: "shipment", entityId: shipmentId,
+          entityLabel: `تعديل شحنة #${shipmentId.slice(0, 8)}`,
+          action: "update",
+          payload: { header, items },
+          reason: editReason,
+          requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+        });
+        if (!ok) return;
+        nav(`/branch/${branchId}/shipments/${shipmentId}`);
+      } else {
+        toast.error("غير مصرح");
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? "خطأ في حفظ التعديلات");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
+    if (isEdit) return submitEdit();
     if (!supplierId) return toast.error("اختر المورد");
     if (!receivedBy.trim()) return toast.error("أدخل اسم المستلم");
     if (!lines.length) return toast.error("أضف منتجاً واحداً على الأقل");
@@ -273,7 +372,10 @@ export default function NewShipment() {
 
   return (
     <BranchLayout>
-      <PageHeader title="شحنة جديدة" subtitle="استلام بضاعة من مورد" />
+      <PageHeader
+        title={isEdit ? "تعديل الشحنة" : "شحنة جديدة"}
+        subtitle={isEdit ? (isAdmin ? "تعديل مباشر" : "سيُرسل التعديل للمدير للموافقة") : "استلام بضاعة من مورد"}
+      />
 
       {/* 1) Supplier */}
       <div className="card-elevated p-5 mb-4">
@@ -426,15 +528,31 @@ export default function NewShipment() {
         </div>
       </div>
 
-      {/* 4) Payment plan for supplier */}
-      <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">٤. طريقة الدفع للمورد</h3>
-        <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
-      </div>
+      {/* 4) Payment plan for supplier — only in create mode */}
+      {!isEdit && (
+        <div className="card-elevated p-4 mb-4">
+          <h3 className="font-bold mb-3">٤. طريقة الدفع للمورد</h3>
+          <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
+        </div>
+      )}
+
+      {/* Edit reason (manager only) */}
+      {isEdit && isManager && !isAdmin && (
+        <div className="card-elevated p-4 mb-4">
+          <Label className="text-sm font-bold">سبب التعديل *</Label>
+          <Textarea
+            rows={2}
+            className="mt-2"
+            value={editReason}
+            onChange={(e) => setEditReason(e.target.value)}
+            placeholder="اكتب سبب التعديل ليراجعه المدير..."
+          />
+        </div>
+      )}
 
       {/* 5) Summary + save */}
       <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">٥. الملخص والحفظ</h3>
+        <h3 className="font-bold mb-3">{isEdit ? "الملخص والحفظ" : "٥. الملخص والحفظ"}</h3>
         <div className="grid md:grid-cols-2 gap-4 items-end">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
@@ -451,7 +569,7 @@ export default function NewShipment() {
           </div>
           <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            حفظ الشحنة
+            {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
           </Button>
         </div>
       </div>
