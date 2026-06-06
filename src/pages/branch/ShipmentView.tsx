@@ -29,6 +29,8 @@ export default function ShipmentView() {
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
 
   const goodsValue = ship.total_cost - ship.shipping_cost - ship.admin_cost;
+  const itemsGross = items.reduce((s, it) => s + Number(it.quantity) * Number(it.cost_price), 0);
+  const itemsDiscount = itemsGross - items.reduce((s, it) => s + Number(it.total ?? 0), 0);
 
   return (
     <BranchLayout>
@@ -67,7 +69,11 @@ export default function ShipmentView() {
             <h3 className="font-bold text-sm">التكاليف</h3>
           </div>
           <div className="text-sm space-y-2">
-            <div className="flex justify-between"><span className="text-muted-foreground">قيمة البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">قيمة البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
+            {itemsDiscount > 0 && (
+              <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
+            )}
+            <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(ship.shipping_cost)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(ship.admin_cost)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg"><span>الإجمالي</span><b className="text-primary">{formatEGP(ship.total_cost)}</b></div>
@@ -86,11 +92,13 @@ export default function ShipmentView() {
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-4 py-3 text-right">المنتج</th>
                 <th className="px-4 py-3 text-right">الكود</th>
-                <th className="px-4 py-3 text-right">الكمية المستلمة</th>
+                <th className="px-4 py-3 text-right">الكمية</th>
                 <th className="px-4 py-3 text-right">سعر التكلفة</th>
+                <th className="px-4 py-3 text-right">خصم %</th>
+                <th className="px-4 py-3 text-right">خصم مبلغ</th>
                 <th className="px-4 py-3 text-right">سعر البيع الحالي</th>
-                <th className="px-4 py-3 text-right">المخزون الحالي</th>
-                <th className="px-4 py-3 text-right">الإجمالي</th>
+                <th className="px-4 py-3 text-right">المخزون</th>
+                <th className="px-4 py-3 text-right">الصافي</th>
               </tr>
             </thead>
             <tbody>
@@ -114,6 +122,8 @@ export default function ShipmentView() {
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{it.products?.sku ?? "—"}</td>
                   <td className="px-4 py-3">{it.quantity}</td>
                   <td className="px-4 py-3">{formatEGP(it.cost_price)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_percent ?? 0) > 0 ? `${Number(it.discount_percent)}%` : "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_amount ?? 0) > 0 ? formatEGP(it.discount_amount) : "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{it.products?.selling_price ? formatEGP(it.products.selling_price) : "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${(it.products?.quantity ?? 1) <= 0 ? 'bg-destructive/10 text-destructive' : (it.products?.quantity ?? 0) < (it.products?.low_stock_alert ?? 5) ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'}`}>

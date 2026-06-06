@@ -26,9 +26,18 @@ interface Line {
   sku: string;
   quantity: number;
   cost_price: number;
+  discount_percent: number;
+  discount_amount: number;
   image: string;
   uploadingImg?: boolean;
 }
+
+// صافي السطر بعد الخصم (نسبة + مبلغ ثابت معاً)
+const lineNet = (l: Line) => {
+  const gross = (Number(l.quantity) || 0) * (Number(l.cost_price) || 0);
+  const afterPct = gross - (gross * (Number(l.discount_percent) || 0)) / 100;
+  return Math.max(0, afterPct - (Number(l.discount_amount) || 0));
+};
 
 // توليد كود فريد للمنتج الجديد
 const genSku = () =>
@@ -93,7 +102,11 @@ export default function NewShipment() {
   }, [profile]);
 
   const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, image: "" }]);
+    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "" }]);
+
+  const itemsGross = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
+  const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
+  const itemsNet = itemsGross - itemsDiscount;
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
@@ -103,8 +116,7 @@ export default function NewShipment() {
 
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
 
-  const itemsTotal = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
-  const grandTotal = itemsTotal + Number(shipping || 0) + Number(admin || 0);
+  const grandTotal = itemsNet + Number(shipping || 0) + Number(admin || 0);
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
@@ -188,20 +200,24 @@ export default function NewShipment() {
           if (ep) throw ep;
           pid = np.id;
         }
+        const net = lineNet(l);
+        const netUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
         await supabase.from("shipment_items").insert({
           shipment_id: ship.id,
           product_id: pid,
           product_name: l.product_name,
           quantity: l.quantity,
           cost_price: l.cost_price,
-          total: l.quantity * l.cost_price,
+          discount_percent: Number(l.discount_percent) || 0,
+          discount_amount: Number(l.discount_amount) || 0,
+          total: net,
         });
-        // Update product stock + cost
+        // Update product stock + cost (use net unit cost after discount)
         const cur = products.find((p) => p.id === pid);
         const newQty = (cur?.quantity ?? 0) + l.quantity;
         await supabase
           .from("products")
-          .update({ quantity: newQty, cost_price: l.cost_price })
+          .update({ quantity: newQty, cost_price: netUnit })
           .eq("id", pid);
       }
 
@@ -331,13 +347,15 @@ export default function NewShipment() {
                 <th className="px-3 py-2 text-right">الكود (SKU)</th>
                 <th className="px-3 py-2 text-right">الكمية</th>
                 <th className="px-3 py-2 text-right">سعر التكلفة</th>
-                <th className="px-3 py-2 text-right">الإجمالي</th>
+                <th className="px-3 py-2 text-right">خصم %</th>
+                <th className="px-3 py-2 text-right">خصم مبلغ</th>
+                <th className="px-3 py-2 text-right">الصافي</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
+                <tr><td colSpan={9} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
               )}
               {lines.map((l, i) => (
                 <tr key={i} className="border-b border-border align-top">
@@ -384,7 +402,18 @@ export default function NewShipment() {
                   <td className="px-3 py-2 w-32">
                     <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} />
                   </td>
-                  <td className="px-3 py-2 w-32 font-bold">{formatEGP(l.quantity * l.cost_price)}</td>
+                  <td className="px-3 py-2 w-24">
+                    <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" />
+                  </td>
+                  <td className="px-3 py-2 w-28">
+                    <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" />
+                  </td>
+                  <td className="px-3 py-2 w-32 font-bold">
+                    {formatEGP(lineNet(l))}
+                    {(l.discount_percent > 0 || l.discount_amount > 0) && (
+                      <div className="text-[10px] text-muted-foreground font-normal line-through">{formatEGP(l.quantity * l.cost_price)}</div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 w-12">
                     <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-destructive">
                       <Trash2 className="w-4 h-4" />
@@ -408,7 +437,11 @@ export default function NewShipment() {
         <h3 className="font-bold mb-3">٥. الملخص والحفظ</h3>
         <div className="grid md:grid-cols-2 gap-4 items-end">
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة</span><b>{formatEGP(itemsTotal)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
+            {itemsDiscount > 0 && (
+              <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
+            )}
+            <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg">

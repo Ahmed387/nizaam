@@ -1987,6 +1987,8 @@ export type Database = {
       shipment_items: {
         Row: {
           cost_price: number
+          discount_amount: number
+          discount_percent: number
           id: string
           product_id: string | null
           product_name: string
@@ -1997,6 +1999,8 @@ export type Database = {
         }
         Insert: {
           cost_price: number
+          discount_amount?: number
+          discount_percent?: number
           id?: string
           product_id?: string | null
           product_name: string
@@ -2007,6 +2011,8 @@ export type Database = {
         }
         Update: {
           cost_price?: number
+          discount_amount?: number
+          discount_percent?: number
           id?: string
           product_id?: string | null
           product_name?: string
