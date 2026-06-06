@@ -3014,6 +3014,10 @@ export type Database = {
         Args: { _customer_id: string; _invoice_id: string; _items: Json }
         Returns: undefined
       }
+      edit_shipment: {
+        Args: { p_header: Json; p_items: Json; p_shipment_id: string }
+        Returns: Json
+      }
       get_branch_wallet_balances: {
         Args: { p_branch_id: string }
         Returns: {
