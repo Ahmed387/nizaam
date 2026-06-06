@@ -4,9 +4,11 @@ import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, Trash2, Printer, ArrowRight } from "lucide-react";
+import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, Trash2, Printer, ArrowRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,12 +21,17 @@ export default function ShipmentView() {
   const { isAdmin, hasRole, tenantId, user, profile } = useAuth();
   const isManager = hasRole("branch_manager");
   const canDelete = isAdmin || isManager;
+  const canEdit = isAdmin || isManager;
   const [ship, setShip] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [delOpen, setDelOpen] = useState(false);
   const [delReason, setDelReason] = useState("");
   const [delBusy, setDelBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editReason, setEditReason] = useState("");
+  const [edit, setEdit] = useState({ arrival_date: "", received_by: "", shipping_cost: 0, admin_cost: 0, notes: "" });
 
   useEffect(() => {
     (async () => {
@@ -64,6 +71,53 @@ export default function ShipmentView() {
     } else { setDelBusy(false); return toast.error("غير مصرح"); }
   };
 
+  const openEdit = () => {
+    setEdit({
+      arrival_date: (ship.arrival_date ?? "").slice(0, 10),
+      received_by: ship.received_by ?? "",
+      shipping_cost: Number(ship.shipping_cost ?? 0),
+      admin_cost: Number(ship.admin_cost ?? 0),
+      notes: ship.notes ?? "",
+    });
+    setEditReason("");
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!ship) return;
+    setEditBusy(true);
+    const goods = Number(ship.total_cost) - Number(ship.shipping_cost) - Number(ship.admin_cost);
+    const newTotal = goods + Number(edit.shipping_cost || 0) + Number(edit.admin_cost || 0);
+    const updates = {
+      arrival_date: edit.arrival_date,
+      received_by: edit.received_by,
+      shipping_cost: Number(edit.shipping_cost || 0),
+      admin_cost: Number(edit.admin_cost || 0),
+      notes: edit.notes || null,
+      total_cost: newTotal,
+    };
+    const label = `شحنة ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
+    if (isAdmin) {
+      const { error } = await supabase.from("shipments").update(updates).eq("id", ship.id);
+      setEditBusy(false);
+      if (error) return toast.error(error.message);
+      toast.success("تم حفظ التعديلات");
+      setEditOpen(false);
+      setShip({ ...ship, ...updates });
+    } else if (isManager) {
+      if (!editReason.trim()) { setEditBusy(false); return toast.error("اكتب سبب التعديل"); }
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "shipment", entityId: ship.id, entityLabel: label,
+        action: "update", payload: updates, reason: editReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      setEditBusy(false);
+      if (!ok) return;
+      setEditOpen(false);
+    } else { setEditBusy(false); return toast.error("غير مصرح"); }
+  };
+
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
 
@@ -84,6 +138,11 @@ export default function ShipmentView() {
             <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
               <Printer className="w-4 h-4" /> طباعة
             </Button>
+            {canEdit && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={openEdit}>
+                <Pencil className="w-4 h-4" /> {isAdmin ? "تعديل" : "طلب تعديل"}
+              </Button>
+            )}
             {canDelete && (
               <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDelOpen(true)}>
                 <Trash2 className="w-4 h-4" /> {isAdmin ? "حذف الشحنة" : "طلب حذف"}
@@ -232,6 +291,51 @@ export default function ShipmentView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{isManager && !isAdmin ? "طلب تعديل شحنة" : "تعديل بيانات الشحنة"}</DialogTitle>
+            <DialogDescription>
+              {isManager && !isAdmin ? "سيتم إرسال التعديلات للمدير للموافقة." : "تعديل البيانات الأساسية للشحنة."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>تاريخ الوصول</Label>
+              <Input type="date" className="mt-1.5" value={edit.arrival_date} onChange={(e) => setEdit({ ...edit, arrival_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>المستلم</Label>
+              <Input className="mt-1.5" value={edit.received_by} onChange={(e) => setEdit({ ...edit, received_by: e.target.value })} />
+            </div>
+            <div>
+              <Label>الشحن</Label>
+              <Input type="number" min={0} className="mt-1.5" value={edit.shipping_cost} onChange={(e) => setEdit({ ...edit, shipping_cost: Number(e.target.value) })} />
+            </div>
+            <div>
+              <Label>مصاريف إدارية</Label>
+              <Input type="number" min={0} className="mt-1.5" value={edit.admin_cost} onChange={(e) => setEdit({ ...edit, admin_cost: Number(e.target.value) })} />
+            </div>
+            <div className="col-span-2">
+              <Label>ملاحظات</Label>
+              <Textarea className="mt-1.5" value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+            </div>
+            {isManager && !isAdmin && (
+              <div className="col-span-2">
+                <Label>سبب التعديل *</Label>
+                <Input className="mt-1.5" value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="اكتب السبب..." />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editBusy}>تراجع</Button>
+            <Button onClick={handleEdit} disabled={editBusy}>
+              {editBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "حفظ")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
