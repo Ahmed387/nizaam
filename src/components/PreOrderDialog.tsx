@@ -10,7 +10,7 @@ import { formatEGP } from "@/lib/format";
 import { Loader2, BookmarkPlus } from "lucide-react";
 
 interface CatalogItem {
-  id: string;
+  id?: string | null;
   product_name: string;
   model_code?: string | null;
   display_price: number;
@@ -76,7 +76,7 @@ export function PreOrderDialog({
         p_customer_id: customerId || null,
         p_customer_name: custName,
         p_customer_phone: custPhone || null,
-        p_price_list_item_id: catalogItem.id,
+        p_price_list_item_id: catalogItem.id ?? null,
         p_product_name: catalogItem.product_name,
         p_model_code: catalogItem.model_code ?? null,
         p_quantity: qty,

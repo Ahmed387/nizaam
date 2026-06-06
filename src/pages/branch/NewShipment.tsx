@@ -17,6 +17,8 @@ import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
+import { ProductPicker } from "@/components/ProductPicker";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 interface Line {
   product_id: string | null;
@@ -71,12 +73,20 @@ export default function NewShipment() {
     toast.success("تمت إضافة المورد");
   };
 
+  const loadProducts = () => {
+    if (!branchId) return;
+    supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
+  };
+
   useEffect(() => {
     if (!branchId) return;
     supabase.from("contacts").select("*").order("name").then(({ data }) => setSuppliers(data ?? []));
-    supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
+    loadProducts();
     supabase.from("price_list_items_public").select("product_name, display_price").order("product_name").then(({ data }) => setPriceList((data ?? []).map((d: any) => ({ product_name: d.product_name, market_price: d.display_price, new_price: d.display_price }))));
   }, [branchId]);
+
+  // realtime: keep products list fresh while editing the shipment
+  useRealtimeRefresh(["products"], loadProducts);
 
   useEffect(() => {
     if (profile?.name && !receivedBy) setReceivedBy(profile.name);
@@ -330,46 +340,26 @@ export default function NewShipment() {
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2 min-w-[300px]">
-                    <select
-                      value={l.product_id ?? ""}
-                      onChange={(e) => {
-                        if (e.target.value === "__new__") {
-                          updateLine(i, { product_id: null, product_name: "", sku: genSku(), image: "" });
-                        } else handleProductChange(i, e.target.value);
-                      }}
-                      className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
-                    >
-                      <option value="">— اختر من مخزون الفرع —</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} — {p.sku} (متوفر: {p.quantity})</option>
-                      ))}
-                      <option value="__new__">+ منتج جديد</option>
-                    </select>
-                    {l.product_id === null && (
-                      <>
-                        {priceList.length > 0 && (
-                          <select
-                            value=""
-                            onChange={(e) => e.target.value && handlePriceListPick(i, e.target.value)}
-                            className="w-full bg-surface border border-border rounded-md px-2 py-1.5 text-sm mb-1"
-                          >
-                            <option value="">— أو اختر من قائمة الأسعار —</option>
-                            {priceList.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.product_name}{p.sku ? ` — ${p.sku}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        <Input
-                          placeholder="اسم المنتج الجديد"
-                          value={l.product_name}
-                          onChange={(e) => updateLine(i, { product_name: e.target.value })}
-                        />
-                      </>
+                  <td className="px-3 py-2 min-w-[320px]">
+                    <ProductPicker
+                      branchId={branchId!}
+                      value={l.product_id}
+                      onPick={(p) => updateLine(i, {
+                        product_id: p.id,
+                        product_name: p.name,
+                        sku: p.sku,
+                        cost_price: Number(p.cost_price),
+                        image: p.image ?? "",
+                      })}
+                      triggerLabel="— اختر من مخزون الفرع —"
+                    />
+                    {l.product_id === null && l.product_name && (
+                      <div className="mt-1.5 text-[11px] text-success bg-success/10 rounded px-2 py-1">
+                        صنف جديد: {l.product_name}
+                      </div>
                     )}
                   </td>
+
                   <td className="px-3 py-2 w-40">
                     <Input
                       value={l.sku}
