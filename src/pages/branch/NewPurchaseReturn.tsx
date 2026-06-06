@@ -348,46 +348,48 @@ export default function NewPurchaseReturn() {
             )}
           </div>
 
-          {/* Lines */}
+          {/* Lines (locked to shipment) */}
           <div className="card-elevated p-4">
-            <div className="flex items-center justify-between mb-3 gap-2">
-              <Label>المنتجات المُرتجعة</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="بحث منتج بالاسم/الكود..."
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  className="h-9 w-56"
-                />
-                <Button size="sm" variant="outline" onClick={() => setCameraOpen(true)} title="مسح باركود"><Camera className="w-4 h-4" /></Button>
-                <Button size="sm" variant="outline" onClick={addLine} className="gap-1"><Plus className="w-3 h-3" /> إضافة سطر</Button>
+            <Label className="mb-3 block">المنتجات المُرتجعة</Label>
+            {!shipmentId ? (
+              <div className="text-center text-sm text-muted-foreground py-8">اختر فاتورة شراء لعرض المنتجات</div>
+            ) : lines.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-8">لا توجد منتجات قابلة للإرجاع في هذه الفاتورة</div>
+            ) : (
+              <div className="space-y-2">
+                {lines.map((l, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center p-2 border rounded">
+                    <div className="col-span-5 text-sm">
+                      <div className="font-medium">{l.product_name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        <b>متاح للإرجاع: {l.max_qty}</b>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={l.max_qty}
+                        value={l.quantity}
+                        disabled={l.max_qty === 0}
+                        onChange={(e) => {
+                          const v = Math.max(0, Math.min(l.max_qty, Number(e.target.value)));
+                          updateLine(i, { quantity: v });
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-3 text-sm text-muted-foreground text-center">
+                      التكلفة: <b>{formatEGP(l.unit_cost)}</b>
+                    </div>
+                    <div className="col-span-2 text-sm text-center font-bold text-primary">
+                      {formatEGP(l.quantity * l.unit_cost)}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="space-y-2">
-              {lines.map((l, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                  <div className="col-span-5">
-                    <Select value={l.product_id} onValueChange={(v) => onProduct(i, v)}>
-                      <SelectTrigger><SelectValue placeholder="منتج" /></SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {filteredProducts.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} (متاح: {p.quantity})</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2">
-                    <Input type="number" min={1} max={l.max_qty} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} placeholder="كمية" />
-                    {l.max_qty > 0 && <div className="text-[10px] text-muted-foreground mt-0.5">متاح: {l.max_qty}</div>}
-                  </div>
-                  <div className="col-span-3">
-                    <Input type="number" step="0.01" value={l.unit_cost} onChange={(e) => updateLine(i, { unit_cost: Number(e.target.value) })} placeholder="التكلفة" />
-                  </div>
-                  <div className="col-span-1 text-sm text-muted-foreground text-center">{formatEGP(l.quantity * l.unit_cost)}</div>
-                  <div className="col-span-1"><Button size="icon" variant="ghost" onClick={() => removeLine(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button></div>
-                </div>
-              ))}
-              {lines.length === 0 && <div className="text-center text-sm text-muted-foreground py-6">أضف سطر أو استخدم "اختيار من فاتورة شراء"</div>}
-            </div>
+            )}
           </div>
+
 
           {/* Reason + notes */}
           <div className="card-elevated p-4 space-y-3">
