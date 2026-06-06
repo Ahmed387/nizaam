@@ -105,6 +105,37 @@ export default function NewShipment() {
     if (profile?.name && !receivedBy) setReceivedBy(profile.name);
   }, [profile]);
 
+  const [editReason, setEditReason] = useState("");
+  const [loadedEdit, setLoadedEdit] = useState(false);
+
+  // Load shipment data in edit mode
+  useEffect(() => {
+    if (!isEdit || !shipmentId || loadedEdit) return;
+    (async () => {
+      const { data: s } = await supabase.from("shipments").select("*").eq("id", shipmentId).maybeSingle();
+      const { data: it } = await supabase.from("shipment_items").select("*").eq("shipment_id", shipmentId);
+      if (!s) { toast.error("الشحنة غير موجودة"); return; }
+      setSupplierId(s.contact_id ?? "");
+      setArrival((s.arrival_date ?? "").slice(0, 10));
+      setReceivedBy(s.received_by ?? "");
+      setShipping(Number(s.shipping_cost ?? 0));
+      setAdmin(Number(s.admin_cost ?? 0));
+      setNotes(s.notes ?? "");
+      setLines((it ?? []).map((r: any) => ({
+        id: r.id,
+        product_id: r.product_id,
+        product_name: r.product_name,
+        sku: "",
+        quantity: Number(r.quantity),
+        cost_price: Number(r.cost_price),
+        discount_percent: Number(r.discount_percent ?? 0),
+        discount_amount: Number(r.discount_amount ?? 0),
+        image: "",
+      })));
+      setLoadedEdit(true);
+    })();
+  }, [isEdit, shipmentId, loadedEdit]);
+
   const addLine = () =>
     setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "" }]);
 
