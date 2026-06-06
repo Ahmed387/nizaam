@@ -503,6 +503,13 @@ export default function Invoices() {
                 </Button>
               </PermGate>
             )}
+            {tab === "sale_return" && (
+              <PermGate perm="sales.create">
+                <Button className="gap-2" onClick={() => setPickInvoiceOpen(true)}>
+                  <Plus className="w-4 h-4" /> إنشاء مرتجع بيع
+                </Button>
+              </PermGate>
+            )}
 
           </div>
         }
