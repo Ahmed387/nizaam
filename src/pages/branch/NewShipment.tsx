@@ -102,7 +102,11 @@ export default function NewShipment() {
   }, [profile]);
 
   const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, image: "" }]);
+    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "" }]);
+
+  const itemsGross = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
+  const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
+  const itemsNet = itemsGross - itemsDiscount;
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
