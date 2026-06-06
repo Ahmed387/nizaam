@@ -138,6 +138,11 @@ export default function ShipmentView() {
             <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
               <Printer className="w-4 h-4" /> طباعة
             </Button>
+            {canEdit && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={openEdit}>
+                <Pencil className="w-4 h-4" /> {isAdmin ? "تعديل" : "طلب تعديل"}
+              </Button>
+            )}
             {canDelete && (
               <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDelOpen(true)}>
                 <Trash2 className="w-4 h-4" /> {isAdmin ? "حذف الشحنة" : "طلب حذف"}
