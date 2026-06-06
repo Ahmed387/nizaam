@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { PartyCombobox } from "@/components/PartyCombobox";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { createApprovalRequest } from "@/lib/approvalRequests";
 
 interface Line {
   id?: string | null;
