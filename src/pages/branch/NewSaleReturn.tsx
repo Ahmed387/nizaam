@@ -66,7 +66,7 @@ export default function NewSaleReturn() {
   const [balancePart, setBalancePart] = useState(0);
 
   // Invoice picker
-  const [pickOpen, setPickOpen] = useState(!presetInvoiceId);
+  const [pickOpen, setPickOpen] = useState(false);
   const [pickQuery, setPickQuery] = useState("");
 
   // Print dialog
