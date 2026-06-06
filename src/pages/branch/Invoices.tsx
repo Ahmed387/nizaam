@@ -93,6 +93,34 @@ export default function Invoices() {
     } else { setDelBusy(false); return; }
     setDelTarget(null); setDelReason(""); load();
   };
+
+  // Shipment delete (purchase tab)
+  const [delShipment, setDelShipment] = useState<any>(null);
+  const [delShipReason, setDelShipReason] = useState("");
+  const [delShipBusy, setDelShipBusy] = useState(false);
+  const handleDeleteShipment = async () => {
+    if (!delShipment) return;
+    setDelShipBusy(true);
+    const label = `شحنة ${delShipment.shipment_number ?? ""} - ${delShipment.contacts?.name ?? ""}`;
+    if (isAdmin) {
+      const { error } = await supabase.from("shipments").delete().eq("id", delShipment.id);
+      setDelShipBusy(false);
+      if (error) return toast.error(error.message);
+      toast.success(`تم حذف ${label}`);
+    } else if (isManager) {
+      if (!delShipReason.trim()) { setDelShipBusy(false); return toast.error("اكتب سبب الحذف"); }
+      const ok = await (await import("@/lib/approvalRequests")).createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "shipment", entityId: delShipment.id, entityLabel: label,
+        action: "delete", reason: delShipReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      setDelShipBusy(false);
+      if (!ok) return;
+    } else { setDelShipBusy(false); return toast.error("غير مصرح"); }
+    setDelShipment(null); setDelShipReason(""); load();
+  };
+
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
