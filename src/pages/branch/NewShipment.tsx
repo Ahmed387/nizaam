@@ -184,7 +184,71 @@ export default function NewShipment() {
     }
   };
 
+  const submitEdit = async () => {
+    if (!shipmentId) return;
+    if (!lines.length) return toast.error("لا يمكن حفظ شحنة بدون أصناف");
+    for (const l of lines) {
+      if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
+        return toast.error("تأكد من بيانات كل المنتجات");
+    }
+    const header = {
+      arrival_date: arrival,
+      received_by: receivedBy.trim(),
+      shipping_cost: Number(shipping || 0),
+      admin_cost: Number(admin || 0),
+      notes: notes.trim(),
+    };
+    const items = lines.map((l) => ({
+      id: l.id ?? null,
+      product_id: l.product_id,
+      product_name: l.product_name.trim(),
+      sku: l.sku || null,
+      image: l.image || null,
+      quantity: l.quantity,
+      cost_price: l.cost_price,
+      discount_percent: l.discount_percent || 0,
+      discount_amount: l.discount_amount || 0,
+    }));
+
+    setBusy(true);
+    try {
+      if (isAdmin) {
+        const { data, error } = await (supabase as any).rpc("edit_shipment", {
+          p_shipment_id: shipmentId,
+          p_header: header,
+          p_items: items,
+        });
+        if (error) throw error;
+        toast.success("تم حفظ التعديلات");
+        if ((data as any)?.plan_overpaid) {
+          toast.warning("تنبيه: المبلغ المدفوع أكبر من الإجمالي الجديد — راجع خطة الدفع");
+        }
+        nav(`/branch/${branchId}/shipments/${shipmentId}`);
+      } else if (isManager) {
+        if (!editReason.trim()) { setBusy(false); return toast.error("اكتب سبب التعديل"); }
+        const ok = await createApprovalRequest({
+          tenantId: tenantId!, branchId: branchId ?? null,
+          entityType: "shipment", entityId: shipmentId,
+          entityLabel: `تعديل شحنة #${shipmentId.slice(0, 8)}`,
+          action: "update",
+          payload: { header, items },
+          reason: editReason,
+          requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+        });
+        if (!ok) return;
+        nav(`/branch/${branchId}/shipments/${shipmentId}`);
+      } else {
+        toast.error("غير مصرح");
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? "خطأ في حفظ التعديلات");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
+    if (isEdit) return submitEdit();
     if (!supplierId) return toast.error("اختر المورد");
     if (!receivedBy.trim()) return toast.error("أدخل اسم المستلم");
     if (!lines.length) return toast.error("أضف منتجاً واحداً على الأقل");
