@@ -307,9 +307,15 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
                   <div key={r.id} className="flex items-center justify-between gap-2 py-2 border-t border-border text-sm">
-                    <div className="flex-1">{r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span></div>
+                    <div className="flex-1">
+                      {r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span>
+                      {r.status === "confirmed" && r.received_quantity !== null && r.received_quantity !== r.quantity && (
+                        <span className="text-xs text-warning mr-2">(مستلم {r.received_quantity} — رجع {r.quantity - r.received_quantity} لمخزنك)</span>
+                      )}
+                    </div>
                     <div>{statusBadge(r.status)}</div>
                   </div>
+
                 ))}
               </div>
             </div>
