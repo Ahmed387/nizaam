@@ -200,20 +200,24 @@ export default function NewShipment() {
           if (ep) throw ep;
           pid = np.id;
         }
+        const net = lineNet(l);
+        const netUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
         await supabase.from("shipment_items").insert({
           shipment_id: ship.id,
           product_id: pid,
           product_name: l.product_name,
           quantity: l.quantity,
           cost_price: l.cost_price,
-          total: l.quantity * l.cost_price,
+          discount_percent: Number(l.discount_percent) || 0,
+          discount_amount: Number(l.discount_amount) || 0,
+          total: net,
         });
-        // Update product stock + cost
+        // Update product stock + cost (use net unit cost after discount)
         const cur = products.find((p) => p.id === pid);
         const newQty = (cur?.quantity ?? 0) + l.quantity;
         await supabase
           .from("products")
-          .update({ quantity: newQty, cost_price: l.cost_price })
+          .update({ quantity: newQty, cost_price: netUnit })
           .eq("id", pid);
       }
 
