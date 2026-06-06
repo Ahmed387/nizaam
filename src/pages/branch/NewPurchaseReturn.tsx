@@ -166,12 +166,12 @@ export default function NewPurchaseReturn() {
   const submit = async (asDraft = false) => {
     if (busy) return;
     if (!supplier) return toast.error("اختر المورد");
+    if (!shipmentId) return toast.error("اختر فاتورة شراء أولاً");
     if (!finalReason) return toast.error("اكتب السبب");
-    if (lines.length === 0) return toast.error("أضف منتج واحد على الأقل");
-    for (const l of lines) {
-      if (!l.product_id) return toast.error("اختر منتج لكل سطر");
-      if (l.quantity <= 0) return toast.error("الكمية لازم تكون أكبر من صفر");
-      if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name}`);
+    const activeLines = lines.filter((l) => l.quantity > 0);
+    if (activeLines.length === 0) return toast.error("اختر منتج واحد على الأقل لإرجاعه");
+    for (const l of activeLines) {
+      if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name} (متاح: ${l.max_qty})`);
     }
     if (!asDraft) {
       if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
