@@ -139,7 +139,7 @@ export default function ShipmentView() {
               <Printer className="w-4 h-4" /> طباعة
             </Button>
             {canEdit && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={openEdit}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => nav(`/branch/${branchId}/shipments/${ship.id}/edit`)}>
                 <Pencil className="w-4 h-4" /> {isAdmin ? "تعديل" : "طلب تعديل"}
               </Button>
             )}
