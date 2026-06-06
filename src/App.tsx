@@ -6,6 +6,11 @@ function RedirectToTreasury() {
   return <Navigate to={`/branch/${id}/treasury`} replace />;
 }
 
+function RedirectReturnsToInvoices() {
+  const { id } = useParams();
+  return <Navigate to={`/branch/${id}/invoices?tab=sale_return`} replace />;
+}
+
 function RedirectCustomerToContact() {
   const { id, contactId } = useParams();
   return <Navigate to={`/branch/${id}/contacts/${contactId}`} replace />;
@@ -178,7 +183,7 @@ const App = () => (
             <Route path="/branch/:id/quotes/new" element={<ProtectedRoute perm="sales.create"><NewQuote /></ProtectedRoute>} />
             <Route path="/branch/:id/adjustments/new" element={<ProtectedRoute perm="inventory.update"><NewStockAdjustment /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/new" element={<ProtectedRoute perm="sales.create"><NewSale /></ProtectedRoute>} />
-            <Route path="/branch/:id/sales/returns" element={<Navigate to="../invoices?tab=sale_return" replace />} />
+            <Route path="/branch/:id/sales/returns" element={<RedirectReturnsToInvoices />} />
             <Route path="/branch/:id/sales/returns/new" element={<ProtectedRoute perm="sales.create"><NewReturn /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute perm="sales.view"><InvoiceView /></ProtectedRoute>} />
             <Route path="/branch/:id/pre-orders" element={<ProtectedRoute perm="preorders.view"><PreOrders /></ProtectedRoute>} />
