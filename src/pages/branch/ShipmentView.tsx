@@ -291,6 +291,51 @@ export default function ShipmentView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{isManager && !isAdmin ? "طلب تعديل شحنة" : "تعديل بيانات الشحنة"}</DialogTitle>
+            <DialogDescription>
+              {isManager && !isAdmin ? "سيتم إرسال التعديلات للمدير للموافقة." : "تعديل البيانات الأساسية للشحنة."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>تاريخ الوصول</Label>
+              <Input type="date" className="mt-1.5" value={edit.arrival_date} onChange={(e) => setEdit({ ...edit, arrival_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>المستلم</Label>
+              <Input className="mt-1.5" value={edit.received_by} onChange={(e) => setEdit({ ...edit, received_by: e.target.value })} />
+            </div>
+            <div>
+              <Label>الشحن</Label>
+              <Input type="number" min={0} className="mt-1.5" value={edit.shipping_cost} onChange={(e) => setEdit({ ...edit, shipping_cost: Number(e.target.value) })} />
+            </div>
+            <div>
+              <Label>مصاريف إدارية</Label>
+              <Input type="number" min={0} className="mt-1.5" value={edit.admin_cost} onChange={(e) => setEdit({ ...edit, admin_cost: Number(e.target.value) })} />
+            </div>
+            <div className="col-span-2">
+              <Label>ملاحظات</Label>
+              <Textarea className="mt-1.5" value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+            </div>
+            {isManager && !isAdmin && (
+              <div className="col-span-2">
+                <Label>سبب التعديل *</Label>
+                <Input className="mt-1.5" value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="اكتب السبب..." />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editBusy}>تراجع</Button>
+            <Button onClick={handleEdit} disabled={editBusy}>
+              {editBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "حفظ")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
