@@ -40,6 +40,10 @@ export function ShipmentLineProductCell({
 }) {
   const [source, setSource] = useState<Source>(value.product_id ? "inventory" : "manual");
   const [available, setAvailable] = useState<number | null>(null);
+  const [manualMatches, setManualMatches] = useState<{
+    inventory: { id: string; name: string; sku: string; quantity: number; cost_price: number; image: string | null }[];
+    pricelist: PriceListRow[];
+  }>({ inventory: [], pricelist: [] });
 
   // keep "available" in sync when product changes
   const refreshAvailable = useCallback(async () => {
@@ -49,6 +53,35 @@ export function ShipmentLineProductCell({
   }, [value.product_id]);
   useEffect(() => { refreshAvailable(); }, [refreshAvailable]);
   useRealtimeRefresh(["products"], refreshAvailable);
+
+  // Search inventory + price list when typing manually
+  useEffect(() => {
+    if (source !== "manual") { setManualMatches({ inventory: [], pricelist: [] }); return; }
+    const q = value.product_name.trim();
+    if (q.length < 2) { setManualMatches({ inventory: [], pricelist: [] }); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const esc = q.replace(/[%,()]/g, " ");
+      const [invRes, plRes] = await Promise.all([
+        supabase.from("products")
+          .select("id, name, sku, quantity, cost_price, image")
+          .eq("branch_id", branchId)
+          .or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`)
+          .limit(5),
+        supabase.from("price_list_items_public")
+          .select("id, product_name, model_code, supplier_name, display_price")
+          .eq("is_active", true)
+          .or(`product_name.ilike.%${esc}%,model_code.ilike.%${esc}%`)
+          .limit(5),
+      ]);
+      if (cancelled) return;
+      setManualMatches({
+        inventory: (invRes.data ?? []) as any,
+        pricelist: (plRes.data ?? []) as any,
+      });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [source, value.product_name, branchId]);
 
   return (
     <div className="space-y-2">
@@ -93,20 +126,63 @@ export function ShipmentLineProductCell({
       )}
 
       {source === "manual" && (
-        <Input
-          autoFocus={!value.product_name}
-          placeholder="اكتب اسم المنتج..."
-          value={value.product_name}
-          onChange={(e) => onChange({
-            product_id: null,
-            product_name: e.target.value,
-            sku: value.sku,
-            cost_price: 0,
-            image: value.image,
-            source: "manual",
-            available: null,
-          })}
-        />
+        <>
+          <Input
+            autoFocus={!value.product_name}
+            placeholder="اكتب اسم المنتج..."
+            value={value.product_name}
+            onChange={(e) => onChange({
+              product_id: null,
+              product_name: e.target.value,
+              sku: value.sku,
+              cost_price: 0,
+              image: value.image,
+              source: "manual",
+              available: null,
+            })}
+          />
+          {(manualMatches.inventory.length > 0 || manualMatches.pricelist.length > 0) && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-1.5 text-[11px]">
+              <div className="font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                ⚠️ هذا المنتج موجود بالفعل — يفضّل الاختيار منه:
+              </div>
+              {manualMatches.inventory.map((p) => (
+                <button
+                  key={`inv-${p.id}`}
+                  type="button"
+                  onClick={() => { setSource("inventory"); onChange({ product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", source: "inventory", available: Number(p.quantity) }); }}
+                  className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-background hover:bg-accent border border-border text-right"
+                >
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <Package className="w-3 h-3 text-primary shrink-0" />
+                    <span className="truncate font-medium">{p.name}</span>
+                    {p.sku && <span className="text-muted-foreground">({p.sku})</span>}
+                  </span>
+                  <span className={cn("shrink-0 font-semibold", Number(p.quantity) > 0 ? "text-success" : "text-destructive")}>
+                    مخزون: {p.quantity}
+                  </span>
+                </button>
+              ))}
+              {manualMatches.pricelist.map((r) => (
+                <button
+                  key={`pl-${r.id}`}
+                  type="button"
+                  onClick={() => { setSource("pricelist"); onChange({ product_id: null, product_name: r.product_name, sku: r.model_code || "", cost_price: Number(r.display_price ?? 0), image: "", source: "pricelist", available: null }); }}
+                  className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-background hover:bg-accent border border-border text-right"
+                >
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <Tag className="w-3 h-3 text-amber-600 shrink-0" />
+                    <span className="truncate font-medium">{r.product_name}</span>
+                    {r.model_code && <span className="text-muted-foreground">({r.model_code})</span>}
+                  </span>
+                  <span className="shrink-0 text-primary font-semibold">
+                    {Number(r.display_price ?? 0).toLocaleString()} ج
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Selected product info */}
