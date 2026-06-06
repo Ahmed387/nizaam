@@ -166,11 +166,13 @@ export default function PreOrders() {
         <CancelDialog po={cancelFor} onClose={() => setCancelFor(null)} onDone={() => { setCancelFor(null); load(); }} />
       )}
 
-      <CatalogPicker
+      <OutOfStockPicker
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
+        branchId={branchId!}
         onPick={(item) => { setPickerOpen(false); setPickedItem(item); }}
       />
+
 
       <PreOrderDialog
         open={!!pickedItem}
