@@ -17,6 +17,8 @@ import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
+import { ProductPicker } from "@/components/ProductPicker";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 interface Line {
   product_id: string | null;
