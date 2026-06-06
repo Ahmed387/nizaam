@@ -503,7 +503,7 @@ export default function NewSaleReturn() {
       </div>
 
       {/* Invoice picker */}
-      <Dialog open={pickOpen} onOpenChange={(o) => { setPickOpen(o); if (!o && !invoice) nav(`/branch/${branchId}/invoices?tab=sale_return`); }}>
+      <Dialog open={pickOpen} onOpenChange={setPickOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>اختر فاتورة لإنشاء مرتجع</DialogTitle>
