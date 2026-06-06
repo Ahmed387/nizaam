@@ -139,13 +139,13 @@ export default function BranchDashboard() {
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة</h3>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
           {shortcuts.map((s) => (
-            <Link key={s.label} to={s.to}
+            <a key={s.label} href={s.to} target="_blank" rel="noopener noreferrer"
               className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all group">
               <div className={`w-11 h-11 rounded-full ${s.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <span className="text-[11px] font-semibold text-center leading-tight">{s.label}</span>
-            </Link>
+            </a>
           ))}
         </div>
       </div>
