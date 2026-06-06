@@ -1,16 +1,30 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt } from "lucide-react";
+import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, Trash2, Printer, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { createApprovalRequest } from "@/lib/approvalRequests";
+import { toast } from "sonner";
 
 export default function ShipmentView() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId: string }>();
+  const nav = useNavigate();
+  const { isAdmin, hasRole, tenantId, user, profile } = useAuth();
+  const isManager = hasRole("branch_manager");
+  const canDelete = isAdmin || isManager;
   const [ship, setShip] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delReason, setDelReason] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -25,6 +39,31 @@ export default function ShipmentView() {
     })();
   }, [shipmentId]);
 
+  const handleDelete = async () => {
+    if (!ship) return;
+    setDelBusy(true);
+    const label = `شحنة ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
+    if (isAdmin) {
+      const { error } = await supabase.from("shipments").delete().eq("id", ship.id);
+      setDelBusy(false);
+      if (error) return toast.error(error.message);
+      toast.success(`تم حذف ${label}`);
+      nav(`/branch/${branchId}/invoices?tab=purchase`);
+    } else if (isManager) {
+      if (!delReason.trim()) { setDelBusy(false); return toast.error("اكتب سبب الحذف"); }
+      const ok = await createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "shipment", entityId: ship.id, entityLabel: label,
+        action: "delete", reason: delReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      setDelBusy(false);
+      if (!ok) return;
+      toast.success("تم إرسال طلب الحذف للموافقة");
+      setDelOpen(false); setDelReason("");
+    } else { setDelBusy(false); return toast.error("غير مصرح"); }
+  };
+
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
 
@@ -34,7 +73,25 @@ export default function ShipmentView() {
 
   return (
     <BranchLayout>
-      <PageHeader title={`شحنة #${ship.id.slice(0, 8)}`} subtitle={formatDate(ship.arrival_date)} />
+      <PageHeader
+        title={`شحنة ${ship.shipment_number ?? `#${ship.id.slice(0, 8)}`}`}
+        subtitle={formatDate(ship.arrival_date)}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=purchase`)} className="gap-2">
+              <ArrowRight className="w-4 h-4" /> رجوع
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
+              <Printer className="w-4 h-4" /> طباعة
+            </Button>
+            {canDelete && (
+              <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDelOpen(true)}>
+                <Trash2 className="w-4 h-4" /> {isAdmin ? "حذف الشحنة" : "طلب حذف"}
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card-elevated p-4 space-y-3">
@@ -148,6 +205,33 @@ export default function ShipmentView() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={delOpen} onOpenChange={(o) => { if (!o) { setDelOpen(false); setDelReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              {isManager && !isAdmin ? "طلب حذف شحنة للموافقة" : "حذف الشحنة"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isManager && !isAdmin
+                ? <>سيتم إرسال طلب حذف الشحنة لمدير الشركة للموافقة.</>
+                : <>هل أنت متأكد من حذف هذه الشحنة؟ لن يمكن التراجع.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isManager && !isAdmin && (
+            <div className="px-1">
+              <Label>سبب الحذف *</Label>
+              <Input className="mt-1.5" value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="اكتب السبب..." />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {delBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BranchLayout>
   );
 }
