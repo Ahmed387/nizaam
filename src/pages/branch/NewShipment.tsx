@@ -343,13 +343,15 @@ export default function NewShipment() {
                 <th className="px-3 py-2 text-right">الكود (SKU)</th>
                 <th className="px-3 py-2 text-right">الكمية</th>
                 <th className="px-3 py-2 text-right">سعر التكلفة</th>
-                <th className="px-3 py-2 text-right">الإجمالي</th>
+                <th className="px-3 py-2 text-right">خصم %</th>
+                <th className="px-3 py-2 text-right">خصم مبلغ</th>
+                <th className="px-3 py-2 text-right">الصافي</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
+                <tr><td colSpan={9} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
               )}
               {lines.map((l, i) => (
                 <tr key={i} className="border-b border-border align-top">
