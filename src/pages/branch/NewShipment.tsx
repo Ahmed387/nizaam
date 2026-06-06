@@ -26,9 +26,18 @@ interface Line {
   sku: string;
   quantity: number;
   cost_price: number;
+  discount_percent: number;
+  discount_amount: number;
   image: string;
   uploadingImg?: boolean;
 }
+
+// صافي السطر بعد الخصم (نسبة + مبلغ ثابت معاً)
+const lineNet = (l: Line) => {
+  const gross = (Number(l.quantity) || 0) * (Number(l.cost_price) || 0);
+  const afterPct = gross - (gross * (Number(l.discount_percent) || 0)) / 100;
+  return Math.max(0, afterPct - (Number(l.discount_amount) || 0));
+};
 
 // توليد كود فريد للمنتج الجديد
 const genSku = () =>
