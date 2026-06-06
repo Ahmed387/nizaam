@@ -203,7 +203,7 @@ export default function NewPurchaseReturn() {
       const number = (pr as any).return_number as string;
 
 
-      const items = lines.map((l) => ({
+      const items = activeLines.map((l) => ({
         purchase_return_id: (pr as any).id,
         product_id: l.product_id,
         product_name: l.product_name,
@@ -215,7 +215,7 @@ export default function NewPurchaseReturn() {
       if (e2) throw e2;
 
       if (!asDraft) {
-        for (const l of lines) {
+        for (const l of activeLines) {
           const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
           if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
         }
