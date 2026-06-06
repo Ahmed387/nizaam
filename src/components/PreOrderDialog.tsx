@@ -10,7 +10,7 @@ import { formatEGP } from "@/lib/format";
 import { Loader2, BookmarkPlus } from "lucide-react";
 
 interface CatalogItem {
-  id: string;
+  id?: string | null;
   product_name: string;
   model_code?: string | null;
   display_price: number;
