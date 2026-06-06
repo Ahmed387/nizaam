@@ -92,11 +92,13 @@ export default function ShipmentView() {
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-4 py-3 text-right">المنتج</th>
                 <th className="px-4 py-3 text-right">الكود</th>
-                <th className="px-4 py-3 text-right">الكمية المستلمة</th>
+                <th className="px-4 py-3 text-right">الكمية</th>
                 <th className="px-4 py-3 text-right">سعر التكلفة</th>
+                <th className="px-4 py-3 text-right">خصم %</th>
+                <th className="px-4 py-3 text-right">خصم مبلغ</th>
                 <th className="px-4 py-3 text-right">سعر البيع الحالي</th>
-                <th className="px-4 py-3 text-right">المخزون الحالي</th>
-                <th className="px-4 py-3 text-right">الإجمالي</th>
+                <th className="px-4 py-3 text-right">المخزون</th>
+                <th className="px-4 py-3 text-right">الصافي</th>
               </tr>
             </thead>
             <tbody>
