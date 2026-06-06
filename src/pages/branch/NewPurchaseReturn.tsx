@@ -98,18 +98,40 @@ export default function NewPurchaseReturn() {
     setShipments(data ?? []);
   };
 
-  const useShipment = (ship: any) => {
+  const useShipment = async (ship: any) => {
+    // Compute already-returned per product for this shipment
+    const { data: prevReturns } = await supabase
+      .from("purchase_returns" as any)
+      .select("id, status")
+      .eq("shipment_id", ship.id)
+      .eq("status", "active");
+    const prevIds = (prevReturns ?? []).map((r: any) => r.id);
+    let prevByProduct: Record<string, number> = {};
+    if (prevIds.length) {
+      const { data: prevItems } = await supabase
+        .from("purchase_return_items" as any)
+        .select("product_id, quantity")
+        .in("purchase_return_id", prevIds);
+      (prevItems ?? []).forEach((it: any) => {
+        if (!it.product_id) return;
+        prevByProduct[it.product_id] = (prevByProduct[it.product_id] ?? 0) + Number(it.quantity);
+      });
+    }
+
     setShipmentId(ship.id);
     const newLines: Line[] = (ship.shipment_items ?? [])
       .filter((it: any) => it.product_id)
       .map((it: any) => {
-        const p = products.find((x) => x.id === it.product_id);
+        const shipped = Number(it.quantity);
+        const ret = prevByProduct[it.product_id] ?? 0;
+        const inStock = (products.find((x) => x.id === it.product_id)?.quantity) ?? 0;
+        const max = Math.max(0, Math.min(shipped - ret, inStock));
         return {
           product_id: it.product_id,
           product_name: it.product_name,
-          quantity: Math.min(it.quantity, p?.quantity ?? 0),
+          quantity: max,
           unit_cost: Number(it.cost_price),
-          max_qty: p?.quantity ?? 0,
+          max_qty: max,
         };
       });
     setLines(newLines);
@@ -117,14 +139,8 @@ export default function NewPurchaseReturn() {
     toast.success(`تم تحميل ${newLines.length} منتج من الفاتورة`);
   };
 
-  const addLine = () => setLines([...lines, { product_id: "", product_name: "", quantity: 1, unit_cost: 0, max_qty: 0 }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const updateLine = (i: number, patch: Partial<Line>) => setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
-  const onProduct = (i: number, pid: string) => {
-    const p = products.find((x) => x.id === pid);
-    if (!p) return;
-    updateLine(i, { product_id: pid, product_name: p.name, unit_cost: Number(p.cost_price), max_qty: p.quantity });
-  };
 
   const filteredProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
