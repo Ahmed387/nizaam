@@ -131,6 +131,37 @@ export default function SupplierProfile() {
     load();
   }, [supplierId]);
 
+  // Realtime: تحديث تلقائي عند أي دفعة/شحنة/تعديل للمورد
+  useEffect(() => {
+    if (!supplierId) return;
+    const channel = supabase
+      .channel(`supplier-${supplierId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_transactions", filter: `contact_id=eq.${supplierId}` },
+        () => load()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "shipments", filter: `contact_id=eq.${supplierId}` },
+        () => load()
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "contacts", filter: `id=eq.${supplierId}` },
+        () => load()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_plans", filter: `entity_id=eq.${supplierId}` },
+        () => load()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supplierId]);
+
   useEffect(() => {
     if (supplier) {
       setEdit({
