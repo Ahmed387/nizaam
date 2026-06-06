@@ -80,6 +80,16 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
       onChange({ ...value, paidNow: total, splits: recalcFees(splits, fees) });
     } else if (value.mode === "credit") {
       onChange({ ...value, paidNow: 0, splits: [newSplit(0)] });
+    } else if (value.mode === "partial") {
+      // When switching from full → partial, paidNow may equal total (leaving 0 for installments).
+      // Reset to a sensible default (half of total) so المتبقي > 0 and auto-calc works.
+      if (value.paidNow >= total && total > 0) {
+        const half = Math.round((total / 2) * 100) / 100;
+        const splits = value.splits.length === 1
+          ? [{ ...value.splits[0], amount: half }]
+          : value.splits;
+        onChange({ ...value, paidNow: half, splits: recalcFees(splits, fees) });
+      }
     }
     // eslint-disable-next-line
   }, [value.mode, total]);
