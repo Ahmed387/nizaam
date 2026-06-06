@@ -263,11 +263,23 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
-                  <div key={r.id} className="flex items-center justify-between gap-2 py-2 border-t border-border text-sm">
-                    <div className="flex-1">{r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span></div>
+                  <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-t border-border text-sm">
+                    <div className="flex-1 min-w-[160px]">
+                      {r.products?.name ?? "—"} <span className="text-muted-foreground">× {r.quantity}</span>
+                      {r.status === "confirmed" && r.received_quantity !== null && r.received_quantity !== r.quantity && (
+                        <span className="text-xs text-warning mr-2">(مستلم {r.received_quantity} / {r.quantity})</span>
+                      )}
+                    </div>
                     <div>{statusBadge(r.status)}</div>
                     {r.status === "pending" && (
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={r.quantity}
+                          value={recvQty[r.id] ?? String(r.quantity)}
+                          onChange={(e) => setRecvQty((m) => ({ ...m, [r.id]: e.target.value }))}
+                          className="w-20 h-8"
+                          title="الكمية المستلمة فعلياً"
+                        />
                         <Button size="sm" onClick={() => confirmTransfer(r)} className="gap-1"><Check className="w-3 h-3" /> استلام</Button>
                         <Button size="sm" variant="outline" onClick={() => rejectTransfer(r)} className="gap-1 text-destructive"><X className="w-3 h-3" /> رفض</Button>
                       </div>
@@ -275,6 +287,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   </div>
                 ))}
               </div>
+
             </div>
           ))}
         </TabsContent>
