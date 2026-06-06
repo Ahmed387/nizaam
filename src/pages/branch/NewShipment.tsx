@@ -45,8 +45,10 @@ const genSku = () =>
   `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export default function NewShipment() {
-  const { id: branchId } = useParams<{ id: string }>();
-  const { user, profile } = useAuth();
+  const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId?: string }>();
+  const isEdit = !!shipmentId;
+  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
+  const isManager = hasRole("branch_manager");
   const nav = useNavigate();
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
