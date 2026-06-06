@@ -398,7 +398,18 @@ export default function NewShipment() {
                   <td className="px-3 py-2 w-32">
                     <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} />
                   </td>
-                  <td className="px-3 py-2 w-32 font-bold">{formatEGP(l.quantity * l.cost_price)}</td>
+                  <td className="px-3 py-2 w-24">
+                    <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" />
+                  </td>
+                  <td className="px-3 py-2 w-28">
+                    <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" />
+                  </td>
+                  <td className="px-3 py-2 w-32 font-bold">
+                    {formatEGP(lineNet(l))}
+                    {(l.discount_percent > 0 || l.discount_amount > 0) && (
+                      <div className="text-[10px] text-muted-foreground font-normal line-through">{formatEGP(l.quantity * l.cost_price)}</div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 w-12">
                     <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-destructive">
                       <Trash2 className="w-4 h-4" />
