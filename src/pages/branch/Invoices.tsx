@@ -324,6 +324,20 @@ export default function Invoices() {
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                {canDeleteInvoice && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف الشحنة" : "طلب حذف"} onClick={() => setDelShipment(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/shipments/${r.id}`),
       };
