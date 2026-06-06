@@ -40,6 +40,10 @@ export function ShipmentLineProductCell({
 }) {
   const [source, setSource] = useState<Source>(value.product_id ? "inventory" : "manual");
   const [available, setAvailable] = useState<number | null>(null);
+  const [manualMatches, setManualMatches] = useState<{
+    inventory: { id: string; name: string; sku: string; quantity: number; cost_price: number; image: string | null }[];
+    pricelist: PriceListRow[];
+  }>({ inventory: [], pricelist: [] });
 
   // keep "available" in sync when product changes
   const refreshAvailable = useCallback(async () => {
@@ -49,6 +53,35 @@ export function ShipmentLineProductCell({
   }, [value.product_id]);
   useEffect(() => { refreshAvailable(); }, [refreshAvailable]);
   useRealtimeRefresh(["products"], refreshAvailable);
+
+  // Search inventory + price list when typing manually
+  useEffect(() => {
+    if (source !== "manual") { setManualMatches({ inventory: [], pricelist: [] }); return; }
+    const q = value.product_name.trim();
+    if (q.length < 2) { setManualMatches({ inventory: [], pricelist: [] }); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const esc = q.replace(/[%,()]/g, " ");
+      const [invRes, plRes] = await Promise.all([
+        supabase.from("products")
+          .select("id, name, sku, quantity, cost_price, image")
+          .eq("branch_id", branchId)
+          .or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`)
+          .limit(5),
+        supabase.from("price_list_items_public")
+          .select("id, product_name, model_code, supplier_name, display_price")
+          .eq("is_active", true)
+          .or(`product_name.ilike.%${esc}%,model_code.ilike.%${esc}%`)
+          .limit(5),
+      ]);
+      if (cancelled) return;
+      setManualMatches({
+        inventory: (invRes.data ?? []) as any,
+        pricelist: (plRes.data ?? []) as any,
+      });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [source, value.product_name, branchId]);
 
   return (
     <div className="space-y-2">
