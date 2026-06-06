@@ -93,6 +93,34 @@ export default function Invoices() {
     } else { setDelBusy(false); return; }
     setDelTarget(null); setDelReason(""); load();
   };
+
+  // Shipment delete (purchase tab)
+  const [delShipment, setDelShipment] = useState<any>(null);
+  const [delShipReason, setDelShipReason] = useState("");
+  const [delShipBusy, setDelShipBusy] = useState(false);
+  const handleDeleteShipment = async () => {
+    if (!delShipment) return;
+    setDelShipBusy(true);
+    const label = `شحنة ${delShipment.shipment_number ?? ""} - ${delShipment.contacts?.name ?? ""}`;
+    if (isAdmin) {
+      const { error } = await supabase.from("shipments").delete().eq("id", delShipment.id);
+      setDelShipBusy(false);
+      if (error) return toast.error(error.message);
+      toast.success(`تم حذف ${label}`);
+    } else if (isManager) {
+      if (!delShipReason.trim()) { setDelShipBusy(false); return toast.error("اكتب سبب الحذف"); }
+      const ok = await (await import("@/lib/approvalRequests")).createApprovalRequest({
+        tenantId: tenantId!, branchId: branchId ?? null,
+        entityType: "shipment", entityId: delShipment.id, entityLabel: label,
+        action: "delete", reason: delShipReason,
+        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
+      });
+      setDelShipBusy(false);
+      if (!ok) return;
+    } else { setDelShipBusy(false); return toast.error("غير مصرح"); }
+    setDelShipment(null); setDelShipReason(""); load();
+  };
+
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
@@ -296,6 +324,20 @@ export default function Invoices() {
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                {canDeleteInvoice && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف الشحنة" : "طلب حذف"} onClick={() => setDelShipment(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/shipments/${r.id}`),
       };
@@ -770,6 +812,33 @@ export default function Invoices() {
             <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteInvoice} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {delBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف نهائياً")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!delShipment} onOpenChange={(o) => { if (!o) { setDelShipment(null); setDelShipReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              {isManager && !isAdmin ? "طلب حذف شحنة للموافقة" : "حذف الشحنة"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isManager && !isAdmin
+                ? <>سيتم إرسال طلب حذف الشحنة <span className="font-mono text-primary">{delShipment?.shipment_number}</span> لمدير الشركة للموافقة.</>
+                : <>هل أنت متأكد من حذف الشحنة <span className="font-mono text-primary">{delShipment?.shipment_number}</span>؟ لن يمكن التراجع.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isManager && !isAdmin && (
+            <div className="px-1">
+              <Label>سبب الحذف *</Label>
+              <Input className="mt-1.5" value={delShipReason} onChange={(e) => setDelShipReason(e.target.value)} placeholder="اكتب السبب..." />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delShipBusy}>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteShipment} disabled={delShipBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {delShipBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
