@@ -116,8 +116,7 @@ export default function NewShipment() {
 
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
 
-  const itemsTotal = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
-  const grandTotal = itemsTotal + Number(shipping || 0) + Number(admin || 0);
+  const grandTotal = itemsNet + Number(shipping || 0) + Number(admin || 0);
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
