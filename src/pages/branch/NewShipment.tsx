@@ -420,7 +420,11 @@ export default function NewShipment() {
         <h3 className="font-bold mb-3">٥. الملخص والحفظ</h3>
         <div className="grid md:grid-cols-2 gap-4 items-end">
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة</span><b>{formatEGP(itemsTotal)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
+            {itemsDiscount > 0 && (
+              <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
+            )}
+            <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg">
