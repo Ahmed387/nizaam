@@ -122,6 +122,8 @@ export default function ShipmentView() {
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{it.products?.sku ?? "—"}</td>
                   <td className="px-4 py-3">{it.quantity}</td>
                   <td className="px-4 py-3">{formatEGP(it.cost_price)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_percent ?? 0) > 0 ? `${Number(it.discount_percent)}%` : "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_amount ?? 0) > 0 ? formatEGP(it.discount_amount) : "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{it.products?.selling_price ? formatEGP(it.products.selling_price) : "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${(it.products?.quantity ?? 1) <= 0 ? 'bg-destructive/10 text-destructive' : (it.products?.quantity ?? 0) < (it.products?.low_stock_alert ?? 5) ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
