@@ -313,29 +313,30 @@ export default function NewSaleReturn() {
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          {/* Invoice selection */}
+          {/* Customer + invoice link */}
           <div className="card-elevated p-4 space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <Label>الفاتورة الأصلية *</Label>
-                {invoice ? (
-                  <div className="mt-1.5 flex items-center gap-3 flex-wrap">
-                    <Badge variant="secondary" className="font-mono">{invoice.invoice_number}</Badge>
-                    <span className="text-sm">{customer?.name ?? "نقدي"}</span>
-                    {customer?.phone && <span className="text-xs text-muted-foreground" dir="ltr">{customer.phone}</span>}
+                <Label>العميل *</Label>
+                <div className="mt-1.5 h-10 px-3 rounded-md border bg-muted/30 flex items-center text-sm">
+                  {customer?.name ?? (invoice ? "نقدي" : "اختر الفاتورة لعرض العميل")}
+                </div>
+                {invoice && (
+                  <div className="text-xs text-muted-foreground mt-2 flex gap-3 flex-wrap">
+                    {customer?.phone && <span dir="ltr">{customer.phone}</span>}
                     {customer && (
-                      <span className="text-xs">الرصيد: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(customer.balance ?? 0)}</b></span>
+                      <span>الرصيد: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(customer.balance ?? 0)}</b></span>
                     )}
-                    <span className="text-xs text-muted-foreground">— {formatDateTime(invoice.created_at)}</span>
-                    <span className="text-sm font-bold text-primary">{formatEGP(invoice.total)}</span>
+                    <span>فاتورة: <b className="font-mono">{invoice.invoice_number}</b></span>
+                    <span>الإجمالي: <b className="text-primary">{formatEGP(invoice.total)}</b></span>
                   </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground mt-1.5">لم يتم اختيار فاتورة بعد</div>
                 )}
               </div>
-              <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2">
-                <FileText className="w-4 h-4" /> {invoice ? "تغيير الفاتورة" : "اختيار فاتورة بيع"}
-              </Button>
+              <div className="flex items-end">
+                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full">
+                  <FileText className="w-4 h-4" /> {invoice ? "تغيير الفاتورة" : "اختيار من فاتورة بيع"}
+                </Button>
+              </div>
             </div>
             {invoice && (
               <div className="text-xs text-success flex items-center gap-1">
