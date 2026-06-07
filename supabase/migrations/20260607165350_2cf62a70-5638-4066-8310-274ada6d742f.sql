@@ -1,0 +1,8 @@
+ALTER TABLE public.pre_orders REPLICA IDENTITY FULL;
+ALTER TABLE public.pre_order_transactions REPLICA IDENTITY FULL;
+ALTER TABLE public.payment_plans REPLICA IDENTITY FULL;
+ALTER TABLE public.payment_installments REPLICA IDENTITY FULL;
+ALTER TABLE public.payment_transactions REPLICA IDENTITY FULL;
+ALTER TABLE public.invoices REPLICA IDENTITY FULL;
+ALTER TABLE public.invoice_payments REPLICA IDENTITY FULL;
+ALTER TABLE public.contacts REPLICA IDENTITY FULL;
