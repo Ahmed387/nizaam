@@ -10,9 +10,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil } from "lucide-react";
+import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil, Wallet } from "lucide-react";
 import { printThermalReceipt, buildESCPOSReceipt, printRawESCPOS, isWebBluetoothSupported, getBluetoothConnection } from "@/lib/thermalPrinter";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
+import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
