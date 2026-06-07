@@ -164,7 +164,24 @@ export default function AdminDashboard() {
       </div>
 
 
+      <div className="card-elevated p-5 mb-6">
+        <h3 className="font-bold mb-4">مقارنة أداء الفروع</h3>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+              <YAxis stroke="hsl(var(--muted-foreground))" />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+              <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="المبيعات" />
+              <Bar dataKey="profit" fill="hsl(var(--secondary))" radius={[6, 6, 0, 0]} name="الربح" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div className="grid lg:grid-cols-2 gap-6">
+
         <div>
           <h3 className="font-bold mb-3">ملخص الفروع</h3>
           <DataTable
