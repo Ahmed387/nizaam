@@ -316,6 +316,13 @@ export default function InvoiceView() {
                   <div className="font-extrabold text-lg text-warning">{formatEGP(remaining)}</div>
                 </div>
               </div>
+              {remaining > 0.01 && inv.status !== "cancelled" && (
+                <div className="no-print mb-3">
+                  <Button onClick={() => setPayOpen(true)} className="btn-gradient w-full">
+                    <Wallet className="w-4 h-4 ml-2" /> تسجيل دفعة من المتبقي ({formatEGP(remaining)})
+                  </Button>
+                </div>
+              )}
               {installments.length > 0 && (
                 <div>
                   <div className="text-sm font-bold mb-2">
