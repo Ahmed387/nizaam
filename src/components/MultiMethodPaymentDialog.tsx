@@ -67,15 +67,46 @@ export function MultiMethodPaymentDialog({
   const [notes, setNotes] = useState("");
   const [fees, setFees] = useState<TransferFee[]>([]);
   const [busy, setBusy] = useState(false);
+  // Live values for contact-supplier mode (real-time)
+  const [liveOwed, setLiveOwed] = useState<number>(defaultAmount);
+  const [supplierCredit, setSupplierCredit] = useState<number>(0);
+
+  const isContactOut = mode.kind === "contact" && direction === "out";
+  const effectiveRequired = isContactOut ? liveOwed : defaultAmount;
 
   useEffect(() => {
     if (open) {
-      setLines([newLine(defaultAmount)]);
+      setLines([newLine(isContactOut ? liveOwed : defaultAmount)]);
       setReceivedBy(profile?.name ?? "");
       setNotes("");
       loadTransferFees().then(setFees);
     }
-  }, [open, defaultAmount, profile?.name]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Live balance subscription for contact-supplier mode
+  useEffect(() => {
+    if (!open || mode.kind !== "contact") return;
+    let cancelled = false;
+    const refresh = async () => {
+      const { data } = await supabase.from("contacts").select("balance").eq("id", mode.contactId).maybeSingle();
+      if (cancelled || !data) return;
+      const bal = Number(data.balance || 0);
+      // Convention: +balance = credit at supplier (they owe us), -balance = we owe them
+      setSupplierCredit(bal > 0 ? bal : 0);
+      setLiveOwed(bal < 0 ? Math.abs(bal) : 0);
+    };
+    refresh();
+    const ch = supabase
+      .channel(`contact-${mode.contactId}-pay-dialog-${Date.now()}`)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "contacts", filter: `id=eq.${mode.contactId}` }, refresh)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "payment_transactions", filter: `contact_id=eq.${mode.contactId}` }, refresh)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [open, mode]);
 
   // Recompute fees per line whenever method/amount changes
   useEffect(() => {
