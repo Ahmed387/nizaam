@@ -94,7 +94,7 @@ export default function AdminDashboard() {
           {[
             { to: "/admin/branches", label: "إضافة فرع", icon: Plus, color: "text-primary", bg: "bg-primary/10" },
             { to: "/admin/employees", label: "الموظفين", icon: Users, color: "text-secondary", bg: "bg-secondary/10" },
-            { to: "/admin/catalog", label: "الكتالوج", icon: Boxes, color: "text-primary", bg: "bg-primary/10" },
+            { to: "/admin/catalog?tab=pricelist", label: "الكتالوج", icon: Boxes, color: "text-primary", bg: "bg-primary/10" },
             { to: "/admin/vouchers", label: "كل السندات", icon: Receipt, color: "text-success", bg: "bg-success/10" },
             { to: "/admin/approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
             { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
