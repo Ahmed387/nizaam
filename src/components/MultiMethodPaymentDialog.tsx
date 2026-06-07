@@ -156,7 +156,7 @@ export function MultiMethodPaymentDialog({
   const submit = async () => {
     if (sumAmounts <= 0) return toast.error("أدخل مبلغ صحيح");
     if (lockTotal && Math.abs(diff) > 0.01) {
-      return toast.error(`مجموع السطور ${formatEGP(sumAmounts)} لا يساوي المطلوب ${formatEGP(defaultAmount)}`);
+      return toast.error(`مجموع السطور ${formatEGP(sumAmounts)} لا يساوي المطلوب ${formatEGP(effectiveRequired)}`);
     }
     for (const l of lines) {
       if (Number(l.amount) <= 0) return toast.error("كل سطر لازم يكون مبلغه > 0");
