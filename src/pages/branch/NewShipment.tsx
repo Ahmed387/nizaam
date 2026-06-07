@@ -322,8 +322,9 @@ export default function NewShipment() {
 
       // Treasury / payment plan handling (non-fatal — shipment is already saved)
       const supplier = suppliers.find((s) => s.id === supplierId);
+      let appliedCredit = 0;
       try {
-        await createPaymentPlanWithInitial({
+        const planId = await createPaymentPlanWithInitial({
           branchId: branchId!,
           entityType: "supplier",
           entityId: supplierId,
@@ -335,6 +336,27 @@ export default function NewShipment() {
           direction: "out",
           createdBy: user!.id,
         });
+
+        // Auto-apply any existing supplier credit (positive contact balance)
+        try {
+          const { data: creditApplied } = await supabase.rpc("apply_supplier_credit" as any, {
+            p_contact_id: supplierId,
+            p_payment_plan_id: planId,
+            p_branch_id: branchId!,
+          });
+          appliedCredit = Number(creditApplied || 0);
+          if (appliedCredit > 0) {
+            // Append a note on the shipment for visibility
+            const noteText = `تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك السابق عند المورد`;
+            await supabase
+              .from("shipments")
+              .update({ notes: (notes.trim() ? notes.trim() + " — " : "") + noteText })
+              .eq("id", ship.id);
+            toast.success(`✓ تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك السابق عند المورد`, { duration: 6000 });
+          }
+        } catch (creditErr: any) {
+          console.warn("apply_supplier_credit failed:", creditErr);
+        }
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
         toast.warning("تم حفظ الشحنة ولكن فشل إنشاء خطة الدفع — راجعها يدوياً");
