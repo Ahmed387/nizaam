@@ -44,7 +44,7 @@ export default function Shipments() {
 
   const doDelete = async () => {
     if (!delTarget) return;
-    const label = `شحنة ${delTarget.suppliers?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
+    const label = `شحنة ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
     if (isAdmin) {
       const { error } = await supabase.from("shipments").delete().eq("id", delTarget.id);
       if (error) return toast.error(error.message);
