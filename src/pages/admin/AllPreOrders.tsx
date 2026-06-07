@@ -8,6 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { BookmarkPlus, Clock, CheckCircle2, XCircle, PackageCheck } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 const STATUS_LABEL: Record<string, { ar: string; cls: string }> = {
   pending:   { ar: "في الانتظار", cls: "bg-warning/15 text-warning" },
@@ -24,17 +25,22 @@ export default function AllPreOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [branchFilter, setBranchFilter] = useState<string>("all");
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: po }, { data: br }] = await Promise.all([
-        supabase.from("pre_orders").select("*").order("created_at", { ascending: false }),
-        supabase.from("branches").select("id, name"),
-      ]);
-      setRows(po ?? []);
-      setBranches(Object.fromEntries((br ?? []).map((b: any) => [b.id, b.name])));
-      setLoading(false);
-    })();
-  }, []);
+  const load = async () => {
+    const [{ data: po }, { data: br }] = await Promise.all([
+      supabase.from("pre_orders").select("*").order("created_at", { ascending: false }),
+      supabase.from("branches").select("id, name"),
+    ]);
+    setRows(po ?? []);
+    setBranches(Object.fromEntries((br ?? []).map((b: any) => [b.id, b.name])));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  useRealtimeRefresh(
+    ["pre_orders", "pre_order_transactions", "invoices", "invoice_payments", "payment_transactions", "payment_plans"],
+    load
+  );
 
   const stats = useMemo(() => ({
     pending: rows.filter((r) => r.status === "pending").length,

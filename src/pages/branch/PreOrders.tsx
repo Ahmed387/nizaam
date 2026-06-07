@@ -50,8 +50,13 @@ export default function PreOrders() {
 
   useEffect(() => {
     if (!branchId) return;
-    const ch = supabase.channel(`po-${branchId}`)
+    const ch = supabase.channel(`po-rt-${branchId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "pre_orders", filter: `branch_id=eq.${branchId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pre_order_transactions", filter: `branch_id=eq.${branchId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `branch_id=eq.${branchId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payments", filter: `branch_id=eq.${branchId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_transactions", filter: `branch_id=eq.${branchId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_plans", filter: `branch_id=eq.${branchId}` }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [branchId]);
