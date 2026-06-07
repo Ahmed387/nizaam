@@ -429,6 +429,39 @@ export default function InvoiceView() {
         branchId={id!}
         onSaved={() => location.reload()}
       />
+
+      {(() => {
+        const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const remaining = Math.max(Number(inv.total ?? 0) - paidNow, 0);
+        if (remaining <= 0.01) return null;
+        if (plan?.id) {
+          return (
+            <MultiMethodPaymentDialog
+              open={payOpen}
+              onOpenChange={setPayOpen}
+              mode={{ kind: "plan", planId: plan.id }}
+              defaultAmount={remaining}
+              direction="in"
+              title="تسجيل دفعة من المتبقي"
+              onSuccess={() => location.reload()}
+            />
+          );
+        }
+        if (inv.contact_id) {
+          return (
+            <MultiMethodPaymentDialog
+              open={payOpen}
+              onOpenChange={setPayOpen}
+              mode={{ kind: "contact", contactId: inv.contact_id, branchId: id! }}
+              defaultAmount={remaining}
+              direction="in"
+              title="تسجيل دفعة من المتبقي"
+              onSuccess={() => location.reload()}
+            />
+          );
+        }
+        return null;
+      })()}
     </BranchLayout>
   );
 }
