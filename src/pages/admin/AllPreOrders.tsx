@@ -8,6 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { BookmarkPlus, Clock, CheckCircle2, XCircle, PackageCheck } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 const STATUS_LABEL: Record<string, { ar: string; cls: string }> = {
   pending:   { ar: "في الانتظار", cls: "bg-warning/15 text-warning" },
