@@ -34,6 +34,7 @@ export default function InvoiceView() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
