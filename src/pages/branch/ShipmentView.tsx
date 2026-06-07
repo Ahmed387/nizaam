@@ -136,8 +136,8 @@ export default function ShipmentView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=purchase`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
-              <Printer className="w-4 h-4" /> طباعة
+            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
+              <Printer className="w-4 h-4" /> طباعة PDF
             </Button>
             {canEdit && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => nav(`/branch/${branchId}/shipments/${ship.id}/edit`)}>
