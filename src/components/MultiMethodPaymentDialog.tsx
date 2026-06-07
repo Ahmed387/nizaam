@@ -133,7 +133,7 @@ export function MultiMethodPaymentDialog({
   };
 
   const addLine = () => {
-    const remaining = Math.max(0, defaultAmount - sumAmounts);
+    const remaining = Math.max(0, effectiveRequired - sumAmounts);
     setLines((prev) => [...prev, newLine(remaining)]);
   };
 
