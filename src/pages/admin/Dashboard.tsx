@@ -8,7 +8,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, Package, Trash2 } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, Package, Trash2, Plus, Users, Boxes, Receipt, CheckSquare, BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight, HandCoins } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export default function AdminDashboard() {
@@ -87,6 +87,83 @@ export default function AdminDashboard() {
         <StatCard label="شحنات اليوم" value={shipmentsToday} icon={<Package className="w-5 h-5" />} accent="secondary" />
       </div>
 
+      {/* General company-level quick actions */}
+      <div className="card-elevated p-4 mb-6">
+        <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة — على مستوى الشركة</h3>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {[
+            { to: "/admin/branches", label: "إضافة فرع", icon: Plus, color: "text-primary", bg: "bg-primary/10" },
+            { to: "/admin/employees", label: "الموظفين", icon: Users, color: "text-secondary", bg: "bg-secondary/10" },
+            { to: "/admin/catalog", label: "الكتالوج", icon: Boxes, color: "text-primary", bg: "bg-primary/10" },
+            { to: "/admin/vouchers", label: "كل السندات", icon: Receipt, color: "text-success", bg: "bg-success/10" },
+            { to: "/admin/approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
+            { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
+            { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
+          ].map((s) => (
+            <Link key={s.label} to={s.to}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all group">
+              <div className={`w-11 h-11 rounded-full ${s.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <span className="text-[11px] font-semibold text-center leading-tight">{s.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Branch cards with direct shortcuts */}
+      <div className="mb-6">
+        <h3 className="font-bold mb-3 text-sm text-muted-foreground">الفروع — دخول مباشر</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {branchSummary.map((b: any) => (
+            <div key={b.id} className="card-elevated p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold">{b.name}</div>
+                    <div className="text-xs text-muted-foreground">{b.code ?? ""}</div>
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-1">
+                  <Link to={`/branch/${b.id}/dashboard`}>دخول <ArrowUpRight className="w-3 h-3" /></Link>
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center justify-between p-2 rounded bg-surface-2">
+                  <span className="text-muted-foreground">مبيعات</span>
+                  <b className="text-success">{formatEGP(b.sales)}</b>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded bg-surface-2">
+                  <span className="text-muted-foreground">الخزنة</span>
+                  <b>{formatEGP(b.treasury)}</b>
+                </div>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[
+                  { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
+                  { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/treasury`, label: "خزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowRightLeft, color: "text-warning", bg: "bg-warning/10" },
+                  { to: `/branch/${b.id}/reports`, label: "تقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/10" },
+                ].map((q) => (
+                  <Link key={q.label} to={q.to}
+                    className="flex flex-col items-center gap-1 p-1.5 rounded border border-border hover:border-primary hover:shadow-sm transition-all">
+                    <div className={`w-7 h-7 rounded-full ${q.bg} flex items-center justify-center`}>
+                      <q.icon className={`w-3.5 h-3.5 ${q.color}`} />
+                    </div>
+                    <span className="text-[10px] font-semibold">{q.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+
       <div className="card-elevated p-5 mb-6">
         <h3 className="font-bold mb-4">مقارنة أداء الفروع</h3>
         <div className="h-72">
@@ -104,6 +181,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
+
         <div>
           <h3 className="font-bold mb-3">ملخص الفروع</h3>
           <DataTable
