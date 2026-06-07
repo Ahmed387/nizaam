@@ -181,6 +181,7 @@ export default function SupplierProfile() {
   // المتبقي علينا = max(0, -balance)
   const balance = Number(supplier?.balance ?? 0);
   const owedByUs = balance < 0 ? Math.abs(balance) : 0;
+  const creditAtSupplier = balance > 0 ? balance : 0;
   const totalItemsCount = shipments.reduce(
     (s, x) => s + ((x.shipment_items ?? []) as any[]).length,
     0
