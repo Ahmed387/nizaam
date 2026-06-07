@@ -2898,6 +2898,14 @@ export type Database = {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
       }
+      apply_supplier_credit: {
+        Args: {
+          p_branch_id: string
+          p_contact_id: string
+          p_payment_plan_id: string
+        }
+        Returns: number
+      }
       approve_advance_request: {
         Args: { p_decision: string; p_note?: string; p_request_id: string }
         Returns: Json
@@ -3099,42 +3107,24 @@ export type Database = {
         }
         Returns: string
       }
-      record_contact_payment:
-        | {
-            Args: {
-              p_amount: number
-              p_branch_id: string
-              p_contact_id: string
-              p_direction: string
-              p_fee_amount: number
-              p_fee_on_customer: boolean
-              p_fee_type: string
-              p_notes?: string
-              p_payment_method: string
-              p_received_by_name: string
-              p_reference_number: string
-              p_transfer_to_account: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_branch_id: string
-              p_contact_id: string
-              p_direction: string
-              p_fee_amount: number
-              p_fee_on_customer: boolean
-              p_fee_type: string
-              p_notes?: string
-              p_payment_method: string
-              p_received_by_name: string
-              p_reference_number: string
-              p_transfer_from_account?: string
-              p_transfer_to_account: string
-            }
-            Returns: string
-          }
+      record_contact_payment: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_contact_id: string
+          p_direction: string
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_fee_type: string
+          p_notes?: string
+          p_payment_method: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_from_account?: string
+          p_transfer_to_account: string
+        }
+        Returns: string
+      }
       record_payment_transaction: {
         Args: {
           p_amount: number

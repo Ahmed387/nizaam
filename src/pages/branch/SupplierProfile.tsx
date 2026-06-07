@@ -181,6 +181,7 @@ export default function SupplierProfile() {
   // المتبقي علينا = max(0, -balance)
   const balance = Number(supplier?.balance ?? 0);
   const owedByUs = balance < 0 ? Math.abs(balance) : 0;
+  const creditAtSupplier = balance > 0 ? balance : 0;
   const totalItemsCount = shipments.reduce(
     (s, x) => s + ((x.shipment_items ?? []) as any[]).length,
     0
@@ -416,12 +417,20 @@ export default function SupplierProfile() {
         <StatCard label="إجمالي الشحنات" value={formatEGP(totalShipments)} icon={<DollarSign className="w-5 h-5" />} accent="secondary" />
         <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
         <StatCard
-          label="المتبقي عليك"
-          value={formatEGP(owedByUs)}
+          label={creditAtSupplier > 0 ? "رصيد ليك عند المورد" : "المتبقي عليك"}
+          value={formatEGP(creditAtSupplier > 0 ? creditAtSupplier : owedByUs)}
           icon={<DollarSign className="w-5 h-5" />}
-          accent={owedByUs > 0 ? "warning" : "success"}
+          accent={creditAtSupplier > 0 ? "success" : owedByUs > 0 ? "warning" : "success"}
         />
       </div>
+      {creditAtSupplier > 0 && (
+        <div className="card-elevated p-3 mb-6 bg-success/10 border-success/30 text-sm flex items-center justify-between">
+          <div>
+            <span className="font-semibold text-success">💰 ليك رصيد عند المورد قدره {formatEGP(creditAtSupplier)}</span>
+            <div className="text-xs text-muted-foreground mt-0.5">هيتخصم تلقائياً من أي شحنة جديدة من نفس المورد.</div>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="timeline" className="w-full">
         <TabsList>

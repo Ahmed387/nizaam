@@ -67,15 +67,46 @@ export function MultiMethodPaymentDialog({
   const [notes, setNotes] = useState("");
   const [fees, setFees] = useState<TransferFee[]>([]);
   const [busy, setBusy] = useState(false);
+  // Live values for contact-supplier mode (real-time)
+  const [liveOwed, setLiveOwed] = useState<number>(defaultAmount);
+  const [supplierCredit, setSupplierCredit] = useState<number>(0);
+
+  const isContactOut = mode.kind === "contact" && direction === "out";
+  const effectiveRequired = isContactOut ? liveOwed : defaultAmount;
 
   useEffect(() => {
     if (open) {
-      setLines([newLine(defaultAmount)]);
+      setLines([newLine(isContactOut ? liveOwed : defaultAmount)]);
       setReceivedBy(profile?.name ?? "");
       setNotes("");
       loadTransferFees().then(setFees);
     }
-  }, [open, defaultAmount, profile?.name]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Live balance subscription for contact-supplier mode
+  useEffect(() => {
+    if (!open || mode.kind !== "contact") return;
+    let cancelled = false;
+    const refresh = async () => {
+      const { data } = await supabase.from("contacts").select("balance").eq("id", mode.contactId).maybeSingle();
+      if (cancelled || !data) return;
+      const bal = Number(data.balance || 0);
+      // Convention: +balance = credit at supplier (they owe us), -balance = we owe them
+      setSupplierCredit(bal > 0 ? bal : 0);
+      setLiveOwed(bal < 0 ? Math.abs(bal) : 0);
+    };
+    refresh();
+    const ch = supabase
+      .channel(`contact-${mode.contactId}-pay-dialog-${Date.now()}`)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "contacts", filter: `id=eq.${mode.contactId}` }, refresh)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "payment_transactions", filter: `contact_id=eq.${mode.contactId}` }, refresh)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [open, mode]);
 
   // Recompute fees per line whenever method/amount changes
   useEffect(() => {
@@ -102,7 +133,7 @@ export function MultiMethodPaymentDialog({
   };
 
   const addLine = () => {
-    const remaining = Math.max(0, defaultAmount - sumAmounts);
+    const remaining = Math.max(0, effectiveRequired - sumAmounts);
     setLines((prev) => [...prev, newLine(remaining)]);
   };
 
@@ -119,12 +150,13 @@ export function MultiMethodPaymentDialog({
     [lines]
   );
   const grandTotal = sumAmounts + (direction === "in" ? sumFeesOnCustomer : 0);
-  const diff = Math.round((defaultAmount - sumAmounts) * 100) / 100;
+  const diff = Math.round((effectiveRequired - sumAmounts) * 100) / 100;
+  const overpayAmount = isContactOut && sumAmounts > effectiveRequired + 0.01 ? sumAmounts - effectiveRequired : 0;
 
   const submit = async () => {
     if (sumAmounts <= 0) return toast.error("أدخل مبلغ صحيح");
     if (lockTotal && Math.abs(diff) > 0.01) {
-      return toast.error(`مجموع السطور ${formatEGP(sumAmounts)} لا يساوي المطلوب ${formatEGP(defaultAmount)}`);
+      return toast.error(`مجموع السطور ${formatEGP(sumAmounts)} لا يساوي المطلوب ${formatEGP(effectiveRequired)}`);
     }
     for (const l of lines) {
       if (Number(l.amount) <= 0) return toast.error("كل سطر لازم يكون مبلغه > 0");
@@ -189,11 +221,24 @@ export function MultiMethodPaymentDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* Supplier credit banner (when paying a supplier and we have credit with them) */}
+          {isContactOut && supplierCredit > 0 && (
+            <div className="card-elevated p-3 bg-success/10 border-success/30 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-success font-semibold">💰 رصيد ليك عند المورد</span>
+                <span className="font-bold text-success">{formatEGP(supplierCredit)}</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                هيتخصم تلقائياً من أي شحنة جديدة من نفس المورد.
+              </div>
+            </div>
+          )}
+
           {/* Header summary */}
           <div className="grid grid-cols-3 gap-2 text-sm">
             <div className="card-elevated p-2.5 text-center">
               <div className="text-xs text-muted-foreground">المطلوب</div>
-              <div className="font-bold">{formatEGP(defaultAmount)}</div>
+              <div className="font-bold">{formatEGP(effectiveRequired)}</div>
             </div>
             <div className="card-elevated p-2.5 text-center">
               <div className="text-xs text-muted-foreground">مجموع السطور</div>
@@ -206,6 +251,22 @@ export function MultiMethodPaymentDialog({
               </div>
             </div>
           </div>
+
+          {/* Overpayment alert for supplier */}
+          {overpayAmount > 0 && (
+            <div className="card-elevated p-3 bg-warning/10 border-warning border-2 text-sm space-y-1">
+              <div className="font-bold text-warning flex items-center gap-2">⚠️ تنبيه: دفعة زائدة</div>
+              <div className="text-xs">
+                هتدفع <b>{formatEGP(overpayAmount)}</b> أكتر من المتبقي. هتتسجل كـ<b> رصيد ليك عند المورد</b> وهتتخصم تلقائياً من أي شحنة جاية.
+              </div>
+            </div>
+          )}
+          {/* Fully paid notice */}
+          {isContactOut && effectiveRequired <= 0.01 && supplierCredit === 0 && (
+            <div className="card-elevated p-3 bg-success/10 border-success/30 text-sm text-center text-success font-semibold">
+              ✓ كل المستحقات على المورد ده مدفوعة
+            </div>
+          )}
 
           {/* Lines */}
           {lines.map((l, idx) => {
