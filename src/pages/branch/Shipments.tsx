@@ -35,12 +35,48 @@ export default function Shipments() {
       .eq("branch_id", branchId)
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
-    setRows(data ?? []);
+    const ships = data ?? [];
+    // Compute paid status per shipment by allocating supplier payments FIFO (oldest shipments first)
+    const contactIds = Array.from(new Set(ships.map((s: any) => s.contact_id).filter(Boolean)));
+    let paidByContact = new Map<string, number>();
+    if (contactIds.length) {
+      const { data: pays } = await supabase
+        .from("supplier_payments")
+        .select("contact_id, amount")
+        .in("contact_id", contactIds);
+      (pays ?? []).forEach((p: any) => {
+        paidByContact.set(p.contact_id, (paidByContact.get(p.contact_id) ?? 0) + Number(p.amount || 0));
+      });
+    }
+    // Allocate FIFO: oldest shipments get paid first
+    const byContact = new Map<string, any[]>();
+    [...ships].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .forEach((s) => {
+        if (!s.contact_id) return;
+        const arr = byContact.get(s.contact_id) ?? [];
+        arr.push(s);
+        byContact.set(s.contact_id, arr);
+      });
+    const paidStatus = new Map<string, { paid: number; total: number }>();
+    byContact.forEach((list, cid) => {
+      let remaining = paidByContact.get(cid) ?? 0;
+      list.forEach((s) => {
+        const total = Number(s.total_cost || 0);
+        const applied = Math.max(0, Math.min(remaining, total));
+        remaining -= applied;
+        paidStatus.set(s.id, { paid: applied, total });
+      });
+    });
+    const enriched = ships.map((s: any) => {
+      const ps = paidStatus.get(s.id) ?? { paid: 0, total: Number(s.total_cost || 0) };
+      return { ...s, _paid_amount: ps.paid, _payment_status: ps.paid >= ps.total - 0.01 ? "paid" : ps.paid > 0 ? "partial" : "unpaid" };
+    });
+    setRows(enriched);
     setLoading(false);
   }, [branchId]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["shipments"], load);
+  useRealtimeRefresh(["shipments", "supplier_payments"], load);
 
   const doDelete = async () => {
     if (!delTarget) return;
@@ -87,6 +123,28 @@ export default function Shipments() {
           { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
           { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => <b className="text-primary">{formatEGP(r.total_cost)}</b> },
+          {
+            key: "payment_status",
+            header: "حالة الدفع",
+            render: (r: any) => {
+              const status = r._payment_status;
+              const paid = r._paid_amount ?? 0;
+              const total = Number(r.total_cost || 0);
+              if (status === "paid") {
+                return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-emerald-500/10 text-emerald-600 font-medium">مدفوعة بالكامل</span>;
+              }
+              if (status === "partial") {
+                const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/10 text-amber-600 font-medium w-fit">مدفوعة جزئياً ({pct}%)</span>
+                    <span className="text-[10px] text-muted-foreground">متبقي {formatEGP(total - paid)}</span>
+                  </div>
+                );
+              }
+              return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-destructive/10 text-destructive font-medium">غير مدفوعة</span>;
+            },
+          },
           {
             key: "actions",
             header: "",
