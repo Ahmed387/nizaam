@@ -126,6 +126,61 @@ export default function ShipmentView() {
   const itemsGross = items.reduce((s, it) => s + Number(it.quantity) * Number(it.cost_price), 0);
   const itemsDiscount = itemsGross - items.reduce((s, it) => s + Number(it.total ?? 0), 0);
 
+  const handlePrint = () => {
+    const rowsHtml = items.map((it, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(it.product_name ?? "")}</td>
+        <td>${escapeHtml(it.products?.sku ?? "—")}</td>
+        <td>${it.quantity}</td>
+        <td>${formatEGP(it.cost_price)}</td>
+        <td>${Number(it.discount_percent ?? 0) > 0 ? Number(it.discount_percent) + "%" : "—"}</td>
+        <td>${Number(it.discount_amount ?? 0) > 0 ? formatEGP(it.discount_amount) : "—"}</td>
+        <td><b>${formatEGP(it.total ?? 0)}</b></td>
+      </tr>`).join("");
+
+    const body = `
+      <h1>شحنة ${escapeHtml(ship.shipment_number ?? "#" + ship.id.slice(0,8))}</h1>
+      <div class="meta">تاريخ الوصول: ${formatDate(ship.arrival_date)} · أُنشئت: ${formatDate(ship.created_at)}</div>
+
+      <div class="grid-3">
+        <div class="card">
+          <h3 style="margin-top:0">بيانات المورد</h3>
+          <div class="row"><span>الاسم</span><b>${escapeHtml(ship.contacts?.name ?? "—")}</b></div>
+          <div class="row"><span>الهاتف</span><b>${escapeHtml(ship.contacts?.phone ?? "—")}</b></div>
+          ${ship.contacts?.address ? `<div class="row"><span>العنوان</span><b>${escapeHtml(ship.contacts.address)}</b></div>` : ""}
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">الاستلام</h3>
+          <div class="row"><span>المستلم</span><b>${escapeHtml(ship.received_by ?? "—")}</b></div>
+          <div class="row"><span>تاريخ الوصول</span><b>${formatDate(ship.arrival_date)}</b></div>
+          ${ship.notes ? `<div class="row"><span>ملاحظات</span><b>${escapeHtml(ship.notes)}</b></div>` : ""}
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">التكاليف</h3>
+          <div class="row"><span>قيمة البضاعة</span><b>${formatEGP(itemsGross)}</b></div>
+          ${itemsDiscount > 0 ? `<div class="row"><span>الخصومات</span><b class="neg">− ${formatEGP(itemsDiscount)}</b></div>` : ""}
+          <div class="row"><span>صافي البضاعة</span><b>${formatEGP(goodsValue)}</b></div>
+          <div class="row"><span>الشحن</span><b>${formatEGP(ship.shipping_cost)}</b></div>
+          <div class="row"><span>إدارية</span><b>${formatEGP(ship.admin_cost)}</b></div>
+          <div class="row" style="border-top:1px solid #ddd;padding-top:6px;margin-top:6px"><span><b>الإجمالي</b></span><b style="color:#3b82f6;font-size:15px">${formatEGP(ship.total_cost)}</b></div>
+        </div>
+      </div>
+
+      <h2>المنتجات (${items.length})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>المنتج</th><th>الكود</th><th>الكمية</th>
+            <th>سعر التكلفة</th><th>خصم %</th><th>خصم مبلغ</th><th>الصافي</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+    printHtml(`شحنة ${ship.shipment_number ?? ship.id.slice(0,8)}`, body, { landscape: true });
+  };
+
   return (
     <BranchLayout>
       <PageHeader
