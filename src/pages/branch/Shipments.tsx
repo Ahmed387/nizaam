@@ -82,7 +82,7 @@ export default function Shipments() {
         empty="لا توجد شحنات بعد"
         columns={[
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
-          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "المستلم" },
           { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
           { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
