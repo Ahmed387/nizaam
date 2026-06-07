@@ -10,9 +10,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil } from "lucide-react";
+import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil, Wallet } from "lucide-react";
 import { printThermalReceipt, buildESCPOSReceipt, printRawESCPOS, isWebBluetoothSupported, getBluetoothConnection } from "@/lib/thermalPrinter";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
+import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -33,6 +34,7 @@ export default function InvoiceView() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -314,6 +316,13 @@ export default function InvoiceView() {
                   <div className="font-extrabold text-lg text-warning">{formatEGP(remaining)}</div>
                 </div>
               </div>
+              {remaining > 0.01 && inv.status !== "cancelled" && (
+                <div className="no-print mb-3">
+                  <Button onClick={() => setPayOpen(true)} className="btn-gradient w-full">
+                    <Wallet className="w-4 h-4 ml-2" /> تسجيل دفعة من المتبقي ({formatEGP(remaining)})
+                  </Button>
+                </div>
+              )}
               {installments.length > 0 && (
                 <div>
                   <div className="text-sm font-bold mb-2">
@@ -420,6 +429,39 @@ export default function InvoiceView() {
         branchId={id!}
         onSaved={() => location.reload()}
       />
+
+      {(() => {
+        const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const remaining = Math.max(Number(inv.total ?? 0) - paidNow, 0);
+        if (remaining <= 0.01) return null;
+        if (plan?.id) {
+          return (
+            <MultiMethodPaymentDialog
+              open={payOpen}
+              onOpenChange={setPayOpen}
+              mode={{ kind: "plan", planId: plan.id }}
+              defaultAmount={remaining}
+              direction="in"
+              title="تسجيل دفعة من المتبقي"
+              onSuccess={() => location.reload()}
+            />
+          );
+        }
+        if (inv.contact_id) {
+          return (
+            <MultiMethodPaymentDialog
+              open={payOpen}
+              onOpenChange={setPayOpen}
+              mode={{ kind: "contact", contactId: inv.contact_id, branchId: id! }}
+              defaultAmount={remaining}
+              direction="in"
+              title="تسجيل دفعة من المتبقي"
+              onSuccess={() => location.reload()}
+            />
+          );
+        }
+        return null;
+      })()}
     </BranchLayout>
   );
 }
