@@ -76,7 +76,7 @@ export default function Shipments() {
   }, [branchId]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["shipments"], load);
+  useRealtimeRefresh(["shipments", "supplier_payments"], load);
 
   const doDelete = async () => {
     if (!delTarget) return;
