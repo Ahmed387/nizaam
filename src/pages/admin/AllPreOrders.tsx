@@ -25,17 +25,22 @@ export default function AllPreOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [branchFilter, setBranchFilter] = useState<string>("all");
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: po }, { data: br }] = await Promise.all([
-        supabase.from("pre_orders").select("*").order("created_at", { ascending: false }),
-        supabase.from("branches").select("id, name"),
-      ]);
-      setRows(po ?? []);
-      setBranches(Object.fromEntries((br ?? []).map((b: any) => [b.id, b.name])));
-      setLoading(false);
-    })();
-  }, []);
+  const load = async () => {
+    const [{ data: po }, { data: br }] = await Promise.all([
+      supabase.from("pre_orders").select("*").order("created_at", { ascending: false }),
+      supabase.from("branches").select("id, name"),
+    ]);
+    setRows(po ?? []);
+    setBranches(Object.fromEntries((br ?? []).map((b: any) => [b.id, b.name])));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  useRealtimeRefresh(
+    ["pre_orders", "pre_order_transactions", "invoices", "invoice_payments", "payment_transactions", "payment_plans"],
+    load
+  );
 
   const stats = useMemo(() => ({
     pending: rows.filter((r) => r.status === "pending").length,
