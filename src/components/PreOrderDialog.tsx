@@ -89,7 +89,7 @@ export function PreOrderDialog({
         p_received_by_name: receivedBy.trim() || null,
       });
       if (error) throw error;
-      toast.success("تم تسجيل طلب الحجز");
+      toast.success("تم الحجز بنجاح");
       onCreated?.(data as string);
       printReceipt({
         product: catalogItem.product_name + (catalogItem.model_code ? ` (${catalogItem.model_code})` : ""),
