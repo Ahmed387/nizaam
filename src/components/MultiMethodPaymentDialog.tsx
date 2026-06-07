@@ -150,7 +150,8 @@ export function MultiMethodPaymentDialog({
     [lines]
   );
   const grandTotal = sumAmounts + (direction === "in" ? sumFeesOnCustomer : 0);
-  const diff = Math.round((defaultAmount - sumAmounts) * 100) / 100;
+  const diff = Math.round((effectiveRequired - sumAmounts) * 100) / 100;
+  const overpayAmount = isContactOut && sumAmounts > effectiveRequired + 0.01 ? sumAmounts - effectiveRequired : 0;
 
   const submit = async () => {
     if (sumAmounts <= 0) return toast.error("أدخل مبلغ صحيح");
