@@ -124,6 +124,28 @@ export default function Shipments() {
           { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => <b className="text-primary">{formatEGP(r.total_cost)}</b> },
           {
+            key: "payment_status",
+            header: "حالة الدفع",
+            render: (r: any) => {
+              const status = r._payment_status;
+              const paid = r._paid_amount ?? 0;
+              const total = Number(r.total_cost || 0);
+              if (status === "paid") {
+                return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-emerald-500/10 text-emerald-600 font-medium">مدفوعة بالكامل</span>;
+              }
+              if (status === "partial") {
+                const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/10 text-amber-600 font-medium w-fit">مدفوعة جزئياً ({pct}%)</span>
+                    <span className="text-[10px] text-muted-foreground">متبقي {formatEGP(total - paid)}</span>
+                  </div>
+                );
+              }
+              return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-destructive/10 text-destructive font-medium">غير مدفوعة</span>;
+            },
+          },
+          {
             key: "actions",
             header: "",
             render: (r: any) => (
