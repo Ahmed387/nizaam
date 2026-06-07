@@ -29,11 +29,12 @@ export default function Shipments() {
   const load = useCallback(async () => {
     if (!branchId) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("shipments")
-      .select("*, suppliers(name)")
+      .select("*, contacts(name)")
       .eq("branch_id", branchId)
       .order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
     setRows(data ?? []);
     setLoading(false);
   }, [branchId]);
