@@ -16,6 +16,8 @@ import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
 import { printHtml } from "@/lib/export";
 
+const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
 export default function ShipmentView() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId: string }>();
   const nav = useNavigate();
