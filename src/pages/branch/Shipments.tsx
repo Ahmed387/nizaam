@@ -35,7 +35,43 @@ export default function Shipments() {
       .eq("branch_id", branchId)
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
-    setRows(data ?? []);
+    const ships = data ?? [];
+    // Compute paid status per shipment by allocating supplier payments FIFO (oldest shipments first)
+    const contactIds = Array.from(new Set(ships.map((s: any) => s.contact_id).filter(Boolean)));
+    let paidByContact = new Map<string, number>();
+    if (contactIds.length) {
+      const { data: pays } = await supabase
+        .from("supplier_payments")
+        .select("contact_id, amount")
+        .in("contact_id", contactIds);
+      (pays ?? []).forEach((p: any) => {
+        paidByContact.set(p.contact_id, (paidByContact.get(p.contact_id) ?? 0) + Number(p.amount || 0));
+      });
+    }
+    // Allocate FIFO: oldest shipments get paid first
+    const byContact = new Map<string, any[]>();
+    [...ships].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .forEach((s) => {
+        if (!s.contact_id) return;
+        const arr = byContact.get(s.contact_id) ?? [];
+        arr.push(s);
+        byContact.set(s.contact_id, arr);
+      });
+    const paidStatus = new Map<string, { paid: number; total: number }>();
+    byContact.forEach((list, cid) => {
+      let remaining = paidByContact.get(cid) ?? 0;
+      list.forEach((s) => {
+        const total = Number(s.total_cost || 0);
+        const applied = Math.max(0, Math.min(remaining, total));
+        remaining -= applied;
+        paidStatus.set(s.id, { paid: applied, total });
+      });
+    });
+    const enriched = ships.map((s: any) => {
+      const ps = paidStatus.get(s.id) ?? { paid: 0, total: Number(s.total_cost || 0) };
+      return { ...s, _paid_amount: ps.paid, _payment_status: ps.paid >= ps.total - 0.01 ? "paid" : ps.paid > 0 ? "partial" : "unpaid" };
+    });
+    setRows(enriched);
     setLoading(false);
   }, [branchId]);
 
