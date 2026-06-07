@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
+import { printHtml } from "@/lib/export";
 
 export default function ShipmentView() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId: string }>();
