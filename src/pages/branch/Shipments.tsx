@@ -29,11 +29,12 @@ export default function Shipments() {
   const load = useCallback(async () => {
     if (!branchId) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("shipments")
-      .select("*, suppliers(name)")
+      .select("*, contacts(name)")
       .eq("branch_id", branchId)
       .order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
     setRows(data ?? []);
     setLoading(false);
   }, [branchId]);
@@ -43,7 +44,7 @@ export default function Shipments() {
 
   const doDelete = async () => {
     if (!delTarget) return;
-    const label = `شحنة ${delTarget.suppliers?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
+    const label = `شحنة ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
     if (isAdmin) {
       const { error } = await supabase.from("shipments").delete().eq("id", delTarget.id);
       if (error) return toast.error(error.message);
@@ -81,7 +82,7 @@ export default function Shipments() {
         empty="لا توجد شحنات بعد"
         columns={[
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
-          { key: "supplier", header: "المورد", render: (r: any) => r.suppliers?.name ?? "—" },
+          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "المستلم" },
           { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
           { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
