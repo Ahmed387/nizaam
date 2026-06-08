@@ -8,7 +8,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { InventoryStatusBadge } from "@/components/InventoryStatusBadge";
 import { formatDateTime } from "@/lib/format";
-import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck } from "lucide-react";
+import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera } from "lucide-react";
 
 export default function Sessions() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -73,8 +73,15 @@ export default function Sessions() {
             key: "actions",
             header: "إجراءات",
             render: (r: any) => (
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-2 justify-end flex-wrap">
                 {actionFor(r)}
+                {isAdmin && (
+                  <Link to={`/branch/${branchId}/inventory-count/${r.id}/snapshot`}>
+                    <Button size="sm" variant="outline" className="gap-1">
+                      <Camera className="w-4 h-4" /> Snapshot
+                    </Button>
+                  </Link>
+                )}
                 <Link to={`/branch/${branchId}/inventory-count/${r.id}/report`}>
                   <Button size="sm" variant="outline" className="gap-1">
                     <FileText className="w-4 h-4" /> التقرير

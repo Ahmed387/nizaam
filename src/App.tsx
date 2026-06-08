@@ -112,6 +112,7 @@ import InvCountSheet from "./pages/branch/inventory-count/CountingSheet";
 import InvCountReview from "./pages/branch/inventory-count/Review";
 import InvCountApproval from "./pages/branch/inventory-count/Approval";
 import InvCountReport from "./pages/branch/inventory-count/Report";
+import InvCountSnapshot from "./pages/branch/inventory-count/Snapshot";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
@@ -223,6 +224,7 @@ const App = () => (
             <Route path="/branch/:id/inventory-count/:sessionId/review" element={<ProtectedRoute perm="inventory.view"><InvCountReview /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory-count/:sessionId/approve" element={<ProtectedRoute perm="inventory.view"><InvCountApproval /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory-count/:sessionId/report" element={<ProtectedRoute perm="inventory.view"><InvCountReport /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory-count/:sessionId/snapshot" element={<ProtectedRoute perm="inventory.view"><InvCountSnapshot /></ProtectedRoute>} />
 
 
             <Route path="*" element={<NotFound />} />
