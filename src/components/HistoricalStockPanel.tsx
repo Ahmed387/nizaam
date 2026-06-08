@@ -20,7 +20,7 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
   const [fromAt, setFromAt] = useState<string>(toLocal(startOfMonth));
   const [toAt, setToAt] = useState<string>(toLocal(now));
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<(Row & { qty_to: number; diff: number })[]>([]);
+  const [rows, setRows] = useState<(Row & { qty_to: number; diff: number; supplier?: string | null; last_cost?: number | null; last_purchase_at?: string | null })[]>([]);
   const [search, setSearch] = useState("");
   const [ran, setRan] = useState(false);
 
@@ -31,20 +31,48 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     if (new Date(fromIso) > new Date(toIso)) return toast.error("تاريخ البداية أكبر من النهاية");
 
     setLoading(true);
-    const [{ data: dataFrom, error: e1 }, { data: dataTo, error: e2 }] = await Promise.all([
+    const [{ data: dataFrom, error: e1 }, { data: dataTo, error: e2 }, { data: shipItems, error: e3 }] = await Promise.all([
       (supabase.rpc as any)("historical_stock_at", { _branch_id: branchId, _as_of: fromIso }),
       (supabase.rpc as any)("historical_stock_at", { _branch_id: branchId, _as_of: toIso }),
+      supabase
+        .from("shipment_items")
+        .select("product_id, cost_price, shipments!inner(branch_id, created_at, contacts(name))")
+        .eq("shipments.branch_id", branchId)
+        .lte("shipments.created_at", toIso)
+        .order("created_at", { referencedTable: "shipments", ascending: false })
+        .limit(2000),
     ]);
     setLoading(false);
-    if (e1 || e2) return toast.error((e1 || e2)!.message);
+    if (e1 || e2 || e3) return toast.error((e1 || e2 || e3)!.message);
 
     const mapTo = new Map<string, number>();
     (dataTo ?? []).forEach((r: Row) => mapTo.set(r.product_id, Number(r.quantity_at_date)));
 
+    // Latest purchase per product (within toIso)
+    const lastShip = new Map<string, { supplier: string | null; cost: number; at: string }>();
+    (shipItems ?? []).forEach((it: any) => {
+      if (!it.product_id || !it.shipments) return;
+      if (lastShip.has(it.product_id)) return; // already newest due to order desc
+      lastShip.set(it.product_id, {
+        supplier: it.shipments?.contacts?.name ?? null,
+        cost: Number(it.cost_price),
+        at: it.shipments.created_at,
+      });
+    });
+
     const merged = (dataFrom ?? []).map((r: Row) => {
       const qFrom = Number(r.quantity_at_date);
       const qTo = mapTo.get(r.product_id) ?? qFrom;
-      return { ...r, quantity_at_date: qFrom, qty_to: qTo, diff: qTo - qFrom };
+      const ls = lastShip.get(r.product_id);
+      return {
+        ...r,
+        quantity_at_date: qFrom,
+        qty_to: qTo,
+        diff: qTo - qFrom,
+        supplier: ls?.supplier ?? null,
+        last_cost: ls?.cost ?? null,
+        last_purchase_at: ls?.at ?? null,
+      };
     });
     setRows(merged);
     setRan(true);
