@@ -58,6 +58,13 @@ export default function AdminDashboard() {
     );
     setBranchSummary(summary);
     setChartData(summary.map((s) => ({ name: s.name, sales: s.sales, profit: s.profit })));
+
+    const { data: activeSessions } = await supabase
+      .from("inventory_sessions" as any)
+      .select("branch_id")
+      .in("status", ["counting", "reviewing", "pending_approval"]);
+    setActiveCountBranches(new Set((activeSessions ?? []).map((s: any) => s.branch_id)));
+
     setLoading(false);
   }, []);
 
