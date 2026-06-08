@@ -32,7 +32,7 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
   { key: "expense", label: "سندات الصرف", icon: ArrowUpCircle, color: "text-destructive" },
   { key: "transfer", label: "تحويل المخازن", icon: ArrowLeftRight, color: "text-primary" },
   { key: "quote", label: "عروض الأسعار", icon: FileText, color: "text-secondary" },
-  { key: "adjustment", label: "جرد المخزن", icon: ClipboardList, color: "text-muted-foreground" },
+  { key: "adjustment", label: "تسوية المخزون", icon: ClipboardList, color: "text-muted-foreground" },
 ];
 
 // Which filters apply to each tab
@@ -392,7 +392,7 @@ export default function Invoices() {
         ],
       };
       case "adjustment": return {
-        newLink: `${base}/adjustments/new`, newLabel: "جرد مخزن جديد", newPerm: "inventory.update",
+        newLink: `${base}/adjustments/new`, newLabel: "تسوية مخزون جديدة", newPerm: "inventory.update",
         columns: [
           { key: "adjustment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.adjustment_number}</span> },
           { key: "reason", header: "السبب" },
