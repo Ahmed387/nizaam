@@ -235,7 +235,6 @@ export default function Invoices() {
         case "income":
         case "expense": return [r.voucher_number, r.description, r.category, r.party_name].filter(Boolean).join(" ").toLowerCase();
         case "quote": return [r.quote_number, r.contacts?.name, r.customer_name].filter(Boolean).join(" ").toLowerCase();
-        case "adjustment": return [r.adjustment_number, r.reason, r.notes].filter(Boolean).join(" ").toLowerCase();
         default: return "";
       }
     };
@@ -384,15 +383,6 @@ export default function Invoices() {
           { key: "total", header: "الإجمالي", render: (r: any) => formatEGP(r.total) },
           { key: "valid_until", header: "صالح حتى", render: (r: any) => r.valid_until ? formatDate(r.valid_until) : "—" },
           { key: "status", header: "الحالة" },
-        ],
-      };
-      case "adjustment": return {
-        newLink: `${base}/adjustments/new`, newLabel: "تسوية مخزون جديدة", newPerm: "inventory.update",
-        columns: [
-          { key: "adjustment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.adjustment_number}</span> },
-          { key: "reason", header: "السبب" },
-          { key: "notes", header: "ملاحظات" },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
       };
     }
