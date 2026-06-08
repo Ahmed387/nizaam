@@ -148,7 +148,8 @@ export default function AdminDashboard() {
                   { to: `/branch/${b.id}/treasury`, label: "خزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/10" },
                   { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowRightLeft, color: "text-warning", bg: "bg-warning/10" },
                   { to: `/branch/${b.id}/reports`, label: "تقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/10" },
-                  { to: `/branch/${b.id}/inventory-count`, label: "جرد", icon: ClipboardCheck, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardCheck, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardCheck, color: "text-warning", bg: "bg-warning/10" },
                 ].map((q) => (
                   <Link key={q.label} to={q.to}
                     className="flex flex-col items-center gap-1 p-1.5 rounded border border-border hover:border-primary hover:shadow-sm transition-all">
