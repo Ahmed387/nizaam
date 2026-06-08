@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
-type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote" | "adjustment";
+type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
 const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
   { key: "sale", label: "فواتير البيع", icon: ShoppingCart, color: "text-success" },
@@ -32,7 +32,6 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
   { key: "expense", label: "سندات الصرف", icon: ArrowUpCircle, color: "text-destructive" },
   { key: "transfer", label: "تحويل المخازن", icon: ArrowLeftRight, color: "text-primary" },
   { key: "quote", label: "عروض الأسعار", icon: FileText, color: "text-secondary" },
-  { key: "adjustment", label: "تسوية المخزون", icon: ClipboardList, color: "text-muted-foreground" },
 ];
 
 // Which filters apply to each tab
@@ -45,7 +44,6 @@ const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boole
   expense:         { search: true, date: true,                 amount: true, payment: true, category: true },
   transfer:        {              date: true, status: true,                                            transferBranch: true },
   quote:           { search: true, date: true, status: true,  amount: true },
-  adjustment:      { search: true, date: true },
 };
 
 type Filters = {
