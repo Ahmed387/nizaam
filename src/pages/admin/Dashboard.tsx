@@ -141,13 +141,14 @@ export default function AdminDashboard() {
                   <b>{formatEGP(b.treasury)}</b>
                 </div>
               </div>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                 {[
                   { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
                   { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/10" },
                   { to: `/branch/${b.id}/treasury`, label: "خزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/10" },
                   { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowRightLeft, color: "text-warning", bg: "bg-warning/10" },
                   { to: `/branch/${b.id}/reports`, label: "تقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/10" },
+                  { to: `/branch/${b.id}/inventory-count`, label: "جرد", icon: ClipboardCheck, color: "text-primary", bg: "bg-primary/10" },
                 ].map((q) => (
                   <Link key={q.label} to={q.to}
                     className="flex flex-col items-center gap-1 p-1.5 rounded border border-border hover:border-primary hover:shadow-sm transition-all">
