@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/DataTable";
-import { Loader2, CalendarSearch, Download } from "lucide-react";
+import { Loader2, CalendarSearch, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
+import { exportElementToPdf } from "@/lib/inventoryPdf";
 
 type Row = { product_id: string; sku: string; name: string; quantity_at_date: number };
 
