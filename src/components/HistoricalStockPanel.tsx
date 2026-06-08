@@ -86,15 +86,6 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
   const filtered = rows.filter((r) => !search || r.name?.includes(search) || r.sku?.includes(search));
 
   const exportCsv = () => {
-    const header = `الكود,الاسم,الكمية في ${fromAt},الكمية في ${toAt},الفرق,آخر مورد,آخر سعر شراء,تاريخ آخر شراء`;
-    const body = filtered
-      .map(
-        (r) =>
-          `${r.sku},"${r.name}",${r.quantity_at_date},${r.qty_to},${r.diff},"${r.supplier ?? ""}",${r.last_cost ?? ""},${r.last_purchase_at ?? ""}`
-      )
-      .join("\n");
-    const csv = "\uFEFF" + header + "\n" + body;
-  const exportCsv = () => {
     const header = [
       "الكود",
       "الاسم",
