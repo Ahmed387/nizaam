@@ -145,6 +145,8 @@ export default function Inventory() {
         <TabsList>
           <TabsTrigger value="products">الأصناف</TabsTrigger>
           <TabsTrigger value="transfers">نقل المخزون</TabsTrigger>
+          <TabsTrigger value="adjustments"><ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزون</TabsTrigger>
+          <TabsTrigger value="count"><ClipboardCheck className="w-4 h-4 ml-1" /> جرد المخزن</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="mt-4">
@@ -189,6 +191,14 @@ export default function Inventory() {
 
         <TabsContent value="transfers" className="mt-4">
           <StockTransfers embedded />
+        </TabsContent>
+
+        <TabsContent value="adjustments" className="mt-4">
+          <AdjustmentsList branchId={branchId!} />
+        </TabsContent>
+
+        <TabsContent value="count" className="mt-4">
+          <Sessions embedded />
         </TabsContent>
       </Tabs>
 
