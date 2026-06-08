@@ -279,3 +279,37 @@ export default function Inventory() {
     </BranchLayout>
   );
 }
+
+function AdjustmentsList({ branchId }: { branchId: string }) {
+  const nav = useNavigate();
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+    setRows((data as any) ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["stock_adjustments"], load);
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <Button onClick={() => nav(`/branch/${branchId}/adjustments/new`)} className="gap-2">
+          <Plus className="w-4 h-4" /> تسوية مخزون جديدة
+        </Button>
+      </div>
+      <DataTable
+        loading={loading}
+        rows={rows}
+        empty="لا توجد تسويات"
+        columns={[
+          { key: "adjustment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.adjustment_number}</span> },
+          { key: "reason", header: "السبب" },
+          { key: "notes", header: "ملاحظات", render: (r: any) => r.notes ?? "—" },
+          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+        ]}
+      />
+    </div>
+  );
+}
