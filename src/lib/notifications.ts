@@ -48,6 +48,21 @@ export async function getBranchManagers(branchId: string): Promise<string[]> {
   return Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
 }
 
+/** Get users in a branch having any of the given roles. */
+export async function getBranchUsersByRoles(branchId: string, roles: string[]): Promise<string[]> {
+  const { data: bu } = await supabase.from("branch_users").select("user_id").eq("branch_id", branchId);
+  const ids = (bu ?? []).map((r: any) => r.user_id);
+  if (!ids.length) return [];
+  const { data: rs } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .in("user_id", ids)
+    .in("role", roles as any);
+  return Array.from(new Set((rs ?? []).map((r: any) => r.user_id)));
+}
+
+
+
 /** Get all admins for a tenant. */
 export async function getTenantAdmins(tenantId: string): Promise<string[]> {
   const { data: profs } = await supabase.from("profiles").select("id").eq("tenant_id", tenantId);
