@@ -24,6 +24,10 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
   const [rows, setRows] = useState<(Row & { qty_to: number; diff: number; supplier?: string | null; last_cost?: number | null; last_purchase_at?: string | null })[]>([]);
   const [search, setSearch] = useState("");
   const [ran, setRan] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const fromLabel = () => (fromAt ? formatDateTime(new Date(fromAt)) : "");
+  const toLabel = () => (toAt ? formatDateTime(new Date(toAt)) : "");
 
   const run = async () => {
     if (!fromAt || !toAt) return toast.error("اختر التاريخ والوقت");
