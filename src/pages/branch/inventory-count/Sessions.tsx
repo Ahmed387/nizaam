@@ -36,6 +36,18 @@ export default function Sessions() {
   useEffect(() => { load(); }, [branchId]);
   useRealtimeRefresh(["inventory_sessions"], load);
 
+  const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
+
+  const cancelSession = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("inventory_sessions" as any)
+      .update({ status: "cancelled" })
+      .eq("id", sessionId);
+    if (error) return toast.error(error.message);
+    toast.success("تم إلغاء الجلسة");
+    load();
+  };
+
   const actionFor = (r: any) => {
     if (isManager && (r.status === "pending_approval")) {
       return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/approve`)}>اعتماد</Button>;
