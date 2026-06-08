@@ -74,7 +74,7 @@ export default function AdminDashboard() {
     (async () => { try { await supabase.rpc("mark_overdue_installments" as any); } catch {} })();
   }, []);
   useRealtimeRefresh(
-    ["invoices", "treasury", "products", "shipments", "branches", "vouchers"],
+    ["invoices", "treasury", "products", "shipments", "branches", "vouchers", "inventory_sessions"],
     load
   );
 
