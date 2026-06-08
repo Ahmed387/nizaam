@@ -8,7 +8,8 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { InventoryStatusBadge } from "@/components/InventoryStatusBadge";
 import { formatDateTime } from "@/lib/format";
-import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera } from "lucide-react";
+import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Sessions() {
   const { id: branchId } = useParams<{ id: string }>();
