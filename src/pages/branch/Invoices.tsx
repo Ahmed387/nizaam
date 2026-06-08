@@ -317,6 +317,7 @@ export default function Invoices() {
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
+          { key: "created_at", header: "تاريخ الإدخال", render: (r: any) => formatDateTime(r.created_at) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
           {
             key: "actions", header: "إجراءات", render: (r: any) => (
