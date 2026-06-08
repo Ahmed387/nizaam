@@ -8,7 +8,8 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { InventoryStatusBadge } from "@/components/InventoryStatusBadge";
 import { formatDateTime } from "@/lib/format";
-import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera } from "lucide-react";
+import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Sessions() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -34,6 +35,18 @@ export default function Sessions() {
   };
   useEffect(() => { load(); }, [branchId]);
   useRealtimeRefresh(["inventory_sessions"], load);
+
+  const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
+
+  const cancelSession = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("inventory_sessions" as any)
+      .update({ status: "cancelled" })
+      .eq("id", sessionId);
+    if (error) return toast.error(error.message);
+    toast.success("تم إلغاء الجلسة");
+    load();
+  };
 
   const actionFor = (r: any) => {
     if (isManager && (r.status === "pending_approval")) {
@@ -75,6 +88,11 @@ export default function Sessions() {
             render: (r: any) => (
               <div className="flex gap-2 justify-end flex-wrap">
                 {actionFor(r)}
+                {isManager && canCancel(r.status) && (
+                  <Button size="sm" variant="outline" onClick={() => cancelSession(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
+                    <Ban className="w-4 h-4" /> إلغاء
+                  </Button>
+                )}
                 {isAdmin && (
                   <Link to={`/branch/${branchId}/inventory-count/${r.id}/snapshot`}>
                     <Button size="sm" variant="outline" className="gap-1">
