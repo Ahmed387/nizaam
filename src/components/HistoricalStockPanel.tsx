@@ -6,58 +6,84 @@ import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/DataTable";
 import { Loader2, CalendarSearch, Download } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/format";
+
+type Row = { product_id: string; sku: string; name: string; quantity_at_date: number };
 
 export function HistoricalStockPanel({ branchId }: { branchId: string }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [date, setDate] = useState<string>(today);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toLocal = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0);
+
+  const [fromAt, setFromAt] = useState<string>(toLocal(startOfMonth));
+  const [toAt, setToAt] = useState<string>(toLocal(now));
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<(Row & { qty_to: number; diff: number })[]>([]);
   const [search, setSearch] = useState("");
   const [ran, setRan] = useState(false);
 
   const run = async () => {
-    if (!date) return toast.error("اختر التاريخ");
+    if (!fromAt || !toAt) return toast.error("اختر التاريخ والوقت");
+    const fromIso = new Date(fromAt).toISOString();
+    const toIso = new Date(toAt).toISOString();
+    if (new Date(fromIso) > new Date(toIso)) return toast.error("تاريخ البداية أكبر من النهاية");
+
     setLoading(true);
-    // end of selected day
-    const asOf = new Date(`${date}T23:59:59.999`).toISOString();
-    const { data, error } = await (supabase.rpc as any)("historical_stock_at", {
-      _branch_id: branchId,
-      _as_of: asOf,
-    });
+    const [{ data: dataFrom, error: e1 }, { data: dataTo, error: e2 }] = await Promise.all([
+      (supabase.rpc as any)("historical_stock_at", { _branch_id: branchId, _as_of: fromIso }),
+      (supabase.rpc as any)("historical_stock_at", { _branch_id: branchId, _as_of: toIso }),
+    ]);
     setLoading(false);
-    if (error) return toast.error(error.message);
-    setRows(data ?? []);
+    if (e1 || e2) return toast.error((e1 || e2)!.message);
+
+    const mapTo = new Map<string, number>();
+    (dataTo ?? []).forEach((r: Row) => mapTo.set(r.product_id, Number(r.quantity_at_date)));
+
+    const merged = (dataFrom ?? []).map((r: Row) => {
+      const qFrom = Number(r.quantity_at_date);
+      const qTo = mapTo.get(r.product_id) ?? qFrom;
+      return { ...r, quantity_at_date: qFrom, qty_to: qTo, diff: qTo - qFrom };
+    });
+    setRows(merged);
     setRan(true);
   };
 
+  const filtered = rows.filter((r) => !search || r.name?.includes(search) || r.sku?.includes(search));
+
   const exportCsv = () => {
-    const header = "الكود,الاسم,الكمية بتاريخ " + date;
-    const body = filtered.map((r: any) => `${r.sku},"${r.name}",${r.quantity_at_date}`).join("\n");
+    const header = `الكود,الاسم,الكمية في ${fromAt},الكمية في ${toAt},الفرق`;
+    const body = filtered
+      .map((r) => `${r.sku},"${r.name}",${r.quantity_at_date},${r.qty_to},${r.diff}`)
+      .join("\n");
     const csv = "\uFEFF" + header + "\n" + body;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `historical-stock-${date}.csv`; a.click();
+    a.href = url;
+    a.download = `historical-stock-${fromAt}_to_${toAt}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
   };
-
-  const filtered = rows.filter((r: any) =>
-    !search || r.name?.includes(search) || r.sku?.includes(search)
-  );
 
   return (
     <div className="card-elevated p-4 mb-6">
       <div className="flex items-center gap-2 mb-3">
         <CalendarSearch className="w-5 h-5 text-primary" />
-        <h3 className="font-bold">رصيد المخزون في تاريخ سابق</h3>
+        <h3 className="font-bold">رصيد المخزون خلال فترة</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-3">
-        اختر تاريخًا لعرض الكمية الفعلية لكل منتج كما كانت في نهاية ذلك اليوم — ثم قارنها بالموجود على أرض الواقع.
+        حدد تاريخ ووقت البداية والنهاية لمعرفة الكمية التي كانت موجودة لكل منتج في كل لحظة، ومقدار التغيّر بينهما.
       </p>
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <Label className="text-xs">حتى نهاية يوم</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+          <Label className="text-xs">من (تاريخ ووقت)</Label>
+          <Input type="datetime-local" value={fromAt} onChange={(e) => setFromAt(e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-xs">إلى (تاريخ ووقت)</Label>
+          <Input type="datetime-local" value={toAt} onChange={(e) => setToAt(e.target.value)} className="mt-1" />
         </div>
         <Button onClick={run} disabled={loading} className="gap-2">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarSearch className="w-4 h-4" />}
@@ -65,7 +91,12 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
         </Button>
         {ran && rows.length > 0 && (
           <>
-            <Input placeholder="بحث بالاسم أو الكود" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+            <Input
+              placeholder="بحث بالاسم أو الكود"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
             <Button variant="outline" onClick={exportCsv} className="gap-2">
               <Download className="w-4 h-4" /> تصدير CSV
             </Button>
@@ -75,14 +106,54 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
 
       {ran && (
         <div className="mt-4">
+          <div className="text-xs text-muted-foreground mb-2">
+            من <span className="font-semibold">{formatDateTime(new Date(fromAt))}</span> إلى{" "}
+            <span className="font-semibold">{formatDateTime(new Date(toAt))}</span>
+          </div>
           <DataTable
             loading={loading}
             rows={filtered}
-            empty="لا توجد منتجات بهذا التاريخ"
+            empty="لا توجد منتجات في هذه الفترة"
             columns={[
-              { key: "sku", header: "الكود", render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
+              {
+                key: "sku",
+                header: "الكود",
+                render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span>,
+              },
               { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
-              { key: "quantity_at_date", header: `الكمية بتاريخ ${date}`, render: (r: any) => <span className="font-bold">{Number(r.quantity_at_date)}</span> },
+              {
+                key: "qty_from",
+                header: "الكمية من",
+                render: (r: any) => <span className="font-bold">{Number(r.quantity_at_date)}</span>,
+              },
+              {
+                key: "date_from",
+                header: "تاريخ البداية",
+                render: () => <span className="text-xs text-muted-foreground">{formatDateTime(new Date(fromAt))}</span>,
+              },
+              {
+                key: "qty_to",
+                header: "الكمية إلى",
+                render: (r: any) => <span className="font-bold">{Number(r.qty_to)}</span>,
+              },
+              {
+                key: "date_to",
+                header: "تاريخ النهاية",
+                render: () => <span className="text-xs text-muted-foreground">{formatDateTime(new Date(toAt))}</span>,
+              },
+              {
+                key: "diff",
+                header: "الفرق",
+                render: (r: any) => {
+                  const d = Number(r.diff);
+                  if (d === 0) return <span className="text-muted-foreground">0</span>;
+                  return (
+                    <span className={d > 0 ? "text-success font-bold" : "text-destructive font-bold"}>
+                      {d > 0 ? `+${d}` : d}
+                    </span>
+                  );
+                },
+              },
             ]}
           />
         </div>
