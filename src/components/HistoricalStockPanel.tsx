@@ -94,6 +94,36 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
       )
       .join("\n");
     const csv = "\uFEFF" + header + "\n" + body;
+  const exportCsv = () => {
+    const header = [
+      "الكود",
+      "الاسم",
+      "الكمية من",
+      "تاريخ البداية",
+      "الكمية إلى",
+      "تاريخ النهاية",
+      "الفرق",
+      "آخر مورد",
+      "سعر آخر شراء",
+      "تاريخ آخر شراء",
+    ].join(",");
+    const body = filtered
+      .map((r) =>
+        [
+          r.sku,
+          `"${(r.name ?? "").replace(/"/g, '""')}"`,
+          r.quantity_at_date,
+          `"${fromLabel()}"`,
+          r.qty_to,
+          `"${toLabel()}"`,
+          r.diff > 0 ? `+${r.diff}` : r.diff,
+          `"${(r.supplier ?? "").replace(/"/g, '""')}"`,
+          r.last_cost ?? "",
+          r.last_purchase_at ? `"${formatDateTime(r.last_purchase_at)}"` : "",
+        ].join(",")
+      )
+      .join("\n");
+    const csv = "\uFEFF" + header + "\n" + body;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -101,6 +131,18 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     a.download = `historical-stock-${fromAt}_to_${toAt}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = async () => {
+    if (!tableRef.current) return;
+    try {
+      await exportElementToPdf(tableRef.current, {
+        filename: `historical-stock-${fromAt}_to_${toAt}.pdf`,
+        sessionId: `${fromAt} → ${toAt}`,
+      });
+    } catch (e: any) {
+      toast.error(e?.message ?? "فشل تصدير PDF");
+    }
   };
 
   return (
