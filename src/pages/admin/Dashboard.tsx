@@ -126,9 +126,9 @@ export default function AdminDashboard() {
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">الفروع — دخول مباشر</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {branchSummary.map((b: any) => (
-            <div key={b.id} className="card-elevated p-4 flex flex-col gap-3 relative overflow-hidden">
+            <div key={b.id} className="card-elevated p-4 pt-7 flex flex-col gap-3 relative overflow-hidden">
               {activeCountBranches.has(b.id) && (
-                <div className="absolute top-3 -left-10 rotate-[-45deg] bg-warning text-warning-foreground text-[10px] font-bold px-10 py-1 shadow-md z-10 flex items-center gap-1">
+                <div className="absolute top-0 inset-x-0 bg-warning text-warning-foreground text-[11px] font-bold px-3 py-1 shadow-sm z-10 flex items-center justify-center gap-1 animate-pulse">
                   <ClipboardCheck className="w-3 h-3" /> جارٍ الجرد
                 </div>
               )}
