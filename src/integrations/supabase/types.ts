@@ -673,6 +673,159 @@ export type Database = {
           },
         ]
       }
+      inventory_adjustments: {
+        Row: {
+          adjustment_amount: number
+          created_at: string
+          created_by: string
+          id: string
+          product_id: string
+          reason: string | null
+          session_id: string
+        }
+        Insert: {
+          adjustment_amount: number
+          created_at?: string
+          created_by: string
+          id?: string
+          product_id: string
+          reason?: string | null
+          session_id: string
+        }
+        Update: {
+          adjustment_amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          product_id?: string
+          reason?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_session_items: {
+        Row: {
+          actual_quantity: number | null
+          created_at: string
+          difference: number | null
+          id: string
+          notes: string | null
+          product_code: string
+          product_id: string
+          product_name: string
+          reason: string | null
+          session_id: string
+          system_quantity: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_quantity?: number | null
+          created_at?: string
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          product_code: string
+          product_id: string
+          product_name: string
+          reason?: string | null
+          session_id: string
+          system_quantity: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_quantity?: number | null
+          created_at?: string
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          product_code?: string
+          product_id?: string
+          product_name?: string
+          reason?: string | null
+          session_id?: string
+          system_quantity?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_session_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_sessions: {
+        Row: {
+          accountant_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          branch_id: string
+          closed_at: string | null
+          counted_at: string | null
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          reject_reason: string | null
+          reviewed_at: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          accountant_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          branch_id: string
+          closed_at?: string | null
+          counted_at?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          reject_reason?: string | null
+          reviewed_at?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          accountant_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          branch_id?: string
+          closed_at?: string | null
+          counted_at?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          reject_reason?: string | null
+          reviewed_at?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           cost_price: number
@@ -2910,6 +3063,10 @@ export type Database = {
         Args: { p_decision: string; p_note?: string; p_request_id: string }
         Returns: Json
       }
+      approve_inventory_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number
@@ -2934,6 +3091,10 @@ export type Database = {
       contact_balance_apply: {
         Args: { _contact: string; _delta: number }
         Returns: undefined
+      }
+      create_inventory_session: {
+        Args: { p_branch_id: string; p_notes?: string }
+        Returns: string
       }
       create_manual_voucher:
         | {
