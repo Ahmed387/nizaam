@@ -69,7 +69,37 @@ export default function NewStockAdjustment() {
 
   return (
     <BranchLayout>
-      <PageHeader title="جرد مخزن جديد" subtitle="بعد الجرد - عدّل الكميات الفعلية" />
+      <PageHeader
+        title="تسوية مخزون جديدة"
+        subtitle="عدّل الكميات في النظام لتطابق الكميات الفعلية بعد الجرد"
+        actions={
+          <HoverCard openDelay={100}>
+            <HoverCardTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="ما هي تسوية المخزون؟">
+                <HelpCircle className="w-4 h-4" />
+              </Button>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-80 text-right" side="bottom" align="end">
+              <div className="space-y-2 text-sm">
+                <p className="font-semibold">يعني إيه تسوية مخزون؟</p>
+                <p className="text-muted-foreground">
+                  هي تعديل كمية المنتج في النظام عشان تطابق الكمية الفعلية الموجودة في المخزن
+                  بعد ما تعمل جرد، لتغطية أي فرق بسبب تلف أو فقد أو خطأ إدخال.
+                </p>
+                <div className="border-t pt-2">
+                  <p className="font-semibold">مثال:</p>
+                  <p className="text-muted-foreground">
+                    لو النظام بيقول عندك <span className="font-medium">100 قطعة</span>،
+                    وبعد الجرد لقيت فعلياً <span className="font-medium">95 قطعة</span> فقط،
+                    التسوية هتنقص <span className="font-medium">5 قطع</span> من النظام
+                    عشان الرصيد يبقى مطابق للواقع.
+                  </p>
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
+        }
+      />
       <div className="space-y-4 card-elevated p-5">
         <div className="grid md:grid-cols-2 gap-4">
           <div>
