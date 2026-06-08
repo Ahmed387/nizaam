@@ -11,7 +11,7 @@ import { formatDateTime } from "@/lib/format";
 import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban } from "lucide-react";
 import { toast } from "sonner";
 
-export default function Sessions() {
+export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
   const { hasRole, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +63,7 @@ export default function Sessions() {
 
   return (
     <ConditionalLayout
+      embedded={embedded}
       title="جرد المخزن"
       subtitle="إدارة جلسات الجرد ومراجعة الفروقات"
       actions={

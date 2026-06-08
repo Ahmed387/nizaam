@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -14,15 +14,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StockTransfers from "./StockTransfers";
+import Sessions from "./inventory-count/Sessions";
+import { formatDateTime } from "@/lib/format";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = ["products", "transfers", "adjustments", "count"].includes(tabParam ?? "") ? tabParam! : "products";
   const { user, profile, tenantId, isAdmin, hasRole } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
@@ -139,10 +144,12 @@ export default function Inventory() {
         }
       />
 
-      <Tabs defaultValue="products">
+      <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList>
           <TabsTrigger value="products">الأصناف</TabsTrigger>
           <TabsTrigger value="transfers">نقل المخزون</TabsTrigger>
+          <TabsTrigger value="adjustments"><ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزون</TabsTrigger>
+          <TabsTrigger value="count"><ClipboardCheck className="w-4 h-4 ml-1" /> جرد المخزن</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="mt-4">
@@ -187,6 +194,14 @@ export default function Inventory() {
 
         <TabsContent value="transfers" className="mt-4">
           <StockTransfers embedded />
+        </TabsContent>
+
+        <TabsContent value="adjustments" className="mt-4">
+          <AdjustmentsList branchId={branchId!} />
+        </TabsContent>
+
+        <TabsContent value="count" className="mt-4">
+          <Sessions embedded />
         </TabsContent>
       </Tabs>
 
@@ -265,5 +280,39 @@ export default function Inventory() {
         }}
       />
     </BranchLayout>
+  );
+}
+
+function AdjustmentsList({ branchId }: { branchId: string }) {
+  const nav = useNavigate();
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+    setRows((data as any) ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["stock_adjustments"], load);
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <Button onClick={() => nav(`/branch/${branchId}/adjustments/new`)} className="gap-2">
+          <Plus className="w-4 h-4" /> تسوية مخزون جديدة
+        </Button>
+      </div>
+      <DataTable
+        loading={loading}
+        rows={rows}
+        empty="لا توجد تسويات"
+        columns={[
+          { key: "adjustment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.adjustment_number}</span> },
+          { key: "reason", header: "السبب" },
+          { key: "notes", header: "ملاحظات", render: (r: any) => r.notes ?? "—" },
+          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+        ]}
+      />
+    </div>
   );
 }
