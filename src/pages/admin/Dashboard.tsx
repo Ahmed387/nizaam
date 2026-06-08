@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [branchSummary, setBranchSummary] = useState<any[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const today = new Date();
@@ -57,6 +58,13 @@ export default function AdminDashboard() {
     );
     setBranchSummary(summary);
     setChartData(summary.map((s) => ({ name: s.name, sales: s.sales, profit: s.profit })));
+
+    const { data: activeSessions } = await supabase
+      .from("inventory_sessions" as any)
+      .select("branch_id")
+      .in("status", ["counting", "reviewing", "pending_approval"]);
+    setActiveCountBranches(new Set((activeSessions ?? []).map((s: any) => s.branch_id)));
+
     setLoading(false);
   }, []);
 
@@ -66,7 +74,7 @@ export default function AdminDashboard() {
     (async () => { try { await supabase.rpc("mark_overdue_installments" as any); } catch {} })();
   }, []);
   useRealtimeRefresh(
-    ["invoices", "treasury", "products", "shipments", "branches", "vouchers"],
+    ["invoices", "treasury", "products", "shipments", "branches", "vouchers", "inventory_sessions"],
     load
   );
 
@@ -118,7 +126,12 @@ export default function AdminDashboard() {
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">الفروع — دخول مباشر</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {branchSummary.map((b: any) => (
-            <div key={b.id} className="card-elevated p-4 flex flex-col gap-3">
+            <div key={b.id} className="card-elevated p-4 flex flex-col gap-3 relative overflow-hidden">
+              {activeCountBranches.has(b.id) && (
+                <div className="absolute top-3 -left-10 rotate-[-45deg] bg-warning text-warning-foreground text-[10px] font-bold px-10 py-1 shadow-md z-10 flex items-center gap-1">
+                  <ClipboardCheck className="w-3 h-3" /> جارٍ الجرد
+                </div>
+              )}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
