@@ -257,7 +257,8 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
                   ),
               },
             ]}
-          />
+            />
+          </div>
         </div>
       )}
     </div>
