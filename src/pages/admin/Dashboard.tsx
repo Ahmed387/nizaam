@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [branchSummary, setBranchSummary] = useState<any[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const today = new Date();
