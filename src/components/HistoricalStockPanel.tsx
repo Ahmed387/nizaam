@@ -178,11 +178,15 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
 
       {ran && (
         <div className="mt-4">
-          <div className="text-xs text-muted-foreground mb-2">
-            من <span className="font-semibold">{formatDateTime(new Date(fromAt))}</span> إلى{" "}
-            <span className="font-semibold">{formatDateTime(new Date(toAt))}</span>
-          </div>
-          <DataTable
+          <div ref={tableRef} className="bg-white p-3">
+            <div className="text-xs text-muted-foreground mb-2">
+              من <span className="font-semibold">{formatDateTime(new Date(fromAt))}</span> إلى{" "}
+              <span className="font-semibold">{formatDateTime(new Date(toAt))}</span>
+            </div>
+            <DataTable
+              loading={loading}
+              rows={filtered}
+              empty="لا توجد منتجات في هذه الفترة"
             loading={loading}
             rows={filtered}
             empty="لا توجد منتجات في هذه الفترة"
