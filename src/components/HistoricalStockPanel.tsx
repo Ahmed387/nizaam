@@ -169,6 +169,9 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
             <Button variant="outline" onClick={exportCsv} className="gap-2">
               <Download className="w-4 h-4" /> تصدير CSV
             </Button>
+            <Button variant="outline" onClick={exportPdf} className="gap-2">
+              <FileText className="w-4 h-4" /> تصدير PDF
+            </Button>
           </>
         )}
       </div>
