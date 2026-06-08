@@ -106,6 +106,12 @@ import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
+import InvCountSessions from "./pages/branch/inventory-count/Sessions";
+import InvCountNew from "./pages/branch/inventory-count/NewSession";
+import InvCountSheet from "./pages/branch/inventory-count/CountingSheet";
+import InvCountReview from "./pages/branch/inventory-count/Review";
+import InvCountApproval from "./pages/branch/inventory-count/Approval";
+import InvCountReport from "./pages/branch/inventory-count/Report";
 
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
@@ -209,6 +215,14 @@ const App = () => (
 
             <Route path="/branch/:id/reports" element={<ProtectedRoute perm="reports.view"><BranchReports /></ProtectedRoute>} />
             <Route path="/branch/:id/attendance" element={<ProtectedRoute perm="attendance.view"><Attendance /></ProtectedRoute>} />
+
+            {/* جرد المخزن */}
+            <Route path="/branch/:id/inventory-count" element={<ProtectedRoute perm="inventory.view"><InvCountSessions /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory-count/new" element={<ProtectedRoute perm="inventory.view"><InvCountNew /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory-count/:sessionId/count" element={<ProtectedRoute perm="inventory.view"><InvCountSheet /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory-count/:sessionId/review" element={<ProtectedRoute perm="inventory.view"><InvCountReview /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory-count/:sessionId/approve" element={<ProtectedRoute perm="inventory.view"><InvCountApproval /></ProtectedRoute>} />
+            <Route path="/branch/:id/inventory-count/:sessionId/report" element={<ProtectedRoute perm="inventory.view"><InvCountReport /></ProtectedRoute>} />
 
 
             <Route path="*" element={<NotFound />} />
