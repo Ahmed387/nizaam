@@ -81,7 +81,9 @@ export default function AdminDashboard() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="مبيعات اليوم" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" />
+        <Link to="/admin/reports-hub?tab=central" className="block hover:scale-[1.02] transition-transform" title="افتح تحليلات المبيعات لكل الفروع">
+          <StatCard label="مبيعات اليوم" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" hint="اضغط لعرض تحليلات الفروع" />
+        </Link>
         <StatCard label="رصيد الخزن" value={formatEGP(treasury)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
         <StatCard label="منتجات تحت الحد" value={lowStock} icon={<AlertTriangle className="w-5 h-5" />} accent="warning" />
         <StatCard label="شحنات اليوم" value={shipmentsToday} icon={<Package className="w-5 h-5" />} accent="secondary" />
