@@ -59,6 +59,9 @@ export async function getBranchUsersByRoles(branchId: string, roles: string[]): 
     .in("user_id", ids)
     .in("role", roles as any);
   return Array.from(new Set((rs ?? []).map((r: any) => r.user_id)));
+}
+
+
 
 /** Get all admins for a tenant. */
 export async function getTenantAdmins(tenantId: string): Promise<string[]> {
