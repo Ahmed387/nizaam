@@ -7,6 +7,7 @@ export const INV_STATUS_LABELS: Record<string, string> = {
   approved: "معتمد",
   rejected: "مرفوض",
   closed: "مغلق",
+  cancelled: "ملغى",
 };
 
 const STYLES: Record<string, string> = {
@@ -16,6 +17,7 @@ const STYLES: Record<string, string> = {
   approved: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
   rejected: "bg-red-500/15 text-red-600 border-red-500/30",
   closed: "bg-slate-500/15 text-slate-600 border-slate-500/30",
+  cancelled: "bg-gray-500/15 text-gray-600 border-gray-500/30",
 };
 
 export function InventoryStatusBadge({ status }: { status: string }) {
