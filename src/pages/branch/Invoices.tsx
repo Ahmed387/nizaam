@@ -207,9 +207,6 @@ export default function Invoices() {
     } else if (tab === "quote") {
       const r = await supabase.from("quotes" as any).select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
-    } else if (tab === "adjustment") {
-      const r = await supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
     }
     setRows(data);
     setLoading(false);
