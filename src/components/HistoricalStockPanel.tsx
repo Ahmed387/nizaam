@@ -185,6 +185,32 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
                   );
                 },
               },
+              {
+                key: "supplier",
+                header: "آخر مورد",
+                render: (r: any) =>
+                  r.supplier ? <span>{r.supplier}</span> : <span className="text-muted-foreground">—</span>,
+              },
+              {
+                key: "last_cost",
+                header: "سعر آخر شراء",
+                render: (r: any) =>
+                  r.last_cost != null ? (
+                    <span className="font-semibold">{Number(r.last_cost).toLocaleString("ar-EG")}</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
+              },
+              {
+                key: "last_purchase_at",
+                header: "تاريخ آخر شراء",
+                render: (r: any) =>
+                  r.last_purchase_at ? (
+                    <span className="text-xs text-muted-foreground">{formatDateTime(r.last_purchase_at)}</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
+              },
             ]}
           />
         </div>
