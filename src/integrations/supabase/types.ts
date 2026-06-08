@@ -3217,6 +3217,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      historical_stock_at: {
+        Args: { _as_of: string; _branch_id: string }
+        Returns: {
+          name: string
+          product_id: string
+          quantity_at_date: number
+          sku: string
+        }[]
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       map_treasury_to_category_key: {
