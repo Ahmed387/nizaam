@@ -187,9 +187,6 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
               loading={loading}
               rows={filtered}
               empty="لا توجد منتجات في هذه الفترة"
-            loading={loading}
-            rows={filtered}
-            empty="لا توجد منتجات في هذه الفترة"
             columns={[
               {
                 key: "sku",
