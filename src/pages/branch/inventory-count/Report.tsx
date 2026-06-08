@@ -25,36 +25,21 @@ export default function Report() {
     if (!sessionId) return;
     (async () => {
       setLoading(true);
-      const [s, it] = await Promise.all([
-        supabase
-          .from("inventory_sessions" as any)
-          .select("*, branches(name), created_by_profile:profiles!inventory_sessions_created_by_fkey(name), approved_by_profile:profiles!inventory_sessions_approved_by_fkey(name)")
-          .eq("id", sessionId)
-          .maybeSingle()
-          .then(async (r) => {
-            // foreign key alias may not exist — fall back to manual lookups
-            if (r.error || !r.data) {
-              const base = await supabase.from("inventory_sessions" as any).select("*, branches(name)").eq("id", sessionId).maybeSingle();
-              const sd: any = base.data;
-              if (sd?.created_by) {
-                const p = await supabase.from("profiles").select("name").eq("id", sd.created_by).maybeSingle();
-                sd.created_by_name = (p.data as any)?.name ?? "—";
-              }
-              if (sd?.approved_by) {
-                const p = await supabase.from("profiles").select("name").eq("id", sd.approved_by).maybeSingle();
-                sd.approved_by_name = (p.data as any)?.name ?? "—";
-              }
-              return { data: sd };
-            }
-            const sd: any = r.data;
-            sd.created_by_name = sd.created_by_profile?.name ?? "—";
-            sd.approved_by_name = sd.approved_by_profile?.name ?? "—";
-            return { data: sd };
-          }),
+      const [sRes, itRes] = await Promise.all([
+        supabase.from("inventory_sessions" as any).select("*, branches(name)").eq("id", sessionId).maybeSingle(),
         supabase.from("inventory_session_items" as any).select("*").eq("session_id", sessionId).order("product_name"),
       ]);
-      setSess(s.data);
-      setItems((it.data as any) ?? []);
+      const sd: any = sRes.data;
+      if (sd?.created_by) {
+        const p = await supabase.from("profiles").select("name").eq("id", sd.created_by).maybeSingle();
+        sd.created_by_name = (p.data as any)?.name ?? "—";
+      }
+      if (sd?.approved_by) {
+        const p = await supabase.from("profiles").select("name").eq("id", sd.approved_by).maybeSingle();
+        sd.approved_by_name = (p.data as any)?.name ?? "—";
+      }
+      setSess(sd);
+      setItems((itRes.data as any) ?? []);
       setLoading(false);
     })();
   }, [sessionId]);
