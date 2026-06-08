@@ -259,6 +259,7 @@ export default function Inventory() {
         </TabsContent>
 
         <TabsContent value="count" className="mt-4">
+          <HistoricalStockPanel branchId={branchId!} />
           <Sessions embedded />
         </TabsContent>
       </Tabs>
