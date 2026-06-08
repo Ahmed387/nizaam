@@ -150,8 +150,64 @@ export default function Inventory() {
         <TabsList>
           <TabsTrigger value="products">الأصناف</TabsTrigger>
           <TabsTrigger value="transfers">نقل المخزون</TabsTrigger>
-          <TabsTrigger value="adjustments"><ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزون</TabsTrigger>
-          <TabsTrigger value="count"><ClipboardCheck className="w-4 h-4 ml-1" /> جرد المخزن</TabsTrigger>
+          <TabsTrigger value="adjustments">
+            <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزون
+            <HoverCard openDelay={150}>
+              <HoverCardTrigger asChild>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center mr-1 text-muted-foreground hover:text-primary cursor-help"
+                  aria-label="ما هي تسوية المخزون؟"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80 text-right" side="bottom" align="start">
+                <div className="space-y-2 text-sm">
+                  <div className="font-bold text-primary">تسوية المخزون</div>
+                  <p className="text-muted-foreground">
+                    حركة تصحيحية بتعدّل كمية المنتج في النظام عشان توافق الكمية الفعلية على أرض الواقع.
+                  </p>
+                  <div className="bg-muted/50 rounded p-2 text-xs">
+                    <span className="font-semibold">مثال:</span> النظام بيقول 100 قطعة، والموجود فعلياً 95. التسوية بتنقّص 5 عشان النظام يطابق الواقع.
+                  </div>
+                  <p className="text-xs text-muted-foreground">بتستخدمها بعد الجرد لما تلاقي فروقات (هالك، سرقة، خطأ إدخال…).</p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </TabsTrigger>
+          <TabsTrigger value="count">
+            <ClipboardCheck className="w-4 h-4 ml-1" /> جرد المخزن
+            <HoverCard openDelay={150}>
+              <HoverCardTrigger asChild>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center mr-1 text-muted-foreground hover:text-primary cursor-help"
+                  aria-label="ما هو جرد المخزن؟"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </span>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80 text-right" side="bottom" align="start">
+                <div className="space-y-2 text-sm">
+                  <div className="font-bold text-primary">جرد المخزن</div>
+                  <p className="text-muted-foreground">
+                    عملية عدّ فعلي للبضاعة الموجودة في المخزن ومقارنتها بأرصدة النظام لاكتشاف الفروقات.
+                  </p>
+                  <div className="bg-muted/50 rounded p-2 text-xs">
+                    <span className="font-semibold">مثال:</span> أمين المخزن يعد المنتج فيلاقي 95، النظام مسجّل 100 → فرق -5 يتراجع ويتعمله تسوية.
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    من هنا كمان تقدر تشوف <span className="font-semibold">رصيد أي منتج في تاريخ سابق</span> وتقارنه بالواقع.
+                  </p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="mt-4">
