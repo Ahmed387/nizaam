@@ -164,7 +164,7 @@ export default function Inventory() {
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent className="w-80 text-right" side="bottom" align="start">
+              <HoverCardContent dir="rtl" className="w-80 text-right" side="bottom" align="end">
                 <div className="space-y-2 text-sm">
                   <div className="font-bold text-primary">تسوية المخزون</div>
                   <p className="text-muted-foreground">
@@ -192,7 +192,7 @@ export default function Inventory() {
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent className="w-80 text-right" side="bottom" align="start">
+              <HoverCardContent dir="rtl" className="w-80 text-right" side="bottom" align="end">
                 <div className="space-y-2 text-sm">
                   <div className="font-bold text-primary">جرد المخزن</div>
                   <p className="text-muted-foreground">
