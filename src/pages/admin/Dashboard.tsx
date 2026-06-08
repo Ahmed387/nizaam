@@ -126,25 +126,20 @@ export default function AdminDashboard() {
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">الفروع — دخول مباشر</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {branchSummary.map((b: any) => (
-            <div key={b.id} className="card-elevated p-4 pt-7 flex flex-col gap-3 relative overflow-hidden">
+            <div key={b.id} className="card-elevated p-4 flex flex-col gap-3 relative overflow-hidden">
               {activeCountBranches.has(b.id) && (
-                <div className="absolute top-0 inset-x-0 bg-warning text-warning-foreground text-[11px] font-bold px-3 py-1 shadow-sm z-10 flex items-center justify-center gap-1 animate-pulse">
+                <div className="absolute top-3 -left-10 rotate-[-45deg] bg-warning text-warning-foreground text-[10px] font-bold px-10 py-1 shadow-md z-10 flex items-center gap-1">
                   <ClipboardCheck className="w-3 h-3" /> جارٍ الجرد
                 </div>
               )}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold">{b.name}</div>
-                    <div className="text-xs text-muted-foreground">{b.code ?? ""}</div>
-                  </div>
+              <div className="flex items-start gap-2">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Building2 className="w-4 h-4" />
                 </div>
-                <Button asChild size="sm" variant="outline" className="gap-1">
-                  <Link to={`/branch/${b.id}/dashboard`}>دخول <ArrowUpRight className="w-3 h-3" /></Link>
-                </Button>
+                <div className="min-w-0">
+                  <div className="font-bold truncate">{b.name}</div>
+                  <div className="text-xs text-muted-foreground">{b.code ?? ""}</div>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex items-center justify-between p-2 rounded bg-surface-2">
@@ -175,27 +170,14 @@ export default function AdminDashboard() {
                   </Link>
                 ))}
               </div>
+              <Button asChild size="sm" variant="outline" className="gap-1 w-full mt-1">
+                <Link to={`/branch/${b.id}/dashboard`}>دخول الفرع <ArrowUpRight className="w-3 h-3" /></Link>
+              </Button>
             </div>
           ))}
         </div>
       </div>
 
-
-      <div className="card-elevated p-5 mb-6">
-        <h3 className="font-bold mb-4">مقارنة أداء الفروع</h3>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
-              <YAxis stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="المبيعات" />
-              <Bar dataKey="profit" fill="hsl(var(--secondary))" radius={[6, 6, 0, 0]} name="الربح" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
 
