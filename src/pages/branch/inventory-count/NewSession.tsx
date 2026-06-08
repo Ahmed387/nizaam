@@ -33,6 +33,25 @@ export default function NewSession() {
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("تم فتح جلسة جرد جديدة — تم التقاط الكميات الحالية");
+
+    // Notify accountant + warehouse keepers of this branch
+    try {
+      const { getBranchUsersByRoles, notifyMany } = await import("@/lib/notifications");
+      const recipients = await getBranchUsersByRoles(branchId, ["accountant", "warehouse"]);
+      if (recipients.length) {
+        await notifyMany(recipients, {
+          title: "تم فتح جلسة جرد جديدة",
+          body: `قام المدير بفتح جلسة جرد في فرع ${branch?.name ?? ""}`,
+          type: "general",
+          link: `/branch/${branchId}/inventory?tab=count`,
+          relatedEntity: "inventory_session",
+          relatedEntityId: String(data),
+        });
+      }
+    } catch (e) {
+      console.error("notify failed", e);
+    }
+
     navigate(`/branch/${branchId}/inventory-count/${data}/report`);
   };
 
