@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/DataTable";
-import { Loader2, CalendarSearch, Download } from "lucide-react";
+import { Loader2, CalendarSearch, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
+import { exportElementToPdf } from "@/lib/inventoryPdf";
 
 type Row = { product_id: string; sku: string; name: string; quantity_at_date: number };
 
@@ -23,6 +24,10 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
   const [rows, setRows] = useState<(Row & { qty_to: number; diff: number; supplier?: string | null; last_cost?: number | null; last_purchase_at?: string | null })[]>([]);
   const [search, setSearch] = useState("");
   const [ran, setRan] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const fromLabel = () => (fromAt ? formatDateTime(new Date(fromAt)) : "");
+  const toLabel = () => (toAt ? formatDateTime(new Date(toAt)) : "");
 
   const run = async () => {
     if (!fromAt || !toAt) return toast.error("اختر التاريخ والوقت");
@@ -81,11 +86,32 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
   const filtered = rows.filter((r) => !search || r.name?.includes(search) || r.sku?.includes(search));
 
   const exportCsv = () => {
-    const header = `الكود,الاسم,الكمية في ${fromAt},الكمية في ${toAt},الفرق,آخر مورد,آخر سعر شراء,تاريخ آخر شراء`;
+    const header = [
+      "الكود",
+      "الاسم",
+      "الكمية من",
+      "تاريخ البداية",
+      "الكمية إلى",
+      "تاريخ النهاية",
+      "الفرق",
+      "آخر مورد",
+      "سعر آخر شراء",
+      "تاريخ آخر شراء",
+    ].join(",");
     const body = filtered
-      .map(
-        (r) =>
-          `${r.sku},"${r.name}",${r.quantity_at_date},${r.qty_to},${r.diff},"${r.supplier ?? ""}",${r.last_cost ?? ""},${r.last_purchase_at ?? ""}`
+      .map((r) =>
+        [
+          r.sku,
+          `"${(r.name ?? "").replace(/"/g, '""')}"`,
+          r.quantity_at_date,
+          `"${fromLabel()}"`,
+          r.qty_to,
+          `"${toLabel()}"`,
+          r.diff > 0 ? `+${r.diff}` : r.diff,
+          `"${(r.supplier ?? "").replace(/"/g, '""')}"`,
+          r.last_cost ?? "",
+          r.last_purchase_at ? `"${formatDateTime(r.last_purchase_at)}"` : "",
+        ].join(",")
       )
       .join("\n");
     const csv = "\uFEFF" + header + "\n" + body;
@@ -96,6 +122,18 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     a.download = `historical-stock-${fromAt}_to_${toAt}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = async () => {
+    if (!tableRef.current) return;
+    try {
+      await exportElementToPdf(tableRef.current, {
+        filename: `historical-stock-${fromAt}_to_${toAt}.pdf`,
+        sessionId: `${fromAt} → ${toAt}`,
+      });
+    } catch (e: any) {
+      toast.error(e?.message ?? "فشل تصدير PDF");
+    }
   };
 
   return (
@@ -131,20 +169,24 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
             <Button variant="outline" onClick={exportCsv} className="gap-2">
               <Download className="w-4 h-4" /> تصدير CSV
             </Button>
+            <Button variant="outline" onClick={exportPdf} className="gap-2">
+              <FileText className="w-4 h-4" /> تصدير PDF
+            </Button>
           </>
         )}
       </div>
 
       {ran && (
         <div className="mt-4">
-          <div className="text-xs text-muted-foreground mb-2">
-            من <span className="font-semibold">{formatDateTime(new Date(fromAt))}</span> إلى{" "}
-            <span className="font-semibold">{formatDateTime(new Date(toAt))}</span>
-          </div>
-          <DataTable
-            loading={loading}
-            rows={filtered}
-            empty="لا توجد منتجات في هذه الفترة"
+          <div ref={tableRef} className="bg-white p-3">
+            <div className="text-xs text-muted-foreground mb-2">
+              من <span className="font-semibold">{formatDateTime(new Date(fromAt))}</span> إلى{" "}
+              <span className="font-semibold">{formatDateTime(new Date(toAt))}</span>
+            </div>
+            <DataTable
+              loading={loading}
+              rows={filtered}
+              empty="لا توجد منتجات في هذه الفترة"
             columns={[
               {
                 key: "sku",
@@ -212,7 +254,8 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
                   ),
               },
             ]}
-          />
+            />
+          </div>
         </div>
       )}
     </div>
