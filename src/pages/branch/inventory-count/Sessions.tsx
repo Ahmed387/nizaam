@@ -88,6 +88,11 @@ export default function Sessions() {
             render: (r: any) => (
               <div className="flex gap-2 justify-end flex-wrap">
                 {actionFor(r)}
+                {isManager && canCancel(r.status) && (
+                  <Button size="sm" variant="outline" onClick={() => cancelSession(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
+                    <Ban className="w-4 h-4" /> إلغاء
+                  </Button>
+                )}
                 {isAdmin && (
                   <Link to={`/branch/${branchId}/inventory-count/${r.id}/snapshot`}>
                     <Button size="sm" variant="outline" className="gap-1">
