@@ -144,7 +144,7 @@ export default function Inventory() {
         }
       />
 
-      <Tabs defaultValue="products">
+      <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList>
           <TabsTrigger value="products">الأصناف</TabsTrigger>
           <TabsTrigger value="transfers">نقل المخزون</TabsTrigger>
