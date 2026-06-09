@@ -152,6 +152,7 @@ export default function ProfitabilityReport() {
       .channel(`profit-${tenantId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_items" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_batches" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
