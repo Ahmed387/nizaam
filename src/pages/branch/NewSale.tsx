@@ -88,6 +88,16 @@ export default function NewSale() {
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
 
+  // ===== Reservation state =====
+  const draftIdRef = useRef<string>(crypto.randomUUID());
+  const [availability, setAvailability] = useState<Record<string, number>>({}); // available per product (excludes my own reservation)
+  const [reservations, setReservations] = useState<Record<string, { reservation_id: string; expires_at: string }>>({});
+  const [nowTick, setNowTick] = useState<number>(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     setCreditToApply(0);
     if (!customerId) { setCustomerCredit(0); return; }
