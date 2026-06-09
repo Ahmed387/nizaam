@@ -124,6 +124,9 @@ export default function NewShipment() {
       setArrival((s.arrival_date ?? "").slice(0, 10));
       setReceivedBy(s.received_by ?? "");
       setShipping(Number(s.shipping_cost ?? 0));
+      setCustoms(Number((s as any).customs_cost ?? 0));
+      setOtherCost(Number((s as any).other_cost ?? 0));
+      setOtherDesc((s as any).other_cost_description ?? "");
       setAdmin(Number(s.admin_cost ?? 0));
       setNotes(s.notes ?? "");
       setLines((it ?? []).map((r: any) => ({
