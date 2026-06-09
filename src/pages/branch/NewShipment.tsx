@@ -697,6 +697,8 @@ export default function NewShipment() {
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg">
               <span>الإجمالي</span>
