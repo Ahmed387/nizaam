@@ -135,6 +135,10 @@ export default function BranchDashboard() {
     <BranchLayout>
       <PageHeader title="لوحة الفرع" subtitle="نظرة عامة على نشاط اليوم" />
 
+      {/* Active reservations (real-time) */}
+      {id && <div className="mb-6"><ActiveReservationsPanel branchId={id} /></div>}
+
+
       {/* Quick actions */}
       <div className="card-elevated p-4 mb-6">
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة</h3>
