@@ -83,6 +83,23 @@ export default function NewSale() {
   const [newCustOpen, setNewCustOpen] = useState(false);
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
+  // Customer credit balance
+  const [customerCredit, setCustomerCredit] = useState(0);
+  const [creditToApply, setCreditToApply] = useState(0);
+
+  useEffect(() => {
+    setCreditToApply(0);
+    if (!customerId) { setCustomerCredit(0); return; }
+    const load = async () => {
+      const { data } = await supabase.from("contacts").select("credit_balance").eq("id", customerId).maybeSingle();
+      setCustomerCredit(Number((data as any)?.credit_balance ?? 0));
+    };
+    load();
+    const ch = supabase.channel(`contact-credit-${customerId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "contacts", filter: `id=eq.${customerId}` }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [customerId]);
 
   const addNewCustomer = async () => {
     if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
@@ -387,10 +404,15 @@ export default function NewSale() {
     () => payments.reduce((s, p) => s + (p.fee_on_customer ? 0 : (Number(p.fee_amount) || 0)), 0),
     [payments]
   );
-  const creditRemaining = Math.max(0, total - paymentsSum);
+  // Clamp credit to apply when total changes
+  useEffect(() => {
+    if (creditToApply > total) setCreditToApply(Math.max(0, total));
+    if (creditToApply > customerCredit) setCreditToApply(Math.max(0, customerCredit));
+  }, [total, customerCredit, creditToApply]);
+  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply);
   // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
   const isCredit = creditMode || creditRemaining > 0.01;
-  const paymentsValid = paymentsSum <= total + 0.01;
+  const paymentsValid = (paymentsSum + creditToApply) <= total + 0.01;
 
   // Auto-rescale scheduled installments whenever the credit remainder changes,
   // so partial payments by any method update the installment plan automatically.
@@ -641,7 +663,31 @@ export default function NewSale() {
         }
       }
 
+      // Apply customer credit balance, if any was used
+      if (creditToApply > 0 && custId) {
+        try {
+          await supabase.from("invoice_payments").insert({
+            invoice_id: invId as string,
+            branch_id: branchId!,
+            payment_method: "credit_balance",
+            amount: creditToApply,
+            received_by_name: profile?.name ?? "رصيد سابق",
+          } as any);
+          const newBal = Math.max(0, customerCredit - creditToApply);
+          await supabase.from("contacts").update({ credit_balance: newBal, refund_status: newBal === 0 ? "credit_used" : "credit_added" } as any).eq("id", custId);
+          await supabase.from("customer_credit_log" as any).insert({
+            contact_id: custId, invoice_id: invId as string,
+            amount: creditToApply, type: "credit_used",
+            notes: "استخدام رصيد سابق في فاتورة جديدة",
+            created_by: user!.id,
+          });
+        } catch (e: any) {
+          toast.error("الفاتورة اتسجلت لكن استخدام الرصيد فشل: " + e.message);
+        }
+      }
+
       syncPendingSales(true);
+
 
       toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
@@ -685,7 +731,27 @@ export default function NewSale() {
                 <UserPlus className="w-4 h-4" />
               </Button>
             </div>
+            {customerCredit > 0 && (
+              <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm">
+                  هذا العميل لديه رصيد دائن: <b className="text-primary">{formatEGP(customerCredit)}</b>
+                  {creditToApply > 0 && <span className="text-success ms-2">— سيتم استخدام {formatEGP(creditToApply)}</span>}
+                </div>
+                <div className="flex gap-2">
+                  {creditToApply === 0 ? (
+                    <Button type="button" size="sm" onClick={() => setCreditToApply(Math.min(customerCredit, total))} disabled={total <= 0}>
+                      استخدام الرصيد
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCreditToApply(0)}>
+                      تجاهل
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+
 
 
           {/* Search & Scanner */}

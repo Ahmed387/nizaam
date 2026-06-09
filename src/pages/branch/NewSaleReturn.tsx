@@ -237,6 +237,16 @@ export default function NewSaleReturn() {
           const newBal = Number(customer.balance ?? 0) - balancePart;
           await supabase.from("contacts").update({ balance: newBal }).eq("id", customer.id);
         }
+        // Redistribute installments if this invoice has a payment plan
+        try {
+          const { data: rd } = await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id });
+          const r = rd as any;
+          if (r?.cancelled_all) {
+            toast.message(`المرتجع تجاوز قيمة المتبقي — تم إلغاء كل الأقساط (فائض ${r.overpayment} ج.م)`);
+          } else if (r?.updated_installments > 0) {
+            toast.message(`تم إعادة توزيع ${r.updated_installments} قسط بعد المرتجع`);
+          }
+        } catch (e) { /* ignore if no plan */ }
       }
 
       if (asDraft) {

@@ -14,6 +14,8 @@ import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil, Wallet } from
 import { printThermalReceipt, buildESCPOSReceipt, printRawESCPOS, isWebBluetoothSupported, getBluetoothConnection } from "@/lib/thermalPrinter";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
+import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -30,11 +32,11 @@ export default function InvoiceView() {
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [reason, setReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -79,22 +81,22 @@ export default function InvoiceView() {
     })();
   }, [invoiceId, id]);
 
-  const cancel = async () => {
-    if (!reason.trim()) return toast.error("سبب الإلغاء مطلوب");
-    await supabase.from("invoices").update({ status: "cancelled", cancel_reason: reason }).eq("id", invoiceId);
-    for (const it of items) {
-      const { data: p } = await supabase.from("products").select("quantity").eq("id", it.product_id).single();
-      if (p) await supabase.from("products").update({ quantity: p.quantity + it.quantity }).eq("id", it.product_id);
-    }
-    await supabase.from("treasury").insert({
-      branch_id: id!, type: "expense", category: "sales", amount: inv.total,
-      description: `إلغاء فاتورة ${inv.invoice_number}`, reference_id: invoiceId, created_by: user!.id,
-    });
-    await logAudit({ userId: user!.id, userName: profile!.name, branchId: id, action: "CANCEL", entity: "Invoice", entityId: invoiceId, details: { reason } });
-    toast.success("تم إلغاء الفاتورة");
-    setCancelOpen(false);
-    location.reload();
-  };
+  // Realtime: refresh invoice/installments/contacts if anything changes
+  useRealtimeRefresh(["invoices", "payment_installments", "contacts"], () => setReloadKey((k) => k + 1));
+  useEffect(() => {
+    if (!invoiceId) return;
+    if (reloadKey === 0) return;
+    (async () => {
+      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address)").eq("id", invoiceId).maybeSingle();
+      if (i) setInv(i);
+      const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
+      setPlan(pp ?? null);
+      if (pp?.id) {
+        const { data: ins } = await supabase.from("payment_installments").select("*").eq("payment_plan_id", pp.id).order("installment_number");
+        setInstallments(ins ?? []);
+      }
+    })();
+  }, [reloadKey, invoiceId]);
 
   if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
@@ -348,6 +350,7 @@ export default function InvoiceView() {
                       {installments.map((ins) => {
                         const st = ins.status === "paid" ? { label: "مدفوع", cls: "text-success" }
                           : ins.status === "partial" ? { label: "جزئي", cls: "text-warning" }
+                          : ins.status === "cancelled" ? { label: "ملغي", cls: "text-muted-foreground line-through" }
                           : { label: "مستحق", cls: "text-muted-foreground" };
                         return (
                           <tr key={ins.id} className="border-t border-border">
@@ -375,8 +378,14 @@ export default function InvoiceView() {
 
 
         {inv.status === "cancelled" && (
-          <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-center text-destructive font-bold">
-            ❌ فاتورة ملغاة — السبب: {inv.cancel_reason}
+          <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-destructive">
+            <div className="font-bold text-center">❌ فاتورة ملغاة — السبب: {inv.cancel_reason}</div>
+            {(inv.refund_amount > 0) && (
+              <div className="text-xs text-center mt-1">
+                تم رد {formatEGP(inv.refund_amount)} عن طريق {inv.refund_method === "cash" ? "الكاش" : "رصيد العميل"}
+                {inv.cancelled_at ? ` — ${formatDateTime(inv.cancelled_at)}` : ""}
+              </div>
+            )}
           </div>
         )}
 
@@ -390,16 +399,13 @@ export default function InvoiceView() {
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
       </div>
 
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>إلغاء الفاتورة</DialogTitle></DialogHeader>
-          <Textarea placeholder="سبب الإلغاء *" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelOpen(false)}>تراجع</Button>
-            <Button variant="destructive" onClick={cancel}>تأكيد الإلغاء</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CancelInvoiceDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        invoice={inv}
+        onDone={() => setReloadKey((k) => k + 1)}
+      />
+
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
