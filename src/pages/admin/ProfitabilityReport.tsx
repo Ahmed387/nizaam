@@ -91,6 +91,18 @@ export default function ProfitabilityReport() {
 
   useEffect(() => { if (tenantId) load(); /* eslint-disable-next-line */ }, [tenantId]);
 
+  // realtime: refresh totals when new invoices/items arrive
+  useEffect(() => {
+    if (!tenantId) return;
+    const ch = supabase
+      .channel(`profit-${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_items" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
+  }, [tenantId, from, to, branchId]);
+
   const totals = useMemo(() => {
     const revenue = rows.reduce((s, r) => s + r.revenue, 0);
     const cost = rows.reduce((s, r) => s + r.cost, 0);
