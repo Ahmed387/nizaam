@@ -249,6 +249,10 @@ export default function NewSale() {
     : 0;
   const overLimit = items.length > 0 && effectiveDiscountPct > allowedPct + 0.001;
 
+  // Re-show banner whenever discount or allowed limit changes
+  useEffect(() => { setBannerDismissed(false); }, [totalDiscountAmount, allowedPct]);
+
+
 
 
   const filteredCatalog = useMemo(
