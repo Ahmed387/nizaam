@@ -992,6 +992,24 @@ export default function NewSale() {
                             <span>{i.product_name}</span>
                           </div>
                           {showCost && <div className="text-xs text-muted-foreground mt-1">شراء: {formatEGP(i.cost_price)}</div>}
+                          {(() => {
+                            const r = reservations[i.product_id];
+                            if (!r) return null;
+                            const msLeft = new Date(r.expires_at).getTime() - nowTick;
+                            if (msLeft <= 0) {
+                              return <div className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ❌ انتهى وقت الحجز — أعد إضافة المنتج</div>;
+                            }
+                            const totalSec = Math.floor(msLeft / 1000);
+                            const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+                            const ss = String(totalSec % 60).padStart(2, "0");
+                            const warn = totalSec <= 5 * 60;
+                            return (
+                              <div className={`text-[10px] mt-1 flex items-center gap-1 ${warn ? "text-warning font-bold" : "text-success"}`}>
+                                {warn ? <AlertTriangle className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                                {warn ? "⚠️ سيتم إلغاء الحجز خلال" : "محجوز — ينتهي خلال"} {mm}:{ss}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
