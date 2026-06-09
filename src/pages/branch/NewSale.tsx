@@ -32,7 +32,9 @@ interface Item {
   cost_price: number;
   selling_price: number;
   market_price: number;
-  line_discount: number;
+  line_discount: number; // EGP — source of truth
+  discount_mode: "amount" | "percent"; // UI only
+  discount_input: number; // last typed value in current mode
 }
 // Payment methods are loaded dynamically from the database (built-ins + admin custom).
 const feeKeyFor = (m: string) => (m === "cash" ? null : m);
