@@ -571,6 +571,21 @@ export default function NewSale() {
     <BranchLayout>
       <PageHeader title="فاتورة جديدة" subtitle="نقطة البيع" />
 
+      {resumeDraft && (
+        <div className="card-elevated p-4 mb-4 border-2 border-success bg-success/5 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-success" />
+            <div>
+              <div className="font-bold text-success">تمت الموافقة على طلب الخصم</div>
+              <div className="text-xs text-muted-foreground">فاتورتك السابقة جاهزة للاستكمال — اضغط لاسترجاع الأصناف</div>
+            </div>
+          </div>
+          <Button onClick={loadDraftIntoForm} className="bg-success hover:bg-success/90 text-success-foreground">
+            استرجاع الفاتورة وإتمامها
+          </Button>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           {/* Customer */}
