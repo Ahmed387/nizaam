@@ -20,7 +20,8 @@ import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentSc
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
 import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
-import { notifyMany, getBranchUsersByRoles } from "@/lib/notifications";
+import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
+import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 
 
 
@@ -363,14 +364,14 @@ export default function NewSale() {
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
     }
 
-    // === Discount Approval Flow (cashier only) ===
-    // Load policy
+    // === Discount Approval Flow ===
+    // Load branch-specific max discount %
     let maxDiscPct = 10;
     let priceFloor: "cost" | "market" | "none" = "cost";
     try {
+      maxDiscPct = await getMaxDiscountForBranch(branchId!);
       const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy").maybeSingle();
       const v: any = s?.value ?? {};
-      if (typeof v.max_discount_without_approval === "number") maxDiscPct = v.max_discount_without_approval;
       if (v.min_price_floor) priceFloor = v.min_price_floor;
     } catch {}
 
@@ -396,54 +397,71 @@ export default function NewSale() {
         return pct > maxDiscPct;
       });
       if (overThreshold.length > 0) {
-        setBusy(true);
-        try {
-          const draftId = crypto.randomUUID();
-          const draftPayload = {
-            draft_id: draftId,
-            items, customerId, payments,
-            creditMode, scheduleType, installments,
-          };
-          const rows = overThreshold.map((it) => {
-            const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-            const eff = lineTotal / Math.max(1, it.quantity);
-            const orig = Math.max(it.market_price, it.selling_price);
-            const pct = ((orig - eff) / orig) * 100;
-            return {
-              tenant_id: (profile as any)?.tenant_id ?? null,
-              branch_id: branchId!,
-              cashier_id: user!.id,
-              cashier_name: profile?.name ?? "كاشير",
-              product_id: it.product_id,
-              product_name: it.product_name,
-              original_price: orig,
-              requested_price: eff,
-              discount_percent: +pct.toFixed(2),
-              quantity: it.quantity,
-              status: "pending",
-              draft_payload: draftPayload,
-            };
-          });
-          await supabase.from("discount_approval_requests" as any).insert(rows);
-
-          // Notify branch managers
+        // If we already have an approved/resumed draft, just allow — already approved
+        if (!resumeDraft) {
+          setBusy(true);
           try {
-            const managerIds = await getBranchUsersByRoles(branchId!, ["branch_manager", "admin"]);
-            await notifyMany(managerIds, {
-              title: "طلب خصم جديد",
-              body: `من ${profile?.name ?? "كاشير"} على ${overThreshold.map(i => i.product_name).join("، ")}`,
-              type: "general",
-              link: `/branch/${branchId}/discount-approvals`,
+            const draftId = crypto.randomUUID();
+            const draftPayload = {
+              draft_id: draftId,
+              items, customerId, payments,
+              creditMode, scheduleType, installments,
+            };
+            const invoiceValue = items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0);
+            const maxLinePct = Math.max(...overThreshold.map((it) => {
+              const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
+              const eff = lineTotal / Math.max(1, it.quantity);
+              const orig = Math.max(it.market_price, it.selling_price);
+              return ((orig - eff) / orig) * 100;
+            }));
+            const tenantId = (profile as any)?.tenant_id ?? null;
+            const rows = overThreshold.map((it) => {
+              const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
+              const eff = lineTotal / Math.max(1, it.quantity);
+              const orig = Math.max(it.market_price, it.selling_price);
+              const pct = ((orig - eff) / orig) * 100;
+              return {
+                tenant_id: tenantId,
+                branch_id: branchId!,
+                cashier_id: user!.id,
+                cashier_name: profile?.name ?? "كاشير",
+                product_id: it.product_id,
+                product_name: it.product_name,
+                original_price: orig,
+                requested_price: eff,
+                discount_percent: +pct.toFixed(2),
+                quantity: it.quantity,
+                status: "pending",
+                draft_payload: draftPayload,
+              };
             });
-          } catch (e) { console.warn("notify managers failed", e); }
+            await supabase.from("discount_approval_requests" as any).insert(rows);
 
-          toast.warning(`تم إرسال ${rows.length} طلب موافقة للمدير. الفاتورة محفوظة كمسودة وهتُستكمل بعد الموافقة.`);
-        } catch (e: any) {
-          toast.error(e.message);
-        } finally {
-          setBusy(false);
+            // Notify admins ONLY (not branch managers)
+            try {
+              if (tenantId) {
+                const adminIds = await getTenantAdmins(tenantId);
+                const { data: br } = await supabase.from("branches").select("name").eq("id", branchId!).maybeSingle();
+                const branchName = (br as any)?.name ?? "—";
+                await notifyMany(adminIds, {
+                  title: "طلب خصم جديد",
+                  body: `فرع ${branchName} — الكاشير ${profile?.name ?? "كاشير"} طلب خصم ${maxLinePct.toFixed(1)}% على فاتورة بقيمة ${invoiceValue.toFixed(2)} جنيه`,
+                  type: "general",
+                  link: `/admin/discount-approvals`,
+                });
+              }
+            } catch (e) { console.warn("notify admins failed", e); }
+
+            toast.warning(`تم إرسال ${rows.length} طلب موافقة للأدمن. الفاتورة محفوظة كمسودة وهتُستكمل بعد الموافقة.`);
+          } catch (e: any) {
+            toast.error(e.message);
+          } finally {
+            setBusy(false);
+          }
+          return;
         }
-        return;
+        // resumeDraft exists but still over threshold (rare) — block
+        return toast.error(`أقصى خصم مسموح به ${maxDiscPct}%. عدّل السعر أو اطلب موافقة جديدة.`);
       }
     }
 
