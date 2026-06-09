@@ -398,6 +398,12 @@ export default function NewSale() {
       if (overThreshold.length > 0) {
         setBusy(true);
         try {
+          const draftId = crypto.randomUUID();
+          const draftPayload = {
+            draft_id: draftId,
+            items, customerId, payments,
+            creditMode, scheduleType, installments,
+          };
           const rows = overThreshold.map((it) => {
             const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
             const eff = lineTotal / Math.max(1, it.quantity);
@@ -415,10 +421,23 @@ export default function NewSale() {
               discount_percent: +pct.toFixed(2),
               quantity: it.quantity,
               status: "pending",
+              draft_payload: draftPayload,
             };
           });
           await supabase.from("discount_approval_requests" as any).insert(rows);
-          toast.warning(`تم إرسال ${rows.length} طلب موافقة على الخصم للمدير. الفاتورة لن تُحفظ حتى الموافقة.`);
+
+          // Notify branch managers
+          try {
+            const managerIds = await getBranchUsersByRoles(branchId!, ["branch_manager", "admin"]);
+            await notifyMany(managerIds, {
+              title: "طلب خصم جديد",
+              body: `من ${profile?.name ?? "كاشير"} على ${overThreshold.map(i => i.product_name).join("، ")}`,
+              type: "general",
+              link: `/branch/${branchId}/discount-approvals`,
+            });
+          } catch (e) { console.warn("notify managers failed", e); }
+
+          toast.warning(`تم إرسال ${rows.length} طلب موافقة للمدير. الفاتورة محفوظة كمسودة وهتُستكمل بعد الموافقة.`);
         } catch (e: any) {
           toast.error(e.message);
         } finally {
