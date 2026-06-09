@@ -909,7 +909,20 @@ export default function NewSale() {
                           <div>💵 الربح: <span className="text-primary font-bold">{formatEGP(Number(p.selling_price) - Number(p.cost_price))}</span></div>
                         )}
                         <div>💰 سوق: <span className="text-primary">{formatEGP(pricesMap[p.name] ?? p.market_price)}</span></div>
-                        <div>📊 متاح: <span className={p.quantity > 0 ? "text-foreground" : "text-destructive"}>{p.quantity}</span></div>
+                        {(() => {
+                          const avail = availability[p.id] ?? Number(p.quantity || 0);
+                          const stock = Number(p.quantity || 0);
+                          const reserved = Math.max(0, stock - avail);
+                          const minLevel = Number((p as any).min_stock_level ?? p.low_stock_alert ?? 5);
+                          const cls = avail <= 0 ? "text-destructive" : avail < 3 ? "text-warning" : avail <= minLevel ? "text-warning" : "text-foreground";
+                          const badge = avail <= 0 ? "غير متاح حالياً" : avail < 3 ? "كمية محدودة" : avail <= minLevel ? "مخزون منخفض" : null;
+                          return (
+                            <>
+                              <div>📊 المتاح: <span className={`${cls} font-bold`}>{avail}</span> {badge && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-1 ${avail <= 0 ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>{badge}</span>}</div>
+                              {reserved > 0 && <div className="text-[10px] text-muted-foreground">في المخزون {stock} | محجوز {reserved}</div>}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </button>
