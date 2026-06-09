@@ -243,6 +243,8 @@ export default function NewSale() {
         selling_price: Number(p.selling_price),
         market_price: pricesMap[p.name] ?? Number(p.market_price),
         line_discount: 0,
+        discount_mode: "amount",
+        discount_input: 0,
       }]);
     }
     setSearch("");
