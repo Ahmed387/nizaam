@@ -262,6 +262,8 @@ export default function ShipmentView() {
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(ship.shipping_cost)}</b></div>
+            {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>}
+            {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b>{formatEGP(otherCost)}</b></div>}
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(ship.admin_cost)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg"><span>الإجمالي</span><b className="text-primary">{formatEGP(ship.total_cost)}</b></div>
           </div>
