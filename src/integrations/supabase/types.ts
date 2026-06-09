@@ -461,10 +461,12 @@ export type Database = {
           branch_id: string | null
           contact_person: string | null
           created_at: string
+          credit_balance: number
           id: string
           name: string
           notes: string | null
           phone: string | null
+          refund_status: string
           tenant_id: string | null
           type: string
         }
@@ -474,10 +476,12 @@ export type Database = {
           branch_id?: string | null
           contact_person?: string | null
           created_at?: string
+          credit_balance?: number
           id?: string
           name: string
           notes?: string | null
           phone?: string | null
+          refund_status?: string
           tenant_id?: string | null
           type?: string
         }
@@ -487,10 +491,12 @@ export type Database = {
           branch_id?: string | null
           contact_person?: string | null
           created_at?: string
+          credit_balance?: number
           id?: string
           name?: string
           notes?: string | null
           phone?: string | null
+          refund_status?: string
           tenant_id?: string | null
           type?: string
         }
@@ -507,6 +513,57 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_credit_log: {
+        Row: {
+          amount: number
+          contact_id: string
+          created_at: string
+          created_by: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          tenant_id: string | null
+          type: string
+        }
+        Insert: {
+          amount: number
+          contact_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          tenant_id?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          tenant_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_credit_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_credit_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -1047,6 +1104,8 @@ export type Database = {
         Row: {
           branch_id: string
           cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           cashier_id: string
           contact_id: string | null
           created_at: string
@@ -1056,14 +1115,21 @@ export type Database = {
           id: string
           invoice_number: string
           payment_method: string
+          refund_amount: number
+          refund_method: string | null
+          refund_processed_at: string | null
+          refund_processed_by: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           subtotal: number
           tenant_id: string | null
           total: number
+          total_paid_before_cancel: number
         }
         Insert: {
           branch_id: string
           cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cashier_id: string
           contact_id?: string | null
           created_at?: string
@@ -1073,14 +1139,21 @@ export type Database = {
           id?: string
           invoice_number: string
           payment_method?: string
+          refund_amount?: number
+          refund_method?: string | null
+          refund_processed_at?: string | null
+          refund_processed_by?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
           tenant_id?: string | null
           total?: number
+          total_paid_before_cancel?: number
         }
         Update: {
           branch_id?: string
           cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cashier_id?: string
           contact_id?: string | null
           created_at?: string
@@ -1090,10 +1163,15 @@ export type Database = {
           id?: string
           invoice_number?: string
           payment_method?: string
+          refund_amount?: number
+          refund_method?: string | null
+          refund_processed_at?: string | null
+          refund_processed_by?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
           tenant_id?: string | null
           total?: number
+          total_paid_before_cancel?: number
         }
         Relationships: [
           {
@@ -1163,7 +1241,11 @@ export type Database = {
       }
       payment_installments: {
         Row: {
+          adjusted_at: string | null
+          adjustment_reason: string | null
           amount: number
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           due_date: string
           id: string
@@ -1177,7 +1259,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          adjusted_at?: string | null
+          adjustment_reason?: string | null
           amount: number
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           due_date: string
           id?: string
@@ -1191,7 +1277,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          adjusted_at?: string | null
+          adjustment_reason?: string | null
           amount?: number
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           due_date?: string
           id?: string
@@ -3235,6 +3325,10 @@ export type Database = {
         Args: { _target_employee_id: string }
         Returns: boolean
       }
+      cancel_invoice_with_refund: {
+        Args: { _invoice_id: string; _reason: string; _refund_method?: string }
+        Returns: Json
+      }
       cancel_pre_order: {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
@@ -3479,6 +3573,10 @@ export type Database = {
           p_transfer_to_account: string
         }
         Returns: string
+      }
+      redistribute_installments_after_return: {
+        Args: { _invoice_id: string }
+        Returns: Json
       }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
