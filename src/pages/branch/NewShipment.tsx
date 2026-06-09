@@ -210,12 +210,17 @@ export default function NewShipment() {
     }
   };
 
-  const submitEdit = async () => {
+  const submitEdit = async (skipConfirm = false) => {
     if (!shipmentId) return;
     if (!lines.length) return toast.error("لا يمكن حفظ شحنة بدون أصناف");
     for (const l of lines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
+    }
+    // Admin: confirm impact on future profit before saving
+    if (isAdmin && !skipConfirm && affectedBatches > 0) {
+      setConfirmEditOpen(true);
+      return;
     }
     const header = {
       arrival_date: arrival,
