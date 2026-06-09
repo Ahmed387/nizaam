@@ -59,8 +59,13 @@ export default function NewShipment() {
   const [arrival, setArrival] = useState(new Date().toISOString().split("T")[0]);
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
   const [shipping, setShipping] = useState(0);
+  const [customs, setCustoms] = useState(0);
+  const [otherCost, setOtherCost] = useState(0);
+  const [otherDesc, setOtherDesc] = useState("");
   const [admin, setAdmin] = useState(0);
   const [notes, setNotes] = useState("");
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [affectedBatches, setAffectedBatches] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
