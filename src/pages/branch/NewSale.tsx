@@ -829,18 +829,34 @@ export default function NewSale() {
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <div className="flex flex-col gap-1 items-center">
-                            <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 text-center" placeholder="مبلغ" />
-                            <Input type="number" min="0" max="100" step="0.1"
-                              value={i.quantity * i.selling_price > 0 ? +((i.line_discount / (i.quantity * i.selling_price)) * 100).toFixed(2) || "" : ""}
-                              onChange={(e) => {
-                                const pct = parseFloat(e.target.value) || 0;
-                                const amt = +(i.quantity * i.selling_price * pct / 100).toFixed(2);
-                                updateLineDiscount(k, amt);
-                              }}
-                              className="w-24 text-center" placeholder="%" />
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              type="number" min="0" step="0.01"
+                              value={i.discount_input || ""}
+                              onChange={(e) => setDiscountInput(k, parseFloat(e.target.value) || 0)}
+                              className="w-24 text-center"
+                              placeholder={i.discount_mode === "amount" ? "مبلغ" : "%"}
+                            />
+                            <div className="flex flex-col">
+                              <button
+                                type="button"
+                                onClick={() => setDiscountMode(k, "amount")}
+                                className={`px-1.5 py-0.5 text-[10px] rounded-t border ${i.discount_mode === "amount" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                                title="مبلغ بالجنيه"
+                              >ج.م</button>
+                              <button
+                                type="button"
+                                onClick={() => setDiscountMode(k, "percent")}
+                                className={`px-1.5 py-0.5 text-[10px] rounded-b border-t-0 border ${i.discount_mode === "percent" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                                title="نسبة مئوية"
+                              >%</button>
+                            </div>
                           </div>
+                          {i.line_discount > 0 && (
+                            <div className="text-[10px] text-muted-foreground mt-1">= {formatEGP(i.line_discount)}</div>
+                          )}
                         </td>
+
                         {showCost && (
                           <td className="p-2 text-center">
                             <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
