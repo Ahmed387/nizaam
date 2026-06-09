@@ -105,7 +105,9 @@ import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
+import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
+import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
 import InvCountSessions from "./pages/branch/inventory-count/Sessions";
 import InvCountNew from "./pages/branch/inventory-count/NewSession";
 import InvCountSheet from "./pages/branch/inventory-count/CountingSheet";
@@ -213,6 +215,9 @@ const App = () => (
             <Route path="/branch/:id/employees" element={<ProtectedRoute perm="employees.view"><Employees /></ProtectedRoute>} />
             <Route path="/branch/:id/advance-requests" element={<ProtectedRoute perm="advances.view"><AdvanceRequests /></ProtectedRoute>} />
             <Route path="/branch/:id/approval-requests" element={<ProtectedRoute><MyApprovalRequests /></ProtectedRoute>} />
+
+            <Route path="/branch/:id/discount-approvals" element={<ProtectedRoute><PendingDiscountApprovals /></ProtectedRoute>} />
+            <Route path="/admin/profitability" element={<ProtectedRoute adminOnly><ProfitabilityReport /></ProtectedRoute>} />
 
             <Route path="/branch/:id/reports" element={<ProtectedRoute perm="reports.view"><BranchReports /></ProtectedRoute>} />
             <Route path="/branch/:id/attendance" element={<ProtectedRoute perm="attendance.view"><Attendance /></ProtectedRoute>} />

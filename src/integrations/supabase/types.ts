@@ -511,6 +511,84 @@ export type Database = {
           },
         ]
       }
+      discount_approval_requests: {
+        Row: {
+          admin_note: string | null
+          branch_id: string
+          cashier_id: string
+          cashier_name: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          discount_percent: number
+          draft_payload: Json | null
+          id: string
+          original_price: number
+          product_id: string | null
+          product_name: string
+          quantity: number
+          reason: string | null
+          requested_price: number
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          branch_id: string
+          cashier_id: string
+          cashier_name: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          discount_percent: number
+          draft_payload?: Json | null
+          id?: string
+          original_price: number
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          reason?: string | null
+          requested_price: number
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          branch_id?: string
+          cashier_id?: string
+          cashier_name?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          discount_percent?: number
+          draft_payload?: Json | null
+          id?: string
+          original_price?: number
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          reason?: string | null
+          requested_price?: number
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_approval_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_approval_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           address: string | null
@@ -829,10 +907,15 @@ export type Database = {
       invoice_items: {
         Row: {
           cost_price: number
+          discount_approval_note: string | null
+          discount_approved_by: string | null
+          discount_percent: number
+          final_price: number | null
           id: string
           invoice_id: string
           line_discount: number
           market_price: number
+          original_price: number | null
           price_list_cost: number | null
           price_list_item_id: string | null
           product_id: string | null
@@ -841,13 +924,19 @@ export type Database = {
           selling_price: number
           tenant_id: string | null
           total: number
+          unit_cost_at_sale: number
         }
         Insert: {
           cost_price?: number
+          discount_approval_note?: string | null
+          discount_approved_by?: string | null
+          discount_percent?: number
+          final_price?: number | null
           id?: string
           invoice_id: string
           line_discount?: number
           market_price?: number
+          original_price?: number | null
           price_list_cost?: number | null
           price_list_item_id?: string | null
           product_id?: string | null
@@ -856,13 +945,19 @@ export type Database = {
           selling_price?: number
           tenant_id?: string | null
           total?: number
+          unit_cost_at_sale?: number
         }
         Update: {
           cost_price?: number
+          discount_approval_note?: string | null
+          discount_approved_by?: string | null
+          discount_percent?: number
+          final_price?: number | null
           id?: string
           invoice_id?: string
           line_discount?: number
           market_price?: number
+          original_price?: number | null
           price_list_cost?: number | null
           price_list_item_id?: string | null
           product_id?: string | null
@@ -871,6 +966,7 @@ export type Database = {
           selling_price?: number
           tenant_id?: string | null
           total?: number
+          unit_cost_at_sale?: number
         }
         Relationships: [
           {
@@ -1493,6 +1589,64 @@ export type Database = {
           updated_by_name?: string | null
         }
         Relationships: []
+      }
+      product_batches: {
+        Row: {
+          branch_id: string
+          cost_price: number
+          created_at: string
+          id: string
+          product_id: string
+          quantity_purchased: number
+          quantity_remaining: number
+          shipment_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          branch_id: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity_purchased?: number
+          quantity_remaining?: number
+          shipment_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          branch_id?: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity_purchased?: number
+          quantity_remaining?: number
+          shipment_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_batches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_batches_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -3088,6 +3242,10 @@ export type Database = {
         Returns: string
       }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
+      consume_product_batches: {
+        Args: { _branch_id: string; _product_id: string; _quantity: number }
+        Returns: number
+      }
       contact_balance_apply: {
         Args: { _contact: string; _delta: number }
         Returns: undefined
@@ -3261,6 +3419,10 @@ export type Database = {
           plans_count: number
           total_owed: number
         }[]
+      }
+      peek_product_fifo_cost: {
+        Args: { _branch_id: string; _product_id: string; _quantity: number }
+        Returns: number
       }
       process_sale: {
         Args: {

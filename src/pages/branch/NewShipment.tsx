@@ -311,12 +311,22 @@ export default function NewShipment() {
           discount_amount: Number(l.discount_amount) || 0,
           total: net,
         });
-        // Update product stock + cost (use net unit cost after discount)
+        // FIFO: create a new product_batch (do NOT overwrite products.cost_price)
+        await supabase.from("product_batches" as any).insert({
+          tenant_id: tenantId,
+          branch_id: branchId!,
+          product_id: pid,
+          shipment_id: ship.id,
+          quantity_purchased: l.quantity,
+          quantity_remaining: l.quantity,
+          cost_price: netUnit,
+        });
+        // Update stock only — cost_price kept as fallback for products without batches
         const cur = products.find((p) => p.id === pid);
         const newQty = (cur?.quantity ?? 0) + l.quantity;
         await supabase
           .from("products")
-          .update({ quantity: newQty, cost_price: netUnit })
+          .update({ quantity: newQty })
           .eq("id", pid);
       }
 
