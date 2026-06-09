@@ -495,15 +495,14 @@ export default function NewSale() {
     }
 
     // === Discount Approval Flow ===
-    // Load branch-specific max discount %
-    let maxDiscPct = 10;
+    // Load price floor; allowed % is already tracked in state (allowedPct)
     let priceFloor: "cost" | "market" | "none" = "cost";
     try {
-      maxDiscPct = await getMaxDiscountForBranch(branchId!);
       const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy").maybeSingle();
       const v: any = s?.value ?? {};
       if (v.min_price_floor) priceFloor = v.min_price_floor;
     } catch {}
+
 
     if (isCashierOnly) {
       // Block hard floor
