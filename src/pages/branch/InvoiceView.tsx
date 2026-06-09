@@ -32,11 +32,11 @@ export default function InvoiceView() {
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [reason, setReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
 
