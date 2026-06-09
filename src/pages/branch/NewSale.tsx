@@ -12,7 +12,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
@@ -20,6 +20,7 @@ import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentSc
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
 import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
+import { notifyMany, getBranchUsersByRoles } from "@/lib/notifications";
 
 
 
@@ -117,6 +118,70 @@ export default function NewSale() {
       setPricesMap(m);
     });
   }, [branchId]);
+
+  // ===== Resume after discount approval =====
+  const [resumeDraft, setResumeDraft] = useState<{ draftId: string; payload: any; requestIds: string[] } | null>(null);
+
+  const checkForApprovedDraft = async () => {
+    if (!user || !branchId) return;
+    const { data } = await supabase
+      .from("discount_approval_requests" as any)
+      .select("id, status, draft_payload")
+      .eq("cashier_id", user.id)
+      .eq("branch_id", branchId)
+      .is("invoice_id", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const rows: any[] = data ?? [];
+    // Group by draft_id
+    const groups = new Map<string, any[]>();
+    for (const r of rows) {
+      const did = r.draft_payload?.draft_id;
+      if (!did) continue;
+      const arr = groups.get(did) ?? [];
+      arr.push(r);
+      groups.set(did, arr);
+    }
+    // Find a draft where ALL items are approved (none pending/rejected)
+    for (const [did, arr] of groups) {
+      if (arr.every((r) => r.status === "approved")) {
+        setResumeDraft({ draftId: did, payload: arr[0].draft_payload, requestIds: arr.map((r) => r.id) });
+        return;
+      }
+    }
+    setResumeDraft(null);
+  };
+
+  useEffect(() => { checkForApprovedDraft(); /* eslint-disable-next-line */ }, [user?.id, branchId]);
+
+  // realtime: when manager decides on my requests, update the banner immediately
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`my-disc-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "discount_approval_requests", filter: `cashier_id=eq.${user.id}` }, (payload: any) => {
+        const r = payload.new;
+        if (r.status === "approved") toast.success("✅ تمت الموافقة على الخصم — اضغط 'إتمام الفاتورة'");
+        if (r.status === "rejected") toast.error(`❌ تم رفض طلب الخصم${r.admin_note ? ` — ${r.admin_note}` : ""}`);
+        checkForApprovedDraft();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
+  }, [user?.id]);
+
+  const loadDraftIntoForm = () => {
+    if (!resumeDraft) return;
+    const p = resumeDraft.payload;
+    setItems(p.items ?? []);
+    setCustomerId(p.customerId ?? "");
+    setPayments(p.payments ?? []);
+    setCreditMode(!!p.creditMode);
+    setScheduleType(p.scheduleType ?? "open");
+    setInstallments(p.installments ?? []);
+    toast.success("تم استرجاع الفاتورة — اضغط حفظ لإتمامها");
+  };
+
 
   const filtered = useMemo(
     () => products.filter((p) => !search || p.name.includes(search) || p.sku.includes(search)).slice(0, 8),
@@ -333,6 +398,12 @@ export default function NewSale() {
       if (overThreshold.length > 0) {
         setBusy(true);
         try {
+          const draftId = crypto.randomUUID();
+          const draftPayload = {
+            draft_id: draftId,
+            items, customerId, payments,
+            creditMode, scheduleType, installments,
+          };
           const rows = overThreshold.map((it) => {
             const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
             const eff = lineTotal / Math.max(1, it.quantity);
@@ -350,10 +421,23 @@ export default function NewSale() {
               discount_percent: +pct.toFixed(2),
               quantity: it.quantity,
               status: "pending",
+              draft_payload: draftPayload,
             };
           });
           await supabase.from("discount_approval_requests" as any).insert(rows);
-          toast.warning(`تم إرسال ${rows.length} طلب موافقة على الخصم للمدير. الفاتورة لن تُحفظ حتى الموافقة.`);
+
+          // Notify branch managers
+          try {
+            const managerIds = await getBranchUsersByRoles(branchId!, ["branch_manager", "admin"]);
+            await notifyMany(managerIds, {
+              title: "طلب خصم جديد",
+              body: `من ${profile?.name ?? "كاشير"} على ${overThreshold.map(i => i.product_name).join("، ")}`,
+              type: "general",
+              link: `/branch/${branchId}/discount-approvals`,
+            });
+          } catch (e) { console.warn("notify managers failed", e); }
+
+          toast.warning(`تم إرسال ${rows.length} طلب موافقة للمدير. الفاتورة محفوظة كمسودة وهتُستكمل بعد الموافقة.`);
         } catch (e: any) {
           toast.error(e.message);
         } finally {
@@ -425,6 +509,27 @@ export default function NewSale() {
         console.warn("FIFO/profit update failed:", e);
       }
 
+      // === Link approved discount requests to invoice + copy approval data ===
+      if (resumeDraft) {
+        try {
+          await supabase.from("discount_approval_requests" as any)
+            .update({ invoice_id: invId as string })
+            .in("id", resumeDraft.requestIds);
+          const { data: reqs } = await supabase.from("discount_approval_requests" as any)
+            .select("product_id, decided_by, admin_note, requested_price")
+            .in("id", resumeDraft.requestIds);
+          for (const r of (reqs ?? []) as any[]) {
+            if (!r.product_id) continue;
+            await supabase.from("invoice_items").update({
+              discount_approved_by: r.decided_by,
+              discount_approval_note: r.admin_note,
+              final_price: r.requested_price,
+            } as any).eq("invoice_id", invId as string).eq("product_id", r.product_id);
+          }
+          setResumeDraft(null);
+        } catch (e) { console.warn("link discount requests failed", e); }
+      }
+
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
         entity: "Invoice", entityId: invId as string, details: { total },
@@ -465,6 +570,21 @@ export default function NewSale() {
   return (
     <BranchLayout>
       <PageHeader title="فاتورة جديدة" subtitle="نقطة البيع" />
+
+      {resumeDraft && (
+        <div className="card-elevated p-4 mb-4 border-2 border-success bg-success/5 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-success" />
+            <div>
+              <div className="font-bold text-success">تمت الموافقة على طلب الخصم</div>
+              <div className="text-xs text-muted-foreground">فاتورتك السابقة جاهزة للاستكمال — اضغط لاسترجاع الأصناف</div>
+            </div>
+          </div>
+          <Button onClick={loadDraftIntoForm} className="bg-success hover:bg-success/90 text-success-foreground">
+            استرجاع الفاتورة وإتمامها
+          </Button>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">

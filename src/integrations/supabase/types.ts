@@ -523,6 +523,7 @@ export type Database = {
           discount_percent: number
           draft_payload: Json | null
           id: string
+          invoice_id: string | null
           original_price: number
           product_id: string | null
           product_name: string
@@ -543,6 +544,7 @@ export type Database = {
           discount_percent: number
           draft_payload?: Json | null
           id?: string
+          invoice_id?: string | null
           original_price: number
           product_id?: string | null
           product_name: string
@@ -563,6 +565,7 @@ export type Database = {
           discount_percent?: number
           draft_payload?: Json | null
           id?: string
+          invoice_id?: string | null
           original_price?: number
           product_id?: string | null
           product_name?: string
@@ -1596,6 +1599,7 @@ export type Database = {
           cost_price: number
           created_at: string
           id: string
+          last_restored_at: string | null
           product_id: string
           quantity_purchased: number
           quantity_remaining: number
@@ -1607,6 +1611,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           id?: string
+          last_restored_at?: string | null
           product_id: string
           quantity_purchased?: number
           quantity_remaining?: number
@@ -1618,6 +1623,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           id?: string
+          last_restored_at?: string | null
           product_id?: string
           quantity_purchased?: number
           quantity_remaining?: number
@@ -3477,6 +3483,10 @@ export type Database = {
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
+        Returns: undefined
+      }
+      restore_invoice_batches: {
+        Args: { _invoice_id: string }
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }

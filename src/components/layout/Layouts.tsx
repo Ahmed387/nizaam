@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, tenantId, isAdmin, hasRole } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingDiscounts, setPendingDiscounts] = useState(0);
 
   const loadPending = async () => {
     if (!tenantId || !isAdmin) return;
@@ -22,8 +23,20 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       .eq("status", "pending");
     setPendingApprovals(count ?? 0);
   };
-  useEffect(() => { loadPending(); }, [tenantId, isAdmin]);
+  const loadDiscounts = async () => {
+    if (!tenantId) return;
+    const { count } = await supabase
+      .from("discount_approval_requests" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending");
+    setPendingDiscounts(count ?? 0);
+  };
+  useEffect(() => { loadPending(); loadDiscounts(); }, [tenantId, isAdmin]);
   useRealtimeRefresh(["approval_requests"], loadPending);
+  useRealtimeRefresh(["discount_approval_requests"], loadDiscounts);
+
+  const canSeeProfit = isAdmin || hasRole("accountant") || hasRole("branch_manager");
 
   const adminNav: NavItem[] = [
     { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
@@ -33,6 +46,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
     { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
+    ...(canSeeProfit ? [{ to: "/admin/profitability", label: "تقرير الربحية", icon: <TrendingUp className="w-4 h-4" /> }] : []),
     { to: "/admin/approval-requests", label: "طلبات الموافقة", icon: <ShieldCheck className="w-4 h-4" />, badge: pendingApprovals || undefined },
     { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
   ];
@@ -62,6 +76,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [pendingAdvCount, setPendingAdvCount] = useState(0);
   const [pendingMyApprovals, setPendingMyApprovals] = useState(0);
+  const [pendingDiscountCount, setPendingDiscountCount] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -130,6 +145,28 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [user?.id, hasRole]);
 
+  // Pending discount approvals badge (managers + admin)
+  useEffect(() => {
+    if (!id || !user) return;
+    const canSee = isAdmin || hasRole("branch_manager");
+    if (!canSee) { setPendingDiscountCount(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from("discount_approval_requests" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("branch_id", id)
+        .eq("status", "pending");
+      if (!cancelled) setPendingDiscountCount(count ?? 0);
+    };
+    load();
+    const ch = supabase
+      .channel(`disc-appr-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "discount_approval_requests", filter: `branch_id=eq.${id}` }, load)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [id, user?.id, isAdmin, hasRole]);
+
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
   // Permission-driven sidebar (admins always see everything; others filtered via role_permissions matrix)
@@ -146,9 +183,11 @@ export function BranchLayout({ children }: { children: ReactNode }) {
   ];
 
   const isManager = hasRole("branch_manager");
+  const canSeeDiscounts = isAdmin || isManager;
   const nav: NavItem[] = [
     ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),
+    ...(canSeeDiscounts ? [{ to: `/branch/${id}/discount-approvals`, label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscountCount || undefined }] : []),
     ...(isManager ? [{ to: `/branch/${id}/approval-requests`, label: "طلباتي للموافقة", icon: <Inbox className="w-4 h-4" />, badge: pendingMyApprovals || undefined }] : []),
   ];
 
