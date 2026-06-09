@@ -712,7 +712,25 @@ export default function NewShipment() {
         </div>
       </div>
 
+      <Dialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل مصاريف الشحنة</DialogTitle>
+            <DialogDescription>
+              تعديل مصاريف الشحن سيؤثر على تكلفة {affectedBatches} دفعة وعلى حسابات الربح للمبيعات المستقبلية فقط.
+              <br />
+              الفواتير السابقة لن تتأثر. هل تريد المتابعة؟
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmEditOpen(false)}>إلغاء</Button>
+            <Button onClick={() => { setConfirmEditOpen(false); submitEdit(true); }}>متابعة الحفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={supplierDlg} onOpenChange={setSupplierDlg}>
+
         <DialogContent>
           <DialogHeader><DialogTitle>إضافة مورد جديد</DialogTitle></DialogHeader>
           <div className="space-y-3">
