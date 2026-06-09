@@ -12,6 +12,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, tenantId, isAdmin, hasRole } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingDiscounts, setPendingDiscounts] = useState(0);
 
   const loadPending = async () => {
     if (!tenantId || !isAdmin) return;
@@ -22,8 +23,20 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       .eq("status", "pending");
     setPendingApprovals(count ?? 0);
   };
-  useEffect(() => { loadPending(); }, [tenantId, isAdmin]);
+  const loadDiscounts = async () => {
+    if (!tenantId) return;
+    const { count } = await supabase
+      .from("discount_approval_requests" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending");
+    setPendingDiscounts(count ?? 0);
+  };
+  useEffect(() => { loadPending(); loadDiscounts(); }, [tenantId, isAdmin]);
   useRealtimeRefresh(["approval_requests"], loadPending);
+  useRealtimeRefresh(["discount_approval_requests"], loadDiscounts);
+
+  const canSeeProfit = isAdmin || hasRole("accountant") || hasRole("branch_manager");
 
   const adminNav: NavItem[] = [
     { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
@@ -33,6 +46,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
     { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
+    ...(canSeeProfit ? [{ to: "/admin/profitability", label: "تقرير الربحية", icon: <TrendingUp className="w-4 h-4" /> }] : []),
     { to: "/admin/approval-requests", label: "طلبات الموافقة", icon: <ShieldCheck className="w-4 h-4" />, badge: pendingApprovals || undefined },
     { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
   ];
