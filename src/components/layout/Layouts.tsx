@@ -76,6 +76,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [pendingAdvCount, setPendingAdvCount] = useState(0);
   const [pendingMyApprovals, setPendingMyApprovals] = useState(0);
+  const [pendingDiscountCount, setPendingDiscountCount] = useState(0);
 
   useEffect(() => {
     if (!id) return;
