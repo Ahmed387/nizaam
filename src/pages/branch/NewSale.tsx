@@ -1044,10 +1044,48 @@ export default function NewSale() {
           </div>
 
 
+          {/* Live discount bar */}
+          {items.length > 0 && (
+            <div className={`card-elevated p-4 border-2 ${overLimit ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}`}>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي قبل الخصم</span><span className="font-bold">{formatEGP(totalBeforeDiscount)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الخصم</span><span className="font-bold">{formatEGP(totalDiscountAmount)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">نسبة الخصم الفعلية</span><span className={`font-bold ${overLimit ? "text-destructive" : "text-success"}`}>{effectiveDiscountPct.toFixed(2)}%</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">الحد المسموح للفرع</span><span className="font-bold">{Number(allowedPct).toFixed(2)}%</span></div>
+                <div className={`flex justify-between pt-1.5 border-t ${overLimit ? "border-destructive/30 text-destructive" : "border-success/30 text-success"}`}>
+                  <span className="font-bold">الحالة</span>
+                  <span className="font-bold">
+                    {overLimit
+                      ? `⚠️ تجاوزت الحد المسموح بـ ${(effectiveDiscountPct - allowedPct).toFixed(2)}%`
+                      : "✅ ضمن الحد المسموح"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {overLimit && isCashierOnly && !bannerDismissed && !resumeDraft && (
+            <div className="card-elevated p-4 border-2 border-destructive bg-destructive/5 space-y-3">
+              <div className="flex items-start gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="text-sm font-bold">
+                  نسبة الخصم الكلية {effectiveDiscountPct.toFixed(1)}% تتجاوز الحد المسموح {Number(allowedPct).toFixed(1)}%
+                  <div className="font-normal text-xs mt-1">يرجى تعديل الخصم أو طلب موافقة المدير</div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setBannerDismissed(true)}>تعديل الخصم</Button>
+                <Button variant="destructive" className="flex-1" disabled={requestingApproval} onClick={sendDiscountApprovalRequest}>
+                  {requestingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : "طلب موافقة"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
-              <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className="text-primary font-extrabold text-xl">{formatEGP(total)}</span></div>
+              <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
@@ -1070,10 +1108,15 @@ export default function NewSale() {
               </div>
             )}
 
-            <Button className="w-full mt-4 h-12 btn-gradient text-base" disabled={busy || !items.length || hasLoss || !paymentsValid} onClick={submit}>
+            <Button
+              className="w-full mt-4 h-12 btn-gradient text-base"
+              disabled={busy || !items.length || hasLoss || !paymentsValid || (overLimit && isCashierOnly)}
+              onClick={submit}
+            >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Printer className="w-4 h-4 ml-2" /> إنشاء وطباعة</>}
             </Button>
           </div>
+
         </div>
       </div>
 
