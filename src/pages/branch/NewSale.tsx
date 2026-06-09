@@ -32,7 +32,9 @@ interface Item {
   cost_price: number;
   selling_price: number;
   market_price: number;
-  line_discount: number;
+  line_discount: number; // EGP — source of truth
+  discount_mode: "amount" | "percent"; // UI only
+  discount_input: number; // last typed value in current mode
 }
 // Payment methods are loaded dynamically from the database (built-ins + admin custom).
 const feeKeyFor = (m: string) => (m === "cash" ? null : m);
@@ -212,6 +214,46 @@ export default function NewSale() {
   }), [items]);
   const hasLoss = lossItems.length > 0;
 
+  // ===== Total invoice discount % vs branch limit (real-time) =====
+  const [allowedPct, setAllowedPct] = useState<number>(10);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [requestingApproval, setRequestingApproval] = useState(false);
+
+  const reloadAllowed = async () => {
+    if (!branchId) return;
+    try { setAllowedPct(await getMaxDiscountForBranch(branchId)); } catch {}
+  };
+
+  useEffect(() => { reloadAllowed(); /* eslint-disable-next-line */ }, [branchId]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    const ch = supabase
+      .channel(`settings-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => reloadAllowed())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
+  }, [branchId]);
+
+  const totalBeforeDiscount = useMemo(
+    () => items.reduce((s, i) => s + i.quantity * i.selling_price, 0),
+    [items]
+  );
+  const totalDiscountAmount = useMemo(
+    () => items.reduce((s, i) => s + Math.min(i.line_discount, i.quantity * i.selling_price), 0),
+    [items]
+  );
+  const effectiveDiscountPct = totalBeforeDiscount > 0
+    ? (totalDiscountAmount / totalBeforeDiscount) * 100
+    : 0;
+  const overLimit = items.length > 0 && effectiveDiscountPct > allowedPct + 0.001;
+
+  // Re-show banner whenever discount or allowed limit changes
+  useEffect(() => { setBannerDismissed(false); }, [totalDiscountAmount, allowedPct]);
+
+
+
 
   const filteredCatalog = useMemo(
     () => catalogSearch
@@ -241,6 +283,8 @@ export default function NewSale() {
         selling_price: Number(p.selling_price),
         market_price: pricesMap[p.name] ?? Number(p.market_price),
         line_discount: 0,
+        discount_mode: "amount",
+        discount_input: 0,
       }]);
     }
     setSearch("");
@@ -290,7 +334,30 @@ export default function NewSale() {
     setItems(items.map((i) => itemKey(i) === key ? { ...i, line_discount: Math.max(0, d) } : i));
   };
 
-  // Payments management
+  const setDiscountMode = (key: string, mode: "amount" | "percent") => {
+    setItems(items.map((i) => {
+      if (itemKey(i) !== key) return i;
+      // recompute input value based on current line_discount
+      const base = i.quantity * i.selling_price;
+      const input = mode === "amount"
+        ? +(i.line_discount).toFixed(2)
+        : (base > 0 ? +((i.line_discount / base) * 100).toFixed(2) : 0);
+      return { ...i, discount_mode: mode, discount_input: input };
+    }));
+  };
+
+  const setDiscountInput = (key: string, v: number) => {
+    setItems(items.map((i) => {
+      if (itemKey(i) !== key) return i;
+      const base = i.quantity * i.selling_price;
+      const val = Math.max(0, v);
+      const amt = i.discount_mode === "amount"
+        ? val
+        : +(base * val / 100).toFixed(2);
+      return { ...i, discount_input: val, line_discount: Math.min(amt, base) };
+    }));
+  };
+
   const addPayment = () => {
     const used = payments.reduce((s, p) => s + p.amount, 0);
     const remaining = Math.max(0, total - used);
@@ -358,6 +425,69 @@ export default function NewSale() {
 
   const isCashierOnly = !isAdmin && !hasRole("branch_manager") && !hasRole("accountant");
 
+  // Create discount approval requests for the current invoice draft (total-% based)
+  const sendDiscountApprovalRequest = async () => {
+    if (!branchId || !user) return;
+    setRequestingApproval(true);
+    setBusy(true);
+    try {
+      const draftId = crypto.randomUUID();
+      const draftPayload = {
+        draft_id: draftId,
+        items, customerId, payments,
+        creditMode, scheduleType, installments,
+      };
+      const tenantId = (profile as any)?.tenant_id ?? null;
+      // One row per line (carries full per-line context for admin display)
+      const rows = items.filter((it) => it.line_discount > 0 || true).map((it) => {
+        const base = it.quantity * it.selling_price;
+        const lineTotal = Math.max(0, base - it.line_discount);
+        const eff = lineTotal / Math.max(1, it.quantity);
+        const orig = Math.max(it.market_price, it.selling_price, it.selling_price);
+        const linePct = orig > 0 ? ((orig - eff) / orig) * 100 : 0;
+        return {
+          tenant_id: tenantId,
+          branch_id: branchId,
+          cashier_id: user.id,
+          cashier_name: profile?.name ?? "كاشير",
+          product_id: it.product_id,
+          product_name: it.product_name,
+          original_price: orig,
+          requested_price: eff,
+          discount_percent: +linePct.toFixed(2),
+          quantity: it.quantity,
+          status: "pending",
+          draft_payload: { ...draftPayload, effective_pct: +effectiveDiscountPct.toFixed(2), allowed_pct: allowedPct, total_before: totalBeforeDiscount, total_discount: totalDiscountAmount },
+        };
+      });
+      const { error } = await supabase.from("discount_approval_requests" as any).insert(rows);
+      if (error) throw error;
+
+      // Notify admins ONLY
+      try {
+        if (tenantId) {
+          const adminIds = await getTenantAdmins(tenantId);
+          const { data: br } = await supabase.from("branches").select("name").eq("id", branchId).maybeSingle();
+          const branchName = (br as any)?.name ?? "—";
+          await notifyMany(adminIds, {
+            title: "طلب خصم جديد",
+            body: `فرع ${branchName} — ${profile?.name ?? "كاشير"} طلب خصم ${effectiveDiscountPct.toFixed(1)}% على فاتورة بقيمة ${totalBeforeDiscount.toFixed(2)} جنيه (الحد ${allowedPct}%)`,
+            type: "general",
+            link: `/admin/discount-approvals`,
+          });
+        }
+      } catch (e) { console.warn("notify admins failed", e); }
+      toast.warning("تم إرسال طلب الموافقة للأدمن. الفاتورة محفوظة كمسودة وستُستكمل بعد الموافقة.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRequestingApproval(false);
+      setBusy(false);
+    }
+  };
+
+
+
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
@@ -369,15 +499,14 @@ export default function NewSale() {
     }
 
     // === Discount Approval Flow ===
-    // Load branch-specific max discount %
-    let maxDiscPct = 10;
+    // Load price floor; allowed % is already tracked in state (allowedPct)
     let priceFloor: "cost" | "market" | "none" = "cost";
     try {
-      maxDiscPct = await getMaxDiscountForBranch(branchId!);
       const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy").maybeSingle();
       const v: any = s?.value ?? {};
       if (v.min_price_floor) priceFloor = v.min_price_floor;
     } catch {}
+
 
     if (isCashierOnly) {
       // Block hard floor
@@ -391,83 +520,17 @@ export default function NewSale() {
           }
         }
       }
-      // Detect over-threshold discounts → create approval requests, block save
-      const overThreshold = items.filter((it) => {
-        const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-        const eff = lineTotal / Math.max(1, it.quantity);
-        const orig = Math.max(it.market_price, it.selling_price);
-        if (orig <= 0) return false;
-        const pct = ((orig - eff) / orig) * 100;
-        return pct > maxDiscPct;
-      });
-      if (overThreshold.length > 0) {
-        // If we already have an approved/resumed draft, just allow — already approved
+      // Detect TOTAL invoice discount % over limit → create approval requests, block save
+      if (overLimit) {
         if (!resumeDraft) {
-          setBusy(true);
-          try {
-            const draftId = crypto.randomUUID();
-            const draftPayload = {
-              draft_id: draftId,
-              items, customerId, payments,
-              creditMode, scheduleType, installments,
-            };
-            const invoiceValue = items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0);
-            const maxLinePct = Math.max(...overThreshold.map((it) => {
-              const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-              const eff = lineTotal / Math.max(1, it.quantity);
-              const orig = Math.max(it.market_price, it.selling_price);
-              return ((orig - eff) / orig) * 100;
-            }));
-            const tenantId = (profile as any)?.tenant_id ?? null;
-            const rows = overThreshold.map((it) => {
-              const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-              const eff = lineTotal / Math.max(1, it.quantity);
-              const orig = Math.max(it.market_price, it.selling_price);
-              const pct = ((orig - eff) / orig) * 100;
-              return {
-                tenant_id: tenantId,
-                branch_id: branchId!,
-                cashier_id: user!.id,
-                cashier_name: profile?.name ?? "كاشير",
-                product_id: it.product_id,
-                product_name: it.product_name,
-                original_price: orig,
-                requested_price: eff,
-                discount_percent: +pct.toFixed(2),
-                quantity: it.quantity,
-                status: "pending",
-                draft_payload: draftPayload,
-              };
-            });
-            await supabase.from("discount_approval_requests" as any).insert(rows);
-
-            // Notify admins ONLY (not branch managers)
-            try {
-              if (tenantId) {
-                const adminIds = await getTenantAdmins(tenantId);
-                const { data: br } = await supabase.from("branches").select("name").eq("id", branchId!).maybeSingle();
-                const branchName = (br as any)?.name ?? "—";
-                await notifyMany(adminIds, {
-                  title: "طلب خصم جديد",
-                  body: `فرع ${branchName} — الكاشير ${profile?.name ?? "كاشير"} طلب خصم ${maxLinePct.toFixed(1)}% على فاتورة بقيمة ${invoiceValue.toFixed(2)} جنيه`,
-                  type: "general",
-                  link: `/admin/discount-approvals`,
-                });
-              }
-            } catch (e) { console.warn("notify admins failed", e); }
-
-            toast.warning(`تم إرسال ${rows.length} طلب موافقة للأدمن. الفاتورة محفوظة كمسودة وهتُستكمل بعد الموافقة.`);
-          } catch (e: any) {
-            toast.error(e.message);
-          } finally {
-            setBusy(false);
-          }
+          await sendDiscountApprovalRequest();
           return;
         }
         // resumeDraft exists but still over threshold (rare) — block
-        return toast.error(`أقصى خصم مسموح به ${maxDiscPct}%. عدّل السعر أو اطلب موافقة جديدة.`);
+        return toast.error(`أقصى خصم مسموح به ${allowedPct}%. عدّل الخصم أو اطلب موافقة جديدة.`);
       }
     }
+
 
     if (hasLoss && isCashierOnly) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
 
@@ -770,18 +833,34 @@ export default function NewSale() {
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <div className="flex flex-col gap-1 items-center">
-                            <Input type="number" min="0" step="0.01" value={i.line_discount || ""} onChange={(e) => updateLineDiscount(k, parseFloat(e.target.value) || 0)} className="w-24 text-center" placeholder="مبلغ" />
-                            <Input type="number" min="0" max="100" step="0.1"
-                              value={i.quantity * i.selling_price > 0 ? +((i.line_discount / (i.quantity * i.selling_price)) * 100).toFixed(2) || "" : ""}
-                              onChange={(e) => {
-                                const pct = parseFloat(e.target.value) || 0;
-                                const amt = +(i.quantity * i.selling_price * pct / 100).toFixed(2);
-                                updateLineDiscount(k, amt);
-                              }}
-                              className="w-24 text-center" placeholder="%" />
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              type="number" min="0" step="0.01"
+                              value={i.discount_input || ""}
+                              onChange={(e) => setDiscountInput(k, parseFloat(e.target.value) || 0)}
+                              className="w-24 text-center"
+                              placeholder={i.discount_mode === "amount" ? "مبلغ" : "%"}
+                            />
+                            <div className="flex flex-col">
+                              <button
+                                type="button"
+                                onClick={() => setDiscountMode(k, "amount")}
+                                className={`px-1.5 py-0.5 text-[10px] rounded-t border ${i.discount_mode === "amount" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                                title="مبلغ بالجنيه"
+                              >ج.م</button>
+                              <button
+                                type="button"
+                                onClick={() => setDiscountMode(k, "percent")}
+                                className={`px-1.5 py-0.5 text-[10px] rounded-b border-t-0 border ${i.discount_mode === "percent" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                                title="نسبة مئوية"
+                              >%</button>
+                            </div>
                           </div>
+                          {i.line_discount > 0 && (
+                            <div className="text-[10px] text-muted-foreground mt-1">= {formatEGP(i.line_discount)}</div>
+                          )}
                         </td>
+
                         {showCost && (
                           <td className="p-2 text-center">
                             <div className={lineProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatEGP(lineProfit)}</div>
@@ -969,10 +1048,48 @@ export default function NewSale() {
           </div>
 
 
+          {/* Live discount bar */}
+          {items.length > 0 && (
+            <div className={`card-elevated p-4 border-2 ${overLimit ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}`}>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي قبل الخصم</span><span className="font-bold">{formatEGP(totalBeforeDiscount)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الخصم</span><span className="font-bold">{formatEGP(totalDiscountAmount)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">نسبة الخصم الفعلية</span><span className={`font-bold ${overLimit ? "text-destructive" : "text-success"}`}>{effectiveDiscountPct.toFixed(2)}%</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">الحد المسموح للفرع</span><span className="font-bold">{Number(allowedPct).toFixed(2)}%</span></div>
+                <div className={`flex justify-between pt-1.5 border-t ${overLimit ? "border-destructive/30 text-destructive" : "border-success/30 text-success"}`}>
+                  <span className="font-bold">الحالة</span>
+                  <span className="font-bold">
+                    {overLimit
+                      ? `⚠️ تجاوزت الحد المسموح بـ ${(effectiveDiscountPct - allowedPct).toFixed(2)}%`
+                      : "✅ ضمن الحد المسموح"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {overLimit && isCashierOnly && !bannerDismissed && !resumeDraft && (
+            <div className="card-elevated p-4 border-2 border-destructive bg-destructive/5 space-y-3">
+              <div className="flex items-start gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="text-sm font-bold">
+                  نسبة الخصم الكلية {effectiveDiscountPct.toFixed(1)}% تتجاوز الحد المسموح {Number(allowedPct).toFixed(1)}%
+                  <div className="font-normal text-xs mt-1">يرجى تعديل الخصم أو طلب موافقة المدير</div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setBannerDismissed(true)}>تعديل الخصم</Button>
+                <Button variant="destructive" className="flex-1" disabled={requestingApproval} onClick={sendDiscountApprovalRequest}>
+                  {requestingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : "طلب موافقة"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
-              <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className="text-primary font-extrabold text-xl">{formatEGP(total)}</span></div>
+              <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
@@ -995,10 +1112,15 @@ export default function NewSale() {
               </div>
             )}
 
-            <Button className="w-full mt-4 h-12 btn-gradient text-base" disabled={busy || !items.length || hasLoss || !paymentsValid} onClick={submit}>
+            <Button
+              className="w-full mt-4 h-12 btn-gradient text-base"
+              disabled={busy || !items.length || hasLoss || !paymentsValid || (overLimit && isCashierOnly)}
+              onClick={submit}
+            >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Printer className="w-4 h-4 ml-2" /> إنشاء وطباعة</>}
             </Button>
           </div>
+
         </div>
       </div>
 
