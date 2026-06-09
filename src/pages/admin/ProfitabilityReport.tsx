@@ -37,13 +37,33 @@ export default function ProfitabilityReport() {
   const [from, setFrom] = useState(monthAgo);
   const [to, setTo] = useState(today);
   const [branchId, setBranchId] = useState<string>("");
+  const [cashierId, setCashierId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [branches, setBranches] = useState<any[]>([]);
+  const [cashiers, setCashiers] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [productCat, setProductCat] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [invRows, setInvRows] = useState<InvRow[]>([]);
 
   useEffect(() => {
+    if (!tenantId) return;
     supabase.from("branches").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setBranches(data ?? []));
+    supabase.from("categories").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setCategories(data ?? []));
+    supabase.from("products").select("id, category_id").eq("tenant_id", tenantId).then(({ data }) => {
+      const m: Record<string, string | null> = {};
+      (data ?? []).forEach((p: any) => { m[p.id] = p.category_id ?? null; });
+      setProductCat(m);
+    });
+    // Cashiers / branch managers: users with these roles, joined to profiles
+    (async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("role", ["cashier", "branch_manager"] as any);
+      const ids = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
+      if (!ids.length) return setCashiers([]);
+      const { data: profs } = await supabase.from("profiles").select("id, name").in("id", ids).eq("tenant_id", tenantId);
+      setCashiers((profs ?? []) as any);
+    })();
   }, [tenantId]);
 
   const load = async () => {
