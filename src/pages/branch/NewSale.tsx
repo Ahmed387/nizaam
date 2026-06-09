@@ -686,6 +686,8 @@ export default function NewSale() {
         }
       }
 
+      syncPendingSales(true);
+
 
       toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
