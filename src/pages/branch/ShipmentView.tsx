@@ -283,6 +283,8 @@ export default function ShipmentView() {
                 <th className="px-4 py-3 text-right">الكود</th>
                 <th className="px-4 py-3 text-right">الكمية</th>
                 <th className="px-4 py-3 text-right">سعر التكلفة</th>
+                {totalExtras > 0 && <th className="px-4 py-3 text-right">نصيب الشحن/الوحدة</th>}
+                {totalExtras > 0 && <th className="px-4 py-3 text-right">التكلفة الحقيقية/الوحدة</th>}
                 <th className="px-4 py-3 text-right">خصم %</th>
                 <th className="px-4 py-3 text-right">خصم مبلغ</th>
                 <th className="px-4 py-3 text-right">سعر البيع الحالي</th>
