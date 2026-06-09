@@ -157,19 +157,23 @@ export default function NewSale() {
 
   // realtime: when manager decides on my requests, update the banner immediately
   useEffect(() => {
-    if (!user) return;
+    if (!user || !branchId) return;
     const ch = supabase
       .channel(`my-disc-${user.id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "discount_approval_requests", filter: `cashier_id=eq.${user.id}` }, (payload: any) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "discount_approval_requests", filter: `cashier_id=eq.${user.id}` }, async (payload: any) => {
         const r = payload.new;
-        if (r.status === "approved") toast.success("✅ تمت الموافقة على الخصم — اضغط 'إتمام الفاتورة'");
-        if (r.status === "rejected") toast.error(`❌ تم رفض طلب الخصم${r.admin_note ? ` — ${r.admin_note}` : ""}`);
+        if (r.status === "approved") toast.success("تمت الموافقة على الخصم — أتمم الفاتورة");
+        if (r.status === "rejected") {
+          let maxPct = 10;
+          try { maxPct = await getMaxDiscountForBranch(branchId); } catch {}
+          toast.error(`تم رفض الخصم — أقصى خصم مسموح به ${maxPct}%${r.admin_note ? ` — ${r.admin_note}` : ""}`);
+        }
         checkForApprovedDraft();
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
-  }, [user?.id]);
+  }, [user?.id, branchId]);
 
   const loadDraftIntoForm = () => {
     if (!resumeDraft) return;
