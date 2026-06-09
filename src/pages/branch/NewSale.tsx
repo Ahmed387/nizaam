@@ -421,6 +421,69 @@ export default function NewSale() {
 
   const isCashierOnly = !isAdmin && !hasRole("branch_manager") && !hasRole("accountant");
 
+  // Create discount approval requests for the current invoice draft (total-% based)
+  const sendDiscountApprovalRequest = async () => {
+    if (!branchId || !user) return;
+    setRequestingApproval(true);
+    setBusy(true);
+    try {
+      const draftId = crypto.randomUUID();
+      const draftPayload = {
+        draft_id: draftId,
+        items, customerId, payments,
+        creditMode, scheduleType, installments,
+      };
+      const tenantId = (profile as any)?.tenant_id ?? null;
+      // One row per line (carries full per-line context for admin display)
+      const rows = items.filter((it) => it.line_discount > 0 || true).map((it) => {
+        const base = it.quantity * it.selling_price;
+        const lineTotal = Math.max(0, base - it.line_discount);
+        const eff = lineTotal / Math.max(1, it.quantity);
+        const orig = Math.max(it.market_price, it.selling_price, it.selling_price);
+        const linePct = orig > 0 ? ((orig - eff) / orig) * 100 : 0;
+        return {
+          tenant_id: tenantId,
+          branch_id: branchId,
+          cashier_id: user.id,
+          cashier_name: profile?.name ?? "كاشير",
+          product_id: it.product_id,
+          product_name: it.product_name,
+          original_price: orig,
+          requested_price: eff,
+          discount_percent: +linePct.toFixed(2),
+          quantity: it.quantity,
+          status: "pending",
+          draft_payload: { ...draftPayload, effective_pct: +effectiveDiscountPct.toFixed(2), allowed_pct: allowedPct, total_before: totalBeforeDiscount, total_discount: totalDiscountAmount },
+        };
+      });
+      const { error } = await supabase.from("discount_approval_requests" as any).insert(rows);
+      if (error) throw error;
+
+      // Notify admins ONLY
+      try {
+        if (tenantId) {
+          const adminIds = await getTenantAdmins(tenantId);
+          const { data: br } = await supabase.from("branches").select("name").eq("id", branchId).maybeSingle();
+          const branchName = (br as any)?.name ?? "—";
+          await notifyMany(adminIds, {
+            title: "طلب خصم جديد",
+            body: `فرع ${branchName} — ${profile?.name ?? "كاشير"} طلب خصم ${effectiveDiscountPct.toFixed(1)}% على فاتورة بقيمة ${totalBeforeDiscount.toFixed(2)} جنيه (الحد ${allowedPct}%)`,
+            type: "general",
+            link: `/admin/discount-approvals`,
+          });
+        }
+      } catch (e) { console.warn("notify admins failed", e); }
+      toast.warning("تم إرسال طلب الموافقة للأدمن. الفاتورة محفوظة كمسودة وستُستكمل بعد الموافقة.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRequestingApproval(false);
+      setBusy(false);
+    }
+  };
+
+
+
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
     if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
