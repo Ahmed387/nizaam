@@ -350,6 +350,7 @@ export default function InvoiceView() {
                       {installments.map((ins) => {
                         const st = ins.status === "paid" ? { label: "مدفوع", cls: "text-success" }
                           : ins.status === "partial" ? { label: "جزئي", cls: "text-warning" }
+                          : ins.status === "cancelled" ? { label: "ملغي", cls: "text-muted-foreground line-through" }
                           : { label: "مستحق", cls: "text-muted-foreground" };
                         return (
                           <tr key={ins.id} className="border-t border-border">
