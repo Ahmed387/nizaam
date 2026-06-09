@@ -215,6 +215,9 @@ export default function NewShipment() {
       arrival_date: arrival,
       received_by: receivedBy.trim(),
       shipping_cost: Number(shipping || 0),
+      customs_cost: Number(customs || 0),
+      other_cost: Number(otherCost || 0),
+      other_cost_description: otherDesc.trim() || null,
       admin_cost: Number(admin || 0),
       notes: notes.trim(),
     };
