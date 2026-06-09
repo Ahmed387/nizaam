@@ -49,6 +49,7 @@ export default function ProfitabilityReport() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [invRows, setInvRows] = useState<InvRow[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!tenantId) return;
