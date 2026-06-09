@@ -13,6 +13,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, Legend, PieChart, Pie, Cell,
 } from "recharts";
+import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
@@ -134,6 +135,10 @@ export default function BranchDashboard() {
   return (
     <BranchLayout>
       <PageHeader title="لوحة الفرع" subtitle="نظرة عامة على نشاط اليوم" />
+
+      {/* Active reservations (real-time) */}
+      {id && <div className="mb-6"><ActiveReservationsPanel branchId={id} /></div>}
+
 
       {/* Quick actions */}
       <div className="card-elevated p-4 mb-6">

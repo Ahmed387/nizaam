@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -12,7 +12,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2 } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
@@ -22,6 +22,7 @@ import { defaultPlan } from "@/components/PaymentPlanSelector";
 import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
 import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
+import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
 
 
 
@@ -87,6 +88,16 @@ export default function NewSale() {
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
 
+  // ===== Reservation state =====
+  const draftIdRef = useRef<string>(crypto.randomUUID());
+  const [availability, setAvailability] = useState<Record<string, number>>({}); // available per product (excludes my own reservation)
+  const [reservations, setReservations] = useState<Record<string, { reservation_id: string; expires_at: string }>>({});
+  const [nowTick, setNowTick] = useState<number>(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     setCreditToApply(0);
     if (!customerId) { setCustomerCredit(0); return; }
@@ -138,6 +149,55 @@ export default function NewSale() {
       setPricesMap(m);
     });
   }, [branchId]);
+
+  // ===== Reservation availability + realtime sync =====
+  const refreshAvailability = useCallback(async () => {
+    if (!branchId) return;
+    const { data: res } = await supabase
+      .from("inventory_reservations" as any)
+      .select("product_id, reserved_quantity, invoice_draft_id, expires_at, status")
+      .eq("branch_id", branchId)
+      .eq("status", "active")
+      .gt("expires_at", new Date().toISOString());
+    const reservedByOthers: Record<string, number> = {};
+    (res ?? []).forEach((r: any) => {
+      if (r.invoice_draft_id === draftIdRef.current) return;
+      reservedByOthers[r.product_id] = (reservedByOthers[r.product_id] ?? 0) + Number(r.reserved_quantity || 0);
+    });
+    setProducts((prods) => {
+      const map: Record<string, number> = {};
+      prods.forEach((p: any) => {
+        map[p.id] = Math.max(0, Number(p.quantity || 0) - (reservedByOthers[p.id] ?? 0));
+      });
+      setAvailability(map);
+      return prods;
+    });
+  }, [branchId]);
+
+  useEffect(() => { refreshAvailability(); }, [refreshAvailability, products.length]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    const ch = supabase.channel(`inv-res-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_reservations", filter: `branch_id=eq.${branchId}` }, () => refreshAvailability())
+      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: `branch_id=eq.${branchId}` }, async () => {
+        const { data } = await supabase.from("products").select("*").eq("branch_id", branchId).order("name");
+        setProducts(data ?? []);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [branchId, refreshAvailability]);
+
+  // Release reservations when leaving the page (close tab or navigate away)
+  useEffect(() => {
+    const onUnload = () => releaseDraftBeacon(draftIdRef.current);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onUnload);
+      releaseDraftReservations(draftIdRef.current, "cancelled").catch(() => {});
+    };
+  }, []);
+
 
   // ===== Resume after discount approval =====
   const [resumeDraft, setResumeDraft] = useState<{ draftId: string; payload: any; requestIds: string[] } | null>(null);
@@ -285,13 +345,30 @@ export default function NewSale() {
 
   const itemKey = (i: Item) => i.product_id;
 
-  const addItem = (p: any) => {
+  const addItem = async (p: any) => {
     const existing = items.find((i) => i.product_id === p.id);
+    const newQty = existing ? existing.quantity + 1 : 1;
+    if (Number(p.quantity || 0) < 1 && !existing) return toast.error("المنتج غير متوفر");
+    const res = await reserveStock({
+      productId: p.id, branchId: branchId!,
+      draftId: draftIdRef.current, quantity: newQty,
+      cashierName: profile?.name ?? null,
+    });
+    if (!res.ok) {
+      if (res.error === "insufficient") {
+        toast.error(
+          `الكمية المتاحة ${res.available} فقط — ${res.reserved_by_others} محجوزة لفواتير أخرى`,
+          { description: `في المخزون: ${res.stock} | محجوز: ${res.reserved_by_others} | متاح: ${res.available}`, duration: 5000 },
+        );
+      } else {
+        toast.error(res.error ?? "تعذر حجز الكمية");
+      }
+      return;
+    }
+    setReservations((prev) => ({ ...prev, [p.id]: { reservation_id: res.reservation_id!, expires_at: res.expires_at! } }));
     if (existing) {
-      if (existing.quantity + 1 > p.quantity) return toast.error("الكمية المتاحة غير كافية");
-      setItems(items.map((i) => i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+      setItems(items.map((i) => i.product_id === p.id ? { ...i, quantity: newQty } : i));
     } else {
-      if (p.quantity < 1) return toast.error("المنتج غير متوفر");
       setItems([...items, {
         product_id: p.id,
         product_name: p.name,
@@ -316,7 +393,6 @@ export default function NewSale() {
       return;
     }
     addItem(found);
-    toast.success(`تم إضافة ${found.name}`, { duration: 1500 });
   };
 
   useEffect(() => {
@@ -332,14 +408,36 @@ export default function NewSale() {
     return () => clearInterval(interval);
   }, [scannerMode]);
 
-  const updateQty = (key: string, q: number) => {
+  const updateQty = async (key: string, q: number) => {
     const it = items.find((i) => itemKey(i) === key);
     if (!it) return;
-    if (it.product_id) {
-      const prod = products.find((x) => x.id === it.product_id);
-      if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
+    if (q <= 0) {
+      const r = reservations[it.product_id];
+      if (r) {
+        await releaseReservation(r.reservation_id, "cancelled");
+        setReservations((prev) => { const n = { ...prev }; delete n[it.product_id]; return n; });
+      }
+      return setItems(items.filter((i) => itemKey(i) !== key));
     }
-    if (q <= 0) return setItems(items.filter((i) => itemKey(i) !== key));
+    if (it.product_id) {
+      const res = await reserveStock({
+        productId: it.product_id, branchId: branchId!,
+        draftId: draftIdRef.current, quantity: q,
+        cashierName: profile?.name ?? null,
+      });
+      if (!res.ok) {
+        if (res.error === "insufficient") {
+          toast.error(
+            `الكمية المتاحة ${res.available} فقط — ${res.reserved_by_others} محجوزة لفواتير أخرى`,
+            { duration: 5000 },
+          );
+        } else {
+          toast.error(res.error ?? "تعذر تعديل الحجز");
+        }
+        return;
+      }
+      setReservations((prev) => ({ ...prev, [it.product_id]: { reservation_id: res.reservation_id!, expires_at: res.expires_at! } }));
+    }
     setItems(items.map((i) => itemKey(i) === key ? { ...i, quantity: q } : i));
   };
 
@@ -688,6 +786,9 @@ export default function NewSale() {
 
       syncPendingSales(true);
 
+      // Release all reservations as completed (stock decrement happens server-side via process_sale)
+      try { await releaseDraftReservations(draftIdRef.current, "completed"); } catch {}
+
 
       toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
@@ -808,7 +909,20 @@ export default function NewSale() {
                           <div>💵 الربح: <span className="text-primary font-bold">{formatEGP(Number(p.selling_price) - Number(p.cost_price))}</span></div>
                         )}
                         <div>💰 سوق: <span className="text-primary">{formatEGP(pricesMap[p.name] ?? p.market_price)}</span></div>
-                        <div>📊 متاح: <span className={p.quantity > 0 ? "text-foreground" : "text-destructive"}>{p.quantity}</span></div>
+                        {(() => {
+                          const avail = availability[p.id] ?? Number(p.quantity || 0);
+                          const stock = Number(p.quantity || 0);
+                          const reserved = Math.max(0, stock - avail);
+                          const minLevel = Number((p as any).min_stock_level ?? p.low_stock_alert ?? 5);
+                          const cls = avail <= 0 ? "text-destructive" : avail < 3 ? "text-warning" : avail <= minLevel ? "text-warning" : "text-foreground";
+                          const badge = avail <= 0 ? "غير متاح حالياً" : avail < 3 ? "كمية محدودة" : avail <= minLevel ? "مخزون منخفض" : null;
+                          return (
+                            <>
+                              <div>📊 المتاح: <span className={`${cls} font-bold`}>{avail}</span> {badge && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-1 ${avail <= 0 ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>{badge}</span>}</div>
+                              {reserved > 0 && <div className="text-[10px] text-muted-foreground">في المخزون {stock} | محجوز {reserved}</div>}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </button>
@@ -891,6 +1005,24 @@ export default function NewSale() {
                             <span>{i.product_name}</span>
                           </div>
                           {showCost && <div className="text-xs text-muted-foreground mt-1">شراء: {formatEGP(i.cost_price)}</div>}
+                          {(() => {
+                            const r = reservations[i.product_id];
+                            if (!r) return null;
+                            const msLeft = new Date(r.expires_at).getTime() - nowTick;
+                            if (msLeft <= 0) {
+                              return <div className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ❌ انتهى وقت الحجز — أعد إضافة المنتج</div>;
+                            }
+                            const totalSec = Math.floor(msLeft / 1000);
+                            const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+                            const ss = String(totalSec % 60).padStart(2, "0");
+                            const warn = totalSec <= 5 * 60;
+                            return (
+                              <div className={`text-[10px] mt-1 flex items-center gap-1 ${warn ? "text-warning font-bold" : "text-success"}`}>
+                                {warn ? <AlertTriangle className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                                {warn ? "⚠️ سيتم إلغاء الحجز خلال" : "محجوز — ينتهي خلال"} {mm}:{ss}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
