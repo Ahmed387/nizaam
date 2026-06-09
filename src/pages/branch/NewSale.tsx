@@ -214,6 +214,42 @@ export default function NewSale() {
   }), [items]);
   const hasLoss = lossItems.length > 0;
 
+  // ===== Total invoice discount % vs branch limit (real-time) =====
+  const [allowedPct, setAllowedPct] = useState<number>(10);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [requestingApproval, setRequestingApproval] = useState(false);
+
+  const reloadAllowed = async () => {
+    if (!branchId) return;
+    try { setAllowedPct(await getMaxDiscountForBranch(branchId)); } catch {}
+  };
+
+  useEffect(() => { reloadAllowed(); /* eslint-disable-next-line */ }, [branchId]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    const ch = supabase
+      .channel(`settings-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => reloadAllowed())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
+  }, [branchId]);
+
+  const totalBeforeDiscount = useMemo(
+    () => items.reduce((s, i) => s + i.quantity * i.selling_price, 0),
+    [items]
+  );
+  const totalDiscountAmount = useMemo(
+    () => items.reduce((s, i) => s + Math.min(i.line_discount, i.quantity * i.selling_price), 0),
+    [items]
+  );
+  const effectiveDiscountPct = totalBeforeDiscount > 0
+    ? (totalDiscountAmount / totalBeforeDiscount) * 100
+    : 0;
+  const overLimit = items.length > 0 && effectiveDiscountPct > allowedPct + 0.001;
+
+
 
   const filteredCatalog = useMemo(
     () => catalogSearch
