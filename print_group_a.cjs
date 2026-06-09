@@ -6,7 +6,7 @@ const path = require('path');
   const htmlPath = path.resolve('/tmp/group_a_report.html');
   const outputPath = '/mnt/documents/مجموعة_A_مشاكل_لوجيك_مالية_حرجة.pdf';
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: '/bin/chromium-browser' });
   const page = await browser.newPage();
   await page.goto('file://' + htmlPath, { waitUntil: 'networkidle' });
 
