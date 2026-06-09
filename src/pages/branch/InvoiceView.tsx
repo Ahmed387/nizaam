@@ -377,8 +377,14 @@ export default function InvoiceView() {
 
 
         {inv.status === "cancelled" && (
-          <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-center text-destructive font-bold">
-            ❌ فاتورة ملغاة — السبب: {inv.cancel_reason}
+          <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-destructive">
+            <div className="font-bold text-center">❌ فاتورة ملغاة — السبب: {inv.cancel_reason}</div>
+            {(inv.refund_amount > 0) && (
+              <div className="text-xs text-center mt-1">
+                تم رد {formatEGP(inv.refund_amount)} عن طريق {inv.refund_method === "cash" ? "الكاش" : "رصيد العميل"}
+                {inv.cancelled_at ? ` — ${formatDateTime(inv.cancelled_at)}` : ""}
+              </div>
+            )}
           </div>
         )}
 
