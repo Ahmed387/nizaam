@@ -454,83 +454,17 @@ export default function NewSale() {
           }
         }
       }
-      // Detect over-threshold discounts → create approval requests, block save
-      const overThreshold = items.filter((it) => {
-        const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-        const eff = lineTotal / Math.max(1, it.quantity);
-        const orig = Math.max(it.market_price, it.selling_price);
-        if (orig <= 0) return false;
-        const pct = ((orig - eff) / orig) * 100;
-        return pct > maxDiscPct;
-      });
-      if (overThreshold.length > 0) {
-        // If we already have an approved/resumed draft, just allow — already approved
+      // Detect TOTAL invoice discount % over limit → create approval requests, block save
+      if (overLimit) {
         if (!resumeDraft) {
-          setBusy(true);
-          try {
-            const draftId = crypto.randomUUID();
-            const draftPayload = {
-              draft_id: draftId,
-              items, customerId, payments,
-              creditMode, scheduleType, installments,
-            };
-            const invoiceValue = items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0);
-            const maxLinePct = Math.max(...overThreshold.map((it) => {
-              const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-              const eff = lineTotal / Math.max(1, it.quantity);
-              const orig = Math.max(it.market_price, it.selling_price);
-              return ((orig - eff) / orig) * 100;
-            }));
-            const tenantId = (profile as any)?.tenant_id ?? null;
-            const rows = overThreshold.map((it) => {
-              const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-              const eff = lineTotal / Math.max(1, it.quantity);
-              const orig = Math.max(it.market_price, it.selling_price);
-              const pct = ((orig - eff) / orig) * 100;
-              return {
-                tenant_id: tenantId,
-                branch_id: branchId!,
-                cashier_id: user!.id,
-                cashier_name: profile?.name ?? "كاشير",
-                product_id: it.product_id,
-                product_name: it.product_name,
-                original_price: orig,
-                requested_price: eff,
-                discount_percent: +pct.toFixed(2),
-                quantity: it.quantity,
-                status: "pending",
-                draft_payload: draftPayload,
-              };
-            });
-            await supabase.from("discount_approval_requests" as any).insert(rows);
-
-            // Notify admins ONLY (not branch managers)
-            try {
-              if (tenantId) {
-                const adminIds = await getTenantAdmins(tenantId);
-                const { data: br } = await supabase.from("branches").select("name").eq("id", branchId!).maybeSingle();
-                const branchName = (br as any)?.name ?? "—";
-                await notifyMany(adminIds, {
-                  title: "طلب خصم جديد",
-                  body: `فرع ${branchName} — الكاشير ${profile?.name ?? "كاشير"} طلب خصم ${maxLinePct.toFixed(1)}% على فاتورة بقيمة ${invoiceValue.toFixed(2)} جنيه`,
-                  type: "general",
-                  link: `/admin/discount-approvals`,
-                });
-              }
-            } catch (e) { console.warn("notify admins failed", e); }
-
-            toast.warning(`تم إرسال ${rows.length} طلب موافقة للأدمن. الفاتورة محفوظة كمسودة وهتُستكمل بعد الموافقة.`);
-          } catch (e: any) {
-            toast.error(e.message);
-          } finally {
-            setBusy(false);
-          }
+          await sendDiscountApprovalRequest();
           return;
         }
         // resumeDraft exists but still over threshold (rare) — block
-        return toast.error(`أقصى خصم مسموح به ${maxDiscPct}%. عدّل السعر أو اطلب موافقة جديدة.`);
+        return toast.error(`أقصى خصم مسموح به ${allowedPct}%. عدّل الخصم أو اطلب موافقة جديدة.`);
       }
     }
+
 
     if (hasLoss && isCashierOnly) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
 
