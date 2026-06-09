@@ -286,9 +286,10 @@ export default function NewSale() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creditRemaining, isCredit, scheduleType]);
 
+  const isCashierOnly = !isAdmin && !hasRole("branch_manager") && !hasRole("accountant");
+
   const submit = async () => {
     if (!items.length) return toast.error("أضف منتجات أولاً");
-    if (hasLoss) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
     if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
     if (isCredit && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل المتبقي كآجل");
 
@@ -297,11 +298,76 @@ export default function NewSale() {
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
     }
 
+    // === Discount Approval Flow (cashier only) ===
+    // Load policy
+    let maxDiscPct = 10;
+    let priceFloor: "cost" | "market" | "none" = "cost";
+    try {
+      const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy").maybeSingle();
+      const v: any = s?.value ?? {};
+      if (typeof v.max_discount_without_approval === "number") maxDiscPct = v.max_discount_without_approval;
+      if (v.min_price_floor) priceFloor = v.min_price_floor;
+    } catch {}
+
+    if (isCashierOnly) {
+      // Block hard floor
+      if (priceFloor !== "none") {
+        for (const it of items) {
+          const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
+          const eff = lineTotal / Math.max(1, it.quantity);
+          const floor = priceFloor === "cost" ? it.cost_price : it.market_price;
+          if (floor > 0 && eff < floor) {
+            return toast.error(`«${it.product_name}» — السعر أقل من ${priceFloor === "cost" ? "التكلفة" : "سعر السوق"} (${formatEGP(floor)})`);
+          }
+        }
+      }
+      // Detect over-threshold discounts → create approval requests, block save
+      const overThreshold = items.filter((it) => {
+        const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
+        const eff = lineTotal / Math.max(1, it.quantity);
+        const orig = Math.max(it.market_price, it.selling_price);
+        if (orig <= 0) return false;
+        const pct = ((orig - eff) / orig) * 100;
+        return pct > maxDiscPct;
+      });
+      if (overThreshold.length > 0) {
+        setBusy(true);
+        try {
+          const rows = overThreshold.map((it) => {
+            const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
+            const eff = lineTotal / Math.max(1, it.quantity);
+            const orig = Math.max(it.market_price, it.selling_price);
+            const pct = ((orig - eff) / orig) * 100;
+            return {
+              tenant_id: (profile as any)?.tenant_id ?? null,
+              branch_id: branchId!,
+              cashier_id: user!.id,
+              cashier_name: profile?.name ?? "كاشير",
+              product_id: it.product_id,
+              product_name: it.product_name,
+              original_price: orig,
+              requested_price: eff,
+              discount_percent: +pct.toFixed(2),
+              quantity: it.quantity,
+              status: "pending",
+            };
+          });
+          await supabase.from("discount_approval_requests" as any).insert(rows);
+          toast.warning(`تم إرسال ${rows.length} طلب موافقة على الخصم للمدير. الفاتورة لن تُحفظ حتى الموافقة.`);
+        } catch (e: any) {
+          toast.error(e.message);
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+    }
+
+    if (hasLoss && isCashierOnly) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
+
     setBusy(true);
     try {
       const custId = customerId || null;
-
-
       const primaryMethod = payments.length > 0 ? payments[0].payment_method : "cash";
 
       const payload = {
@@ -335,6 +401,30 @@ export default function NewSale() {
         throw rpcErr;
       }
 
+      // === FIFO consume + profit columns ===
+      try {
+        for (const it of items) {
+          if (!it.product_id) continue;
+          const { data: avgCost } = await supabase.rpc("consume_product_batches" as any, {
+            _product_id: it.product_id,
+            _branch_id: branchId!,
+            _quantity: it.quantity,
+          });
+          const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
+          const finalUnit = lineTotal / Math.max(1, it.quantity);
+          const orig = Math.max(it.market_price, it.selling_price);
+          const pct = orig > 0 ? +(((orig - finalUnit) / orig) * 100).toFixed(2) : 0;
+          await supabase.from("invoice_items").update({
+            unit_cost_at_sale: Number(avgCost ?? it.cost_price),
+            original_price: orig,
+            final_price: finalUnit,
+            discount_percent: pct,
+          } as any).eq("invoice_id", invId as string).eq("product_id", it.product_id);
+        }
+      } catch (e: any) {
+        console.warn("FIFO/profit update failed:", e);
+      }
+
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
         entity: "Invoice", entityId: invId as string, details: { total },
@@ -349,7 +439,6 @@ export default function NewSale() {
             entityType: "customer",
             entityId: custId,
             entityName: cust?.name ?? "عميل",
-
             totalAmount: creditRemaining,
             referenceType: "invoice",
             referenceId: invId as string,
