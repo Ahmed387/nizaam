@@ -436,6 +436,9 @@ export default function NewShipment() {
       setSupplierId("");
       setArrival(new Date().toISOString().split("T")[0]);
       setShipping(0);
+      setCustoms(0);
+      setOtherCost(0);
+      setOtherDesc("");
       setAdmin(0);
       setNotes("");
       setLines([]);
