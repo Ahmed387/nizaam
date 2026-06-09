@@ -36,17 +36,27 @@ export default function ShipmentView() {
   const [editReason, setEditReason] = useState("");
   const [edit, setEdit] = useState({ arrival_date: "", received_by: "", shipping_cost: 0, admin_cost: 0, notes: "" });
 
+  const loadShipment = async () => {
+    const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
+    const { data: it } = await supabase
+      .from("shipment_items")
+      .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
+      .eq("shipment_id", shipmentId!);
+    setShip(s);
+    setItems(it ?? []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
-      const { data: it } = await supabase
-        .from("shipment_items")
-        .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
-        .eq("shipment_id", shipmentId!);
-      setShip(s);
-      setItems(it ?? []);
-      setLoading(false);
-    })();
+    loadShipment();
+    // realtime: refresh when admin edits this shipment from another tab
+    const ch = supabase
+      .channel(`ship-view-${shipmentId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipments", filter: `id=eq.${shipmentId}` }, () => loadShipment())
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipment_items", filter: `shipment_id=eq.${shipmentId}` }, () => loadShipment())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
   }, [shipmentId]);
 
   const handleDelete = async () => {
