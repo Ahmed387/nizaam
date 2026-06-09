@@ -338,7 +338,10 @@ export default function NewShipment() {
           pid = np.id;
         }
         const net = lineNet(l);
-        const netUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+        const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+        const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
+        const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
+        const trueUnit = baseUnit + unitExtra;
         await supabase.from("shipment_items").insert({
           shipment_id: ship.id,
           product_id: pid,
@@ -348,8 +351,11 @@ export default function NewShipment() {
           discount_percent: Number(l.discount_percent) || 0,
           discount_amount: Number(l.discount_amount) || 0,
           total: net,
-        });
-        // FIFO: create a new product_batch (do NOT overwrite products.cost_price)
+          base_unit_price: baseUnit,
+          shipping_cost_per_unit: unitExtra,
+          true_unit_cost: trueUnit,
+        } as any);
+        // FIFO: create a new product_batch with TRUE unit cost (base + shipping share)
         await supabase.from("product_batches" as any).insert({
           tenant_id: tenantId,
           branch_id: branchId!,
@@ -357,7 +363,10 @@ export default function NewShipment() {
           shipment_id: ship.id,
           quantity_purchased: l.quantity,
           quantity_remaining: l.quantity,
-          cost_price: netUnit,
+          cost_price: trueUnit,
+          base_purchase_price: baseUnit,
+          shipping_cost_per_unit: unitExtra,
+          true_unit_cost: trueUnit,
         });
         // Update stock only — cost_price kept as fallback for products without batches
         const cur = products.find((p) => p.id === pid);
