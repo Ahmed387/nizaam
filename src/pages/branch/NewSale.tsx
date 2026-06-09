@@ -119,6 +119,70 @@ export default function NewSale() {
     });
   }, [branchId]);
 
+  // ===== Resume after discount approval =====
+  const [resumeDraft, setResumeDraft] = useState<{ draftId: string; payload: any; requestIds: string[] } | null>(null);
+
+  const checkForApprovedDraft = async () => {
+    if (!user || !branchId) return;
+    const { data } = await supabase
+      .from("discount_approval_requests" as any)
+      .select("id, status, draft_payload")
+      .eq("cashier_id", user.id)
+      .eq("branch_id", branchId)
+      .is("invoice_id", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const rows: any[] = data ?? [];
+    // Group by draft_id
+    const groups = new Map<string, any[]>();
+    for (const r of rows) {
+      const did = r.draft_payload?.draft_id;
+      if (!did) continue;
+      const arr = groups.get(did) ?? [];
+      arr.push(r);
+      groups.set(did, arr);
+    }
+    // Find a draft where ALL items are approved (none pending/rejected)
+    for (const [did, arr] of groups) {
+      if (arr.every((r) => r.status === "approved")) {
+        setResumeDraft({ draftId: did, payload: arr[0].draft_payload, requestIds: arr.map((r) => r.id) });
+        return;
+      }
+    }
+    setResumeDraft(null);
+  };
+
+  useEffect(() => { checkForApprovedDraft(); /* eslint-disable-next-line */ }, [user?.id, branchId]);
+
+  // realtime: when manager decides on my requests, update the banner immediately
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`my-disc-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "discount_approval_requests", filter: `cashier_id=eq.${user.id}` }, (payload: any) => {
+        const r = payload.new;
+        if (r.status === "approved") toast.success("✅ تمت الموافقة على الخصم — اضغط 'إتمام الفاتورة'");
+        if (r.status === "rejected") toast.error(`❌ تم رفض طلب الخصم${r.admin_note ? ` — ${r.admin_note}` : ""}`);
+        checkForApprovedDraft();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
+  }, [user?.id]);
+
+  const loadDraftIntoForm = () => {
+    if (!resumeDraft) return;
+    const p = resumeDraft.payload;
+    setItems(p.items ?? []);
+    setCustomerId(p.customerId ?? "");
+    setPayments(p.payments ?? []);
+    setCreditMode(!!p.creditMode);
+    setScheduleType(p.scheduleType ?? "open");
+    setInstallments(p.installments ?? []);
+    toast.success("تم استرجاع الفاتورة — اضغط حفظ لإتمامها");
+  };
+
+
   const filtered = useMemo(
     () => products.filter((p) => !search || p.name.includes(search) || p.sku.includes(search)).slice(0, 8),
     [products, search]
