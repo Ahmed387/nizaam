@@ -345,13 +345,30 @@ export default function NewSale() {
 
   const itemKey = (i: Item) => i.product_id;
 
-  const addItem = (p: any) => {
+  const addItem = async (p: any) => {
     const existing = items.find((i) => i.product_id === p.id);
+    const newQty = existing ? existing.quantity + 1 : 1;
+    if (Number(p.quantity || 0) < 1 && !existing) return toast.error("المنتج غير متوفر");
+    const res = await reserveStock({
+      productId: p.id, branchId: branchId!,
+      draftId: draftIdRef.current, quantity: newQty,
+      cashierName: profile?.name ?? null,
+    });
+    if (!res.ok) {
+      if (res.error === "insufficient") {
+        toast.error(
+          `الكمية المتاحة ${res.available} فقط — ${res.reserved_by_others} محجوزة لفواتير أخرى`,
+          { description: `في المخزون: ${res.stock} | محجوز: ${res.reserved_by_others} | متاح: ${res.available}`, duration: 5000 },
+        );
+      } else {
+        toast.error(res.error ?? "تعذر حجز الكمية");
+      }
+      return;
+    }
+    setReservations((prev) => ({ ...prev, [p.id]: { reservation_id: res.reservation_id!, expires_at: res.expires_at! } }));
     if (existing) {
-      if (existing.quantity + 1 > p.quantity) return toast.error("الكمية المتاحة غير كافية");
-      setItems(items.map((i) => i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+      setItems(items.map((i) => i.product_id === p.id ? { ...i, quantity: newQty } : i));
     } else {
-      if (p.quantity < 1) return toast.error("المنتج غير متوفر");
       setItems([...items, {
         product_id: p.id,
         product_name: p.name,
@@ -376,7 +393,6 @@ export default function NewSale() {
       return;
     }
     addItem(found);
-    toast.success(`تم إضافة ${found.name}`, { duration: 1500 });
   };
 
   useEffect(() => {
@@ -392,14 +408,36 @@ export default function NewSale() {
     return () => clearInterval(interval);
   }, [scannerMode]);
 
-  const updateQty = (key: string, q: number) => {
+  const updateQty = async (key: string, q: number) => {
     const it = items.find((i) => itemKey(i) === key);
     if (!it) return;
-    if (it.product_id) {
-      const prod = products.find((x) => x.id === it.product_id);
-      if (q > (prod?.quantity ?? 0)) return toast.error("الكمية غير متاحة");
+    if (q <= 0) {
+      const r = reservations[it.product_id];
+      if (r) {
+        await releaseReservation(r.reservation_id, "cancelled");
+        setReservations((prev) => { const n = { ...prev }; delete n[it.product_id]; return n; });
+      }
+      return setItems(items.filter((i) => itemKey(i) !== key));
     }
-    if (q <= 0) return setItems(items.filter((i) => itemKey(i) !== key));
+    if (it.product_id) {
+      const res = await reserveStock({
+        productId: it.product_id, branchId: branchId!,
+        draftId: draftIdRef.current, quantity: q,
+        cashierName: profile?.name ?? null,
+      });
+      if (!res.ok) {
+        if (res.error === "insufficient") {
+          toast.error(
+            `الكمية المتاحة ${res.available} فقط — ${res.reserved_by_others} محجوزة لفواتير أخرى`,
+            { duration: 5000 },
+          );
+        } else {
+          toast.error(res.error ?? "تعذر تعديل الحجز");
+        }
+        return;
+      }
+      setReservations((prev) => ({ ...prev, [it.product_id]: { reservation_id: res.reservation_id!, expires_at: res.expires_at! } }));
+    }
     setItems(items.map((i) => itemKey(i) === key ? { ...i, quantity: q } : i));
   };
 
