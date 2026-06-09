@@ -404,10 +404,15 @@ export default function NewSale() {
     () => payments.reduce((s, p) => s + (p.fee_on_customer ? 0 : (Number(p.fee_amount) || 0)), 0),
     [payments]
   );
-  const creditRemaining = Math.max(0, total - paymentsSum);
+  // Clamp credit to apply when total changes
+  useEffect(() => {
+    if (creditToApply > total) setCreditToApply(Math.max(0, total));
+    if (creditToApply > customerCredit) setCreditToApply(Math.max(0, customerCredit));
+  }, [total, customerCredit, creditToApply]);
+  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply);
   // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
   const isCredit = creditMode || creditRemaining > 0.01;
-  const paymentsValid = paymentsSum <= total + 0.01;
+  const paymentsValid = (paymentsSum + creditToApply) <= total + 0.01;
 
   // Auto-rescale scheduled installments whenever the credit remainder changes,
   // so partial payments by any method update the installment plan automatically.
