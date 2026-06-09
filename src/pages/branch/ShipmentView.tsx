@@ -134,7 +134,10 @@ export default function ShipmentView() {
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
 
-  const goodsValue = ship.total_cost - ship.shipping_cost - ship.admin_cost;
+  const customs = Number(ship.customs_cost ?? 0);
+  const otherCost = Number(ship.other_cost ?? 0);
+  const totalExtras = Number(ship.total_extra_costs ?? 0) || (Number(ship.shipping_cost ?? 0) + customs + otherCost);
+  const goodsValue = ship.total_cost - ship.shipping_cost - customs - otherCost - ship.admin_cost;
   const itemsGross = items.reduce((s, it) => s + Number(it.quantity) * Number(it.cost_price), 0);
   const itemsDiscount = itemsGross - items.reduce((s, it) => s + Number(it.total ?? 0), 0);
 
