@@ -83,6 +83,23 @@ export default function NewSale() {
   const [newCustOpen, setNewCustOpen] = useState(false);
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
+  // Customer credit balance
+  const [customerCredit, setCustomerCredit] = useState(0);
+  const [creditToApply, setCreditToApply] = useState(0);
+
+  useEffect(() => {
+    setCreditToApply(0);
+    if (!customerId) { setCustomerCredit(0); return; }
+    const load = async () => {
+      const { data } = await supabase.from("contacts").select("credit_balance").eq("id", customerId).maybeSingle();
+      setCustomerCredit(Number((data as any)?.credit_balance ?? 0));
+    };
+    load();
+    const ch = supabase.channel(`contact-credit-${customerId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "contacts", filter: `id=eq.${customerId}` }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [customerId]);
 
   const addNewCustomer = async () => {
     if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
