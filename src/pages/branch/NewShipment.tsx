@@ -151,6 +151,18 @@ export default function NewShipment() {
   const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
   const itemsNet = itemsGross - itemsDiscount;
 
+  const totalExtras = Number(shipping || 0) + Number(customs || 0) + Number(otherCost || 0);
+
+  // Real-time proportional distribution by line value
+  const distribution = lines.map((l) => {
+    const net = lineNet(l);
+    const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+    const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
+    const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
+    const trueUnit = baseUnit + unitExtra;
+    return { line: l, baseUnit, unitExtra, lineShare, trueUnit };
+  });
+
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
     copy[i] = { ...copy[i], ...patch };
@@ -159,7 +171,7 @@ export default function NewShipment() {
 
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
 
-  const grandTotal = itemsNet + Number(shipping || 0) + Number(admin || 0);
+  const grandTotal = itemsNet + totalExtras + Number(admin || 0);
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
