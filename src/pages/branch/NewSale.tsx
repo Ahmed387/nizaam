@@ -702,7 +702,27 @@ export default function NewSale() {
                 <UserPlus className="w-4 h-4" />
               </Button>
             </div>
+            {customerCredit > 0 && (
+              <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm">
+                  هذا العميل لديه رصيد دائن: <b className="text-primary">{formatEGP(customerCredit)}</b>
+                  {creditToApply > 0 && <span className="text-success ms-2">— سيتم استخدام {formatEGP(creditToApply)}</span>}
+                </div>
+                <div className="flex gap-2">
+                  {creditToApply === 0 ? (
+                    <Button type="button" size="sm" onClick={() => setCreditToApply(Math.min(customerCredit, total))} disabled={total <= 0}>
+                      استخدام الرصيد
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCreditToApply(0)}>
+                      تجاهل
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+
 
 
           {/* Search & Scanner */}
