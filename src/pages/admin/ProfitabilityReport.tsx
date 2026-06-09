@@ -234,7 +234,7 @@ export default function ProfitabilityReport() {
                 const sellUnit = r.qty > 0 ? r.revenue / r.qty : 0;
                 const profitUnit = r.qty > 0 ? (r.profit / r.qty) : 0;
                 return (
-                  <>
+                  <Fragment key={key}>
                     <tr key={key} className="border-b border-border hover:bg-surface-2/40 cursor-pointer" onClick={() => {
                       const n = new Set(expanded); n.has(key) ? n.delete(key) : n.add(key); setExpanded(n);
                     }}>
