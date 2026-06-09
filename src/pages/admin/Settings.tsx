@@ -223,6 +223,7 @@ export default function Settings() {
             { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
             { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
             { v: "targets", icon: Target, label: "أهداف المبيعات" },
+            { v: "discount", icon: Percent, label: "إعدادات الخصم" },
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
@@ -250,6 +251,59 @@ export default function Settings() {
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsTab />
         </TabsContent>
+
+        <TabsContent value="discount" className="mt-4">
+          <div className="card-elevated p-6 space-y-5 max-w-3xl mx-auto">
+            <div className="flex items-start gap-3">
+              <Percent className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold">إعدادات الخصم</h3>
+                <p className="text-sm text-muted-foreground">حدّد أقصى نسبة خصم يقدر الكاشير يطبّقها بدون موافقة. أي تجاوز يتم إرساله للأدمن.</p>
+              </div>
+            </div>
+
+            <RadioGroup value={discMode} onValueChange={(v) => setDiscMode(v as any)} className="grid sm:grid-cols-2 gap-2">
+              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${discMode === "global" ? "border-primary bg-primary/5" : ""}`}>
+                <RadioGroupItem value="global" />
+                <span>نسبة موحدة لكل الفروع</span>
+              </label>
+              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${discMode === "per_branch" ? "border-primary bg-primary/5" : ""}`}>
+                <RadioGroupItem value="per_branch" />
+                <span>نسبة مختلفة لكل فرع</span>
+              </label>
+            </RadioGroup>
+
+            {discMode === "global" ? (
+              <div className="max-w-md">
+                <Label>أقصى نسبة خصم لجميع الفروع</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Input type="number" min={0} max={100} step={0.5} value={discGlobalPct}
+                    onChange={(e) => setDiscGlobalPct(Number(e.target.value))} className="text-right" />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {branches.length === 0 && <p className="text-sm text-muted-foreground">لا توجد فروع.</p>}
+                {branches.map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 p-2 rounded border">
+                    <div className="flex-1 font-medium">{b.name} — أقصى خصم مسموح</div>
+                    <Input type="number" min={0} max={100} step={0.5} className="w-32 text-right"
+                      value={discBranchPct[b.id] ?? 0}
+                      onChange={(e) => setDiscBranchPct((s) => ({ ...s, [b.id]: Number(e.target.value) }))} />
+                    <span className="text-xs text-muted-foreground w-6">%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button onClick={saveDiscountPolicy} disabled={savingDiscount} className="gap-2">
+              {savingDiscount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              حفظ
+            </Button>
+          </div>
+        </TabsContent>
+
 
 
         <TabsContent value="payments" className="mt-4">
