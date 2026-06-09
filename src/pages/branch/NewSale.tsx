@@ -150,6 +150,55 @@ export default function NewSale() {
     });
   }, [branchId]);
 
+  // ===== Reservation availability + realtime sync =====
+  const refreshAvailability = useCallback(async () => {
+    if (!branchId) return;
+    const { data: res } = await supabase
+      .from("inventory_reservations" as any)
+      .select("product_id, reserved_quantity, invoice_draft_id, expires_at, status")
+      .eq("branch_id", branchId)
+      .eq("status", "active")
+      .gt("expires_at", new Date().toISOString());
+    const reservedByOthers: Record<string, number> = {};
+    (res ?? []).forEach((r: any) => {
+      if (r.invoice_draft_id === draftIdRef.current) return;
+      reservedByOthers[r.product_id] = (reservedByOthers[r.product_id] ?? 0) + Number(r.reserved_quantity || 0);
+    });
+    setProducts((prods) => {
+      const map: Record<string, number> = {};
+      prods.forEach((p: any) => {
+        map[p.id] = Math.max(0, Number(p.quantity || 0) - (reservedByOthers[p.id] ?? 0));
+      });
+      setAvailability(map);
+      return prods;
+    });
+  }, [branchId]);
+
+  useEffect(() => { refreshAvailability(); }, [refreshAvailability, products.length]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    const ch = supabase.channel(`inv-res-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_reservations", filter: `branch_id=eq.${branchId}` }, () => refreshAvailability())
+      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: `branch_id=eq.${branchId}` }, async () => {
+        const { data } = await supabase.from("products").select("*").eq("branch_id", branchId).order("name");
+        setProducts(data ?? []);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [branchId, refreshAvailability]);
+
+  // Release reservations when leaving the page (close tab or navigate away)
+  useEffect(() => {
+    const onUnload = () => releaseDraftBeacon(draftIdRef.current);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onUnload);
+      releaseDraftReservations(draftIdRef.current, "cancelled").catch(() => {});
+    };
+  }, []);
+
+
   // ===== Resume after discount approval =====
   const [resumeDraft, setResumeDraft] = useState<{ draftId: string; payload: any; requestIds: string[] } | null>(null);
 
