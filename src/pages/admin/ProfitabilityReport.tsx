@@ -261,7 +261,7 @@ export default function ProfitabilityReport() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
