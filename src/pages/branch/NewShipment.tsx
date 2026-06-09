@@ -497,22 +497,76 @@ export default function NewShipment() {
       <div className="card-elevated p-5 mb-4">
         <h3 className="font-bold text-base flex items-center gap-2 mb-4 pb-3 border-b border-border">
           <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٢</span>
-          التكاليف والملاحظات
+          مصاريف إضافية
         </h3>
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">تكلفة الشحن (جنيه)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
             <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (جنيه)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
+            <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
+            <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
+            <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">إجمالي المصاريف الإضافية</Label>
+            <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+              {formatEGP(totalExtras)}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
             <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
           </div>
-          <div className="space-y-1.5 md:row-span-2">
+          <div className="space-y-1.5 md:col-span-2">
             <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
-            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
           </div>
         </div>
+
+        {/* Live distribution preview */}
+        {lines.length > 0 && totalExtras > 0 && (
+          <div className="mt-5 border border-border rounded-lg overflow-hidden">
+            <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between">
+              <span>توزيع المصاريف على المنتجات (تلقائي بالنسبة لقيمة كل صنف)</span>
+              <span className="text-muted-foreground">إجمالي للتوزيع: {formatEGP(totalExtras)}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-surface-2/60">
+                  <tr>
+                    <th className="px-3 py-2 text-right">المنتج</th>
+                    <th className="px-3 py-2 text-right">الكمية</th>
+                    <th className="px-3 py-2 text-right">سعر الشراء/الوحدة</th>
+                    <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
+                    <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
+                    <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {distribution.map((d, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-2">{d.line.product_name || "—"}</td>
+                      <td className="px-3 py-2">{d.line.quantity}</td>
+                      <td className="px-3 py-2">{formatEGP(d.baseUnit)}</td>
+                      <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
+                      <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
+                      <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
 
