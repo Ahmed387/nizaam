@@ -392,16 +392,13 @@ export default function InvoiceView() {
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
       </div>
 
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>إلغاء الفاتورة</DialogTitle></DialogHeader>
-          <Textarea placeholder="سبب الإلغاء *" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelOpen(false)}>تراجع</Button>
-            <Button variant="destructive" onClick={cancel}>تأكيد الإلغاء</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CancelInvoiceDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        invoice={inv}
+        onDone={() => setReloadKey((k) => k + 1)}
+      />
+
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
