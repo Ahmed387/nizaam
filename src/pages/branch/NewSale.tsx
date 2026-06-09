@@ -786,6 +786,9 @@ export default function NewSale() {
 
       syncPendingSales(true);
 
+      // Release all reservations as completed (stock decrement happens server-side via process_sale)
+      try { await releaseDraftReservations(draftIdRef.current, "completed"); } catch {}
+
 
       toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
