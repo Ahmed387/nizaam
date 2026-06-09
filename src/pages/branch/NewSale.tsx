@@ -663,7 +663,29 @@ export default function NewSale() {
         }
       }
 
-      syncPendingSales(true);
+      // Apply customer credit balance, if any was used
+      if (creditToApply > 0 && custId) {
+        try {
+          await supabase.from("invoice_payments").insert({
+            invoice_id: invId as string,
+            branch_id: branchId!,
+            payment_method: "credit_balance",
+            amount: creditToApply,
+            received_by_name: profile?.name ?? "رصيد سابق",
+          } as any);
+          const newBal = Math.max(0, customerCredit - creditToApply);
+          await supabase.from("contacts").update({ credit_balance: newBal, refund_status: newBal === 0 ? "credit_used" : "credit_added" } as any).eq("id", custId);
+          await supabase.from("customer_credit_log" as any).insert({
+            contact_id: custId, invoice_id: invId as string,
+            amount: creditToApply, type: "credit_used",
+            notes: "استخدام رصيد سابق في فاتورة جديدة",
+            created_by: user!.id,
+          });
+        } catch (e: any) {
+          toast.error("الفاتورة اتسجلت لكن استخدام الرصيد فشل: " + e.message);
+        }
+      }
+
 
       toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
       nav(`/branch/${branchId}/sales/${invId}`);
