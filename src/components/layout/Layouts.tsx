@@ -145,6 +145,28 @@ export function BranchLayout({ children }: { children: ReactNode }) {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [user?.id, hasRole]);
 
+  // Pending discount approvals badge (managers + admin)
+  useEffect(() => {
+    if (!id || !user) return;
+    const canSee = isAdmin || hasRole("branch_manager");
+    if (!canSee) { setPendingDiscountCount(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from("discount_approval_requests" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("branch_id", id)
+        .eq("status", "pending");
+      if (!cancelled) setPendingDiscountCount(count ?? 0);
+    };
+    load();
+    const ch = supabase
+      .channel(`disc-appr-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "discount_approval_requests", filter: `branch_id=eq.${id}` }, load)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [id, user?.id, isAdmin, hasRole]);
+
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
   // Permission-driven sidebar (admins always see everything; others filtered via role_permissions matrix)
@@ -161,9 +183,11 @@ export function BranchLayout({ children }: { children: ReactNode }) {
   ];
 
   const isManager = hasRole("branch_manager");
+  const canSeeDiscounts = isAdmin || isManager;
   const nav: NavItem[] = [
     ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),
+    ...(canSeeDiscounts ? [{ to: `/branch/${id}/discount-approvals`, label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscountCount || undefined }] : []),
     ...(isManager ? [{ to: `/branch/${id}/approval-requests`, label: "طلباتي للموافقة", icon: <Inbox className="w-4 h-4" />, badge: pendingMyApprovals || undefined }] : []),
   ];
 
