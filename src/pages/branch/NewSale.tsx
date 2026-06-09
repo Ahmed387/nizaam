@@ -509,6 +509,27 @@ export default function NewSale() {
         console.warn("FIFO/profit update failed:", e);
       }
 
+      // === Link approved discount requests to invoice + copy approval data ===
+      if (resumeDraft) {
+        try {
+          await supabase.from("discount_approval_requests" as any)
+            .update({ invoice_id: invId as string })
+            .in("id", resumeDraft.requestIds);
+          const { data: reqs } = await supabase.from("discount_approval_requests" as any)
+            .select("product_id, decided_by, admin_note, requested_price")
+            .in("id", resumeDraft.requestIds);
+          for (const r of (reqs ?? []) as any[]) {
+            if (!r.product_id) continue;
+            await supabase.from("invoice_items").update({
+              discount_approved_by: r.decided_by,
+              discount_approval_note: r.admin_note,
+              final_price: r.requested_price,
+            } as any).eq("invoice_id", invId as string).eq("product_id", r.product_id);
+          }
+          setResumeDraft(null);
+        } catch (e) { console.warn("link discount requests failed", e); }
+      }
+
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
         entity: "Invoice", entityId: invId as string, details: { total },
