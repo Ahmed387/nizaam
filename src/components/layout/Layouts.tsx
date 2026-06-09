@@ -47,6 +47,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
     { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
     ...(canSeeProfit ? [{ to: "/admin/profitability", label: "تقرير الربحية", icon: <TrendingUp className="w-4 h-4" /> }] : []),
+    ...(isAdmin ? [{ to: "/admin/discount-approvals", label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscounts || undefined }] : []),
     { to: "/admin/approval-requests", label: "طلبات الموافقة", icon: <ShieldCheck className="w-4 h-4" />, badge: pendingApprovals || undefined },
     { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
   ];

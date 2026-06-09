@@ -106,6 +106,7 @@ import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
+import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
 import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
 import InvCountSessions from "./pages/branch/inventory-count/Sessions";
@@ -217,6 +218,7 @@ const App = () => (
             <Route path="/branch/:id/approval-requests" element={<ProtectedRoute><MyApprovalRequests /></ProtectedRoute>} />
 
             <Route path="/branch/:id/discount-approvals" element={<ProtectedRoute><PendingDiscountApprovals /></ProtectedRoute>} />
+            <Route path="/admin/discount-approvals" element={<ProtectedRoute adminOnly><AdminDiscountApprovals /></ProtectedRoute>} />
             <Route path="/admin/profitability" element={<ProtectedRoute adminOnly><ProfitabilityReport /></ProtectedRoute>} />
 
             <Route path="/branch/:id/reports" element={<ProtectedRoute perm="reports.view"><BranchReports /></ProtectedRoute>} />
