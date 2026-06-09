@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2 } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2, Percent } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
 import { TwoFactorTab } from "@/components/TwoFactorTab";
@@ -40,6 +41,12 @@ export default function Settings() {
   const [branchTargets, setBranchTargets] = useState<Record<string, number>>({});
   const [savingThresholds, setSavingThresholds] = useState(false);
   const [savingTargets, setSavingTargets] = useState(false);
+
+  // === Discount policy ===
+  const [discMode, setDiscMode] = useState<"global" | "per_branch">("global");
+  const [discGlobalPct, setDiscGlobalPct] = useState<number>(10);
+  const [discBranchPct, setDiscBranchPct] = useState<Record<string, number>>({});
+  const [savingDiscount, setSavingDiscount] = useState(false);
 
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
@@ -100,6 +107,15 @@ export default function Settings() {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
+        if (row.key === "discount_policy_global") {
+          const v: any = row.value ?? {};
+          if (typeof v.percent === "number") setDiscGlobalPct(v.percent);
+        }
+        if (row.key === "discount_policy_branches") {
+          const v: any = row.value ?? {};
+          if (v.mode === "per_branch") setDiscMode("per_branch");
+          if (v.branches && typeof v.branches === "object") setDiscBranchPct(v.branches);
+        }
       }
       const tmap: Record<string, number> = {};
       const gmap: Record<string, number> = {};
@@ -112,6 +128,23 @@ export default function Settings() {
       setLoading(false);
     })();
   }, []);
+
+  const saveDiscountPolicy = async () => {
+    setSavingDiscount(true);
+    try {
+      if (discMode === "global") {
+        await supabase.from("settings").upsert({ key: "discount_policy_global", value: { mode: "global", percent: Number(discGlobalPct) || 0 } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+        await supabase.from("settings").upsert({ key: "discount_policy_branches", value: { mode: "global" } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+      } else {
+        const cleaned: Record<string, number> = {};
+        for (const b of branches) cleaned[b.id] = Number(discBranchPct[b.id] ?? 0) || 0;
+        await supabase.from("settings").upsert({ key: "discount_policy_branches", value: { mode: "per_branch", branches: cleaned } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+      }
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "discount_policy", details: { mode: discMode, global: discGlobalPct, branches: discBranchPct } });
+      toast.success("تم حفظ إعدادات الخصم");
+    } catch (e: any) { toast.error(e.message ?? "خطأ"); }
+    finally { setSavingDiscount(false); }
+  };
 
   const saveThresholds = async () => {
     setSavingThresholds(true);
@@ -190,6 +223,7 @@ export default function Settings() {
             { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
             { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
             { v: "targets", icon: Target, label: "أهداف المبيعات" },
+            { v: "discount", icon: Percent, label: "إعدادات الخصم" },
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
@@ -217,6 +251,59 @@ export default function Settings() {
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsTab />
         </TabsContent>
+
+        <TabsContent value="discount" className="mt-4">
+          <div className="card-elevated p-6 space-y-5 max-w-3xl mx-auto">
+            <div className="flex items-start gap-3">
+              <Percent className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold">إعدادات الخصم</h3>
+                <p className="text-sm text-muted-foreground">حدّد أقصى نسبة خصم يقدر الكاشير يطبّقها بدون موافقة. أي تجاوز يتم إرساله للأدمن.</p>
+              </div>
+            </div>
+
+            <RadioGroup value={discMode} onValueChange={(v) => setDiscMode(v as any)} className="grid sm:grid-cols-2 gap-2">
+              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${discMode === "global" ? "border-primary bg-primary/5" : ""}`}>
+                <RadioGroupItem value="global" />
+                <span>نسبة موحدة لكل الفروع</span>
+              </label>
+              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${discMode === "per_branch" ? "border-primary bg-primary/5" : ""}`}>
+                <RadioGroupItem value="per_branch" />
+                <span>نسبة مختلفة لكل فرع</span>
+              </label>
+            </RadioGroup>
+
+            {discMode === "global" ? (
+              <div className="max-w-md">
+                <Label>أقصى نسبة خصم لجميع الفروع</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Input type="number" min={0} max={100} step={0.5} value={discGlobalPct}
+                    onChange={(e) => setDiscGlobalPct(Number(e.target.value))} className="text-right" />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {branches.length === 0 && <p className="text-sm text-muted-foreground">لا توجد فروع.</p>}
+                {branches.map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 p-2 rounded border">
+                    <div className="flex-1 font-medium">{b.name} — أقصى خصم مسموح</div>
+                    <Input type="number" min={0} max={100} step={0.5} className="w-32 text-right"
+                      value={discBranchPct[b.id] ?? 0}
+                      onChange={(e) => setDiscBranchPct((s) => ({ ...s, [b.id]: Number(e.target.value) }))} />
+                    <span className="text-xs text-muted-foreground w-6">%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button onClick={saveDiscountPolicy} disabled={savingDiscount} className="gap-2">
+              {savingDiscount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              حفظ
+            </Button>
+          </div>
+        </TabsContent>
+
 
 
         <TabsContent value="payments" className="mt-4">

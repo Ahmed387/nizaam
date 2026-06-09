@@ -37,20 +37,40 @@ export default function ProfitabilityReport() {
   const [from, setFrom] = useState(monthAgo);
   const [to, setTo] = useState(today);
   const [branchId, setBranchId] = useState<string>("");
+  const [cashierId, setCashierId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [branches, setBranches] = useState<any[]>([]);
+  const [cashiers, setCashiers] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [productCat, setProductCat] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [invRows, setInvRows] = useState<InvRow[]>([]);
 
   useEffect(() => {
+    if (!tenantId) return;
     supabase.from("branches").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setBranches(data ?? []));
+    supabase.from("categories").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setCategories(data ?? []));
+    supabase.from("products").select("id, category_id").eq("tenant_id", tenantId).then(({ data }) => {
+      const m: Record<string, string | null> = {};
+      (data ?? []).forEach((p: any) => { m[p.id] = p.category_id ?? null; });
+      setProductCat(m);
+    });
+    // Cashiers / branch managers: users with these roles, joined to profiles
+    (async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("role", ["cashier", "branch_manager"] as any);
+      const ids = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
+      if (!ids.length) return setCashiers([]);
+      const { data: profs } = await supabase.from("profiles").select("id, name").in("id", ids).eq("tenant_id", tenantId);
+      setCashiers((profs ?? []) as any);
+    })();
   }, [tenantId]);
 
   const load = async () => {
     setLoading(true);
     let q = supabase
       .from("invoice_items")
-      .select("product_id, product_name, quantity, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status)")
+      .select("product_id, product_name, quantity, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
       .eq("tenant_id", tenantId);
     const { data, error } = await q;
     setLoading(false);
@@ -59,6 +79,11 @@ export default function ProfitabilityReport() {
       const inv = r.invoice;
       if (!inv || inv.status === "cancelled") return false;
       if (branchId && inv.branch_id !== branchId) return false;
+      if (cashierId && inv.cashier_id !== cashierId) return false;
+      if (categoryId) {
+        const cat = r.product_id ? productCat[r.product_id] : null;
+        if (cat !== categoryId) return false;
+      }
       const d = inv.created_at?.slice(0, 10);
       if (from && d < from) return false;
       if (to && d > to) return false;
@@ -101,7 +126,7 @@ export default function ProfitabilityReport() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
-  }, [tenantId, from, to, branchId]);
+  }, [tenantId, from, to, branchId, cashierId, categoryId]);
 
   const totals = useMemo(() => {
     const revenue = rows.reduce((s, r) => s + r.revenue, 0);
@@ -116,7 +141,7 @@ export default function ProfitabilityReport() {
     <AdminLayout>
       <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
 
-      <div className="card-elevated p-4 mb-4 grid md:grid-cols-4 gap-3">
+      <div className="card-elevated p-4 mb-4 grid md:grid-cols-6 gap-3">
         <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <div>
@@ -124,6 +149,20 @@ export default function ProfitabilityReport() {
           <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
             <option value="">كل الفروع</option>
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">الكاشير / البائع</Label>
+          <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={cashierId} onChange={(e) => setCashierId(e.target.value)}>
+            <option value="">الكل</option>
+            {cashiers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">فئة المنتج</Label>
+          <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">الكل</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div className="flex items-end"><Button onClick={load} className="w-full" disabled={loading}>{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "تشغيل"}</Button></div>
