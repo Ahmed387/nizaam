@@ -63,8 +63,19 @@ export default function PendingDiscountApprovals() {
       decided_at: new Date().toISOString(),
       admin_note: note || null,
     }).eq("id", decision.req.id);
+    if (error) { setBusy(false); return toast.error(error.message); }
+
+    // Notify cashier
+    try {
+      await notify({
+        userId: decision.req.cashier_id ?? (decision.req as any).cashier_id,
+        title: decision.type === "approve" ? "تمت الموافقة على طلب الخصم" : "تم رفض طلب الخصم",
+        body: `${decision.req.product_name}${note ? ` — ${note}` : ""}`,
+        link: `/branch/${decision.req.branch_id}/sales/new`,
+      });
+    } catch (e) { console.warn("notify cashier failed", e); }
+
     setBusy(false);
-    if (error) return toast.error(error.message);
     toast.success(decision.type === "approve" ? "تمت الموافقة" : "تم الرفض");
     setDecision(null);
     setNote("");
