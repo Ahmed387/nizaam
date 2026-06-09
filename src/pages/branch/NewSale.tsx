@@ -294,7 +294,30 @@ export default function NewSale() {
     setItems(items.map((i) => itemKey(i) === key ? { ...i, line_discount: Math.max(0, d) } : i));
   };
 
-  // Payments management
+  const setDiscountMode = (key: string, mode: "amount" | "percent") => {
+    setItems(items.map((i) => {
+      if (itemKey(i) !== key) return i;
+      // recompute input value based on current line_discount
+      const base = i.quantity * i.selling_price;
+      const input = mode === "amount"
+        ? +(i.line_discount).toFixed(2)
+        : (base > 0 ? +((i.line_discount / base) * 100).toFixed(2) : 0);
+      return { ...i, discount_mode: mode, discount_input: input };
+    }));
+  };
+
+  const setDiscountInput = (key: string, v: number) => {
+    setItems(items.map((i) => {
+      if (itemKey(i) !== key) return i;
+      const base = i.quantity * i.selling_price;
+      const val = Math.max(0, v);
+      const amt = i.discount_mode === "amount"
+        ? val
+        : +(base * val / 100).toFixed(2);
+      return { ...i, discount_input: val, line_discount: Math.min(amt, base) };
+    }));
+  };
+
   const addPayment = () => {
     const used = payments.reduce((s, p) => s + p.amount, 0);
     const remaining = Math.max(0, total - used);
