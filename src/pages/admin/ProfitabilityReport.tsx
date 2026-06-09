@@ -113,6 +113,32 @@ export default function ProfitabilityReport() {
       ip.margin = ip.revenue > 0 ? (ip.profit / ip.revenue) * 100 : 0;
       invMap.set(inv.id, ip);
     }
+    // Enrich rows with batch breakdown (weighted avg of base + shipping share per unit)
+    const pids = Array.from(map.keys()).filter((k) => /^[0-9a-f-]{36}$/i.test(k));
+    if (pids.length) {
+      const { data: batches } = await supabase
+        .from("product_batches" as any)
+        .select("product_id, quantity_purchased, base_purchase_price, shipping_cost_per_unit, true_unit_cost, cost_price")
+        .in("product_id", pids);
+      const agg = new Map<string, { qty: number; base: number; ship: number; trueC: number }>();
+      (batches ?? []).forEach((b: any) => {
+        const q = Number(b.quantity_purchased || 0);
+        const a = agg.get(b.product_id) ?? { qty: 0, base: 0, ship: 0, trueC: 0 };
+        a.qty += q;
+        a.base += q * Number(b.base_purchase_price || b.cost_price || 0);
+        a.ship += q * Number(b.shipping_cost_per_unit || 0);
+        a.trueC += q * Number(b.true_unit_cost || b.cost_price || 0);
+        agg.set(b.product_id, a);
+      });
+      map.forEach((r, k) => {
+        const a = agg.get(k);
+        if (a && a.qty > 0) {
+          r.base_unit = a.base / a.qty;
+          r.shipping_unit = a.ship / a.qty;
+          r.true_unit = a.trueC / a.qty;
+        }
+      });
+    }
     setRows(Array.from(map.values()).sort((a, b) => b.profit - a.profit));
     setInvRows(Array.from(invMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)));
   };
