@@ -849,6 +849,66 @@ export type Database = {
           },
         ]
       }
+      inventory_reservations: {
+        Row: {
+          branch_id: string
+          cashier_id: string | null
+          cashier_name: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          invoice_draft_id: string
+          product_id: string
+          released_at: string | null
+          reserved_quantity: number
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          branch_id: string
+          cashier_id?: string | null
+          cashier_name?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invoice_draft_id: string
+          product_id: string
+          released_at?: string | null
+          reserved_quantity?: number
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          branch_id?: string
+          cashier_id?: string | null
+          cashier_name?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invoice_draft_id?: string
+          product_id?: string
+          released_at?: string | null
+          reserved_quantity?: number
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_reservations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_reservations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_session_items: {
         Row: {
           actual_quantity: number | null
@@ -1763,6 +1823,7 @@ export type Database = {
           image: string | null
           low_stock_alert: number
           market_price: number
+          min_stock_level: number
           name: string
           old_price: number
           quantity: number
@@ -1779,6 +1840,7 @@ export type Database = {
           image?: string | null
           low_stock_alert?: number
           market_price?: number
+          min_stock_level?: number
           name: string
           old_price?: number
           quantity?: number
@@ -1795,6 +1857,7 @@ export type Database = {
           image?: string | null
           low_stock_alert?: number
           market_price?: number
+          min_stock_level?: number
           name?: string
           old_price?: number
           quantity?: number
@@ -3475,6 +3538,11 @@ export type Database = {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
       }
+      expire_old_reservations: { Args: never; Returns: number }
+      get_available_quantity: {
+        Args: { p_branch_id: string; p_product_id: string }
+        Returns: number
+      }
       get_branch_wallet_balances: {
         Args: { p_branch_id: string }
         Returns: {
@@ -3612,6 +3680,24 @@ export type Database = {
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: undefined
+      }
+      release_reservation: {
+        Args: { p_id: string; p_status?: string }
+        Returns: undefined
+      }
+      release_reservations_for_draft: {
+        Args: { p_draft_id: string; p_status?: string }
+        Returns: undefined
+      }
+      reserve_stock: {
+        Args: {
+          p_branch_id: string
+          p_cashier_name?: string
+          p_draft_id: string
+          p_product_id: string
+          p_quantity: number
+        }
+        Returns: Json
       }
       restore_invoice_batches: {
         Args: { _invoice_id: string }
