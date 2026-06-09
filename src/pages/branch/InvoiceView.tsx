@@ -81,22 +81,22 @@ export default function InvoiceView() {
     })();
   }, [invoiceId, id]);
 
-  const cancel = async () => {
-    if (!reason.trim()) return toast.error("سبب الإلغاء مطلوب");
-    await supabase.from("invoices").update({ status: "cancelled", cancel_reason: reason }).eq("id", invoiceId);
-    for (const it of items) {
-      const { data: p } = await supabase.from("products").select("quantity").eq("id", it.product_id).single();
-      if (p) await supabase.from("products").update({ quantity: p.quantity + it.quantity }).eq("id", it.product_id);
-    }
-    await supabase.from("treasury").insert({
-      branch_id: id!, type: "expense", category: "sales", amount: inv.total,
-      description: `إلغاء فاتورة ${inv.invoice_number}`, reference_id: invoiceId, created_by: user!.id,
-    });
-    await logAudit({ userId: user!.id, userName: profile!.name, branchId: id, action: "CANCEL", entity: "Invoice", entityId: invoiceId, details: { reason } });
-    toast.success("تم إلغاء الفاتورة");
-    setCancelOpen(false);
-    location.reload();
-  };
+  // Realtime: refresh invoice/installments/contacts if anything changes
+  useRealtimeRefresh(["invoices", "payment_installments", "contacts"], () => setReloadKey((k) => k + 1));
+  useEffect(() => {
+    if (!invoiceId) return;
+    if (reloadKey === 0) return;
+    (async () => {
+      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address)").eq("id", invoiceId).maybeSingle();
+      if (i) setInv(i);
+      const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
+      setPlan(pp ?? null);
+      if (pp?.id) {
+        const { data: ins } = await supabase.from("payment_installments").select("*").eq("payment_plan_id", pp.id).order("installment_number");
+        setInstallments(ins ?? []);
+      }
+    })();
+  }, [reloadKey, invoiceId]);
 
   if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
