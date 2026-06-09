@@ -16,6 +16,7 @@ import { notify } from "@/lib/notifications";
 interface Req {
   id: string;
   branch_id: string;
+  cashier_id: string;
   cashier_name: string;
   product_name: string;
   original_price: number;
