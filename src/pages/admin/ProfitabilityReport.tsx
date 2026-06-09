@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft } from "lucide-react";
 
 interface Row {
   product_id: string | null;
@@ -18,6 +18,9 @@ interface Row {
   cost: number;
   profit: number;
   margin: number;
+  base_unit?: number;
+  shipping_unit?: number;
+  true_unit?: number;
 }
 
 interface InvRow {
