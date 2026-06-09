@@ -15,7 +15,7 @@ import { Loader2, Plus, Trash2, Upload, ImageIcon, UserPlus } from "lucide-react
 import { uploadProductImage } from "@/lib/uploadImage";
 import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -59,8 +59,13 @@ export default function NewShipment() {
   const [arrival, setArrival] = useState(new Date().toISOString().split("T")[0]);
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
   const [shipping, setShipping] = useState(0);
+  const [customs, setCustoms] = useState(0);
+  const [otherCost, setOtherCost] = useState(0);
+  const [otherDesc, setOtherDesc] = useState("");
   const [admin, setAdmin] = useState(0);
   const [notes, setNotes] = useState("");
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [affectedBatches, setAffectedBatches] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
@@ -119,6 +124,9 @@ export default function NewShipment() {
       setArrival((s.arrival_date ?? "").slice(0, 10));
       setReceivedBy(s.received_by ?? "");
       setShipping(Number(s.shipping_cost ?? 0));
+      setCustoms(Number((s as any).customs_cost ?? 0));
+      setOtherCost(Number((s as any).other_cost ?? 0));
+      setOtherDesc((s as any).other_cost_description ?? "");
       setAdmin(Number(s.admin_cost ?? 0));
       setNotes(s.notes ?? "");
       setLines((it ?? []).map((r: any) => ({
@@ -133,6 +141,12 @@ export default function NewShipment() {
         image: "",
       })));
       setLoadedEdit(true);
+      // Count related batches for the edit-confirmation modal
+      const { count } = await supabase
+        .from("product_batches" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("shipment_id", shipmentId);
+      setAffectedBatches(count ?? 0);
     })();
   }, [isEdit, shipmentId, loadedEdit]);
 
@@ -143,6 +157,18 @@ export default function NewShipment() {
   const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
   const itemsNet = itemsGross - itemsDiscount;
 
+  const totalExtras = Number(shipping || 0) + Number(customs || 0) + Number(otherCost || 0);
+
+  // Real-time proportional distribution by line value
+  const distribution = lines.map((l) => {
+    const net = lineNet(l);
+    const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+    const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
+    const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
+    const trueUnit = baseUnit + unitExtra;
+    return { line: l, baseUnit, unitExtra, lineShare, trueUnit };
+  });
+
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
     copy[i] = { ...copy[i], ...patch };
@@ -151,7 +177,7 @@ export default function NewShipment() {
 
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
 
-  const grandTotal = itemsNet + Number(shipping || 0) + Number(admin || 0);
+  const grandTotal = itemsNet + totalExtras + Number(admin || 0);
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
@@ -184,17 +210,25 @@ export default function NewShipment() {
     }
   };
 
-  const submitEdit = async () => {
+  const submitEdit = async (skipConfirm = false) => {
     if (!shipmentId) return;
     if (!lines.length) return toast.error("لا يمكن حفظ شحنة بدون أصناف");
     for (const l of lines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
     }
+    // Admin: confirm impact on future profit before saving
+    if (isAdmin && !skipConfirm && affectedBatches > 0) {
+      setConfirmEditOpen(true);
+      return;
+    }
     const header = {
       arrival_date: arrival,
       received_by: receivedBy.trim(),
       shipping_cost: Number(shipping || 0),
+      customs_cost: Number(customs || 0),
+      other_cost: Number(otherCost || 0),
+      other_cost_description: otherDesc.trim() || null,
       admin_cost: Number(admin || 0),
       notes: notes.trim(),
     };
@@ -268,6 +302,10 @@ export default function NewShipment() {
           arrival_date: arrival,
           received_by: receivedBy.trim(),
           shipping_cost: Number(shipping || 0),
+          customs_cost: Number(customs || 0),
+          other_cost: Number(otherCost || 0),
+          other_cost_description: otherDesc.trim() || null,
+          total_extra_costs: totalExtras,
           admin_cost: Number(admin || 0),
           total_cost: grandTotal,
           notes: notes.trim() || null,
@@ -300,7 +338,10 @@ export default function NewShipment() {
           pid = np.id;
         }
         const net = lineNet(l);
-        const netUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+        const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+        const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
+        const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
+        const trueUnit = baseUnit + unitExtra;
         await supabase.from("shipment_items").insert({
           shipment_id: ship.id,
           product_id: pid,
@@ -310,8 +351,11 @@ export default function NewShipment() {
           discount_percent: Number(l.discount_percent) || 0,
           discount_amount: Number(l.discount_amount) || 0,
           total: net,
-        });
-        // FIFO: create a new product_batch (do NOT overwrite products.cost_price)
+          base_unit_price: baseUnit,
+          shipping_cost_per_unit: unitExtra,
+          true_unit_cost: trueUnit,
+        } as any);
+        // FIFO: create a new product_batch with TRUE unit cost (base + shipping share)
         await supabase.from("product_batches" as any).insert({
           tenant_id: tenantId,
           branch_id: branchId!,
@@ -319,7 +363,10 @@ export default function NewShipment() {
           shipment_id: ship.id,
           quantity_purchased: l.quantity,
           quantity_remaining: l.quantity,
-          cost_price: netUnit,
+          cost_price: trueUnit,
+          base_purchase_price: baseUnit,
+          shipping_cost_per_unit: unitExtra,
+          true_unit_cost: trueUnit,
         });
         // Update stock only — cost_price kept as fallback for products without batches
         const cur = products.find((p) => p.id === pid);
@@ -389,6 +436,9 @@ export default function NewShipment() {
       setSupplierId("");
       setArrival(new Date().toISOString().split("T")[0]);
       setShipping(0);
+      setCustoms(0);
+      setOtherCost(0);
+      setOtherDesc("");
       setAdmin(0);
       setNotes("");
       setLines([]);
@@ -447,22 +497,76 @@ export default function NewShipment() {
       <div className="card-elevated p-5 mb-4">
         <h3 className="font-bold text-base flex items-center gap-2 mb-4 pb-3 border-b border-border">
           <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٢</span>
-          التكاليف والملاحظات
+          مصاريف إضافية
         </h3>
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">تكلفة الشحن (جنيه)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
             <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (جنيه)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
+            <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
+            <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
+            <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">إجمالي المصاريف الإضافية</Label>
+            <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+              {formatEGP(totalExtras)}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
             <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
           </div>
-          <div className="space-y-1.5 md:row-span-2">
+          <div className="space-y-1.5 md:col-span-2">
             <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
-            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
           </div>
         </div>
+
+        {/* Live distribution preview */}
+        {lines.length > 0 && totalExtras > 0 && (
+          <div className="mt-5 border border-border rounded-lg overflow-hidden">
+            <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between">
+              <span>توزيع المصاريف على المنتجات (تلقائي بالنسبة لقيمة كل صنف)</span>
+              <span className="text-muted-foreground">إجمالي للتوزيع: {formatEGP(totalExtras)}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-surface-2/60">
+                  <tr>
+                    <th className="px-3 py-2 text-right">المنتج</th>
+                    <th className="px-3 py-2 text-right">الكمية</th>
+                    <th className="px-3 py-2 text-right">سعر الشراء/الوحدة</th>
+                    <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
+                    <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
+                    <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {distribution.map((d, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-2">{d.line.product_name || "—"}</td>
+                      <td className="px-3 py-2">{d.line.quantity}</td>
+                      <td className="px-3 py-2">{formatEGP(d.baseUnit)}</td>
+                      <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
+                      <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
+                      <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
 
@@ -593,6 +697,8 @@ export default function NewShipment() {
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg">
               <span>الإجمالي</span>
@@ -606,7 +712,25 @@ export default function NewShipment() {
         </div>
       </div>
 
+      <Dialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل مصاريف الشحنة</DialogTitle>
+            <DialogDescription>
+              تعديل مصاريف الشحن سيؤثر على تكلفة {affectedBatches} دفعة وعلى حسابات الربح للمبيعات المستقبلية فقط.
+              <br />
+              الفواتير السابقة لن تتأثر. هل تريد المتابعة؟
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmEditOpen(false)}>إلغاء</Button>
+            <Button onClick={() => { setConfirmEditOpen(false); submitEdit(true); }}>متابعة الحفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={supplierDlg} onOpenChange={setSupplierDlg}>
+
         <DialogContent>
           <DialogHeader><DialogTitle>إضافة مورد جديد</DialogTitle></DialogHeader>
           <div className="space-y-3">

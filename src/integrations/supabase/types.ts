@@ -1685,6 +1685,7 @@ export type Database = {
       }
       product_batches: {
         Row: {
+          base_purchase_price: number
           branch_id: string
           cost_price: number
           created_at: string
@@ -1694,9 +1695,12 @@ export type Database = {
           quantity_purchased: number
           quantity_remaining: number
           shipment_id: string | null
+          shipping_cost_per_unit: number
           tenant_id: string | null
+          true_unit_cost: number
         }
         Insert: {
+          base_purchase_price?: number
           branch_id: string
           cost_price?: number
           created_at?: string
@@ -1706,9 +1710,12 @@ export type Database = {
           quantity_purchased?: number
           quantity_remaining?: number
           shipment_id?: string | null
+          shipping_cost_per_unit?: number
           tenant_id?: string | null
+          true_unit_cost?: number
         }
         Update: {
+          base_purchase_price?: number
           branch_id?: string
           cost_price?: number
           created_at?: string
@@ -1718,7 +1725,9 @@ export type Database = {
           quantity_purchased?: number
           quantity_remaining?: number
           shipment_id?: string | null
+          shipping_cost_per_unit?: number
           tenant_id?: string | null
+          true_unit_cost?: number
         }
         Relationships: [
           {
@@ -2389,6 +2398,7 @@ export type Database = {
       }
       shipment_items: {
         Row: {
+          base_unit_price: number
           cost_price: number
           discount_amount: number
           discount_percent: number
@@ -2397,10 +2407,13 @@ export type Database = {
           product_name: string
           quantity: number
           shipment_id: string
+          shipping_cost_per_unit: number
           tenant_id: string | null
           total: number
+          true_unit_cost: number
         }
         Insert: {
+          base_unit_price?: number
           cost_price: number
           discount_amount?: number
           discount_percent?: number
@@ -2409,10 +2422,13 @@ export type Database = {
           product_name: string
           quantity: number
           shipment_id: string
+          shipping_cost_per_unit?: number
           tenant_id?: string | null
           total: number
+          true_unit_cost?: number
         }
         Update: {
+          base_unit_price?: number
           cost_price?: number
           discount_amount?: number
           discount_percent?: number
@@ -2421,8 +2437,10 @@ export type Database = {
           product_name?: string
           quantity?: number
           shipment_id?: string
+          shipping_cost_per_unit?: number
           tenant_id?: string | null
           total?: number
+          true_unit_cost?: number
         }
         Relationships: [
           {
@@ -2455,13 +2473,17 @@ export type Database = {
           branch_id: string
           contact_id: string
           created_at: string
+          customs_cost: number
           id: string
           notes: string | null
+          other_cost: number
+          other_cost_description: string | null
           received_by: string
           shipment_number: string
           shipping_cost: number
           tenant_id: string | null
           total_cost: number
+          total_extra_costs: number
         }
         Insert: {
           admin_cost?: number
@@ -2469,13 +2491,17 @@ export type Database = {
           branch_id: string
           contact_id: string
           created_at?: string
+          customs_cost?: number
           id?: string
           notes?: string | null
+          other_cost?: number
+          other_cost_description?: string | null
           received_by: string
           shipment_number?: string
           shipping_cost?: number
           tenant_id?: string | null
           total_cost?: number
+          total_extra_costs?: number
         }
         Update: {
           admin_cost?: number
@@ -2483,13 +2509,17 @@ export type Database = {
           branch_id?: string
           contact_id?: string
           created_at?: string
+          customs_cost?: number
           id?: string
           notes?: string | null
+          other_cost?: number
+          other_cost_description?: string | null
           received_by?: string
           shipment_number?: string
           shipping_cost?: number
           tenant_id?: string | null
           total_cost?: number
+          total_extra_costs?: number
         }
         Relationships: [
           {

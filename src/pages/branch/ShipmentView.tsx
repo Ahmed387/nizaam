@@ -36,17 +36,27 @@ export default function ShipmentView() {
   const [editReason, setEditReason] = useState("");
   const [edit, setEdit] = useState({ arrival_date: "", received_by: "", shipping_cost: 0, admin_cost: 0, notes: "" });
 
+  const loadShipment = async () => {
+    const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
+    const { data: it } = await supabase
+      .from("shipment_items")
+      .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
+      .eq("shipment_id", shipmentId!);
+    setShip(s);
+    setItems(it ?? []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
-      const { data: it } = await supabase
-        .from("shipment_items")
-        .select("*, products(name, sku, selling_price, quantity, image, low_stock_alert)")
-        .eq("shipment_id", shipmentId!);
-      setShip(s);
-      setItems(it ?? []);
-      setLoading(false);
-    })();
+    loadShipment();
+    // realtime: refresh when admin edits this shipment from another tab
+    const ch = supabase
+      .channel(`ship-view-${shipmentId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipments", filter: `id=eq.${shipmentId}` }, () => loadShipment())
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipment_items", filter: `shipment_id=eq.${shipmentId}` }, () => loadShipment())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
   }, [shipmentId]);
 
   const handleDelete = async () => {
@@ -124,7 +134,10 @@ export default function ShipmentView() {
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
 
-  const goodsValue = ship.total_cost - ship.shipping_cost - ship.admin_cost;
+  const customs = Number(ship.customs_cost ?? 0);
+  const otherCost = Number(ship.other_cost ?? 0);
+  const totalExtras = Number(ship.total_extra_costs ?? 0) || (Number(ship.shipping_cost ?? 0) + customs + otherCost);
+  const goodsValue = ship.total_cost - ship.shipping_cost - customs - otherCost - ship.admin_cost;
   const itemsGross = items.reduce((s, it) => s + Number(it.quantity) * Number(it.cost_price), 0);
   const itemsDiscount = itemsGross - items.reduce((s, it) => s + Number(it.total ?? 0), 0);
 
@@ -249,6 +262,8 @@ export default function ShipmentView() {
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(ship.shipping_cost)}</b></div>
+            {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>}
+            {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b>{formatEGP(otherCost)}</b></div>}
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(ship.admin_cost)}</b></div>
             <div className="border-t border-border pt-2 flex justify-between text-lg"><span>الإجمالي</span><b className="text-primary">{formatEGP(ship.total_cost)}</b></div>
           </div>
@@ -268,6 +283,8 @@ export default function ShipmentView() {
                 <th className="px-4 py-3 text-right">الكود</th>
                 <th className="px-4 py-3 text-right">الكمية</th>
                 <th className="px-4 py-3 text-right">سعر التكلفة</th>
+                {totalExtras > 0 && <th className="px-4 py-3 text-right">نصيب الشحن/الوحدة</th>}
+                {totalExtras > 0 && <th className="px-4 py-3 text-right">التكلفة الحقيقية/الوحدة</th>}
                 <th className="px-4 py-3 text-right">خصم %</th>
                 <th className="px-4 py-3 text-right">خصم مبلغ</th>
                 <th className="px-4 py-3 text-right">سعر البيع الحالي</th>
@@ -296,6 +313,8 @@ export default function ShipmentView() {
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{it.products?.sku ?? "—"}</td>
                   <td className="px-4 py-3">{it.quantity}</td>
                   <td className="px-4 py-3">{formatEGP(it.cost_price)}</td>
+                  {totalExtras > 0 && <td className="px-4 py-3 text-amber-600">+ {formatEGP(it.shipping_cost_per_unit ?? 0)}</td>}
+                  {totalExtras > 0 && <td className="px-4 py-3 font-bold text-primary">{formatEGP(it.true_unit_cost ?? it.cost_price)}</td>}
                   <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_percent ?? 0) > 0 ? `${Number(it.discount_percent)}%` : "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_amount ?? 0) > 0 ? formatEGP(it.discount_amount) : "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{it.products?.selling_price ? formatEGP(it.products.selling_price) : "—"}</td>
