@@ -141,6 +141,12 @@ export default function NewShipment() {
         image: "",
       })));
       setLoadedEdit(true);
+      // Count related batches for the edit-confirmation modal
+      const { count } = await supabase
+        .from("product_batches" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("shipment_id", shipmentId);
+      setAffectedBatches(count ?? 0);
     })();
   }, [isEdit, shipmentId, loadedEdit]);
 
