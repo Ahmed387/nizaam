@@ -353,6 +353,22 @@ export default function Inventory() {
           return { inserted };
         }}
       />
+
+      {priceEdit && (
+        <PriceEditDialog
+          open={!!priceEdit}
+          onOpenChange={(o) => !o && setPriceEdit(null)}
+          product={priceEdit}
+          onSaved={load}
+        />
+      )}
+
+      <Dlg open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
+        <DlgContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DlgHeader><DlgTitle>تاريخ أسعار: {historyFor?.name}</DlgTitle></DlgHeader>
+          {historyFor && <ProductPriceHistory productId={historyFor.id} />}
+        </DlgContent>
+      </Dlg>
     </BranchLayout>
   );
 }
