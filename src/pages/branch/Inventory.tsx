@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,9 @@ import StockTransfers from "./StockTransfers";
 import Sessions from "./inventory-count/Sessions";
 import { HistoricalStockPanel } from "@/components/HistoricalStockPanel";
 import { formatDateTime } from "@/lib/format";
+import { PriceEditDialog } from "@/components/PriceEditDialog";
+import { ProductPriceHistory } from "@/components/ProductPriceHistory";
+import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, DialogTitle as DlgTitle } from "@/components/ui/dialog";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -44,6 +47,8 @@ export default function Inventory() {
     low_stock_alert: "5", quantity: "0", image: "",
   });
   const [uploading, setUploading] = useState(false);
+  const [priceEdit, setPriceEdit] = useState<any>(null);
+  const [historyFor, setHistoryFor] = useState<any>(null);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
@@ -239,12 +244,22 @@ export default function Inventory() {
                 if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning">🟡 منخفض</span>;
                 return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
               }},
-              { key: "actions", header: "حركة", render: (r: any) => (
-                canManageInventory ? (
-                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
-                    <Activity className="w-3.5 h-3.5 ml-1" /> عرض
-                  </Button>
-                ) : null
+              { key: "actions", header: "إجراءات", render: (r: any) => (
+                <div className="flex gap-1 flex-wrap">
+                  {canManageInventory && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPriceEdit(r); }} title="تعديل السعر">
+                        <Tag className="w-3.5 h-3.5 ml-1" /> سعر
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setHistoryFor(r); }} title="تاريخ الأسعار">
+                        <History className="w-3.5 h-3.5 ml-1" /> تاريخ
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
+                        <Activity className="w-3.5 h-3.5 ml-1" /> حركة
+                      </Button>
+                    </>
+                  )}
+                </div>
               )},
             ]}
           />
@@ -338,6 +353,22 @@ export default function Inventory() {
           return { inserted };
         }}
       />
+
+      {priceEdit && (
+        <PriceEditDialog
+          open={!!priceEdit}
+          onOpenChange={(o) => !o && setPriceEdit(null)}
+          product={priceEdit}
+          onSaved={load}
+        />
+      )}
+
+      <Dlg open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
+        <DlgContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DlgHeader><DlgTitle>تاريخ أسعار: {historyFor?.name}</DlgTitle></DlgHeader>
+          {historyFor && <ProductPriceHistory productId={historyFor.id} />}
+        </DlgContent>
+      </Dlg>
     </BranchLayout>
   );
 }

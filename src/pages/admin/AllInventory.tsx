@@ -17,7 +17,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3 } from "lucide-react";
+import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History } from "lucide-react";
+import { PriceEditDialog } from "@/components/PriceEditDialog";
+import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 
 interface Row {
   id: string;
@@ -52,6 +54,8 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<Row | null>(null);
+  const [priceEdit, setPriceEdit] = useState<Row | null>(null);
+  const [historyFor, setHistoryFor] = useState<Row | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
@@ -311,8 +315,14 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
             return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
           }},
           { key: "actions", header: "إجراءات", render: (r: Row) => (
-            <div className="flex gap-1">
-              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditing({ ...r }); }}>
+            <div className="flex gap-1 flex-wrap">
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPriceEdit(r); }} title="تعديل السعر">
+                <Tag className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setHistoryFor(r); }} title="تاريخ الأسعار">
+                <History className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditing({ ...r }); }} title="تعديل المنتج">
                 <Pencil className="w-3.5 h-3.5" />
               </Button>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r); }}>
@@ -322,6 +332,22 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
           )},
         ]}
       />
+
+      {priceEdit && (
+        <PriceEditDialog
+          open={!!priceEdit}
+          onOpenChange={(o) => !o && setPriceEdit(null)}
+          product={priceEdit as any}
+          onSaved={load}
+        />
+      )}
+
+      <Dialog open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>تاريخ أسعار: {historyFor?.name}</DialogTitle></DialogHeader>
+          {historyFor && <ProductPriceHistory productId={historyFor.id} />}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
