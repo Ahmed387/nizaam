@@ -537,6 +537,36 @@ export default function Settings() {
                   <Trash2 className="w-4 h-4 ml-1" /> مسح البيانات
                 </Button>
               </div>
+
+              <div className="mt-6 pt-6 border-t-2 border-destructive/40">
+                <div className="flex items-start gap-3 mb-3">
+                  <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-bold text-destructive">مسح كل البيانات على السيستم (Reset كامل)</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      يحذف نهائياً: كل الفواتير، المرتجعات، الشحنات، المنتجات، المخزون، الخزينة، المصاريف،
+                      العملاء، الموردين، <b>الموظفين بكل سلفهم ورواتبهم</b>، الإشعارات، وسجل العمليات — في كل الفروع.
+                      هذا الإجراء متاح فقط لصاحب الشركة ولا يمكن التراجع عنه.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    variant="destructive"
+                    className="bg-destructive hover:bg-destructive/90"
+                    onClick={() => {
+                      setResetBranch("__all__");
+                      const all: Record<string, boolean> = {};
+                      RESET_OPTIONS.forEach((o) => { all[o.key] = true; });
+                      setResetOpts(all);
+                      setResetConfirm("");
+                      setResetOpen(true);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 ml-1" /> مسح كل البيانات على السيستم
+                  </Button>
+                </div>
+              </div>
             </div>
           </TabsContent>
         )}
