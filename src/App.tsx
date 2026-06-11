@@ -63,6 +63,7 @@ import AllSuppliers from "./pages/admin/AllSuppliers";
 import AllEmployees from "./pages/admin/AllEmployees";
 import EmployeeProfile from "./pages/admin/EmployeeProfile";
 import AuditLog from "./pages/admin/AuditLog";
+import PriceAuditLog from "./pages/admin/PriceAuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
 import NewSale from "./pages/branch/NewSale";
