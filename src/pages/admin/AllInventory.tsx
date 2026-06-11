@@ -54,6 +54,8 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<Row | null>(null);
+  const [priceEdit, setPriceEdit] = useState<Row | null>(null);
+  const [historyFor, setHistoryFor] = useState<Row | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
