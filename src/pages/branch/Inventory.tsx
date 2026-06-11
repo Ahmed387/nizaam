@@ -47,6 +47,8 @@ export default function Inventory() {
     low_stock_alert: "5", quantity: "0", image: "",
   });
   const [uploading, setUploading] = useState(false);
+  const [priceEdit, setPriceEdit] = useState<any>(null);
+  const [historyFor, setHistoryFor] = useState<any>(null);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
