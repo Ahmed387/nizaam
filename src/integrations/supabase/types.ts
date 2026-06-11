@@ -463,6 +463,7 @@ export type Database = {
           created_at: string
           credit_balance: number
           id: string
+          is_migrated: boolean
           name: string
           notes: string | null
           phone: string | null
@@ -478,6 +479,7 @@ export type Database = {
           created_at?: string
           credit_balance?: number
           id?: string
+          is_migrated?: boolean
           name: string
           notes?: string | null
           phone?: string | null
@@ -493,6 +495,7 @@ export type Database = {
           created_at?: string
           credit_balance?: number
           id?: string
+          is_migrated?: boolean
           name?: string
           notes?: string | null
           phone?: string | null
@@ -1174,6 +1177,8 @@ export type Database = {
           discount_reason: string | null
           id: string
           invoice_number: string
+          is_migrated: boolean
+          migration_source: string | null
           payment_method: string
           refund_amount: number
           refund_method: string | null
@@ -1198,6 +1203,8 @@ export type Database = {
           discount_reason?: string | null
           id?: string
           invoice_number: string
+          is_migrated?: boolean
+          migration_source?: string | null
           payment_method?: string
           refund_amount?: number
           refund_method?: string | null
@@ -1222,6 +1229,8 @@ export type Database = {
           discount_reason?: string | null
           id?: string
           invoice_number?: string
+          is_migrated?: boolean
+          migration_source?: string | null
           payment_method?: string
           refund_amount?: number
           refund_method?: string | null
@@ -1883,6 +1892,7 @@ export type Database = {
           created_at: string
           id: string
           image: string | null
+          is_migrated: boolean
           low_stock_alert: number
           market_price: number
           min_stock_level: number
@@ -1900,6 +1910,7 @@ export type Database = {
           created_at?: string
           id?: string
           image?: string | null
+          is_migrated?: boolean
           low_stock_alert?: number
           market_price?: number
           min_stock_level?: number
@@ -1917,6 +1928,7 @@ export type Database = {
           created_at?: string
           id?: string
           image?: string | null
+          is_migrated?: boolean
           low_stock_alert?: number
           market_price?: number
           min_stock_level?: number
