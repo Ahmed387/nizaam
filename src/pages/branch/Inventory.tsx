@@ -244,12 +244,22 @@ export default function Inventory() {
                 if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning">🟡 منخفض</span>;
                 return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
               }},
-              { key: "actions", header: "حركة", render: (r: any) => (
-                canManageInventory ? (
-                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
-                    <Activity className="w-3.5 h-3.5 ml-1" /> عرض
-                  </Button>
-                ) : null
+              { key: "actions", header: "إجراءات", render: (r: any) => (
+                <div className="flex gap-1 flex-wrap">
+                  {canManageInventory && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPriceEdit(r); }} title="تعديل السعر">
+                        <Tag className="w-3.5 h-3.5 ml-1" /> سعر
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setHistoryFor(r); }} title="تاريخ الأسعار">
+                        <History className="w-3.5 h-3.5 ml-1" /> تاريخ
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
+                        <Activity className="w-3.5 h-3.5 ml-1" /> حركة
+                      </Button>
+                    </>
+                  )}
+                </div>
               )},
             ]}
           />
