@@ -1657,6 +1657,68 @@ export type Database = {
           },
         ]
       }
+      price_audit_log: {
+        Row: {
+          branch_id: string | null
+          change_reason: string | null
+          changed_by: string | null
+          changed_by_name: string | null
+          changed_by_role: string | null
+          created_at: string
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string
+          id: string
+          new_value: number | null
+          old_value: number | null
+          price_type: string
+          source: string
+          tenant_id: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          change_reason?: string | null
+          changed_by?: string | null
+          changed_by_name?: string | null
+          changed_by_role?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type: string
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+          price_type: string
+          source?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          change_reason?: string | null
+          changed_by?: string | null
+          changed_by_name?: string | null
+          changed_by_role?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+          price_type?: string
+          source?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_audit_log_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_list_items: {
         Row: {
           category: string | null
@@ -3382,6 +3444,28 @@ export type Database = {
       }
     }
     Functions: {
+      _audit_user_info: {
+        Args: { _uid: string }
+        Returns: {
+          uname: string
+          urole: string
+        }[]
+      }
+      _audit_write: {
+        Args: {
+          _branch: string
+          _eid: string
+          _ename: string
+          _etype: string
+          _new: number
+          _old: number
+          _ptype: string
+          _reason: string
+          _source: string
+          _tenant: string
+        }
+        Returns: undefined
+      }
       acknowledge_treasury_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
@@ -3752,6 +3836,16 @@ export type Database = {
             }
             Returns: string
           }
+      update_product_price_with_reason: {
+        Args: {
+          _cost_price?: number
+          _market_price?: number
+          _product_id: string
+          _reason?: string
+          _selling_price?: number
+        }
+        Returns: undefined
+      }
       user_in_branch: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
