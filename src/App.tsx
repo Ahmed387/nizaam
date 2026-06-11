@@ -63,6 +63,7 @@ import AllSuppliers from "./pages/admin/AllSuppliers";
 import AllEmployees from "./pages/admin/AllEmployees";
 import EmployeeProfile from "./pages/admin/EmployeeProfile";
 import AuditLog from "./pages/admin/AuditLog";
+import PriceAuditLog from "./pages/admin/PriceAuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
 import NewSale from "./pages/branch/NewSale";
@@ -177,6 +178,7 @@ const App = () => (
             <Route path="/admin/reports" element={<Navigate to="/admin/reports-hub?tab=central" replace />} />
             <Route path="/admin/scheduled-reports" element={<Navigate to="/admin/reports-hub?tab=scheduled" replace />} />
             <Route path="/admin/audit-log" element={<Navigate to="/admin/reports-hub?tab=audit" replace />} />
+            <Route path="/admin/price-audit" element={<ProtectedRoute adminOnly><PriceAuditLog /></ProtectedRoute>} />
             <Route path="/admin/vouchers" element={<Navigate to="/admin/finance?tab=vouchers" replace />} />
             <Route path="/admin/receivables" element={<Navigate to="/admin/finance?tab=receivables" replace />} />
 
