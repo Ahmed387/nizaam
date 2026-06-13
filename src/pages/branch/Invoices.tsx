@@ -755,6 +755,19 @@ export default function Invoices() {
               </div>
             </>
           )}
+          {(tab === "sale" || tab === "purchase") && (
+            <div className="space-y-1">
+              <Label className="text-xs">البيانات المستوردة</Label>
+              <Select value={inputF.migrated} onValueChange={(v) => setInputF({ ...inputF, migrated: v as any })}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل (مستورد + جديد)</SelectItem>
+                  <SelectItem value="only">المستورد فقط</SelectItem>
+                  <SelectItem value="hide">إخفاء المستورد</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Search / Clear buttons (return tabs only) */}
