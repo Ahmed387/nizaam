@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, Loader2, DatabaseBackup } from "lucide-react";
+import { Download, Loader2, DatabaseBackup, PlayCircle, Clock, CheckCircle2, XCircle } from "lucide-react";
 import * as XLSX from "xlsx";
+import { formatDateTime } from "@/lib/format";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 const TABLES: { key: string; label: string }[] = [
   { key: "branches", label: "الفروع" },
@@ -37,6 +39,40 @@ const TABLES: { key: string; label: string }[] = [
 export function BackupTab() {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState<string>("");
+  const [runningServer, setRunningServer] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+
+  const loadHistory = async () => {
+    const { data } = await supabase
+      .from("system_backups" as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setHistory(data ?? []);
+  };
+  useEffect(() => { loadHistory(); }, []);
+  useRealtimeRefresh(["system_backups"], loadHistory);
+
+  const runScheduledNow = async () => {
+    setRunningServer(true);
+    try {
+      const { error } = await supabase.functions.invoke("scheduled-backup", { body: {} });
+      if (error) throw error;
+      toast.success("تم تشغيل النسخ الاحتياطي — قد يستغرق دقيقة");
+      setTimeout(loadHistory, 3000);
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل التشغيل");
+    } finally {
+      setRunningServer(false);
+    }
+  };
+
+  const downloadBackup = async (row: any) => {
+    if (!row.storage_path) return toast.error("لا يوجد ملف");
+    const { data, error } = await supabase.storage.from("system-backups").createSignedUrl(row.storage_path, 300);
+    if (error) return toast.error(error.message);
+    window.open(data.signedUrl, "_blank");
+  };
 
   const exportAll = async (format: "xlsx" | "json") => {
     setExporting(true);
@@ -127,6 +163,49 @@ export function BackupTab() {
           <li>الملف بيتنزّل على جهازك مباشرة، احفظه في مكان آمن.</li>
           <li>عدد الجداول: {TABLES.length} جدول.</li>
         </ul>
+      </div>
+
+      {/* Scheduled (server-side) backups */}
+      <div className="border-t pt-4 mt-2 space-y-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-bold flex items-center gap-2"><Clock className="w-4 h-4" /> النسخ التلقائية المجدولة</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              تعمل تلقائياً كل جمعة 3:00 صباحاً وتخزّن على السيرفر (آخر 12 نسخة).
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={runScheduledNow} disabled={runningServer} className="gap-2">
+            {runningServer ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+            تشغيل الآن
+          </Button>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="text-xs text-muted-foreground text-center py-4">لا توجد نسخ بعد — اضغط "تشغيل الآن" لأول نسخة.</div>
+        ) : (
+          <div className="border rounded divide-y">
+            {history.map((h) => (
+              <div key={h.id} className="flex items-center justify-between gap-2 p-2 text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  {h.status === "success"
+                    ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                    : <XCircle className="w-4 h-4 text-destructive shrink-0" />}
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{h.filename}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDateTime(h.created_at)} • {(Number(h.size_bytes) / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
+                </div>
+                {h.status === "success" && (
+                  <Button size="sm" variant="ghost" onClick={() => downloadBackup(h)} className="gap-1">
+                    <Download className="w-3 h-3" /> تنزيل
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
