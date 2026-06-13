@@ -162,26 +162,6 @@ export function AppShell({
             <TooltipContent side="left">الصفحة الشخصية</TooltipContent>
           </Tooltip>
         )}
-        {!isCollapsed && (
-          <Link
-            to="/install"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 p-2 mb-2 rounded-lg hover:bg-sidebar-accent transition-colors text-sm text-muted-foreground"
-          >
-            <Download className="w-4 h-4" /> تثبيت التطبيق على الموبايل
-          </Link>
-        )}
-        {isCollapsed && (
-          <Tooltip delayDuration={100}>
-            <TooltipTrigger asChild>
-              <Link to="/install" onClick={() => setOpen(false)}
-                className="flex items-center justify-center p-2 mb-2 rounded-lg hover:bg-sidebar-accent transition-colors">
-                <Download className="w-4 h-4 text-muted-foreground" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="left">تثبيت التطبيق</TooltipContent>
-          </Tooltip>
-        )}
         {isCollapsed ? (
           <Tooltip delayDuration={100}>
             <TooltipTrigger asChild>
