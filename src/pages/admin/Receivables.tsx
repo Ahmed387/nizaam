@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatEGP } from "@/lib/format";
 import { AlertCircle, Search, RefreshCw, Calendar } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link } from "react-router-dom";
 
 type Plan = {
@@ -57,6 +58,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["payment_plans", "payment_installments", "invoice_payments", "invoices"], load);
 
   const runOverdueCheck = async () => {
     setRefreshing(true);

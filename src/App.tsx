@@ -75,6 +75,7 @@ import StockMovements from "./pages/branch/StockMovements";
 import PrintBarcodes from "./pages/branch/PrintBarcodes";
 import Contacts from "./pages/branch/Contacts";
 import SupplierProfile from "./pages/branch/SupplierProfile";
+import ContactStatement from "./pages/branch/ContactStatement";
 import Treasury from "./pages/branch/Treasury";
 import Employees from "./pages/branch/Employees";
 import AdvanceRequests from "./pages/branch/AdvanceRequests";
@@ -211,6 +212,8 @@ const App = () => (
             <Route path="/branch/:id/transfers" element={<ProtectedRoute perm="transfers.view"><StockTransfers /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts" element={<ProtectedRoute perm="customers.view"><Contacts /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts/:contactId" element={<ProtectedRoute perm="customers.view"><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/branch/:id/contacts/:contactId/statement" element={<ProtectedRoute perm="customers.view"><ContactStatement /></ProtectedRoute>} />
+            <Route path="/admin/contacts/:contactId/statement" element={<ProtectedRoute adminOnly><ContactStatement /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customer" replace />} />
             <Route path="/branch/:id/customers/:contactId" element={<RedirectCustomerToContact />} />
             <Route path="/branch/:id/suppliers" element={<Navigate to="../contacts?tab=supplier" replace />} />

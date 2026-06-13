@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
@@ -64,7 +64,8 @@ export default function Contacts() {
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId]);
-  useRealtimeRefresh(["contacts"], load);
+  // Realtime: refresh on contact changes AND on any transaction that affects balance (triggers will update contacts row)
+  useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers"], load);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -380,6 +381,9 @@ export default function Contacts() {
             header: "إجراءات",
             render: (r: any) => (
               <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
+                  <FileText className="w-3.5 h-3.5" />
+                </Button>
                 {r.type === "customer" && (
                   <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
                     <TruckIcon className="w-3.5 h-3.5" />
