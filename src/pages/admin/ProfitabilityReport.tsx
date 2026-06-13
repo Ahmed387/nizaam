@@ -31,7 +31,11 @@ interface InvRow {
   cost: number;
   profit: number;
   margin: number;
+  has_return: boolean;
+  was_edited: boolean;
+  original_profit: number;
 }
+
 
 export default function ProfitabilityReport() {
   const { tenantId } = useAuth();
@@ -74,11 +78,12 @@ export default function ProfitabilityReport() {
     setLoading(true);
     let q = supabase
       .from("invoice_items")
-      .select("product_id, product_name, quantity, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
+      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
       .eq("tenant_id", tenantId);
     const { data, error } = await q;
     setLoading(false);
     if (error) { console.error(error); return; }
+
     const filtered = (data ?? []).filter((r: any) => {
       const inv = r.invoice;
       if (!inv || inv.status === "cancelled") return false;
@@ -98,22 +103,37 @@ export default function ProfitabilityReport() {
     const map = new Map<string, Row>();
     const invMap = new Map<string, InvRow>();
     for (const r of filtered as any[]) {
-      const qty = Number(r.quantity) || 0;
-      const revenue = qty * Number(r.selling_price) - Number(r.line_discount || 0);
-      const cost = qty * Number(r.unit_cost_at_sale || 0);
+      const qtyRaw = Number(r.quantity) || 0;
+      const retQty = Number(r.returned_quantity) || 0;
+      const netQty = Math.max(0, qtyRaw - retQty);
+      const unitSell = Number(r.selling_price) || 0;
+      const unitDisc = qtyRaw > 0 ? Number(r.line_discount || 0) / qtyRaw : 0;
+      const unitCost = Number(r.unit_cost_at_sale || 0);
+      const origCost = Number(r.original_unit_cost ?? r.unit_cost_at_sale ?? 0);
+      const revenue = netQty * unitSell - netQty * unitDisc;
+      const cost = netQty * unitCost;
       const profit = revenue - cost;
+      const origRevenue = qtyRaw * unitSell - Number(r.line_discount || 0);
+      const origProfit = origRevenue - qtyRaw * origCost;
+      const wasEdited = Math.abs(unitCost - origCost) > 0.001;
+      const hasReturn = retQty > 0;
+
       const key = r.product_id ?? r.product_name;
       const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0 };
-      prev.qty += qty; prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
+      prev.qty += netQty; prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
       prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
       map.set(key, prev);
 
       const inv = r.invoice;
-      const ip = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0 };
+      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, original_profit: 0 };
       ip.revenue += revenue; ip.cost += cost; ip.profit += profit;
+      ip.original_profit += origProfit;
+      ip.has_return = ip.has_return || hasReturn;
+      ip.was_edited = ip.was_edited || wasEdited;
       ip.margin = ip.revenue > 0 ? (ip.profit / ip.revenue) * 100 : 0;
       invMap.set(inv.id, ip);
     }
+
     // Enrich rows with batch breakdown (weighted avg of base + shipping share per unit)
     const pids = Array.from(map.keys()).filter((k) => /^[0-9a-f-]{36}$/i.test(k));
     if (pids.length) {
@@ -272,13 +292,31 @@ export default function ProfitabilityReport() {
 
       <h3 className="font-bold mt-6 mb-2">حسب الفاتورة</h3>
       <DataTable loading={loading} rows={invRows as any} columns={[
-        { key: "invoice_number", header: "الفاتورة" },
+        {
+          key: "invoice_number",
+          header: "الفاتورة",
+          render: (r: InvRow) => (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span>{r.invoice_number}</span>
+              {r.was_edited && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                  title={`الربح الأصلي: ${formatEGP(r.original_profit)} ← الربح بعد التعديل: ${formatEGP(r.profit)}`}
+                >تم التعديل</span>
+              )}
+              {r.has_return && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30">يشمل مرتجع</span>
+              )}
+            </div>
+          ),
+        },
         { key: "created_at", header: "التاريخ", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
         { key: "revenue", header: "الإيراد", render: (r: InvRow) => formatEGP(r.revenue) },
         { key: "cost", header: "التكلفة", render: (r: InvRow) => formatEGP(r.cost) },
-        { key: "profit", header: "الربح", render: (r: InvRow) => <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
+        { key: "profit", header: "صافي الربح", render: (r: InvRow) => <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
         { key: "margin", header: "الهامش %", render: (r: InvRow) => `${r.margin.toFixed(1)}%` },
       ]} />
     </AdminLayout>
   );
 }
+

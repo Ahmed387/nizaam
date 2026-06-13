@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { Trash2, Plus } from "lucide-react";
+
 
 type Item = {
   id?: string;
@@ -38,6 +40,8 @@ export function EditInvoiceDialog({
   const [products, setProducts] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [openSuggestIdx, setOpenSuggestIdx] = useState<number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
 
   useEffect(() => {
     if (!open || !invoice?.id) return;
@@ -234,9 +238,27 @@ export function EditInvoiceDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>إلغاء</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ التعديلات"}</Button>
+          <Button onClick={() => setConfirmOpen(true)} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ التعديلات"}</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد التعديل</AlertDialogTitle>
+            <AlertDialogDescription>
+              تعديل الفاتورة سيؤثر على تكلفة المنتجات وأرباح هذه الفاتورة. هل تريد المتابعة؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setConfirmOpen(false); await save(); }} disabled={saving}>
+              متابعة
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
+
 }

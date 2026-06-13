@@ -690,21 +690,27 @@ export default function NewSale() {
         throw rpcErr;
       }
 
-      // === FIFO consume + profit columns ===
+      // === FIFO consume (with batch tracking) + profit columns ===
       try {
         for (const it of items) {
           if (!it.product_id) continue;
-          const { data: avgCost } = await supabase.rpc("consume_product_batches" as any, {
+          const { data: consumeRes } = await supabase.rpc("consume_product_batches_json" as any, {
             _product_id: it.product_id,
             _branch_id: branchId!,
             _quantity: it.quantity,
           });
+          const batches: any[] = (consumeRes as any)?.batches ?? [];
+          const weightedCost = Number((consumeRes as any)?.weighted_unit_cost ?? it.cost_price);
+          const singleBatchId = batches.length === 1 ? batches[0]?.batch_id ?? null : null;
           const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
           const finalUnit = lineTotal / Math.max(1, it.quantity);
           const orig = Math.max(it.market_price, it.selling_price);
           const pct = orig > 0 ? +(((orig - finalUnit) / orig) * 100).toFixed(2) : 0;
           await supabase.from("invoice_items").update({
-            unit_cost_at_sale: Number(avgCost ?? it.cost_price),
+            unit_cost_at_sale: weightedCost,
+            original_unit_cost: weightedCost,
+            batch_id: singleBatchId,
+            batches_consumed: batches.length > 0 ? batches : null,
             original_price: orig,
             final_price: finalUnit,
             discount_percent: pct,
@@ -713,6 +719,7 @@ export default function NewSale() {
       } catch (e: any) {
         console.warn("FIFO/profit update failed:", e);
       }
+
 
       // === Link approved discount requests to invoice + copy approval data ===
       if (resumeDraft) {
