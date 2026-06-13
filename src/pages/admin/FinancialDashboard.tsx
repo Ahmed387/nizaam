@@ -43,16 +43,16 @@ export default function FinancialDashboard() {
       supabase.from("contacts").select("contact_type, balance"),
       supabase
         .from("payment_installments")
-        .select("id, due_date, amount_due, status, payment_plans!inner(entity_name, branch_id)")
-        .in("status", ["scheduled", "partial"])
+        .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
+        .in("status", ["pending", "partial"])
         .gte("due_date", fmtDay(new Date()))
         .lte("due_date", next30)
         .order("due_date", { ascending: true })
         .limit(20),
       supabase
         .from("payment_installments")
-        .select("id, due_date, amount_due, status, payment_plans!inner(entity_name, branch_id)")
-        .eq("status", "overdue")
+        .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
+        .or("status.eq.overdue,and(status.eq.pending,due_date.lt." + fmtDay(new Date()) + ")")
         .order("due_date", { ascending: true })
         .limit(20),
       supabase
@@ -207,7 +207,7 @@ export default function FinancialDashboard() {
             columns={[
               { key: "entity", header: "الجهة", render: (r: any) => r.payment_plans?.entity_name ?? "—" },
               { key: "due_date", header: "تاريخ الاستحقاق", render: (r: any) => formatDate(r.due_date) },
-              { key: "amount_due", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.amount_due)}</b> },
+              { key: "amount_due", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(Number(r.amount) - Number(r.paid_amount))}</b> },
             ]}
           />
         </div>
@@ -223,7 +223,7 @@ export default function FinancialDashboard() {
             columns={[
               { key: "entity", header: "الجهة", render: (r: any) => r.payment_plans?.entity_name ?? "—" },
               { key: "due_date", header: "تاريخ الاستحقاق", render: (r: any) => formatDate(r.due_date) },
-              { key: "amount_due", header: "المبلغ", render: (r: any) => formatEGP(r.amount_due) },
+              { key: "amount_due", header: "المبلغ", render: (r: any) => formatEGP(Number(r.amount) - Number(r.paid_amount)) },
             ]}
           />
         </div>
