@@ -39,29 +39,17 @@ export function DataTable<T>({
   const alignClass = (a?: Align) =>
     a === "center" ? "text-center" : a === "left" ? "text-left" : "text-right";
 
-  // Determine sticky column (explicit prop, or first column by default)
-  const stickyIndex = (() => {
-    const explicit = columns.findIndex((c) => c.sticky);
-    return explicit >= 0 ? explicit : 0;
-  })();
-
-  // RTL layout: first column is on the right edge → use `right-0`
-  const stickyCls =
-    "sticky right-0 z-10 bg-card md:bg-transparent before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-gradient-to-l before:from-black/10 before:to-transparent md:before:hidden";
-  const stickyHeadCls =
-    "sticky right-0 z-20 bg-surface-2 before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-gradient-to-l before:from-black/10 before:to-transparent md:before:hidden";
-
   return (
     <div className="card-elevated overflow-hidden">
-      <div className="overflow-x-auto scroll-smooth">
-        <table className="w-full text-sm border-collapse">
+      <div className="w-full">
+        <table className="w-full text-sm border-collapse table-auto">
           <thead>
             <tr className="bg-surface-2 border-b border-border">
-              {columns.map((c, idx) => (
+              {columns.map((c) => (
                 <th
                   key={c.key}
                   style={c.width ? { width: c.width } : undefined}
-                  className={`px-3 md:px-4 py-2.5 md:py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap ${alignClass(c.align)} ${idx === stickyIndex ? stickyHeadCls : ""} ${c.className ?? ""}`}
+                  className={`px-2 md:px-3 py-2 md:py-2.5 font-semibold text-[11px] md:text-xs uppercase tracking-wider text-muted-foreground break-words ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {c.header}
                 </th>
@@ -75,10 +63,10 @@ export function DataTable<T>({
                 onClick={() => onRowClick?.(row)}
                 className={`border-b border-border last:border-0 transition-colors hover:bg-muted/40 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface/20" : "bg-card"}`}
               >
-                {columns.map((c, idx) => (
+                {columns.map((c) => (
                   <td
                     key={c.key}
-                    className={`px-3 md:px-4 py-2.5 md:py-3 align-middle whitespace-nowrap ${alignClass(c.align)} ${idx === stickyIndex ? stickyCls + (i % 2 === 1 ? " !bg-surface" : " !bg-card") + " group-hover:!bg-muted/60" : ""} ${c.className ?? ""}`}
+                    className={`px-2 md:px-3 py-2 md:py-2.5 align-middle break-words ${alignClass(c.align)} ${c.className ?? ""}`}
                   >
                     {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                   </td>
