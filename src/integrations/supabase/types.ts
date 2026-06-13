@@ -1924,6 +1924,7 @@ export type Database = {
           id: string
           image: string | null
           is_migrated: boolean
+          legacy_code: string | null
           low_stock_alert: number
           market_price: number
           min_stock_level: number
@@ -1942,6 +1943,7 @@ export type Database = {
           id?: string
           image?: string | null
           is_migrated?: boolean
+          legacy_code?: string | null
           low_stock_alert?: number
           market_price?: number
           min_stock_level?: number
@@ -1960,6 +1962,7 @@ export type Database = {
           id?: string
           image?: string | null
           is_migrated?: boolean
+          legacy_code?: string | null
           low_stock_alert?: number
           market_price?: number
           min_stock_level?: number
