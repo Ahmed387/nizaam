@@ -1855,6 +1855,7 @@ export type Database = {
           shipment_id: string | null
           shipping_cost_per_unit: number
           tenant_id: string | null
+          transferred_from_branch_id: string | null
           true_unit_cost: number
         }
         Insert: {
@@ -1872,6 +1873,7 @@ export type Database = {
           shipment_id?: string | null
           shipping_cost_per_unit?: number
           tenant_id?: string | null
+          transferred_from_branch_id?: string | null
           true_unit_cost?: number
         }
         Update: {
@@ -1889,6 +1891,7 @@ export type Database = {
           shipment_id?: string | null
           shipping_cost_per_unit?: number
           tenant_id?: string | null
+          transferred_from_branch_id?: string | null
           true_unit_cost?: number
         }
         Relationships: [
@@ -1911,6 +1914,13 @@ export type Database = {
             columns: ["shipment_id"]
             isOneToOne: false
             referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_batches_transferred_from_branch_id_fkey"
+            columns: ["transferred_from_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
