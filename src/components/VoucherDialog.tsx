@@ -80,13 +80,20 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     setPartyBalance(null);
     if (!form.party_type || form.party_type === "other") { setPartyOptions([]); return; }
     (async () => {
-      if (form.party_type === "supplier") {
-        const { data, error } = await supabase.from("contacts").select("id, name").order("name");
+      if (form.party_type === "supplier" || form.party_type === "customer") {
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("id, name")
+          .eq("type", form.party_type)
+          .order("name");
         if (error) { toast.error(error.message); return; }
         setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
-      } else {
-        const table = form.party_type === "employee" ? "employees" : "customers";
-        const { data, error } = await supabase.from(table as any).select("id, name").eq("branch_id", branchId).order("name");
+      } else if (form.party_type === "employee") {
+        const { data, error } = await supabase
+          .from("employees")
+          .select("id, name")
+          .eq("branch_id", branchId)
+          .order("name");
         if (error) { toast.error(error.message); return; }
         setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
       }
