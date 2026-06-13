@@ -79,6 +79,11 @@ export default function Settings() {
     : (branches.find((b) => b.id === resetBranch)?.name ?? "—");
 
   const runReset = async () => {
+    if (!resetBranch || selectedKeys.length === 0 || resetConfirm.trim() !== "تأكيد") {
+      toast.error("اختر الفرع ونوع البيانات واكتب كلمة التأكيد أولاً");
+      return;
+    }
+
     setResetting(true);
     try {
       const { error } = await supabase.rpc("admin_reset_branch_data", {
@@ -91,7 +96,12 @@ export default function Settings() {
       setResetOpts({});
       setResetConfirm("");
     } catch (e: any) {
-      toast.error(e.message ?? "خطأ في التنفيذ");
+      const message = String(e?.message ?? "");
+      toast.error(
+        message.includes("branch_id")
+          ? "تم تحديث دالة المسح. حدّث الصفحة وجرب مرة واحدة، ولو ظهر نفس الخطأ ابعتلي صورة الخطأ فوراً."
+          : message || "خطأ في تنفيذ المسح"
+      );
     } finally {
       setResetting(false);
     }
@@ -503,7 +513,7 @@ export default function Settings() {
                   <h2 className="text-lg font-bold text-destructive">مسح البيانات التجريبية / إعادة تشغيل بيانات الفروع</h2>
                   <p className="text-sm text-muted-foreground mt-1">
                     تحذير: الإجراء يحذف نهائيًا البيانات المحددة من الفرع المختار ولا يمكن التراجع عنه.
-                    لا يتم حذف بيانات الإعداد الأساسية (الموظفين، الموردين، المنتجات، التصنيفات).
+                    لا يتم حذف بيانات الإعداد الأساسية أو بيانات الشركة والتصنيفات.
                   </p>
                 </div>
               </div>
@@ -565,7 +575,7 @@ export default function Settings() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>إلغاء</Button>
-            <Button variant="destructive" disabled={resetConfirm.trim() !== "تأكيد" || resetting} onClick={runReset}>
+            <Button variant="destructive" disabled={resetConfirm.trim() !== "تأكيد" || resetting || !resetBranch || selectedKeys.length === 0} onClick={runReset}>
               {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
             </Button>
           </DialogFooter>
