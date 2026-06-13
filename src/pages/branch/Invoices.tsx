@@ -194,13 +194,20 @@ export default function Invoices() {
         description: v.description ?? v.voucher_number,
       }));
     } else if (tab === "expense") {
-      const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).limit(500);
-      data = (r.data ?? []).map((v: any) => ({
-        ...v,
-        created_at: v.voucher_date ?? v.created_at,
-        category: v.voucher_categories?.name ?? "—",
-        description: v.description ?? v.voucher_number,
-      }));
+      // Exclude system-managed payment types that aren't real business expenses
+      const EXCLUDE = ["customer_return", "supplier_payment", "branch_transfer_out"];
+      const r = await supabase.from("vouchers" as any)
+        .select("*, voucher_categories(name, system_key)")
+        .eq("branch_id", branchId).eq("type", "payment").eq("status", "active")
+        .order("voucher_date", { ascending: false }).limit(500);
+      data = (r.data ?? [])
+        .filter((v: any) => !EXCLUDE.includes(v.voucher_categories?.system_key))
+        .map((v: any) => ({
+          ...v,
+          created_at: v.voucher_date ?? v.created_at,
+          category: v.voucher_categories?.name ?? "—",
+          description: v.description ?? v.voucher_number,
+        }));
     } else if (tab === "transfer") {
       const r = await supabase.from("stock_transfers").select("*").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
