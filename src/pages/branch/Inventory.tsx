@@ -229,40 +229,145 @@ export default function Inventory() {
             </Select>
           </div>
 
-          <DataTable loading={loading} rows={filtered}
-            columns={[
-              { key: "image", header: "صورة", render: (r: any) => r.image ? <img src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" /> : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">—</div> },
-              { key: "sku", header: "الكود", render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
-              { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
-              { key: "category", header: "التصنيف", render: (r: any) => r.categories?.name ?? "—" },
-              { key: "quantity", header: "الكمية", render: (r: any) => <span className="font-bold">{r.quantity}</span> },
-              { key: "cost_price", header: "شراء", render: (r: any) => formatEGP(r.cost_price) },
-              { key: "selling_price", header: "بيع", render: (r: any) => <span className="text-success">{formatEGP(r.selling_price)}</span> },
-              { key: "market_price", header: "سوق", render: (r: any) => <span className="text-primary">{formatEGP(r.market_price)}</span> },
-              { key: "status", header: "الحالة", render: (r: any) => {
-                if (r.quantity === 0) return <span className="px-2 py-1 rounded text-xs bg-destructive/15 text-destructive">🔴 نفد</span>;
-                if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning">🟡 منخفض</span>;
-                return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
-              }},
-              { key: "actions", header: "إجراءات", render: (r: any) => (
-                <div className="flex gap-1 flex-wrap">
-                  {canManageInventory && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPriceEdit(r); }} title="تعديل السعر">
-                        <Tag className="w-3.5 h-3.5 ml-1" /> سعر
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setHistoryFor(r); }} title="تاريخ الأسعار">
-                        <History className="w-3.5 h-3.5 ml-1" /> تاريخ
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/branch/${branchId}/inventory/${r.id}/movements`); }}>
-                        <Activity className="w-3.5 h-3.5 ml-1" /> حركة
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )},
-            ]}
-          />
+          {/* Desktop table — compact, no horizontal scroll */}
+          <div className="hidden lg:block card-elevated overflow-hidden">
+            {loading ? (
+              <div className="p-12 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : filtered.length === 0 ? (
+              <div className="p-12 text-center text-muted-foreground">لا توجد منتجات</div>
+            ) : (
+              <table className="w-full text-sm table-fixed">
+                <colgroup>
+                  <col className="w-[44%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[12%]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-surface-2 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3 text-right font-semibold">المنتج</th>
+                    <th className="px-3 py-3 text-right font-semibold">التصنيف</th>
+                    <th className="px-3 py-3 text-center font-semibold">الكمية</th>
+                    <th className="px-3 py-3 text-right font-semibold">الأسعار (شراء / بيع / سوق)</th>
+                    <th className="px-3 py-3 text-center font-semibold">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r: any, i: number) => {
+                    const status =
+                      r.quantity === 0
+                        ? { cls: "bg-destructive/15 text-destructive", label: "🔴 نفد" }
+                        : r.quantity <= r.low_stock_alert
+                        ? { cls: "bg-warning/15 text-warning", label: "🟡 منخفض" }
+                        : { cls: "bg-success/15 text-success", label: "🟢 متوفر" };
+                    return (
+                      <tr key={r.id} className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? "bg-surface/20" : "bg-card"}`}>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {r.image ? (
+                              <img src={r.image} alt={r.name} className="w-11 h-11 rounded object-cover shrink-0" />
+                            ) : (
+                              <div className="w-11 h-11 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="font-semibold truncate" title={r.name}>{r.name}</div>
+                              <div className="font-mono text-[11px] text-muted-foreground">{r.sku}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 align-middle text-muted-foreground truncate" title={r.categories?.name ?? ""}>
+                          {r.categories?.name ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 align-middle text-center">
+                          <div className="font-bold">{r.quantity}</div>
+                          <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
+                        </td>
+                        <td className="px-3 py-3 align-middle">
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                            <span className="text-muted-foreground">شراء: <span className="text-foreground">{formatEGP(r.cost_price)}</span></span>
+                            <span className="text-muted-foreground">بيع: <span className="text-success font-medium">{formatEGP(r.selling_price)}</span></span>
+                            <span className="text-muted-foreground">سوق: <span className="text-primary">{formatEGP(r.market_price)}</span></span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 align-middle">
+                          {canManageInventory && (
+                            <div className="flex items-center justify-center gap-1">
+                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPriceEdit(r)} title="تعديل السعر">
+                                <Tag className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
+                                <History className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)} title="حركة المنتج">
+                                <Activity className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Mobile / tablet — card list */}
+          <div className="lg:hidden space-y-2">
+            {loading ? (
+              <div className="card-elevated p-12 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : filtered.length === 0 ? (
+              <div className="card-elevated p-12 text-center text-muted-foreground">لا توجد منتجات</div>
+            ) : (
+              filtered.map((r: any) => {
+                const status =
+                  r.quantity === 0
+                    ? { cls: "bg-destructive/15 text-destructive", label: "🔴 نفد" }
+                    : r.quantity <= r.low_stock_alert
+                    ? { cls: "bg-warning/15 text-warning", label: "🟡 منخفض" }
+                    : { cls: "bg-success/15 text-success", label: "🟢 متوفر" };
+                return (
+                  <div key={r.id} className="card-elevated p-3 flex gap-3">
+                    {r.image ? (
+                      <img src={r.image} alt={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
+                    ) : (
+                      <div className="w-14 h-14 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate">{r.name}</div>
+                          <div className="font-mono text-[11px] text-muted-foreground">{r.sku} {r.categories?.name ? `· ${r.categories.name}` : ""}</div>
+                        </div>
+                        <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                        <span>الكمية: <span className="font-bold">{r.quantity}</span></span>
+                        <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
+                        <span className="text-success">بيع: {formatEGP(r.selling_price)}</span>
+                        <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
+                      </div>
+                      {canManageInventory && (
+                        <div className="mt-2 flex gap-1">
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => setPriceEdit(r)}>
+                            <Tag className="w-3.5 h-3.5 ml-1" /> سعر
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
+                            <History className="w-3.5 h-3.5 ml-1" /> تاريخ
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
+                            <Activity className="w-3.5 h-3.5 ml-1" /> حركة
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-4">
