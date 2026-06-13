@@ -292,13 +292,31 @@ export default function ProfitabilityReport() {
 
       <h3 className="font-bold mt-6 mb-2">حسب الفاتورة</h3>
       <DataTable loading={loading} rows={invRows as any} columns={[
-        { key: "invoice_number", header: "الفاتورة" },
+        {
+          key: "invoice_number",
+          header: "الفاتورة",
+          render: (r: InvRow) => (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span>{r.invoice_number}</span>
+              {r.was_edited && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                  title={`الربح الأصلي: ${formatEGP(r.original_profit)} ← الربح بعد التعديل: ${formatEGP(r.profit)}`}
+                >تم التعديل</span>
+              )}
+              {r.has_return && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30">يشمل مرتجع</span>
+              )}
+            </div>
+          ),
+        },
         { key: "created_at", header: "التاريخ", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
         { key: "revenue", header: "الإيراد", render: (r: InvRow) => formatEGP(r.revenue) },
         { key: "cost", header: "التكلفة", render: (r: InvRow) => formatEGP(r.cost) },
-        { key: "profit", header: "الربح", render: (r: InvRow) => <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
+        { key: "profit", header: "صافي الربح", render: (r: InvRow) => <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
         { key: "margin", header: "الهامش %", render: (r: InvRow) => `${r.margin.toFixed(1)}%` },
       ]} />
     </AdminLayout>
   );
 }
+
