@@ -31,7 +31,11 @@ interface InvRow {
   cost: number;
   profit: number;
   margin: number;
+  has_return: boolean;
+  was_edited: boolean;
+  original_profit: number;
 }
+
 
 export default function ProfitabilityReport() {
   const { tenantId } = useAuth();
