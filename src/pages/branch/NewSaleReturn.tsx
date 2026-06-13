@@ -211,11 +211,19 @@ export default function NewSaleReturn() {
       if (e2) throw e2;
 
       if (!asDraft) {
-        // Add merchandise back to stock
+        // Restore FIFO batches + update invoice_items.returned_quantity + release reservations
+        try {
+          await supabase.rpc("apply_return_batch_tracking" as any, {
+            _invoice_id: invoice.id,
+            _items: activeLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })) as any,
+          });
+        } catch (e) { console.warn("batch tracking on return failed", e); }
+        // Add merchandise back to stock (legacy global counter)
         for (const l of activeLines) {
           const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
           if (p) await supabase.from("products").update({ quantity: (p.quantity ?? 0) + l.quantity }).eq("id", l.product_id);
         }
+
         // Treasury: money going out (refund to customer)
         const cashOut = cashPart + transferPart;
         if (cashOut > 0) {
