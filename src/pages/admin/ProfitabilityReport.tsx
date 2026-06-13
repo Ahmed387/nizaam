@@ -78,11 +78,12 @@ export default function ProfitabilityReport() {
     setLoading(true);
     let q = supabase
       .from("invoice_items")
-      .select("product_id, product_name, quantity, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
+      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
       .eq("tenant_id", tenantId);
     const { data, error } = await q;
     setLoading(false);
     if (error) { console.error(error); return; }
+
     const filtered = (data ?? []).filter((r: any) => {
       const inv = r.invoice;
       if (!inv || inv.status === "cancelled") return false;
