@@ -14,10 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2 } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
+import { exportToExcel, printReport } from "@/lib/export";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type ContactType = "customer" | "supplier" | "both";
@@ -50,6 +51,7 @@ export default function Contacts() {
     notes: "",
   });
   const [search, setSearch] = useState("");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "owe_us" | "we_owe" | "settled">("all");
   const isManager = hasRole("branch_manager");
 
   const load = async () => {
@@ -69,6 +71,14 @@ export default function Contacts() {
     if (filter !== "all") {
       r = r.filter((x) => x.type === filter || x.type === "both");
     }
+    if (balanceFilter !== "all") {
+      r = r.filter((x) => {
+        const b = Number(x.balance ?? 0);
+        if (balanceFilter === "owe_us") return b > 0.01;
+        if (balanceFilter === "we_owe") return b < -0.01;
+        return Math.abs(b) < 0.01;
+      });
+    }
     if (search.trim()) {
       const s = search.toLowerCase();
       r = r.filter((x) =>
@@ -78,7 +88,7 @@ export default function Contacts() {
       );
     }
     return r;
-  }, [rows, filter, search]);
+  }, [rows, filter, balanceFilter, search]);
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -86,6 +96,60 @@ export default function Contacts() {
     supplier: rows.filter((r) => r.type === "supplier" || r.type === "both").length,
     both: rows.filter((r) => r.type === "both").length,
   }), [rows]);
+
+  // Balance totals for filtered list
+  const balanceTotals = useMemo(() => {
+    let oweUs = 0, weOwe = 0;
+    for (const r of filtered) {
+      const b = Number(r.balance ?? 0);
+      if (b > 0) oweUs += b; else if (b < 0) weOwe += -b;
+    }
+    return { oweUs, weOwe, net: oweUs - weOwe };
+  }, [filtered]);
+
+  // Excel / PDF export of the current filtered view
+  const exportRows = () => filtered.map((r) => {
+    const b = Number(r.balance ?? 0);
+    return {
+      "الاسم": r.name,
+      "النوع": TYPE_LABELS[(r.type ?? "customer") as ContactType],
+      "التليفون": r.phone ?? "",
+      "العنوان": r.address ?? "",
+      "الرصيد": b,
+      "الحالة": b > 0.01 ? "مستحق لنا" : b < -0.01 ? "علينا للجهة" : "متعادل",
+    };
+  });
+  const handleExportExcel = () => {
+    const data = exportRows();
+    if (!data.length) return toast.error("لا توجد بيانات للتصدير");
+    const title = balanceFilter === "owe_us" ? "العملاء_والموردين_لنا"
+      : balanceFilter === "we_owe" ? "العملاء_والموردين_علينا"
+      : "العملاء_والموردين";
+    exportToExcel(title, [{ name: "الأرصدة", rows: data }]);
+  };
+  const handleExportPDF = () => {
+    const data = exportRows();
+    if (!data.length) return toast.error("لا توجد بيانات للتصدير");
+    const title = balanceFilter === "owe_us" ? "أرصدة الجهات (مستحق لنا)"
+      : balanceFilter === "we_owe" ? "أرصدة الجهات (علينا)"
+      : "أرصدة العملاء والموردين";
+    const summary = `
+      <div class="kpi">
+        <div><span class="muted">مستحق لنا</span><b class="pos">${formatEGP(balanceTotals.oweUs)}</b></div>
+        <div><span class="muted">علينا</span><b class="neg">${formatEGP(balanceTotals.weOwe)}</b></div>
+        <div><span class="muted">الصافي</span><b class="${balanceTotals.net >= 0 ? "pos" : "neg"}">${formatEGP(balanceTotals.net)}</b></div>
+      </div>`;
+    const head = `<tr>${Object.keys(data[0]).map(k => `<th>${k}</th>`).join("")}</tr>`;
+    const body = data.map(r => `<tr>${Object.values(r).map((v, i) => {
+      if (i === 4) { // الرصيد column — color it
+        const num = Number(v as any);
+        const cls = num > 0 ? "pos" : num < 0 ? "neg" : "";
+        return `<td class="${cls}"><b>${formatEGP(Math.abs(num))}</b></td>`;
+      }
+      return `<td>${v ?? ""}</td>`;
+    }).join("")}</tr>`).join("");
+    printReport(title, `${summary}<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
+  };
 
   const openNew = () => {
     setEditing(null);
