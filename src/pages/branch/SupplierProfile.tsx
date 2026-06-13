@@ -363,6 +363,9 @@ export default function SupplierProfile() {
             <Button className="btn-gradient" onClick={() => setPayOpen(true)}>
               <DollarSign className="w-4 h-4 ml-1" /> سداد دفعة
             </Button>
+            <Button variant="outline" onClick={() => nav(isAdminView ? `/admin/contacts/${supplierId}/statement` : `/branch/${branchId}/contacts/${supplierId}/statement`)}>
+              <Activity className="w-4 h-4 ml-1" /> كشف حساب تفصيلي
+            </Button>
             <Button variant="outline" onClick={printStatement}>
               <FileText className="w-4 h-4 ml-1" /> كشف حساب PDF
             </Button>
