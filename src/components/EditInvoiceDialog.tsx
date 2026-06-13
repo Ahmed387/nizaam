@@ -238,9 +238,27 @@ export function EditInvoiceDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>إلغاء</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ التعديلات"}</Button>
+          <Button onClick={() => setConfirmOpen(true)} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ التعديلات"}</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد التعديل</AlertDialogTitle>
+            <AlertDialogDescription>
+              تعديل الفاتورة سيؤثر على تكلفة المنتجات وأرباح هذه الفاتورة. هل تريد المتابعة؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setConfirmOpen(false); await save(); }} disabled={saving}>
+              متابعة
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
+
 }
