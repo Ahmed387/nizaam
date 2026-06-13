@@ -1029,69 +1029,94 @@ export type Database = {
       }
       invoice_items: {
         Row: {
+          batch_id: string | null
+          batches_consumed: Json | null
           cost_price: number
           discount_approval_note: string | null
           discount_approved_by: string | null
           discount_percent: number
           final_price: number | null
+          fully_returned: boolean
           id: string
           invoice_id: string
           line_discount: number
           market_price: number
+          net_quantity: number | null
           original_price: number | null
+          original_unit_cost: number | null
           price_list_cost: number | null
           price_list_item_id: string | null
           product_id: string | null
           product_name: string
           quantity: number
+          returned_quantity: number
           selling_price: number
           tenant_id: string | null
           total: number
           unit_cost_at_sale: number
         }
         Insert: {
+          batch_id?: string | null
+          batches_consumed?: Json | null
           cost_price?: number
           discount_approval_note?: string | null
           discount_approved_by?: string | null
           discount_percent?: number
           final_price?: number | null
+          fully_returned?: boolean
           id?: string
           invoice_id: string
           line_discount?: number
           market_price?: number
+          net_quantity?: number | null
           original_price?: number | null
+          original_unit_cost?: number | null
           price_list_cost?: number | null
           price_list_item_id?: string | null
           product_id?: string | null
           product_name: string
           quantity: number
+          returned_quantity?: number
           selling_price?: number
           tenant_id?: string | null
           total?: number
           unit_cost_at_sale?: number
         }
         Update: {
+          batch_id?: string | null
+          batches_consumed?: Json | null
           cost_price?: number
           discount_approval_note?: string | null
           discount_approved_by?: string | null
           discount_percent?: number
           final_price?: number | null
+          fully_returned?: boolean
           id?: string
           invoice_id?: string
           line_discount?: number
           market_price?: number
+          net_quantity?: number | null
           original_price?: number | null
+          original_unit_cost?: number | null
           price_list_cost?: number | null
           price_list_item_id?: string | null
           product_id?: string | null
           product_name?: string
           quantity?: number
+          returned_quantity?: number
           selling_price?: number
           tenant_id?: string | null
           total?: number
           unit_cost_at_sale?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "product_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -1817,6 +1842,7 @@ export type Database = {
       product_batches: {
         Row: {
           base_purchase_price: number
+          batch_type: string
           branch_id: string
           cost_price: number
           created_at: string
@@ -1825,6 +1851,7 @@ export type Database = {
           product_id: string
           quantity_purchased: number
           quantity_remaining: number
+          restore_count: number
           shipment_id: string | null
           shipping_cost_per_unit: number
           tenant_id: string | null
@@ -1832,6 +1859,7 @@ export type Database = {
         }
         Insert: {
           base_purchase_price?: number
+          batch_type?: string
           branch_id: string
           cost_price?: number
           created_at?: string
@@ -1840,6 +1868,7 @@ export type Database = {
           product_id: string
           quantity_purchased?: number
           quantity_remaining?: number
+          restore_count?: number
           shipment_id?: string | null
           shipping_cost_per_unit?: number
           tenant_id?: string | null
@@ -1847,6 +1876,7 @@ export type Database = {
         }
         Update: {
           base_purchase_price?: number
+          batch_type?: string
           branch_id?: string
           cost_price?: number
           created_at?: string
@@ -1855,6 +1885,7 @@ export type Database = {
           product_id?: string
           quantity_purchased?: number
           quantity_remaining?: number
+          restore_count?: number
           shipment_id?: string | null
           shipping_cost_per_unit?: number
           tenant_id?: string | null
@@ -3535,6 +3566,10 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: number
       }
+      consume_product_batches_json: {
+        Args: { _branch_id: string; _product_id: string; _quantity: number }
+        Returns: Json
+      }
       contact_balance_apply: {
         Args: { _contact: string; _delta: number }
         Returns: undefined
@@ -3772,6 +3807,16 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: Json
       }
+      register_sale_return: {
+        Args: {
+          _invoice_id: string
+          _items: Json
+          _notes?: string
+          _reason?: string
+          _refund_method?: string
+        }
+        Returns: string
+      }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
@@ -3794,6 +3839,10 @@ export type Database = {
           p_quantity: number
         }
         Returns: Json
+      }
+      restore_batches_from_item: {
+        Args: { _invoice_item_id: string }
+        Returns: undefined
       }
       restore_invoice_batches: {
         Args: { _invoice_id: string }
