@@ -40,6 +40,8 @@ export function EditInvoiceDialog({
   const [products, setProducts] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [openSuggestIdx, setOpenSuggestIdx] = useState<number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
 
   useEffect(() => {
     if (!open || !invoice?.id) return;
