@@ -203,6 +203,19 @@ export default function ProfitabilityReport() {
     <AdminLayout>
       <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
 
+      {hasAnyMigrated && (
+        <div className="card-elevated p-3 mb-3 border-amber-500/30 bg-amber-500/5 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+            ⚠️ <span>بعض السجلات مستوردة من نظام قديم — التكلفة فيها قد تظهر <b>"غير متاح"</b> لأنها لم تُسجل بطريقة FIFO.</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <input type="checkbox" checked={hideLegacy} onChange={(e) => setHideLegacy(e.target.checked)} className="h-4 w-4" />
+            <span>إخفاء السجلات القديمة المستوردة</span>
+          </label>
+        </div>
+      )}
+
+
       <div className="card-elevated p-4 mb-4 grid md:grid-cols-6 gap-3">
         <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
@@ -273,9 +286,17 @@ export default function ProfitabilityReport() {
                       <td className="px-3 py-2">{r.product_name}</td>
                       <td className="px-3 py-2">{r.qty}</td>
                       <td className="px-3 py-2">{formatEGP(r.revenue)}</td>
-                      <td className="px-3 py-2">{formatEGP(r.cost)}</td>
-                      <td className={`px-3 py-2 font-bold ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(r.profit)}</td>
-                      <td className={`px-3 py-2 ${r.margin < 10 ? "text-destructive font-bold" : ""}`}>{r.margin.toFixed(1)}%</td>
+                      <td className="px-3 py-2">
+                        {r.cost_unknown
+                          ? <span className="text-xs text-muted-foreground italic">غير متاح</span>
+                          : formatEGP(r.cost)}
+                      </td>
+                      <td className={`px-3 py-2 font-bold ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>
+                        {r.cost_unknown ? <span className="text-muted-foreground italic font-normal">غير متاح</span> : formatEGP(r.profit)}
+                      </td>
+                      <td className={`px-3 py-2 ${!r.cost_unknown && r.margin < 10 ? "text-destructive font-bold" : ""}`}>
+                        {r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%`}
+                      </td>
                     </tr>
                     {open && (
                       <tr key={`${key}-d`} className="bg-surface-2/30">
@@ -309,6 +330,11 @@ export default function ProfitabilityReport() {
           render: (r: InvRow) => (
             <div className="flex items-center gap-1 flex-wrap">
               <span>{r.invoice_number}</span>
+              {r.is_migrated && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title="مستوردة من نظام قديم">
+                  بيانات مستوردة
+                </span>
+              )}
               {r.was_edited && (
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/30"
@@ -323,9 +349,9 @@ export default function ProfitabilityReport() {
         },
         { key: "created_at", header: "التاريخ", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
         { key: "revenue", header: "الإيراد", render: (r: InvRow) => formatEGP(r.revenue) },
-        { key: "cost", header: "التكلفة", render: (r: InvRow) => formatEGP(r.cost) },
-        { key: "profit", header: "صافي الربح", render: (r: InvRow) => <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
-        { key: "margin", header: "الهامش %", render: (r: InvRow) => `${r.margin.toFixed(1)}%` },
+        { key: "cost", header: "التكلفة", render: (r: InvRow) => r.cost_unknown ? <span className="text-xs text-muted-foreground italic">غير متاح</span> : formatEGP(r.cost) },
+        { key: "profit", header: "صافي الربح", render: (r: InvRow) => r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
+        { key: "margin", header: "الهامش %", render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
       ]} />
     </AdminLayout>
   );
