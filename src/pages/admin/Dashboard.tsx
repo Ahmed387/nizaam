@@ -108,6 +108,8 @@ export default function AdminDashboard() {
             { to: "/admin/vouchers", label: "كل السندات", icon: Receipt, color: "text-success", bg: "bg-success/10" },
             { to: "/admin/approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
             { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
+            { to: "/admin/financial-dashboard", label: "الداشبورد المالي", icon: Wallet, color: "text-success", bg: "bg-success/10" },
+            { to: "/admin/report-comparison", label: "مقارنة الفترات", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
             { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
           ].map((s) => (
             <Link key={s.label} to={s.to}

@@ -109,6 +109,8 @@ import FinanceHub from "./pages/admin/FinanceHub";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
 import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
+import FinancialDashboard from "./pages/admin/FinancialDashboard";
+import ReportComparison from "./pages/admin/ReportComparison";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
 import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
 import InvCountSessions from "./pages/branch/inventory-count/Sessions";
@@ -170,6 +172,8 @@ const App = () => (
             <Route path="/admin/catalog" element={<ProtectedRoute adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute adminOnly><ReportsHub /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute adminOnly><FinanceHub /></ProtectedRoute>} />
+            <Route path="/admin/financial-dashboard" element={<ProtectedRoute adminOnly><FinancialDashboard /></ProtectedRoute>} />
+            <Route path="/admin/report-comparison" element={<ProtectedRoute adminOnly><ReportComparison /></ProtectedRoute>} />
 
             {/* Legacy redirects → hubs */}
             <Route path="/admin/branches" element={<Navigate to="/admin/catalog?tab=branches" replace />} />
