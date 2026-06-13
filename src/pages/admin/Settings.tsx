@@ -29,7 +29,7 @@ interface InventorySettings { default_low_stock_alert: number }
 
 export default function Settings() {
   const { user, profile, branches, roles } = useAuth();
-  const isAdminOnly = roles.includes("admin") && !roles.includes("super_admin");
+  const canManageAdminTools = roles.includes("admin") || roles.includes("super_admin");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
@@ -238,8 +238,8 @@ export default function Settings() {
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
             { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
-            ...(isAdminOnly ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
-            ...(isAdminOnly ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
+            ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
+            ...(canManageAdminTools ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
           ].map((it: any) => {
             const Icon = it.icon;
             return (
@@ -504,7 +504,7 @@ export default function Settings() {
             </Button>
           </div>
         </TabsContent>
-        {isAdminOnly && (
+        {canManageAdminTools && (
           <TabsContent value="data" className="mt-4">
             <div className="card-elevated p-6 space-y-4 max-w-3xl mx-auto border border-destructive/40">
               <div className="flex items-start gap-3">
