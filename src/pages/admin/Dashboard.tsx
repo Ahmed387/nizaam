@@ -70,8 +70,11 @@ export default function AdminDashboard() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    // Lazy overdue check on dashboard mount (fire-and-forget)
-    (async () => { try { await supabase.rpc("mark_overdue_installments" as any); } catch {} })();
+    // Lazy overdue + alerts check on dashboard mount (fire-and-forget)
+    (async () => {
+      try { await supabase.rpc("mark_overdue_installments" as any); } catch {}
+      try { await supabase.rpc("generate_alerts" as any); } catch {}
+    })();
   }, []);
   useRealtimeRefresh(
     ["invoices", "treasury", "products", "shipments", "branches", "vouchers", "inventory_sessions"],
@@ -108,6 +111,8 @@ export default function AdminDashboard() {
             { to: "/admin/vouchers", label: "كل السندات", icon: Receipt, color: "text-success", bg: "bg-success/10" },
             { to: "/admin/approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
             { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
+            { to: "/admin/financial-dashboard", label: "الداشبورد المالي", icon: Wallet, color: "text-success", bg: "bg-success/10" },
+            { to: "/admin/report-comparison", label: "مقارنة الفترات", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
             { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
           ].map((s) => (
             <Link key={s.label} to={s.to}
