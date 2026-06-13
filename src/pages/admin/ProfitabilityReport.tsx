@@ -21,6 +21,7 @@ interface Row {
   base_unit?: number;
   shipping_unit?: number;
   true_unit?: number;
+  cost_unknown?: boolean;
 }
 
 interface InvRow {
@@ -33,8 +34,11 @@ interface InvRow {
   margin: number;
   has_return: boolean;
   was_edited: boolean;
+  is_migrated: boolean;
+  cost_unknown: boolean;
   original_profit: number;
 }
+
 
 
 export default function ProfitabilityReport() {
@@ -54,6 +58,8 @@ export default function ProfitabilityReport() {
   const [rows, setRows] = useState<Row[]>([]);
   const [invRows, setInvRows] = useState<InvRow[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [hideLegacy, setHideLegacy] = useState(false);
+  const [hasAnyMigrated, setHasAnyMigrated] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -78,7 +84,7 @@ export default function ProfitabilityReport() {
     setLoading(true);
     let q = supabase
       .from("invoice_items")
-      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
+      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
       .eq("tenant_id", tenantId);
     const { data, error } = await q;
     setLoading(false);
@@ -89,6 +95,7 @@ export default function ProfitabilityReport() {
       if (!inv || inv.status === "cancelled") return false;
       if (branchId && inv.branch_id !== branchId) return false;
       if (cashierId && inv.cashier_id !== cashierId) return false;
+      if (hideLegacy && inv.is_migrated) return false;
       if (categoryId) {
         const cat = r.product_id ? productCat[r.product_id] : null;
         if (cat !== categoryId) return false;
@@ -98,6 +105,7 @@ export default function ProfitabilityReport() {
       if (to && d > to) return false;
       return true;
     });
+    setHasAnyMigrated((data ?? []).some((r: any) => r.invoice?.is_migrated));
 
     // group by product
     const map = new Map<string, Row>();
@@ -110,26 +118,29 @@ export default function ProfitabilityReport() {
       const unitDisc = qtyRaw > 0 ? Number(r.line_discount || 0) / qtyRaw : 0;
       const unitCost = Number(r.unit_cost_at_sale || 0);
       const origCost = Number(r.original_unit_cost ?? r.unit_cost_at_sale ?? 0);
+      const costUnknown = unitCost <= 0 && r.invoice?.is_migrated;
       const revenue = netQty * unitSell - netQty * unitDisc;
       const cost = netQty * unitCost;
-      const profit = revenue - cost;
+      const profit = costUnknown ? 0 : (revenue - cost);
       const origRevenue = qtyRaw * unitSell - Number(r.line_discount || 0);
       const origProfit = origRevenue - qtyRaw * origCost;
       const wasEdited = Math.abs(unitCost - origCost) > 0.001;
       const hasReturn = retQty > 0;
 
       const key = r.product_id ?? r.product_name;
-      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0 };
+      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
       prev.qty += netQty; prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
+      if (!costUnknown) prev.cost_unknown = false;
       prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
       map.set(key, prev);
 
       const inv = r.invoice;
-      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, original_profit: 0 };
+      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, is_migrated: !!inv.is_migrated, cost_unknown: true, original_profit: 0 };
       ip.revenue += revenue; ip.cost += cost; ip.profit += profit;
       ip.original_profit += origProfit;
       ip.has_return = ip.has_return || hasReturn;
       ip.was_edited = ip.was_edited || wasEdited;
+      if (!costUnknown) ip.cost_unknown = false;
       ip.margin = ip.revenue > 0 ? (ip.profit / ip.revenue) * 100 : 0;
       invMap.set(inv.id, ip);
     }
@@ -164,7 +175,7 @@ export default function ProfitabilityReport() {
     setInvRows(Array.from(invMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)));
   };
 
-  useEffect(() => { if (tenantId) load(); /* eslint-disable-next-line */ }, [tenantId]);
+  useEffect(() => { if (tenantId) load(); /* eslint-disable-next-line */ }, [tenantId, hideLegacy]);
 
   // realtime: refresh totals when new invoices/items arrive
   useEffect(() => {
