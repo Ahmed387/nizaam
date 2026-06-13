@@ -84,12 +84,20 @@ export default function Inventory() {
   useRealtimeRefresh(["products", "categories"], load);
 
   const filtered = rows.filter((p) => {
-    if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
-    if (filter === "low" && p.quantity > p.low_stock_alert) return false;
+    if (search && !p.name.includes(search) && !(p.sku ?? "").includes(search) && !(p.legacy_code ?? "").toString().includes(search)) return false;
+    if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;
     return true;
   });
+
+  // Counts per status (always reflect full rows, ignoring text search)
+  const statusCounts = {
+    all: rows.length,
+    ok: rows.filter((p) => p.quantity > p.low_stock_alert).length,
+    low: rows.filter((p) => p.quantity > 0 && p.quantity <= p.low_stock_alert).length,
+    out: rows.filter((p) => p.quantity <= 0).length,
+  };
 
   const submit = async () => {
     if (!form.name) return toast.error("اسم المنتج مطلوب");
@@ -216,17 +224,18 @@ export default function Inventory() {
         </TabsList>
 
         <TabsContent value="products" className="mt-4">
-          <div className="flex gap-3 mb-4 flex-wrap">
-            <Input placeholder="ابحث بالاسم أو الكود" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+          <div className="flex gap-3 mb-4 flex-wrap items-center">
+            <Input placeholder="ابحث بالاسم أو الكود أو الكود القديم" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
             <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="ok">متوفر</SelectItem>
-                <SelectItem value="low">منخفض</SelectItem>
-                <SelectItem value="out">نفد</SelectItem>
+                <SelectItem value="all">كل الحالات ({statusCounts.all})</SelectItem>
+                <SelectItem value="ok">🟢 متوفر ({statusCounts.ok})</SelectItem>
+                <SelectItem value="low">🟡 منخفض ({statusCounts.low})</SelectItem>
+                <SelectItem value="out">🔴 نفد ({statusCounts.out})</SelectItem>
               </SelectContent>
             </Select>
+            <span className="text-xs text-muted-foreground">عرض {filtered.length} من {rows.length}</span>
           </div>
 
           {/* Desktop table — compact, no horizontal scroll */}
@@ -272,7 +281,12 @@ export default function Inventory() {
                             )}
                             <div className="min-w-0">
                               <div className="font-semibold truncate" title={r.name}>{r.name}</div>
-                              <div className="font-mono text-[11px] text-muted-foreground">{r.sku}</div>
+                              <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-1.5">
+                                <span>{r.sku}</span>
+                                {r.legacy_code && (
+                                  <span className="px-1 py-0.5 rounded bg-muted/60 text-[10px]" title="رمز الصنف في النظام القديم">قديم: {r.legacy_code}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -338,7 +352,10 @@ export default function Inventory() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="font-semibold truncate">{r.name}</div>
-                          <div className="font-mono text-[11px] text-muted-foreground">{r.sku} {r.categories?.name ? `· ${r.categories.name}` : ""}</div>
+                          <div className="font-mono text-[11px] text-muted-foreground">
+                            {r.sku} {r.categories?.name ? `· ${r.categories.name}` : ""}
+                            {r.legacy_code && <span className="mr-1 px-1 py-0.5 rounded bg-muted/60">قديم: {r.legacy_code}</span>}
+                          </div>
                         </div>
                         <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                       </div>

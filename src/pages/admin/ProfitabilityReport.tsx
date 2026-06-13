@@ -21,6 +21,7 @@ interface Row {
   base_unit?: number;
   shipping_unit?: number;
   true_unit?: number;
+  cost_unknown?: boolean;
 }
 
 interface InvRow {
@@ -33,8 +34,11 @@ interface InvRow {
   margin: number;
   has_return: boolean;
   was_edited: boolean;
+  is_migrated: boolean;
+  cost_unknown: boolean;
   original_profit: number;
 }
+
 
 
 export default function ProfitabilityReport() {
@@ -54,6 +58,8 @@ export default function ProfitabilityReport() {
   const [rows, setRows] = useState<Row[]>([]);
   const [invRows, setInvRows] = useState<InvRow[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [hideLegacy, setHideLegacy] = useState(false);
+  const [hasAnyMigrated, setHasAnyMigrated] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -78,7 +84,7 @@ export default function ProfitabilityReport() {
     setLoading(true);
     let q = supabase
       .from("invoice_items")
-      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id)")
+      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
       .eq("tenant_id", tenantId);
     const { data, error } = await q;
     setLoading(false);
@@ -89,6 +95,7 @@ export default function ProfitabilityReport() {
       if (!inv || inv.status === "cancelled") return false;
       if (branchId && inv.branch_id !== branchId) return false;
       if (cashierId && inv.cashier_id !== cashierId) return false;
+      if (hideLegacy && inv.is_migrated) return false;
       if (categoryId) {
         const cat = r.product_id ? productCat[r.product_id] : null;
         if (cat !== categoryId) return false;
@@ -98,6 +105,7 @@ export default function ProfitabilityReport() {
       if (to && d > to) return false;
       return true;
     });
+    setHasAnyMigrated((data ?? []).some((r: any) => r.invoice?.is_migrated));
 
     // group by product
     const map = new Map<string, Row>();
@@ -110,26 +118,29 @@ export default function ProfitabilityReport() {
       const unitDisc = qtyRaw > 0 ? Number(r.line_discount || 0) / qtyRaw : 0;
       const unitCost = Number(r.unit_cost_at_sale || 0);
       const origCost = Number(r.original_unit_cost ?? r.unit_cost_at_sale ?? 0);
+      const costUnknown = unitCost <= 0 && r.invoice?.is_migrated;
       const revenue = netQty * unitSell - netQty * unitDisc;
       const cost = netQty * unitCost;
-      const profit = revenue - cost;
+      const profit = costUnknown ? 0 : (revenue - cost);
       const origRevenue = qtyRaw * unitSell - Number(r.line_discount || 0);
       const origProfit = origRevenue - qtyRaw * origCost;
       const wasEdited = Math.abs(unitCost - origCost) > 0.001;
       const hasReturn = retQty > 0;
 
       const key = r.product_id ?? r.product_name;
-      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0 };
+      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
       prev.qty += netQty; prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
+      if (!costUnknown) prev.cost_unknown = false;
       prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
       map.set(key, prev);
 
       const inv = r.invoice;
-      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, original_profit: 0 };
+      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, is_migrated: !!inv.is_migrated, cost_unknown: true, original_profit: 0 };
       ip.revenue += revenue; ip.cost += cost; ip.profit += profit;
       ip.original_profit += origProfit;
       ip.has_return = ip.has_return || hasReturn;
       ip.was_edited = ip.was_edited || wasEdited;
+      if (!costUnknown) ip.cost_unknown = false;
       ip.margin = ip.revenue > 0 ? (ip.profit / ip.revenue) * 100 : 0;
       invMap.set(inv.id, ip);
     }
@@ -164,7 +175,7 @@ export default function ProfitabilityReport() {
     setInvRows(Array.from(invMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)));
   };
 
-  useEffect(() => { if (tenantId) load(); /* eslint-disable-next-line */ }, [tenantId]);
+  useEffect(() => { if (tenantId) load(); /* eslint-disable-next-line */ }, [tenantId, hideLegacy]);
 
   // realtime: refresh totals when new invoices/items arrive
   useEffect(() => {
@@ -191,6 +202,19 @@ export default function ProfitabilityReport() {
   return (
     <AdminLayout>
       <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
+
+      {hasAnyMigrated && (
+        <div className="card-elevated p-3 mb-3 border-amber-500/30 bg-amber-500/5 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+            ⚠️ <span>بعض السجلات مستوردة من نظام قديم — التكلفة فيها قد تظهر <b>"غير متاح"</b> لأنها لم تُسجل بطريقة FIFO.</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <input type="checkbox" checked={hideLegacy} onChange={(e) => setHideLegacy(e.target.checked)} className="h-4 w-4" />
+            <span>إخفاء السجلات القديمة المستوردة</span>
+          </label>
+        </div>
+      )}
+
 
       <div className="card-elevated p-4 mb-4 grid md:grid-cols-6 gap-3">
         <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
@@ -262,9 +286,17 @@ export default function ProfitabilityReport() {
                       <td className="px-3 py-2">{r.product_name}</td>
                       <td className="px-3 py-2">{r.qty}</td>
                       <td className="px-3 py-2">{formatEGP(r.revenue)}</td>
-                      <td className="px-3 py-2">{formatEGP(r.cost)}</td>
-                      <td className={`px-3 py-2 font-bold ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(r.profit)}</td>
-                      <td className={`px-3 py-2 ${r.margin < 10 ? "text-destructive font-bold" : ""}`}>{r.margin.toFixed(1)}%</td>
+                      <td className="px-3 py-2">
+                        {r.cost_unknown
+                          ? <span className="text-xs text-muted-foreground italic">غير متاح</span>
+                          : formatEGP(r.cost)}
+                      </td>
+                      <td className={`px-3 py-2 font-bold ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>
+                        {r.cost_unknown ? <span className="text-muted-foreground italic font-normal">غير متاح</span> : formatEGP(r.profit)}
+                      </td>
+                      <td className={`px-3 py-2 ${!r.cost_unknown && r.margin < 10 ? "text-destructive font-bold" : ""}`}>
+                        {r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%`}
+                      </td>
                     </tr>
                     {open && (
                       <tr key={`${key}-d`} className="bg-surface-2/30">
@@ -298,6 +330,11 @@ export default function ProfitabilityReport() {
           render: (r: InvRow) => (
             <div className="flex items-center gap-1 flex-wrap">
               <span>{r.invoice_number}</span>
+              {r.is_migrated && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title="مستوردة من نظام قديم">
+                  بيانات مستوردة
+                </span>
+              )}
               {r.was_edited && (
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/30"
@@ -312,9 +349,9 @@ export default function ProfitabilityReport() {
         },
         { key: "created_at", header: "التاريخ", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
         { key: "revenue", header: "الإيراد", render: (r: InvRow) => formatEGP(r.revenue) },
-        { key: "cost", header: "التكلفة", render: (r: InvRow) => formatEGP(r.cost) },
-        { key: "profit", header: "صافي الربح", render: (r: InvRow) => <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
-        { key: "margin", header: "الهامش %", render: (r: InvRow) => `${r.margin.toFixed(1)}%` },
+        { key: "cost", header: "التكلفة", render: (r: InvRow) => r.cost_unknown ? <span className="text-xs text-muted-foreground italic">غير متاح</span> : formatEGP(r.cost) },
+        { key: "profit", header: "صافي الربح", render: (r: InvRow) => r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
+        { key: "margin", header: "الهامش %", render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
       ]} />
     </AdminLayout>
   );
