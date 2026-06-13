@@ -3521,6 +3521,10 @@ export type Database = {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
       }
+      apply_return_batch_tracking: {
+        Args: { _invoice_id: string; _items: Json }
+        Returns: undefined
+      }
       apply_supplier_credit: {
         Args: {
           p_branch_id: string
