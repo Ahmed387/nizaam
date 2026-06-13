@@ -269,11 +269,41 @@ export default function Contacts() {
             : `${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`
         }
         actions={
-          <Button className="btn-gradient" onClick={openNew}>
-            <Plus className="w-4 h-4 ml-1" /> إضافة جهة
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filtered.length} className="gap-2">
+              <FileSpreadsheet className="w-4 h-4" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filtered.length} className="gap-2">
+              <Printer className="w-4 h-4" /> PDF
+            </Button>
+            <Button className="btn-gradient" onClick={openNew}>
+              <Plus className="w-4 h-4 ml-1" /> إضافة جهة
+            </Button>
+          </div>
         }
       />
+
+      {/* Balance KPIs (always reflect current filtered list) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className="card-elevated p-4">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <ArrowDownLeft className="w-3.5 h-3.5 text-success" /> مستحق لنا (عملاء + موردين)
+          </div>
+          <div className="text-xl font-bold text-success mt-1">{formatEGP(balanceTotals.oweUs)}</div>
+        </div>
+        <div className="card-elevated p-4">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <ArrowUpRight className="w-3.5 h-3.5 text-destructive" /> علينا للغير
+          </div>
+          <div className="text-xl font-bold text-destructive mt-1">{formatEGP(balanceTotals.weOwe)}</div>
+        </div>
+        <div className="card-elevated p-4">
+          <div className="text-xs text-muted-foreground">صافي الذمم</div>
+          <div className={`text-xl font-bold mt-1 ${balanceTotals.net >= 0 ? "text-success" : "text-destructive"}`}>
+            {formatEGP(balanceTotals.net)}
+          </div>
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-3 mb-4 items-center justify-between">
         <Tabs value={filter} onValueChange={(v) => setSp({ tab: v })}>
@@ -289,12 +319,23 @@ export default function Contacts() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <Input
-          placeholder="بحث بالاسم أو التليفون..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={balanceFilter} onValueChange={(v) => setBalanceFilter(v as any)}>
+            <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الأرصدة</SelectItem>
+              <SelectItem value="owe_us">مستحق لنا فقط 💰</SelectItem>
+              <SelectItem value="we_owe">علينا فقط 📤</SelectItem>
+              <SelectItem value="settled">متعادل</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="بحث بالاسم أو التليفون..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-xs"
+          />
+        </div>
       </div>
 
       <DataTable
