@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft } from "lucide-react";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 interface Row {
   product_id: string | null;
@@ -176,6 +177,7 @@ export default function ProfitabilityReport() {
   };
 
   useEffect(() => { if (tenantId) load(); /* eslint-disable-next-line */ }, [tenantId, hideLegacy]);
+  useRealtimeRefresh(["invoices", "invoice_items", "returns", "return_items"], () => { if (tenantId) load(); });
 
   // realtime: refresh totals when new invoices/items arrive
   useEffect(() => {
