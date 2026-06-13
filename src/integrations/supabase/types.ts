@@ -2936,6 +2936,50 @@ export type Database = {
           },
         ]
       }
+      system_backups: {
+        Row: {
+          created_at: string
+          error: string | null
+          filename: string
+          id: string
+          size_bytes: number
+          status: string
+          storage_path: string | null
+          table_counts: Json
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          filename: string
+          id?: string
+          size_bytes?: number
+          status?: string
+          storage_path?: string | null
+          table_counts?: Json
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          filename?: string
+          id?: string
+          size_bytes?: number
+          status?: string
+          storage_path?: string | null
+          table_counts?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_backups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string
