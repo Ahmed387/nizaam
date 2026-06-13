@@ -3677,6 +3677,13 @@ export type Database = {
         Returns: Json
       }
       expire_old_reservations: { Args: never; Returns: number }
+      generate_alerts: {
+        Args: never
+        Returns: {
+          low_stock_notifs: number
+          overdue_notifs: number
+        }[]
+      }
       get_available_quantity: {
         Args: { p_branch_id: string; p_product_id: string }
         Returns: number
