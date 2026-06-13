@@ -58,8 +58,9 @@ type Filters = {
   fromBranch: string;
   toBranch: string;
   partyId: string;
+  migrated: "all" | "only" | "hide";
 };
-const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "" };
+const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", migrated: "all" };
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -285,6 +286,12 @@ export default function Invoices() {
         if (active.party === "customer" && r.invoices?.contact_id !== filters.partyId) return false;
         if (active.party === "supplier" && r.contact_id !== filters.partyId) return false;
       }
+      // Migrated filter (applies to sale/purchase tabs which carry is_migrated)
+      if (filters.migrated !== "all" && (tab === "sale" || tab === "purchase")) {
+        const mig = !!r.is_migrated;
+        if (filters.migrated === "only" && !mig) return false;
+        if (filters.migrated === "hide" && mig) return false;
+      }
       return true;
     });
   }, [rows, filters, tab, active]);
@@ -295,7 +302,16 @@ export default function Invoices() {
       case "sale": return {
         newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
-          { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
+          { key: "invoice_number", header: "رقم", render: (r: any) => (
+            <span className="flex items-center gap-1.5">
+              <span className="font-mono text-primary">{r.invoice_number}</span>
+              {r.is_migrated && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title={`مستورد من: ${r.migration_source ?? "نظام قديم"}`}>
+                  بيانات مستوردة
+                </span>
+              )}
+            </span>
+          ) },
           { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
           { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
