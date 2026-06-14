@@ -300,6 +300,26 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>حذف السند {deleteTarget?.voucher_number} نهائياً</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2 text-sm">
+            <p>
+              هتمسح السند نهائياً من النظام. لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
+            </p>
+            <p className="text-destructive font-semibold">
+              العملية دي مالهاش رجوع.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>تراجع</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد الحذف"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
