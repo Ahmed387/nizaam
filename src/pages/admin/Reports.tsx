@@ -572,12 +572,12 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
             ) : (
               <ResponsiveContainer width="100%" height={340}>
-                <BarChart data={[...topProductsAll].sort((a, b) => Number(b[productSort]) - Number(a[productSort])).slice(0, 10)} layout="vertical">
+                <BarChart data={[...topProductsAll].sort((a, b) => Number(b[productSort === "qty" ? "netQty" : productSort]) - Number(a[productSort === "qty" ? "netQty" : productSort])).slice(0, 10)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Bar dataKey={productSort} name={productSort === "profit" ? "الربح" : productSort === "revenue" ? "الإيراد" : "الكمية"}
+                  <Bar dataKey={productSort === "qty" ? "netQty" : productSort} name={productSort === "profit" ? "الربح الصافي" : productSort === "revenue" ? "الإيراد الصافي" : "الكمية الصافية"}
                     fill={productSort === "profit" ? "hsl(var(--success))" : productSort === "revenue" ? "hsl(var(--primary))" : "hsl(var(--warning))"}
                     radius={[0, 4, 4, 0]} />
                 </BarChart>
