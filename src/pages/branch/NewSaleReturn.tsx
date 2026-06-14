@@ -218,11 +218,7 @@ export default function NewSaleReturn() {
             _items: activeLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })) as any,
           });
         } catch (e) { console.warn("batch tracking on return failed", e); }
-        // Add merchandise back to stock (legacy global counter)
-        for (const l of activeLines) {
-          const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
-          if (p) await supabase.from("products").update({ quantity: (p.quantity ?? 0) + l.quantity }).eq("id", l.product_id);
-        }
+        // Stock is restored automatically by the return_items database trigger.
 
         // Treasury: money going out (refund to customer)
         const cashOut = cashPart + transferPart;
