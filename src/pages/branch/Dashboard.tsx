@@ -128,7 +128,7 @@ export default function BranchDashboard() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "invoice_items", "vouchers", "products", "contacts", "branches"], load);
+  useRealtimeRefresh(["invoices", "invoice_items", "returns", "return_items", "vouchers", "products", "contacts", "branches"], load);
 
   const todayVsYesterday = salesYesterday > 0 ? ((salesToday - salesYesterday) / salesYesterday) * 100 : 0;
   const monthVsLast = salesLastMonth > 0 ? ((salesMonth - salesLastMonth) / salesLastMonth) * 100 : 0;
