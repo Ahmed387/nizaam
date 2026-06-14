@@ -13,7 +13,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2 } from "lucide-react";
+import { Plus, XCircle, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 
@@ -33,6 +33,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Voucher | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Voucher | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [filters, setFilters] = useState({
     from: "",
     to: "",
@@ -94,6 +96,20 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     toast.success("تم إلغاء السند");
     setCancelTarget(null);
     setCancelReason("");
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.rpc("delete_voucher_admin" as any, {
+      p_voucher_id: deleteTarget.id,
+      p_reason: "حذف بواسطة المدير",
+    });
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف السند نهائياً");
+    setDeleteTarget(null);
     load();
   };
 
@@ -238,11 +254,20 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           ) },
           { key: "actions", header: "", render: (r: Voucher) => {
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
-            return canCancel ? (
-              <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive">
-                <XCircle className="w-4 h-4" />
-              </Button>
-            ) : null;
+            return (
+              <div className="flex items-center gap-1 justify-end">
+                {canCancel && (
+                  <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
+                    <XCircle className="w-4 h-4" />
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive" title="حذف السند نهائياً">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            );
           } },
         ]}
       />
@@ -272,6 +297,26 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCancelTarget(null)}>تراجع</Button>
             <Button variant="destructive" onClick={confirmCancel}>تأكيد الإلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>حذف السند {deleteTarget?.voucher_number} نهائياً</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2 text-sm">
+            <p>
+              هتمسح السند نهائياً من النظام. لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
+            </p>
+            <p className="text-destructive font-semibold">
+              العملية دي مالهاش رجوع.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>تراجع</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد الحذف"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

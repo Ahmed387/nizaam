@@ -3590,6 +3590,7 @@ export type Database = {
         Returns: Json
       }
       admin_reset_price_audit: { Args: { p_branch_id?: string }; Returns: Json }
+      admin_reset_vouchers: { Args: { p_branch_id?: string }; Returns: Json }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
@@ -3734,6 +3735,10 @@ export type Database = {
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
+      delete_voucher_admin: {
+        Args: { p_reason?: string; p_voucher_id: string }
+        Returns: Json
+      }
       disburse_pending_advance: {
         Args: { p_request_id: string }
         Returns: string
