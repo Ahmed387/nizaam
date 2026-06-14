@@ -36,6 +36,7 @@ export default function Settings() {
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
+  const [vat, setVat] = useState<{ enabled: boolean; rate: number }>({ enabled: false, rate: 14 });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
   const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
   const [branchTargets, setBranchTargets] = useState<Record<string, number>>({});
@@ -132,6 +133,10 @@ export default function Settings() {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
+        if (row.key === "vat") {
+          const v: any = row.value ?? {};
+          setVat({ enabled: !!v.enabled, rate: Number(v.rate ?? 14) });
+        }
         if (row.key === "discount_policy_global") {
           const v: any = row.value ?? {};
           if (typeof v.percent === "number") setDiscGlobalPct(v.percent);
@@ -386,12 +391,36 @@ export default function Settings() {
               </div>
               <Switch checked={invoice.show_logo} onCheckedChange={(v) => setInvoice({ ...invoice, show_logo: v })} />
             </div>
+
             <Button onClick={() => saveKey("invoice", invoice)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
             </Button>
+
+            <div className="pt-6 mt-2 border-t border-border space-y-3">
+              <div>
+                <h3 className="font-bold">ضريبة القيمة المضافة</h3>
+                <p className="text-xs text-muted-foreground">عند تفعيلها هتظهر كأوبشن في شاشة إصدار الفاتورة، وتقدر تعدّل النسبة من هنا.</p>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-surface-2">
+                <Label className="cursor-pointer">تفعيلها افتراضياً</Label>
+                <Switch checked={vat.enabled} onCheckedChange={(v) => setVat({ ...vat, enabled: v })} />
+              </div>
+              <div>
+                <Label>نسبة الضريبة %</Label>
+                <Input type="number" min={0} max={100} step="0.01"
+                  value={vat.rate}
+                  onChange={(e) => setVat({ ...vat, rate: Number(e.target.value) || 0 })}
+                  className="mt-1.5" />
+              </div>
+              <Button onClick={() => saveKey("vat", vat)} disabled={saving} className="gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                حفظ إعدادات الضريبة
+              </Button>
+            </div>
           </div>
         </TabsContent>
+
 
         <TabsContent value="inventory" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">

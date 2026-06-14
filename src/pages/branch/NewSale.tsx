@@ -47,6 +47,7 @@ interface PaymentSplit {
   reference_number: string;
   received_by_name: string;
   transfer_to_account: string;
+  transfer_from_account: string;
   fee_amount: number;
   fee_on_customer: boolean;
 }
@@ -87,6 +88,9 @@ export default function NewSale() {
   // Customer credit balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
+  // VAT (editable rate from settings)
+  const [vatEnabled, setVatEnabled] = useState(false);
+  const [vatRate, setVatRate] = useState<number>(14);
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
@@ -133,7 +137,11 @@ export default function NewSale() {
   useEffect(() => {
     loadTransferFees().then(setTransferFees);
     loadAllPaymentMethods().then((opts) => setMethodOptions(opts.filter((o) => o.is_enabled)));
-
+    // Load VAT default rate from settings
+    supabase.from("settings").select("value").eq("key", "vat").maybeSingle().then(({ data }) => {
+      const v: any = (data as any)?.value;
+      if (v && typeof v.rate === "number") setVatRate(Number(v.rate));
+    });
   }, []);
 
 
@@ -277,7 +285,11 @@ export default function NewSale() {
     () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
     [items]
   );
-  const total = subtotal;
+  const vatAmount = useMemo(
+    () => (vatEnabled ? +(subtotal * (Number(vatRate) || 0) / 100).toFixed(2) : 0),
+    [subtotal, vatEnabled, vatRate]
+  );
+  const total = subtotal + vatAmount;
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
   const totalProfit = (subtotal - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
@@ -476,7 +488,7 @@ export default function NewSale() {
   const addPayment = () => {
     const used = payments.reduce((s, p) => s + p.amount, 0);
     const remaining = Math.max(0, total - used);
-    setPayments([...payments, { payment_method: "cash", amount: remaining, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "", fee_amount: 0, fee_on_customer: false }]);
+    setPayments([...payments, { payment_method: "cash", amount: remaining, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "", transfer_from_account: "", fee_amount: 0, fee_on_customer: false }]);
   };
   const removePayment = (idx: number) => setPayments(payments.filter((_, i) => i !== idx));
   const updatePayment = (idx: number, patch: Partial<PaymentSplit>) =>
@@ -613,6 +625,19 @@ export default function NewSale() {
     if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
     if (isCredit && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل المتبقي كآجل");
 
+    // Validate electronic payments require ref + from + to account
+    for (let i = 0; i < payments.length; i++) {
+      const p = payments[i];
+      if (p.payment_method === "cash" || p.payment_method === "credit_balance") continue;
+      if (!p.reference_number?.trim())
+        return toast.error(`دفعة #${i + 1}: أدخل رقم العملية / المرجع للتحويل`);
+      if (!p.transfer_from_account?.trim())
+        return toast.error(`دفعة #${i + 1}: أدخل رقم الحساب المحوَّل منه`);
+      if (!p.transfer_to_account?.trim())
+        return toast.error(`دفعة #${i + 1}: أدخل رقم الحساب المحوَّل إليه`);
+    }
+
+
     if (isCredit && scheduleType === "scheduled" && creditRemaining > 0) {
       const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
@@ -670,7 +695,10 @@ export default function NewSale() {
         p_payment_method: primaryMethod,
         p_items: items as any,
         p_payments: payments.length > 0 ? payments : null,
+        p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
+        p_vat_amount: vatAmount,
       };
+
 
       if (!navigator.onLine) {
         await enqueueSale(payload);
@@ -1157,10 +1185,19 @@ export default function NewSale() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل إليه</Label>
+                          <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>منه</b> *</Label>
                           <Input
                             dir="ltr" className="text-right"
-                            placeholder="مثال: 0100xxxxxxx"
+                            placeholder="حساب العميل المُرسِل"
+                            value={p.transfer_from_account}
+                            onChange={(e) => updatePayment(idx, { transfer_from_account: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>إليه</b> *</Label>
+                          <Input
+                            dir="ltr" className="text-right"
+                            placeholder="حسابنا اللي وصل عليه"
                             value={p.transfer_to_account}
                             onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })}
                           />
@@ -1294,6 +1331,32 @@ export default function NewSale() {
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
+
+              {/* VAT toggle (optional, editable rate) */}
+              <div className="mt-2 p-2.5 rounded-lg bg-surface-2 border border-dashed border-border space-y-2">
+                <label className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="font-bold text-xs">إضافة ضريبة القيمة المضافة</span>
+                  <input type="checkbox" checked={vatEnabled} onChange={(e) => setVatEnabled(e.target.checked)} className="w-4 h-4" />
+                </label>
+                {vatEnabled && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs whitespace-nowrap">النسبة %</Label>
+                      <Input
+                        type="number" min={0} max={100} step="0.01"
+                        value={vatRate}
+                        onChange={(e) => setVatRate(Number(e.target.value) || 0)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">قيمة الضريبة</span>
+                      <span className="font-bold">{formatEGP(vatAmount)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
