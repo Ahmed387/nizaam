@@ -263,6 +263,12 @@ export default function InvoiceView() {
               )}
             </>
           )}
+          {Number((inv as any).vat_amount) > 0 && (
+            <div className="flex justify-between">
+              <span>ضريبة القيمة المضافة ({Number((inv as any).vat_rate)}%):</span>
+              <span className="font-bold">+ {formatEGP(Number((inv as any).vat_amount))}</span>
+            </div>
+          )}
           <div className="flex justify-between text-lg pt-2 border-t border-border">
             <span className="font-bold">الإجمالي النهائي المستحق:</span>
             <span className="text-primary font-extrabold">{formatEGP(inv.total)}</span>
