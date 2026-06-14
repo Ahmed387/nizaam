@@ -44,7 +44,8 @@ interface InvRow {
 
 
 
-export default function ProfitabilityReport() {
+export default function ProfitabilityReport({ embedded }: { embedded?: boolean } = {}) {
+  const Wrapper: any = embedded ? Fragment : AdminLayout;
   const { tenantId } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10);
@@ -207,7 +208,7 @@ export default function ProfitabilityReport() {
   }, [rows]);
 
   return (
-    <AdminLayout>
+    <Wrapper>
       <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
 
       {hasAnyMigrated && (
@@ -364,7 +365,7 @@ export default function ProfitabilityReport() {
         { key: "profit", header: "صافي الربح", render: (r: InvRow) => r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
         { key: "margin", header: "الهامش %", render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
       ]} />
-    </AdminLayout>
+    </Wrapper>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -49,7 +49,8 @@ interface Group {
   reqs: Req[];
 }
 
-export default function AdminDiscountApprovals() {
+export default function AdminDiscountApprovals({ embedded }: { embedded?: boolean } = {}) {
+  const Wrapper: any = embedded ? Fragment : AdminLayout;
   const { tenantId, user } = useAuth();
   const [rows, setRows] = useState<Req[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -167,7 +168,7 @@ export default function AdminDiscountApprovals() {
   const pendingCount = groups.filter((g) => g.status === "pending").length;
 
   return (
-    <AdminLayout>
+    <Wrapper>
       <PageHeader title="موافقات الخصم" subtitle="طلبات الكاشير لتخفيض الأسعار — كل الفروع" />
 
       <div className="card-elevated p-4 mb-4 grid md:grid-cols-3 gap-3">
@@ -255,6 +256,6 @@ export default function AdminDiscountApprovals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </Wrapper>
   );
 }
