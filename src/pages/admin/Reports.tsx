@@ -335,7 +335,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         { البند: "رصيد الخزنة", القيمة: k.treasuryBalance },
         { البند: "المرتجعات", القيمة: k.returnsTotal },
       ]},
-      { name: "أكثر_المنتجات", rows: topProductsAll.slice(0, 50).map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue, الربح: p.profit })) },
+      { name: "أكثر_المنتجات", rows: topProductsAll.slice(0, 50).map((p) => ({ المنتج: p.name, "الكمية المباعة": p.qty, "المرتجع": p.returned, "الصافي": p.netQty, "الإيراد الصافي": p.revenue, "الربح الصافي": p.profit })) },
       { name: "المصروفات_حسب_النوع", rows: expByType.map((e) => ({ النوع: e.name, المبلغ: e.value })) },
       { name: "مخزون_منخفض", rows: lowStockList.map((p) => ({ المنتج: p.name, المتوفر: p.quantity, "حد التنبيه": p.low_stock_alert })) },
     ];
