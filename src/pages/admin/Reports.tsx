@@ -32,7 +32,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);
-  const [scope, setScope] = useState<"global" | string>("global"); // "global" or branch id
+  const [scope, setScope] = useState<"global" | string>("global");
+  const [productSort, setProductSort] = useState<"profit" | "revenue" | "qty">("profit");
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -315,7 +316,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         { البند: "رصيد الخزنة", القيمة: k.treasuryBalance },
         { البند: "المرتجعات", القيمة: k.returnsTotal },
       ]},
-      { name: "أكثر_المنتجات", rows: topProducts.map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue })) },
+      { name: "أكثر_المنتجات", rows: topProductsAll.slice(0, 50).map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue, الربح: p.profit })) },
       { name: "المصروفات_حسب_النوع", rows: expByType.map((e) => ({ النوع: e.name, المبلغ: e.value })) },
       { name: "مخزون_منخفض", rows: lowStockList.map((p) => ({ المنتج: p.name, المتوفر: p.quantity, "حد التنبيه": p.low_stock_alert })) },
     ];
@@ -363,7 +364,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       ${branchTable}
       <h3>أكثر المنتجات مبيعاً</h3>
       <table><thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead><tbody>
-        ${topProducts.map((p, i) => `<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("") || "<tr><td colspan='4'>لا توجد بيانات</td></tr>"}
+        ${[...topProductsAll].sort((a,b)=>b.revenue-a.revenue).slice(0,15).map((p, i) => `<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("") || "<tr><td colspan='4'>لا توجد بيانات</td></tr>"}
       </tbody></table>
     `;
     printReport(`تقرير ${currentBranchName} (${from} → ${to})`, html);
