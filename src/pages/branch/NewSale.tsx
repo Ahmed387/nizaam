@@ -695,7 +695,10 @@ export default function NewSale() {
         p_payment_method: primaryMethod,
         p_items: items as any,
         p_payments: payments.length > 0 ? payments : null,
+        p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
+        p_vat_amount: vatAmount,
       };
+
 
       if (!navigator.onLine) {
         await enqueueSale(payload);
