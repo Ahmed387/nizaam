@@ -46,7 +46,7 @@ export default function BranchDashboard() {
 
     const [
       invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
-      invLast30, invItemsToday, invAll30, branchRow,
+      invLast30, invItemsToday, invItemsMonth, invAll30, branchRow,
     ] = await Promise.all([
       supabase.from("invoices").select("total, payment_method, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
       supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
@@ -58,6 +58,7 @@ export default function BranchDashboard() {
       supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
       supabase.from("invoices").select("created_at, total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
       supabase.from("invoice_items").select("product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
+      supabase.from("invoice_items").select("quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", monthStart.toISOString()),
       supabase.from("invoices").select("contact_id, total, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
