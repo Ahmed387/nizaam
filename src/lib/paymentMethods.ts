@@ -92,6 +92,24 @@ export function methodRequiresReference(method: string): boolean {
   return method !== "cash";
 }
 
+/**
+ * Unified validation for any electronic transfer payment.
+ * Returns an error message (Arabic) when invalid, or null when ok.
+ * Required fields for non-cash: reference_number, transfer_from_account, transfer_to_account.
+ */
+export function validateTransferPayment(pm: {
+  method: string;
+  reference_number?: string | null;
+  transfer_from_account?: string | null;
+  transfer_to_account?: string | null;
+}): string | null {
+  if (!methodRequiresReference(pm.method)) return null;
+  if (!pm.reference_number?.toString().trim()) return "أدخل رقم العملية للتحويل";
+  if (!pm.transfer_from_account?.toString().trim()) return "أدخل رقم/حساب المُحوَّل منه";
+  if (!pm.transfer_to_account?.toString().trim()) return "أدخل رقم/حساب المُحوَّل إليه";
+  return null;
+}
+
 export function methodAccountLabel(method: string): string {
   switch (method) {
     case "vodafone": return "رقم التليفون المُحوَّل إليه";

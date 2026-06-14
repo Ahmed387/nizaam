@@ -17,6 +17,7 @@ import {
   methodRequiresReference,
   methodReceiverLabel,
   methodSenderLabel,
+  validateTransferPayment,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
@@ -160,9 +161,8 @@ export function MultiMethodPaymentDialog({
     }
     for (const l of lines) {
       if (Number(l.amount) <= 0) return toast.error("كل سطر لازم يكون مبلغه > 0");
-      if (methodRequiresReference(l.method) && !l.reference_number?.trim()) {
-        return toast.error("أدخل رقم العملية لكل تحويل");
-      }
+      const err = validateTransferPayment(l);
+      if (err) return toast.error(`سطر ${lines.indexOf(l) + 1}: ${err}`);
     }
 
     setBusy(true);

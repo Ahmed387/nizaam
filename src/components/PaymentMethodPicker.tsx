@@ -104,43 +104,40 @@ export function PaymentMethodPicker({
 
       {requiresRef && (
         <>
+          <div>
+            <Label>رقم العملية *</Label>
+            <Input
+              disabled={disabled}
+              value={value.reference_number ?? ""}
+              onChange={(e) => onChange({ ...value, reference_number: e.target.value })}
+              className="mt-1.5"
+              placeholder="رقم التحويل المرجعي"
+            />
+          </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label>رقم العملية *</Label>
-              <Input
-                disabled={disabled}
-                value={value.reference_number ?? ""}
-                onChange={(e) => onChange({ ...value, reference_number: e.target.value })}
-                className="mt-1.5"
-                placeholder="رقم التحويل المرجعي"
-              />
-            </div>
-            <div>
-              <Label>{showTransferFrom ? methodReceiverLabel(value.method) : methodAccountLabel(value.method)}</Label>
-              <Input
-                disabled={disabled}
-                dir="ltr"
-                className="text-right mt-1.5"
-                value={value.transfer_to_account ?? ""}
-                onChange={(e) => onChange({ ...value, transfer_to_account: e.target.value })}
-                placeholder="حسابنا اللي وصل عليه"
-              />
-            </div>
-          </div>
-
-          {showTransferFrom && (
-            <div>
-              <Label>{methodSenderLabel(value.method)}</Label>
+              <Label>{methodSenderLabel(value.method)} *</Label>
               <Input
                 disabled={disabled}
                 dir="ltr"
                 className="text-right mt-1.5"
                 value={value.transfer_from_account ?? ""}
                 onChange={(e) => onChange({ ...value, transfer_from_account: e.target.value })}
-                placeholder="حساب العميل/المرسِل"
+                placeholder="الحساب اللي اتحول منه"
               />
             </div>
-          )}
+            <div>
+              <Label>{methodReceiverLabel(value.method)} *</Label>
+              <Input
+                disabled={disabled}
+                dir="ltr"
+                className="text-right mt-1.5"
+                value={value.transfer_to_account ?? ""}
+                onChange={(e) => onChange({ ...value, transfer_to_account: e.target.value })}
+                placeholder="الحساب اللي اتحول إليه"
+              />
+            </div>
+          </div>
 
           {value.fee_amount > 0 && (
             <div className="bg-warning/10 border border-warning/30 rounded-md p-2.5 text-sm space-y-1">
@@ -179,6 +176,7 @@ export function PaymentMethodPicker({
           )}
         </>
       )}
+
 
       {showReceivedBy && (
         <div>

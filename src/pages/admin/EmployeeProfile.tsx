@@ -182,6 +182,9 @@ export default function EmployeeProfile() {
     const md = Number(advForm.monthly_deduct);
     if (!amt || amt <= 0) return toast.error("أدخل المبلغ");
     if (!md || md <= 0) return toast.error("أدخل قيمة الخصم الشهري");
+    const { validateTransferPayment } = await import("@/lib/paymentMethods");
+    const aErr = validateTransferPayment(advPm);
+    if (aErr) return toast.error(aErr);
     const { data: adv, error } = await supabase.from("advances").insert({
       employee_id: emp.id, amount: amt, monthly_deduct: md, remaining: amt, reason: advForm.reason || null,
     }).select().single();
@@ -189,7 +192,7 @@ export default function EmployeeProfile() {
     await supabase.from("treasury").insert({
       branch_id: emp.branch_id, type: "expense", category: "advance",
       amount: amt, description: `سلفة - ${emp.name}`, reference_id: adv.id, created_by: user!.id,
-      payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null,
+      payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null, transfer_from_account: advPm.transfer_from_account ?? null,
     });
     if (advPm.fee_amount > 0) {
       await supabase.from("treasury").insert({
@@ -213,6 +216,9 @@ export default function EmployeeProfile() {
     const net = base + bonuses - ded - advDed;
     if (net <= 0) return toast.error("صافي الراتب يجب أن يكون موجباً");
     if (advDed > totalAdvancesRemaining) return toast.error("خصم السلف أكبر من الرصيد المتبقي");
+    const { validateTransferPayment } = await import("@/lib/paymentMethods");
+    const sErr = validateTransferPayment(salPm);
+    if (sErr) return toast.error(sErr);
     const { data: existing } = await supabase.from("salaries").select("id").eq("employee_id", emp.id).eq("month", salForm.month).maybeSingle();
     if (existing) return toast.error("راتب هذا الشهر مدفوع بالفعل");
     const { data: sal, error } = await supabase.from("salaries").insert({
@@ -233,7 +239,7 @@ export default function EmployeeProfile() {
     await supabase.from("treasury").insert({
       branch_id: emp.branch_id, type: "expense", category: "salary",
       amount: net, description: `راتب ${salForm.month} - ${emp.name}`, reference_id: sal.id, created_by: user!.id,
-      payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null,
+      payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null, transfer_from_account: salPm.transfer_from_account ?? null,
     });
     if (salPm.fee_amount > 0) {
       await supabase.from("treasury").insert({

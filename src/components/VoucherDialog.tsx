@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
+import { validateTransferPayment } from "@/lib/paymentMethods";
 import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
@@ -129,7 +130,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     const amt = Number(form.amount);
     if (!form.category_id) return toast.error("اختر التصنيف");
     if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
-    if (pm.method !== "cash" && !pm.reference_number?.trim()) return toast.error("أدخل رقم العملية");
+    const vErr = validateTransferPayment(pm);
+    if (vErr) return toast.error(vErr);
     setBusy(true);
     try {
       const { error } = await supabase.rpc("create_manual_voucher" as any, {

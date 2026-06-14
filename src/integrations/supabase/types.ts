@@ -3572,6 +3572,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      _validate_transfer_payment: {
+        Args: {
+          p_from: string
+          p_method: string
+          p_reference: string
+          p_to: string
+        }
+        Returns: undefined
+      }
       acknowledge_treasury_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
