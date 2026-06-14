@@ -192,7 +192,7 @@ export default function EmployeeProfile() {
     await supabase.from("treasury").insert({
       branch_id: emp.branch_id, type: "expense", category: "advance",
       amount: amt, description: `سلفة - ${emp.name}`, reference_id: adv.id, created_by: user!.id,
-      payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null,
+      payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null, transfer_from_account: advPm.transfer_from_account ?? null,
     });
     if (advPm.fee_amount > 0) {
       await supabase.from("treasury").insert({
