@@ -477,7 +477,7 @@ export default function NewSale() {
   const addPayment = () => {
     const used = payments.reduce((s, p) => s + p.amount, 0);
     const remaining = Math.max(0, total - used);
-    setPayments([...payments, { payment_method: "cash", amount: remaining, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "", fee_amount: 0, fee_on_customer: false }]);
+    setPayments([...payments, { payment_method: "cash", amount: remaining, reference_number: "", received_by_name: profile?.name ?? "", transfer_to_account: "", transfer_from_account: "", fee_amount: 0, fee_on_customer: false }]);
   };
   const removePayment = (idx: number) => setPayments(payments.filter((_, i) => i !== idx));
   const updatePayment = (idx: number, patch: Partial<PaymentSplit>) =>
