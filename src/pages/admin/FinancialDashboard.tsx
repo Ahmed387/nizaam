@@ -13,6 +13,10 @@ import {
   ArrowDownCircle, ArrowUpCircle, BarChart3,
 } from "lucide-react";
 import {
+  ResponsiveContainer as RC, AreaChart as AC, Area as A, XAxis as XA, YAxis as YA,
+  Tooltip as TT, CartesianGrid as CG, Legend as LG,
+} from "recharts";
+import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, Legend,
 } from "recharts";
