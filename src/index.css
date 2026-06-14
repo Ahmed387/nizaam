@@ -172,3 +172,35 @@
   .print-area h1, .print-area h2, .print-area h3 { page-break-after: avoid; break-after: avoid; }
   .no-print { display: none !important; }
 }
+
+/* Fit application tables in their available width instead of showing horizontal scrollbars. */
+.overflow-x-auto:has(> table) {
+  overflow-x: visible;
+}
+
+.overflow-x-auto > table,
+.card-elevated > div > table,
+.card-elevated > table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.overflow-x-auto > table th,
+.overflow-x-auto > table td,
+.card-elevated > div > table th,
+.card-elevated > div > table td,
+.card-elevated > table th,
+.card-elevated > table td {
+  min-width: 0 !important;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.overflow-x-auto > table input,
+.overflow-x-auto > table button,
+.card-elevated table input,
+.card-elevated table button {
+  max-width: 100%;
+}
