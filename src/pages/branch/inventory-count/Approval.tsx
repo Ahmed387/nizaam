@@ -87,7 +87,7 @@ export default function Approval() {
         <div className="card-elevated p-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
         <>
-          <div className="card-elevated overflow-x-auto mb-4">
+          <div className="card-elevated mb-4">
             <table className="w-full text-sm">
               <thead className="bg-surface-2">
                 <tr>

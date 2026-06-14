@@ -108,7 +108,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const renderTable = (rows: Plan[]) => (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
-      <table className="w-full text-sm min-w-[900px]">
+      <table className="w-full text-sm">
         <thead className="bg-surface-2">
           <tr>
             <th className="px-3 py-2 text-right">الجهة</th>
@@ -207,7 +207,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input className="pr-9" placeholder="بحث بالاسم" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>

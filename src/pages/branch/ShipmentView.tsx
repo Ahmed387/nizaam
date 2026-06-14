@@ -276,7 +276,7 @@ export default function ShipmentView() {
           المنتجات ({items.length})
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
+          <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-4 py-3 text-right">المنتج</th>

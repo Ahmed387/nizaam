@@ -41,15 +41,15 @@ export function DataTable<T>({
 
   return (
     <div className="card-elevated overflow-hidden">
-      <div className="w-full overflow-x-auto">
-        <table className="w-full min-w-max text-sm border-collapse table-auto">
+      <div className="w-full">
+        <table className="w-full text-sm border-collapse table-fixed">
           <thead>
             <tr className="bg-surface-2 border-b border-border">
               {columns.map((c) => (
                 <th
                   key={c.key}
                   style={c.width ? { width: c.width } : undefined}
-                  className={`px-2 md:px-3 py-2 md:py-2.5 font-semibold text-[11px] md:text-xs uppercase tracking-wider text-muted-foreground break-words ${alignClass(c.align)} ${c.className ?? ""}`}
+                  className={`px-2 md:px-3 py-2 md:py-2.5 font-semibold text-[11px] md:text-xs uppercase tracking-wider text-muted-foreground break-words whitespace-normal ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {c.header}
                 </th>
@@ -66,7 +66,7 @@ export function DataTable<T>({
                 {columns.map((c) => (
                   <td
                     key={c.key}
-                    className={`px-2 md:px-3 py-2 md:py-2.5 align-middle break-words ${alignClass(c.align)} ${c.className ?? ""}`}
+                    className={`px-2 md:px-3 py-2 md:py-2.5 align-middle break-words whitespace-normal ${alignClass(c.align)} ${c.className ?? ""}`}
                   >
                     {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                   </td>
@@ -76,6 +76,7 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }

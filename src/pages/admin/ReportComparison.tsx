@@ -222,7 +222,7 @@ export default function ReportComparison() {
         </ResponsiveContainer>
       </div>
 
-      <div className="card-elevated p-4 overflow-x-auto">
+      <div className="card-elevated p-4">
         <h3 className="font-bold mb-3">تفصيل المقارنة</h3>
         <table className="w-full text-sm">
           <thead>

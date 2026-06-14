@@ -635,7 +635,7 @@ export default function AllSuppliers() {
                       </div>
                       {items.length > 0 ? (
                         <div className="overflow-x-auto">
-                        <table className="w-full text-sm min-w-[500px]">
+                        <table className="w-full text-sm">
                           <thead className="bg-background">
                             <tr className="text-xs text-muted-foreground border-b">
                               <th className="text-right p-2">الصنف</th>
@@ -748,7 +748,7 @@ export default function AllSuppliers() {
                     )}
                     {shipLines.map((l, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="p-2 min-w-[260px]">
+                        <td className="p-2">
                           <select
                             value={l.product_id ?? (l.product_name ? "__new__" : "")}
                             onChange={(e) => onPickProduct(i, e.target.value)}
