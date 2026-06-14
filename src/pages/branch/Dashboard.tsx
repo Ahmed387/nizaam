@@ -31,6 +31,7 @@ export default function BranchDashboard() {
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [profitToday, setProfitToday] = useState(0);
+  const [profitMonth, setProfitMonth] = useState(0);
   const [paymentBreakdown, setPaymentBreakdown] = useState<any[]>([]);
   const [monthlyTarget, setMonthlyTarget] = useState(0);
 
