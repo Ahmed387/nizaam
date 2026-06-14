@@ -89,9 +89,10 @@ export default function Settings() {
 
     setResetting(true);
     try {
-      // Handle price_audit_log separately (different RPC)
+      // Handle separate RPCs
       const wantsPriceAudit = !!resetOpts["price_audit_log"];
-      const otherKeys = selectedKeys.filter((k) => k !== "price_audit_log");
+      const wantsVouchers = !!resetOpts["vouchers"];
+      const otherKeys = selectedKeys.filter((k) => k !== "price_audit_log" && k !== "vouchers");
 
       if (otherKeys.length > 0) {
         const { error } = await supabase.rpc("admin_reset_branch_data", {
@@ -103,6 +104,13 @@ export default function Settings() {
 
       if (wantsPriceAudit) {
         const { error } = await supabase.rpc("admin_reset_price_audit", {
+          p_branch_id: resetBranch === "__all__" ? null : resetBranch,
+        } as any);
+        if (error) throw error;
+      }
+
+      if (wantsVouchers) {
+        const { error } = await supabase.rpc("admin_reset_vouchers", {
           p_branch_id: resetBranch === "__all__" ? null : resetBranch,
         } as any);
         if (error) throw error;
