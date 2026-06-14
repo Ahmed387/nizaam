@@ -137,7 +137,11 @@ export default function NewSale() {
   useEffect(() => {
     loadTransferFees().then(setTransferFees);
     loadAllPaymentMethods().then((opts) => setMethodOptions(opts.filter((o) => o.is_enabled)));
-
+    // Load VAT default rate from settings
+    supabase.from("settings").select("value").eq("key", "vat").maybeSingle().then(({ data }) => {
+      const v: any = (data as any)?.value;
+      if (v && typeof v.rate === "number") setVatRate(Number(v.rate));
+    });
   }, []);
 
 
