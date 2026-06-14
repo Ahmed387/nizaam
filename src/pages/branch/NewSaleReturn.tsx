@@ -220,27 +220,7 @@ export default function NewSaleReturn() {
         } catch (e) { console.warn("batch tracking on return failed", e); }
         // Stock is restored automatically by the return_items database trigger.
 
-        // Treasury: money going out (refund to customer)
-        const cashOut = cashPart + transferPart;
-        if (cashOut > 0) {
-          await supabase.from("treasury").insert({
-            branch_id: branchId!,
-            type: "expense",
-            category: "sale_return",
-            amount: cashOut,
-            description: `مرتجع بيع ${number} - فاتورة ${invoice.invoice_number}`,
-            reference_id: (rr as any).id,
-            payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
-            reference_number: refundRef.trim() || null,
-            transfer_to_account: refundAccount.trim() || null,
-            created_by: user!.id,
-          } as any);
-        }
-        // Customer balance: he owes us less → decrease
-        if (balancePart > 0 && customer) {
-          const newBal = Number(customer.balance ?? 0) - balancePart;
-          await supabase.from("contacts").update({ balance: newBal }).eq("id", customer.id);
-        }
+        // Treasury and customer balance are updated automatically from the saved return.
         // Redistribute installments if this invoice has a payment plan
         try {
           const { data: rd } = await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id });
