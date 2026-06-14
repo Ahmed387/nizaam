@@ -131,8 +131,11 @@ export default function ProfitabilityReport() {
       const hasReturn = retQty > 0;
 
       const key = r.product_id ?? r.product_name;
-      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
-      prev.qty += netQty; prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
+      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, gross_qty: 0, returned_qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
+      prev.qty += netQty;
+      prev.gross_qty += qtyRaw;
+      prev.returned_qty += retQty;
+      prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
       if (!costUnknown) prev.cost_unknown = false;
       prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
       map.set(key, prev);
