@@ -36,6 +36,7 @@ export default function Settings() {
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
+  const [vat, setVat] = useState<{ enabled: boolean; rate: number }>({ enabled: false, rate: 14 });
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
   const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
   const [branchTargets, setBranchTargets] = useState<Record<string, number>>({});
