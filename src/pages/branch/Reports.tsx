@@ -32,29 +32,41 @@ export default function BranchReports() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [treasury, setTreasury] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [returns, setReturns] = useState<any[]>([]);
   const [branchName, setBranchName] = useState("");
+
+  // Voucher categories that mirror business events already counted elsewhere.
+  // We hide them from "expenses" and "treasury cash flow" to prevent double-counting:
+  // - customer_return: refund of a sale return (already deducted from sales as net)
+  // - supplier_payment: payment for a purchase (already a cost in inventory)
+  // - branch_transfer_out: internal money movement (not a real expense)
+  const EXCLUDE_KEYS = ["customer_return", "supplier_payment", "branch_transfer_out"];
 
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, tr, pr] = await Promise.all([
+    const [b, inv, exp, tr, pr, rt] = await Promise.all([
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
       supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso).order("created_at", { ascending: false }),
-      supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("vouchers" as any).select("type, amount, voucher_date").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
+      supabase.from("vouchers").select("*, voucher_categories(name, system_key)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
+      supabase.from("vouchers" as any).select("type, amount, voucher_date, voucher_categories(system_key)").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*").eq("branch_id", branchId),
+      supabase.from("returns" as any).select("total_refund, created_at").eq("branch_id", branchId).eq("status", "active").gte("created_at", fromIso).lte("created_at", toIso),
     ]);
     setBranchName(b.data?.name ?? "");
     setInvoices(inv.data ?? []);
-    setExpenses((exp.data ?? []).map((v: any) => ({
-      id: v.id, date: v.voucher_date, amount: v.amount,
-      type: v.voucher_categories?.name ?? "أخرى",
-      description: v.description ?? v.voucher_number,
-    })));
-    setTreasury(tr.data ?? []);
+    setExpenses((exp.data ?? [])
+      .filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key))
+      .map((v: any) => ({
+        id: v.id, date: v.voucher_date, amount: v.amount,
+        type: v.voucher_categories?.name ?? "أخرى",
+        description: v.description ?? v.voucher_number,
+      })));
+    setTreasury((tr.data ?? []).filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key)));
     setProducts(pr.data ?? []);
+    setReturns(rt.data ?? []);
     setLoading(false);
   };
 
