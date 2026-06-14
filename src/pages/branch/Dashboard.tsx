@@ -47,38 +47,50 @@ export default function BranchDashboard() {
       invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
       invLast30, invItemsToday, invAll30, branchRow,
     ] = await Promise.all([
-      supabase.from("invoices").select("total, payment_method").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
-      supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
-      supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
-      supabase.from("invoices").select("total").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
+      supabase.from("invoices").select("total, payment_method, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
+      supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
+      supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
+      supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
       supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
       supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
       supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
       supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
-      supabase.from("invoices").select("created_at, total").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
-      supabase.from("invoice_items").select("product_name, quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
-      supabase.from("invoices").select("contact_id, total, contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
+      supabase.from("invoices").select("created_at, total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
+      supabase.from("invoice_items").select("product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
+      supabase.from("invoices").select("contact_id, total, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
+    const netInvoiceTotal = (inv: any) => {
+      const rows = inv.invoice_items ?? [];
+      if (!rows.length) return Number(inv.total ?? 0);
+      return rows.reduce((sum: number, it: any) => {
+        const qty = Number(it.quantity) || 0;
+        const returned = Math.min(qty, Number(it.returned_quantity) || 0);
+        return sum + (qty > 0 ? Number(it.total ?? 0) * ((qty - returned) / qty) : 0);
+      }, 0);
+    };
     setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
 
-    setSalesToday((invToday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-    setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-    setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
-    setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + Number(x.total), 0));
+    setSalesToday((invToday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
+    setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
+    setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
+    setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
     setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
     setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
     setNewCust((custs.data ?? []).length);
     setRecent(recentInv.data ?? []);
 
-    setProfitToday((invItemsToday.data ?? []).reduce(
-      (s, it: any) => s + (Number(it.selling_price) - Number(it.cost_price)) * it.quantity, 0
-    ));
+    setProfitToday((invItemsToday.data ?? []).reduce((s, it: any) => {
+      const qty = Number(it.quantity) || 0;
+      const netQty = Math.max(0, qty - (Number(it.returned_quantity) || 0));
+      const netRevenue = qty > 0 ? Number(it.total ?? 0) * (netQty / qty) : 0;
+      return s + netRevenue - Number(it.cost_price ?? 0) * netQty;
+    }, 0));
 
     const payMap: Record<string, number> = {};
     (invToday.data ?? []).forEach((x: any) => {
       const k = x.payment_method || "cash";
-      payMap[k] = (payMap[k] || 0) + Number(x.total);
+      payMap[k] = (payMap[k] || 0) + netInvoiceTotal(x);
     });
     setPaymentBreakdown(Object.entries(payMap).map(([name, value]) => ({
       name: name === "cash" ? "نقدي" : name === "card" ? "بطاقة" : name,
@@ -92,15 +104,17 @@ export default function BranchDashboard() {
     }
     (invLast30.data ?? []).forEach((x: any) => {
       const k = x.created_at.slice(5, 10);
-      if (k in dayMap) dayMap[k] += Number(x.total);
+      if (k in dayMap) dayMap[k] += netInvoiceTotal(x);
     });
     setSalesByDay(Object.entries(dayMap).map(([date, total]) => ({ date, total })));
 
     const prodMap: Record<string, { name: string; qty: number; revenue: number }> = {};
     (invItemsToday.data ?? []).forEach((it: any) => {
+      const qty = Number(it.quantity) || 0;
+      const netQty = Math.max(0, qty - (Number(it.returned_quantity) || 0));
       if (!prodMap[it.product_name]) prodMap[it.product_name] = { name: it.product_name, qty: 0, revenue: 0 };
-      prodMap[it.product_name].qty += it.quantity;
-      prodMap[it.product_name].revenue += Number(it.total);
+      prodMap[it.product_name].qty += netQty;
+      prodMap[it.product_name].revenue += qty > 0 ? Number(it.total ?? 0) * (netQty / qty) : 0;
     });
     setTopProducts(Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5));
 
@@ -108,7 +122,7 @@ export default function BranchDashboard() {
     (invAll30.data ?? []).forEach((x: any) => {
       const name = x.contacts?.name || "غير معروف";
       if (!custMap[name]) custMap[name] = { name, total: 0 };
-      custMap[name].total += Number(x.total);
+      custMap[name].total += netInvoiceTotal(x);
     });
     setTopCustomers(Object.values(custMap).sort((a, b) => b.total - a.total).slice(0, 5));
   }, [id]);
