@@ -47,6 +47,7 @@ interface PaymentSplit {
   reference_number: string;
   received_by_name: string;
   transfer_to_account: string;
+  transfer_from_account: string;
   fee_amount: number;
   fee_on_customer: boolean;
 }
