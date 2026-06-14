@@ -33,6 +33,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Voucher | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Voucher | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [filters, setFilters] = useState({
     from: "",
     to: "",
