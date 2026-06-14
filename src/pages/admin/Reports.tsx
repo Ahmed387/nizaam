@@ -153,13 +153,23 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   // ============ Aggregated KPIs for current scope ============
   const k = useMemo(() => {
     const sales = activeInv.reduce((s, i) => s + Number(i.total), 0);
-    // SINGLE PROFIT FORMULA: SUM((unit_price - unit_cost_at_sale) × quantity)
+    // SINGLE PROFIT FORMULA: SUM((unit_price - unit_cost_at_sale) × net_quantity)
+    // net_quantity = quantity − returned_quantity (DB generated column).
     // unit_cost_at_sale is captured at sale time via FIFO from product_batches.
     const cost = activeInv.reduce(
-      (s, i) => s + i.invoice_items.reduce(
-        (x: number, it: any) => x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity),
-        0,
-      ),
+      (s, i) => s + i.invoice_items.reduce((x: number, it: any) => {
+        const netQty = Number(it.net_quantity ?? (Number(it.quantity) - Number(it.returned_quantity ?? 0)));
+        return x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Math.max(0, netQty);
+      }, 0),
+      0,
+    );
+    const netRevenue = activeInv.reduce(
+      (s, i) => s + i.invoice_items.reduce((x: number, it: any) => {
+        const qty = Number(it.quantity) || 0;
+        const netQty = Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0)));
+        const unitRev = qty > 0 ? Number(it.total) / qty : 0;
+        return x + unitRev * Math.max(0, netQty);
+      }, 0),
       0,
     );
     const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
@@ -171,8 +181,10 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     const cashIn = scopedTreasury.filter((t) => t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0);
     const cashOut = scopedTreasury.filter((t) => t.type === "payment").reduce((s, t) => s + Number(t.amount), 0);
     const returnsTotal = scopedReturns.reduce((s, r) => s + Number(r.total_refund), 0);
+    const profit = netRevenue - cost;
     return {
-      sales, cost, profit: sales - cost, exp, net: sales - cost - exp,
+      sales, cost, profit, exp, net: profit - exp,
+      netRevenue,
       inventoryValue, inventoryQty, lowStockCount: lowStock.length,
       shipmentsCost, supPaid,
       cashIn, cashOut, treasuryBalance: cashIn - cashOut,
@@ -185,20 +197,21 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
-    // SINGLE PROFIT FORMULA — matches k.profit above
-    const cost = bInv.reduce(
-      (s, i) => s + i.invoice_items.reduce(
-        (x: number, it: any) => x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity),
-        0,
-      ),
-      0,
-    );
+    // SINGLE PROFIT FORMULA (net_quantity-based) — matches k.profit above
+    let cost = 0, netRevenue = 0;
+    for (const i of bInv) for (const it of i.invoice_items) {
+      const qty = Number(it.quantity) || 0;
+      const netQty = Math.max(0, Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0))));
+      cost += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * netQty;
+      netRevenue += (qty > 0 ? Number(it.total) / qty : 0) * netQty;
+    }
+    const profit = netRevenue - cost;
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
     const bProducts = products.filter((p) => p.branch_id === b.id);
     return {
       ...b,
-      invoices: bInv.length, sales, cost, profit: sales - cost,
-      expenses: exp, net: sales - cost - exp,
+      invoices: bInv.length, sales, cost, profit,
+      expenses: exp, net: profit - exp,
       inventoryValue: bProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0),
       inventoryQty: bProducts.reduce((s, p) => s + p.quantity, 0),
       employees: employees.filter((e) => e.branch_id === b.id).length,
@@ -208,17 +221,23 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     };
   }), [branches, invoices, expenses, products, employees, treasury]);
 
-  // Top products in scope — qty / revenue / profit (toggle in UI)
+  // Top products in scope — qty (gross) / returned / net / revenue (net) / profit (net)
   const topProductsAll = useMemo(() => {
-    const m: Record<string, { name: string; qty: number; revenue: number; profit: number }> = {};
+    const m: Record<string, { name: string; qty: number; returned: number; netQty: number; revenue: number; profit: number }> = {};
     for (const inv of activeInv) for (const it of inv.invoice_items) {
       const key = it.product_name;
-      if (!m[key]) m[key] = { name: key, qty: 0, revenue: 0, profit: 0 };
+      if (!m[key]) m[key] = { name: key, qty: 0, returned: 0, netQty: 0, revenue: 0, profit: 0 };
       const unitCost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
-      const qty = Number(it.quantity);
+      const qty = Number(it.quantity) || 0;
+      const ret = Number(it.returned_quantity ?? 0);
+      const netQty = Math.max(0, Number(it.net_quantity ?? (qty - ret)));
+      const unitRev = qty > 0 ? Number(it.total) / qty : 0;
+      const netRevenue = unitRev * netQty;
       m[key].qty += qty;
-      m[key].revenue += Number(it.total);
-      m[key].profit += Number(it.total) - unitCost * qty;
+      m[key].returned += ret;
+      m[key].netQty += netQty;
+      m[key].revenue += netRevenue;
+      m[key].profit += netRevenue - unitCost * netQty;
     }
     return Object.values(m);
   }, [activeInv]);
