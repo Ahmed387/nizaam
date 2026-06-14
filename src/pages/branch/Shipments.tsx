@@ -28,6 +28,11 @@ export default function Shipments() {
   const [loading, setLoading] = useState(true);
   const [delTarget, setDelTarget] = useState<any>(null);
   const [reason, setReason] = useState("");
+  const [fSupplier, setFSupplier] = useState<string>("all");
+  const [fStatus, setFStatus] = useState<string>("all");
+  const [fFrom, setFFrom] = useState<string>("");
+  const [fTo, setFTo] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
 
   const load = useCallback(async () => {
     if (!branchId) return;
