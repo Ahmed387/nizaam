@@ -15,6 +15,8 @@ interface Row {
   product_id: string | null;
   product_name: string;
   qty: number;
+  gross_qty: number;
+  returned_qty: number;
   revenue: number;
   cost: number;
   profit: number;
@@ -129,8 +131,11 @@ export default function ProfitabilityReport() {
       const hasReturn = retQty > 0;
 
       const key = r.product_id ?? r.product_name;
-      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
-      prev.qty += netQty; prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
+      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, gross_qty: 0, returned_qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
+      prev.qty += netQty;
+      prev.gross_qty += qtyRaw;
+      prev.returned_qty += retQty;
+      prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
       if (!costUnknown) prev.cost_unknown = false;
       prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
       map.set(key, prev);
@@ -264,16 +269,18 @@ export default function ProfitabilityReport() {
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-3 py-2 w-8"></th>
                 <th className="px-3 py-2 text-right">المنتج</th>
-                <th className="px-3 py-2 text-right">الكمية</th>
-                <th className="px-3 py-2 text-right">الإيراد</th>
+                <th className="px-3 py-2 text-right">الكمية المباعة</th>
+                <th className="px-3 py-2 text-right">المرتجع</th>
+                <th className="px-3 py-2 text-right">الصافي</th>
+                <th className="px-3 py-2 text-right">الإيراد (صافي)</th>
                 <th className="px-3 py-2 text-right">التكلفة</th>
-                <th className="px-3 py-2 text-right">الربح</th>
+                <th className="px-3 py-2 text-right">الربح (صافي)</th>
                 <th className="px-3 py-2 text-right">الهامش %</th>
               </tr>
             </thead>
             <tbody>
-              {loading && (<tr><td colSpan={7} className="text-center py-8 text-muted-foreground">جاري التحميل...</td></tr>)}
-              {!loading && rows.length === 0 && (<tr><td colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد بيانات</td></tr>)}
+              {loading && (<tr><td colSpan={9} className="text-center py-8 text-muted-foreground">جاري التحميل...</td></tr>)}
+              {!loading && rows.length === 0 && (<tr><td colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد بيانات</td></tr>)}
               {rows.map((r) => {
                 const key = r.product_id ?? r.product_name;
                 const open = expanded.has(key);
@@ -286,7 +293,9 @@ export default function ProfitabilityReport() {
                     }}>
                       <td className="px-3 py-2">{open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}</td>
                       <td className="px-3 py-2">{r.product_name}</td>
-                      <td className="px-3 py-2">{r.qty}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.gross_qty}</td>
+                      <td className="px-3 py-2">{r.returned_qty > 0 ? <span className="text-warning font-bold">{r.returned_qty}</span> : <span className="text-muted-foreground">0</span>}</td>
+                      <td className="px-3 py-2 font-bold">{r.qty}</td>
                       <td className="px-3 py-2">{formatEGP(r.revenue)}</td>
                       <td className="px-3 py-2">
                         {r.cost_unknown
@@ -303,7 +312,7 @@ export default function ProfitabilityReport() {
                     {open && (
                       <tr key={`${key}-d`} className="bg-surface-2/30">
                         <td></td>
-                        <td colSpan={6} className="px-4 py-3">
+                        <td colSpan={8} className="px-4 py-3">
                           <div className="grid md:grid-cols-3 gap-3 text-xs">
                             <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">سعر الشراء الأساسي/الوحدة</span><b>{formatEGP(r.base_unit ?? 0)}</b></div>
                             <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">نصيب مصاريف الشحن/الوحدة</span><b className="text-amber-600">+ {formatEGP(r.shipping_unit ?? 0)}</b></div>
