@@ -99,6 +99,20 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     load();
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.rpc("delete_voucher_admin" as any, {
+      p_voucher_id: deleteTarget.id,
+      p_reason: "حذف بواسطة المدير",
+    });
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف السند نهائياً");
+    setDeleteTarget(null);
+    load();
+  };
+
   const exportRows = rows.map((r) => ({
     "رقم السند": r.voucher_number,
     "النوع": VOUCHER_TYPE_LABEL[r.type],
