@@ -223,7 +223,12 @@ export default function Shipments() {
             ),
           },
         ]}
-      />
+            />
+          </>
+        );
+      })()}
+
+
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setReason(""); } }}>
         <AlertDialogContent>
