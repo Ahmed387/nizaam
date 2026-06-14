@@ -12,7 +12,7 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
-import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet } from "lucide-react";
+import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
@@ -32,29 +32,41 @@ export default function BranchReports() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [treasury, setTreasury] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [returns, setReturns] = useState<any[]>([]);
   const [branchName, setBranchName] = useState("");
+
+  // Voucher categories that mirror business events already counted elsewhere.
+  // We hide them from "expenses" and "treasury cash flow" to prevent double-counting:
+  // - customer_return: refund of a sale return (already deducted from sales as net)
+  // - supplier_payment: payment for a purchase (already a cost in inventory)
+  // - branch_transfer_out: internal money movement (not a real expense)
+  const EXCLUDE_KEYS = ["customer_return", "supplier_payment", "branch_transfer_out"];
 
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, tr, pr] = await Promise.all([
+    const [b, inv, exp, tr, pr, rt] = await Promise.all([
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
       supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso).order("created_at", { ascending: false }),
-      supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("vouchers" as any).select("type, amount, voucher_date").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
+      supabase.from("vouchers").select("*, voucher_categories(name, system_key)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
+      supabase.from("vouchers" as any).select("type, amount, voucher_date, voucher_categories(system_key)").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*").eq("branch_id", branchId),
+      supabase.from("returns" as any).select("total_refund, created_at").eq("branch_id", branchId).eq("status", "active").gte("created_at", fromIso).lte("created_at", toIso),
     ]);
     setBranchName(b.data?.name ?? "");
     setInvoices(inv.data ?? []);
-    setExpenses((exp.data ?? []).map((v: any) => ({
-      id: v.id, date: v.voucher_date, amount: v.amount,
-      type: v.voucher_categories?.name ?? "أخرى",
-      description: v.description ?? v.voucher_number,
-    })));
-    setTreasury(tr.data ?? []);
+    setExpenses((exp.data ?? [])
+      .filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key))
+      .map((v: any) => ({
+        id: v.id, date: v.voucher_date, amount: v.amount,
+        type: v.voucher_categories?.name ?? "أخرى",
+        description: v.description ?? v.voucher_number,
+      })));
+    setTreasury((tr.data ?? []).filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key)));
     setProducts(pr.data ?? []);
+    setReturns(rt.data ?? []);
     setLoading(false);
   };
 
@@ -75,6 +87,7 @@ export default function BranchReports() {
   const netProfit = grossProfit - totalExpenses;
   const cashIn = treasury.filter((t) => t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0);
   const cashOut = treasury.filter((t) => t.type === "payment").reduce((s, t) => s + Number(t.amount), 0);
+  const totalReturns = returns.reduce((s, r: any) => s + Number(r.total_refund ?? 0), 0);
 
   // Top products
   const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
@@ -165,10 +178,11 @@ export default function BranchReports() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <StatCard label="المبيعات" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} />
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+        <StatCard label="المبيعات (صافي)" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} hint="بعد خصم المرتجعات" />
+        <StatCard label="المرتجعات" value={formatEGP(totalReturns)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${returns.length} عملية`} />
         <StatCard label="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-        <StatCard label="المصروفات" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
+        <StatCard label="المصروفات" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" hint="بدون مرتجعات / مشتريات" />
         <StatCard label="صافي الربح" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
         <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
