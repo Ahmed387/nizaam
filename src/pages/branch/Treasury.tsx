@@ -115,7 +115,10 @@ export default function Treasury() {
     if (!tForm.to || !tForm.amount) return toast.error("املأ البيانات");
     const amt = Number(tForm.amount);
     if (amt <= 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
-    if (tPayment.method !== "cash" && !tPayment.reference_number) return toast.error("رقم العملية مطلوب");
+    const tErr = (await import("@/lib/paymentMethods")).validateTransferPayment(tPayment);
+    if (tErr) return toast.error(tErr);
+    // also add transfer_from_account if set
+    (tPayment as any).transfer_from_account = tPayment.transfer_from_account ?? null;
 
     const walletKey = `${tPayment.method}_balance` as keyof WalletBalances;
     const available = walletBalances[walletKey];
