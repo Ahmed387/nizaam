@@ -104,7 +104,7 @@ export default function AdminDashboard() {
         </Link>
         <StatCard label="فواتير اليوم" value={invoicesToday} icon={<FileText className="w-5 h-5" />} accent="primary" />
         <StatCard label="منتجات تحت الحد" value={lowStock} icon={<AlertTriangle className="w-5 h-5" />} accent="warning" />
-        <Link to="/admin/approvals" className="block hover:scale-[1.02] transition-transform">
+        <Link to="/admin/approvals-hub?tab=approvals" className="block hover:scale-[1.02] transition-transform">
           <StatCard label="موافقات معلقة" value={pendingApprovals} icon={<CheckSquare className="w-5 h-5" />} accent={pendingApprovals > 0 ? "warning" : "secondary"} />
         </Link>
         <StatCard label="جلسات جرد نشطة" value={activeSessions} icon={<ClipboardList className="w-5 h-5" />} accent={activeSessions > 0 ? "primary" : "secondary"} />
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
             { to: "/admin/employees", label: "الموظفين", icon: Users, color: "text-secondary", bg: "bg-secondary/10" },
             { to: "/admin/catalog?tab=pricelist", label: "الكتالوج", icon: Boxes, color: "text-primary", bg: "bg-primary/10" },
             { to: "/admin/vouchers", label: "كل السندات", icon: Receipt, color: "text-success", bg: "bg-success/10" },
-            { to: "/admin/approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
+            { to: "/admin/approvals-hub?tab=approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
             { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
             { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
           ].map((s) => (
