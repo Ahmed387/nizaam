@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime, formatEGP } from "@/lib/format";
-import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles } from "lucide-react";
+import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 const PRICE_TYPE_LABEL: Record<string, string> = {
@@ -39,7 +41,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {}) {
-  const { tenant, profile } = useAuth();
+  const { tenant, profile, isAdmin } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);
