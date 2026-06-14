@@ -176,42 +176,7 @@ export function PaymentMethodPicker({
           )}
         </>
       )}
-            <div className="bg-warning/10 border border-warning/30 rounded-md p-2.5 text-sm space-y-1">
-              <div className="flex justify-between">
-                <span>عمولة التحويل:</span>
-                <span className="font-bold">{formatEGP(value.fee_amount)}</span>
-              </div>
-              <div className="flex justify-between border-t border-warning/20 pt-1">
-                <span className="font-bold">الإجمالي مع العمولة:</span>
-                <span className="font-extrabold text-warning">{formatEGP(amount + value.fee_amount)}</span>
-              </div>
-              {showFeeBearerToggle && (
-                <div className="pt-2 border-t border-warning/20">
-                  <Label className="text-xs mb-1.5 block">من يتحمل العمولة؟</Label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onFeeBearerChange?.(true)}
-                      className={`text-xs px-3 py-1.5 rounded border flex-1 ${feeOnCustomer ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
-                    >
-                      العميل (يُضاف للمبلغ)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onFeeBearerChange?.(false)}
-                      className={`text-xs px-3 py-1.5 rounded border flex-1 ${!feeOnCustomer ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
-                    >
-                      الشركة (مصروف)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
+
 
       {showReceivedBy && (
         <div>
