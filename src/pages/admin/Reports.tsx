@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -151,7 +152,15 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   // ============ Aggregated KPIs for current scope ============
   const k = useMemo(() => {
     const sales = activeInv.reduce((s, i) => s + Number(i.total), 0);
-    const cost = activeInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * it.quantity, 0), 0);
+    // SINGLE PROFIT FORMULA: SUM((unit_price - unit_cost_at_sale) × quantity)
+    // unit_cost_at_sale is captured at sale time via FIFO from product_batches.
+    const cost = activeInv.reduce(
+      (s, i) => s + i.invoice_items.reduce(
+        (x: number, it: any) => x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity),
+        0,
+      ),
+      0,
+    );
     const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
     const inventoryValue = scopedProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
     const inventoryQty = scopedProducts.reduce((s, p) => s + p.quantity, 0);
@@ -175,7 +184,14 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
-    const cost = bInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * it.quantity, 0), 0);
+    // SINGLE PROFIT FORMULA — matches k.profit above
+    const cost = bInv.reduce(
+      (s, i) => s + i.invoice_items.reduce(
+        (x: number, it: any) => x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity),
+        0,
+      ),
+      0,
+    );
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
     const bProducts = products.filter((p) => p.branch_id === b.id);
     return {
@@ -385,19 +401,24 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
       {/* ===== Section 2: Inventory & Suppliers ===== */}
       <Section icon={<Store className="w-5 h-5" />} title="المخزون والموردين" color="primary">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
-          <MiniKpi label="مخزون منخفض" value={String(k.lowStockCount)} icon={<AlertTriangle className="w-4 h-4" />} accent={k.lowStockCount > 0 ? "warning" : "success"} hint="منتج تحت الحد" />
           <MiniKpi label="تكلفة الشحنات" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
           <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
         </div>
         {scope === "global" && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
-            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="من جميع الشحنات" />
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <MiniKpi label="إجمالي مشتريات من الموردين" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="قيمة كل الشحنات تاريخياً" />
             <MiniKpi label="إجمالي ما سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="من جميع الدفعات" />
-            <MiniKpi label="المتبقي علينا" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد`} />
+            <MiniKpi label="المتبقي علينا (من contacts)" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد — صيغة موحدة`} />
           </div>
         )}
+        <div className="text-xs text-muted-foreground mt-3 text-end">
+          تنبيهات المخزون المنخفض في{" "}
+          <Link to="/admin/dashboard" className="text-primary font-bold hover:underline">لوحة التحكم</Link>
+          {" "}— كل المخزون في{" "}
+          <Link to="/admin/inventory" className="text-primary font-bold hover:underline">صفحة المخزون</Link>
+        </div>
       </Section>
 
       {/* ===== Section 3: Treasury & Operations ===== */}
@@ -417,7 +438,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           {scope === "global" && <TabsTrigger value="branches">🏢 مقارنة الفروع</TabsTrigger>}
           <TabsTrigger value="products">📦 المنتجات</TabsTrigger>
           <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
-          <TabsTrigger value="lowstock">⚠️ مخزون منخفض</TabsTrigger>
           {scope === "global" && <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>}
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
           <TabsTrigger value="overdue">⏰ المتأخرات</TabsTrigger>
@@ -529,15 +549,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             ]} />
         </TabsContent>
 
-        <TabsContent value="lowstock" className="mt-4">
-          <DataTable rows={lowStockList} loading={loading} empty="✅ كل المنتجات بمخزون كافي"
-            columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "sku", header: "الكود" },
-              { key: "quantity", header: "المتوفر", render: (r: any) => <b className="text-destructive">{r.quantity}</b> },
-              { key: "low_stock_alert", header: "الحد الأدنى" },
-            ]} />
-        </TabsContent>
 
         {scope === "global" && (
           <TabsContent value="suppliers" className="mt-4 space-y-4">
