@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -58,10 +59,17 @@ export default function BranchReports() {
   };
 
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(["invoices", "invoice_items", "returns", "return_items", "products", "vouchers"], load);
 
   const activeInv = invoices.filter((i) => i.status === "active");
-  const totalSales = activeInv.reduce((s, i) => s + Number(i.total), 0);
-  const totalCost = activeInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * it.quantity, 0), 0);
+  const netQty = (it: any) => Math.max(0, (Number(it.quantity) || 0) - (Number(it.returned_quantity) || 0));
+  const netLineTotal = (it: any) => {
+    const qty = Number(it.quantity) || 0;
+    return qty > 0 ? Number(it.total ?? 0) * (netQty(it) / qty) : 0;
+  };
+  const netInvoiceTotal = (i: any) => (i.invoice_items ?? []).reduce((s: number, it: any) => s + netLineTotal(it), 0);
+  const totalSales = activeInv.reduce((s, i) => s + netInvoiceTotal(i), 0);
+  const totalCost = activeInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * netQty(it), 0), 0);
   const grossProfit = totalSales - totalCost;
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const netProfit = grossProfit - totalExpenses;
@@ -74,8 +82,8 @@ export default function BranchReports() {
     for (const it of inv.invoice_items) {
       const k = it.product_name;
       if (!productMap[k]) productMap[k] = { name: k, qty: 0, revenue: 0 };
-      productMap[k].qty += it.quantity;
-      productMap[k].revenue += Number(it.total);
+      productMap[k].qty += netQty(it);
+      productMap[k].revenue += netLineTotal(it);
     }
   }
   const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
@@ -101,7 +109,7 @@ export default function BranchReports() {
           { البند: "صادر من الخزنة", القيمة: cashOut },
         ],
       },
-      { name: "الفواتير", rows: activeInv.map((i) => ({ رقم: i.invoice_number, التاريخ: i.created_at, الإجمالي: i.total, الخصم: i.discount_amount })) },
+      { name: "الفواتير", rows: activeInv.map((i) => ({ رقم: i.invoice_number, التاريخ: i.created_at, الإجمالي: netInvoiceTotal(i), الخصم: i.discount_amount })) },
       { name: "المنتجات_الأكثر_مبيعاً", rows: topProducts.map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue })) },
       { name: "المصروفات", rows: expenses.map((e) => ({ التاريخ: e.date, النوع: e.type, المبلغ: e.amount, الوصف: e.description })) },
       { name: "مخزون_منخفض", rows: lowStock.map((p) => ({ المنتج: p.name, المتوفر: p.quantity, "حد التنبيه": p.low_stock_alert })) },
