@@ -239,7 +239,7 @@ export default function EmployeeProfile() {
     await supabase.from("treasury").insert({
       branch_id: emp.branch_id, type: "expense", category: "salary",
       amount: net, description: `راتب ${salForm.month} - ${emp.name}`, reference_id: sal.id, created_by: user!.id,
-      payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null,
+      payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null, transfer_from_account: salPm.transfer_from_account ?? null,
     });
     if (salPm.fee_amount > 0) {
       await supabase.from("treasury").insert({
