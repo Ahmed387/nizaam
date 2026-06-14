@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
@@ -42,7 +41,6 @@ export default function NewSaleReturn() {
   const { id: branchId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const presetInvoiceId = params.get("invoice");
-  const { user } = useAuth();
   const nav = useNavigate();
 
   const [invoices, setInvoices] = useState<any[]>([]);
