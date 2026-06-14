@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -437,7 +438,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           {scope === "global" && <TabsTrigger value="branches">🏢 مقارنة الفروع</TabsTrigger>}
           <TabsTrigger value="products">📦 المنتجات</TabsTrigger>
           <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
-          <TabsTrigger value="lowstock">⚠️ مخزون منخفض</TabsTrigger>
           {scope === "global" && <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>}
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
           <TabsTrigger value="overdue">⏰ المتأخرات</TabsTrigger>
@@ -549,15 +549,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             ]} />
         </TabsContent>
 
-        <TabsContent value="lowstock" className="mt-4">
-          <DataTable rows={lowStockList} loading={loading} empty="✅ كل المنتجات بمخزون كافي"
-            columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "sku", header: "الكود" },
-              { key: "quantity", header: "المتوفر", render: (r: any) => <b className="text-destructive">{r.quantity}</b> },
-              { key: "low_stock_alert", header: "الحد الأدنى" },
-            ]} />
-        </TabsContent>
 
         {scope === "global" && (
           <TabsContent value="suppliers" className="mt-4 space-y-4">
