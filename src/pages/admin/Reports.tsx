@@ -585,14 +585,17 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             )}
           </div>
 
-          <DataTable rows={[...topProductsAll].sort((a, b) => Number(b[productSort]) - Number(a[productSort])).slice(0, 15)} loading={loading} empty="لا توجد بيانات"
+          <DataTable rows={[...topProductsAll].sort((a, b) => Number(b[productSort === "qty" ? "netQty" : productSort]) - Number(a[productSort === "qty" ? "netQty" : productSort])).slice(0, 15)} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "qty", header: "الكمية" },
-              { key: "revenue", header: "الإيراد", render: (r: any) => <span className="text-primary font-bold">{formatEGP(r.revenue)}</span> },
-              { key: "profit", header: "الربح", render: (r: any) => <b className={r.profit >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.profit)}</b> },
+              { key: "qty", header: "الكمية المباعة", render: (r: any) => <span className="text-muted-foreground">{r.qty}</span> },
+              { key: "returned", header: "المرتجع", render: (r: any) => r.returned > 0 ? <span className="text-warning font-bold">{r.returned}</span> : <span className="text-muted-foreground">0</span> },
+              { key: "netQty", header: "الصافي", render: (r: any) => <b>{r.netQty}</b> },
+              { key: "revenue", header: "الإيراد (صافي)", render: (r: any) => <span className="text-primary font-bold">{formatEGP(r.revenue)}</span> },
+              { key: "profit", header: "الربح (صافي)", render: (r: any) => <b className={r.profit >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.profit)}</b> },
               { key: "margin", header: "الهامش", render: (r: any) => `${r.revenue > 0 ? ((r.profit / r.revenue) * 100).toFixed(1) : "0"}%` },
             ]} />
+
         </TabsContent>
 
         {/* ===== TAB 3: PURCHASES & SUPPLIERS (with payables aging) ===== */}
