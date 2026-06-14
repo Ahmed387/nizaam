@@ -24,7 +24,7 @@ export function StatCard({
     secondary: "bg-secondary/15 text-secondary",
   };
   return (
-    <div className="card-elevated p-5">
+    <div className="card-elevated p-5 h-full">
       <div className="flex items-start justify-between mb-3">
         <span className="text-sm text-muted-foreground font-medium">{label}</span>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accents[accent]}`}>
