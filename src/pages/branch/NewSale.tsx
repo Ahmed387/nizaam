@@ -1331,6 +1331,32 @@ export default function NewSale() {
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
+
+              {/* VAT toggle (optional, editable rate) */}
+              <div className="mt-2 p-2.5 rounded-lg bg-surface-2 border border-dashed border-border space-y-2">
+                <label className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="font-bold text-xs">إضافة ضريبة القيمة المضافة</span>
+                  <input type="checkbox" checked={vatEnabled} onChange={(e) => setVatEnabled(e.target.checked)} className="w-4 h-4" />
+                </label>
+                {vatEnabled && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs whitespace-nowrap">النسبة %</Label>
+                      <Input
+                        type="number" min={0} max={100} step="0.01"
+                        value={vatRate}
+                        onChange={(e) => setVatRate(Number(e.target.value) || 0)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">قيمة الضريبة</span>
+                      <span className="font-bold">{formatEGP(vatAmount)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
