@@ -477,20 +477,188 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </Section>
 
-      {/* ===== Detailed tabs ===== */}
-      <Tabs defaultValue={scope === "global" ? "branches" : "products"} className="mt-2">
+      {/* ===== Detailed tabs — 6 sections ===== */}
+      <Tabs defaultValue={scope === "global" ? "branches" : "sales"} className="mt-2">
         <TabsList className="flex-wrap h-auto">
-          {scope === "global" && <TabsTrigger value="branches">🏢 مقارنة الفروع</TabsTrigger>}
-          <TabsTrigger value="products">📦 المنتجات</TabsTrigger>
+          <TabsTrigger value="sales">🛒 المبيعات</TabsTrigger>
+          <TabsTrigger value="profit">📈 الربحية</TabsTrigger>
+          <TabsTrigger value="purchases">🚚 المشتريات والموردين</TabsTrigger>
+          <TabsTrigger value="inventory">📦 المخزون</TabsTrigger>
+          <TabsTrigger value="employees">👥 الموظفين</TabsTrigger>
+          {scope === "global" && <TabsTrigger value="branches">🏢 أداء الفروع</TabsTrigger>}
           <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
-          {scope === "global" && <TabsTrigger value="suppliers">🚚 الموردين</TabsTrigger>}
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
-          <TabsTrigger value="overdue">⏰ المتأخرات</TabsTrigger>
         </TabsList>
 
+        {/* ===== TAB 1: SALES ===== */}
+        <TabsContent value="sales" className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniKpi label="إجمالي المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} accent="success" />
+            <MiniKpi label="عدد الفواتير" value={String(k.invoicesCount)} icon={<Receipt className="w-4 h-4" />} />
+            <MiniKpi label="متوسط الفاتورة" value={formatEGP(k.invoicesCount > 0 ? k.sales / k.invoicesCount : 0)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
+            <MiniKpi label="المرتجعات" value={formatEGP(k.returnsTotal)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${scopedReturns.length} مرتجع`} />
+          </div>
+
+          <div className="card-elevated p-4">
+            <h4 className="font-bold mb-3">المبيعات حسب طريقة الدفع</h4>
+            <DataTable rows={salesByMethod} loading={loading} empty="لا توجد فواتير"
+              columns={[
+                { key: "label", header: "الطريقة", render: (r: any) => <b>{r.label}</b> },
+                { key: "count", header: "عدد الفواتير" },
+                { key: "total", header: "الإجمالي", render: (r: any) => <b className="text-success">{formatEGP(r.total)}</b> },
+                { key: "pct", header: "النسبة", render: (r: any) => `${k.sales > 0 ? ((r.total / k.sales) * 100).toFixed(1) : "0"}%` },
+              ]} />
+          </div>
+
+          <div className="card-elevated p-4">
+            <h4 className="font-bold mb-3">المبيعات حسب الكاشير</h4>
+            <DataTable rows={salesByCashier} loading={loading} empty="لا توجد فواتير"
+              columns={[
+                { key: "name", header: "الكاشير", render: (r: any) => <b>{r.name}</b> },
+                { key: "count", header: "عدد الفواتير" },
+                { key: "total", header: "الإجمالي", render: (r: any) => <b className="text-primary">{formatEGP(r.total)}</b> },
+                { key: "avg", header: "متوسط الفاتورة", render: (r: any) => formatEGP(r.count > 0 ? r.total / r.count : 0) },
+              ]} />
+          </div>
+        </TabsContent>
+
+        {/* ===== TAB 2: PROFITABILITY (FIFO single source of truth) ===== */}
+        <TabsContent value="profit" className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniKpi label="المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} />
+            <MiniKpi label="التكلفة (FIFO)" value={formatEGP(k.cost)} icon={<Package className="w-4 h-4" />} hint="unit_cost_at_sale" />
+            <MiniKpi label="إجمالي الربح" value={formatEGP(k.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
+            <MiniKpi label="هامش الربح" value={`${k.sales > 0 ? ((k.profit / k.sales) * 100).toFixed(1) : "0"}%`} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
+          </div>
+
+          <div className="card-elevated p-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h4 className="font-bold">أكثر 15 منتج — ترتيب حسب</h4>
+              <div className="flex gap-1">
+                {([
+                  { k: "profit", label: "الربح" },
+                  { k: "revenue", label: "الإيراد" },
+                  { k: "qty", label: "الكمية" },
+                ] as const).map((s) => (
+                  <button key={s.k} onClick={() => setProductSort(s.k)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                      productSort === s.k ? "bg-primary/10 border-primary text-primary" : "border-border bg-surface hover:border-primary/50"
+                    }`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {topProductsAll.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={[...topProductsAll].sort((a, b) => Number(b[productSort]) - Number(a[productSort])).slice(0, 10)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                  <Bar dataKey={productSort} name={productSort === "profit" ? "الربح" : productSort === "revenue" ? "الإيراد" : "الكمية"}
+                    fill={productSort === "profit" ? "hsl(var(--success))" : productSort === "revenue" ? "hsl(var(--primary))" : "hsl(var(--warning))"}
+                    radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <DataTable rows={[...topProductsAll].sort((a, b) => Number(b[productSort]) - Number(a[productSort])).slice(0, 15)} loading={loading} empty="لا توجد بيانات"
+            columns={[
+              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
+              { key: "qty", header: "الكمية" },
+              { key: "revenue", header: "الإيراد", render: (r: any) => <span className="text-primary font-bold">{formatEGP(r.revenue)}</span> },
+              { key: "profit", header: "الربح", render: (r: any) => <b className={r.profit >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.profit)}</b> },
+              { key: "margin", header: "الهامش", render: (r: any) => `${r.revenue > 0 ? ((r.profit / r.revenue) * 100).toFixed(1) : "0"}%` },
+            ]} />
+        </TabsContent>
+
+        {/* ===== TAB 3: PURCHASES & SUPPLIERS (with payables aging) ===== */}
+        <TabsContent value="purchases" className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniKpi label="تكلفة الشحنات (الفترة)" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
+            <MiniKpi label="مدفوع للموردين (الفترة)" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" />
+            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="من contacts.balance" />
+            <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
+          </div>
+
+          {scope === "global" && (
+            <div className="card-elevated p-4">
+              <h4 className="font-bold mb-3">قائمة الموردين — الرصيد الحالي</h4>
+              <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
+                columns={[
+                  { key: "name", header: "الشركة", render: (r: any) => <b>{r.name}</b> },
+                  { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
+                  { key: "totalOwed", header: "إجمالي المشتريات", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
+                  { key: "totalPaid", header: "المسدد", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },
+                  { key: "remaining", header: "المتبقي علينا", render: (r: any) => <b className={r.remaining < 0 ? "text-destructive" : "text-success"}>{formatEGP(Math.abs(r.remaining))}</b> },
+                ]} />
+            </div>
+          )}
+
+          <div className="card-elevated p-4">
+            <h4 className="font-bold mb-3">أقساط الموردين المتأخرة</h4>
+            <DataTable
+              rows={scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier")}
+              loading={loading}
+              empty="✅ لا توجد أقساط موردين متأخرة"
+              columns={[
+                { key: "supplier", header: "المورد", render: (r: any) => <b>{r.payment_plans?.entity_name ?? "—"}</b> },
+                { key: "due_date", header: "الاستحقاق", render: (r: any) => new Date(r.due_date).toLocaleDateString("ar-EG") },
+                { key: "amount", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(Number(r.amount) - Number(r.paid_amount || 0))}</b> },
+              ]} />
+          </div>
+        </TabsContent>
+
+        {/* ===== TAB 4: INVENTORY ===== */}
+        <TabsContent value="inventory" className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
+            <MiniKpi label="عدد المنتجات" value={String(scopedProducts.length)} icon={<Package className="w-4 h-4" />} />
+            <MiniKpi label="منتجات راكدة" value={String(slowMoving.length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" hint="بدون بيع في الفترة" />
+          </div>
+
+          <div className="text-xs text-muted-foreground text-end">
+            تنبيهات المخزون المنخفض في{" "}
+            <Link to="/admin/dashboard" className="text-primary font-bold hover:underline">لوحة التحكم</Link>
+            {" "}— كل المخزون في{" "}
+            <Link to="/admin/inventory" className="text-primary font-bold hover:underline">صفحة المخزون التفصيلية</Link>
+          </div>
+
+          <div className="card-elevated p-4">
+            <h4 className="font-bold mb-3">منتجات راكدة (مخزون بدون بيع في الفترة)</h4>
+            <DataTable rows={slowMoving} loading={loading} empty="✅ لا توجد منتجات راكدة"
+              columns={[
+                { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
+                { key: "sku", header: "الكود", render: (r: any) => r.sku ?? "—" },
+                { key: "quantity", header: "المتوفر", render: (r: any) => <b>{r.quantity}</b> },
+                { key: "stockValue", header: "قيمة الراكد", render: (r: any) => <b className="text-warning">{formatEGP(r.stockValue)}</b> },
+              ]} />
+          </div>
+        </TabsContent>
+
+        {/* ===== TAB 5: EMPLOYEES ===== */}
+        <TabsContent value="employees" className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <MiniKpi label="عدد الموظفين" value={String(scopedEmployees.length)} icon={<Users className="w-4 h-4" />} />
+            <MiniKpi label="إجمالي الرواتب الأساسية" value={formatEGP(scopedEmployees.reduce((s, e: any) => s + Number(e.base_salary ?? 0), 0))} icon={<Wallet className="w-4 h-4" />} />
+            <MiniKpi label="موظفي البيع النشطين" value={String(salesByCashier.filter((c) => c.id !== "—").length)} icon={<ShoppingCart className="w-4 h-4" />} />
+          </div>
+          <DataTable rows={scopedEmployees} loading={loading} empty="لا يوجد موظفين"
+            columns={[
+              { key: "name", header: "الاسم", render: (r: any) => <b>{r.name}</b> },
+              { key: "role", header: "الوظيفة", render: (r: any) => r.role ?? "—" },
+              { key: "branch", header: "الفرع", render: (r: any) => branches.find((b) => b.id === r.branch_id)?.name ?? "—" },
+              { key: "base_salary", header: "الراتب الأساسي", render: (r: any) => formatEGP(Number(r.base_salary ?? 0)) },
+            ]} />
+        </TabsContent>
+
+        {/* ===== TAB 6: BRANCHES (global only) ===== */}
         {scope === "global" && (
           <TabsContent value="branches" className="mt-4 space-y-6">
-            {/* Branch comparison chart */}
             <div className="card-elevated p-5">
               <h4 className="font-bold mb-4">مقارنة أداء الفروع</h4>
               {perBranch.length === 0 ? (
@@ -511,7 +679,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               )}
             </div>
 
-            {/* Per-branch detailed cards */}
             <div className="grid lg:grid-cols-2 gap-4">
               {perBranch.map((b) => (
                 <div key={b.id} className="card-elevated p-5 hover:border-primary/50 transition cursor-pointer" onClick={() => setScope(b.id)}>
@@ -533,7 +700,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <Row label="الفواتير" value={String(b.invoices)} />
                     <Row label="المبيعات" value={formatEGP(b.sales)} />
-                    <Row label="الربح" value={formatEGP(b.profit)} accent="success" />
+                    <Row label="الربح (FIFO)" value={formatEGP(b.profit)} accent="success" />
                     <Row label="المصروفات" value={formatEGP(b.expenses)} accent="destructive" />
                     <Row label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة`} />
                     <Row label="الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} />
@@ -548,31 +715,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </TabsContent>
         )}
 
-        <TabsContent value="products" className="mt-4 space-y-4">
-          <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">أكثر 10 منتجات إيراداً</h4>
-            {topProducts.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={topProducts.slice(0, 10)} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Bar dataKey="revenue" name="الإيراد" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
-            columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "qty", header: "الكمية" },
-              { key: "revenue", header: "الإيراد", render: (r: any) => <b className="text-primary">{formatEGP(r.revenue)}</b> },
-            ]} />
-        </TabsContent>
-
+        {/* ===== Extra: EXPENSES ===== */}
         <TabsContent value="expenses" className="mt-4 space-y-4">
           {expByType.length > 0 && (
             <div className="card-elevated p-4">
@@ -594,25 +737,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             ]} />
         </TabsContent>
 
-
-        {scope === "global" && (
-          <TabsContent value="suppliers" className="mt-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <MiniKpi label="إجمالي علينا" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="قيمة كل الشحنات تاريخياً" />
-              <MiniKpi label="إجمالي سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="كل الدفعات تاريخياً" />
-              <MiniKpi label="المتبقي علينا" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" />
-            </div>
-            <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
-              columns={[
-                { key: "name", header: "الشركة", render: (r: any) => <b>{r.name}</b> },
-                { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
-                { key: "totalOwed", header: "علينا (إجمالي)", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
-                { key: "totalPaid", header: "سددنا", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },
-                { key: "remaining", header: "المتبقي", render: (r: any) => <b className={r.remaining > 0 ? "text-destructive" : "text-success"}>{formatEGP(r.remaining)}</b> },
-              ]} />
-          </TabsContent>
-        )}
-
+        {/* ===== Extra: PAYMENT METHODS & COMMISSIONS ===== */}
         <TabsContent value="payments" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <MiniKpi label="إجمالي المعاملات" value={formatEGP(commissionAnalysis.totalVolume)} icon={<Wallet className="w-4 h-4" />} hint={`${scopedPayTx.length} معاملة`} />
@@ -642,24 +767,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               { key: "ratio", header: "نسبة العمولة", render: (r: any) => <span className="text-muted-foreground">{r.volume > 0 ? ((r.fees / r.volume) * 100).toFixed(2) : "0"}%</span> },
             ]} />
         </TabsContent>
-
-        <TabsContent value="overdue" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <MiniKpi label="إجمالي خطط نشطة" value={String(scopedPlans.length)} icon={<Layers className="w-4 h-4" />} />
-            <MiniKpi label="عدد الأقساط المتأخرة" value={String(scopedOverdue.length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
-            <MiniKpi label="إجمالي قيمة المتأخرات" value={formatEGP(scopedOverdue.reduce((s: number, i: any) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0))} icon={<Wallet className="w-4 h-4" />} accent="destructive" />
-          </div>
-          <h4 className="font-bold mt-4">أكثر العملاء/الجهات تأخرًا</h4>
-          <DataTable rows={topOverdueCustomers} loading={loading} empty="✅ لا توجد متأخرات"
-            columns={[
-              { key: "name", header: "الاسم", render: (r: any) => <b>{r.name}</b> },
-              { key: "type", header: "النوع", render: (r: any) => r.type === "customer" ? "عميل" : r.type === "supplier" ? "مورد" : "موظف" },
-              { key: "branch", header: "الفرع", render: (r: any) => branches.find((b) => b.id === r.branch_id)?.name ?? "—" },
-              { key: "overdueCount", header: "أقساط متأخرة", render: (r: any) => <b className="text-warning">{r.overdueCount}</b> },
-              { key: "overdueAmount", header: "إجمالي المتأخر", render: (r: any) => <b className="text-destructive">{formatEGP(r.overdueAmount)}</b> },
-            ]} />
-        </TabsContent>
       </Tabs>
+
     </ConditionalLayout>
   );
 }
