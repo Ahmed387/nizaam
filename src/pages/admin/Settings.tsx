@@ -64,6 +64,7 @@ export default function Settings() {
     { key: "payroll", label: "الرواتب وطلبات السلف" },
     { key: "notifications", label: "الإشعارات" },
     { key: "audit_log", label: "سجل العمليات" },
+    { key: "price_audit_log", label: "سجل تعديلات الأسعار" },
   ];
   const [resetBranch, setResetBranch] = useState<string>("");
   const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
@@ -86,11 +87,25 @@ export default function Settings() {
 
     setResetting(true);
     try {
-      const { error } = await supabase.rpc("admin_reset_branch_data", {
-        p_branch_id: resetBranch === "__all__" ? null : resetBranch,
-        p_options: Object.fromEntries(selectedKeys.map((k) => [k, true])),
-      } as any);
-      if (error) throw error;
+      // Handle price_audit_log separately (different RPC)
+      const wantsPriceAudit = !!resetOpts["price_audit_log"];
+      const otherKeys = selectedKeys.filter((k) => k !== "price_audit_log");
+
+      if (otherKeys.length > 0) {
+        const { error } = await supabase.rpc("admin_reset_branch_data", {
+          p_branch_id: resetBranch === "__all__" ? null : resetBranch,
+          p_options: Object.fromEntries(otherKeys.map((k) => [k, true])),
+        } as any);
+        if (error) throw error;
+      }
+
+      if (wantsPriceAudit) {
+        const { error } = await supabase.rpc("admin_reset_price_audit", {
+          p_branch_id: resetBranch === "__all__" ? null : resetBranch,
+        } as any);
+        if (error) throw error;
+      }
+
       toast.success("تم مسح البيانات المحددة");
       setResetOpen(false);
       setResetOpts({});

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,8 @@ const ENTITY_LABEL: Record<string, string> = {
   shipment: "شحنة",
 };
 
-export default function ApprovalRequests() {
+export default function ApprovalRequests({ embedded }: { embedded?: boolean } = {}) {
+  const Wrapper: any = embedded ? Fragment : AdminLayout;
   const { tenantId, user, profile } = useAuth();
   const [rows, setRows] = useState<Req[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +77,7 @@ export default function ApprovalRequests() {
   };
 
   return (
-    <AdminLayout>
+    <Wrapper>
       <PageHeader title="طلبات الموافقة" subtitle="طلبات الحذف والتعديل من مدراء الفروع" />
 
       <div className="flex gap-2 mb-4">
@@ -147,6 +148,6 @@ export default function ApprovalRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </Wrapper>
   );
 }

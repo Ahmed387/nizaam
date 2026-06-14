@@ -3574,6 +3574,7 @@ export type Database = {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
       }
+      admin_reset_price_audit: { Args: { p_branch_id?: string }; Returns: Json }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json

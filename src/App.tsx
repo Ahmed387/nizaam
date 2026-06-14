@@ -107,6 +107,7 @@ import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
+import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
 import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
 import FinancialDashboard from "./pages/admin/FinancialDashboard";
@@ -163,7 +164,8 @@ const App = () => (
             <Route path="/admin/employees" element={<ProtectedRoute roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
-            <Route path="/admin/approval-requests" element={<ProtectedRoute adminOnly><ApprovalRequests /></ProtectedRoute>} />
+            <Route path="/admin/approval-requests" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=approvals" replace /></ProtectedRoute>} />
+            <Route path="/admin/approvals-hub" element={<ProtectedRoute adminOnly><AdminApprovalsHub /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
             <Route path="/admin/presence" element={<ProtectedRoute roles={["admin", "supervisor", "viewer"]}><Presence /></ProtectedRoute>} />
@@ -227,8 +229,8 @@ const App = () => (
             <Route path="/branch/:id/approval-requests" element={<ProtectedRoute><MyApprovalRequests /></ProtectedRoute>} />
 
             <Route path="/branch/:id/discount-approvals" element={<ProtectedRoute><PendingDiscountApprovals /></ProtectedRoute>} />
-            <Route path="/admin/discount-approvals" element={<ProtectedRoute adminOnly><AdminDiscountApprovals /></ProtectedRoute>} />
-            <Route path="/admin/profitability" element={<ProtectedRoute adminOnly><ProfitabilityReport /></ProtectedRoute>} />
+            <Route path="/admin/discount-approvals" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=discounts" replace /></ProtectedRoute>} />
+            <Route path="/admin/profitability" element={<ProtectedRoute adminOnly><Navigate to="/admin/reports-hub?tab=profitability" replace /></ProtectedRoute>} />
 
             <Route path="/branch/:id/reports" element={<ProtectedRoute perm="reports.view"><BranchReports /></ProtectedRoute>} />
             <Route path="/branch/:id/attendance" element={<ProtectedRoute perm="attendance.view"><Attendance /></ProtectedRoute>} />

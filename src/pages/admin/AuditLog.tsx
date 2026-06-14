@@ -4,21 +4,30 @@ import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
-  const { tenant, profile } = useAuth();
+  const { tenant, profile, isAdmin } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [confirmAll, setConfirmAll] = useState(false);
+  const [confirmWord, setConfirmWord] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = () => {
+    setLoading(true);
     supabase.from("audit_log").select("*, branches(name)").order("created_at", { ascending: false }).limit(500).then(({ data }) => {
       setRows(data ?? []); setLoading(false);
     });
-  }, []);
+  };
+  useEffect(() => { load(); }, []);
 
   const exportExcel = () => {
     const data = rows.map((r) => ({
@@ -42,6 +51,25 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
     toast.success(`تم تصدير ${data.length} عملية`);
   };
 
+  const deleteRow = async (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذه الحركة نهائياً؟")) return;
+    const { error } = await supabase.from("audit_log").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    toast.success("تم الحذف");
+  };
+
+  const deleteAll = async () => {
+    if (confirmWord.trim() !== "تأكيد") return toast.error("اكتب كلمة (تأكيد) للمتابعة");
+    setBusy(true);
+    const { error } = await supabase.from("audit_log").delete().not("id", "is", null);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم مسح كل سجل العمليات");
+    setConfirmAll(false); setConfirmWord("");
+    load();
+  };
+
   const actionColor: Record<string, string> = {
     CREATE: "bg-success/15 text-success",
     UPDATE: "bg-primary/15 text-primary",
@@ -49,23 +77,70 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
     CANCEL: "bg-warning/15 text-warning",
   };
 
+  const columns: any[] = [
+    { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+    { key: "user_name", header: "المستخدم", render: (r: any) => <span className="font-semibold">{r.user_name}</span> },
+    { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+    { key: "action", header: "العملية", render: (r: any) => (
+      <span className={`px-2 py-1 rounded text-xs font-bold ${actionColor[r.action] ?? "bg-muted"}`}>{r.action}</span>
+    )},
+    { key: "entity", header: "النوع" },
+    { key: "entity_id", header: "المعرف", render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{String(r.entity_id ?? "").slice(0, 8)}</span> },
+  ];
+  if (isAdmin) {
+    columns.push({
+      key: "del", header: "حذف", render: (r: any) => (
+        <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteRow(r.id)}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      )
+    });
+  }
+
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
-      <PageHeader title="سجل العمليات" subtitle={`${rows.length} عملية مسجلة`}
-        actions={<Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>} />
-      <DataTable
-        loading={loading} rows={rows}
-        columns={[
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
-          { key: "user_name", header: "المستخدم", render: (r: any) => <span className="font-semibold">{r.user_name}</span> },
-          { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
-          { key: "action", header: "العملية", render: (r: any) => (
-            <span className={`px-2 py-1 rounded text-xs font-bold ${actionColor[r.action] ?? "bg-muted"}`}>{r.action}</span>
-          )},
-          { key: "entity", header: "النوع" },
-          { key: "entity_id", header: "المعرف", render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{String(r.entity_id ?? "").slice(0, 8)}</span> },
-        ]}
+      <PageHeader
+        title="سجل العمليات"
+        subtitle={`${rows.length} عملية مسجلة`}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
+            {isAdmin && (
+              <Button variant="destructive" onClick={() => { setConfirmWord(""); setConfirmAll(true); }}>
+                <Trash2 className="w-4 h-4 ml-1" /> حذف الكل
+              </Button>
+            )}
+          </div>
+        }
       />
+      <DataTable loading={loading} rows={rows} columns={columns} />
+
+      <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> حذف كل سجل العمليات
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              هتمسح <b>كل</b> سجلات العمليات للشركة. الإجراء نهائي ولا يمكن التراجع عنه.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
+            <Input value={confirmWord} onChange={(e) => setConfirmWord(e.target.value)} placeholder="تأكيد" />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={busy || confirmWord.trim() !== "تأكيد"}
+              onClick={(e) => { e.preventDefault(); deleteAll(); }}
+            >
+              نفّذ المسح
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ConditionalLayout>
   );
 }
