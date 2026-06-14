@@ -120,10 +120,63 @@ export default function Shipments() {
         }
       />
 
-      <DataTable
-        loading={loading}
-        rows={rows}
-        empty="لا توجد شحنات بعد"
+      {(() => {
+        const suppliers = Array.from(new Map(rows.filter(r => r.contact_id).map(r => [r.contact_id, r.contacts?.name ?? "—"])).entries());
+        const filtered = rows.filter((r: any) => {
+          if (fSupplier !== "all" && r.contact_id !== fSupplier) return false;
+          if (fStatus !== "all" && r._payment_status !== fStatus) return false;
+          if (fFrom && r.arrival_date && r.arrival_date < fFrom) return false;
+          if (fTo && r.arrival_date && r.arrival_date > fTo) return false;
+          if (search) {
+            const q = search.toLowerCase();
+            const hay = `${r.contacts?.name ?? ""} ${r.received_by ?? ""} ${r.notes ?? ""}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+        return (
+          <>
+            <Card className="p-3 mb-3 grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div>
+                <Label className="text-xs">بحث (مورد / مستلم)</Label>
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث..." className="h-9" />
+              </div>
+              <div>
+                <Label className="text-xs">المورد</Label>
+                <Select value={fSupplier} onValueChange={setFSupplier}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    {suppliers.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">حالة الدفع</Label>
+                <Select value={fStatus} onValueChange={setFStatus}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="paid">مدفوعة بالكامل</SelectItem>
+                    <SelectItem value="partial">مدفوعة جزئياً</SelectItem>
+                    <SelectItem value="unpaid">غير مدفوعة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">من تاريخ</Label>
+                <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className="h-9" />
+              </div>
+              <div>
+                <Label className="text-xs">إلى تاريخ</Label>
+                <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className="h-9" />
+              </div>
+            </Card>
+
+            <DataTable
+              loading={loading}
+              rows={filtered}
+              empty="لا توجد شحنات بعد"
         columns={[
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
