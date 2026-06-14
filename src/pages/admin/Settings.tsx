@@ -58,6 +58,7 @@ export default function Settings() {
     { key: "purchase_returns", label: "مرتجعات الشراء" },
     
     { key: "treasury", label: "بيانات الخزينة" },
+    { key: "vouchers", label: "السندات (سندات قبض وصرف)" },
     { key: "stock_movements", label: "سجل حركات المخزون" },
     { key: "customers", label: "بيانات العملاء" },
     { key: "suppliers", label: "الموردين (اللي مش مرتبطين بشحنات)" },
