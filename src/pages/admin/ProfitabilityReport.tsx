@@ -15,6 +15,8 @@ interface Row {
   product_id: string | null;
   product_name: string;
   qty: number;
+  gross_qty: number;
+  returned_qty: number;
   revenue: number;
   cost: number;
   profit: number;
