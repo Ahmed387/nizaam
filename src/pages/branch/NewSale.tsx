@@ -88,6 +88,9 @@ export default function NewSale() {
   // Customer credit balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
+  // VAT (editable rate from settings)
+  const [vatEnabled, setVatEnabled] = useState(false);
+  const [vatRate, setVatRate] = useState<number>(14);
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
