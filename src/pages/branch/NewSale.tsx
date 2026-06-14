@@ -285,7 +285,11 @@ export default function NewSale() {
     () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
     [items]
   );
-  const total = subtotal;
+  const vatAmount = useMemo(
+    () => (vatEnabled ? +(subtotal * (Number(vatRate) || 0) / 100).toFixed(2) : 0),
+    [subtotal, vatEnabled, vatRate]
+  );
+  const total = subtotal + vatAmount;
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
   const totalProfit = (subtotal - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
