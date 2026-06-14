@@ -188,9 +188,9 @@ export default function BranchReports() {
             for (const inv of activeInv) {
               const d = inv.created_at.slice(0, 10);
               if (!dayMap[d]) dayMap[d] = { date: d.slice(5), sales: 0, profit: 0 };
-              dayMap[d].sales += Number(inv.total);
-              const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * it.quantity, 0);
-              dayMap[d].profit += Number(inv.total) - cost;
+              dayMap[d].sales += netInvoiceTotal(inv);
+              const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * netQty(it), 0);
+              dayMap[d].profit += netInvoiceTotal(inv) - cost;
             }
             const dailyData = Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
             const expensesData = Object.entries(expByType).map(([name, value]) => ({ name, value }));
