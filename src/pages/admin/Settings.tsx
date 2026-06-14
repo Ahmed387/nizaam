@@ -133,6 +133,10 @@ export default function Settings() {
         if (row.key === "company") setCompany(row.value as any);
         if (row.key === "invoice") setInvoice(row.value as any);
         if (row.key === "inventory") setInventory(row.value as any);
+        if (row.key === "vat") {
+          const v: any = row.value ?? {};
+          setVat({ enabled: !!v.enabled, rate: Number(v.rate ?? 14) });
+        }
         if (row.key === "discount_policy_global") {
           const v: any = row.value ?? {};
           if (typeof v.percent === "number") setDiscGlobalPct(v.percent);
