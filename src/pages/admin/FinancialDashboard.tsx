@@ -27,7 +27,7 @@ export default function FinancialDashboard() {
   const [upcoming, setUpcoming] = useState<any[]>([]);
   const [overdue, setOverdue] = useState<any[]>([]);
   const [monthlyTrend, setMonthlyTrend] = useState<any[]>([]);
-  const [topProfit, setTopProfit] = useState<any[]>([]);
+  
   const [cashIn30, setCashIn30] = useState(0);
   const [cashOut30, setCashOut30] = useState(0);
 
@@ -56,7 +56,7 @@ export default function FinancialDashboard() {
         .limit(20),
       supabase
         .from("invoices")
-        .select("created_at, total, invoice_items(quantity, unit_cost_at_sale, cost_price, total)")
+        .select("created_at, total, invoice_items(quantity, unit_cost_at_sale, cost_price)")
         .eq("status", "active")
         .gte("created_at", daysAgo(180)),
     ]);
@@ -68,12 +68,15 @@ export default function FinancialDashboard() {
     );
     setTreasuryBalance(tBal);
 
-    // Receivables / payables from contacts.balance (>0 = customer owes us, <0 = we owe supplier)
+    // SINGLE FORMULA:
+    // Receivables = SUM(balance > 0 WHERE contact_type='customer')
+    // Payables    = SUM(|balance| WHERE balance < 0 AND contact_type='supplier')
     let rec = 0, pay = 0;
     for (const c of (contactsRes.data ?? []) as any[]) {
       const b = Number(c.balance ?? 0);
-      if (b > 0) rec += b;
-      else if (b < 0) pay += -b;
+      const t = String(c.contact_type ?? "").toLowerCase();
+      if (t === "customer" && b > 0) rec += b;
+      else if (t === "supplier" && b < 0) pay += -b;
     }
     setReceivables(rec);
     setPayables(pay);
@@ -106,20 +109,7 @@ export default function FinancialDashboard() {
     }
     setMonthlyTrend(Object.values(months).sort((a, b) => a.month.localeCompare(b.month)));
 
-    // Top profit products (last 90 days)
-    const prodMap: Record<string, { name: string; profit: number; revenue: number; qty: number }> = {};
-    for (const i of (inv90.data ?? []) as any[]) {
-      for (const it of i.invoice_items ?? []) {
-        const name = (it as any).product_name || "—";
-        const cost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity);
-        const rev = Number(it.total);
-        if (!prodMap[name]) prodMap[name] = { name, profit: 0, revenue: 0, qty: 0 };
-        prodMap[name].profit += rev - cost;
-        prodMap[name].revenue += rev;
-        prodMap[name].qty += Number(it.quantity);
-      }
-    }
-    setTopProfit(Object.values(prodMap).sort((a, b) => b.profit - a.profit).slice(0, 10));
+    // Top profit products moved to Reports → Profitability tab (single source of truth).
 
     setLoading(false);
   }, []);
@@ -156,43 +146,29 @@ export default function FinancialDashboard() {
         <StatCard label="أقساط قادمة (30 يوم)" value={upcoming.length} icon={<Calendar className="w-5 h-5" />} accent="primary" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 mb-6">
-        <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3">المبيعات والأرباح — آخر 6 أشهر</h3>
-          {monthlyTrend.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Legend />
-                <Area type="monotone" dataKey="sales" name="المبيعات" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} />
-                <Area type="monotone" dataKey="profit" name="الربح" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.25} />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3">أكثر 10 منتجات ربحاً (90 يوم)</h3>
-          {topProfit.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={topProfit} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Bar dataKey="profit" name="الربح" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+      <div className="card-elevated p-4 mb-6">
+        <h3 className="font-bold mb-3">المبيعات والأرباح — آخر 6 أشهر</h3>
+        {monthlyTrend.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={monthlyTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+              <Legend />
+              <Area type="monotone" dataKey="sales" name="المبيعات" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} />
+              <Area type="monotone" dataKey="profit" name="الربح" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.25} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+        <div className="text-xs text-muted-foreground mt-3 text-end">
+          أكثر المنتجات ربحاً ومقارنة الفروع متاحة في{" "}
+          <Link to="/admin/reports" className="text-primary font-bold hover:underline">التقارير التفصيلية ←</Link>
         </div>
       </div>
+
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div>
