@@ -115,7 +115,7 @@ export default function CountingSheet() {
       {loading ? (
         <div className="card-elevated p-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
-        <div className="card-elevated overflow-x-auto">
+        <div className="card-elevated">
           <table className="w-full text-sm">
             <thead className="bg-surface-2">
               <tr>

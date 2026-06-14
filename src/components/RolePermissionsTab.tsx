@@ -129,7 +129,7 @@ export function RolePermissionsTab() {
                   <RotateCcw className="w-3 h-3 ml-1" /> إعادة الافتراضي
                 </Button>
               </div>
-              <div className="border rounded-lg overflow-x-auto">
+              <div className="border rounded-lg">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
