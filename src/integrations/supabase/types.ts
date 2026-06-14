@@ -1214,6 +1214,8 @@ export type Database = {
           tenant_id: string | null
           total: number
           total_paid_before_cancel: number
+          vat_amount: number
+          vat_rate: number
         }
         Insert: {
           branch_id: string
@@ -1240,6 +1242,8 @@ export type Database = {
           tenant_id?: string | null
           total?: number
           total_paid_before_cancel?: number
+          vat_amount?: number
+          vat_rate?: number
         }
         Update: {
           branch_id?: string
@@ -1266,6 +1270,8 @@ export type Database = {
           tenant_id?: string | null
           total?: number
           total_paid_before_cancel?: number
+          vat_amount?: number
+          vat_rate?: number
         }
         Relationships: [
           {
@@ -3822,21 +3828,39 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: number
       }
-      process_sale: {
-        Args: {
-          p_branch_id: string
-          p_customer_id: string
-          p_discount_amount: number
-          p_discount_percent: number
-          p_discount_reason: string
-          p_items: Json
-          p_payment_method: string
-          p_payments?: Json
-          p_subtotal: number
-          p_total: number
-        }
-        Returns: string
-      }
+      process_sale:
+        | {
+            Args: {
+              p_branch_id: string
+              p_customer_id: string
+              p_discount_amount: number
+              p_discount_percent: number
+              p_discount_reason: string
+              p_items: Json
+              p_payment_method: string
+              p_payments?: Json
+              p_subtotal: number
+              p_total: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_branch_id: string
+              p_customer_id: string
+              p_discount_amount: number
+              p_discount_percent: number
+              p_discount_reason: string
+              p_items: Json
+              p_payment_method: string
+              p_payments?: Json
+              p_subtotal: number
+              p_total: number
+              p_vat_amount?: number
+              p_vat_rate?: number
+            }
+            Returns: string
+          }
       recalc_contact_balance: {
         Args: { _contact_id: string }
         Returns: undefined
