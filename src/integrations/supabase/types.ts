@@ -3928,6 +3928,22 @@ export type Database = {
         }
         Returns: string
       }
+      register_sale_return_full: {
+        Args: {
+          _invoice_id: string
+          _items: Json
+          _notes: string
+          _reason: string
+          _refund_account: string
+          _refund_balance_amount: number
+          _refund_cash_amount: number
+          _refund_method: string
+          _refund_reference: string
+          _refund_transfer_amount: number
+          _status: string
+        }
+        Returns: Json
+      }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }

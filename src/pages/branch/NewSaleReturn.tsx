@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
@@ -42,7 +41,6 @@ export default function NewSaleReturn() {
   const { id: branchId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const presetInvoiceId = params.get("invoice");
-  const { user } = useAuth();
   const nav = useNavigate();
 
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -183,68 +181,28 @@ export default function NewSaleReturn() {
     setBusy(true);
     try {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
-      const { data: rr, error } = await supabase.from("returns").insert({
-        branch_id: branchId!,
-        invoice_id: invoice.id,
-        reason: finalReason,
-        notes: notes.trim() || null,
-        created_by: user!.id,
-        total_refund: total,
-        status: asDraft ? "draft" : "active",
-        refund_method: refundMethodFinal,
-        refund_reference: refundRef.trim() || null,
-        refund_account: refundAccount.trim() || null,
-        refund_cash_amount: cashPart,
-        refund_transfer_amount: transferPart,
-        refund_balance_amount: balancePart,
-      } as any).select().single();
+      const { data: rr, error } = await supabase.rpc("register_sale_return_full" as any, {
+        _invoice_id: invoice.id,
+        _reason: finalReason,
+        _notes: notes.trim() || null,
+        _status: asDraft ? "draft" : "active",
+        _refund_method: refundMethodFinal,
+        _refund_reference: refundRef.trim() || null,
+        _refund_account: refundAccount.trim() || null,
+        _refund_cash_amount: cashPart,
+        _refund_transfer_amount: transferPart,
+        _refund_balance_amount: balancePart,
+        _items: activeLines.map((l) => ({
+          product_id: l.product_id,
+          quantity: l.quantity,
+          refund: l.quantity * l.unit_refund,
+        })) as any,
+      });
       if (error || !rr) throw error ?? new Error("فشل الحفظ");
       const number = (rr as any).return_number as string;
 
-      const items = activeLines.map((l) => ({
-        return_id: (rr as any).id,
-        product_id: l.product_id,
-        quantity: l.quantity,
-        refund: l.quantity * l.unit_refund,
-      }));
-      const { error: e2 } = await supabase.from("return_items").insert(items);
-      if (e2) throw e2;
-
       if (!asDraft) {
-        // Restore FIFO batches + update invoice_items.returned_quantity + release reservations
-        try {
-          await supabase.rpc("apply_return_batch_tracking" as any, {
-            _invoice_id: invoice.id,
-            _items: activeLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })) as any,
-          });
-        } catch (e) { console.warn("batch tracking on return failed", e); }
-        // Add merchandise back to stock (legacy global counter)
-        for (const l of activeLines) {
-          const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
-          if (p) await supabase.from("products").update({ quantity: (p.quantity ?? 0) + l.quantity }).eq("id", l.product_id);
-        }
-
-        // Treasury: money going out (refund to customer)
-        const cashOut = cashPart + transferPart;
-        if (cashOut > 0) {
-          await supabase.from("treasury").insert({
-            branch_id: branchId!,
-            type: "expense",
-            category: "sale_return",
-            amount: cashOut,
-            description: `مرتجع بيع ${number} - فاتورة ${invoice.invoice_number}`,
-            reference_id: (rr as any).id,
-            payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
-            reference_number: refundRef.trim() || null,
-            transfer_to_account: refundAccount.trim() || null,
-            created_by: user!.id,
-          } as any);
-        }
-        // Customer balance: he owes us less → decrease
-        if (balancePart > 0 && customer) {
-          const newBal = Number(customer.balance ?? 0) - balancePart;
-          await supabase.from("contacts").update({ balance: newBal }).eq("id", customer.id);
-        }
+        // Stock, treasury, invoice returned quantities and customer balance are updated atomically in the database.
         // Redistribute installments if this invoice has a payment plan
         try {
           const { data: rd } = await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id });
