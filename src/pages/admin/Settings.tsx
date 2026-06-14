@@ -391,12 +391,36 @@ export default function Settings() {
               </div>
               <Switch checked={invoice.show_logo} onCheckedChange={(v) => setInvoice({ ...invoice, show_logo: v })} />
             </div>
+            </div>
             <Button onClick={() => saveKey("invoice", invoice)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
             </Button>
+
+            <div className="pt-6 mt-2 border-t border-border space-y-3">
+              <div>
+                <h3 className="font-bold">ضريبة القيمة المضافة</h3>
+                <p className="text-xs text-muted-foreground">عند تفعيلها هتظهر كأوبشن في شاشة إصدار الفاتورة، وتقدر تعدّل النسبة من هنا.</p>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-surface-2">
+                <Label className="cursor-pointer">تفعيلها افتراضياً</Label>
+                <Switch checked={vat.enabled} onCheckedChange={(v) => setVat({ ...vat, enabled: v })} />
+              </div>
+              <div>
+                <Label>نسبة الضريبة %</Label>
+                <Input type="number" min={0} max={100} step="0.01"
+                  value={vat.rate}
+                  onChange={(e) => setVat({ ...vat, rate: Number(e.target.value) || 0 })}
+                  className="mt-1.5" />
+              </div>
+              <Button onClick={() => saveKey("vat", vat)} disabled={saving} className="gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                حفظ إعدادات الضريبة
+              </Button>
+            </div>
           </div>
         </TabsContent>
+
 
         <TabsContent value="inventory" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
