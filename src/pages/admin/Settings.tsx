@@ -501,10 +501,10 @@ export default function Settings() {
             <div className="flex items-start gap-3">
               <Target className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-bold">هدف المبيعات الشهري (لكل فرع)</h3>
+                <h3 className="font-bold">هدف صافي الربح الشهري (لكل فرع)</h3>
                 <p className="text-sm text-muted-foreground">
-                  حدّد الهدف الشهري للفرع. هيظهر مؤشر التقدم في لوحة الفرع علشان الفريق يتابع تحقيق الهدف.
-                  اكتب صفر لتعطيل الهدف.
+                  حدّد هدف صافي الربح الشهري للفرع (مش المبيعات). المرتجعات بتتخصم تلقائياً من المحقق.
+                  هيظهر مؤشر التقدم في لوحة الفرع. اكتب صفر لتعطيل الهدف.
                 </p>
               </div>
             </div>
