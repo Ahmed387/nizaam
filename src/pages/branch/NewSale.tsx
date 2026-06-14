@@ -625,6 +625,19 @@ export default function NewSale() {
     if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
     if (isCredit && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل المتبقي كآجل");
 
+    // Validate electronic payments require ref + from + to account
+    for (let i = 0; i < payments.length; i++) {
+      const p = payments[i];
+      if (p.payment_method === "cash" || p.payment_method === "credit_balance") continue;
+      if (!p.reference_number?.trim())
+        return toast.error(`دفعة #${i + 1}: أدخل رقم العملية / المرجع للتحويل`);
+      if (!p.transfer_from_account?.trim())
+        return toast.error(`دفعة #${i + 1}: أدخل رقم الحساب المحوَّل منه`);
+      if (!p.transfer_to_account?.trim())
+        return toast.error(`دفعة #${i + 1}: أدخل رقم الحساب المحوَّل إليه`);
+    }
+
+
     if (isCredit && scheduleType === "scheduled" && creditRemaining > 0) {
       const sum = installments.reduce((s, i) => s + Number(i.amount || 0), 0);
       if (Math.abs(sum - creditRemaining) > 0.5) return toast.error("مجموع الأقساط لا يطابق المتبقي");
