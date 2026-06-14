@@ -31,6 +31,7 @@ export default function BranchDashboard() {
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [profitToday, setProfitToday] = useState(0);
+  const [profitMonth, setProfitMonth] = useState(0);
   const [paymentBreakdown, setPaymentBreakdown] = useState<any[]>([]);
   const [monthlyTarget, setMonthlyTarget] = useState(0);
 
@@ -45,7 +46,7 @@ export default function BranchDashboard() {
 
     const [
       invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
-      invLast30, invItemsToday, invAll30, branchRow,
+      invLast30, invItemsToday, invItemsMonth, invAll30, branchRow,
     ] = await Promise.all([
       supabase.from("invoices").select("total, payment_method, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
       supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
@@ -57,6 +58,7 @@ export default function BranchDashboard() {
       supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
       supabase.from("invoices").select("created_at, total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
       supabase.from("invoice_items").select("product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
+      supabase.from("invoice_items").select("quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", monthStart.toISOString()),
       supabase.from("invoices").select("contact_id, total, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
@@ -80,12 +82,14 @@ export default function BranchDashboard() {
     setNewCust((custs.data ?? []).length);
     setRecent(recentInv.data ?? []);
 
-    setProfitToday((invItemsToday.data ?? []).reduce((s, it: any) => {
+    const computeProfit = (rows: any[]) => rows.reduce((s, it: any) => {
       const qty = Number(it.quantity) || 0;
       const netQty = Math.max(0, qty - (Number(it.returned_quantity) || 0));
       const netRevenue = qty > 0 ? Number(it.total ?? 0) * (netQty / qty) : 0;
       return s + netRevenue - Number(it.cost_price ?? 0) * netQty;
-    }, 0));
+    }, 0);
+    setProfitToday(computeProfit(invItemsToday.data ?? []));
+    setProfitMonth(computeProfit(invItemsMonth.data ?? []));
 
     const payMap: Record<string, number> = {};
     (invToday.data ?? []).forEach((x: any) => {
@@ -229,18 +233,19 @@ export default function BranchDashboard() {
       </div>
 
       {monthlyTarget > 0 && (() => {
-        const pct = Math.min(100, (salesMonth / monthlyTarget) * 100);
-        const remaining = Math.max(0, monthlyTarget - salesMonth);
+        const achieved = Math.max(0, profitMonth);
+        const pct = Math.min(100, (achieved / monthlyTarget) * 100);
+        const remaining = Math.max(0, monthlyTarget - achieved);
         const onTrack = pct >= 80;
         return (
           <div className="card-elevated p-5 mb-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Target className={`w-5 h-5 ${onTrack ? "text-success" : "text-warning"}`} />
-                <h3 className="font-bold">هدف الشهر</h3>
+                <h3 className="font-bold">هدف الشهر (صافي الربح)</h3>
               </div>
               <div className="text-sm text-muted-foreground">
-                {formatEGP(salesMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
+                {formatEGP(profitMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
               </div>
             </div>
             <Progress value={pct} className="h-3" />
@@ -249,7 +254,7 @@ export default function BranchDashboard() {
                 {pct.toFixed(1)}% من الهدف
               </span>
               <span className="text-muted-foreground">
-                {remaining > 0 ? `متبقي ${formatEGP(remaining)} لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
+                {remaining > 0 ? `متبقي ${formatEGP(remaining)} صافي ربح لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
               </span>
             </div>
           </div>
