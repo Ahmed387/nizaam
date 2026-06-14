@@ -254,11 +254,20 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           ) },
           { key: "actions", header: "", render: (r: Voucher) => {
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
-            return canCancel ? (
-              <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive">
-                <XCircle className="w-4 h-4" />
-              </Button>
-            ) : null;
+            return (
+              <div className="flex items-center gap-1 justify-end">
+                {canCancel && (
+                  <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
+                    <XCircle className="w-4 h-4" />
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive" title="حذف السند نهائياً">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            );
           } },
         ]}
       />
