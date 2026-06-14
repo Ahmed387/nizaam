@@ -82,12 +82,14 @@ export default function BranchDashboard() {
     setNewCust((custs.data ?? []).length);
     setRecent(recentInv.data ?? []);
 
-    setProfitToday((invItemsToday.data ?? []).reduce((s, it: any) => {
+    const computeProfit = (rows: any[]) => rows.reduce((s, it: any) => {
       const qty = Number(it.quantity) || 0;
       const netQty = Math.max(0, qty - (Number(it.returned_quantity) || 0));
       const netRevenue = qty > 0 ? Number(it.total ?? 0) * (netQty / qty) : 0;
       return s + netRevenue - Number(it.cost_price ?? 0) * netQty;
-    }, 0));
+    }, 0);
+    setProfitToday(computeProfit(invItemsToday.data ?? []));
+    setProfitMonth(computeProfit(invItemsMonth.data ?? []));
 
     const payMap: Record<string, number> = {};
     (invToday.data ?? []).forEach((x: any) => {
