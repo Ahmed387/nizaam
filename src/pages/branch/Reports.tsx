@@ -87,6 +87,7 @@ export default function BranchReports() {
   const netProfit = grossProfit - totalExpenses;
   const cashIn = treasury.filter((t) => t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0);
   const cashOut = treasury.filter((t) => t.type === "payment").reduce((s, t) => s + Number(t.amount), 0);
+  const totalReturns = returns.reduce((s, r: any) => s + Number(r.total_refund ?? 0), 0);
 
   // Top products
   const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
