@@ -391,7 +391,7 @@ export default function Settings() {
               </div>
               <Switch checked={invoice.show_logo} onCheckedChange={(v) => setInvoice({ ...invoice, show_logo: v })} />
             </div>
-            </div>
+
             <Button onClick={() => saveKey("invoice", invoice)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
