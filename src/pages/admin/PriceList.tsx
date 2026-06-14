@@ -308,9 +308,9 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="text-right font-semibold">اسم المنتج</TableHead>
                       <TableHead className="text-right font-semibold">الموديل</TableHead>
-                      <TableHead className="text-center font-semibold whitespace-nowrap">سعر الشراء</TableHead>
-                      <TableHead className="text-center font-semibold whitespace-nowrap">سعر البيع المقترح</TableHead>
-                      <TableHead className="text-center font-semibold whitespace-nowrap">السعر المعروض للكاشير</TableHead>
+                      <TableHead className="text-center font-semibold">سعر الشراء</TableHead>
+                      <TableHead className="text-center font-semibold">سعر البيع المقترح</TableHead>
+                      <TableHead className="text-center font-semibold">السعر المعروض للكاشير</TableHead>
                       <TableHead className="text-center font-semibold">ظاهر</TableHead>
                       <TableHead className="text-right font-semibold">الفئة</TableHead>
                       <TableHead className="w-12"></TableHead>
@@ -323,8 +323,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                       <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="text-right font-medium">{item.product_name}</TableCell>
                         <TableCell className="text-right text-sm text-muted-foreground font-mono">{item.model_code ?? "—"}</TableCell>
-                        <TableCell className="text-center tabular-nums whitespace-nowrap">{formatEGP(item.cost_price)}</TableCell>
-                        <TableCell className="text-center tabular-nums whitespace-nowrap text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
+                        <TableCell className="text-center tabular-nums">{formatEGP(item.cost_price)}</TableCell>
+                        <TableCell className="text-center tabular-nums text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
                         <TableCell className="text-center">
                           <Input
                             type="number"

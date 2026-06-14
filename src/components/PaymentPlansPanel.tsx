@@ -83,7 +83,7 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
             </div>
             {ins.length > 0 && (
               <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[600px]">
+              <table className="w-full text-sm">
                 <thead className="bg-surface-2">
                   <tr>
                     <th className="px-3 py-2 text-right">#</th>
