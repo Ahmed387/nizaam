@@ -182,6 +182,9 @@ export default function EmployeeProfile() {
     const md = Number(advForm.monthly_deduct);
     if (!amt || amt <= 0) return toast.error("أدخل المبلغ");
     if (!md || md <= 0) return toast.error("أدخل قيمة الخصم الشهري");
+    const { validateTransferPayment } = await import("@/lib/paymentMethods");
+    const aErr = validateTransferPayment(advPm);
+    if (aErr) return toast.error(aErr);
     const { data: adv, error } = await supabase.from("advances").insert({
       employee_id: emp.id, amount: amt, monthly_deduct: md, remaining: amt, reason: advForm.reason || null,
     }).select().single();
