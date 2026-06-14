@@ -216,6 +216,9 @@ export default function EmployeeProfile() {
     const net = base + bonuses - ded - advDed;
     if (net <= 0) return toast.error("صافي الراتب يجب أن يكون موجباً");
     if (advDed > totalAdvancesRemaining) return toast.error("خصم السلف أكبر من الرصيد المتبقي");
+    const { validateTransferPayment } = await import("@/lib/paymentMethods");
+    const sErr = validateTransferPayment(salPm);
+    if (sErr) return toast.error(sErr);
     const { data: existing } = await supabase.from("salaries").select("id").eq("employee_id", emp.id).eq("month", salForm.month).maybeSingle();
     if (existing) return toast.error("راتب هذا الشهر مدفوع بالفعل");
     const { data: sal, error } = await supabase.from("salaries").insert({
