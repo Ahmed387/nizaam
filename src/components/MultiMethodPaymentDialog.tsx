@@ -17,6 +17,7 @@ import {
   methodRequiresReference,
   methodReceiverLabel,
   methodSenderLabel,
+  validateTransferPayment,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
