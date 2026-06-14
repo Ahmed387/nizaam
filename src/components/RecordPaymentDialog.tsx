@@ -36,7 +36,8 @@ export function RecordPaymentDialog({
 
   const submit = async () => {
     if (amount <= 0) return toast.error("أدخل مبلغ صحيح");
-    if (pm.method !== "cash" && !pm.reference_number?.trim()) return toast.error("أدخل رقم العملية");
+    const err = validateTransferPayment(pm);
+    if (err) return toast.error(err);
     setBusy(true);
     try {
       const { error } = await supabase.rpc("record_payment_transaction", {
@@ -46,6 +47,7 @@ export function RecordPaymentDialog({
         p_payment_method: pm.method,
         p_reference_number: pm.reference_number ?? null,
         p_transfer_to_account: pm.transfer_to_account ?? null,
+        p_transfer_from_account: pm.transfer_from_account ?? null,
         p_received_by_name: pm.received_by_name ?? profile?.name ?? null,
         p_fee_amount: pm.fee_amount,
         p_fee_type: pm.fee_type ?? null,
