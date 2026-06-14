@@ -207,17 +207,49 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     };
   }), [branches, invoices, expenses, products, employees, treasury]);
 
-  // Top products in scope
-  const topProducts = useMemo(() => {
-    const m: Record<string, { name: string; qty: number; revenue: number }> = {};
+  // Top products in scope — qty / revenue / profit (toggle in UI)
+  const topProductsAll = useMemo(() => {
+    const m: Record<string, { name: string; qty: number; revenue: number; profit: number }> = {};
     for (const inv of activeInv) for (const it of inv.invoice_items) {
       const key = it.product_name;
-      if (!m[key]) m[key] = { name: key, qty: 0, revenue: 0 };
-      m[key].qty += it.quantity;
+      if (!m[key]) m[key] = { name: key, qty: 0, revenue: 0, profit: 0 };
+      const unitCost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
+      const qty = Number(it.quantity);
+      m[key].qty += qty;
       m[key].revenue += Number(it.total);
+      m[key].profit += Number(it.total) - unitCost * qty;
     }
-    return Object.values(m).sort((a, b) => b.revenue - a.revenue).slice(0, 15);
+    return Object.values(m);
   }, [activeInv]);
+
+  // Sales breakdown by payment method (from invoices.payment_method)
+  const salesByMethod = useMemo(() => {
+    const m: Record<string, { method: string; label: string; count: number; total: number }> = {};
+    const labels: Record<string, string> = {
+      cash: "نقدي", credit: "آجل", vodafone: "فودافون كاش",
+      instapay: "انستاباي", bank: "بنك", mixed: "متعدد",
+    };
+    for (const i of activeInv) {
+      const pm = String(i.payment_method ?? "—");
+      if (!m[pm]) m[pm] = { method: pm, label: labels[pm] ?? pm, count: 0, total: 0 };
+      m[pm].count += 1;
+      m[pm].total += Number(i.total);
+    }
+    return Object.values(m).sort((a, b) => b.total - a.total);
+  }, [activeInv]);
+
+  // Sales breakdown by cashier
+  const salesByCashier = useMemo(() => {
+    const m: Record<string, { id: string; name: string; count: number; total: number }> = {};
+    for (const i of activeInv) {
+      const id = i.cashier_id ?? "—";
+      const name = employees.find((e) => e.id === id)?.name ?? "—";
+      if (!m[id]) m[id] = { id, name, count: 0, total: 0 };
+      m[id].count += 1;
+      m[id].total += Number(i.total);
+    }
+    return Object.values(m).sort((a, b) => b.total - a.total);
+  }, [activeInv, employees]);
 
   const expByType = useMemo(() => {
     const m: Record<string, number> = {};
@@ -226,6 +258,18 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   }, [scopedExpenses]);
 
   const lowStockList = useMemo(() => scopedProducts.filter((p) => p.quantity <= p.low_stock_alert), [scopedProducts]);
+
+  // Slow-moving products: zero qty sold in the period, still has stock
+  const slowMoving = useMemo(() => {
+    const sold = new Set<string>();
+    for (const inv of activeInv) for (const it of inv.invoice_items) sold.add(it.product_id ?? it.product_name);
+    return scopedProducts
+      .filter((p) => p.quantity > 0 && !sold.has(p.id) && !sold.has(p.name))
+      .map((p) => ({ ...p, stockValue: Number(p.cost_price ?? 0) * Number(p.quantity ?? 0) }))
+      .sort((a, b) => b.stockValue - a.stockValue)
+      .slice(0, 50);
+  }, [activeInv, scopedProducts]);
+
 
   // Suppliers — global only. Compute total invoiced (علينا) + total paid (سددنا) historically.
   const suppliersWithTotals = useMemo(() => {
