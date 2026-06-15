@@ -1363,7 +1363,20 @@ export default function NewSale() {
                     </div>
                   </>
                 )}
-              </div>
+            </div>
+
+            <div className="mt-3 space-y-1">
+              <Label className="text-xs font-bold">ملاحظات (تظهر في الفاتورة المطبوعة)</Label>
+              <Textarea
+                value={invoiceNotes}
+                onChange={(e) => setInvoiceNotes(e.target.value)}
+                placeholder="مثال: تسليم يوم الأحد — يشمل ضمان شهر"
+                rows={2}
+                maxLength={300}
+                className="text-sm resize-none"
+              />
+            </div>
+
 
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
