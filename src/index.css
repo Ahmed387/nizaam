@@ -172,15 +172,16 @@
     display: block !important;
     position: fixed;
     top: 0; left: 0; right: 0;
-    width: 80mm !important;
-    max-width: 80mm !important;
-    min-width: 80mm !important;
+    width: 72mm !important;
+    max-width: 72mm !important;
+    min-width: 72mm !important;
     margin: 0 !important;
-    padding: 2mm !important;
+    padding: 1.5mm !important;
     box-sizing: border-box !important;
     font-family: Arial, "Tahoma", sans-serif;
     direction: rtl;
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.35;
     color: #000 !important;
     background: #fff !important;
   }
