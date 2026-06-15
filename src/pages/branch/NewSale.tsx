@@ -91,6 +91,7 @@ export default function NewSale() {
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
   const [vatRate, setVatRate] = useState<number>(14);
+  const [invoiceNotes, setInvoiceNotes] = useState<string>("");
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
@@ -770,6 +771,13 @@ export default function NewSale() {
         } catch (e) { console.warn("link discount requests failed", e); }
       }
 
+      // Save cashier notes on the invoice (printed on the receipt)
+      if (invoiceNotes.trim()) {
+        try {
+          await supabase.from("invoices").update({ notes: invoiceNotes.trim() } as any).eq("id", invId as string);
+        } catch (e) { console.warn("save invoice notes failed", e); }
+      }
+
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
         entity: "Invoice", entityId: invId as string, details: { total },
@@ -1355,7 +1363,20 @@ export default function NewSale() {
                     </div>
                   </>
                 )}
-              </div>
+            </div>
+
+            <div className="mt-3 space-y-1">
+              <Label className="text-xs font-bold">ملاحظات (تظهر في الفاتورة المطبوعة)</Label>
+              <Textarea
+                value={invoiceNotes}
+                onChange={(e) => setInvoiceNotes(e.target.value)}
+                placeholder="مثال: تسليم يوم الأحد — يشمل ضمان شهر"
+                rows={2}
+                maxLength={300}
+                className="text-sm resize-none"
+              />
+            </div>
+
 
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
