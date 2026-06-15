@@ -325,10 +325,33 @@ ${headStyles}
     const fonts = (doc as any).fonts;
     const start = () => {
       try {
+        // Auto-shrink: if the rendered receipt would exceed one printer page
+        // (driver might be set to A4 = ~297mm or Letter), scale down a CSS
+        // variable until everything fits in a single physical page.
+        const area = doc.getElementById("invoice-print-area") as HTMLElement | null;
+        if (area) {
+          // Convert mm -> px using the iframe's own DPI.
+          const probe = doc.createElement("div");
+          probe.style.cssText = "position:absolute;width:100mm;height:0;visibility:hidden;";
+          doc.body.appendChild(probe);
+          const pxPerMm = probe.getBoundingClientRect().width / 100;
+          probe.remove();
+          const maxHeightPx = 290 * pxPerMm; // safe single-page budget
+          let scale = 1;
+          area.style.setProperty("--tr-scale", String(scale));
+          // Force reflow then measure
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+          area.offsetHeight;
+          while (area.scrollHeight > maxHeightPx && scale > 0.55) {
+            scale -= 0.05;
+            area.style.setProperty("--tr-scale", scale.toFixed(2));
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            area.offsetHeight;
+          }
+        }
         win.focus();
         win.print();
       } finally {
-        // Give the browser time to open its print dialog before removing the iframe.
         setTimeout(cleanup, 1500);
       }
     };
