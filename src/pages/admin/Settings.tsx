@@ -363,8 +363,34 @@ export default function Settings() {
             </div>
             <div>
               <Label>رابط شعار الشركة (URL)</Label>
-              <Input dir="ltr" className="text-right mt-1.5" placeholder="https://..." value={company.logo_url} onChange={(e) => setCompany({ ...company, logo_url: e.target.value })} />
-              {company.logo_url && <img src={company.logo_url} alt="logo" className="mt-2 h-16 rounded border bg-white p-1" />}
+              <Input
+                dir="ltr"
+                className="text-right mt-1.5"
+                placeholder="https://i.ibb.co/xxxxx/logo.png"
+                value={company.logo_url}
+                onChange={(e) => setCompany({ ...company, logo_url: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                ارفع اللوجو على imgbb.com وانسخ الـ Direct Link هنا (لازم ينتهي بـ .png أو .jpg)
+              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="w-[60px] h-[60px] rounded-full border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                  {company.logo_url ? (
+                    <img
+                      src={company.logo_url}
+                      alt="logo preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">معاينة الشعار كما سيظهر في الفاتورة</span>
+              </div>
             </div>
             <div>
               <Label>العنوان</Label>
@@ -393,13 +419,11 @@ export default function Settings() {
               <Label>ملاحظة في تذييل الفاتورة</Label>
               <Textarea rows={3} value={invoice.footer_note} onChange={(e) => setInvoice({ ...invoice, footer_note: e.target.value })} className="mt-1.5" placeholder="شكراً لتعاملكم معنا" />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-surface-2">
-              <div>
-                <Label className="cursor-pointer">إظهار شعار الشركة في الفاتورة</Label>
-                <p className="text-xs text-muted-foreground">يظهر اسم الشركة في رأس الفاتورة المطبوعة</p>
-              </div>
-              <Switch checked={invoice.show_logo} onCheckedChange={(v) => setInvoice({ ...invoice, show_logo: v })} />
+            <div className="text-xs text-muted-foreground p-3 rounded-lg bg-surface-2 border border-border">
+              💡 شعار الشركة بيظهر تلقائياً في الفاتورة طالما فيه رابط للشعار في تبويب «بيانات الشركة».
+              لو الرابط فاضي، اسم الشركة بس هو اللي بيظهر.
             </div>
+
 
             <Button onClick={() => saveKey("invoice", invoice)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
