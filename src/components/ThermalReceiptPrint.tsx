@@ -277,29 +277,31 @@ ${headStyles}
     box-sizing: border-box !important;
     font-family: "Vazir","Vazirmatn",Arial,Tahoma,sans-serif !important;
     direction: rtl !important;
-    font-size: 16pt !important; line-height: 1.42 !important;
+    font-size: 11pt !important; line-height: 1.35 !important;
     color: #000 !important; background: #fff !important;
   }
-  #invoice-print-area .tr-logo { width: 24mm !important; height: 24mm !important; }
-  #invoice-print-area .tr-header { margin-bottom: 2.5mm !important; }
-  #invoice-print-area .tr-company-bar { font-size: 22pt !important; line-height: 1.15 !important; padding: 1.4mm 0 !important; }
-  #invoice-print-area .tr-title { font-size: 18pt !important; padding-bottom: 1.2mm !important; }
-  #invoice-print-area .tr-tax { font-size: 13pt !important; }
+  #invoice-print-area .tr-logo { width: 18mm !important; height: 18mm !important; }
+  #invoice-print-area .tr-header { margin-bottom: 2mm !important; }
+  #invoice-print-area .tr-company-bar { font-size: 14pt !important; line-height: 1.15 !important; padding: 1mm 0 !important; }
+  #invoice-print-area .tr-title { font-size: 12pt !important; padding-bottom: 1mm !important; }
+  #invoice-print-area .tr-tax { font-size: 9pt !important; }
   #invoice-print-area .tr-meta-grid th,
-  #invoice-print-area .tr-meta-grid td { font-size: 13pt !important; padding: 1mm 0.8mm !important; line-height: 1.35 !important; }
+  #invoice-print-area .tr-meta-grid td { font-size: 9pt !important; padding: 0.7mm 0.6mm !important; line-height: 1.3 !important; }
+  #invoice-print-area table.tr-items { table-layout: fixed !important; width: 100% !important; }
   #invoice-print-area table.tr-items th,
-  #invoice-print-area table.tr-items td { font-size: 13pt !important; padding: 2.6mm 0.8mm !important; border: 0.45mm solid #000 !important; line-height: 1.28 !important; }
-  #invoice-print-area table.tr-items th { font-size: 13.5pt !important; font-weight: 800 !important; }
+  #invoice-print-area table.tr-items td { font-size: 9.5pt !important; padding: 1.6mm 0.8mm !important; border: 0.3mm solid #000 !important; line-height: 1.25 !important; word-wrap: break-word !important; overflow-wrap: anywhere !important; white-space: normal !important; }
+  #invoice-print-area table.tr-items th { font-size: 9.5pt !important; font-weight: 800 !important; }
+  #invoice-print-area table.tr-items .tr-name { text-align: right !important; }
   #invoice-print-area .tr-totals th,
-  #invoice-print-area .tr-totals td { font-size: 15pt !important; padding: 1.8mm 1.2mm !important; border: 0.4mm solid #000 !important; line-height: 1.25 !important; }
+  #invoice-print-area .tr-totals td { font-size: 10.5pt !important; padding: 1.2mm 1mm !important; border: 0.3mm solid #000 !important; line-height: 1.22 !important; }
   #invoice-print-area .tr-total-highlight th,
-  #invoice-print-area .tr-total-highlight td { font-size: 22pt !important; border: 0.65mm solid #000 !important; }
+  #invoice-print-area .tr-total-highlight td { font-size: 14pt !important; font-weight: 800 !important; border: 0.5mm solid #000 !important; }
   #invoice-print-area .tr-total-balance th,
-  #invoice-print-area .tr-total-balance td { font-size: 14pt !important; }
-  #invoice-print-area .tr-pay-method { font-size: 13pt !important; }
-  #invoice-print-area .tr-footer { font-size: 12pt !important; line-height: 1.4 !important; }
-  #invoice-print-area .tr-thanks { font-size: 17pt !important; }
-  #invoice-print-area .tr-phone { font-size: 13pt !important; }
+  #invoice-print-area .tr-total-balance td { font-size: 10pt !important; }
+  #invoice-print-area .tr-pay-method { font-size: 9.5pt !important; }
+  #invoice-print-area .tr-footer { font-size: 9pt !important; line-height: 1.35 !important; }
+  #invoice-print-area .tr-thanks { font-size: 11pt !important; }
+  #invoice-print-area .tr-phone { font-size: 9pt !important; }
   /* Make sure nothing inherits visibility:hidden from the host @media print rules */
   #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
 </style>
