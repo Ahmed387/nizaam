@@ -113,7 +113,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const partyLabel = props.kind === "sale" ? "العميل" : "المورد";
   const cashierLabel = props.kind === "sale" ? "الكاشير" : "أمين المخزن";
 
-  const Row = ({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) => (
+  const Row = ({ label, value, bold }: { label: string; value: ReactNode; bold?: boolean }) => (
     <div className="tr-row" style={bold ? { fontWeight: 700 } : undefined}>
       <span className="tr-label">{label}</span>
       <span className="tr-value">{value}</span>
