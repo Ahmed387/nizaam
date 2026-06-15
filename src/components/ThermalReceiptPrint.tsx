@@ -223,13 +223,20 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   );
 }
 
-/** Inject @page 80mm before printing, then trigger window.print(). */
+/** Inject @page sized for XP-80C (80mm paper, ~72mm printable) before printing. */
 export function printThermalInvoice() {
   const id = "__thermal_page_style__";
   document.getElementById(id)?.remove();
   const style = document.createElement("style");
   style.id = id;
-  style.textContent = "@media print { @page { size: 80mm auto !important; margin: 0 !important; } html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; } }";
+  // XP-80C printable area is ~72mm. Using 72mm prevents the driver from
+  // auto-shrinking the page to fit and gives us a true full-width receipt.
+  style.textContent = `
+    @media print {
+      @page { size: 72mm auto !important; margin: 0 !important; }
+      html, body { width: 72mm !important; margin: 0 !important; padding: 0 !important; }
+    }
+  `;
   document.head.appendChild(style);
   const cleanup = () => { document.getElementById(id)?.remove(); window.removeEventListener("afterprint", cleanup); };
   window.addEventListener("afterprint", cleanup);
