@@ -128,7 +128,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
           <img
             src={company.logo_url}
             alt=""
-            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
             className="tr-logo"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
           />
