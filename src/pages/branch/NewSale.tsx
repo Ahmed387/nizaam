@@ -91,6 +91,7 @@ export default function NewSale() {
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
   const [vatRate, setVatRate] = useState<number>(14);
+  const [invoiceNotes, setInvoiceNotes] = useState<string>("");
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
