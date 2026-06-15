@@ -120,30 +120,7 @@ export default function InvoiceView() {
             {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
             {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
             <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="btn-gradient"><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="text-xs">اختر نوع الطباعة</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={printThermalInvoice} className="gap-2">
-                  <Receipt className="w-4 h-4" /> فاتورة حرارية 80mm
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => printThermalReceipt(thermalData(), 58)} className="gap-2">
-                  <Receipt className="w-4 h-4" /> حرارية 58mm (USB/شبكة)
-                </DropdownMenuItem>
-                {isWebBluetoothSupported() && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={printBluetooth} className="gap-2">
-                      <Bluetooth className="w-4 h-4" />
-                      {getBluetoothConnection() ? "إعادة طباعة بلوتوث" : "طابعة بلوتوث ESC/POS"}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
           </div>
         }
       />
