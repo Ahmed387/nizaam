@@ -210,7 +210,7 @@ export default function ShipmentView() {
             <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
               <Printer className="w-4 h-4" /> طباعة PDF
             </Button>
-            <Button size="sm" onClick={() => window.print()} className="gap-2 btn-gradient">
+            <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة حرارية
             </Button>
             {canEdit && (
