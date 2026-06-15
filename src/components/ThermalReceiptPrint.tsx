@@ -209,7 +209,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
       <table className="tr-totals" dir="ltr">
         <tbody>
           {totalRows.map((row) => (
-            <tr key={row.label} className={row.highlight ? "tr-total-highlight" : undefined}>
+            <tr key={row.label} className={row.highlight ? "tr-total-highlight" : row.balance ? "tr-total-balance" : undefined}>
               <td className="tr-total-value">{row.value}</td>
               <th>{row.label}</th>
             </tr>
