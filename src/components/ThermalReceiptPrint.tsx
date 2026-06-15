@@ -102,12 +102,9 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const companyName = props.companyName || company.name || "";
   const phone = company.phone || "";
   const footerNote = invoiceSettings.footer_note || "";
-  const vatEnabled = !!vat.enabled;
-  const vatRate = Number(vat.rate ?? 0);
   const discount = Number(props.discount ?? 0);
-  const taxable = Math.max(props.subtotal - discount, 0);
-  const vatAmount = vatEnabled ? taxable * (vatRate / 100) : 0;
   const remaining = Number(props.remaining ?? Math.max(props.total - (props.paid ?? 0), 0));
+
 
   const title = props.kind === "sale" ? "فاتورة بيع" : "فاتورة شراء";
   const partyLabel = props.kind === "sale" ? "العميل" : "المورد";
@@ -191,12 +188,9 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
       <div className="tr-totals">
         <Row label="الإجمالي:" value={`${fmt2(props.subtotal)} ج.م`} />
         {discount > 0 && <Row label="الخصم:" value={`- ${fmt2(discount)} ج.م`} />}
-        {vatEnabled && vatAmount > 0 && (
-          <Row label={`ضريبة القيمة المضافة (${vatRate}%):`} value={`+ ${fmt2(vatAmount)} ج.م`} />
-        )}
         <div className="tr-required">
           <span>المطلوب:</span>
-          <span>{fmt2(props.total + vatAmount)} ج.م</span>
+          <span>{fmt2(props.total)} ج.م</span>
         </div>
         {typeof props.paid === "number" && <Row label="المدفوع:" value={`${fmt2(props.paid)} ج.م`} />}
         {typeof props.previousBalance === "number" && (
@@ -235,7 +229,7 @@ export function printThermalInvoice() {
   document.getElementById(id)?.remove();
   const style = document.createElement("style");
   style.id = id;
-  style.textContent = "@media print { @page { size: 80mm auto !important; margin: 0 !important; } }";
+  style.textContent = "@media print { @page { size: 80mm auto !important; margin: 0 !important; } html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; } }";
   document.head.appendChild(style);
   const cleanup = () => { document.getElementById(id)?.remove(); window.removeEventListener("afterprint", cleanup); };
   window.addEventListener("afterprint", cleanup);
