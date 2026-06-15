@@ -341,7 +341,28 @@ export default function ShipmentView() {
               <div><span className="text-muted-foreground">الكود:</span> <b>{items[0].products?.sku ?? "—"}</b></div>
               <div><span className="text-muted-foreground">الكمية:</span> <b>{items[0].quantity}</b></div>
               <div><span className="text-muted-foreground">الإجمالي:</span> <b className="text-primary">{formatEGP(items[0].total)}</b></div>
-            </div>
+      </div>
+
+      <ThermalReceiptPrint
+        kind="purchase"
+        invoiceNumber={ship.shipment_number ?? `#${ship.id.slice(0, 8)}`}
+        createdAt={ship.created_at}
+        paymentType="cash"
+        cashier={ship.received_by}
+        partyName={ship.contacts?.name}
+        notes={ship.notes}
+        items={items.map((it: any) => ({
+          name: it.product_name ?? it.products?.name ?? "—",
+          qty: Number(it.quantity),
+          unit_price: Number(it.cost_price ?? 0),
+          total: Number(it.total ?? 0),
+        }))}
+        subtotal={Number(itemsGross)}
+        discount={Number(itemsDiscount) > 0 ? Number(itemsDiscount) : 0}
+        total={Number(ship.total_cost ?? 0)}
+        paid={Number(ship.total_cost ?? 0)}
+      />
+
           </div>
         )}
       </div>
