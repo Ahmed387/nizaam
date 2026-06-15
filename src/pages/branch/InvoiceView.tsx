@@ -19,6 +19,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { ThermalReceiptPrint } from "@/components/ThermalReceiptPrint";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
@@ -45,7 +46,7 @@ export default function InvoiceView() {
       try {
         const { data: i, error: e1 } = await supabase
           .from("invoices")
-          .select("*, contacts:contact_id(name, phone, address)")
+          .select("*, contacts:contact_id(name, phone, address, balance)")
           .eq("id", invoiceId)
           .maybeSingle();
         if (e1) throw e1;
@@ -87,7 +88,7 @@ export default function InvoiceView() {
     if (!invoiceId) return;
     if (reloadKey === 0) return;
     (async () => {
-      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address)").eq("id", invoiceId).maybeSingle();
+      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address, balance)").eq("id", invoiceId).maybeSingle();
       if (i) setInv(i);
       const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
       setPlan(pp ?? null);
