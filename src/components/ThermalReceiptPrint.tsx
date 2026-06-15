@@ -223,7 +223,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
 
       <div className="tr-footer">
         <div className="tr-thanks">شكراً لزيارتكم</div>
-        {phone && <div>ت: {phone}</div>}
+        {phone && <div className="tr-phone">ت: {phone}</div>}
         {address && <div>{address}</div>}
         {footerNote && <div>{footerNote}</div>}
       </div>
@@ -241,8 +241,8 @@ export function printThermalInvoice() {
   // content near 72mm without making Chrome render a smaller custom page.
   style.textContent = `
     @media print {
-      @page { size: 80mm auto !important; margin: 0 !important; }
-      html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; }
+      @page { size: 80mm auto !important; margin: 0mm !important; }
+      html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
     }
   `;
   document.head.appendChild(style);
