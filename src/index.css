@@ -172,16 +172,16 @@
     display: block !important;
     position: fixed;
     top: 0; left: 0; right: 0;
-    width: 72mm !important;
-    max-width: 72mm !important;
-    min-width: 72mm !important;
-    margin: 0 !important;
-    padding: 2mm !important;
+    width: 72.1mm !important;
+    max-width: 72.1mm !important;
+    min-width: 72.1mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
     box-sizing: border-box !important;
     font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif !important;
     direction: rtl !important;
-    font-size: 13pt !important;
-    line-height: 1.5 !important;
+    font-size: 16pt !important;
+    line-height: 1.42 !important;
     color: #000 !important;
     background: #fff !important;
   }
@@ -202,7 +202,7 @@
   .print-area h1, .print-area h2, .print-area h3 { page-break-after: avoid; break-after: avoid; }
   .no-print { display: none !important; }
 
-  @page { size: A4; margin: 12mm; }
+  @page { size: 80mm 297mm; margin: 0; }
 }
 
 /* Thermal page size is injected dynamically by printThermalInvoice() helper */
@@ -231,11 +231,11 @@
 
 #invoice-print-area { font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif; }
 #invoice-print-area .tr-header { text-align: center; margin-bottom: 2mm; }
-#invoice-print-area .tr-logo { width: 80px; height: 80px; object-fit: contain; display: block; margin: 0 auto 1mm; }
+#invoice-print-area .tr-logo { width: 24mm; height: 24mm; object-fit: contain; display: block; margin: 0 auto 1mm; }
 #invoice-print-area .tr-company-bar {
   color: #000;
   font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif;
-  font-size: 18pt;
+  font-size: 22pt;
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
@@ -246,7 +246,7 @@
 }
 #invoice-print-area .tr-title {
   text-align: center;
-  font-size: 14pt;
+  font-size: 18pt;
   font-weight: 700;
   line-height: 1.3;
   margin: 1mm 0;
