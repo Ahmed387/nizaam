@@ -197,10 +197,8 @@
   @page { size: A4; margin: 12mm; }
 }
 
-/* When the thermal receipt is on the page, override @page to 80mm. */
-@media print {
-  @page :first { size: 80mm auto; margin: 0; }
-}
+/* Thermal page size is injected dynamically by printThermalInvoice() helper */
+
 
 #invoice-print-area .tr-header { text-align: center; margin-bottom: 4px; }
 #invoice-print-area .tr-logo { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 4px; }
