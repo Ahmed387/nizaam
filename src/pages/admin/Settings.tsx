@@ -33,6 +33,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
+  const [logoError, setLogoError] = useState(false);
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
@@ -368,19 +369,21 @@ export default function Settings() {
                 className="text-right mt-1.5"
                 placeholder="https://i.ibb.co/xxxxx/logo.png"
                 value={company.logo_url}
-                onChange={(e) => setCompany({ ...company, logo_url: e.target.value })}
+                onChange={(e) => { setCompany({ ...company, logo_url: e.target.value }); setLogoError(false); }}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                ارفع اللوجو على imgbb.com وانسخ الـ Direct Link هنا (لازم ينتهي بـ .png أو .jpg)
+                ارفع اللوجو على imgbb.com ثم اضغط على الصورة → انسخ <b>Direct link</b> (يبدأ بـ <code>https://i.ibb.co/</code> وينتهي بـ .png أو .jpg). لا تستخدم رابط الصفحة <code>https://ibb.co/...</code>
               </p>
               <div className="mt-3 flex items-center gap-3">
                 <div className="w-[60px] h-[60px] rounded-full border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0">
-                  {company.logo_url ? (
+                  {company.logo_url && !logoError ? (
                     <img
+                      key={company.logo_url}
                       src={company.logo_url}
                       alt="logo preview"
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      onError={() => setLogoError(true)}
                     />
                   ) : (
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
@@ -389,7 +392,11 @@ export default function Settings() {
                     </svg>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground">معاينة الشعار كما سيظهر في الفاتورة</span>
+                {company.logo_url && logoError ? (
+                  <span className="text-xs text-destructive">تعذر تحميل الصورة — تأكد أنه Direct Link لصورة (ينتهي بـ .png/.jpg)</span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">معاينة الشعار كما سيظهر في الفاتورة</span>
+                )}
               </div>
             </div>
             <div>
