@@ -279,19 +279,22 @@
 #invoice-print-area table.tr-items td { min-height: 66px; height: 66px; }
 #invoice-print-area .tr-name { text-align: center; direction: rtl; white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
 #invoice-print-area .tr-num { text-align: center; white-space: nowrap; direction: ltr; }
-#invoice-print-area .tr-totals { width: 52%; margin: 2px auto 0 0; }
+#invoice-print-area .tr-totals { width: 100%; margin: 6px 0 0 0; border-collapse: collapse; border: 1.5px solid #000; }
 #invoice-print-area .tr-totals th,
 #invoice-print-area .tr-totals td {
-  padding: 3px 4px;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.45;
+  padding: 5px 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
   text-align: right;
+  border: 1px solid #000;
 }
-#invoice-print-area .tr-totals th { direction: rtl; white-space: nowrap; }
-#invoice-print-area .tr-total-value { direction: ltr; text-align: left !important; white-space: nowrap; }
+#invoice-print-area .tr-totals th { direction: rtl; white-space: nowrap; background: #f0f0f0; width: 55%; }
+#invoice-print-area .tr-total-value { direction: ltr; text-align: center !important; white-space: nowrap; font-weight: 700; }
 #invoice-print-area .tr-total-highlight th,
-#invoice-print-area .tr-total-highlight td { font-size: 15px; font-weight: 700; }
+#invoice-print-area .tr-total-highlight td { font-size: 16px; font-weight: 800; background: #e8e8e8; }
+#invoice-print-area .tr-total-balance th,
+#invoice-print-area .tr-total-balance td { font-size: 15px; font-weight: 800; background: #ddd; }
 #invoice-print-area .tr-pay-method { margin-top: 5px; font-size: 13px; font-weight: 700; text-align: right; }
 #invoice-print-area .tr-footer { text-align: center; font-size: 13px; line-height: 1.6; margin-top: 10px; }
 #invoice-print-area .tr-thanks { font-family: "Vazir", "Vazirmatn", Arial, sans-serif; font-size: 21px; font-weight: 700; margin-bottom: 3px; }
