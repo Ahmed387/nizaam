@@ -288,29 +288,27 @@
 #invoice-print-area .tr-totals { width: 100%; margin: 2mm 0 0 0; border-collapse: collapse; }
 #invoice-print-area .tr-totals th,
 #invoice-print-area .tr-totals td {
-  padding: 1.2mm 1.5mm;
-  font-size: 12pt;
+  padding: 1.8mm 1.2mm;
+  font-size: 15pt;
   font-weight: 600;
   line-height: 1.35;
   text-align: right;
-  border: none;
-  border-bottom: 1pt solid #000;
+  border: 0.4mm solid #000;
 }
 #invoice-print-area .tr-totals th { direction: rtl; white-space: nowrap; width: 55%; }
 #invoice-print-area .tr-total-value { direction: ltr; text-align: left !important; white-space: nowrap; font-weight: 700; }
 #invoice-print-area .tr-total-highlight th,
 #invoice-print-area .tr-total-highlight td {
-  font-size: 16pt;
+  font-size: 22pt;
   font-weight: 800;
-  border-top: 2pt solid #000;
-  border-bottom: 2pt solid #000;
+  border: 0.65mm solid #000;
 }
 #invoice-print-area .tr-total-balance th,
-#invoice-print-area .tr-total-balance td { font-size: 11pt; font-weight: 700; }
-#invoice-print-area .tr-pay-method { margin-top: 1.5mm; font-size: 11pt; font-weight: 700; text-align: right; }
-#invoice-print-area .tr-footer { text-align: center; font-size: 10pt; line-height: 1.5; margin-top: 2mm; border-top: 1pt solid #000; padding-top: 1.5mm; }
-#invoice-print-area .tr-thanks { font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif; font-size: 14pt; font-weight: 700; margin-bottom: 1mm; }
-#invoice-print-area .tr-phone { font-size: 11pt; font-weight: 600; }
+#invoice-print-area .tr-total-balance td { font-size: 14pt; font-weight: 700; }
+#invoice-print-area .tr-pay-method { margin-top: 1.5mm; font-size: 13pt; font-weight: 700; text-align: right; }
+#invoice-print-area .tr-footer { text-align: center; font-size: 12pt; line-height: 1.4; margin-top: 2mm; border-top: 1pt solid #000; padding-top: 1.5mm; }
+#invoice-print-area .tr-thanks { font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif; font-size: 17pt; font-weight: 700; margin-bottom: 1mm; }
+#invoice-print-area .tr-phone { font-size: 13pt; font-weight: 600; }
 
 /* Fit application tables in their available width instead of showing horizontal scrollbars. */
 .overflow-x-auto:has(> table) {
