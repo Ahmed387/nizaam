@@ -228,3 +228,16 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
     </div>
   );
 }
+
+/** Inject @page 80mm before printing, then trigger window.print(). */
+export function printThermalInvoice() {
+  const id = "__thermal_page_style__";
+  document.getElementById(id)?.remove();
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = "@media print { @page { size: 80mm auto !important; margin: 0 !important; } }";
+  document.head.appendChild(style);
+  const cleanup = () => { document.getElementById(id)?.remove(); window.removeEventListener("afterprint", cleanup); };
+  window.addEventListener("afterprint", cleanup);
+  setTimeout(() => window.print(), 50);
+}
