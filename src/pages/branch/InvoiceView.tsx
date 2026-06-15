@@ -19,6 +19,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
@@ -45,7 +46,7 @@ export default function InvoiceView() {
       try {
         const { data: i, error: e1 } = await supabase
           .from("invoices")
-          .select("*, contacts:contact_id(name, phone, address)")
+          .select("*, contacts:contact_id(name, phone, address, balance)")
           .eq("id", invoiceId)
           .maybeSingle();
         if (e1) throw e1;
@@ -87,7 +88,7 @@ export default function InvoiceView() {
     if (!invoiceId) return;
     if (reloadKey === 0) return;
     (async () => {
-      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address)").eq("id", invoiceId).maybeSingle();
+      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address, balance)").eq("id", invoiceId).maybeSingle();
       if (i) setInv(i);
       const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
       setPlan(pp ?? null);
@@ -153,7 +154,7 @@ export default function InvoiceView() {
             {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء</Button>}
             {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
             {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
-            <Button variant="outline" onClick={() => window.print()}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
+            <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="btn-gradient"><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
@@ -161,11 +162,8 @@ export default function InvoiceView() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="text-xs">اختر نوع الطباعة</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => window.print()} className="gap-2">
-                  <Printer className="w-4 h-4" /> طباعة عادية (A4)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => printThermalReceipt(thermalData(), 80)} className="gap-2">
-                  <Receipt className="w-4 h-4" /> حرارية 80mm (USB/شبكة)
+                <DropdownMenuItem onClick={printThermalInvoice} className="gap-2">
+                  <Receipt className="w-4 h-4" /> فاتورة حرارية 80mm
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => printThermalReceipt(thermalData(), 58)} className="gap-2">
                   <Receipt className="w-4 h-4" /> حرارية 58mm (USB/شبكة)
@@ -404,6 +402,32 @@ export default function InvoiceView() {
 
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
       </div>
+
+      {/* Thermal 80mm print layout — hidden on screen, only shown when printing */}
+      <ThermalReceiptPrint
+        kind="sale"
+        branchName={branch?.name}
+        invoiceNumber={inv.invoice_number}
+        createdAt={inv.created_at}
+        paymentType={inv.payment_method}
+        dueDate={inv.due_date}
+        cashier={cashierName}
+        partyName={inv.contacts?.name ?? (inv.contact_id ? null : "عميل نقدي")}
+        notes={inv.notes}
+        items={items.map((it: any) => ({
+          name: it.product_name,
+          qty: Number(it.quantity),
+          unit_price: Number(it.selling_price ?? it.price ?? 0),
+          total: Number(it.total ?? 0),
+        }))}
+        subtotal={Number(inv.subtotal ?? 0)}
+        discount={Number(inv.discount_amount ?? 0)}
+        total={Number(inv.total ?? 0)}
+        paid={payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0)}
+        previousBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) + Number(inv.total ?? 0) : null}
+        currentBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) : null}
+        paymentMethodLabel={inv.payment_method}
+      />
 
       <CancelInvoiceDialog
         open={cancelOpen}
