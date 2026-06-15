@@ -176,12 +176,12 @@
     max-width: 80mm !important;
     min-width: 80mm !important;
     margin: 0 !important;
-    padding: 3mm 4mm 2mm !important;
+    padding: 2mm 2.2mm 1.5mm !important;
     box-sizing: border-box !important;
     font-family: "Vazir", "Vazirmatn", Arial, sans-serif;
     direction: rtl;
-    font-size: 11px;
-    line-height: 1.25;
+    font-size: 13.5px;
+    line-height: 1.35;
     color: #000 !important;
     background: #fff !important;
   }
@@ -230,23 +230,23 @@
 }
 
 #invoice-print-area { font-family: "Vazir", "Vazirmatn", Arial, sans-serif; }
-#invoice-print-area .tr-header { text-align: center; margin-bottom: 5px; }
-#invoice-print-area .tr-logo { width: 112px; height: 112px; object-fit: contain; display: block; margin: 0 auto 3px; }
+#invoice-print-area .tr-header { text-align: center; margin-bottom: 7px; }
+#invoice-print-area .tr-logo { width: 126px; height: 126px; object-fit: contain; display: block; margin: 0 auto 4px; }
 #invoice-print-area .tr-company-bar {
   background: #d9d9d9;
   color: #000;
   font-family: "Vazir", "Vazirmatn", Arial, sans-serif;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.65;
-  min-height: 32px;
+  line-height: 1.55;
+  min-height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 0 2px;
 }
 #invoice-print-area .tr-title,
-#invoice-print-area .tr-tax { text-align: center; font-size: 11px; line-height: 1.35; }
+#invoice-print-area .tr-tax { text-align: center; font-size: 13px; line-height: 1.4; font-weight: 500; }
 #invoice-print-area table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 #invoice-print-area .tr-meta-grid { margin-top: 10px; }
 #invoice-print-area .tr-meta-grid th,
