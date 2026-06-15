@@ -263,9 +263,7 @@ export function printThermalInvoice() {
 <base href="${location.origin}/" />
 ${headStyles}
 <style>
-  /* size: 80mm auto -> single continuous page that grows with content.
-     Thermal printers (XP-80C) treat the receipt as one ticket regardless of length,
-     so the invoice will NEVER be split across two pages. */
+  /* Continuous thermal page — grows with content (XP-80C cuts at end). */
   @page { size: 80mm auto; margin: 0; }
   html, body {
     width: 80mm; margin: 0 !important; padding: 0 !important;
@@ -273,49 +271,47 @@ ${headStyles}
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   body { display: block !important; }
-  /* Prevent any internal element from triggering a page break */
-  #invoice-print-area,
-  #invoice-print-area * {
+  /* Only the container avoids breaks — applying break-inside:avoid to every
+     descendant actually *forces* the browser to break early. */
+  #invoice-print-area {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    page-break-before: avoid !important;
-    page-break-after: avoid !important;
-    break-before: avoid !important;
-    break-after: avoid !important;
-  }
-  #invoice-print-area {
     display: block !important; position: static !important;
-    width: 72.1mm !important; max-width: 72.1mm !important; min-width: 72.1mm !important;
-    margin: 0 auto !important; padding: 0 !important;
+    width: 80mm !important; max-width: 80mm !important; min-width: 80mm !important;
+    margin: 0 !important; padding: 1.5mm 2mm !important;
     box-sizing: border-box !important;
     font-family: "Vazir","Vazirmatn",Arial,Tahoma,sans-serif !important;
     direction: rtl !important;
-    font-size: 11pt !important; line-height: 1.35 !important;
+    line-height: 1.3 !important;
     color: #000 !important; background: #fff !important;
+    /* --tr-scale is set by JS auto-shrink below; 1 = full size */
+    font-size: calc(12pt * var(--tr-scale, 1)) !important;
   }
-  #invoice-print-area .tr-logo { width: 24mm !important; height: 24mm !important; }
+  #invoice-print-area table { page-break-inside: avoid !important; break-inside: avoid !important; }
+  #invoice-print-area tr    { page-break-inside: avoid !important; break-inside: avoid !important; }
+
+  #invoice-print-area .tr-logo { width: calc(26mm * var(--tr-scale, 1)) !important; height: calc(26mm * var(--tr-scale, 1)) !important; }
   #invoice-print-area .tr-header { margin-bottom: 2mm !important; }
-  #invoice-print-area .tr-company-bar { font-size: 14pt !important; line-height: 1.15 !important; padding: 1mm 0 !important; }
-  #invoice-print-area .tr-title { font-size: 12pt !important; padding-bottom: 1mm !important; }
-  #invoice-print-area .tr-tax { font-size: 9pt !important; }
+  #invoice-print-area .tr-company-bar { font-size: calc(15pt * var(--tr-scale, 1)) !important; line-height: 1.15 !important; padding: 1mm 0 !important; }
+  #invoice-print-area .tr-title { font-size: calc(13pt * var(--tr-scale, 1)) !important; padding-bottom: 1mm !important; }
+  #invoice-print-area .tr-tax { font-size: calc(10pt * var(--tr-scale, 1)) !important; }
   #invoice-print-area .tr-meta-grid th,
-  #invoice-print-area .tr-meta-grid td { font-size: 9pt !important; padding: 0.7mm 0.6mm !important; line-height: 1.3 !important; }
+  #invoice-print-area .tr-meta-grid td { font-size: calc(10pt * var(--tr-scale, 1)) !important; padding: 0.7mm 0.6mm !important; line-height: 1.3 !important; }
   #invoice-print-area table.tr-items { table-layout: fixed !important; width: 100% !important; }
   #invoice-print-area table.tr-items th,
-  #invoice-print-area table.tr-items td { font-size: 9.5pt !important; padding: 1.6mm 0.8mm !important; border: 0.3mm solid #000 !important; line-height: 1.25 !important; word-wrap: break-word !important; overflow-wrap: anywhere !important; white-space: normal !important; }
-  #invoice-print-area table.tr-items th { font-size: 9.5pt !important; font-weight: 800 !important; }
+  #invoice-print-area table.tr-items td { font-size: calc(10.5pt * var(--tr-scale, 1)) !important; padding: 1.5mm 0.8mm !important; border: 0.3mm solid #000 !important; line-height: 1.25 !important; word-wrap: break-word !important; overflow-wrap: anywhere !important; white-space: normal !important; }
+  #invoice-print-area table.tr-items th { font-weight: 800 !important; }
   #invoice-print-area table.tr-items .tr-name { text-align: right !important; }
   #invoice-print-area .tr-totals th,
-  #invoice-print-area .tr-totals td { font-size: 10.5pt !important; padding: 1.2mm 1mm !important; border: 0.3mm solid #000 !important; line-height: 1.22 !important; }
+  #invoice-print-area .tr-totals td { font-size: calc(11pt * var(--tr-scale, 1)) !important; padding: 1.2mm 1mm !important; border: 0.3mm solid #000 !important; line-height: 1.22 !important; }
   #invoice-print-area .tr-total-highlight th,
-  #invoice-print-area .tr-total-highlight td { font-size: 14pt !important; font-weight: 800 !important; border: 0.5mm solid #000 !important; }
+  #invoice-print-area .tr-total-highlight td { font-size: calc(15pt * var(--tr-scale, 1)) !important; font-weight: 800 !important; border: 0.5mm solid #000 !important; }
   #invoice-print-area .tr-total-balance th,
-  #invoice-print-area .tr-total-balance td { font-size: 10pt !important; }
-  #invoice-print-area .tr-pay-method { font-size: 9.5pt !important; }
-  #invoice-print-area .tr-footer { font-size: 9pt !important; line-height: 1.35 !important; }
-  #invoice-print-area .tr-thanks { font-size: 11pt !important; }
-  #invoice-print-area .tr-phone { font-size: 9pt !important; }
-  /* Make sure nothing inherits visibility:hidden from the host @media print rules */
+  #invoice-print-area .tr-total-balance td { font-size: calc(10.5pt * var(--tr-scale, 1)) !important; }
+  #invoice-print-area .tr-pay-method { font-size: calc(10pt * var(--tr-scale, 1)) !important; }
+  #invoice-print-area .tr-footer { font-size: calc(10pt * var(--tr-scale, 1)) !important; line-height: 1.35 !important; }
+  #invoice-print-area .tr-thanks { font-size: calc(12pt * var(--tr-scale, 1)) !important; }
+  #invoice-print-area .tr-phone { font-size: calc(10pt * var(--tr-scale, 1)) !important; }
   #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
 </style>
 </head>
