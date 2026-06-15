@@ -223,7 +223,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
 
       <div className="tr-footer">
         <div className="tr-thanks">شكراً لزيارتكم</div>
-        {phone && <div>ت: {phone}</div>}
+        {phone && <div className="tr-phone">ت: {phone}</div>}
         {address && <div>{address}</div>}
         {footerNote && <div>{footerNote}</div>}
       </div>
