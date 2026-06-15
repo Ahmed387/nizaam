@@ -263,13 +263,26 @@ export function printThermalInvoice() {
 <base href="${location.origin}/" />
 ${headStyles}
 <style>
-  @page { size: 80mm 297mm; margin: 0; }
+  /* size: 80mm auto -> single continuous page that grows with content.
+     Thermal printers (XP-80C) treat the receipt as one ticket regardless of length,
+     so the invoice will NEVER be split across two pages. */
+  @page { size: 80mm auto; margin: 0; }
   html, body {
-    width: 80mm; min-height: 297mm; margin: 0 !important; padding: 0 !important;
+    width: 80mm; margin: 0 !important; padding: 0 !important;
     background: #fff !important; color: #000 !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  body { display: block !important; overflow: hidden !important; }
+  body { display: block !important; }
+  /* Prevent any internal element from triggering a page break */
+  #invoice-print-area,
+  #invoice-print-area * {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+  }
   #invoice-print-area {
     display: block !important; position: static !important;
     width: 72.1mm !important; max-width: 72.1mm !important; min-width: 72.1mm !important;
