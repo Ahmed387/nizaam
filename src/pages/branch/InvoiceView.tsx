@@ -154,7 +154,7 @@ export default function InvoiceView() {
             {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء</Button>}
             {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
             {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
-            <Button variant="outline" onClick={() => window.print()}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
+            <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="btn-gradient"><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
@@ -162,11 +162,8 @@ export default function InvoiceView() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="text-xs">اختر نوع الطباعة</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => window.print()} className="gap-2">
-                  <Printer className="w-4 h-4" /> طباعة عادية (A4)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => printThermalReceipt(thermalData(), 80)} className="gap-2">
-                  <Receipt className="w-4 h-4" /> حرارية 80mm (USB/شبكة)
+                <DropdownMenuItem onClick={printThermalInvoice} className="gap-2">
+                  <Receipt className="w-4 h-4" /> فاتورة حرارية 80mm
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => printThermalReceipt(thermalData(), 58)} className="gap-2">
                   <Receipt className="w-4 h-4" /> حرارية 58mm (USB/شبكة)
