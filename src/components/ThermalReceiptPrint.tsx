@@ -280,7 +280,7 @@ ${headStyles}
     font-size: 11pt !important; line-height: 1.35 !important;
     color: #000 !important; background: #fff !important;
   }
-  #invoice-print-area .tr-logo { width: 18mm !important; height: 18mm !important; }
+  #invoice-print-area .tr-logo { width: 24mm !important; height: 24mm !important; }
   #invoice-print-area .tr-header { margin-bottom: 2mm !important; }
   #invoice-print-area .tr-company-bar { font-size: 14pt !important; line-height: 1.15 !important; padding: 1mm 0 !important; }
   #invoice-print-area .tr-title { font-size: 12pt !important; padding-bottom: 1mm !important; }
