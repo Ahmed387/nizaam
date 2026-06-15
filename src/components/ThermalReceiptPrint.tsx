@@ -110,15 +110,15 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const title = props.kind === "sale" ? "فاتورة بيع" : "فاتورة شراء";
   const partyLabel = props.kind === "sale" ? "العميل" : "المورد";
   const cashierLabel = props.kind === "sale" ? "الكاشير" : "أمين المخزن";
-  const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean }> = [
+  const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = [
     { label: "الإجمالى", value: fmt2(props.subtotal) },
     ...(discount > 0 ? [{ label: "خصم", value: fmt2(discount) }] : []),
     { label: "المطلوب", value: fmt2(props.total), highlight: true },
     ...(typeof props.paid === "number" ? [{ label: "المدفوع", value: fmt2(props.paid) }] : []),
     ...(remaining > 0 && props.paymentType !== "credit" ? [{ label: "الباقى", value: fmt2(remaining) }] : []),
     ...(remaining > 0 && props.paymentType === "credit" ? [{ label: "الآجل", value: fmt2(remaining) }] : []),
-    ...(typeof props.previousBalance === "number" ? [{ label: "الرصيد السابق", value: fmt2(props.previousBalance) }] : []),
-    ...(typeof props.currentBalance === "number" ? [{ label: "الرصيد الحالى", value: fmt2(props.currentBalance) }] : []),
+    ...(typeof props.previousBalance === "number" ? [{ label: "الرصيد السابق", value: fmt2(props.previousBalance), balance: true }] : []),
+    ...(typeof props.currentBalance === "number" ? [{ label: "الرصيد الحالى", value: fmt2(props.currentBalance), balance: true }] : []),
   ];
 
   return (
@@ -209,7 +209,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
       <table className="tr-totals" dir="ltr">
         <tbody>
           {totalRows.map((row) => (
-            <tr key={row.label} className={row.highlight ? "tr-total-highlight" : undefined}>
+            <tr key={row.label} className={row.highlight ? "tr-total-highlight" : row.balance ? "tr-total-balance" : undefined}>
               <td className="tr-total-value">{row.value}</td>
               <th>{row.label}</th>
             </tr>
