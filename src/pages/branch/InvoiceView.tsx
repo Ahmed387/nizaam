@@ -406,6 +406,32 @@ export default function InvoiceView() {
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
       </div>
 
+      {/* Thermal 80mm print layout — hidden on screen, only shown when printing */}
+      <ThermalReceiptPrint
+        kind="sale"
+        branchName={branch?.name}
+        invoiceNumber={inv.invoice_number}
+        createdAt={inv.created_at}
+        paymentType={inv.payment_method}
+        dueDate={inv.due_date}
+        cashier={cashierName}
+        partyName={inv.contacts?.name ?? (inv.contact_id ? null : "عميل نقدي")}
+        notes={inv.notes}
+        items={items.map((it: any) => ({
+          name: it.product_name,
+          qty: Number(it.quantity),
+          unit_price: Number(it.selling_price ?? it.price ?? 0),
+          total: Number(it.total ?? 0),
+        }))}
+        subtotal={Number(inv.subtotal ?? 0)}
+        discount={Number(inv.discount_amount ?? 0)}
+        total={Number(inv.total ?? 0)}
+        paid={payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0)}
+        previousBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) + Number(inv.total ?? 0) : null}
+        currentBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) : null}
+        paymentMethodLabel={inv.payment_method}
+      />
+
       <CancelInvoiceDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
