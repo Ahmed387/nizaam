@@ -187,6 +187,9 @@
   }
   body:has(#invoice-print-area) .no-print { display: none !important; }
 
+  /* When thermal receipt exists, COMPLETELY hide A4 print-area (display:none) so it doesn't print blank pages */
+  body:has(#invoice-print-area) .print-area { display: none !important; }
+
   /* Legacy A4 print-area path (only when no thermal area on the page) */
   body:not(:has(#invoice-print-area)):has(.print-area) * { visibility: hidden; }
   body:not(:has(#invoice-print-area)):has(.print-area) .print-area,
