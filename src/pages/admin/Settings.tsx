@@ -33,6 +33,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
+  const [logoError, setLogoError] = useState(false);
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSettings>({ footer_note: "", show_logo: true });
