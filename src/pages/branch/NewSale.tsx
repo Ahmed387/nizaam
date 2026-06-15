@@ -771,6 +771,13 @@ export default function NewSale() {
         } catch (e) { console.warn("link discount requests failed", e); }
       }
 
+      // Save cashier notes on the invoice (printed on the receipt)
+      if (invoiceNotes.trim()) {
+        try {
+          await supabase.from("invoices").update({ notes: invoiceNotes.trim() } as any).eq("id", invId as string);
+        } catch (e) { console.warn("save invoice notes failed", e); }
+      }
+
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
         entity: "Invoice", entityId: invId as string, details: { total },
