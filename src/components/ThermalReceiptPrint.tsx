@@ -231,23 +231,78 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   );
 }
 
-/** Inject @page sized for XP-80C 80mm thermal paper before printing. */
+/**
+ * Print the thermal receipt inside an isolated iframe.
+ * - Empty <title> removes the "Nexa Store" / URL headers the browser adds.
+ * - @page size 80mm + zero margins forces the content to fill the thermal roll.
+ * - The iframe auto-prints and removes itself; the print dialog opens straight
+ *   on the receipt with no extra options page.
+ */
 export function printThermalInvoice() {
-  const id = "__thermal_page_style__";
-  document.getElementById(id)?.remove();
-  const style = document.createElement("style");
-  style.id = id;
-  // XP 80-C uses 80mm paper; inner receipt padding leaves the real printable
-  // content near 72mm without making Chrome render a smaller custom page.
-  style.textContent = `
-    @media print {
-      @page { size: 80mm auto !important; margin: 0mm !important; }
-      html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-    }
-  `;
-  document.head.appendChild(style);
-  const cleanup = () => { document.getElementById(id)?.remove(); window.removeEventListener("afterprint", cleanup); };
-  window.addEventListener("afterprint", cleanup);
-  const startPrint = () => setTimeout(() => window.print(), 80);
-  document.fonts?.load('16px "Vazir"').then(() => document.fonts.ready).finally(startPrint) ?? startPrint();
+  const source = document.getElementById("invoice-print-area");
+  if (!source) { window.print(); return; }
+
+  // Collect all stylesheets / inline <style> tags so the iframe matches the app styling.
+  const headStyles = Array.from(
+    document.querySelectorAll('link[rel="stylesheet"], style')
+  ).map((n) => n.outerHTML).join("\n");
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(`<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8" />
+<title></title>
+<base href="${location.origin}/" />
+${headStyles}
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  html, body {
+    width: 80mm; margin: 0 !important; padding: 0 !important;
+    background: #fff !important; color: #000 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  body { display: block !important; }
+  #invoice-print-area {
+    display: block !important; position: static !important;
+    width: 80mm !important; max-width: 80mm !important; min-width: 80mm !important;
+    margin: 0 !important; padding: 2mm 3mm !important;
+    box-sizing: border-box !important;
+    font-family: "Vazir","Vazirmatn",Arial,Tahoma,sans-serif !important;
+    direction: rtl !important;
+    font-size: 13pt !important; line-height: 1.5 !important;
+    color: #000 !important; background: #fff !important;
+  }
+  /* Make sure nothing inherits visibility:hidden from the host @media print rules */
+  #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
+</style>
+</head>
+<body>${source.outerHTML}</body>
+</html>`);
+  doc.close();
+
+  const cleanup = () => { try { iframe.remove(); } catch {} };
+  const trigger = () => {
+    const win = iframe.contentWindow!;
+    const fonts = (doc as any).fonts;
+    const start = () => {
+      try {
+        win.focus();
+        win.print();
+      } finally {
+        // Give the browser time to open its print dialog before removing the iframe.
+        setTimeout(cleanup, 1500);
+      }
+    };
+    if (fonts?.ready) fonts.ready.then(start, start); else start();
+  };
+
+  if (doc.readyState === "complete") trigger();
+  else iframe.addEventListener("load", trigger, { once: true });
 }
