@@ -1204,6 +1204,7 @@ export type Database = {
           invoice_number: string
           is_migrated: boolean
           migration_source: string | null
+          notes: string | null
           payment_method: string
           refund_amount: number
           refund_method: string | null
@@ -1232,6 +1233,7 @@ export type Database = {
           invoice_number: string
           is_migrated?: boolean
           migration_source?: string | null
+          notes?: string | null
           payment_method?: string
           refund_amount?: number
           refund_method?: string | null
@@ -1260,6 +1262,7 @@ export type Database = {
           invoice_number?: string
           is_migrated?: boolean
           migration_source?: string | null
+          notes?: string | null
           payment_method?: string
           refund_amount?: number
           refund_method?: string | null
