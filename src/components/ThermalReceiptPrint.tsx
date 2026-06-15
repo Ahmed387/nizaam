@@ -249,5 +249,5 @@ export function printThermalInvoice() {
   const cleanup = () => { document.getElementById(id)?.remove(); window.removeEventListener("afterprint", cleanup); };
   window.addEventListener("afterprint", cleanup);
   const startPrint = () => setTimeout(() => window.print(), 80);
-  document.fonts?.load('14px "Vazir"').then(() => document.fonts.ready).finally(startPrint) ?? startPrint();
+  document.fonts?.load('16px "Vazir"').then(() => document.fonts.ready).finally(startPrint) ?? startPrint();
 }
