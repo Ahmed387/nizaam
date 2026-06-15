@@ -1,0 +1,1 @@
+UPDATE public.settings SET value = value || '{"logo_url": "https://i.ibb.co/rGw96qRB/11111.png"}'::jsonb WHERE key='company';
