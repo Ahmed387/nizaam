@@ -99,7 +99,8 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const company = settings.company ?? {};
   const invoiceSettings = settings.invoice ?? {};
 
-  const companyName = props.companyName || company.name || "";
+  const settingsCompanyName = company.name && !/^nexa\s*store$/i.test(company.name.trim()) ? company.name : "";
+  const companyName = props.companyName || settingsCompanyName;
   const phone = company.phone || "";
   const address = company.address || "";
   const footerNote = invoiceSettings.footer_note || "";
@@ -262,23 +263,43 @@ export function printThermalInvoice() {
 <base href="${location.origin}/" />
 ${headStyles}
 <style>
-  @page { size: 80mm auto; margin: 0; }
+  @page { size: 80mm 297mm; margin: 0; }
   html, body {
-    width: 80mm; margin: 0 !important; padding: 0 !important;
+    width: 80mm; min-height: 297mm; margin: 0 !important; padding: 0 !important;
     background: #fff !important; color: #000 !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  body { display: block !important; }
+  body { display: block !important; overflow: hidden !important; }
   #invoice-print-area {
     display: block !important; position: static !important;
-    width: 80mm !important; max-width: 80mm !important; min-width: 80mm !important;
-    margin: 0 !important; padding: 2mm 3mm !important;
+    width: 72.1mm !important; max-width: 72.1mm !important; min-width: 72.1mm !important;
+    margin: 0 auto !important; padding: 0 !important;
     box-sizing: border-box !important;
     font-family: "Vazir","Vazirmatn",Arial,Tahoma,sans-serif !important;
     direction: rtl !important;
-    font-size: 13pt !important; line-height: 1.5 !important;
+    font-size: 16pt !important; line-height: 1.42 !important;
     color: #000 !important; background: #fff !important;
   }
+  #invoice-print-area .tr-logo { width: 24mm !important; height: 24mm !important; }
+  #invoice-print-area .tr-header { margin-bottom: 2.5mm !important; }
+  #invoice-print-area .tr-company-bar { font-size: 22pt !important; line-height: 1.15 !important; padding: 1.4mm 0 !important; }
+  #invoice-print-area .tr-title { font-size: 18pt !important; padding-bottom: 1.2mm !important; }
+  #invoice-print-area .tr-tax { font-size: 13pt !important; }
+  #invoice-print-area .tr-meta-grid th,
+  #invoice-print-area .tr-meta-grid td { font-size: 13pt !important; padding: 1mm 0.8mm !important; line-height: 1.35 !important; }
+  #invoice-print-area table.tr-items th,
+  #invoice-print-area table.tr-items td { font-size: 13pt !important; padding: 2.6mm 0.8mm !important; border: 0.45mm solid #000 !important; line-height: 1.28 !important; }
+  #invoice-print-area table.tr-items th { font-size: 13.5pt !important; font-weight: 800 !important; }
+  #invoice-print-area .tr-totals th,
+  #invoice-print-area .tr-totals td { font-size: 15pt !important; padding: 1.8mm 1.2mm !important; border: 0.4mm solid #000 !important; line-height: 1.25 !important; }
+  #invoice-print-area .tr-total-highlight th,
+  #invoice-print-area .tr-total-highlight td { font-size: 22pt !important; border: 0.65mm solid #000 !important; }
+  #invoice-print-area .tr-total-balance th,
+  #invoice-print-area .tr-total-balance td { font-size: 14pt !important; }
+  #invoice-print-area .tr-pay-method { font-size: 13pt !important; }
+  #invoice-print-area .tr-footer { font-size: 12pt !important; line-height: 1.4 !important; }
+  #invoice-print-area .tr-thanks { font-size: 17pt !important; }
+  #invoice-print-area .tr-phone { font-size: 13pt !important; }
   /* Make sure nothing inherits visibility:hidden from the host @media print rules */
   #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
 </style>
