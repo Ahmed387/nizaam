@@ -10,15 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Printer, X, FileDown, Receipt, Bluetooth, Trash2, Pencil, Wallet } from "lucide-react";
-import { printThermalReceipt, buildESCPOSReceipt, printRawESCPOS, isWebBluetoothSupported, getBluetoothConnection } from "@/lib/thermalPrinter";
+import { Printer, X, FileDown, Trash2, Pencil, Wallet } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 export default function InvoiceView() {
@@ -113,37 +109,6 @@ export default function InvoiceView() {
     await logAudit({ userId: user!.id, userName: profile!.name, branchId: id, action: "DELETE", entity: "Invoice", entityId: invoiceId, details: { invoice_number: inv.invoice_number } });
     toast.success("تم حذف الفاتورة نهائياً + رجعت البضاعة + اتشالت الفلوس من الخزنة");
     nav(`/branch/${id}/sales`);
-  };
-
-  const thermalData = () => ({
-    storeName: tenant?.name ?? branch?.name ?? "",
-    storePhone: branch?.phone ?? undefined,
-    storeAddress: branch?.address ?? undefined,
-    invoiceNumber: inv.invoice_number,
-    dateTime: formatDateTime(inv.created_at),
-    cashier: cashierName ?? undefined,
-    customer: inv.contacts?.name ?? undefined,
-    customerPhone: inv.contacts?.phone ?? undefined,
-    items: items.map((it: any) => ({
-      name: it.product_name,
-      qty: Number(it.quantity),
-      price: Number(it.selling_price ?? it.price ?? 0),
-      discount: Number(it.line_discount ?? 0) || undefined,
-    })),
-    subtotal: Number(inv.subtotal ?? 0),
-    discount: Number(inv.discount_amount ?? 0) || undefined,
-    total: Number(inv.total ?? 0),
-    payments: payments.map((p: any) => ({ method: String(p.payment_method), amount: Number(p.amount), ref: p.reference_number ?? undefined })),
-  });
-
-  const printBluetooth = async () => {
-    try {
-      const bytes = buildESCPOSReceipt(thermalData());
-      await printRawESCPOS(bytes);
-      toast.success("تم إرسال الإيصال للطابعة");
-    } catch (e: any) {
-      toast.error(e.message ?? "فشل الاتصال بالطابعة");
-    }
   };
 
   return (
