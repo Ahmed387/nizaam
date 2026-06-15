@@ -172,16 +172,16 @@
     display: block !important;
     position: fixed;
     top: 0; left: 0; right: 0;
-    width: 80mm !important;
-    max-width: 80mm !important;
-    min-width: 80mm !important;
+    width: 72mm !important;
+    max-width: 72mm !important;
+    min-width: 72mm !important;
     margin: 0 !important;
-    padding: 2mm 2.2mm 1.5mm !important;
+    padding: 2mm !important;
     box-sizing: border-box !important;
-    font-family: "Vazir", "Vazirmatn", Arial, sans-serif;
-    direction: rtl;
-    font-size: 13.5px;
-    line-height: 1.35;
+    font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif !important;
+    direction: rtl !important;
+    font-size: 13pt !important;
+    line-height: 1.5 !important;
     color: #000 !important;
     background: #fff !important;
   }
