@@ -19,7 +19,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ThermalReceiptPrint } from "@/components/ThermalReceiptPrint";
+import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
