@@ -22,6 +22,8 @@ export interface ThermalReceiptProps {
   items: ThermalReceiptItem[];
   subtotal: number;
   discount?: number;
+  vatAmount?: number;
+  vatRate?: number;
   total: number;
   paid?: number;
   previousBalance?: number | null;
