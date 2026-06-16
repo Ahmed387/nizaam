@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
-import { formatEGP, formatDateTime } from "@/lib/format";
+import { formatEGP, formatDateTime, balanceLabel } from "@/lib/format";
 import { toast } from "sonner";
 import { Printer, X, FileDown, Trash2, Pencil, Wallet } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
