@@ -244,7 +244,11 @@ export default function InvoiceView() {
         {/* Payment summary: total / paid / remaining + installments schedule */}
         {(() => {
           const totalDue = Number(inv.total ?? 0);
-          const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          // المدفوع = أكبر قيمة بين (مجموع invoice_payments) و (paid_amount على خطة الدفع المرتبطة)
+          // لأن دفعات الآجل بتترسجل في payment_transactions عبر الـ plan ومش بتنزل في invoice_payments
+          const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+          const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
           const remaining = Math.max(totalDue - paidNow, 0);
           if (totalDue <= 0) return null;
           return (
@@ -267,7 +271,7 @@ export default function InvoiceView() {
               {remaining > 0.01 && inv.status !== "cancelled" && (
                 <div className="no-print mb-3">
                   <Button onClick={() => setPayOpen(true)} className="btn-gradient w-full">
-                    <Wallet className="w-4 h-4 ml-2" /> تسجيل دفعة من المتبقي ({formatEGP(remaining)})
+                    <Wallet className="w-4 h-4 ml-2" /> سداد المتبقي على هذه الفاتورة ({formatEGP(remaining)})
                   </Button>
                 </div>
               )}
