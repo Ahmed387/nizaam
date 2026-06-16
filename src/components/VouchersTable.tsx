@@ -78,6 +78,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters]);
 
+  useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); });
+
   const catMap = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c.name])), [cats]);
   const branchMap = useMemo(() => Object.fromEntries(branches.map((b) => [b.id, b.name])), [branches]);
 
