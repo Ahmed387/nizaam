@@ -1197,6 +1197,7 @@ export type Database = {
           cashier_id: string
           contact_id: string | null
           created_at: string
+          current_balance: number | null
           discount_amount: number
           discount_percent: number
           discount_reason: string | null
@@ -1206,6 +1207,7 @@ export type Database = {
           migration_source: string | null
           notes: string | null
           payment_method: string
+          previous_balance: number | null
           refund_amount: number
           refund_method: string | null
           refund_processed_at: string | null
@@ -1226,6 +1228,7 @@ export type Database = {
           cashier_id: string
           contact_id?: string | null
           created_at?: string
+          current_balance?: number | null
           discount_amount?: number
           discount_percent?: number
           discount_reason?: string | null
@@ -1235,6 +1238,7 @@ export type Database = {
           migration_source?: string | null
           notes?: string | null
           payment_method?: string
+          previous_balance?: number | null
           refund_amount?: number
           refund_method?: string | null
           refund_processed_at?: string | null
@@ -1255,6 +1259,7 @@ export type Database = {
           cashier_id?: string
           contact_id?: string | null
           created_at?: string
+          current_balance?: number | null
           discount_amount?: number
           discount_percent?: number
           discount_reason?: string | null
@@ -1264,6 +1269,7 @@ export type Database = {
           migration_source?: string | null
           notes?: string | null
           payment_method?: string
+          previous_balance?: number | null
           refund_amount?: number
           refund_method?: string | null
           refund_processed_at?: string | null
@@ -2663,11 +2669,13 @@ export type Database = {
           branch_id: string
           contact_id: string
           created_at: string
+          current_balance: number | null
           customs_cost: number
           id: string
           notes: string | null
           other_cost: number
           other_cost_description: string | null
+          previous_balance: number | null
           received_by: string
           shipment_number: string
           shipping_cost: number
@@ -2681,11 +2689,13 @@ export type Database = {
           branch_id: string
           contact_id: string
           created_at?: string
+          current_balance?: number | null
           customs_cost?: number
           id?: string
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null
+          previous_balance?: number | null
           received_by: string
           shipment_number?: string
           shipping_cost?: number
@@ -2699,11 +2709,13 @@ export type Database = {
           branch_id?: string
           contact_id?: string
           created_at?: string
+          current_balance?: number | null
           customs_cost?: number
           id?: string
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null
+          previous_balance?: number | null
           received_by?: string
           shipment_number?: string
           shipping_cost?: number
