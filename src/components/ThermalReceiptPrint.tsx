@@ -9,7 +9,7 @@ export interface ThermalReceiptItem {
 }
 
 export interface ThermalReceiptProps {
-  kind: "sale" | "purchase";
+  kind: "sale" | "purchase" | "quote";
   companyName?: string;
   branchName?: string;
   invoiceNumber: string;
