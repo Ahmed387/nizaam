@@ -32,6 +32,7 @@ interface Props {
 interface PartyOption { id: string; name: string; }
 
 export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }: Props) {
+  const { user } = useAuth();
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -47,6 +48,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
   const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
   const [partyOpen, setPartyOpen] = useState(false);
   const [partyBalance, setPartyBalance] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
+  const [attachFiles, setAttachFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
