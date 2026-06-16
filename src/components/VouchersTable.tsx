@@ -8,12 +8,13 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { VoucherDialog } from "./VoucherDialog";
+import { VoucherViewDialog } from "./VoucherViewDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2, Trash2 } from "lucide-react";
+import { Plus, XCircle, Loader2, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 
@@ -35,6 +36,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [cancelReason, setCancelReason] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Voucher | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
   const [filters, setFilters] = useState({
     from: "",
     to: "",
@@ -256,6 +258,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
             return (
               <div className="flex items-center gap-1 justify-end">
+                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
+                  <Eye className="w-4 h-4" />
+                </Button>
                 {canCancel && (
                   <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
                     <XCircle className="w-4 h-4" />
@@ -320,6 +325,13 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VoucherViewDialog
+        voucher={viewTarget}
+        open={!!viewTarget}
+        onOpenChange={(o) => !o && setViewTarget(null)}
+        categoryName={viewTarget ? catMap[viewTarget.category_id] : undefined}
+      />
     </div>
   );
 }
