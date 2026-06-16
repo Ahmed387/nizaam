@@ -385,6 +385,8 @@ export default function ShipmentView() {
         discount={Number(itemsDiscount) > 0 ? Number(itemsDiscount) : 0}
         total={Number(ship.total_cost ?? 0)}
         paid={Number(ship.total_cost ?? 0)}
+        previousBalance={ship.previous_balance != null ? Number(ship.previous_balance) : null}
+        currentBalance={ship.current_balance != null ? Number(ship.current_balance) : null}
       />
 
           </div>
