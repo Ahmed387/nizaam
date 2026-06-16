@@ -840,6 +840,33 @@ export default function NewSale() {
         }
       }
 
+      // Apply settlement against what we owe this contact (مقاصة)
+      if (effectiveSettlement > 0 && custId) {
+        try {
+          await supabase.from("invoice_payments").insert({
+            invoice_id: invId as string,
+            branch_id: branchId!,
+            payment_method: "settlement",
+            amount: effectiveSettlement,
+            received_by_name: profile?.name ?? "مقاصة",
+          } as any);
+          await supabase.from("payment_transactions").insert({
+            branch_id: branchId!,
+            contact_id: custId,
+            direction: "out",
+            amount: effectiveSettlement,
+            total_with_fee: effectiveSettlement,
+            payment_method: "settlement",
+            fee_amount: 0,
+            received_by_name: profile?.name ?? "مقاصة",
+            created_by: user!.id,
+          } as any);
+          try { await supabase.rpc("recalc_contact_balance" as any, { _contact_id: custId }); } catch {}
+        } catch (e: any) {
+          toast.error("الفاتورة اتسجلت لكن المقاصة فشلت: " + e.message);
+        }
+      }
+
       syncPendingSales(true);
 
       // Release all reservations as completed (stock decrement happens server-side via process_sale)
