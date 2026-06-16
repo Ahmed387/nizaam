@@ -364,6 +364,8 @@ export default function InvoiceView() {
         }))}
         subtotal={Number(inv.subtotal ?? 0)}
         discount={Number(inv.discount_amount ?? 0)}
+        vatAmount={Number((inv as any).vat_amount ?? 0)}
+        vatRate={Number((inv as any).vat_rate ?? 0)}
         total={Number(inv.total ?? 0)}
         paid={payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0)}
         previousBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) + Number(inv.total ?? 0) : null}
