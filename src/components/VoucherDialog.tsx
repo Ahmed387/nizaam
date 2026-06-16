@@ -142,7 +142,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     if (vErr) return toast.error(vErr);
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("create_manual_voucher" as any, {
+      const { data: newId, error } = await supabase.rpc("create_manual_voucher" as any, {
         p_branch_id: branchId,
         p_type: type,
         p_category_id: form.category_id,
@@ -159,6 +159,35 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
         p_voucher_date: form.voucher_date,
       });
       if (error) throw error;
+      // Upload any pending attachments
+      const voucherId = newId as unknown as string | null;
+      if (voucherId && attachFiles.length > 0) {
+        let okCount = 0;
+        for (const file of attachFiles) {
+          try {
+            const safeName = file.name.replace(/[^\w.\-]/g, "_");
+            const path = `vouchers/${voucherId}/${Date.now()}_${safeName}`;
+            const { error: upErr } = await supabase.storage.from(ATT_BUCKET).upload(path, file, { contentType: file.type });
+            if (upErr) throw upErr;
+            const { error: insErr } = await supabase.from("voucher_attachments" as any).insert({
+              voucher_id: voucherId,
+              file_path: path,
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              uploaded_by: user?.id,
+            });
+            if (insErr) {
+              await supabase.storage.from(ATT_BUCKET).remove([path]);
+              throw insErr;
+            }
+            okCount++;
+          } catch (e: any) {
+            toast.error(`فشل رفع ${file.name}: ${e.message ?? ""}`);
+          }
+        }
+        if (okCount > 0) toast.success(`تم رفع ${okCount} مرفق`);
+      }
       toast.success(type === "receipt" ? "تم حفظ سند القبض" : "تم حفظ سند الصرف");
       onOpenChange(false);
       onSuccess?.();
