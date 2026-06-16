@@ -148,6 +148,7 @@ export default function NewShipment() {
         .select("id", { count: "exact", head: true })
         .eq("shipment_id", shipmentId);
       setAffectedBatches(count ?? 0);
+      if (Number(s.customs_cost ?? 0) > 0 || Number(s.other_cost ?? 0) > 0) setShowExtrasBreakdown(true);
     })();
   }, [isEdit, shipmentId, loadedEdit]);
 
