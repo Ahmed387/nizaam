@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Voucher, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
-import { VoucherAttachments } from "./VoucherAttachments";
+import { RecordAttachments } from "./RecordAttachments";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function VoucherViewDialog({
@@ -49,7 +49,7 @@ export function VoucherViewDialog({
         </div>
 
         <div className="border-t border-border pt-3 mt-2">
-          <VoucherAttachments voucherId={voucher.id} canEdit={canEdit && voucher.status === "active"} />
+          <RecordAttachments recordType="voucher" recordId={voucher.id} canEdit={canEdit && voucher.status === "active"} />
         </div>
 
         <DialogFooter>
