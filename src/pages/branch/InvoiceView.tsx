@@ -79,13 +79,15 @@ export default function InvoiceView() {
   }, [invoiceId, id]);
 
   // Realtime: refresh invoice/installments/contacts if anything changes
-  useRealtimeRefresh(["invoices", "payment_installments", "contacts"], () => setReloadKey((k) => k + 1));
+  useRealtimeRefresh(["invoices", "invoice_payments", "payment_plans", "payment_installments", "payment_transactions", "contacts"], () => setReloadKey((k) => k + 1));
   useEffect(() => {
     if (!invoiceId) return;
     if (reloadKey === 0) return;
     (async () => {
       const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address, balance)").eq("id", invoiceId).maybeSingle();
       if (i) setInv(i);
+      const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
+      setPayments(pays ?? []);
       const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
       setPlan(pp ?? null);
       if (pp?.id) {
@@ -244,7 +246,11 @@ export default function InvoiceView() {
         {/* Payment summary: total / paid / remaining + installments schedule */}
         {(() => {
           const totalDue = Number(inv.total ?? 0);
-          const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          // المدفوع = أكبر قيمة بين (مجموع invoice_payments) و (paid_amount على خطة الدفع المرتبطة)
+          // لأن دفعات الآجل بتترسجل في payment_transactions عبر الـ plan ومش بتنزل في invoice_payments
+          const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+          const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
           const remaining = Math.max(totalDue - paidNow, 0);
           if (totalDue <= 0) return null;
           return (
@@ -267,7 +273,7 @@ export default function InvoiceView() {
               {remaining > 0.01 && inv.status !== "cancelled" && (
                 <div className="no-print mb-3">
                   <Button onClick={() => setPayOpen(true)} className="btn-gradient w-full">
-                    <Wallet className="w-4 h-4 ml-2" /> تسجيل دفعة من المتبقي ({formatEGP(remaining)})
+                    <Wallet className="w-4 h-4 ml-2" /> سداد المتبقي على هذه الفاتورة ({formatEGP(remaining)})
                   </Button>
                 </div>
               )}
@@ -367,7 +373,7 @@ export default function InvoiceView() {
         vatAmount={Number((inv as any).vat_amount ?? 0)}
         vatRate={Number((inv as any).vat_rate ?? 0)}
         total={Number(inv.total ?? 0)}
-        paid={payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0)}
+        paid={Math.max(payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0), Number(plan?.paid_amount ?? 0))}
         previousBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) + Number(inv.total ?? 0) : null}
         currentBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) : null}
         paymentMethodLabel={inv.payment_method}
@@ -411,7 +417,9 @@ export default function InvoiceView() {
       />
 
       {(() => {
-        const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+        const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
         const remaining = Math.max(Number(inv.total ?? 0) - paidNow, 0);
         if (remaining <= 0.01) return null;
         if (plan?.id) {
@@ -422,8 +430,8 @@ export default function InvoiceView() {
               mode={{ kind: "plan", planId: plan.id }}
               defaultAmount={remaining}
               direction="in"
-              title="تسجيل دفعة من المتبقي"
-              onSuccess={() => location.reload()}
+              title="سداد المتبقي على هذه الفاتورة"
+              onSuccess={() => setReloadKey((k) => k + 1)}
             />
           );
         }
@@ -435,8 +443,8 @@ export default function InvoiceView() {
               mode={{ kind: "contact", contactId: inv.contact_id, branchId: id! }}
               defaultAmount={remaining}
               direction="in"
-              title="تسجيل دفعة من المتبقي"
-              onSuccess={() => location.reload()}
+              title="سداد المتبقي على هذه الفاتورة"
+              onSuccess={() => setReloadKey((k) => k + 1)}
             />
           );
         }

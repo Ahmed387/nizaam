@@ -683,7 +683,11 @@ export default function NewSale() {
     setBusy(true);
     try {
       const custId = customerId || null;
-      const primaryMethod = payments.length > 0 ? payments[0].payment_method : "cash";
+      // إذا لم يُدخل الكاشير أي دفعة فالفاتورة فعلياً آجل — لا نسمّيها "نقدي"
+      const primaryMethod =
+        payments.length > 0
+          ? payments[0].payment_method
+          : (creditRemaining > 0 ? "credit" : "cash");
 
       const payload = {
         p_branch_id: branchId!,
