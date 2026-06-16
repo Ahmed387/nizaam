@@ -142,44 +142,44 @@ export function ShipmentLineProductCell({
             })}
           />
           {(manualMatches.inventory.length > 0 || manualMatches.pricelist.length > 0) && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-1.5 text-[11px]">
-              <div className="font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                ⚠️ هذا المنتج موجود بالفعل — يفضّل الاختيار منه:
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] max-h-36 overflow-y-auto">
+              <div className="font-semibold text-amber-700 dark:text-amber-300 mb-1.5">
+                ⚠️ موجود بالفعل — اختر منه:
               </div>
-              {manualMatches.inventory.map((p) => (
-                <button
-                  key={`inv-${p.id}`}
-                  type="button"
-                  onClick={() => { setSource("inventory"); onChange({ product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", source: "inventory", available: Number(p.quantity) }); }}
-                  className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-background hover:bg-accent border border-border text-right"
-                >
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <Package className="w-3 h-3 text-primary shrink-0" />
-                    <span className="truncate font-medium">{p.name}</span>
-                    {p.sku && <span className="text-muted-foreground">({p.sku})</span>}
-                  </span>
-                  <span className={cn("shrink-0 font-semibold", Number(p.quantity) > 0 ? "text-success" : "text-destructive")}>
-                    مخزون: {p.quantity}
-                  </span>
-                </button>
-              ))}
-              {manualMatches.pricelist.map((r) => (
-                <button
-                  key={`pl-${r.id}`}
-                  type="button"
-                  onClick={() => { setSource("pricelist"); onChange({ product_id: null, product_name: r.product_name, sku: r.model_code || "", cost_price: Number(r.display_price ?? 0), image: "", source: "pricelist", available: null }); }}
-                  className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-background hover:bg-accent border border-border text-right"
-                >
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <Tag className="w-3 h-3 text-amber-600 shrink-0" />
-                    <span className="truncate font-medium">{r.product_name}</span>
-                    {r.model_code && <span className="text-muted-foreground">({r.model_code})</span>}
-                  </span>
-                  <span className="shrink-0 text-primary font-semibold">
-                    {Number(r.display_price ?? 0).toLocaleString()} ج
-                  </span>
-                </button>
-              ))}
+              <div className="grid sm:grid-cols-2 gap-1">
+                {manualMatches.inventory.map((p) => (
+                  <button
+                    key={`inv-${p.id}`}
+                    type="button"
+                    onClick={() => { setSource("inventory"); onChange({ product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", source: "inventory", available: Number(p.quantity) }); }}
+                    className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded bg-background hover:bg-accent border border-border text-right min-w-0"
+                  >
+                    <span className="flex items-center gap-1 min-w-0">
+                      <Package className="w-3 h-3 text-primary shrink-0" />
+                      <span className="truncate font-medium">{p.name}</span>
+                    </span>
+                    <span className={cn("shrink-0 text-[10px] font-semibold", Number(p.quantity) > 0 ? "text-success" : "text-destructive")}>
+                      {p.quantity}
+                    </span>
+                  </button>
+                ))}
+                {manualMatches.pricelist.map((r) => (
+                  <button
+                    key={`pl-${r.id}`}
+                    type="button"
+                    onClick={() => { setSource("pricelist"); onChange({ product_id: null, product_name: r.product_name, sku: r.model_code || "", cost_price: Number(r.display_price ?? 0), image: "", source: "pricelist", available: null }); }}
+                    className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded bg-background hover:bg-accent border border-border text-right min-w-0"
+                  >
+                    <span className="flex items-center gap-1 min-w-0">
+                      <Tag className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span className="truncate font-medium">{r.product_name}</span>
+                    </span>
+                    <span className="shrink-0 text-[10px] text-primary font-semibold">
+                      {Number(r.display_price ?? 0).toLocaleString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </>
