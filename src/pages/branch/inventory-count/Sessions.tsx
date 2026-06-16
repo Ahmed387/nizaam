@@ -10,6 +10,9 @@ import { InventoryStatusBadge } from "@/components/InventoryStatusBadge";
 import { formatDateTime } from "@/lib/format";
 import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban } from "lucide-react";
 import { toast } from "sonner";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { useMemo } from "react";
 
 export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
@@ -35,6 +38,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   };
   useEffect(() => { load(); }, [branchId]);
   useRealtimeRefresh(["inventory_sessions"], load);
+  const attCounts = useAttachmentCounts("inventory_adjustment", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
   const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
 
@@ -87,8 +91,9 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
             key: "actions",
             header: "إجراءات",
             render: (r: any) => (
-              <div className="flex gap-2 justify-end flex-wrap">
+              <div className="flex gap-2 justify-end flex-wrap items-center">
                 {actionFor(r)}
+                <AttachmentsDialogButton recordType="inventory_adjustment" recordId={r.id} count={attCounts[r.id] ?? 0} canEdit={isManager || isWarehouse || isAccountant} />
                 {isManager && canCancel(r.status) && (
                   <Button size="sm" variant="outline" onClick={() => cancelSession(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
                     <Ban className="w-4 h-4" /> إلغاء
