@@ -389,7 +389,7 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span><AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
