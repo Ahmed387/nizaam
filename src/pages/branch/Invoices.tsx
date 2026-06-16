@@ -378,7 +378,7 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span><AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "customer", header: "العميل", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب" },
