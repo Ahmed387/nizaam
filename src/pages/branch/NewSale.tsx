@@ -169,6 +169,35 @@ export default function NewSale() {
     });
   }, [branchId]);
 
+  // ===== Prefill from quote conversion =====
+  useEffect(() => {
+    const pf = (location.state as any)?.prefillFromQuote;
+    if (!pf || prefillAppliedRef.current) return;
+    if (products.length === 0) return;
+    prefillAppliedRef.current = true;
+    const built: Item[] = (pf.items ?? []).map((q: any) => {
+      const p = products.find((pp: any) => pp.id === q.product_id);
+      if (!p) return null;
+      return {
+        product_id: q.product_id,
+        product_name: q.product_name,
+        quantity: Number(q.quantity || 1),
+        cost_price: Number(p.cost_price ?? 0),
+        selling_price: Number(q.unit_price ?? p.selling_price ?? 0),
+        market_price: Number(p.market_price ?? 0),
+        line_discount: 0,
+        discount_mode: "amount" as const,
+        discount_input: 0,
+      };
+    }).filter(Boolean) as Item[];
+    if (built.length) setItems(built);
+    if (pf.customerId) setCustomerId(pf.customerId);
+    if (pf.notes) setInvoiceNotes(pf.notes);
+    toast.success(`تم تحميل بيانات عرض السعر ${pf.quoteNumber ?? ""}`);
+  }, [products, location.state]);
+
+
+
   // ===== Reservation availability + realtime sync =====
   const refreshAvailability = useCallback(async () => {
     if (!branchId) return;
