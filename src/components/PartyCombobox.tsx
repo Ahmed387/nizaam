@@ -7,7 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatEGP } from "@/lib/format";
+import { formatEGP, balanceLabel } from "@/lib/format";
 
 export type PartyType = "supplier" | "customer" | "employee";
 
