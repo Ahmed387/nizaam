@@ -3692,10 +3692,6 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: Json
       }
-      contact_balance_apply: {
-        Args: { _contact: string; _delta: number }
-        Returns: undefined
-      }
       create_inventory_session: {
         Args: { p_branch_id: string; p_notes?: string }
         Returns: string

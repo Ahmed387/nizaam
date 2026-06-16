@@ -238,10 +238,9 @@ export default function NewPurchaseReturn() {
             created_by: user!.id,
           } as any);
         }
-        if (balancePart > 0) {
-          const newBal = Number(supplier.balance ?? 0) - balancePart;
-          await supabase.from("contacts").update({ balance: newBal }).eq("id", supplier.id);
-        }
+        // Balance update is handled automatically by the DB trigger
+        // trg_balance_purchase_returns → recalc_contact_balance.
+        // No client-side write needed.
       }
 
       if (asDraft) {
