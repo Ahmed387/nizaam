@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Upload, ImageIcon, UserPlus } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, ImageIcon, UserPlus, ChevronDown, ChevronUp } from "lucide-react";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
