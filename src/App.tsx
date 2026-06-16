@@ -99,6 +99,7 @@ import Invoices from "./pages/branch/Invoices";
 import NewPurchaseReturn from "./pages/branch/NewPurchaseReturn";
 import NewSaleReturn from "./pages/branch/NewSaleReturn";
 import NewQuote from "./pages/branch/NewQuote";
+import QuoteView from "./pages/branch/QuoteView";
 import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
 import PaymentVouchers from "./pages/branch/PaymentVouchers";
 import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
