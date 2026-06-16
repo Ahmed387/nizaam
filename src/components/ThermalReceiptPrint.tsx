@@ -9,7 +9,7 @@ export interface ThermalReceiptItem {
 }
 
 export interface ThermalReceiptProps {
-  kind: "sale" | "purchase";
+  kind: "sale" | "purchase" | "quote";
   companyName?: string;
   branchName?: string;
   invoiceNumber: string;
@@ -110,9 +110,9 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const remaining = Number(props.remaining ?? Math.max(props.total - (props.paid ?? 0), 0));
 
 
-  const title = props.kind === "sale" ? "فاتورة بيع" : "فاتورة شراء";
-  const partyLabel = props.kind === "sale" ? "العميل" : "المورد";
-  const cashierLabel = props.kind === "sale" ? "الكاشير" : "أمين المخزن";
+  const title = props.kind === "sale" ? "فاتورة بيع" : props.kind === "purchase" ? "فاتورة شراء" : "عرض سعر";
+  const partyLabel = props.kind === "purchase" ? "المورد" : "العميل";
+  const cashierLabel = props.kind === "purchase" ? "أمين المخزن" : props.kind === "quote" ? "أصدر العرض" : "الكاشير";
   const vatAmount = Number(props.vatAmount ?? 0);
   const vatRate = Number(props.vatRate ?? 0);
   const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = [
@@ -151,18 +151,18 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
             <th>التاريخ</th>
             <td className="tr-meta-gap" />
             <td className="tr-meta-value">{props.invoiceNumber}</td>
-            <th>رقم الفاتورة</th>
+            <th>{props.kind === "quote" ? "رقم العرض" : "رقم الفاتورة"}</th>
           </tr>
           <tr>
             <td className="tr-meta-value">{fmtTime(props.createdAt)}</td>
             <th>الوقت</th>
             <td className="tr-meta-gap" />
-            <td className="tr-meta-value">{paymentLabel(props.paymentType)}</td>
-            <th>نوع الفاتورة</th>
+            <td className="tr-meta-value">{props.kind === "quote" ? "—" : paymentLabel(props.paymentType)}</td>
+            <th>{props.kind === "quote" ? "النوع" : "نوع الفاتورة"}</th>
           </tr>
           <tr>
             <td className="tr-meta-value">{props.dueDate ? fmtDate(props.dueDate) : fmtDate(props.createdAt)}</td>
-            <th>تستحق</th>
+            <th>{props.kind === "quote" ? "صالح حتى" : "تستحق"}</th>
             <td className="tr-meta-gap" />
             <td className="tr-meta-value">{props.cashier || "—"}</td>
             <th>{cashierLabel}</th>
