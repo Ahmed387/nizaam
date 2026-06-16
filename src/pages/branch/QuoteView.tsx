@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Printer, FileDown, ArrowRightLeft, Loader2 } from "lucide-react";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "مسودة",
