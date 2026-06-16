@@ -19,7 +19,7 @@ import { Plus, XCircle, Loader2, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
-import { AttachmentIndicator } from "@/components/AttachmentIndicator";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 
 interface Props {
   branchId?: string;
