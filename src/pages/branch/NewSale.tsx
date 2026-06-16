@@ -56,6 +56,8 @@ export default function NewSale() {
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile, isAdmin, hasRole } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  const prefillAppliedRef = useRef(false);
 
   const showCost = isAdmin || hasRole("branch_manager") || hasRole("accountant");
 
