@@ -400,8 +400,8 @@ export default function InvoiceView() {
         vatRate={Number((inv as any).vat_rate ?? 0)}
         total={Number(inv.total ?? 0)}
         paid={Math.max(payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0), Number(plan?.paid_amount ?? 0))}
-        previousBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) + Number(inv.total ?? 0) : null}
-        currentBalance={inv.contacts?.balance != null ? Number(inv.contacts.balance) : null}
+        previousBalance={inv.previous_balance != null ? Number(inv.previous_balance) : null}
+        currentBalance={inv.current_balance != null ? Number(inv.current_balance) : null}
         paymentMethodLabel={inv.payment_method}
       />
 
