@@ -417,7 +417,9 @@ export default function InvoiceView() {
       />
 
       {(() => {
-        const paidNow = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+        const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
         const remaining = Math.max(Number(inv.total ?? 0) - paidNow, 0);
         if (remaining <= 0.01) return null;
         if (plan?.id) {
@@ -428,8 +430,8 @@ export default function InvoiceView() {
               mode={{ kind: "plan", planId: plan.id }}
               defaultAmount={remaining}
               direction="in"
-              title="تسجيل دفعة من المتبقي"
-              onSuccess={() => location.reload()}
+              title="سداد المتبقي على هذه الفاتورة"
+              onSuccess={() => setReloadKey((k) => k + 1)}
             />
           );
         }
@@ -441,8 +443,8 @@ export default function InvoiceView() {
               mode={{ kind: "contact", contactId: inv.contact_id, branchId: id! }}
               defaultAmount={remaining}
               direction="in"
-              title="تسجيل دفعة من المتبقي"
-              onSuccess={() => location.reload()}
+              title="سداد المتبقي على هذه الفاتورة"
+              onSuccess={() => setReloadKey((k) => k + 1)}
             />
           );
         }
