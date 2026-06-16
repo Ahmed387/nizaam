@@ -615,96 +615,107 @@ export default function NewShipment() {
 
       <div className="card-elevated overflow-hidden mb-4">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold">٣. المنتجات</h3>
+          <h3 className="font-bold text-base flex items-center gap-2">
+            <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٣</span>
+            المنتجات
+            {lines.length > 0 && <span className="text-xs text-muted-foreground font-normal">({lines.length})</span>}
+          </h3>
           <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface-2 border-b border-border">
-                <th className="px-3 py-2 text-right">صورة</th>
-                <th className="px-3 py-2 text-right">المنتج</th>
-                <th className="px-3 py-2 text-right">الكود (SKU)</th>
-                <th className="px-3 py-2 text-right">الكمية</th>
-                <th className="px-3 py-2 text-right">سعر التكلفة</th>
-                <th className="px-3 py-2 text-right">خصم %</th>
-                <th className="px-3 py-2 text-right">خصم مبلغ</th>
-                <th className="px-3 py-2 text-right">الصافي</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.length === 0 && (
-                <tr><td colSpan={9} className="text-center text-muted-foreground py-8">اضغط "إضافة صنف" لبدء تسجيل المنتجات</td></tr>
-              )}
-              {lines.map((l, i) => (
-                <tr key={i} className="border-b border-border align-top">
-                  <td className="px-3 py-2 w-24">
-                    <div className="flex flex-col items-center gap-1">
-                      {l.image
-                        ? <img src={l.image} alt="" className="w-14 h-14 rounded object-cover border" />
-                        : <div className="w-14 h-14 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
-                      }
-                      {l.product_id === null && (
-                        <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                          {l.uploadingImg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                          <span>{l.image ? "تغيير" : "رفع"}</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
-                        </label>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 min-w-[340px]">
-                    <ShipmentLineProductCell
-                      branchId={branchId!}
-                      value={{ product_id: l.product_id, product_name: l.product_name, sku: l.sku, image: l.image }}
-                      onChange={(p) => updateLine(i, {
-                        product_id: p.product_id,
-                        product_name: p.product_name,
-                        sku: p.sku || l.sku || genSku(),
-                        cost_price: p.cost_price || l.cost_price,
-                        image: p.image || l.image,
-                      })}
-                    />
-                  </td>
 
-                  <td className="px-3 py-2 w-40">
-                    <Input
-                      value={l.sku}
-                      onChange={(e) => updateLine(i, { sku: e.target.value })}
-                      readOnly={l.product_id !== null}
-                      className={l.product_id !== null ? "bg-surface-2 font-mono text-xs" : "font-mono text-xs"}
-                    />
-                  </td>
-                  <td className="px-3 py-2 w-24">
-                    <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
-                  </td>
-                  <td className="px-3 py-2 w-32">
-                    <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} />
-                  </td>
-                  <td className="px-3 py-2 w-24">
-                    <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" />
-                  </td>
-                  <td className="px-3 py-2 w-28">
-                    <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" />
-                  </td>
-                  <td className="px-3 py-2 w-32 font-bold">
-                    {formatEGP(lineNet(l))}
-                    {(l.discount_percent > 0 || l.discount_amount > 0) && (
-                      <div className="text-[10px] text-muted-foreground font-normal line-through">{formatEGP(l.quantity * l.cost_price)}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 w-12">
-                    <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-destructive">
+        {lines.length === 0 ? (
+          <div className="text-center text-muted-foreground py-12 px-4">
+            <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">اضغط "إضافة صنف" لبدء تسجيل المنتجات</p>
+          </div>
+        ) : (
+          <div className="p-4 space-y-3">
+            {lines.map((l, i) => {
+              const net = lineNet(l);
+              const gross = l.quantity * l.cost_price;
+              return (
+                <div key={i} className="rounded-lg border border-border bg-surface-1/30 hover:bg-surface-1/60 transition-colors">
+                  {/* Header: image + product picker + delete */}
+                  <div className="flex items-start gap-3 p-3 border-b border-border/60">
+                    <div className="shrink-0">
+                      <div className="relative">
+                        {l.image
+                          ? <img src={l.image} alt="" className="w-16 h-16 rounded-md object-cover border border-border" />
+                          : <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center border border-border"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
+                        }
+                        {l.product_id === null && (
+                          <label className="absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-pointer inline-flex items-center gap-0.5 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full shadow hover:bg-primary/90 whitespace-nowrap">
+                            {l.uploadingImg ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
+                            <span>{l.image ? "تغيير" : "رفع"}</span>
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <ShipmentLineProductCell
+                        branchId={branchId!}
+                        value={{ product_id: l.product_id, product_name: l.product_name, sku: l.sku, image: l.image }}
+                        onChange={(p) => updateLine(i, {
+                          product_id: p.product_id,
+                          product_name: p.product_name,
+                          sku: p.sku || l.sku || genSku(),
+                          cost_price: p.cost_price || l.cost_price,
+                          image: p.image || l.image,
+                        })}
+                      />
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-destructive shrink-0 -mt-1">
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+
+                  {/* Numeric fields row */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3">
+                    <div className="space-y-1 md:col-span-2">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">الكود (SKU)</Label>
+                      <Input
+                        value={l.sku}
+                        onChange={(e) => updateLine(i, { sku: e.target.value })}
+                        readOnly={l.product_id !== null}
+                        className={l.product_id !== null ? "bg-surface-2 font-mono text-xs h-9" : "font-mono text-xs h-9"}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">الكمية</Label>
+                      <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="h-9" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">سعر التكلفة</Label>
+                      <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} className="h-9" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">خصم %</Label>
+                      <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" className="h-9" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">خصم مبلغ</Label>
+                      <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" className="h-9" />
+                    </div>
+                  </div>
+
+                  {/* Net summary footer */}
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 bg-surface-2/60 border-t border-border/60 text-xs">
+                    <span className="text-muted-foreground font-semibold">الصافي</span>
+                    <div className="flex items-center gap-2">
+                      {(l.discount_percent > 0 || l.discount_amount > 0) && (
+                        <span className="text-[10px] text-muted-foreground line-through">{formatEGP(gross)}</span>
+                      )}
+                      <span className="font-bold text-primary text-sm">{formatEGP(net)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
 
       {/* 4) Payment plan for supplier — only in create mode */}
       {!isEdit && (
