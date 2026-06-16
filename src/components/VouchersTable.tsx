@@ -325,6 +325,13 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VoucherViewDialog
+        voucher={viewTarget}
+        open={!!viewTarget}
+        onOpenChange={(o) => !o && setViewTarget(null)}
+        categoryName={viewTarget ? catMap[viewTarget.category_id] : undefined}
+      />
     </div>
   );
 }
