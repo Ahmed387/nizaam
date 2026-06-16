@@ -86,6 +86,10 @@ export default function BranchProfile() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(
+    ["branches", "employees", "products", "invoices", "shipments", "vouchers", "returns", "treasury", "expenses"],
+    () => load()
+  );
 
   const stats = useMemo(() => {
     const activeInvoices = invoices.filter((i) => i.status === "active");
