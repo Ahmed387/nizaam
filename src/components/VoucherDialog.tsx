@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,14 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./Pa
 import { validateTransferPayment } from "@/lib/paymentMethods";
 import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const ATT_BUCKET = "voucher-attachments";
+const ATT_MAX_SIZE = 5 * 1024 * 1024;
 
 interface Props {
   open: boolean;
@@ -28,6 +32,7 @@ interface Props {
 interface PartyOption { id: string; name: string; }
 
 export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }: Props) {
+  const { user } = useAuth();
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -43,6 +48,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
   const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
   const [partyOpen, setPartyOpen] = useState(false);
   const [partyBalance, setPartyBalance] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
+  const [attachFiles, setAttachFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -59,6 +66,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     setPm(emptyPaymentValue());
     setPartyOptions([]);
     setPartyBalance(null);
+    setAttachFiles([]);
   }, [open, type]);
 
   // System categories produced automatically by other flows — hide from manual dialog
@@ -134,7 +142,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     if (vErr) return toast.error(vErr);
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("create_manual_voucher" as any, {
+      const { data: newId, error } = await supabase.rpc("create_manual_voucher" as any, {
         p_branch_id: branchId,
         p_type: type,
         p_category_id: form.category_id,
@@ -151,6 +159,35 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
         p_voucher_date: form.voucher_date,
       });
       if (error) throw error;
+      // Upload any pending attachments
+      const voucherId = newId as unknown as string | null;
+      if (voucherId && attachFiles.length > 0) {
+        let okCount = 0;
+        for (const file of attachFiles) {
+          try {
+            const safeName = file.name.replace(/[^\w.\-]/g, "_");
+            const path = `vouchers/${voucherId}/${Date.now()}_${safeName}`;
+            const { error: upErr } = await supabase.storage.from(ATT_BUCKET).upload(path, file, { contentType: file.type });
+            if (upErr) throw upErr;
+            const { error: insErr } = await supabase.from("voucher_attachments" as any).insert({
+              voucher_id: voucherId,
+              file_path: path,
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              uploaded_by: user?.id,
+            });
+            if (insErr) {
+              await supabase.storage.from(ATT_BUCKET).remove([path]);
+              throw insErr;
+            }
+            okCount++;
+          } catch (e: any) {
+            toast.error(`فشل رفع ${file.name}: ${e.message ?? ""}`);
+          }
+        }
+        if (okCount > 0) toast.success(`تم رفع ${okCount} مرفق`);
+      }
       toast.success(type === "receipt" ? "تم حفظ سند القبض" : "تم حفظ سند الصرف");
       onOpenChange(false);
       onSuccess?.();
@@ -264,6 +301,64 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
             <Label>وصف / ملاحظات</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="mt-1.5" rows={2} />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Paperclip className="w-4 h-4" /> المرفقات
+                {attachFiles.length > 0 && <span className="text-xs text-muted-foreground">({attachFiles.length})</span>}
+              </Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  const valid: File[] = [];
+                  for (const f of files) {
+                    if (f.size > ATT_MAX_SIZE) {
+                      toast.error(`${f.name}: تجاوز الحد الأقصى 5 ميجابايت`);
+                    } else {
+                      valid.push(f);
+                    }
+                  }
+                  if (valid.length) setAttachFiles((prev) => [...prev, ...valid]);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              />
+              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-1">
+                <Upload className="w-4 h-4" /> إضافة مرفق
+              </Button>
+            </div>
+            {attachFiles.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30 rounded border border-dashed">
+                لا توجد مرفقات (اختياري — صور أو PDF حتى 5MB)
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {attachFiles.map((f, idx) => {
+                  const isImg = f.type.startsWith("image/");
+                  return (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded border bg-muted/30 text-sm">
+                      <div className="shrink-0 w-7 h-7 rounded bg-background flex items-center justify-center">
+                        {isImg ? <ImageIcon className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{f.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{Math.round(f.size / 1024)} KB</div>
+                      </div>
+                      <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                        onClick={() => setAttachFiles((prev) => prev.filter((_, i) => i !== idx))}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
