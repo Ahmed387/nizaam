@@ -59,7 +59,7 @@ export default function QuoteView() {
 
   useRealtimeRefresh(["quotes", "quote_items"], () => setReloadKey((k) => k + 1));
 
-  const doPrint = () => window.print();
+  const doPrint = () => printThermalInvoice();
 
   const convertToInvoice = async () => {
     if (!quote) return;
