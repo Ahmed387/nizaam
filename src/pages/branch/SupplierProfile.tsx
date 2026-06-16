@@ -102,7 +102,7 @@ export default function SupplierProfile() {
         .order("created_at", { ascending: false }),
       supabase
         .from("payment_transactions")
-        .select("*, branches(name)")
+        .select("*")
         .eq("contact_id", supplierId!)
         .eq("direction", "in")
         .order("created_at", { ascending: false }),
