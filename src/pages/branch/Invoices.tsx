@@ -409,7 +409,7 @@ export default function Invoices() {
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
         columns: [
-          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}<AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}<AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "to_branch_id", header: "إلى", render: (r: any) => branchName(r.to_branch_id) },
           { key: "status", header: "الحالة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
