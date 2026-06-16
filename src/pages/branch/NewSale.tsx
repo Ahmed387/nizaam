@@ -85,9 +85,13 @@ export default function NewSale() {
   const [newCustOpen, setNewCustOpen] = useState(false);
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
-  // Customer credit balance
+  // Customer credit balance + ledger balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
+  const [customerBalance, setCustomerBalance] = useState(0); // contacts.balance (>0 له عندنا، <0 علينا له)
+  const [customerType, setCustomerType] = useState<string>("customer");
+  const [useSettlement, setUseSettlement] = useState(false);
+  const [settlementAmount, setSettlementAmount] = useState(0);
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
   const [vatRate, setVatRate] = useState<number>(14);
@@ -105,10 +109,14 @@ export default function NewSale() {
 
   useEffect(() => {
     setCreditToApply(0);
-    if (!customerId) { setCustomerCredit(0); return; }
+    setUseSettlement(false);
+    setSettlementAmount(0);
+    if (!customerId) { setCustomerCredit(0); setCustomerBalance(0); setCustomerType("customer"); return; }
     const load = async () => {
-      const { data } = await supabase.from("contacts").select("credit_balance").eq("id", customerId).maybeSingle();
+      const { data } = await supabase.from("contacts").select("credit_balance, balance, type").eq("id", customerId).maybeSingle();
       setCustomerCredit(Number((data as any)?.credit_balance ?? 0));
+      setCustomerBalance(Number((data as any)?.balance ?? 0));
+      setCustomerType(String((data as any)?.type ?? "customer"));
     };
     load();
     const ch = supabase.channel(`contact-credit-${customerId}`)
