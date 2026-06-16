@@ -302,6 +302,64 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="mt-1.5" rows={2} />
           </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Paperclip className="w-4 h-4" /> المرفقات
+                {attachFiles.length > 0 && <span className="text-xs text-muted-foreground">({attachFiles.length})</span>}
+              </Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  const valid: File[] = [];
+                  for (const f of files) {
+                    if (f.size > ATT_MAX_SIZE) {
+                      toast.error(`${f.name}: تجاوز الحد الأقصى 5 ميجابايت`);
+                    } else {
+                      valid.push(f);
+                    }
+                  }
+                  if (valid.length) setAttachFiles((prev) => [...prev, ...valid]);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              />
+              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-1">
+                <Upload className="w-4 h-4" /> إضافة مرفق
+              </Button>
+            </div>
+            {attachFiles.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30 rounded border border-dashed">
+                لا توجد مرفقات (اختياري — صور أو PDF حتى 5MB)
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {attachFiles.map((f, idx) => {
+                  const isImg = f.type.startsWith("image/");
+                  return (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded border bg-muted/30 text-sm">
+                      <div className="shrink-0 w-7 h-7 rounded bg-background flex items-center justify-center">
+                        {isImg ? <ImageIcon className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{f.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{Math.round(f.size / 1024)} KB</div>
+                      </div>
+                      <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                        onClick={() => setAttachFiles((prev) => prev.filter((_, i) => i !== idx))}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>إلغاء</Button>
