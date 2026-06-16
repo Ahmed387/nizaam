@@ -16,6 +16,7 @@ import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
 import { printHtml } from "@/lib/export";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
+import { RecordAttachments } from "@/components/RecordAttachments";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -391,6 +392,10 @@ export default function ShipmentView() {
 
           </div>
         )}
+      </div>
+
+      <div className="card-elevated p-4 print:hidden">
+        <RecordAttachments recordType="shipment" recordId={ship.id} canEdit={canEdit} />
       </div>
 
       <AlertDialog open={delOpen} onOpenChange={(o) => { if (!o) { setDelOpen(false); setDelReason(""); } }}>
