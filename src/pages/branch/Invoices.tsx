@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCounts";
-import { AttachmentIndicator } from "@/components/AttachmentIndicator";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -320,7 +320,7 @@ export default function Invoices() {
           { key: "invoice_number", header: "رقم", render: (r: any) => (
             <span className="flex items-center gap-1.5">
               <span className="font-mono text-primary">{r.invoice_number}</span>
-              <AttachmentIndicator count={attCounts[r.id] ?? 0} />
+              <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
               {r.is_migrated && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title={`مستورد من: ${r.migration_source ?? "نظام قديم"}`}>
                   بيانات مستوردة
@@ -352,7 +352,7 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span><AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
@@ -378,7 +378,7 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span><AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "customer", header: "العميل", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب" },
@@ -389,7 +389,7 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span><AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
@@ -409,7 +409,7 @@ export default function Invoices() {
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
         columns: [
-          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}<AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}<AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "to_branch_id", header: "إلى", render: (r: any) => branchName(r.to_branch_id) },
           { key: "status", header: "الحالة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
