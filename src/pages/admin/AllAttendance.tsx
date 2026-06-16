@@ -19,6 +19,7 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
   const [branchId, setBranchId] = useState<string>("all");
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,7 +31,9 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
       if (!cancelled) { setRows(data ?? []); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [date, branchId]);
+  }, [date, branchId, reloadTick]);
+
+  useRealtimeRefresh(["attendance"], () => setReloadTick((t) => t + 1));
 
   const actions = (
     <div className="flex gap-2">
