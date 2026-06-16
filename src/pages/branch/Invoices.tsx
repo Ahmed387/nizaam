@@ -320,7 +320,7 @@ export default function Invoices() {
           { key: "invoice_number", header: "رقم", render: (r: any) => (
             <span className="flex items-center gap-1.5">
               <span className="font-mono text-primary">{r.invoice_number}</span>
-              <AttachmentIndicator count={attCounts[r.id] ?? 0} />
+              <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
               {r.is_migrated && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title={`مستورد من: ${r.migration_source ?? "نظام قديم"}`}>
                   بيانات مستوردة
