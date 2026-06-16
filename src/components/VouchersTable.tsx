@@ -237,7 +237,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         rows={rows}
         columns={[
           { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
-            <span className="inline-flex items-center gap-1.5"><span className="font-mono">{r.voucher_number}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span>
+            <span className="inline-flex items-center gap-1.5"><span className="font-mono">{r.voucher_number}</span><AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} /></span>
           ) },
           { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => formatDate(r.voucher_date) },
           ...(!type ? [{ key: "type", header: "النوع", render: (r: Voucher) => (
