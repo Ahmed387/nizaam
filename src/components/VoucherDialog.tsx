@@ -66,6 +66,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
     setPm(emptyPaymentValue());
     setPartyOptions([]);
     setPartyBalance(null);
+    setAttachFiles([]);
   }, [open, type]);
 
   // System categories produced automatically by other flows — hide from manual dialog
