@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PermGate } from "@/components/ProtectedRoute";
@@ -18,6 +18,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { AttachmentIndicator } from "@/components/AttachmentIndicator";
 
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
