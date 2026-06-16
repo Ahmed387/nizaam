@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,14 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./Pa
 import { validateTransferPayment } from "@/lib/paymentMethods";
 import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const ATT_BUCKET = "voucher-attachments";
+const ATT_MAX_SIZE = 5 * 1024 * 1024;
 
 interface Props {
   open: boolean;
