@@ -528,10 +528,11 @@ export default function NewSale() {
     if (creditToApply > total) setCreditToApply(Math.max(0, total));
     if (creditToApply > customerCredit) setCreditToApply(Math.max(0, customerCredit));
   }, [total, customerCredit, creditToApply]);
-  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply);
+  const effectiveSettlement = useSettlement ? Math.max(0, Math.min(settlementAmount, total - paymentsSum - creditToApply, Math.abs(Math.min(0, customerBalance)))) : 0;
+  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply - effectiveSettlement);
   // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
   const isCredit = creditMode || creditRemaining > 0.01;
-  const paymentsValid = (paymentsSum + creditToApply) <= total + 0.01;
+  const paymentsValid = (paymentsSum + creditToApply + effectiveSettlement) <= total + 0.01;
 
   // Auto-rescale scheduled installments whenever the credit remainder changes,
   // so partial payments by any method update the installment plan automatically.
