@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
-import { formatEGP } from "@/lib/format";
+import { formatEGP, balanceLabel } from "@/lib/format";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
@@ -85,9 +85,13 @@ export default function NewSale() {
   const [newCustOpen, setNewCustOpen] = useState(false);
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
-  // Customer credit balance
+  // Customer credit balance + ledger balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
+  const [customerBalance, setCustomerBalance] = useState(0); // contacts.balance (>0 له عندنا، <0 علينا له)
+  const [customerType, setCustomerType] = useState<string>("customer");
+  const [useSettlement, setUseSettlement] = useState(false);
+  const [settlementAmount, setSettlementAmount] = useState(0);
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
   const [vatRate, setVatRate] = useState<number>(14);
@@ -105,10 +109,14 @@ export default function NewSale() {
 
   useEffect(() => {
     setCreditToApply(0);
-    if (!customerId) { setCustomerCredit(0); return; }
+    setUseSettlement(false);
+    setSettlementAmount(0);
+    if (!customerId) { setCustomerCredit(0); setCustomerBalance(0); setCustomerType("customer"); return; }
     const load = async () => {
-      const { data } = await supabase.from("contacts").select("credit_balance").eq("id", customerId).maybeSingle();
+      const { data } = await supabase.from("contacts").select("credit_balance, balance, type").eq("id", customerId).maybeSingle();
       setCustomerCredit(Number((data as any)?.credit_balance ?? 0));
+      setCustomerBalance(Number((data as any)?.balance ?? 0));
+      setCustomerType(String((data as any)?.type ?? "customer"));
     };
     load();
     const ch = supabase.channel(`contact-credit-${customerId}`)
@@ -520,10 +528,11 @@ export default function NewSale() {
     if (creditToApply > total) setCreditToApply(Math.max(0, total));
     if (creditToApply > customerCredit) setCreditToApply(Math.max(0, customerCredit));
   }, [total, customerCredit, creditToApply]);
-  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply);
+  const effectiveSettlement = useSettlement ? Math.max(0, Math.min(settlementAmount, total - paymentsSum - creditToApply, Math.abs(Math.min(0, customerBalance)))) : 0;
+  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply - effectiveSettlement);
   // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
   const isCredit = creditMode || creditRemaining > 0.01;
-  const paymentsValid = (paymentsSum + creditToApply) <= total + 0.01;
+  const paymentsValid = (paymentsSum + creditToApply + effectiveSettlement) <= total + 0.01;
 
   // Auto-rescale scheduled installments whenever the credit remainder changes,
   // so partial payments by any method update the installment plan automatically.
@@ -831,6 +840,33 @@ export default function NewSale() {
         }
       }
 
+      // Apply settlement against what we owe this contact (مقاصة)
+      if (effectiveSettlement > 0 && custId) {
+        try {
+          await supabase.from("invoice_payments").insert({
+            invoice_id: invId as string,
+            branch_id: branchId!,
+            payment_method: "settlement",
+            amount: effectiveSettlement,
+            received_by_name: profile?.name ?? "مقاصة",
+          } as any);
+          await supabase.from("payment_transactions").insert({
+            branch_id: branchId!,
+            contact_id: custId,
+            direction: "out",
+            amount: effectiveSettlement,
+            total_with_fee: effectiveSettlement,
+            payment_method: "settlement",
+            fee_amount: 0,
+            received_by_name: profile?.name ?? "مقاصة",
+            created_by: user!.id,
+          } as any);
+          try { await supabase.rpc("recalc_contact_balance" as any, { _contact_id: custId }); } catch {}
+        } catch (e: any) {
+          toast.error("الفاتورة اتسجلت لكن المقاصة فشلت: " + e.message);
+        }
+      }
+
       syncPendingSales(true);
 
       // Release all reservations as completed (stock decrement happens server-side via process_sale)
@@ -879,6 +915,58 @@ export default function NewSale() {
                 <UserPlus className="w-4 h-4" />
               </Button>
             </div>
+            {customerId && (() => {
+              const b = balanceLabel(customerBalance);
+              const tone = b.tone === "bad" ? "border-destructive/40 bg-destructive/10 text-destructive" : b.tone === "good" ? "border-warning/40 bg-warning/10 text-warning-foreground" : "border-border bg-muted/40 text-muted-foreground";
+              return (
+                <div className={`mt-3 p-3 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
+                  <div>
+                    {customerBalance === 0 ? "لا توجد مديونية سابقة" : <>{b.label}: <b>{formatEGP(b.amount)}</b></>}
+                    {customerType === "both" && <span className="ms-2 text-xs opacity-70">(عميل ومورد)</span>}
+                  </div>
+                </div>
+              );
+            })()}
+            {customerId && customerBalance < 0 && total > 0 && (
+              <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 space-y-2">
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={useSettlement}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setUseSettlement(v);
+                      if (v) {
+                        const maxSettle = Math.min(total - paymentsSum - creditToApply, Math.abs(customerBalance));
+                        setSettlementAmount(Math.max(0, maxSettle));
+                      } else {
+                        setSettlementAmount(0);
+                      }
+                    }}
+                  />
+                  <span>
+                    <b>مقاصة</b> — خصم قيمة الفاتورة من المستحق له ({formatEGP(Math.abs(customerBalance))})
+                    <div className="text-xs text-muted-foreground mt-0.5">بدل ما يدفع، نقلل اللي إحنا مدينين له بنفس القيمة.</div>
+                  </span>
+                </label>
+                {useSettlement && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Label className="text-xs">قيمة المقاصة:</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="w-32 h-8"
+                      value={settlementAmount}
+                      onChange={(e) => setSettlementAmount(Math.max(0, Number(e.target.value) || 0))}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      الحد الأقصى: {formatEGP(Math.min(total - paymentsSum - creditToApply, Math.abs(customerBalance)))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
             {customerCredit > 0 && (
               <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm">
