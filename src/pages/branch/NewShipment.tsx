@@ -72,6 +72,7 @@ export default function NewShipment() {
   const [supplierDlg, setSupplierDlg] = useState(false);
   const [newSup, setNewSup] = useState({ name: "", contact_person: "", phone: "", address: "" });
   const [savingSup, setSavingSup] = useState(false);
+  const [showExtrasBreakdown, setShowExtrasBreakdown] = useState(false);
 
   const createSupplier = async () => {
     if (!newSup.name.trim()) return toast.error("اسم الشركة مطلوب");
