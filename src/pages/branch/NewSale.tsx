@@ -820,13 +820,15 @@ export default function NewSale() {
       // Apply customer credit balance, if any was used
       if (creditToApply > 0 && custId) {
         try {
-          await supabase.from("invoice_payments").insert({
+          const { error: ipErr } = await supabase.from("invoice_payments").insert({
             invoice_id: invId as string,
+            tenant_id: (profile as any)?.tenant_id ?? null,
             branch_id: branchId!,
             payment_method: "credit_balance",
             amount: creditToApply,
             received_by_name: profile?.name ?? "رصيد سابق",
           } as any);
+          if (ipErr) throw ipErr;
           const newBal = Math.max(0, customerCredit - creditToApply);
           await supabase.from("contacts").update({ credit_balance: newBal, refund_status: newBal === 0 ? "credit_used" : "credit_added" } as any).eq("id", custId);
           await supabase.from("customer_credit_log" as any).insert({
@@ -843,14 +845,17 @@ export default function NewSale() {
       // Apply settlement against what we owe this contact (مقاصة)
       if (effectiveSettlement > 0 && custId) {
         try {
-          await supabase.from("invoice_payments").insert({
+          const { error: ipErr } = await supabase.from("invoice_payments").insert({
             invoice_id: invId as string,
+            tenant_id: (profile as any)?.tenant_id ?? null,
             branch_id: branchId!,
             payment_method: "settlement",
             amount: effectiveSettlement,
             received_by_name: profile?.name ?? "مقاصة",
           } as any);
-          await supabase.from("payment_transactions").insert({
+          if (ipErr) throw ipErr;
+          const { error: ptErr } = await supabase.from("payment_transactions").insert({
+            tenant_id: (profile as any)?.tenant_id ?? null,
             branch_id: branchId!,
             contact_id: custId,
             direction: "out",
@@ -861,6 +866,7 @@ export default function NewSale() {
             received_by_name: profile?.name ?? "مقاصة",
             created_by: user!.id,
           } as any);
+          if (ptErr) throw ptErr;
           try { await supabase.rpc("recalc_contact_balance" as any, { _contact_id: custId }); } catch {}
         } catch (e: any) {
           toast.error("الفاتورة اتسجلت لكن المقاصة فشلت: " + e.message);
