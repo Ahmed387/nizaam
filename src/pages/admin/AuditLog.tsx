@@ -29,6 +29,7 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
     });
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["audit_log"], () => load());
 
   const exportExcel = () => {
     const data = rows.map((r) => ({
