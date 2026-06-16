@@ -377,6 +377,10 @@ export default function InvoiceView() {
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
       </div>
 
+      <div className="card-elevated p-4 print:hidden">
+        <RecordAttachments recordType="invoice" recordId={inv.id} canEdit={inv.status !== "cancelled"} />
+      </div>
+
       {/* Thermal 80mm print layout — hidden on screen, only shown when printing */}
       <ThermalReceiptPrint
         kind="sale"
