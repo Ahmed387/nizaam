@@ -888,6 +888,58 @@ export default function NewSale() {
                 <UserPlus className="w-4 h-4" />
               </Button>
             </div>
+            {customerId && (() => {
+              const b = balanceLabel(customerBalance);
+              const tone = b.tone === "bad" ? "border-destructive/40 bg-destructive/10 text-destructive" : b.tone === "good" ? "border-warning/40 bg-warning/10 text-warning-foreground" : "border-border bg-muted/40 text-muted-foreground";
+              return (
+                <div className={`mt-3 p-3 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
+                  <div>
+                    {customerBalance === 0 ? "لا توجد مديونية سابقة" : <>{b.label}: <b>{formatEGP(b.amount)}</b></>}
+                    {customerType === "both" && <span className="ms-2 text-xs opacity-70">(عميل ومورد)</span>}
+                  </div>
+                </div>
+              );
+            })()}
+            {customerId && customerBalance < 0 && total > 0 && (
+              <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 space-y-2">
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={useSettlement}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setUseSettlement(v);
+                      if (v) {
+                        const maxSettle = Math.min(total - paymentsSum - creditToApply, Math.abs(customerBalance));
+                        setSettlementAmount(Math.max(0, maxSettle));
+                      } else {
+                        setSettlementAmount(0);
+                      }
+                    }}
+                  />
+                  <span>
+                    <b>مقاصة</b> — خصم قيمة الفاتورة من المستحق له ({formatEGP(Math.abs(customerBalance))})
+                    <div className="text-xs text-muted-foreground mt-0.5">بدل ما يدفع، نقلل اللي إحنا مدينين له بنفس القيمة.</div>
+                  </span>
+                </label>
+                {useSettlement && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Label className="text-xs">قيمة المقاصة:</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="w-32 h-8"
+                      value={settlementAmount}
+                      onChange={(e) => setSettlementAmount(Math.max(0, Number(e.target.value) || 0))}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      الحد الأقصى: {formatEGP(Math.min(total - paymentsSum - creditToApply, Math.abs(customerBalance)))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
             {customerCredit > 0 && (
               <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm">
