@@ -182,7 +182,7 @@ export default function Shipments() {
               rows={filtered}
               empty="لا توجد شحنات بعد"
         columns={[
-          { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => <span className="inline-flex items-center gap-1.5">{formatDate(r.arrival_date)}<AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => <span className="inline-flex items-center gap-1.5">{formatDate(r.arrival_date)}<AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "المستلم" },
           { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
