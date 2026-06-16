@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -30,6 +30,8 @@ interface WalletBalances {
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as "movements" | "receipts" | "payments" | "transfers" | null) ?? "movements";
   const { user, profile, branches, isAdmin, hasRole } = useAuth();
   const canTransfer = isAdmin || hasRole("branch_manager");
   const canSeeBalances = isAdmin || hasRole("branch_manager") || hasRole("viewer");
@@ -229,7 +231,7 @@ export default function Treasury() {
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
-      <Tabs defaultValue="movements">
+      <Tabs value={initialTab} onValueChange={(v) => setSearchParams((p) => { p.set("tab", v); return p; }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="movements">حركات الخزنة</TabsTrigger>
           <TabsTrigger value="receipts">سندات القبض</TabsTrigger>

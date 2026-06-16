@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PermGate } from "@/components/ProtectedRoute";
@@ -18,6 +18,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { AttachmentIndicator } from "@/components/AttachmentIndicator";
 
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -85,6 +87,8 @@ export default function Shipments() {
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["shipments", "supplier_payments"], load);
+  const shipmentIds = useMemo(() => rows.map((r: any) => r.id), [rows]);
+  const attCounts = useAttachmentCounts("shipment", shipmentIds);
 
   const doDelete = async () => {
     if (!delTarget) return;
@@ -178,7 +182,7 @@ export default function Shipments() {
               rows={filtered}
               empty="لا توجد شحنات بعد"
         columns={[
-          { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
+          { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => <span className="inline-flex items-center gap-1.5">{formatDate(r.arrival_date)}<AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "المستلم" },
           { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },

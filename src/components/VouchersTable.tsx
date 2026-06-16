@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Plus, XCircle, Loader2, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { AttachmentIndicator } from "@/components/AttachmentIndicator";
 
 interface Props {
   branchId?: string;
@@ -82,6 +84,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
 
   const catMap = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c.name])), [cats]);
   const branchMap = useMemo(() => Object.fromEntries(branches.map((b) => [b.id, b.name])), [branches]);
+  const attCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r) => r.id), [rows]));
 
   const summary = useMemo(() => {
     const active = rows.filter((r) => r.status === "active");
@@ -233,7 +236,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         loading={loading}
         rows={rows}
         columns={[
-          { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => <span className="font-mono">{r.voucher_number}</span> },
+          { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
+            <span className="inline-flex items-center gap-1.5"><span className="font-mono">{r.voucher_number}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span>
+          ) },
           { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => formatDate(r.voucher_date) },
           ...(!type ? [{ key: "type", header: "النوع", render: (r: Voucher) => (
             <Badge variant={r.type === "receipt" ? "default" : "destructive"}>{VOUCHER_TYPE_LABEL[r.type]}</Badge>

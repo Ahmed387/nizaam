@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ATT_BUCKET = "voucher-attachments";
+const ATT_BUCKET = "record-attachments";
 const ATT_MAX_SIZE = 5 * 1024 * 1024;
 
 interface Props {
@@ -162,19 +162,28 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
       // Upload any pending attachments
       const voucherId = newId as unknown as string | null;
       if (voucherId && attachFiles.length > 0) {
+        const { compressImage } = await import("@/lib/compressImage");
         let okCount = 0;
         for (const file of attachFiles) {
           try {
-            const safeName = file.name.replace(/[^\w.\-]/g, "_");
-            const path = `vouchers/${voucherId}/${Date.now()}_${safeName}`;
-            const { error: upErr } = await supabase.storage.from(ATT_BUCKET).upload(path, file, { contentType: file.type });
+            const originalSize = file.size;
+            const working = file.type.startsWith("image/") ? await compressImage(file) : file;
+            if (working.size > 5 * 1024 * 1024) {
+              toast.error(`${file.name}: الحجم كبير حتى بعد الضغط`);
+              continue;
+            }
+            const safeName = working.name.replace(/[^\w.\-]/g, "_");
+            const path = `voucher/${voucherId}/${Date.now()}_${safeName}`;
+            const { error: upErr } = await supabase.storage.from(ATT_BUCKET).upload(path, working, { contentType: working.type });
             if (upErr) throw upErr;
-            const { error: insErr } = await supabase.from("voucher_attachments" as any).insert({
-              voucher_id: voucherId,
+            const { error: insErr } = await supabase.from("attachments" as any).insert({
+              record_type: "voucher",
+              record_id: voucherId,
               file_path: path,
               file_name: file.name,
-              file_type: file.type,
-              file_size: file.size,
+              file_type: working.type,
+              file_size: working.size,
+              original_size: originalSize,
               uploaded_by: user?.id,
             });
             if (insErr) {
