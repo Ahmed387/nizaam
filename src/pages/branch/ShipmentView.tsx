@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
-import { formatEGP, formatDate } from "@/lib/format";
+import { formatEGP, formatDate, balanceLabel } from "@/lib/format";
 import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, Trash2, Printer, ArrowRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
