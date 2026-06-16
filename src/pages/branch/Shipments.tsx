@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
-import { AttachmentIndicator } from "@/components/AttachmentIndicator";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
