@@ -118,6 +118,10 @@ export default function EmployeeProfile() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
+  useRealtimeRefresh(
+    ["employees", "advances", "salaries", "advance_payments", "user_roles", "branch_users"],
+    () => load()
+  );
 
   const totalAdvancesGiven = advances.reduce((s, a) => s + Number(a.amount), 0);
   const totalAdvancesRemaining = advances.reduce((s, a) => s + Number(a.remaining), 0);
