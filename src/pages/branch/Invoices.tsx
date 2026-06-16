@@ -424,6 +424,7 @@ export default function Invoices() {
           { key: "valid_until", header: "صالح حتى", render: (r: any) => r.valid_until ? formatDate(r.valid_until) : "—" },
           { key: "status", header: "الحالة" },
         ],
+        onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
   }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin]);
