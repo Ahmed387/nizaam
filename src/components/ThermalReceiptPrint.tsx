@@ -151,18 +151,18 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
             <th>التاريخ</th>
             <td className="tr-meta-gap" />
             <td className="tr-meta-value">{props.invoiceNumber}</td>
-            <th>رقم الفاتورة</th>
+            <th>{props.kind === "quote" ? "رقم العرض" : "رقم الفاتورة"}</th>
           </tr>
           <tr>
             <td className="tr-meta-value">{fmtTime(props.createdAt)}</td>
             <th>الوقت</th>
             <td className="tr-meta-gap" />
-            <td className="tr-meta-value">{paymentLabel(props.paymentType)}</td>
-            <th>نوع الفاتورة</th>
+            <td className="tr-meta-value">{props.kind === "quote" ? "—" : paymentLabel(props.paymentType)}</td>
+            <th>{props.kind === "quote" ? "النوع" : "نوع الفاتورة"}</th>
           </tr>
           <tr>
             <td className="tr-meta-value">{props.dueDate ? fmtDate(props.dueDate) : fmtDate(props.createdAt)}</td>
-            <th>تستحق</th>
+            <th>{props.kind === "quote" ? "صالح حتى" : "تستحق"}</th>
             <td className="tr-meta-gap" />
             <td className="tr-meta-value">{props.cashier || "—"}</td>
             <th>{cashierLabel}</th>
