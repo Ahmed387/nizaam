@@ -83,6 +83,20 @@ export function EditInvoiceDialog({
   };
 
   const pickProduct = (idx: number, p: any) => {
+    // Merge with existing line if this product is already in the invoice (same logic as NewSale.addItem)
+    const existingIdx = items.findIndex((it, i) => i !== idx && it.product_id === p.id);
+    if (existingIdx >= 0) {
+      const addQty = Math.max(1, Number(items[idx]?.quantity || 1));
+      setItems((arr) => {
+        const next = arr
+          .map((it, i) => i === existingIdx ? { ...it, quantity: Number(it.quantity || 0) + addQty } : it)
+          .filter((_, i) => i !== idx);
+        return next;
+      });
+      setOpenSuggestIdx(null);
+      toast.success(`تم دمج الكمية مع البند الموجود (${p.name})`);
+      return;
+    }
     updateItem(idx, {
       product_id: p.id,
       product_name: p.name,
