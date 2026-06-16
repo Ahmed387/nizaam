@@ -3308,6 +3308,47 @@ export type Database = {
           },
         ]
       }
+      voucher_attachments: {
+        Row: {
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+          voucher_id: string
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          voucher_id: string
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_attachments_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voucher_categories: {
         Row: {
           created_at: string
