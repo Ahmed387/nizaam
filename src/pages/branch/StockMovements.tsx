@@ -23,6 +23,7 @@ export default function StockMovements() {
   const [product, setProduct] = useState<any>(null);
   const [moves, setMoves] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     (async () => {
