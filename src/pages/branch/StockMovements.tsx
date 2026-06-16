@@ -125,7 +125,11 @@ export default function StockMovements() {
       setMoves(list);
       setLoading(false);
     })();
-  }, [branchId, productId]);
+  }, [branchId, productId, tick]);
+  useRealtimeRefresh(
+    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers"],
+    () => setTick((t) => t + 1)
+  );
 
   const totalIn = moves.filter((m) => m.qty > 0).reduce((s, m) => s + m.qty, 0);
   const totalOut = moves.filter((m) => m.qty < 0).reduce((s, m) => s + Math.abs(m.qty), 0);
