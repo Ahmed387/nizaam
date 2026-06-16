@@ -352,7 +352,7 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span><AttachmentIndicator count={attCounts[r.id] ?? 0} /></span> },
+          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span><AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
