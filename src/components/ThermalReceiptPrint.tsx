@@ -113,9 +113,12 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const title = props.kind === "sale" ? "فاتورة بيع" : "فاتورة شراء";
   const partyLabel = props.kind === "sale" ? "العميل" : "المورد";
   const cashierLabel = props.kind === "sale" ? "الكاشير" : "أمين المخزن";
+  const vatAmount = Number(props.vatAmount ?? 0);
+  const vatRate = Number(props.vatRate ?? 0);
   const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = [
     { label: "الإجمالى", value: fmt2(props.subtotal) },
     ...(discount > 0 ? [{ label: "خصم", value: fmt2(discount) }] : []),
+    ...(vatAmount > 0 ? [{ label: `ض.ق.م ${vatRate ? `(${vatRate}%)` : ""}`.trim(), value: fmt2(vatAmount) }] : []),
     { label: "المطلوب", value: fmt2(props.total), highlight: true },
     ...(typeof props.paid === "number" ? [{ label: "المدفوع", value: fmt2(props.paid) }] : []),
     ...(remaining > 0 && props.paymentType !== "credit" ? [{ label: "الباقى", value: fmt2(remaining) }] : []),
