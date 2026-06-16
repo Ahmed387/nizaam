@@ -16,6 +16,7 @@ import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog"
 import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
+import { RecordAttachments } from "@/components/RecordAttachments";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
