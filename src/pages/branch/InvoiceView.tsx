@@ -217,6 +217,32 @@ export default function InvoiceView() {
           </div>
         </div>
 
+        {/* Balance snapshot — captured at invoice creation, never recalculated */}
+        {inv.contact_id && (inv.previous_balance != null || inv.current_balance != null) && (() => {
+          const prev = Number(inv.previous_balance ?? 0);
+          const curr = Number(inv.current_balance ?? 0);
+          const prevLbl = balanceLabel(prev);
+          const currLbl = balanceLabel(curr);
+          return (
+            <div className="mt-4 p-3 rounded-lg border border-border bg-surface-2/40">
+              <div className="font-bold text-sm mb-2">📒 رصيد العميل (لحظة إصدار الفاتورة)</div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-card p-2 rounded border border-border">
+                  <div className="text-xs text-muted-foreground">الرصيد السابق</div>
+                  <div className="font-bold">{formatEGP(prevLbl.amount)}</div>
+                  <div className={`text-xs ${prevLbl.tone === "good" ? "text-success" : prevLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{prevLbl.label}</div>
+                </div>
+                <div className="bg-card p-2 rounded border border-border">
+                  <div className="text-xs text-muted-foreground">الرصيد بعد الفاتورة</div>
+                  <div className="font-bold">{formatEGP(currLbl.amount)}</div>
+                  <div className={`text-xs ${currLbl.tone === "good" ? "text-success" : currLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{currLbl.label}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+
         {/* Payments breakdown */}
         {payments.length > 0 && (
           <div className="mt-4 p-3 rounded-lg bg-surface-2 border border-border">
