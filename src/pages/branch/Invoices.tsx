@@ -298,6 +298,19 @@ export default function Invoices() {
     });
   }, [rows, filters, tab, active]);
 
+  const attRecordType = useMemo<RecordType | null>(() => {
+    switch (tab) {
+      case "sale": return "invoice";
+      case "purchase": return "shipment";
+      case "sale_return": return "sale_return";
+      case "purchase_return": return "purchase_return";
+      case "transfer": return "stock_transfer";
+      default: return null;
+    }
+  }, [tab]);
+  const attIds = useMemo(() => attRecordType ? filteredRows.map((r: any) => r.id) : [], [attRecordType, filteredRows]);
+  const attCounts = useAttachmentCounts((attRecordType ?? "voucher") as RecordType, attIds);
+
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
     switch (tab) {
