@@ -99,6 +99,7 @@ import Invoices from "./pages/branch/Invoices";
 import NewPurchaseReturn from "./pages/branch/NewPurchaseReturn";
 import NewSaleReturn from "./pages/branch/NewSaleReturn";
 import NewQuote from "./pages/branch/NewQuote";
+import QuoteView from "./pages/branch/QuoteView";
 import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
 import PaymentVouchers from "./pages/branch/PaymentVouchers";
 import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
@@ -202,6 +203,7 @@ const App = () => (
             <Route path="/branch/:id/purchase-returns/new" element={<ProtectedRoute perm="shipments.create"><NewPurchaseReturn /></ProtectedRoute>} />
             <Route path="/branch/:id/sale-returns/new" element={<ProtectedRoute perm="sales.create"><NewSaleReturn /></ProtectedRoute>} />
             <Route path="/branch/:id/quotes/new" element={<ProtectedRoute perm="sales.create"><NewQuote /></ProtectedRoute>} />
+            <Route path="/branch/:id/quotes/:quoteId" element={<ProtectedRoute perm="sales.view"><QuoteView /></ProtectedRoute>} />
             <Route path="/branch/:id/adjustments/new" element={<ProtectedRoute perm="inventory.update"><NewStockAdjustment /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/new" element={<ProtectedRoute perm="sales.create"><NewSale /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/returns" element={<RedirectReturnsToInvoices />} />
