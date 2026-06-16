@@ -79,7 +79,7 @@ export default function InvoiceView() {
   }, [invoiceId, id]);
 
   // Realtime: refresh invoice/installments/contacts if anything changes
-  useRealtimeRefresh(["invoices", "payment_installments", "contacts"], () => setReloadKey((k) => k + 1));
+  useRealtimeRefresh(["invoices", "invoice_payments", "payment_plans", "payment_installments", "payment_transactions", "contacts"], () => setReloadKey((k) => k + 1));
   useEffect(() => {
     if (!invoiceId) return;
     if (reloadKey === 0) return;
