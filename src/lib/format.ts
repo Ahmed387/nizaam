@@ -33,18 +33,17 @@ export const monthKey = (d = new Date()) =>
 
 /**
  * Unified balance label.
- * convention: `contacts.balance` > 0 = الطرف الآخر مدين لنا، < 0 = نحن مدينون له.
- * المسميات حسب طلب المستخدم:
- *   balance > 0 → "مستحق له"
- *   balance < 0 → "مستحق عليه"
+ * Convention: `contacts.balance` > 0 = الطرف الآخر مدين لنا، < 0 = نحن مدينون له.
+ *   balance > 0 → "له عندنا" (they owe us / we are owed)
+ *   balance < 0 → "علينا له" (we owe them)
  *   balance = 0 → "لا توجد مديونية"
  */
 export const balanceLabel = (
   balance: number | null | undefined,
 ): { label: string; amount: number; tone: "good" | "bad" | "neutral" } => {
   const v = Number(balance ?? 0);
-  if (v > 0) return { label: "مستحق له", amount: Math.abs(v), tone: "good" };
-  if (v < 0) return { label: "مستحق عليه", amount: Math.abs(v), tone: "bad" };
+  if (v > 0) return { label: "له عندنا", amount: Math.abs(v), tone: "good" };
+  if (v < 0) return { label: "علينا له", amount: Math.abs(v), tone: "bad" };
   return { label: "لا توجد مديونية", amount: 0, tone: "neutral" };
 };
 
