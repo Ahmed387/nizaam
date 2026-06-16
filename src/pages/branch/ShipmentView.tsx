@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
-import { formatEGP, formatDate } from "@/lib/format";
+import { formatEGP, formatDate, balanceLabel } from "@/lib/format";
 import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, Trash2, Printer, ArrowRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -274,6 +274,30 @@ export default function ShipmentView() {
         </div>
       </div>
 
+      {/* Supplier balance snapshot — captured at shipment creation */}
+      {ship.contact_id && (ship.previous_balance != null || ship.current_balance != null) && (() => {
+        const prevLbl = balanceLabel(Number(ship.previous_balance ?? 0));
+        const currLbl = balanceLabel(Number(ship.current_balance ?? 0));
+        return (
+          <div className="card-elevated p-4 mb-6">
+            <div className="font-bold text-sm mb-2">📒 رصيد المورد (لحظة استلام الشحنة)</div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-surface-2 p-2 rounded border border-border">
+                <div className="text-xs text-muted-foreground">الرصيد السابق</div>
+                <div className="font-bold">{formatEGP(prevLbl.amount)}</div>
+                <div className={`text-xs ${prevLbl.tone === "good" ? "text-success" : prevLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{prevLbl.label}</div>
+              </div>
+              <div className="bg-surface-2 p-2 rounded border border-border">
+                <div className="text-xs text-muted-foreground">الرصيد بعد الشحنة</div>
+                <div className="font-bold">{formatEGP(currLbl.amount)}</div>
+                <div className={`text-xs ${currLbl.tone === "good" ? "text-success" : currLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{currLbl.label}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+
       <div className="card-elevated overflow-hidden">
         <div className="p-4 border-b border-border font-bold flex items-center gap-2">
           <Package className="w-4 h-4 text-primary" />
@@ -361,6 +385,8 @@ export default function ShipmentView() {
         discount={Number(itemsDiscount) > 0 ? Number(itemsDiscount) : 0}
         total={Number(ship.total_cost ?? 0)}
         paid={Number(ship.total_cost ?? 0)}
+        previousBalance={ship.previous_balance != null ? Number(ship.previous_balance) : null}
+        currentBalance={ship.current_balance != null ? Number(ship.current_balance) : null}
       />
 
           </div>

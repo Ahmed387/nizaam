@@ -7,7 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatEGP } from "@/lib/format";
+import { formatEGP, balanceLabel } from "@/lib/format";
 
 export type PartyType = "supplier" | "customer" | "employee";
 
@@ -47,19 +47,11 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
     if (!value) { setBal(null); return; }
     (async () => {
       try {
-        if (type === "supplier") {
+        if (type === "supplier" || type === "customer") {
+          // مصدر موحّد لكلا الجهتين: contacts.balance
           const { data } = await supabase.from("contacts").select("balance").eq("id", value).maybeSingle();
           const amt = Number((data as any)?.balance ?? 0);
-          // الجديد: + = لنا (مرتجع/رصيد لصالحنا)، − = علينا للمورد
-          setBal({
-            label: amt < 0 ? "مستحق للمورد علينا" : amt > 0 ? "رصيد لصالحنا" : "لا توجد مديونية",
-            amount: Math.abs(amt),
-            tone: amt < 0 ? "bad" : amt > 0 ? "good" : "neutral",
-          });
-        } else if (type === "customer") {
-          const { data } = await supabase.from("invoices" as any).select("total, paid_amount").eq("contact_id", value).eq("status", "active");
-          const total = (data ?? []).reduce((s: number, r: any) => s + (Number(r.total) - Number(r.paid_amount ?? 0)), 0);
-          setBal({ label: "مستحق على العميل", amount: total, tone: total > 0 ? "good" : "neutral" });
+          setBal(balanceLabel(amt));
         } else {
           const { data } = await supabase.from("advances" as any).select("remaining_amount").eq("employee_id", value).in("status", ["approved", "active"]);
           const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.remaining_amount ?? 0), 0);
@@ -68,6 +60,7 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
       } catch { setBal(null); }
     })();
   }, [value, type]);
+
 
   const selected = useMemo(() => items.find((i) => i.id === value), [items, value]);
 

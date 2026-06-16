@@ -30,3 +30,21 @@ export const formatDateTime = (d: string | Date | null | undefined) => {
 
 export const monthKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+/**
+ * Unified balance label.
+ * convention: `contacts.balance` > 0 = الطرف الآخر مدين لنا، < 0 = نحن مدينون له.
+ * المسميات حسب طلب المستخدم:
+ *   balance > 0 → "مستحق له"
+ *   balance < 0 → "مستحق عليه"
+ *   balance = 0 → "لا توجد مديونية"
+ */
+export const balanceLabel = (
+  balance: number | null | undefined,
+): { label: string; amount: number; tone: "good" | "bad" | "neutral" } => {
+  const v = Number(balance ?? 0);
+  if (v > 0) return { label: "مستحق له", amount: Math.abs(v), tone: "good" };
+  if (v < 0) return { label: "مستحق عليه", amount: Math.abs(v), tone: "bad" };
+  return { label: "لا توجد مديونية", amount: 0, tone: "neutral" };
+};
+
