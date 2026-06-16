@@ -14,6 +14,7 @@ import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { ROLE_LABELS, AppRole } from "@/lib/roles";
@@ -117,6 +118,10 @@ export default function EmployeeProfile() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
+  useRealtimeRefresh(
+    ["employees", "advances", "salaries", "advance_payments", "user_roles", "branch_users"],
+    () => load()
+  );
 
   const totalAdvancesGiven = advances.reduce((s, a) => s + Number(a.amount), 0);
   const totalAdvancesRemaining = advances.reduce((s, a) => s + Number(a.remaining), 0);

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { VoucherDialog } from "./VoucherDialog";
 import { VoucherViewDialog } from "./VoucherViewDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
@@ -76,6 +77,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   }, [type, adminAllBranches]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters]);
+
+  useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); });
 
   const catMap = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c.name])), [cats]);
   const branchMap = useMemo(() => Object.fromEntries(branches.map((b) => [b.id, b.name])), [branches]);

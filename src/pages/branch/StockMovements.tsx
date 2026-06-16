@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight } from "lucide-react";
 
@@ -22,6 +23,7 @@ export default function StockMovements() {
   const [product, setProduct] = useState<any>(null);
   const [moves, setMoves] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -123,7 +125,11 @@ export default function StockMovements() {
       setMoves(list);
       setLoading(false);
     })();
-  }, [branchId, productId]);
+  }, [branchId, productId, tick]);
+  useRealtimeRefresh(
+    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers"],
+    () => setTick((t) => t + 1)
+  );
 
   const totalIn = moves.filter((m) => m.qty > 0).reduce((s, m) => s + m.qty, 0);
   const totalOut = moves.filter((m) => m.qty < 0).reduce((s, m) => s + Math.abs(m.qty), 0);

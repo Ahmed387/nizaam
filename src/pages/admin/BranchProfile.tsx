@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
 import {
@@ -85,6 +86,10 @@ export default function BranchProfile() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
+  useRealtimeRefresh(
+    ["branches", "employees", "products", "invoices", "shipments", "vouchers", "returns", "treasury", "expenses"],
+    () => load()
+  );
 
   const stats = useMemo(() => {
     const activeInvoices = invoices.filter((i) => i.status === "active");

@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { FileSpreadsheet, Trash2, AlertTriangle } from "lucide-react";
@@ -28,6 +29,7 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
     });
   };
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["audit_log"], () => load());
 
   const exportExcel = () => {
     const data = rows.map((r) => ({
