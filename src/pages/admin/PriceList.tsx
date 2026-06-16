@@ -86,6 +86,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   };
 
   useEffect(() => { load(); }, []);
+  useRealtimeRefresh(["price_list_sources", "price_list_items"], () => load());
 
   const currentSource = useMemo(() => sources.find((s) => s.id === activeTab), [sources, activeTab]);
   const currentItems = useMemo(() => {
