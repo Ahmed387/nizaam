@@ -258,6 +258,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
             return (
               <div className="flex items-center gap-1 justify-end">
+                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
+                  <Eye className="w-4 h-4" />
+                </Button>
                 {canCancel && (
                   <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
                     <XCircle className="w-4 h-4" />
