@@ -426,7 +426,7 @@ export default function Invoices() {
         ],
       };
     }
-  }, [tab, branchId, nav, branches]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
