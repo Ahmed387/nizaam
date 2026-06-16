@@ -212,6 +212,30 @@ export default function QuoteView() {
       <div className="max-w-3xl mx-auto mt-4 no-print">
         <RecordAttachments recordType="quote" recordId={quote.id} />
       </div>
+
+      {/* Hidden thermal-style receipt used for printing (same look as invoice with logo) */}
+      <div style={{ position: "fixed", left: "-10000px", top: 0, width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
+        <ThermalReceiptPrint
+          kind="quote"
+          companyName={tenant?.name ?? branch?.name}
+          branchName={branch?.name}
+          invoiceNumber={quote.quote_number}
+          createdAt={quote.created_at}
+          dueDate={quote.valid_until}
+          cashier={creatorName}
+          partyName={quote.contacts?.name ?? quote.customer_name ?? null}
+          notes={quote.notes}
+          items={items.map((it) => ({
+            name: it.product_name,
+            qty: Number(it.quantity || 0),
+            unit_price: Number(it.unit_price || 0),
+            total: Number(it.total || 0),
+          }))}
+          subtotal={Number(quote.subtotal || 0)}
+          discount={Number(quote.discount || 0)}
+          total={Number(quote.total || 0)}
+        />
+      </div>
     </BranchLayout>
   );
 }
