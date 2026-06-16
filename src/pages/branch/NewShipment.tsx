@@ -497,42 +497,82 @@ export default function NewShipment() {
 
       {/* 2) Costs & notes */}
       <div className="card-elevated p-5 mb-4">
-        <h3 className="font-bold text-base flex items-center gap-2 mb-4 pb-3 border-b border-border">
-          <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٢</span>
-          مصاريف إضافية
-        </h3>
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+          <h3 className="font-bold text-base flex items-center gap-2">
+            <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٢</span>
+            مصاريف إضافية
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowExtrasBreakdown((v) => !v)}
+            className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+          >
+            {showExtrasBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {showExtrasBreakdown ? "إخفاء التفصيل" : "تفصيل المصاريف"}
+          </button>
+        </div>
+
+        {/* Default compact view: total shipping + admin + grand extras */}
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
-            <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
-            <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
-            <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
-            <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">إجمالي المصاريف الإضافية</Label>
-            <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
-              {formatEGP(totalExtras)}
-            </div>
+            <Label className="text-xs font-semibold text-muted-foreground">إجمالي مصاريف الشحن (ج.م)</Label>
+            {showExtrasBreakdown ? (
+              <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+                {formatEGP(totalExtras)}
+              </div>
+            ) : (
+              <>
+                <Input
+                  type="number"
+                  min={0}
+                  value={shipping}
+                  onChange={(e) => { setShipping(Number(e.target.value)); setCustoms(0); setOtherCost(0); }}
+                  placeholder="0"
+                />
+                <p className="text-[10px] text-muted-foreground">شامل الشحن والجمارك والمصاريف الأخرى</p>
+              </>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
             <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
           </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">الإجمالي الإضافي</Label>
+            <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+              {formatEGP(totalExtras + Number(admin || 0))}
+            </div>
           </div>
         </div>
+
+        {/* Breakdown (collapsible) */}
+        {showExtrasBreakdown && (
+          <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
+              <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
+              <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
+              <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
+            </div>
+            <div className="space-y-1.5 md:col-span-3">
+              <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
+              <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
+            </div>
+          </div>
+        )}
+
+        {/* Notes — own row */}
+        <div className="mt-4 space-y-1.5">
+          <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
+          <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
+        </div>
+
 
         {/* Live distribution preview */}
         {lines.length > 0 && totalExtras > 0 && (
