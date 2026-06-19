@@ -60,7 +60,12 @@ export default function StockMovements() {
         .select("quantity, purchase_return_id, purchase_returns!inner(id, return_number, reason, created_at, branch_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
-      // Stock adjustments — differences
+      // Opening stock batches (in) — initial quantity when product was created
+      const { data: openingBatches } = await supabase
+        .from("product_batches")
+        .select("id, quantity_purchased, created_at, batch_type, branch_id")
+        .eq("product_id", productId!)
+        .eq("batch_type", "opening_stock");
       const { data: saItems } = await supabase
         .from("stock_adjustment_items")
         .select("difference, adjustment_id, stock_adjustments!inner(id, adjustment_number, reason, created_at, branch_id)")
