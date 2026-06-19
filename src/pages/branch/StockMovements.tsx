@@ -49,6 +49,18 @@ export default function StockMovements() {
         .select("quantity, shipment_id, shipments!inner(arrival_date, branch_id, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
+      // Purchase returns (out) — from this branch
+      const { data: prItems } = await supabase
+        .from("purchase_return_items")
+        .select("quantity, purchase_return_id, purchase_returns!inner(return_number, reason, created_at, branch_id, contacts:contact_id(name))")
+        .eq("product_id", productId!);
+
+      // Stock adjustments — differences
+      const { data: saItems } = await supabase
+        .from("stock_adjustment_items")
+        .select("difference, adjustment_id, stock_adjustments!inner(adjustment_number, reason, created_at, branch_id)")
+        .eq("product_id", productId!);
+
       // Transfers — confirmed only, where this branch is from or to
       const { data: transfers } = await supabase
         .from("stock_transfers")
@@ -101,6 +113,32 @@ export default function StockMovements() {
         });
       });
 
+      (prItems ?? []).forEach((it: any) => {
+        const r = it.purchase_returns;
+        if (!r || r.branch_id !== branchId) return;
+        list.push({
+          date: r.created_at,
+          type: "مرتجع شراء",
+          qty: -Number(it.quantity),
+          reason: `${r.contacts?.name ?? "—"}${r.reason ? " — " + r.reason : ""}`,
+          reference: r.return_number ?? "PR",
+        });
+      });
+
+      (saItems ?? []).forEach((it: any) => {
+        const a = it.stock_adjustments;
+        if (!a || a.branch_id !== branchId) return;
+        const diff = Number(it.difference);
+        if (!diff) return;
+        list.push({
+          date: a.created_at,
+          type: "تسوية مخزون",
+          qty: diff,
+          reason: a.reason ?? "—",
+          reference: a.adjustment_number ?? "ADJ",
+        });
+      });
+
       (transfers ?? []).forEach((t: any) => {
         if (t.from_branch_id === branchId) {
           list.push({
@@ -127,7 +165,7 @@ export default function StockMovements() {
     })();
   }, [branchId, productId, tick]);
   useRealtimeRefresh(
-    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers"],
+    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items"],
     () => setTick((t) => t + 1)
   );
 
@@ -138,6 +176,8 @@ export default function StockMovements() {
     "بيع": "bg-destructive/15 text-destructive",
     "مرتجع": "bg-success/15 text-success",
     "شحنة واردة": "bg-success/15 text-success",
+    "مرتجع شراء": "bg-destructive/15 text-destructive",
+    "تسوية مخزون": "bg-muted text-foreground",
     "نقل صادر": "bg-warning/15 text-warning",
     "نقل وارد": "bg-primary/15 text-primary",
   };
