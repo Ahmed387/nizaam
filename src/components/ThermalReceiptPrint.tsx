@@ -124,12 +124,27 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const remaining = Number(props.remaining ?? Math.max(props.total - (props.paid ?? 0), 0));
 
 
-  const title = props.kind === "sale" ? "فاتورة بيع" : props.kind === "purchase" ? "فاتورة شراء" : "عرض سعر";
-  const partyLabel = props.kind === "purchase" ? "المورد" : "العميل";
-  const cashierLabel = props.kind === "purchase" ? "أمين المخزن" : props.kind === "quote" ? "أصدر العرض" : "الكاشير";
+  const title =
+    props.kind === "sale" ? "فاتورة بيع"
+    : props.kind === "purchase" ? "فاتورة شراء"
+    : props.kind === "quote" ? "عرض سعر"
+    : props.kind === "sale_return" ? "مرتجع بيع"
+    : props.kind === "purchase_return" ? "مرتجع شراء"
+    : "نقل مخزون";
+  const partyLabel =
+    props.kind === "purchase" || props.kind === "purchase_return" ? "المورد"
+    : props.kind === "stock_transfer" ? "—"
+    : "العميل";
+  const cashierLabel =
+    props.kind === "purchase" || props.kind === "purchase_return" ? "أمين المخزن"
+    : props.kind === "quote" ? "أصدر العرض"
+    : props.kind === "stock_transfer" ? "أصدر النقل"
+    : "الكاشير";
+  const hidePrices = props.hidePrices || props.kind === "stock_transfer";
+  const isTransfer = props.kind === "stock_transfer";
   const vatAmount = Number(props.vatAmount ?? 0);
   const vatRate = Number(props.vatRate ?? 0);
-  const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = [
+  const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = hidePrices ? [] : [
     { label: "الإجمالى", value: fmt2(props.subtotal) },
     ...(discount > 0 ? [{ label: "خصم", value: fmt2(discount) }] : []),
     ...(vatAmount > 0 ? [{ label: `ض.ق.م ${vatRate ? `(${vatRate}%)` : ""}`.trim(), value: fmt2(vatAmount) }] : []),
