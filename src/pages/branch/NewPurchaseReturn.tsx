@@ -219,10 +219,9 @@ export default function NewPurchaseReturn() {
       if (e2) throw e2;
 
       if (!asDraft) {
-        for (const l of activeLines) {
-          const { data: p } = await supabase.from("products").select("quantity").eq("id", l.product_id).maybeSingle();
-          if (p) await supabase.from("products").update({ quantity: Math.max(0, (p.quantity ?? 0) - l.quantity) }).eq("id", l.product_id);
-        }
+        // Inventory deduction (products + product_batches FIFO) is handled
+        // by DB trigger `apply_purchase_return_item` on purchase_return_items insert.
+        // No client-side quantity write — blocked by guard_products_quantity anyway.
         const cashIn = cashPart + transferPart;
         if (cashIn > 0) {
           await supabase.from("treasury").insert({
