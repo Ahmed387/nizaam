@@ -22,6 +22,7 @@ import { TwoFactorTab } from "@/components/TwoFactorTab";
 import { ViewersTab } from "@/components/ViewersTab";
 import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
+import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -487,8 +488,12 @@ export default function Settings() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ وتطبيق على الكل
             </Button>
+            <div className="pt-4 border-t">
+              <OrphanedBatchesCheck />
+            </div>
           </div>
         </TabsContent>
+
 
         <TabsContent value="alerts" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
