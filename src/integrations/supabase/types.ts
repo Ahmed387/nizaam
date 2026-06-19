@@ -3678,9 +3678,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      _test_guard_as_authenticated: { Args: never; Returns: string }
-      _test_guard_as_definer: { Args: never; Returns: string }
-      _test_guard_as_invoker: { Args: never; Returns: string }
       _validate_transfer_payment: {
         Args: {
           p_from: string
@@ -3689,13 +3686,6 @@ export type Database = {
           p_to: string
         }
         Returns: undefined
-      }
-      _whoami_pick_product: {
-        Args: never
-        Returns: {
-          id: string
-          quantity: number
-        }[]
       }
       acknowledge_treasury_transfer: {
         Args: { p_transfer_id: string }
