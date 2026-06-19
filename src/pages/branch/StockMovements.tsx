@@ -176,6 +176,8 @@ export default function StockMovements() {
     "بيع": "bg-destructive/15 text-destructive",
     "مرتجع": "bg-success/15 text-success",
     "شحنة واردة": "bg-success/15 text-success",
+    "مرتجع شراء": "bg-destructive/15 text-destructive",
+    "تسوية مخزون": "bg-muted text-foreground",
     "نقل صادر": "bg-warning/15 text-warning",
     "نقل وارد": "bg-primary/15 text-primary",
   };
