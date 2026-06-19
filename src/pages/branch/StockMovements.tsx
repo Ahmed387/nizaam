@@ -177,6 +177,7 @@ export default function StockMovements() {
             reason: (t.reason ?? "—") + partialNote,
             reference: "TR-OUT",
             party: `إلى ${brMap.get(t.to_branch_id) ?? "—"}`,
+            linkTo: `/branch/${branchId}/transfers/${t.id}`,
           });
         } else if (t.to_branch_id === branchId) {
           list.push({
@@ -186,6 +187,7 @@ export default function StockMovements() {
             reason: (t.reason ?? "—") + partialNote,
             reference: "TR-IN",
             party: `من ${brMap.get(t.from_branch_id) ?? "—"}`,
+            linkTo: `/branch/${branchId}/transfers/${t.id}`,
           });
         }
       });
