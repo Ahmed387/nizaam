@@ -8,8 +8,15 @@ export interface ThermalReceiptItem {
   total: number;
 }
 
+export interface ThermalReceiptItem2 {
+  name: string;
+  qty: number;
+  unit_price: number;
+  total: number;
+  received?: number;
+}
 export interface ThermalReceiptProps {
-  kind: "sale" | "purchase" | "quote";
+  kind: "sale" | "purchase" | "quote" | "sale_return" | "purchase_return" | "stock_transfer";
   companyName?: string;
   branchName?: string;
   invoiceNumber: string;
@@ -19,7 +26,7 @@ export interface ThermalReceiptProps {
   cashier?: string | null;
   partyName?: string | null;
   notes?: string | null;
-  items: ThermalReceiptItem[];
+  items: (ThermalReceiptItem & { received?: number })[];
   subtotal: number;
   discount?: number;
   vatAmount?: number;
@@ -30,6 +37,13 @@ export interface ThermalReceiptProps {
   currentBalance?: number | null;
   remaining?: number;
   paymentMethodLabel?: string;
+  fromBranchName?: string | null;
+  toBranchName?: string | null;
+  reason?: string | null;
+  originalRef?: string | null;
+  originalRefLabel?: string | null;
+  hidePrices?: boolean;
+  itemsMode?: "default" | "transfer";
 }
 
 interface CompanyInfo {
