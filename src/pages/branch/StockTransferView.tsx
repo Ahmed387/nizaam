@@ -7,9 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer, ArrowLeftRight } from "lucide-react";
-import { printHtml } from "@/lib/export";
 
-const esc = (s: any) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
 
 const statusLabel = (s: string) =>
   ({ pending: "قيد التنفيذ", confirmed: "مستلم", completed: "مكتمل", cancelled: "ملغي", rejected: "مرفوض" } as any)[s] ?? s;
