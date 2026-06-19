@@ -3843,6 +3843,10 @@ export type Database = {
             }
             Returns: string
           }
+      create_product_with_opening_stock: {
+        Args: { p_product: Json }
+        Returns: Json
+      }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
