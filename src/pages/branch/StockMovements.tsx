@@ -49,6 +49,18 @@ export default function StockMovements() {
         .select("quantity, shipment_id, shipments!inner(arrival_date, branch_id, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
+      // Purchase returns (out) — from this branch
+      const { data: prItems } = await supabase
+        .from("purchase_return_items")
+        .select("quantity, purchase_return_id, purchase_returns!inner(return_number, reason, created_at, branch_id, contacts:contact_id(name))")
+        .eq("product_id", productId!);
+
+      // Stock adjustments — differences
+      const { data: saItems } = await supabase
+        .from("stock_adjustment_items")
+        .select("difference, adjustment_id, stock_adjustments!inner(adjustment_number, reason, created_at, branch_id)")
+        .eq("product_id", productId!);
+
       // Transfers — confirmed only, where this branch is from or to
       const { data: transfers } = await supabase
         .from("stock_transfers")
