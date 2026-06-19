@@ -113,6 +113,32 @@ export default function StockMovements() {
         });
       });
 
+      (prItems ?? []).forEach((it: any) => {
+        const r = it.purchase_returns;
+        if (!r || r.branch_id !== branchId) return;
+        list.push({
+          date: r.created_at,
+          type: "مرتجع شراء",
+          qty: -Number(it.quantity),
+          reason: `${r.contacts?.name ?? "—"}${r.reason ? " — " + r.reason : ""}`,
+          reference: r.return_number ?? "PR",
+        });
+      });
+
+      (saItems ?? []).forEach((it: any) => {
+        const a = it.stock_adjustments;
+        if (!a || a.branch_id !== branchId) return;
+        const diff = Number(it.difference);
+        if (!diff) return;
+        list.push({
+          date: a.created_at,
+          type: "تسوية مخزون",
+          qty: diff,
+          reason: a.reason ?? "—",
+          reference: a.adjustment_number ?? "ADJ",
+        });
+      });
+
       (transfers ?? []).forEach((t: any) => {
         if (t.from_branch_id === branchId) {
           list.push({
