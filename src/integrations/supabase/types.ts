@@ -3687,6 +3687,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      _whoami_definer: { Args: never; Returns: Json }
+      _whoami_invoker: { Args: never; Returns: Json }
       acknowledge_treasury_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
