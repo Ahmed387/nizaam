@@ -37,14 +37,16 @@ export default function StockMovements() {
       // Sales (out) — only active invoices for this branch
       const { data: invItems } = await supabase
         .from("invoice_items")
-        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, branch_id, status, customer_name, contact_id, contacts:contact_id(name))")
+        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, branch_id, status, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
       // Returns (in)
       const { data: retItems } = await supabase
         .from("return_items")
-        .select("quantity, return_id, returns!inner(id, reason, created_at, branch_id, customer_name, contact_id, contacts:contact_id(name), invoice_id)")
+        .select("quantity, return_id, returns!inner(id, reason, return_number, created_at, branch_id, invoice_id, invoices:invoice_id(invoice_number, contacts:contact_id(name)))")
         .eq("product_id", productId!);
+
+
 
       // Shipments (in) — to this branch
       const { data: shipItems } = await supabase
@@ -89,7 +91,7 @@ export default function StockMovements() {
           qty: -Number(it.quantity),
           reason: "—",
           reference: inv.invoice_number,
-          party: inv.customer_name || inv.contacts?.name || "—",
+          party: inv.contacts?.name || "عميل نقدي",
           linkTo: `/branch/${branchId}/sales/${inv.id}`,
         });
       });
@@ -102,8 +104,8 @@ export default function StockMovements() {
           type: "مرتجع",
           qty: Number(it.quantity),
           reason: r.reason ?? "—",
-          reference: "RET",
-          party: r.customer_name || r.contacts?.name || "—",
+          reference: r.return_number ?? "RET",
+          party: r.invoices?.contacts?.name || "عميل نقدي",
           linkTo: r.invoice_id ? `/branch/${branchId}/sales/${r.invoice_id}` : undefined,
         });
       });
@@ -132,8 +134,10 @@ export default function StockMovements() {
           reason: r.reason ?? "—",
           reference: r.return_number ?? "PR",
           party: r.contacts?.name ?? "—",
+          linkTo: `/branch/${branchId}/invoices?tab=purchase_return`,
         });
       });
+
 
       (saItems ?? []).forEach((it: any) => {
         const a = it.stock_adjustments;
