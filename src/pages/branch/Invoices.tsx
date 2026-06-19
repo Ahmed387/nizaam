@@ -385,6 +385,7 @@ export default function Invoices() {
           { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
+        onClick: (r: any) => nav(`${base}/sale-returns/${r.id}`),
       };
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
