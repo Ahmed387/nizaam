@@ -4025,6 +4025,10 @@ export type Database = {
         }
         Returns: string
       }
+      record_shipment: {
+        Args: { p_header: Json; p_lines: Json }
+        Returns: Json
+      }
       redistribute_installments_after_return: {
         Args: { _invoice_id: string }
         Returns: Json
