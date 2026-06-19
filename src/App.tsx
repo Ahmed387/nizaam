@@ -221,6 +221,9 @@ const App = () => (
             <Route path="/branch/:id/inventory/barcodes" element={<ProtectedRoute perm="inventory.update"><PrintBarcodes /></ProtectedRoute>} />
             <Route path="/branch/:id/inventory/:productId/movements" element={<ProtectedRoute perm="inventory.view"><StockMovements /></ProtectedRoute>} />
             <Route path="/branch/:id/transfers" element={<ProtectedRoute perm="transfers.view"><StockTransfers /></ProtectedRoute>} />
+            <Route path="/branch/:id/transfers/:transferId" element={<ProtectedRoute perm="transfers.view"><StockTransferView /></ProtectedRoute>} />
+            <Route path="/branch/:id/sale-returns/:returnId" element={<ProtectedRoute perm="sales.view"><SaleReturnView /></ProtectedRoute>} />
+            <Route path="/branch/:id/purchase-returns/:returnId" element={<ProtectedRoute perm="shipments.view"><PurchaseReturnView /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts" element={<ProtectedRoute perm="customers.view"><Contacts /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts/:contactId" element={<ProtectedRoute perm="customers.view"><SupplierProfile /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts/:contactId/statement" element={<ProtectedRoute perm="customers.view"><ContactStatement /></ProtectedRoute>} />
