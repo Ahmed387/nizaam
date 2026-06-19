@@ -50,6 +50,10 @@ export default function Inventory() {
   const [uploading, setUploading] = useState(false);
   const [priceEdit, setPriceEdit] = useState<any>(null);
   const [historyFor, setHistoryFor] = useState<any>(null);
+  const [qtyEdit, setQtyEdit] = useState<any>(null);
+  const [qtyValue, setQtyValue] = useState<string>("0");
+  const [qtyNotes, setQtyNotes] = useState<string>("");
+  const [savingQty, setSavingQty] = useState(false);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
