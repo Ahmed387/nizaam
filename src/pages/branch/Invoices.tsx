@@ -416,6 +416,7 @@ export default function Invoices() {
           { key: "status", header: "الحالة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
+        onClick: (r: any) => nav(`${base}/transfers/${r.id}`),
       };
       case "quote": return {
         newLink: `${base}/quotes/new`, newLabel: "عرض سعر جديد", newPerm: "sales.create",
