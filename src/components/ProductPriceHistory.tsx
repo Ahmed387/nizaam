@@ -73,14 +73,21 @@ export function ProductPriceHistory({ productId }: { productId: string }) {
             <div key={r.id} className="relative pr-8">
               <div className={`absolute right-1 top-2 w-3 h-3 rounded-full ${dotCls} ring-4 ring-background`} />
               <div className="text-xs text-muted-foreground">{formatDateTime(r.created_at)}</div>
-              <div className="font-semibold text-sm mt-0.5">
-                {PRICE_TYPE_LABEL[r.price_type] ?? r.price_type}:{" "}
-                {first ? (
-                  <span className="inline-flex items-center gap-1 text-primary"><Sparkles className="w-3 h-3" /> أول تسجيل {formatEGP(r.new_value)}</span>
-                ) : (
-                  <span className={up ? "text-success" : "text-destructive"}>
-                    {up ? <TrendingUp className="inline w-3 h-3" /> : <TrendingDown className="inline w-3 h-3" />}{" "}
-                    {formatEGP(r.old_value)} → {formatEGP(r.new_value)}
+              <div className="font-semibold text-sm mt-0.5 flex flex-wrap items-center gap-2">
+                <span>
+                  {PRICE_TYPE_LABEL[r.price_type] ?? r.price_type}:{" "}
+                  {first ? (
+                    <span className="inline-flex items-center gap-1 text-primary"><Sparkles className="w-3 h-3" /> أول تسجيل {formatEGP(r.new_value)}</span>
+                  ) : (
+                    <span className={up ? "text-success" : "text-destructive"}>
+                      {up ? <TrendingUp className="inline w-3 h-3" /> : <TrendingDown className="inline w-3 h-3" />}{" "}
+                      {formatEGP(r.old_value)} → {formatEGP(r.new_value)}
+                    </span>
+                  )}
+                </span>
+                {r.quantity_at_change != null && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-muted text-foreground">
+                    الكمية: <b>{Number(r.quantity_at_change)}</b>
                   </span>
                 )}
               </div>

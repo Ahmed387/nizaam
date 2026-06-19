@@ -1771,6 +1771,7 @@ export type Database = {
           new_value: number | null
           old_value: number | null
           price_type: string
+          quantity_at_change: number | null
           source: string
           tenant_id: string | null
         }
@@ -1788,6 +1789,7 @@ export type Database = {
           new_value?: number | null
           old_value?: number | null
           price_type: string
+          quantity_at_change?: number | null
           source?: string
           tenant_id?: string | null
         }
@@ -1805,6 +1807,7 @@ export type Database = {
           new_value?: number | null
           old_value?: number | null
           price_type?: string
+          quantity_at_change?: number | null
           source?: string
           tenant_id?: string | null
         }
@@ -3663,21 +3666,38 @@ export type Database = {
           urole: string
         }[]
       }
-      _audit_write: {
-        Args: {
-          _branch: string
-          _eid: string
-          _ename: string
-          _etype: string
-          _new: number
-          _old: number
-          _ptype: string
-          _reason: string
-          _source: string
-          _tenant: string
-        }
-        Returns: undefined
-      }
+      _audit_write:
+        | {
+            Args: {
+              _branch: string
+              _eid: string
+              _ename: string
+              _etype: string
+              _new: number
+              _old: number
+              _ptype: string
+              _reason: string
+              _source: string
+              _tenant: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _branch: string
+              _eid: string
+              _ename: string
+              _etype: string
+              _new: number
+              _old: number
+              _ptype: string
+              _qty?: number
+              _reason: string
+              _source: string
+              _tenant: string
+            }
+            Returns: undefined
+          }
       _validate_transfer_payment: {
         Args: {
           p_from: string
