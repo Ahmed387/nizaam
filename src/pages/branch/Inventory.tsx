@@ -353,6 +353,9 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1">
+                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openQtyEdit(r)} title="تعديل الكمية (تسوية)">
+                                <Edit3 className="w-4 h-4" />
+                              </Button>
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPriceEdit(r)} title="تعديل السعر">
                                 <Tag className="w-4 h-4" />
                               </Button>
