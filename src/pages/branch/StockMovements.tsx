@@ -60,7 +60,12 @@ export default function StockMovements() {
         .select("quantity, purchase_return_id, purchase_returns!inner(id, return_number, reason, created_at, branch_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
-      // Stock adjustments — differences
+      // Opening stock batches (in) — initial quantity when product was created
+      const { data: openingBatches } = await supabase
+        .from("product_batches")
+        .select("id, quantity_purchased, created_at, batch_type, branch_id")
+        .eq("product_id", productId!)
+        .eq("batch_type", "opening_stock");
       const { data: saItems } = await supabase
         .from("stock_adjustment_items")
         .select("difference, adjustment_id, stock_adjustments!inner(id, adjustment_number, reason, created_at, branch_id)")
@@ -162,6 +167,20 @@ export default function StockMovements() {
         });
       });
 
+      (openingBatches ?? []).forEach((b: any) => {
+        if (b.branch_id !== branchId) return;
+        const q = Number(b.quantity_purchased);
+        if (!q) return;
+        list.push({
+          date: b.created_at,
+          type: "رصيد افتتاحي",
+          qty: q,
+          reason: "كمية ابتدائية عند إضافة المنتج",
+          reference: "OPEN",
+          party: "—",
+        });
+      });
+
       (transfers ?? []).forEach((t: any) => {
         // الكمية الفعلية المنقولة = المستلمة (لو فيه قبول جزئي الباقي رجع للمرسل)
         const actualQty = t.received_quantity != null ? Number(t.received_quantity) : Number(t.quantity);
@@ -199,7 +218,7 @@ export default function StockMovements() {
   }, [branchId, productId, tick]);
 
   useRealtimeRefresh(
-    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items"],
+    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items", "product_batches"],
     () => setTick((t) => t + 1)
   );
 
@@ -214,7 +233,9 @@ export default function StockMovements() {
     "تسوية مخزون": "bg-muted text-foreground",
     "نقل صادر": "bg-warning/15 text-warning",
     "نقل وارد": "bg-primary/15 text-primary",
+    "رصيد افتتاحي": "bg-success/15 text-success",
   };
+
 
   return (
     <BranchLayout>
