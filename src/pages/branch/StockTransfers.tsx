@@ -323,10 +323,10 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       </Tabs>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><ArrowLeftRight className="w-5 h-5" /> طلب نقل بضاعة</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
+          <div className="space-y-3 min-w-0">
+            <div className="min-w-0">
               <Label>الفرع المستلم *</Label>
               <select value={toBranch} onChange={(e) => setToBranch(e.target.value)}
                 className="w-full mt-1 bg-surface border border-border rounded-md px-3 py-2 text-sm">
@@ -335,10 +335,10 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               </select>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
+            <div className="min-w-0">
+              <div className="flex items-center justify-between mb-2 gap-2">
                 <Label>الأصناف *</Label>
-                <Button type="button" size="sm" variant="outline" onClick={() => setItems([...items, { product_id: "", quantity: "" }])} className="gap-1">
+                <Button type="button" size="sm" variant="outline" onClick={() => setItems([...items, { product_id: "", quantity: "" }])} className="gap-1 shrink-0">
                   <Plus className="w-3 h-3" /> إضافة صنف
                 </Button>
               </div>
@@ -346,16 +346,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 {items.map((it, idx) => {
                   const prod = products.find((p) => p.id === it.product_id);
                   return (
-                    <div key={idx} className="flex gap-2 items-start">
+                    <div key={idx} className="flex gap-2 items-start min-w-0">
                       <select value={it.product_id} onChange={(e) => {
                         const next = [...items]; next[idx] = { ...next[idx], product_id: e.target.value }; setItems(next);
-                      }} className="flex-1 bg-surface border border-border rounded-md px-3 py-2 text-sm">
+                      }} className="flex-1 min-w-0 bg-surface border border-border rounded-md px-3 py-2 text-sm">
                         <option value="">— اختر منتج —</option>
                         {products.map((p) => <option key={p.id} value={p.id}>{p.name} (متاح: {p.quantity})</option>)}
                       </select>
                       <Input type="number" min={1} max={prod?.quantity} placeholder="الكمية" value={it.quantity}
                         onChange={(e) => { const next = [...items]; next[idx] = { ...next[idx], quantity: e.target.value }; setItems(next); }}
-                        className="w-28" />
+                        className="w-24 shrink-0" />
                       <Button type="button" size="icon" variant="ghost" onClick={() => {
                         const next = items.filter((_, i) => i !== idx);
                         setItems(next.length ? next : [{ product_id: "", quantity: "" }]);
@@ -368,9 +368,9 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               </div>
             </div>
 
-            <div><Label>السبب</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5" /></div>
+            <div className="min-w-0"><Label>السبب</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5 w-full" /></div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
             <Button onClick={submit}>إرسال الطلب</Button>
           </DialogFooter>
