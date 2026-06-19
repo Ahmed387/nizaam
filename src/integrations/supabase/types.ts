@@ -3841,6 +3841,15 @@ export type Database = {
         Args: { p_reason?: string; p_voucher_id: string }
         Returns: Json
       }
+      detect_orphaned_batches: {
+        Args: never
+        Returns: {
+          orphan_batches: number
+          orphan_quantity_remaining: number
+          product_id: string
+          product_name: string
+        }[]
+      }
       disburse_pending_advance: {
         Args: { p_request_id: string }
         Returns: string
