@@ -419,7 +419,10 @@ export default function Inventory() {
                         <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
                       </div>
                       {canManageInventory && (
-                        <div className="mt-2 flex gap-1">
+                        <div className="mt-2 flex gap-1 flex-wrap">
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => openQtyEdit(r)}>
+                            <Edit3 className="w-3.5 h-3.5 ml-1" /> كمية
+                          </Button>
                           <Button size="sm" variant="outline" className="h-8" onClick={() => setPriceEdit(r)}>
                             <Tag className="w-3.5 h-3.5 ml-1" /> سعر
                           </Button>
