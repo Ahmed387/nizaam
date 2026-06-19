@@ -111,9 +111,10 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
 
   const saveEdit = async () => {
     if (!editing) return;
+    // Non-quantity fields update directly (guard only blocks quantity)
+    const newQty = Number(editing.quantity) || 0;
     const { error } = await supabase.from("products").update({
       name: editing.name,
-      quantity: Number(editing.quantity) || 0,
       cost_price: Number(editing.cost_price) || 0,
       selling_price: Number(editing.selling_price) || 0,
       market_price: Number(editing.market_price) || 0,
@@ -122,6 +123,16 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
       category_id: editing.category_id || null,
     }).eq("id", editing.id);
     if (error) return toast.error(error.message);
+
+    // Quantity goes through the audited adjustment path (creates stock_adjustment + reconciles batches)
+    const { error: qErr } = await supabase.rpc("admin_set_product_quantity", {
+      p_product_id: editing.id,
+      p_actual_quantity: newQty,
+      p_reason: "admin_manual_edit",
+      p_notes: null,
+    });
+    if (qErr) return toast.error(qErr.message);
+
     await logAudit({
       userId: user!.id, userName: profile!.name, tenantId, branchId: editing.branch_id,
       action: "UPDATE", entity: "Product", entityId: editing.id,
@@ -131,6 +142,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     setEditing(null);
     load();
   };
+
 
   /** حذف منتج واحد من فرع معيّن */
   const deleteOne = async (r: Row) => {
