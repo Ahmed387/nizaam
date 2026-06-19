@@ -218,7 +218,7 @@ export default function StockMovements() {
   }, [branchId, productId, tick]);
 
   useRealtimeRefresh(
-    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items"],
+    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items", "product_batches"],
     () => setTick((t) => t + 1)
   );
 
