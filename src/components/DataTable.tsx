@@ -39,8 +39,8 @@ export function DataTable<T>({
   const alignClass = (a?: Align) =>
     a === "center" ? "text-center" : a === "left" ? "text-left" : "text-right";
 
-  const isActionsColumn = (c: { key: string; header: string }) =>
-    c.key === "actions" || c.header.includes("إجراءات");
+  const isActionsColumn = (c: { key: string; header: any }) =>
+    c.key === "actions" || (typeof c.header === "string" && c.header.includes("إجراءات"));
 
   return (
     <div className="card-elevated overflow-hidden">
