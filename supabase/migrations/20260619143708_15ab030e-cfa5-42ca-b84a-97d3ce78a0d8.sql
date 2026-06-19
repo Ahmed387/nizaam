@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public._audit_write(uuid, text, uuid, text, text, numeric, numeric, uuid, text, text);
