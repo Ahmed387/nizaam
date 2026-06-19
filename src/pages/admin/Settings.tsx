@@ -488,8 +488,12 @@ export default function Settings() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ وتطبيق على الكل
             </Button>
+            <div className="pt-4 border-t">
+              <OrphanedBatchesCheck />
+            </div>
           </div>
         </TabsContent>
+
 
         <TabsContent value="alerts" className="mt-4">
           <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
