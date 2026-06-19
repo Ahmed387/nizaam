@@ -86,7 +86,39 @@ export default function Inventory() {
       }
     });
   }, [branchId]);
-  useRealtimeRefresh(["products", "categories"], load);
+  useRealtimeRefresh(["products", "categories", "stock_adjustments", "product_batches"], load);
+
+  const openQtyEdit = (r: any) => {
+    setQtyEdit(r);
+    setQtyValue(String(r.quantity ?? 0));
+    setQtyNotes("");
+  };
+  const saveQty = async () => {
+    if (!qtyEdit) return;
+    const newQty = Number(qtyValue);
+    if (!Number.isFinite(newQty) || newQty < 0) return toast.error("الكمية غير صالحة");
+    if (newQty === Number(qtyEdit.quantity)) {
+      setQtyEdit(null);
+      return;
+    }
+    setSavingQty(true);
+    const { error } = await supabase.rpc("admin_set_product_quantity", {
+      p_product_id: qtyEdit.id,
+      p_actual_quantity: newQty,
+      p_reason: "manual_edit",
+      p_notes: qtyNotes || null,
+    });
+    setSavingQty(false);
+    if (error) return toast.error(error.message);
+    await logAudit({
+      userId: user!.id, userName: profile!.name, branchId,
+      action: "UPDATE", entity: "Product", entityId: qtyEdit.id,
+      details: { name: qtyEdit.name, old_qty: qtyEdit.quantity, new_qty: newQty, reason: "manual_edit" },
+    });
+    toast.success("تم تعديل الكمية وتسجيل تسوية");
+    setQtyEdit(null);
+    load();
+  };
 
   const filtered = rows.filter((p) => {
     if (search && !p.name.includes(search) && !(p.sku ?? "").includes(search) && !(p.legacy_code ?? "").toString().includes(search)) return false;
