@@ -553,6 +553,43 @@ export default function Inventory() {
           {historyFor && <ProductPriceHistory productId={historyFor.id} />}
         </DlgContent>
       </Dlg>
+
+      <Dialog open={!!qtyEdit} onOpenChange={(o) => !o && !savingQty && setQtyEdit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل كمية: {qtyEdit?.name}</DialogTitle>
+          </DialogHeader>
+          {qtyEdit && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                الكمية الحالية: <span className="font-bold text-foreground">{qtyEdit.quantity}</span>
+              </div>
+              <div>
+                <Label>الكمية الجديدة *</Label>
+                <Input type="number" min="0" value={qtyValue} onChange={(e) => setQtyValue(e.target.value)} className="mt-1.5" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  الفرق: <span className={Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "text-success font-bold" : Number(qtyValue) - Number(qtyEdit.quantity) < 0 ? "text-destructive font-bold" : ""}>
+                    {Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "+" : ""}{Number(qtyValue) - Number(qtyEdit.quantity)}
+                  </span>
+                </p>
+              </div>
+              <div>
+                <Label>ملاحظات (اختياري)</Label>
+                <Textarea value={qtyNotes} onChange={(e) => setQtyNotes(e.target.value)} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
+              </div>
+              <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
+                ⚠️ هيتم تسجيل تسوية مخزون رسمية. لو نقّصت، النظام بيخصم بنظام FIFO من الدفعات. لو زوّدت، بتتعمل دفعة جديدة بسعر تكلفة المنتج الحالي.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQtyEdit(null)} disabled={savingQty}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveQty} disabled={savingQty}>
+              {savingQty && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
