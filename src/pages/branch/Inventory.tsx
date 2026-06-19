@@ -340,14 +340,7 @@ export default function Inventory() {
                           {r.categories?.name ?? "—"}
                         </td>
                         <td className="px-3 py-3 align-middle text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <div className="font-bold">{r.quantity}</div>
-                            {canManageInventory && (
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openQtyEdit(r)} title="تعديل الكمية (تسوية)">
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
-                          </div>
+                          <div className="font-bold">{r.quantity}</div>
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </td>
                         <td className="px-3 py-3 align-middle">
