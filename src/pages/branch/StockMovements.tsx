@@ -37,14 +37,15 @@ export default function StockMovements() {
       // Sales (out) — only active invoices for this branch
       const { data: invItems } = await supabase
         .from("invoice_items")
-        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, branch_id, status, customer_name, contact_id, contacts:contact_id(name))")
+        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, branch_id, status, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
       // Returns (in)
       const { data: retItems } = await supabase
         .from("return_items")
-        .select("quantity, return_id, returns!inner(id, reason, created_at, branch_id, customer_name, contact_id, contacts:contact_id(name), invoice_id)")
+        .select("quantity, return_id, returns!inner(id, reason, created_at, branch_id, contact_id:invoice_id, invoice_id)")
         .eq("product_id", productId!);
+
 
       // Shipments (in) — to this branch
       const { data: shipItems } = await supabase
