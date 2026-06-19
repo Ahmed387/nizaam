@@ -349,12 +349,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   const prod = products.find((p) => p.id === it.product_id);
                   return (
                     <div key={idx} className="flex gap-2 items-start min-w-0">
-                      <select value={it.product_id} onChange={(e) => {
-                        const next = [...items]; next[idx] = { ...next[idx], product_id: e.target.value }; setItems(next);
-                      }} className="flex-1 min-w-0 bg-surface border border-border rounded-md px-3 py-2 text-sm">
-                        <option value="">— اختر منتج —</option>
-                        {products.map((p) => <option key={p.id} value={p.id}>{p.name} (متاح: {p.quantity})</option>)}
-                      </select>
+                      <ProductCombobox
+                        products={products}
+                        value={it.product_id}
+                        excludeIds={items.map((x, i) => i !== idx ? x.product_id : "").filter(Boolean)}
+                        onChange={(id) => {
+                          const next = [...items]; next[idx] = { ...next[idx], product_id: id }; setItems(next);
+                        }}
+                      />
                       <Input type="number" min={1} max={prod?.quantity} placeholder="الكمية" value={it.quantity}
                         onChange={(e) => { const next = [...items]; next[idx] = { ...next[idx], quantity: e.target.value }; setItems(next); }}
                         className="w-24 shrink-0" />
