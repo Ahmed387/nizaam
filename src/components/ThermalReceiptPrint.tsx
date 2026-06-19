@@ -180,23 +180,64 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
             <th>التاريخ</th>
             <td className="tr-meta-gap" />
             <td className="tr-meta-value">{props.invoiceNumber}</td>
-            <th>{props.kind === "quote" ? "رقم العرض" : "رقم الفاتورة"}</th>
+            <th>{
+              props.kind === "quote" ? "رقم العرض"
+              : props.kind === "sale_return" || props.kind === "purchase_return" ? "رقم المرتجع"
+              : props.kind === "stock_transfer" ? "رقم النقل"
+              : "رقم الفاتورة"
+            }</th>
           </tr>
           <tr>
             <td className="tr-meta-value">{fmtTime(props.createdAt)}</td>
             <th>الوقت</th>
             <td className="tr-meta-gap" />
-            <td className="tr-meta-value">{props.kind === "quote" ? "—" : paymentLabel(props.paymentType)}</td>
-            <th>{props.kind === "quote" ? "النوع" : "نوع الفاتورة"}</th>
+            <td className="tr-meta-value">{
+              props.kind === "quote" || isTransfer ? "—" : paymentLabel(props.paymentType)
+            }</td>
+            <th>{
+              props.kind === "quote" ? "النوع"
+              : isTransfer ? "النوع"
+              : props.kind === "sale_return" || props.kind === "purchase_return" ? "طريقة الاسترداد"
+              : "نوع الفاتورة"
+            }</th>
           </tr>
-          <tr>
-            <td className="tr-meta-value">{props.dueDate ? fmtDate(props.dueDate) : fmtDate(props.createdAt)}</td>
-            <th>{props.kind === "quote" ? "صالح حتى" : "تستحق"}</th>
-            <td className="tr-meta-gap" />
-            <td className="tr-meta-value">{props.cashier || "—"}</td>
-            <th>{cashierLabel}</th>
-          </tr>
-          {props.partyName && (
+          {!isTransfer && (
+            <tr>
+              <td className="tr-meta-value">{props.dueDate ? fmtDate(props.dueDate) : fmtDate(props.createdAt)}</td>
+              <th>{props.kind === "quote" ? "صالح حتى" : "تستحق"}</th>
+              <td className="tr-meta-gap" />
+              <td className="tr-meta-value">{props.cashier || "—"}</td>
+              <th>{cashierLabel}</th>
+            </tr>
+          )}
+          {isTransfer && (
+            <>
+              <tr>
+                <td className="tr-meta-value">{props.fromBranchName ?? "—"}</td>
+                <th>من فرع</th>
+                <td className="tr-meta-gap" />
+                <td className="tr-meta-value">{props.toBranchName ?? "—"}</td>
+                <th>إلى فرع</th>
+              </tr>
+              <tr>
+                <td />
+                <th />
+                <td className="tr-meta-gap" />
+                <td className="tr-meta-value">{props.cashier || "—"}</td>
+                <th>{cashierLabel}</th>
+              </tr>
+            </>
+          )}
+          {props.originalRef && (
+            <tr>
+              <td />
+              <th />
+              <td className="tr-meta-gap" />
+              <td className="tr-meta-value">{props.originalRef}</td>
+              <th>{props.originalRefLabel ?? "المرجع"}</th>
+            </tr>
+          )}
+          {props.partyName && !isTransfer && (
             <tr>
               <td />
               <th />
@@ -205,41 +246,67 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
               <th>{partyLabel}</th>
             </tr>
           )}
-          {props.notes && (
+          {(props.notes || props.reason) && (
             <tr className="tr-notes-row">
-              <td colSpan={4} className="tr-notes-value">{props.notes}</td>
-              <th>ملاحظات</th>
+              <td colSpan={4} className="tr-notes-value">{props.notes || props.reason}</td>
+              <th>{props.reason && !props.notes ? "السبب" : "ملاحظات"}</th>
             </tr>
           )}
         </tbody>
       </table>
 
-      <table className="tr-items" dir="ltr">
-        <colgroup>
-          <col style={{ width: "22%" }} />
-          <col style={{ width: "21%" }} />
-          <col style={{ width: "13%" }} />
-          <col style={{ width: "44%" }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>الإجمالى</th>
-            <th>السعر</th>
-            <th>كمية</th>
-            <th>اسم الصنف</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.items.map((it, i) => (
-            <tr key={i}>
-              <td className="tr-num">{fmt2(it.total)}</td>
-              <td className="tr-num">{fmt2(it.unit_price)}</td>
-              <td className="tr-num">{it.qty}</td>
-              <td className="tr-name">{it.name}</td>
+      {isTransfer ? (
+        <table className="tr-items" dir="ltr">
+          <colgroup>
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "56%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>مستلم</th>
+              <th>مرسل</th>
+              <th>اسم الصنف</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {props.items.map((it, i) => (
+              <tr key={i}>
+                <td className="tr-num">{it.received ?? "—"}</td>
+                <td className="tr-num">{it.qty}</td>
+                <td className="tr-name">{it.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <table className="tr-items" dir="ltr">
+          <colgroup>
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "21%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "44%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>الإجمالى</th>
+              <th>السعر</th>
+              <th>كمية</th>
+              <th>اسم الصنف</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.items.map((it, i) => (
+              <tr key={i}>
+                <td className="tr-num">{fmt2(it.total)}</td>
+                <td className="tr-num">{fmt2(it.unit_price)}</td>
+                <td className="tr-num">{it.qty}</td>
+                <td className="tr-name">{it.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <table className="tr-totals" dir="ltr">
         <tbody>
