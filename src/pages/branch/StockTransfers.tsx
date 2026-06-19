@@ -9,13 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Check, X, ArrowLeftRight, Trash2 } from "lucide-react";
+import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox } from "lucide-react";
 
 type Item = { product_id: string; quantity: string };
 
@@ -94,7 +96,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     });
 
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "CREATE", entity: "stock_transfer_group", entityId: groupId as string, details: { items: cleaned, to: toBranch } });
-    toast.success(`تم إرسال ${cleaned.length} صنف وانتظار التأكيد`);
+    const summary = cleaned.map((c) => {
+      const p = products.find((x) => x.id === c.product_id);
+      return `• ${p?.name ?? "—"} × ${c.quantity}`;
+    }).join("\n");
+    toast.success(`تم إرسال الطلب إلى ${toBr?.name ?? "الفرع"}`, {
+      description: `${cleaned.length} صنف بانتظار تأكيد الفرع المستلم:\n${summary}`,
+      duration: 6000,
+    });
     setOpen(false);
     resetForm();
     load();
@@ -347,12 +356,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   const prod = products.find((p) => p.id === it.product_id);
                   return (
                     <div key={idx} className="flex gap-2 items-start min-w-0">
-                      <select value={it.product_id} onChange={(e) => {
-                        const next = [...items]; next[idx] = { ...next[idx], product_id: e.target.value }; setItems(next);
-                      }} className="flex-1 min-w-0 bg-surface border border-border rounded-md px-3 py-2 text-sm">
-                        <option value="">— اختر منتج —</option>
-                        {products.map((p) => <option key={p.id} value={p.id}>{p.name} (متاح: {p.quantity})</option>)}
-                      </select>
+                      <ProductCombobox
+                        products={products}
+                        value={it.product_id}
+                        excludeIds={items.map((x, i) => i !== idx ? x.product_id : "").filter(Boolean)}
+                        onChange={(id) => {
+                          const next = [...items]; next[idx] = { ...next[idx], product_id: id }; setItems(next);
+                        }}
+                      />
                       <Input type="number" min={1} max={prod?.quantity} placeholder="الكمية" value={it.quantity}
                         onChange={(e) => { const next = [...items]; next[idx] = { ...next[idx], quantity: e.target.value }; setItems(next); }}
                         className="w-24 shrink-0" />
@@ -377,5 +388,68 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </DialogContent>
       </Dialog>
     </ConditionalLayout>
+  );
+}
+
+function ProductCombobox({
+  products, value, onChange, excludeIds = [],
+}: {
+  products: any[];
+  value: string;
+  onChange: (id: string) => void;
+  excludeIds?: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = products.find((p) => p.id === value);
+  const available = products.filter((p) => !excludeIds.includes(p.id));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="flex-1 min-w-0 justify-between font-normal"
+        >
+          <span className="truncate text-right">
+            {selected ? `${selected.name} (متاح: ${selected.quantity})` : "— اختر منتج —"}
+          </span>
+          <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[min(420px,calc(100vw-2rem))]" align="start">
+        <Command
+          filter={(val, search) => {
+            const q = search.trim().toLowerCase();
+            if (!q) return 1;
+            return val.toLowerCase().includes(q) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder="بحث بالاسم أو الكود…" />
+          <CommandList>
+            <CommandEmpty>لا توجد نتائج</CommandEmpty>
+            <CommandGroup>
+              {available.map((p) => (
+                <CommandItem
+                  key={p.id}
+                  value={`${p.name} ${p.sku ?? ""} ${p.legacy_code ?? ""}`}
+                  onSelect={() => { onChange(p.id); setOpen(false); }}
+                >
+                  <Check className={`w-4 h-4 ml-2 ${value === p.id ? "opacity-100" : "opacity-0"}`} />
+                  <div className="flex-1 flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm">{p.name}</div>
+                      <div className="text-xs text-muted-foreground">{p.sku}{p.legacy_code ? ` • ${p.legacy_code}` : ""}</div>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">متاح: {p.quantity}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
