@@ -15,7 +15,10 @@ type Movement = {
   qty: number; // positive = in, negative = out
   reason: string;
   reference: string;
+  party: string;
+  linkTo?: string;
 };
+
 
 export default function StockMovements() {
   const { id: branchId, productId } = useParams<{ id: string; productId: string }>();
