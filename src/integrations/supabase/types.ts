@@ -3697,6 +3697,15 @@ export type Database = {
       }
       admin_reset_price_audit: { Args: { p_branch_id?: string }; Returns: Json }
       admin_reset_vouchers: { Args: { p_branch_id?: string }; Returns: Json }
+      admin_set_product_quantity: {
+        Args: {
+          p_actual_quantity: number
+          p_notes?: string
+          p_product_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
