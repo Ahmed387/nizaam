@@ -91,7 +91,7 @@ export default function StockMovements() {
           qty: -Number(it.quantity),
           reason: "—",
           reference: inv.invoice_number,
-          party: inv.customer_name || inv.contacts?.name || "—",
+          party: inv.contacts?.name || "عميل نقدي",
           linkTo: `/branch/${branchId}/sales/${inv.id}`,
         });
       });
@@ -104,8 +104,8 @@ export default function StockMovements() {
           type: "مرتجع",
           qty: Number(it.quantity),
           reason: r.reason ?? "—",
-          reference: "RET",
-          party: r.customer_name || r.contacts?.name || "—",
+          reference: r.return_number ?? "RET",
+          party: r.invoices?.contacts?.name || "عميل نقدي",
           linkTo: r.invoice_id ? `/branch/${branchId}/sales/${r.invoice_id}` : undefined,
         });
       });
@@ -134,8 +134,10 @@ export default function StockMovements() {
           reason: r.reason ?? "—",
           reference: r.return_number ?? "PR",
           party: r.contacts?.name ?? "—",
+          linkTo: `/branch/${branchId}/invoices?tab=purchase_return`,
         });
       });
+
 
       (saItems ?? []).forEach((it: any) => {
         const a = it.stock_adjustments;
