@@ -8,8 +8,15 @@ export interface ThermalReceiptItem {
   total: number;
 }
 
+export interface ThermalReceiptItem2 {
+  name: string;
+  qty: number;
+  unit_price: number;
+  total: number;
+  received?: number;
+}
 export interface ThermalReceiptProps {
-  kind: "sale" | "purchase" | "quote";
+  kind: "sale" | "purchase" | "quote" | "sale_return" | "purchase_return" | "stock_transfer";
   companyName?: string;
   branchName?: string;
   invoiceNumber: string;
@@ -19,7 +26,7 @@ export interface ThermalReceiptProps {
   cashier?: string | null;
   partyName?: string | null;
   notes?: string | null;
-  items: ThermalReceiptItem[];
+  items: (ThermalReceiptItem & { received?: number })[];
   subtotal: number;
   discount?: number;
   vatAmount?: number;
@@ -30,6 +37,13 @@ export interface ThermalReceiptProps {
   currentBalance?: number | null;
   remaining?: number;
   paymentMethodLabel?: string;
+  fromBranchName?: string | null;
+  toBranchName?: string | null;
+  reason?: string | null;
+  originalRef?: string | null;
+  originalRefLabel?: string | null;
+  hidePrices?: boolean;
+  itemsMode?: "default" | "transfer";
 }
 
 interface CompanyInfo {
@@ -110,12 +124,27 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   const remaining = Number(props.remaining ?? Math.max(props.total - (props.paid ?? 0), 0));
 
 
-  const title = props.kind === "sale" ? "فاتورة بيع" : props.kind === "purchase" ? "فاتورة شراء" : "عرض سعر";
-  const partyLabel = props.kind === "purchase" ? "المورد" : "العميل";
-  const cashierLabel = props.kind === "purchase" ? "أمين المخزن" : props.kind === "quote" ? "أصدر العرض" : "الكاشير";
+  const title =
+    props.kind === "sale" ? "فاتورة بيع"
+    : props.kind === "purchase" ? "فاتورة شراء"
+    : props.kind === "quote" ? "عرض سعر"
+    : props.kind === "sale_return" ? "مرتجع بيع"
+    : props.kind === "purchase_return" ? "مرتجع شراء"
+    : "نقل مخزون";
+  const partyLabel =
+    props.kind === "purchase" || props.kind === "purchase_return" ? "المورد"
+    : props.kind === "stock_transfer" ? "—"
+    : "العميل";
+  const cashierLabel =
+    props.kind === "purchase" || props.kind === "purchase_return" ? "أمين المخزن"
+    : props.kind === "quote" ? "أصدر العرض"
+    : props.kind === "stock_transfer" ? "أصدر النقل"
+    : "الكاشير";
+  const hidePrices = props.hidePrices || props.kind === "stock_transfer";
+  const isTransfer = props.kind === "stock_transfer";
   const vatAmount = Number(props.vatAmount ?? 0);
   const vatRate = Number(props.vatRate ?? 0);
-  const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = [
+  const totalRows: Array<{ label: string; value: ReactNode; highlight?: boolean; balance?: boolean }> = hidePrices ? [] : [
     { label: "الإجمالى", value: fmt2(props.subtotal) },
     ...(discount > 0 ? [{ label: "خصم", value: fmt2(discount) }] : []),
     ...(vatAmount > 0 ? [{ label: `ض.ق.م ${vatRate ? `(${vatRate}%)` : ""}`.trim(), value: fmt2(vatAmount) }] : []),
@@ -151,23 +180,64 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
             <th>التاريخ</th>
             <td className="tr-meta-gap" />
             <td className="tr-meta-value">{props.invoiceNumber}</td>
-            <th>{props.kind === "quote" ? "رقم العرض" : "رقم الفاتورة"}</th>
+            <th>{
+              props.kind === "quote" ? "رقم العرض"
+              : props.kind === "sale_return" || props.kind === "purchase_return" ? "رقم المرتجع"
+              : props.kind === "stock_transfer" ? "رقم النقل"
+              : "رقم الفاتورة"
+            }</th>
           </tr>
           <tr>
             <td className="tr-meta-value">{fmtTime(props.createdAt)}</td>
             <th>الوقت</th>
             <td className="tr-meta-gap" />
-            <td className="tr-meta-value">{props.kind === "quote" ? "—" : paymentLabel(props.paymentType)}</td>
-            <th>{props.kind === "quote" ? "النوع" : "نوع الفاتورة"}</th>
+            <td className="tr-meta-value">{
+              props.kind === "quote" || isTransfer ? "—" : paymentLabel(props.paymentType)
+            }</td>
+            <th>{
+              props.kind === "quote" ? "النوع"
+              : isTransfer ? "النوع"
+              : props.kind === "sale_return" || props.kind === "purchase_return" ? "طريقة الاسترداد"
+              : "نوع الفاتورة"
+            }</th>
           </tr>
-          <tr>
-            <td className="tr-meta-value">{props.dueDate ? fmtDate(props.dueDate) : fmtDate(props.createdAt)}</td>
-            <th>{props.kind === "quote" ? "صالح حتى" : "تستحق"}</th>
-            <td className="tr-meta-gap" />
-            <td className="tr-meta-value">{props.cashier || "—"}</td>
-            <th>{cashierLabel}</th>
-          </tr>
-          {props.partyName && (
+          {!isTransfer && (
+            <tr>
+              <td className="tr-meta-value">{props.dueDate ? fmtDate(props.dueDate) : fmtDate(props.createdAt)}</td>
+              <th>{props.kind === "quote" ? "صالح حتى" : "تستحق"}</th>
+              <td className="tr-meta-gap" />
+              <td className="tr-meta-value">{props.cashier || "—"}</td>
+              <th>{cashierLabel}</th>
+            </tr>
+          )}
+          {isTransfer && (
+            <>
+              <tr>
+                <td className="tr-meta-value">{props.fromBranchName ?? "—"}</td>
+                <th>من فرع</th>
+                <td className="tr-meta-gap" />
+                <td className="tr-meta-value">{props.toBranchName ?? "—"}</td>
+                <th>إلى فرع</th>
+              </tr>
+              <tr>
+                <td />
+                <th />
+                <td className="tr-meta-gap" />
+                <td className="tr-meta-value">{props.cashier || "—"}</td>
+                <th>{cashierLabel}</th>
+              </tr>
+            </>
+          )}
+          {props.originalRef && (
+            <tr>
+              <td />
+              <th />
+              <td className="tr-meta-gap" />
+              <td className="tr-meta-value">{props.originalRef}</td>
+              <th>{props.originalRefLabel ?? "المرجع"}</th>
+            </tr>
+          )}
+          {props.partyName && !isTransfer && (
             <tr>
               <td />
               <th />
@@ -176,41 +246,67 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
               <th>{partyLabel}</th>
             </tr>
           )}
-          {props.notes && (
+          {(props.notes || props.reason) && (
             <tr className="tr-notes-row">
-              <td colSpan={4} className="tr-notes-value">{props.notes}</td>
-              <th>ملاحظات</th>
+              <td colSpan={4} className="tr-notes-value">{props.notes || props.reason}</td>
+              <th>{props.reason && !props.notes ? "السبب" : "ملاحظات"}</th>
             </tr>
           )}
         </tbody>
       </table>
 
-      <table className="tr-items" dir="ltr">
-        <colgroup>
-          <col style={{ width: "22%" }} />
-          <col style={{ width: "21%" }} />
-          <col style={{ width: "13%" }} />
-          <col style={{ width: "44%" }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>الإجمالى</th>
-            <th>السعر</th>
-            <th>كمية</th>
-            <th>اسم الصنف</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.items.map((it, i) => (
-            <tr key={i}>
-              <td className="tr-num">{fmt2(it.total)}</td>
-              <td className="tr-num">{fmt2(it.unit_price)}</td>
-              <td className="tr-num">{it.qty}</td>
-              <td className="tr-name">{it.name}</td>
+      {isTransfer ? (
+        <table className="tr-items" dir="ltr">
+          <colgroup>
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "56%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>مستلم</th>
+              <th>مرسل</th>
+              <th>اسم الصنف</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {props.items.map((it, i) => (
+              <tr key={i}>
+                <td className="tr-num">{it.received ?? "—"}</td>
+                <td className="tr-num">{it.qty}</td>
+                <td className="tr-name">{it.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <table className="tr-items" dir="ltr">
+          <colgroup>
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "21%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "44%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>الإجمالى</th>
+              <th>السعر</th>
+              <th>كمية</th>
+              <th>اسم الصنف</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.items.map((it, i) => (
+              <tr key={i}>
+                <td className="tr-num">{fmt2(it.total)}</td>
+                <td className="tr-num">{fmt2(it.unit_price)}</td>
+                <td className="tr-num">{it.qty}</td>
+                <td className="tr-name">{it.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <table className="tr-totals" dir="ltr">
         <tbody>

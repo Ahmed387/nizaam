@@ -7,8 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer, ArrowLeftRight } from "lucide-react";
-
-
+import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 const statusLabel = (s: string) =>
   ({ pending: "قيد التنفيذ", confirmed: "مستلم", completed: "مكتمل", cancelled: "ملغي", rejected: "مرفوض" } as any)[s] ?? s;
@@ -52,9 +51,6 @@ export default function StockTransferView() {
   const totalQty = rows.reduce((s, r) => s + Number(r.quantity ?? 0), 0);
   const totalReceived = rows.reduce((s, r) => s + Number(r.received_quantity ?? 0), 0);
 
-  const handlePrint = () => window.print();
-
-
   return (
     <BranchLayout>
       <PageHeader
@@ -65,14 +61,14 @@ export default function StockTransferView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=transfer`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
-            <Button size="sm" onClick={handlePrint} className="gap-2 btn-gradient">
+            <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة
             </Button>
           </div>
         }
       />
 
-      <div className="print-area max-w-3xl mx-auto card-elevated p-8 bg-card">
+      <div className="max-w-3xl mx-auto card-elevated p-8 bg-card no-print">
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-border">
           <div className="text-right">
             <div className="text-xs text-muted-foreground mb-1">المؤسسة</div>
@@ -153,6 +149,28 @@ export default function StockTransferView() {
           </div>
         )}
       </div>
+
+      <ThermalReceiptPrint
+        kind="stock_transfer"
+        branchName={fromBranch?.name}
+        invoiceNumber={`#${head.id.slice(0, 8)}`}
+        createdAt={head.created_at}
+        cashier={null}
+        partyName={null}
+        notes={null}
+        reason={head.reason}
+        fromBranchName={fromBranch?.name ?? "—"}
+        toBranchName={toBranch?.name ?? "—"}
+        items={rows.map((r: any) => ({
+          name: products[r.product_id]?.name ?? "—",
+          qty: Number(r.quantity ?? 0),
+          unit_price: 0,
+          total: 0,
+          received: r.received_quantity != null ? Number(r.received_quantity) : undefined,
+        }))}
+        subtotal={0}
+        total={0}
+      />
     </BranchLayout>
   );
 }

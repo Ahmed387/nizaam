@@ -7,9 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer } from "lucide-react";
-import { printHtml } from "@/lib/export";
-
-const esc = (s: any) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 export default function PurchaseReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
@@ -45,42 +43,6 @@ export default function PurchaseReturnView() {
   const supplier = (ret as any).contacts;
   const methodLabel: any = { cash: "نقدي", visa: "فيزا", vodafone_cash: "فودافون كاش", instapay: "انستاباي", bank_transfer: "تحويل بنكي", balance: "خصم من رصيد المورد" };
 
-  const handlePrint = () => {
-    const rowsHtml = items.map((it, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${esc(it.product_name)}</td>
-        <td>${esc(it.products?.sku ?? "—")}</td>
-        <td>${it.quantity}</td>
-        <td>${formatEGP(it.unit_cost)}</td>
-        <td><b>${formatEGP(it.total)}</b></td>
-      </tr>`).join("");
-    const body = `
-      <h1>مرتجع شراء ${esc((ret as any).return_number)}</h1>
-      <div class="meta">${formatDateTime((ret as any).created_at)} ${(ret as any).shipments?.shipment_number ? `· من شحنة ${esc((ret as any).shipments.shipment_number)}` : ""}</div>
-      <div class="grid-3">
-        <div class="card"><h3 style="margin-top:0">المؤسسة</h3>
-          <div class="row"><span>الاسم</span><b>${esc(tenant?.name ?? branch?.name ?? "")}</b></div>
-          <div class="row"><span>الفرع</span><b>${esc(branch?.name ?? "—")}</b></div>
-        </div>
-        <div class="card"><h3 style="margin-top:0">المورد</h3>
-          <div class="row"><span>الاسم</span><b>${esc(supplier?.name ?? "—")}</b></div>
-          ${supplier?.phone ? `<div class="row"><span>الهاتف</span><b>${esc(supplier.phone)}</b></div>` : ""}
-        </div>
-        <div class="card"><h3 style="margin-top:0">الاسترداد</h3>
-          <div class="row"><span>الطريقة</span><b>${esc(methodLabel[(ret as any).refund_method] ?? (ret as any).refund_method)}</b></div>
-          <div class="row"><span>الإجمالي</span><b style="color:#3b82f6">${formatEGP((ret as any).total_amount)}</b></div>
-          ${(ret as any).reason ? `<div class="row"><span>السبب</span><b>${esc((ret as any).reason)}</b></div>` : ""}
-        </div>
-      </div>
-      <h2>المنتجات المرتجعة (${items.length})</h2>
-      <table>
-        <thead><tr><th>#</th><th>المنتج</th><th>الكود</th><th>الكمية</th><th>سعر التكلفة</th><th>الإجمالي</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>`;
-    printHtml(`مرتجع شراء ${(ret as any).return_number}`, body);
-  };
-
   return (
     <BranchLayout>
       <PageHeader
@@ -91,14 +53,14 @@ export default function PurchaseReturnView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=purchase_return`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
-            <Button size="sm" onClick={handlePrint} className="gap-2 btn-gradient">
+            <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة
             </Button>
           </div>
         }
       />
 
-      <div className="print-area max-w-3xl mx-auto card-elevated p-8 bg-card">
+      <div className="max-w-3xl mx-auto card-elevated p-8 bg-card no-print">
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-border">
           <div className="text-right">
             <div className="text-xs text-muted-foreground mb-1">الجهة المُرجِعة</div>
@@ -160,6 +122,30 @@ export default function PurchaseReturnView() {
           </div>
         </div>
       </div>
+
+      <ThermalReceiptPrint
+        kind="purchase_return"
+        branchName={branch?.name}
+        invoiceNumber={(ret as any).return_number}
+        createdAt={(ret as any).created_at}
+        paymentType={(ret as any).refund_method}
+        cashier={null}
+        partyName={supplier?.name ?? "—"}
+        notes={null}
+        reason={(ret as any).reason}
+        originalRef={(ret as any).shipments?.shipment_number ?? null}
+        originalRefLabel="شحنة أصلية"
+        items={items.map((it: any) => ({
+          name: it.product_name,
+          qty: Number(it.quantity ?? 0),
+          unit_price: Number(it.unit_cost ?? 0),
+          total: Number(it.total ?? 0),
+        }))}
+        subtotal={Number((ret as any).total_amount ?? 0)}
+        total={Number((ret as any).total_amount ?? 0)}
+        paid={Number((ret as any).total_amount ?? 0)}
+        paymentMethodLabel={methodLabel[(ret as any).refund_method] ?? (ret as any).refund_method}
+      />
     </BranchLayout>
   );
 }
