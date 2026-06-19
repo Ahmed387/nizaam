@@ -229,6 +229,7 @@ export default function StockMovements() {
         loading={loading}
         rows={moves}
         empty="لا توجد حركات لهذا المنتج"
+        onRowClick={(r: any) => { if (r.linkTo) nav(r.linkTo); }}
         columns={[
           { key: "date", header: "التاريخ", render: (r: any) => formatDateTime(r.date) },
           { key: "type", header: "النوع", render: (r: any) => (
@@ -239,10 +240,14 @@ export default function StockMovements() {
               {r.qty > 0 ? "+" : ""}{r.qty}
             </span>
           )},
+          { key: "party", header: "العميل / المورد", render: (r: any) => <span className="font-medium">{r.party}</span> },
           { key: "reason", header: "السبب / التفاصيل" },
-          { key: "reference", header: "المرجع", render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{r.reference}</span> },
+          { key: "reference", header: "المرجع", render: (r: any) => (
+            <span className={`font-mono text-xs ${r.linkTo ? "text-primary underline" : "text-muted-foreground"}`}>{r.reference}</span>
+          ) },
         ]}
       />
+
     </BranchLayout>
   );
 }
