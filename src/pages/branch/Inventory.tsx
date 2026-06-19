@@ -14,7 +14,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,6 +50,10 @@ export default function Inventory() {
   const [uploading, setUploading] = useState(false);
   const [priceEdit, setPriceEdit] = useState<any>(null);
   const [historyFor, setHistoryFor] = useState<any>(null);
+  const [qtyEdit, setQtyEdit] = useState<any>(null);
+  const [qtyValue, setQtyValue] = useState<string>("0");
+  const [qtyNotes, setQtyNotes] = useState<string>("");
+  const [savingQty, setSavingQty] = useState(false);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
@@ -81,7 +86,39 @@ export default function Inventory() {
       }
     });
   }, [branchId]);
-  useRealtimeRefresh(["products", "categories"], load);
+  useRealtimeRefresh(["products", "categories", "stock_adjustments", "product_batches"], load);
+
+  const openQtyEdit = (r: any) => {
+    setQtyEdit(r);
+    setQtyValue(String(r.quantity ?? 0));
+    setQtyNotes("");
+  };
+  const saveQty = async () => {
+    if (!qtyEdit) return;
+    const newQty = Number(qtyValue);
+    if (!Number.isFinite(newQty) || newQty < 0) return toast.error("الكمية غير صالحة");
+    if (newQty === Number(qtyEdit.quantity)) {
+      setQtyEdit(null);
+      return;
+    }
+    setSavingQty(true);
+    const { error } = await supabase.rpc("admin_set_product_quantity", {
+      p_product_id: qtyEdit.id,
+      p_actual_quantity: newQty,
+      p_reason: "manual_edit",
+      p_notes: qtyNotes || null,
+    });
+    setSavingQty(false);
+    if (error) return toast.error(error.message);
+    await logAudit({
+      userId: user!.id, userName: profile!.name, branchId,
+      action: "UPDATE", entity: "Product", entityId: qtyEdit.id,
+      details: { name: qtyEdit.name, old_qty: qtyEdit.quantity, new_qty: newQty, reason: "manual_edit" },
+    });
+    toast.success("تم تعديل الكمية وتسجيل تسوية");
+    setQtyEdit(null);
+    load();
+  };
 
   const filtered = rows.filter((p) => {
     if (search && !p.name.includes(search) && !(p.sku ?? "").includes(search) && !(p.legacy_code ?? "").toString().includes(search)) return false;
@@ -303,7 +340,14 @@ export default function Inventory() {
                           {r.categories?.name ?? "—"}
                         </td>
                         <td className="px-3 py-3 align-middle text-center">
-                          <div className="font-bold">{r.quantity}</div>
+                          <div className="flex items-center justify-center gap-1">
+                            <div className="font-bold">{r.quantity}</div>
+                            {canManageInventory && (
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openQtyEdit(r)} title="تعديل الكمية (تسوية)">
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </td>
                         <td className="px-3 py-3 align-middle">
@@ -375,7 +419,10 @@ export default function Inventory() {
                         <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
                       </div>
                       {canManageInventory && (
-                        <div className="mt-2 flex gap-1">
+                        <div className="mt-2 flex gap-1 flex-wrap">
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => openQtyEdit(r)}>
+                            <Edit3 className="w-3.5 h-3.5 ml-1" /> كمية
+                          </Button>
                           <Button size="sm" variant="outline" className="h-8" onClick={() => setPriceEdit(r)}>
                             <Tag className="w-3.5 h-3.5 ml-1" /> سعر
                           </Button>
@@ -506,6 +553,43 @@ export default function Inventory() {
           {historyFor && <ProductPriceHistory productId={historyFor.id} />}
         </DlgContent>
       </Dlg>
+
+      <Dialog open={!!qtyEdit} onOpenChange={(o) => !o && !savingQty && setQtyEdit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل كمية: {qtyEdit?.name}</DialogTitle>
+          </DialogHeader>
+          {qtyEdit && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                الكمية الحالية: <span className="font-bold text-foreground">{qtyEdit.quantity}</span>
+              </div>
+              <div>
+                <Label>الكمية الجديدة *</Label>
+                <Input type="number" min="0" value={qtyValue} onChange={(e) => setQtyValue(e.target.value)} className="mt-1.5" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  الفرق: <span className={Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "text-success font-bold" : Number(qtyValue) - Number(qtyEdit.quantity) < 0 ? "text-destructive font-bold" : ""}>
+                    {Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "+" : ""}{Number(qtyValue) - Number(qtyEdit.quantity)}
+                  </span>
+                </p>
+              </div>
+              <div>
+                <Label>ملاحظات (اختياري)</Label>
+                <Textarea value={qtyNotes} onChange={(e) => setQtyNotes(e.target.value)} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
+              </div>
+              <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
+                ⚠️ هيتم تسجيل تسوية مخزون رسمية. لو نقّصت، النظام بيخصم بنظام FIFO من الدفعات. لو زوّدت، بتتعمل دفعة جديدة بسعر تكلفة المنتج الحالي.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQtyEdit(null)} disabled={savingQty}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveQty} disabled={savingQty}>
+              {savingQty && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
