@@ -76,7 +76,7 @@ export default function StockMovements() {
 
       const { data: transfers } = await supabase
         .from("stock_transfers")
-        .select("quantity, received_quantity, status, created_at, reason, from_branch_id, to_branch_id, product_id")
+        .select("id, quantity, received_quantity, status, created_at, reason, from_branch_id, to_branch_id, product_id")
         .in("product_id", productIds)
         .eq("status", "confirmed")
         .or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
