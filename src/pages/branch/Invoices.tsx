@@ -396,6 +396,7 @@ export default function Invoices() {
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
+        onClick: (r: any) => nav(`${base}/purchase-returns/${r.id}`),
       };
       case "income":
       case "expense": return {
