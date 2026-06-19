@@ -163,12 +163,18 @@ export default function StockMovements() {
       });
 
       (transfers ?? []).forEach((t: any) => {
+        // الكمية الفعلية المنقولة = المستلمة (لو فيه قبول جزئي الباقي رجع للمرسل)
+        const actualQty = t.received_quantity != null ? Number(t.received_quantity) : Number(t.quantity);
+        if (actualQty <= 0) return;
+        const sent = Number(t.quantity);
+        const partialNote = t.received_quantity != null && t.received_quantity !== sent
+          ? ` (مرسل ${sent} / مستلم ${actualQty})` : "";
         if (t.from_branch_id === branchId) {
           list.push({
             date: t.created_at,
             type: "نقل صادر",
-            qty: -Number(t.quantity),
-            reason: t.reason ?? "—",
+            qty: -actualQty,
+            reason: (t.reason ?? "—") + partialNote,
             reference: "TR-OUT",
             party: `إلى ${brMap.get(t.to_branch_id) ?? "—"}`,
           });
@@ -176,8 +182,8 @@ export default function StockMovements() {
           list.push({
             date: t.created_at,
             type: "نقل وارد",
-            qty: Number(t.quantity),
-            reason: t.reason ?? "—",
+            qty: actualQty,
+            reason: (t.reason ?? "—") + partialNote,
             reference: "TR-IN",
             party: `من ${brMap.get(t.from_branch_id) ?? "—"}`,
           });
