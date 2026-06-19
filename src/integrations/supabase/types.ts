@@ -4055,6 +4055,7 @@ export type Database = {
         }
         Returns: Json
       }
+      reject_transfer: { Args: { p_transfer_id: string }; Returns: Json }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
