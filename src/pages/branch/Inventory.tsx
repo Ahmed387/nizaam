@@ -471,14 +471,20 @@ export default function Inventory() {
             const { data: skuRes } = await supabase.rpc("next_sku");
             const sku = (skuRes as string) ?? `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             const cat = r.category ? cats.find((c: any) => c.name === r.category) : null;
-            const { error } = await supabase.from("products").insert({
-              tenant_id: tenantId, branch_id: branchId!, name: r.name, sku,
-              category_id: cat?.id ?? null,
-              cost_price: r.cost_price ?? 0, selling_price: r.selling_price ?? 0,
-              market_price: r.market_price ?? 0, quantity: r.quantity ?? 0,
-              low_stock_alert: r.low_stock_alert ?? 5,
+            const { error } = await supabase.rpc("create_product_with_opening_stock", {
+              p_product: {
+                name: r.name, sku,
+                branch_id: branchId!,
+                category_id: cat?.id ?? null,
+                cost_price: r.cost_price ?? 0,
+                selling_price: r.selling_price ?? 0,
+                market_price: r.market_price ?? 0,
+                quantity: r.quantity ?? 0,
+                low_stock_alert: r.low_stock_alert ?? 5,
+              },
             });
             if (!error) inserted++;
+
           }
           load();
           return { inserted };
