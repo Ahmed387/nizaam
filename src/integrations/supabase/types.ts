@@ -3697,6 +3697,15 @@ export type Database = {
       }
       admin_reset_price_audit: { Args: { p_branch_id?: string }; Returns: Json }
       admin_reset_vouchers: { Args: { p_branch_id?: string }; Returns: Json }
+      admin_set_product_quantity: {
+        Args: {
+          p_actual_quantity: number
+          p_notes?: string
+          p_product_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
@@ -3834,6 +3843,10 @@ export type Database = {
             }
             Returns: string
           }
+      create_product_with_opening_stock: {
+        Args: { p_product: Json }
+        Returns: Json
+      }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
@@ -4025,6 +4038,10 @@ export type Database = {
         }
         Returns: string
       }
+      record_shipment: {
+        Args: { p_header: Json; p_lines: Json }
+        Returns: Json
+      }
       redistribute_installments_after_return: {
         Args: { _invoice_id: string }
         Returns: Json
@@ -4055,6 +4072,7 @@ export type Database = {
         }
         Returns: Json
       }
+      reject_transfer: { Args: { p_transfer_id: string }; Returns: Json }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }

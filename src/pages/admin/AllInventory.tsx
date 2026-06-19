@@ -111,9 +111,10 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
 
   const saveEdit = async () => {
     if (!editing) return;
+    // Non-quantity fields update directly (guard only blocks quantity)
+    const newQty = Number(editing.quantity) || 0;
     const { error } = await supabase.from("products").update({
       name: editing.name,
-      quantity: Number(editing.quantity) || 0,
       cost_price: Number(editing.cost_price) || 0,
       selling_price: Number(editing.selling_price) || 0,
       market_price: Number(editing.market_price) || 0,
@@ -122,6 +123,16 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
       category_id: editing.category_id || null,
     }).eq("id", editing.id);
     if (error) return toast.error(error.message);
+
+    // Quantity goes through the audited adjustment path (creates stock_adjustment + reconciles batches)
+    const { error: qErr } = await supabase.rpc("admin_set_product_quantity", {
+      p_product_id: editing.id,
+      p_actual_quantity: newQty,
+      p_reason: "admin_manual_edit",
+      p_notes: null,
+    });
+    if (qErr) return toast.error(qErr.message);
+
     await logAudit({
       userId: user!.id, userName: profile!.name, tenantId, branchId: editing.branch_id,
       action: "UPDATE", entity: "Product", entityId: editing.id,
@@ -131,6 +142,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     setEditing(null);
     load();
   };
+
 
   /** حذف منتج واحد من فرع معيّن */
   const deleteOne = async (r: Row) => {
@@ -495,17 +507,22 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
     }
 
     // عمليات الكمية: محتاجة قراءة القيمة الحالية لو add/sub
+    // عمليات الكمية: كل تعديل بيمر عبر admin_set_product_quantity (يخلق سجل تسوية + يصلّح الدفعات)
     if (fields.use_qty_op) {
       const value = Number(fields.qty_value) || 0;
-      if (fields.qty_op === "set") {
-        const { error } = await supabase.from("products").update({ quantity: value }).in("id", selectedIds);
+      const { data: current } = await supabase.from("products").select("id, quantity").in("id", selectedIds);
+      for (const p of current ?? []) {
+        let newQty: number;
+        if (fields.qty_op === "set") newQty = value;
+        else if (fields.qty_op === "add") newQty = (p.quantity ?? 0) + value;
+        else newQty = Math.max(0, (p.quantity ?? 0) - value);
+        const { error } = await supabase.rpc("admin_set_product_quantity", {
+          p_product_id: p.id,
+          p_actual_quantity: newQty,
+          p_reason: "admin_bulk_edit",
+          p_notes: null,
+        });
         if (error) { setSaving(false); return toast.error(error.message); }
-      } else {
-        const { data: current } = await supabase.from("products").select("id, quantity").in("id", selectedIds);
-        for (const p of current ?? []) {
-          const newQty = fields.qty_op === "add" ? (p.quantity + value) : Math.max(0, p.quantity - value);
-          await supabase.from("products").update({ quantity: newQty }).eq("id", p.id);
-        }
       }
     }
 
@@ -514,6 +531,7 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
     onClose();
     onSaved();
   };
+
 
   const anySelected = fields.use_category || fields.use_cost || fields.use_selling || fields.use_market || fields.use_alert || fields.use_qty_op;
 

@@ -133,9 +133,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
 
   const rejectTransfer = async (t: any) => {
     if (!confirm("رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟")) return;
-    const { data: src } = await supabase.from("products").select("quantity").eq("id", t.product_id).maybeSingle();
-    if (src) await supabase.from("products").update({ quantity: src.quantity + t.quantity }).eq("id", t.product_id);
-    await supabase.from("stock_transfers").update({ status: "rejected", confirmed_by: user!.id }).eq("id", t.id);
+    const { error: rpcErr } = await supabase.rpc("reject_transfer", { p_transfer_id: t.id });
+    if (rpcErr) { toast.error(rpcErr.message); return; }
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { rejected: true } });
 
     const senderMgrs = await getBranchManagers(t.from_branch_id);

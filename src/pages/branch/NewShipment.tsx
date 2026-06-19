@@ -295,10 +295,21 @@ export default function NewShipment() {
 
     setBusy(true);
     try {
-      // Insert shipment
-      const { data: ship, error: e1 } = await supabase
-        .from("shipments")
-        .insert({
+      // Single-RPC gateway: creates shipment + items + product_batches + updates quantities
+      // atomically with shipping cost share calculation. Required because the guard
+      // (guard_products_quantity) blocks direct client UPDATEs to products.quantity.
+      const linesPayload = lines.map((l) => ({
+        product_id: l.product_id,
+        product_name: l.product_name,
+        sku: l.sku || undefined,
+        quantity: l.quantity,
+        cost_price: l.cost_price,
+        discount_percent: Number(l.discount_percent) || 0,
+        discount_amount: Number(l.discount_amount) || 0,
+        image: l.image || undefined,
+      }));
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc("record_shipment", {
+        p_header: {
           branch_id: branchId!,
           contact_id: supplierId,
           arrival_date: arrival,
@@ -307,77 +318,14 @@ export default function NewShipment() {
           customs_cost: Number(customs || 0),
           other_cost: Number(otherCost || 0),
           other_cost_description: otherDesc.trim() || null,
-          total_extra_costs: totalExtras,
           admin_cost: Number(admin || 0),
-          total_cost: grandTotal,
           notes: notes.trim() || null,
-        })
-        .select()
-        .single();
-      if (e1) throw e1;
+        },
+        p_lines: linesPayload,
+      });
+      if (rpcErr) throw rpcErr;
+      const ship = { id: (rpcRes as any).shipment_id } as { id: string };
 
-      // Insert items + update stock
-      for (const l of lines) {
-        let pid = l.product_id;
-        // Create product if new
-        if (!pid) {
-          const sku = (l.sku && l.sku.trim()) || genSku();
-          const { data: np, error: ep } = await supabase
-            .from("products")
-            .insert({
-              branch_id: branchId!,
-              name: l.product_name.trim(),
-              sku,
-              cost_price: l.cost_price,
-              selling_price: l.cost_price * 1.3,
-              market_price: l.cost_price * 1.3,
-              quantity: 0,
-              image: l.image || null,
-            })
-            .select()
-            .single();
-          if (ep) throw ep;
-          pid = np.id;
-        }
-        const net = lineNet(l);
-        const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
-        const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
-        const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
-        const trueUnit = baseUnit + unitExtra;
-        await supabase.from("shipment_items").insert({
-          shipment_id: ship.id,
-          product_id: pid,
-          product_name: l.product_name,
-          quantity: l.quantity,
-          cost_price: l.cost_price,
-          discount_percent: Number(l.discount_percent) || 0,
-          discount_amount: Number(l.discount_amount) || 0,
-          total: net,
-          base_unit_price: baseUnit,
-          shipping_cost_per_unit: unitExtra,
-          true_unit_cost: trueUnit,
-        } as any);
-        // FIFO: create a new product_batch with TRUE unit cost (base + shipping share)
-        await supabase.from("product_batches" as any).insert({
-          tenant_id: tenantId,
-          branch_id: branchId!,
-          product_id: pid,
-          shipment_id: ship.id,
-          quantity_purchased: l.quantity,
-          quantity_remaining: l.quantity,
-          cost_price: trueUnit,
-          base_purchase_price: baseUnit,
-          shipping_cost_per_unit: unitExtra,
-          true_unit_cost: trueUnit,
-        });
-        // Update stock only — cost_price kept as fallback for products without batches
-        const cur = products.find((p) => p.id === pid);
-        const newQty = (cur?.quantity ?? 0) + l.quantity;
-        await supabase
-          .from("products")
-          .update({ quantity: newQty })
-          .eq("id", pid);
-      }
 
       // Treasury / payment plan handling (non-fatal — shipment is already saved)
       const supplier = suppliers.find((s) => s.id === supplierId);
