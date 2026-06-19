@@ -118,21 +118,30 @@ export default function Inventory() {
     }
     if (!sku) return toast.error("تعذّر توليد كود منتج فريد");
 
-    const { data, error } = await supabase.from("products").insert({
-      name: form.name,
-      sku,
-      category_id: form.category_id || null,
-      cost_price: Number(form.cost_price) || 0,
-      selling_price: Number(form.selling_price) || 0,
-      market_price: Number(form.market_price) || 0,
-      low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
-      quantity: parseInt(form.quantity) || 0,
-      image: form.image || null,
-      branch_id: branchId!,
-    }).select().single();
+    const qty = parseInt(form.quantity) || 0;
+    const cost = Number(form.cost_price) || 0;
+    const { data, error } = await supabase.rpc("create_product_with_opening_stock", {
+      p_product: {
+        name: form.name,
+        sku,
+        branch_id: branchId!,
+        category_id: form.category_id || null,
+        cost_price: cost,
+        selling_price: Number(form.selling_price) || 0,
+        market_price: Number(form.market_price) || 0,
+        low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
+        quantity: qty,
+        image: form.image || null,
+      },
+    });
     if (error) return toast.error(error.message);
-    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: data.id, details: { name: form.name } });
+    const newId = (data as any)?.product_id;
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
+    if (qty > 0 && cost <= 0) {
+      toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول شحنة شراء.");
+    }
     toast.success("تمت إضافة المنتج");
+
     setOpen(false);
     setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" });
     load();
