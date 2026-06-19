@@ -385,6 +385,7 @@ export default function Invoices() {
           { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
+        onClick: (r: any) => nav(`${base}/sale-returns/${r.id}`),
       };
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
@@ -395,6 +396,7 @@ export default function Invoices() {
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
+        onClick: (r: any) => nav(`${base}/purchase-returns/${r.id}`),
       };
       case "income":
       case "expense": return {
@@ -414,6 +416,7 @@ export default function Invoices() {
           { key: "status", header: "الحالة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         ],
+        onClick: (r: any) => nav(`${base}/transfers/${r.id}`),
       };
       case "quote": return {
         newLink: `${base}/quotes/new`, newLabel: "عرض سعر جديد", newPerm: "sales.create",
