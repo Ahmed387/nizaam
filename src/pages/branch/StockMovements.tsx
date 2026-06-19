@@ -167,6 +167,20 @@ export default function StockMovements() {
         });
       });
 
+      (openingBatches ?? []).forEach((b: any) => {
+        if (b.branch_id !== branchId) return;
+        const q = Number(b.quantity_purchased);
+        if (!q) return;
+        list.push({
+          date: b.created_at,
+          type: "رصيد افتتاحي",
+          qty: q,
+          reason: "كمية ابتدائية عند إضافة المنتج",
+          reference: "OPEN",
+          party: "—",
+        });
+      });
+
       (transfers ?? []).forEach((t: any) => {
         // الكمية الفعلية المنقولة = المستلمة (لو فيه قبول جزئي الباقي رجع للمرسل)
         const actualQty = t.received_quantity != null ? Number(t.received_quantity) : Number(t.quantity);
