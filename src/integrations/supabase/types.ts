@@ -3666,38 +3666,22 @@ export type Database = {
           urole: string
         }[]
       }
-      _audit_write:
-        | {
-            Args: {
-              _branch: string
-              _eid: string
-              _ename: string
-              _etype: string
-              _new: number
-              _old: number
-              _ptype: string
-              _reason: string
-              _source: string
-              _tenant: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _branch: string
-              _eid: string
-              _ename: string
-              _etype: string
-              _new: number
-              _old: number
-              _ptype: string
-              _qty?: number
-              _reason: string
-              _source: string
-              _tenant: string
-            }
-            Returns: undefined
-          }
+      _audit_write: {
+        Args: {
+          _branch: string
+          _eid: string
+          _ename: string
+          _etype: string
+          _new: number
+          _old: number
+          _ptype: string
+          _qty?: number
+          _reason: string
+          _source: string
+          _tenant: string
+        }
+        Returns: undefined
+      }
       _validate_transfer_payment: {
         Args: {
           p_from: string
