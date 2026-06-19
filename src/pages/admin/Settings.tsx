@@ -22,6 +22,7 @@ import { TwoFactorTab } from "@/components/TwoFactorTab";
 import { ViewersTab } from "@/components/ViewersTab";
 import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
+import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
