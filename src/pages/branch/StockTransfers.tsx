@@ -390,3 +390,66 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     </ConditionalLayout>
   );
 }
+
+function ProductCombobox({
+  products, value, onChange, excludeIds = [],
+}: {
+  products: any[];
+  value: string;
+  onChange: (id: string) => void;
+  excludeIds?: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = products.find((p) => p.id === value);
+  const available = products.filter((p) => !excludeIds.includes(p.id));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="flex-1 min-w-0 justify-between font-normal"
+        >
+          <span className="truncate text-right">
+            {selected ? `${selected.name} (متاح: ${selected.quantity})` : "— اختر منتج —"}
+          </span>
+          <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[min(420px,calc(100vw-2rem))]" align="start">
+        <Command
+          filter={(val, search) => {
+            const q = search.trim().toLowerCase();
+            if (!q) return 1;
+            return val.toLowerCase().includes(q) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder="بحث بالاسم أو الكود…" />
+          <CommandList>
+            <CommandEmpty>لا توجد نتائج</CommandEmpty>
+            <CommandGroup>
+              {available.map((p) => (
+                <CommandItem
+                  key={p.id}
+                  value={`${p.name} ${p.sku ?? ""} ${p.legacy_code ?? ""}`}
+                  onSelect={() => { onChange(p.id); setOpen(false); }}
+                >
+                  <Check className={`w-4 h-4 ml-2 ${value === p.id ? "opacity-100" : "opacity-0"}`} />
+                  <div className="flex-1 flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm">{p.name}</div>
+                      <div className="text-xs text-muted-foreground">{p.sku}{p.legacy_code ? ` • ${p.legacy_code}` : ""}</div>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">متاح: {p.quantity}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
