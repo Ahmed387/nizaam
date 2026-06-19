@@ -96,7 +96,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     });
 
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "CREATE", entity: "stock_transfer_group", entityId: groupId as string, details: { items: cleaned, to: toBranch } });
-    toast.success(`تم إرسال ${cleaned.length} صنف وانتظار التأكيد`);
+    const summary = cleaned.map((c) => {
+      const p = products.find((x) => x.id === c.product_id);
+      return `• ${p?.name ?? "—"} × ${c.quantity}`;
+    }).join("\n");
+    toast.success(`تم إرسال الطلب إلى ${toBr?.name ?? "الفرع"}`, {
+      description: `${cleaned.length} صنف بانتظار تأكيد الفرع المستلم:\n${summary}`,
+      duration: 6000,
+    });
     setOpen(false);
     resetForm();
     load();
