@@ -3678,6 +3678,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _test_guard_as_authenticated: { Args: never; Returns: string }
       _test_guard_as_definer: { Args: never; Returns: string }
       _test_guard_as_invoker: { Args: never; Returns: string }
       _validate_transfer_payment: {
