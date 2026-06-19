@@ -357,49 +357,28 @@ export default function AllSuppliers() {
     }
     setShipBusy(true);
     try {
-      const { data: ship, error: e1 } = await supabase.from("shipments").insert({
-        tenant_id: tenantId,
-        branch_id: shipForm.branch_id,
-        contact_id: shipForm.contact_id,
-        arrival_date: shipForm.arrival_date,
-        received_by: shipForm.received_by.trim(),
-        shipping_cost: Number(shipForm.shipping_cost || 0),
-        admin_cost: Number(shipForm.admin_cost || 0),
-        total_cost: shipGrandTotal,
-        notes: shipForm.notes.trim() || null,
-      }).select().single();
-      if (e1) throw e1;
+      // Use the unified record_shipment RPC (same path as NewShipment.tsx)
+      const linesPayload = shipLines.map((l) => ({
+        product_id: l.product_id,
+        product_name: l.product_name.trim(),
+        quantity: l.quantity,
+        cost_price: l.cost_price,
+      }));
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc("record_shipment", {
+        p_header: {
+          branch_id: shipForm.branch_id,
+          contact_id: shipForm.contact_id,
+          arrival_date: shipForm.arrival_date,
+          received_by: shipForm.received_by.trim(),
+          shipping_cost: Number(shipForm.shipping_cost || 0),
+          admin_cost: Number(shipForm.admin_cost || 0),
+          notes: shipForm.notes.trim() || null,
+        },
+        p_lines: linesPayload,
+      });
+      if (rpcErr) throw rpcErr;
+      const ship = { id: (rpcRes as any).shipment_id } as { id: string };
 
-      for (const l of shipLines) {
-        let pid = l.product_id;
-        if (!pid) {
-          const sku = `P-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
-          const { data: np, error: ep } = await supabase.from("products").insert({
-            tenant_id: tenantId,
-            branch_id: shipForm.branch_id,
-            name: l.product_name.trim(),
-            sku,
-            cost_price: l.cost_price,
-            selling_price: l.cost_price * 1.3,
-            market_price: l.cost_price * 1.3,
-            quantity: 0,
-          }).select().single();
-          if (ep) throw ep;
-          pid = np.id;
-        }
-        await supabase.from("shipment_items").insert({
-          tenant_id: tenantId,
-          shipment_id: ship.id,
-          product_id: pid,
-          product_name: l.product_name,
-          quantity: l.quantity,
-          cost_price: l.cost_price,
-          total: l.quantity * l.cost_price,
-        });
-        const cur = branchProducts.find((p) => p.id === pid);
-        const newQty = (cur?.quantity ?? 0) + l.quantity;
-        await supabase.from("products").update({ quantity: newQty, cost_price: l.cost_price }).eq("id", pid);
-      }
 
       await supabase.from("treasury").insert({
         tenant_id: tenantId,
