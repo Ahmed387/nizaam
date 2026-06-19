@@ -7,9 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer } from "lucide-react";
-import { printHtml } from "@/lib/export";
-
-const esc = (s: any) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 
 export default function SaleReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
@@ -45,42 +43,6 @@ export default function SaleReturnView() {
   const customer = ret.invoices?.contacts;
   const methodLabel: any = { cash: "نقدي", visa: "فيزا", vodafone_cash: "فودافون كاش", instapay: "انستاباي", bank_transfer: "تحويل بنكي", balance: "خصم من الرصيد" };
 
-  const handlePrint = () => {
-    const rowsHtml = items.map((it, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${esc(it.products?.name ?? "—")}</td>
-        <td>${esc(it.products?.sku ?? "—")}</td>
-        <td>${it.quantity}</td>
-        <td>${formatEGP(Number(it.refund) / Math.max(1, Number(it.quantity)))}</td>
-        <td><b>${formatEGP(it.refund)}</b></td>
-      </tr>`).join("");
-    const body = `
-      <h1>مرتجع بيع ${esc(ret.return_number)}</h1>
-      <div class="meta">من فاتورة: ${esc(ret.invoices?.invoice_number ?? "—")} · ${formatDateTime(ret.created_at)}</div>
-      <div class="grid-3">
-        <div class="card"><h3 style="margin-top:0">الجهة البائعة</h3>
-          <div class="row"><span>المؤسسة</span><b>${esc(tenant?.name ?? branch?.name ?? "")}</b></div>
-          <div class="row"><span>الفرع</span><b>${esc(branch?.name ?? "—")}</b></div>
-        </div>
-        <div class="card"><h3 style="margin-top:0">العميل</h3>
-          <div class="row"><span>الاسم</span><b>${esc(customer?.name ?? "نقدي")}</b></div>
-          ${customer?.phone ? `<div class="row"><span>الهاتف</span><b>${esc(customer.phone)}</b></div>` : ""}
-        </div>
-        <div class="card"><h3 style="margin-top:0">الاسترداد</h3>
-          <div class="row"><span>الطريقة</span><b>${esc(methodLabel[ret.refund_method] ?? ret.refund_method)}</b></div>
-          <div class="row"><span>الإجمالي</span><b style="color:#3b82f6">${formatEGP(ret.total_refund)}</b></div>
-          ${ret.reason ? `<div class="row"><span>السبب</span><b>${esc(ret.reason)}</b></div>` : ""}
-        </div>
-      </div>
-      <h2>المنتجات المرتجعة (${items.length})</h2>
-      <table>
-        <thead><tr><th>#</th><th>المنتج</th><th>الكود</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>`;
-    printHtml(`مرتجع بيع ${ret.return_number}`, body);
-  };
-
   return (
     <BranchLayout>
       <PageHeader
@@ -91,14 +53,14 @@ export default function SaleReturnView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=sale_return`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
-            <Button size="sm" onClick={handlePrint} className="gap-2 btn-gradient">
+            <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة
             </Button>
           </div>
         }
       />
 
-      <div className="print-area max-w-3xl mx-auto card-elevated p-8 bg-card">
+      <div className="max-w-3xl mx-auto card-elevated p-8 bg-card no-print">
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-border">
           <div className="text-right">
             <div className="text-xs text-muted-foreground mb-1">الجهة البائعة</div>
@@ -160,6 +122,29 @@ export default function SaleReturnView() {
           </div>
         </div>
       </div>
+
+      <ThermalReceiptPrint
+        kind="sale_return"
+        branchName={branch?.name}
+        invoiceNumber={ret.return_number}
+        createdAt={ret.created_at}
+        paymentType={ret.refund_method}
+        cashier={null}
+        partyName={customer?.name ?? "عميل نقدي"}
+        notes={null}
+        reason={ret.reason}
+        originalRef={ret.invoices?.invoice_number ?? null}
+        originalRefLabel="فاتورة أصلية"
+        items={items.map((it: any) => {
+          const qty = Number(it.quantity ?? 0);
+          const total = Number(it.refund ?? 0);
+          return { name: it.products?.name ?? "—", qty, unit_price: total / Math.max(1, qty), total };
+        })}
+        subtotal={Number(ret.total_refund ?? 0)}
+        total={Number(ret.total_refund ?? 0)}
+        paid={Number(ret.total_refund ?? 0)}
+        paymentMethodLabel={methodLabel[ret.refund_method] ?? ret.refund_method}
+      />
     </BranchLayout>
   );
 }
