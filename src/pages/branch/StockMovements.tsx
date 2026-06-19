@@ -66,12 +66,20 @@ export default function StockMovements() {
         .select("difference, adjustment_id, stock_adjustments!inner(id, adjustment_number, reason, created_at, branch_id)")
         .eq("product_id", productId!);
 
-      // Transfers — confirmed only, where this branch is from or to
+      // Transfers — confirmed only, where this branch is from or to.
+      // Destination products are separate rows linked by name (see partial_confirm_transfer),
+      // so match all product IDs that share this product's name.
+      const { data: sameNameProducts } = p?.name
+        ? await supabase.from("products").select("id").eq("name", p.name)
+        : { data: [] as any[] };
+      const productIds = Array.from(new Set([productId!, ...(((sameNameProducts ?? []) as any[]).map((x) => x.id))]));
+
       const { data: transfers } = await supabase
         .from("stock_transfers")
-        .select("quantity, status, created_at, reason, from_branch_id, to_branch_id")
-        .eq("product_id", productId!)
-        .eq("status", "confirmed");
+        .select("quantity, status, created_at, reason, from_branch_id, to_branch_id, product_id")
+        .in("product_id", productIds)
+        .eq("status", "confirmed")
+        .or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
 
       // Resolve branch names for transfer rows
       const branchIds = Array.from(new Set((transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id])));
