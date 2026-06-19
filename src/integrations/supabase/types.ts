@@ -3689,6 +3689,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      _whoami_pick_product: {
+        Args: never
+        Returns: {
+          id: string
+          quantity: number
+        }[]
+      }
       acknowledge_treasury_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
