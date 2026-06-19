@@ -7,9 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer, ArrowLeftRight } from "lucide-react";
-import { printHtml } from "@/lib/export";
 
-const esc = (s: any) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
 
 const statusLabel = (s: string) =>
   ({ pending: "قيد التنفيذ", confirmed: "مستلم", completed: "مكتمل", cancelled: "ملغي", rejected: "مرفوض" } as any)[s] ?? s;
@@ -53,43 +52,8 @@ export default function StockTransferView() {
   const totalQty = rows.reduce((s, r) => s + Number(r.quantity ?? 0), 0);
   const totalReceived = rows.reduce((s, r) => s + Number(r.received_quantity ?? 0), 0);
 
-  const handlePrint = () => {
-    const rowsHtml = rows.map((r, i) => {
-      const p = products[r.product_id];
-      return `<tr>
-        <td>${i + 1}</td>
-        <td>${esc(p?.name ?? "—")}</td>
-        <td>${esc(p?.sku ?? "—")}</td>
-        <td>${r.quantity}</td>
-        <td>${r.received_quantity ?? "—"}</td>
-        <td>${esc(statusLabel(r.status))}</td>
-      </tr>`;
-    }).join("");
-    const body = `
-      <h1>تحويل مخزون #${esc(head.id.slice(0, 8))}</h1>
-      <div class="meta">${formatDateTime(head.created_at)}</div>
-      <div class="grid-3">
-        <div class="card"><h3 style="margin-top:0">المؤسسة</h3>
-          <div class="row"><span>الاسم</span><b>${esc(tenant?.name ?? "")}</b></div>
-        </div>
-        <div class="card"><h3 style="margin-top:0">من فرع</h3>
-          <div class="row"><span>الاسم</span><b>${esc(fromBranch?.name ?? "—")}</b></div>
-          ${fromBranch?.phone ? `<div class="row"><span>الهاتف</span><b>${esc(fromBranch.phone)}</b></div>` : ""}
-        </div>
-        <div class="card"><h3 style="margin-top:0">إلى فرع</h3>
-          <div class="row"><span>الاسم</span><b>${esc(toBranch?.name ?? "—")}</b></div>
-          ${toBranch?.phone ? `<div class="row"><span>الهاتف</span><b>${esc(toBranch.phone)}</b></div>` : ""}
-        </div>
-      </div>
-      <h2>المنتجات (${rows.length})</h2>
-      <table>
-        <thead><tr><th>#</th><th>المنتج</th><th>الكود</th><th>الكمية المرسلة</th><th>الكمية المستلمة</th><th>الحالة</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-        <tfoot><tr><td colspan="3"><b>الإجمالي</b></td><td><b>${totalQty}</b></td><td><b>${totalReceived || "—"}</b></td><td></td></tr></tfoot>
-      </table>
-      ${head.reason ? `<p style="margin-top:12px"><b>السبب:</b> ${esc(head.reason)}</p>` : ""}`;
-    printHtml(`تحويل مخزون`, body);
-  };
+  const handlePrint = () => window.print();
+
 
   return (
     <BranchLayout>
