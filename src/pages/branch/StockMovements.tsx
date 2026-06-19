@@ -234,6 +234,8 @@ export default function StockMovements() {
     "نقل صادر": "bg-warning/15 text-warning",
     "نقل وارد": "bg-primary/15 text-primary",
     "رصيد افتتاحي": "bg-success/15 text-success",
+  };
+
 
   return (
     <BranchLayout>
