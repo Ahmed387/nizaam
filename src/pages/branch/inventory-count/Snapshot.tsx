@@ -104,7 +104,7 @@ export default function Snapshot() {
             {tenant?.logo_url && <img src={tenant.logo_url} alt="" className="w-16 h-16 object-contain" crossOrigin="anonymous" />}
             <div>
               <div className="text-2xl font-extrabold">{tenant?.name ?? "—"}</div>
-              <div className="text-sm text-gray-600">Snapshot جرد المخزن — كميات النظام لحظة الفتح</div>
+              <div className="text-sm text-gray-600">Snapshot جرد الفرع — كميات النظام لحظة الفتح</div>
             </div>
           </div>
           <div className="text-sm text-left">

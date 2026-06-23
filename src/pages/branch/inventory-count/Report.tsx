@@ -76,14 +76,14 @@ export default function Report() {
 
   if (loading) {
     return (
-      <ConditionalLayout title="تقرير جرد المخزن">
+      <ConditionalLayout title="تقرير جرد الفرع">
         <div className="card-elevated p-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
       </ConditionalLayout>
     );
   }
   if (!sess) {
     return (
-      <ConditionalLayout title="تقرير جرد المخزن">
+      <ConditionalLayout title="تقرير جرد الفرع">
         <div className="card-elevated p-8 text-center text-muted-foreground">الجلسة غير موجودة</div>
       </ConditionalLayout>
     );
@@ -91,7 +91,7 @@ export default function Report() {
 
   return (
     <ConditionalLayout
-      title="تقرير جرد المخزن"
+      title="تقرير جرد الفرع"
       subtitle={`جلسة بتاريخ ${formatDateTime(sess.created_at)}`}
       actions={
         canExport ? (
@@ -109,7 +109,7 @@ export default function Report() {
             {tenant?.logo_url && <img src={tenant.logo_url} alt="" className="w-16 h-16 object-contain" crossOrigin="anonymous" />}
             <div>
               <div className="text-2xl font-extrabold">{tenant?.name ?? "—"}</div>
-              <div className="text-sm text-gray-600">تقرير جرد المخزن</div>
+              <div className="text-sm text-gray-600">تقرير جرد الفرع</div>
             </div>
           </div>
           <div className="text-sm text-left">
