@@ -394,49 +394,53 @@ export default function Inventory() {
                     : r.quantity <= r.low_stock_alert
                     ? { cls: "bg-warning/15 text-warning", label: "🟡 منخفض" }
                     : { cls: "bg-success/15 text-success", label: "🟢 متوفر" };
-                return (
-                  <div key={r.id} className="card-elevated p-3 flex gap-3">
-                    {r.image ? (
-                      <img src={r.image} alt={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
-                    ) : (
-                      <div className="w-14 h-14 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="font-semibold truncate">{r.name}</div>
-                          <div className="font-mono text-[11px] text-muted-foreground">
-                            {r.sku} {r.categories?.name ? `· ${r.categories.name}` : ""}
-                            {r.legacy_code && <span className="mr-1 px-1 py-0.5 rounded bg-muted/60">قديم: {r.legacy_code}</span>}
-                          </div>
-                        </div>
-                        <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                        <span>الكمية: <span className="font-bold">{r.quantity}</span></span>
-                        <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
-                        <span className="text-success">بيع: {formatEGP(r.selling_price)}</span>
-                        <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
-                      </div>
-                      {canManageInventory && (
-                        <div className="mt-2 flex gap-1 flex-wrap">
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => openQtyEdit(r)}>
-                            <Edit3 className="w-3.5 h-3.5 ml-1" /> كمية
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => setPriceEdit(r)}>
-                            <Tag className="w-3.5 h-3.5 ml-1" /> سعر
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
-                            <History className="w-3.5 h-3.5 ml-1" /> تاريخ
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
-                            <Activity className="w-3.5 h-3.5 ml-1" /> حركة
-                          </Button>
-                        </div>
+                  return (
+                    <div
+                      key={r.id}
+                      className="card-elevated p-3 flex gap-3"
+                      onDoubleClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}
+                    >
+                      {r.image ? (
+                        <img src={r.image} alt={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-semibold truncate">{r.name}</div>
+                            <div className="font-mono text-[11px] text-muted-foreground">
+                              {r.sku} {r.categories?.name ? `· ${r.categories.name}` : ""}
+                              {r.legacy_code && <span className="mr-1 px-1 py-0.5 rounded bg-muted/60">قديم: {r.legacy_code}</span>}
+                            </div>
+                          </div>
+                          <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                          <span>الكمية: <span className="font-bold">{r.quantity}</span></span>
+                          <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
+                          <span className="text-success">بيع: {formatEGP(r.selling_price)}</span>
+                          <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
+                        </div>
+                        {canManageInventory && (
+                          <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => openQtyEdit(r)}>
+                              <Edit3 className="w-3.5 h-3.5 ml-1" /> كمية
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => setPriceEdit(r)}>
+                              <Tag className="w-3.5 h-3.5 ml-1" /> سعر
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
+                              <History className="w-3.5 h-3.5 ml-1" /> تاريخ
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
+                              <Activity className="w-3.5 h-3.5 ml-1" /> حركة
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
+                  );
               })
             )}
           </div>
