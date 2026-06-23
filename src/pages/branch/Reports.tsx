@@ -249,13 +249,19 @@ export default function BranchReports() {
                   {topProducts.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={topProducts} layout="vertical">
+                    <ResponsiveContainer width="100%" height={Math.max(360, topProducts.length * 56)}>
+                      <BarChart data={topProducts} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
+                        <defs>
+                          <linearGradient id="topProductsGradient" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
+                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={1} />
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                        <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                        <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => formatEGP(Number(v))} />
+                        <YAxis type="category" dataKey="name" width={180} interval={0} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 24 ? v.slice(0, 24) + "…" : v)} />
                         <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                        <Bar dataKey="revenue" name="الإيراد" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="revenue" name="الإيراد" fill="url(#topProductsGradient)" radius={[0, 4, 4, 0]} background={{ fill: "hsl(var(--muted))", fillOpacity: 0.2 }} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
