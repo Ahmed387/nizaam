@@ -192,7 +192,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
 
 
   return (
-    <AppShell title={branch?.name ?? "فرع"} subtitle={branch?.code ?? ""} nav={nav}>
+    <AppShell title={branch?.name ?? "فرع"} subtitle={branch?.code ?? ""} nav={nav} backTo={backTo} backLabel={backLabel}>
       {children}
     </AppShell>
   );
