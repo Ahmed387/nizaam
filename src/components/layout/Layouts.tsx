@@ -171,7 +171,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
   // Permission-driven sidebar (admins always see everything; others filtered via role_permissions matrix)
   const allNav: (NavItem & { perm: string })[] = [
     { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, perm: "dashboard.view", newTab: true },
-    { to: `/branch/${id}/sales`, label: "المبيعات", icon: <ShoppingCart className="w-4 h-4" />, perm: "sales.view", newTab: true },
+    
     { to: `/branch/${id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, perm: "invoices.view", newTab: true },
     { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" />, perm: "shipments.view", newTab: true },
     { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, perm: "inventory.view", newTab: true },

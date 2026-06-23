@@ -201,7 +201,8 @@ const App = () => (
             <Route path="/branch/:id/payment-vouchers" element={<RedirectToTreasury />} />
             <Route path="/branch/:id/receipt-vouchers" element={<RedirectToTreasury />} />
 
-            <Route path="/branch/:id/sales" element={<ProtectedRoute perm="sales.view"><SalesHistory /></ProtectedRoute>} />
+            <Route path="/branch/:id/sales" element={<RedirectReturnsToInvoices />} />
+            <Route path="/branch/:id/sales-history" element={<ProtectedRoute perm="sales.view"><SalesHistory /></ProtectedRoute>} />
             <Route path="/branch/:id/invoices" element={<ProtectedRoute perm="invoices.view"><Invoices /></ProtectedRoute>} />
             <Route path="/branch/:id/purchase-returns/new" element={<ProtectedRoute perm="shipments.create"><NewPurchaseReturn /></ProtectedRoute>} />
             <Route path="/branch/:id/sale-returns/new" element={<ProtectedRoute perm="sales.create"><NewSaleReturn /></ProtectedRoute>} />
