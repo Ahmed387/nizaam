@@ -614,7 +614,7 @@ function AdjustmentsList({ branchId }: { branchId: string }) {
     <div>
       <div className="flex justify-end mb-3">
         <Button onClick={() => nav(`/branch/${branchId}/adjustments/new`)} className="gap-2">
-          <Plus className="w-4 h-4" /> تسوية مخزون جديدة
+          <Plus className="w-4 h-4" /> تسوية جديدة في الفرع
         </Button>
       </div>
       <DataTable
