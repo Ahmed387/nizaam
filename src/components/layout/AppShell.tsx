@@ -207,10 +207,11 @@ export function AppShell({
             <Menu className="w-5 h-5" />
           </button>
           <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-lg hover:bg-sidebar-accent"
-            aria-label="رجوع"
-            title="رجوع"
+            onClick={goBack}
+            disabled={isBackDisabled}
+            className="p-2 rounded-lg hover:bg-sidebar-accent disabled:opacity-50"
+            aria-label={backLabel ?? "رجوع"}
+            title={backLabel ?? "رجوع"}
           >
             <ArrowRight className="w-5 h-5" />
           </button>
