@@ -207,10 +207,10 @@ export default function Inventory() {
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList>
-          <TabsTrigger value="products">الأصناف</TabsTrigger>
-          <TabsTrigger value="transfers">نقل المخزون</TabsTrigger>
+          <TabsTrigger value="products">الأصناف المتاحة في المخزن</TabsTrigger>
+          <TabsTrigger value="transfers">نقل المخزون بين الفروع</TabsTrigger>
           <TabsTrigger value="adjustments">
-            <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزون
+            <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزن في الفرع
             <HoverCard openDelay={150}>
               <HoverCardTrigger asChild>
                 <span
@@ -218,14 +218,14 @@ export default function Inventory() {
                   tabIndex={0}
                   onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center mr-1 text-muted-foreground hover:text-primary cursor-help"
-                  aria-label="ما هي تسوية المخزون؟"
+                  aria-label="ما هي تسوية المخزن في الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </HoverCardTrigger>
               <HoverCardContent dir="rtl" className="w-80 text-right" side="bottom" align="end">
                 <div className="space-y-2 text-sm">
-                  <div className="font-bold text-primary">تسوية المخزون</div>
+                  <div className="font-bold text-primary">تسوية المخزن في الفرع</div>
                   <p className="text-muted-foreground">
                     حركة تصحيحية بتعدّل كمية المنتج في النظام عشان توافق الكمية الفعلية على أرض الواقع.
                   </p>
@@ -238,7 +238,7 @@ export default function Inventory() {
             </HoverCard>
           </TabsTrigger>
           <TabsTrigger value="count">
-            <ClipboardCheck className="w-4 h-4 ml-1" /> جرد المخزن
+            <ClipboardCheck className="w-4 h-4 ml-1" /> جرد الفرع
             <HoverCard openDelay={150}>
               <HoverCardTrigger asChild>
                 <span
@@ -246,14 +246,14 @@ export default function Inventory() {
                   tabIndex={0}
                   onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center mr-1 text-muted-foreground hover:text-primary cursor-help"
-                  aria-label="ما هو جرد المخزن؟"
+                  aria-label="ما هو جرد الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </HoverCardTrigger>
               <HoverCardContent dir="rtl" className="w-80 text-right" side="bottom" align="end">
                 <div className="space-y-2 text-sm">
-                  <div className="font-bold text-primary">جرد المخزن</div>
+                  <div className="font-bold text-primary">جرد الفرع</div>
                   <p className="text-muted-foreground">
                     عملية عدّ فعلي للبضاعة الموجودة في المخزن ومقارنتها بأرصدة النظام لاكتشاف الفروقات.
                   </p>
