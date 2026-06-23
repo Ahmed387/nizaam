@@ -238,13 +238,13 @@ export default function StockMovements() {
 
 
   return (
-    <BranchLayout>
+    <BranchLayout backTo={`/branch/${branchId}/dashboard`} backLabel="القائمة الرئيسية">
       <PageHeader
         title={`حركة المخزون: ${product?.name ?? ""}`}
         subtitle={product ? `الكود: ${product.sku} · الكمية الحالية: ${product.quantity}` : ""}
         actions={
           <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory`)}>
-            <ArrowRight className="w-4 h-4 ml-1" /> رجوع
+            <ArrowRight className="w-4 h-4 ml-1" /> رجوع للمخزون
           </Button>
         }
       />
