@@ -317,7 +317,11 @@ export default function Inventory() {
                         ? { cls: "bg-warning/15 text-warning", label: "🟡 منخفض" }
                         : { cls: "bg-success/15 text-success", label: "🟢 متوفر" };
                     return (
-                      <tr key={r.id} className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? "bg-surface/20" : "bg-card"}`}>
+                      <tr
+                        key={r.id}
+                        className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? "bg-surface/20" : "bg-card"}`}
+                        onDoubleClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}
+                      >
                         <td className="px-4 py-3 align-middle">
                           <div className="flex items-center gap-3 min-w-0">
                             {r.image ? (
@@ -352,7 +356,7 @@ export default function Inventory() {
                         </td>
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openQtyEdit(r)} title="تعديل الكمية (تسوية)">
                                 <Edit3 className="w-4 h-4" />
                               </Button>
