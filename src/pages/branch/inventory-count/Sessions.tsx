@@ -68,7 +68,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   return (
     <ConditionalLayout
       embedded={embedded}
-      title="جرد المخزن"
+      title="جرد الفرع"
       subtitle="إدارة جلسات الجرد ومراجعة الفروقات"
       actions={
         isManager ? (
