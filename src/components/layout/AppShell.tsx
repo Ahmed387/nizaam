@@ -39,7 +39,10 @@ export function AppShell({
   const loc = useLocation();
   const navigate = useNavigate();
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
-  const goBack = () => navigate(backTo ? backTo : -1);
+  const goBack = () => {
+    if (backTo) navigate(backTo);
+    else navigate(-1);
+  };
   const isBackDisabled = !backTo && !canGoBack;
 
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
