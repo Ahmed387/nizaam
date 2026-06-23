@@ -556,7 +556,7 @@ export default function Invoices() {
             </Button>
             <PermGate perm="preorders.view">
               <Button asChild variant="outline" size="sm" className="gap-2">
-                <Link to={`/branch/${id}/pre-orders`}><FileText className="w-4 h-4" /> طلبات الحجز</Link>
+                <Link to={`/branch/${branchId}/pre-orders`}><FileText className="w-4 h-4" /> طلبات الحجز</Link>
               </Button>
             </PermGate>
             {cfg.newLink && (
