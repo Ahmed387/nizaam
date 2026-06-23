@@ -257,13 +257,13 @@ export function AppShell({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(-1)}
-                disabled={!canGoBack}
+                onClick={goBack}
+                disabled={isBackDisabled}
                 className="gap-2"
-                title="رجوع"
+                title={backLabel ?? "رجوع"}
               >
                 <ArrowRight className="w-4 h-4" />
-                رجوع
+                {backLabel ?? "رجوع"}
               </Button>
             </div>
             <div className="flex items-center gap-1">
