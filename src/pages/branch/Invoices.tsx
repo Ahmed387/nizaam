@@ -554,6 +554,11 @@ export default function Invoices() {
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length} className="gap-2">
               <Printer className="w-4 h-4" /> PDF
             </Button>
+            <PermGate perm="preorders.view">
+              <Button asChild variant="outline" size="sm" className="gap-2">
+                <Link to={`/branch/${id}/pre-orders`}><FileText className="w-4 h-4" /> طلبات الحجز</Link>
+              </Button>
+            </PermGate>
             {cfg.newLink && (
               <PermGate perm={(cfg as any).newPerm ?? ""}>
                 <Button asChild className="gap-2">

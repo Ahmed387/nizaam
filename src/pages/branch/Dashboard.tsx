@@ -140,6 +140,7 @@ export default function BranchDashboard() {
   const shortcuts = [
     { to: `/branch/${id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
     { to: `/branch/${id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/10" },
+    { to: `/branch/${id}/pre-orders`, label: "طلبات الحجز", icon: BookmarkPlus, color: "text-secondary", bg: "bg-secondary/10" },
     { to: `/branch/${id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/10" },
     { to: `/branch/${id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/10" },
     { to: `/branch/${id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/10" },
