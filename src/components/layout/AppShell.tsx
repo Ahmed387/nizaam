@@ -21,11 +21,15 @@ export function AppShell({
   title,
   subtitle,
   nav,
+  backTo,
+  backLabel,
   children,
 }: {
   title: string;
   subtitle?: string;
   nav: NavItem[];
+  backTo?: string;
+  backLabel?: string;
   children: ReactNode;
 }) {
   const { profile, roles, signOut } = useAuth();
@@ -35,6 +39,11 @@ export function AppShell({
   const loc = useLocation();
   const navigate = useNavigate();
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+  const goBack = () => {
+    if (backTo) navigate(backTo);
+    else navigate(-1);
+  };
+  const isBackDisabled = !backTo && !canGoBack;
 
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
     <aside
@@ -198,10 +207,11 @@ export function AppShell({
             <Menu className="w-5 h-5" />
           </button>
           <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-lg hover:bg-sidebar-accent"
-            aria-label="رجوع"
-            title="رجوع"
+            onClick={goBack}
+            disabled={isBackDisabled}
+            className="p-2 rounded-lg hover:bg-sidebar-accent disabled:opacity-50"
+            aria-label={backLabel ?? "رجوع"}
+            title={backLabel ?? "رجوع"}
           >
             <ArrowRight className="w-5 h-5" />
           </button>
@@ -247,13 +257,13 @@ export function AppShell({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(-1)}
-                disabled={!canGoBack}
+                onClick={goBack}
+                disabled={isBackDisabled}
                 className="gap-2"
-                title="رجوع"
+                title={backLabel ?? "رجوع"}
               >
                 <ArrowRight className="w-4 h-4" />
-                رجوع
+                {backLabel ?? "رجوع"}
               </Button>
             </div>
             <div className="flex items-center gap-1">

@@ -68,7 +68,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 }
 
 
-export function BranchLayout({ children }: { children: ReactNode }) {
+export function BranchLayout({ children, backTo, backLabel }: { children: ReactNode; backTo?: string; backLabel?: string }) {
   const { id } = useParams<{ id: string }>();
   const { branches, isAdmin, hasRole, user, can: hasPerm } = useAuth();
   const branch = branches.find((b) => b.id === id);
@@ -192,7 +192,7 @@ export function BranchLayout({ children }: { children: ReactNode }) {
 
 
   return (
-    <AppShell title={branch?.name ?? "فرع"} subtitle={branch?.code ?? ""} nav={nav}>
+    <AppShell title={branch?.name ?? "فرع"} subtitle={branch?.code ?? ""} nav={nav} backTo={backTo} backLabel={backLabel}>
       {children}
     </AppShell>
   );
