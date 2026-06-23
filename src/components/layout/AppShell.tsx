@@ -21,11 +21,15 @@ export function AppShell({
   title,
   subtitle,
   nav,
+  backTo,
+  backLabel,
   children,
 }: {
   title: string;
   subtitle?: string;
   nav: NavItem[];
+  backTo?: string;
+  backLabel?: string;
   children: ReactNode;
 }) {
   const { profile, roles, signOut } = useAuth();
@@ -35,6 +39,8 @@ export function AppShell({
   const loc = useLocation();
   const navigate = useNavigate();
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+  const goBack = () => navigate(backTo ? backTo : -1);
+  const isBackDisabled = !backTo && !canGoBack;
 
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
     <aside
