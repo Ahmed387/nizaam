@@ -76,7 +76,7 @@ export default function CountingSheet() {
 
   if (!allowed) {
     return (
-      <ConditionalLayout title="جرد المخزن">
+      <ConditionalLayout title="جرد الفرع">
         <div className="card-elevated p-8 text-center text-muted-foreground">هذه الصفحة لأمين المخزن فقط.</div>
       </ConditionalLayout>
     );

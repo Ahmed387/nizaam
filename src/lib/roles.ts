@@ -36,7 +36,7 @@ export const PERMISSION_GROUPS: { key: string; label: string; actions: ("view" |
   { key: "preorders", label: "طلبات الحجز", actions: ["view", "create", "update", "delete"] },
   { key: "shipments", label: "الشحنات", actions: ["view", "create", "update", "delete"] },
   { key: "inventory", label: "المخزون", actions: ["view", "create", "update", "delete"] },
-  { key: "transfers", label: "نقل المخزون", actions: ["view", "create"] },
+  { key: "transfers", label: "نقل المخزون بين الفروع", actions: ["view", "create"] },
   { key: "customers", label: "العملاء", actions: ["view", "create", "update", "delete"] },
   { key: "suppliers", label: "الموردين", actions: ["view", "create", "update", "delete"] },
   { key: "treasury", label: "الخزنة", actions: ["view"] },
