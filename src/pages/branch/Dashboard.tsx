@@ -257,14 +257,15 @@ export default function BranchDashboard() {
               </div>
             </div>
             <Progress value={pct} className="h-3" />
-            <div className="flex items-center justify-between mt-2 text-xs">
-              <span className={onTrack ? "text-success font-semibold" : "text-warning font-semibold"}>
+            <div className="flex items-center justify-between mt-3 text-sm">
+              <span className={onTrack ? "text-success font-bold" : "text-warning font-bold"}>
                 {pct.toFixed(1)}% من الهدف
               </span>
-              <span className="text-muted-foreground">
+              <span className="font-bold text-foreground">
                 {remaining > 0 ? `متبقي ${formatEGP(remaining)} صافي ربح لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
               </span>
             </div>
+
           </div>
         );
       })()}
