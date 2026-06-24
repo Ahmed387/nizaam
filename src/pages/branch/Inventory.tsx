@@ -122,7 +122,7 @@ export default function Inventory() {
   };
 
   const filtered = rows.filter((p) => {
-    if (search && !p.name.includes(search) && !(p.sku ?? "").includes(search) && !(p.legacy_code ?? "").toString().includes(search)) return false;
+    if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;
