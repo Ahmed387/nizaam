@@ -373,7 +373,7 @@ export default function InvoiceView() {
         <div className="mt-8 pt-4 border-t border-dashed border-border text-xs text-muted-foreground text-center">
           <div>تم إصدار هذه الفاتورة إلكترونياً بواسطة:</div>
           <div className="mt-1 font-bold text-foreground text-sm">✍️ {cashierName ?? "—"}</div>
-          <div className="mt-1">بتاريخ {formatDateTime(inv.created_at)}</div>
+          <div className="mt-1">بتاريخ {formatDateTime(inv.invoice_date ?? inv.created_at)}</div>
           
         </div>
 
