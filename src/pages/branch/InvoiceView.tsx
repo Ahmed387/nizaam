@@ -120,11 +120,11 @@ export default function InvoiceView() {
       <PageHeader title={`فاتورة ${inv.invoice_number}`}
         actions={
           <div className="flex gap-2 no-print flex-wrap">
-            {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء</Button>}
-            {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
-            {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي</Button>}
-            <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF</Button>
-            <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
+            {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء الفاتورة</Button>}
+            {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
+            {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي للفاتورة</Button>}
+            <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF للفاتورة</Button>
+            <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
           </div>
         }
       />
