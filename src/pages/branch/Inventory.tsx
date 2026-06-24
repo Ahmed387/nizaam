@@ -272,7 +272,7 @@ export default function Inventory() {
 
         <TabsContent value="products" className="mt-4">
           <div className="flex gap-3 mb-4 flex-wrap items-center">
-            <Input placeholder="ابحث بالاسم أو الكود أو الكود القديم" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+            <Input placeholder="ابحث بالاسم أو الكود" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
