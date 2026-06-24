@@ -84,7 +84,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   useRealtimeRefresh(["products", "branches", "categories"], load);
 
   const filtered = useMemo(() => rows.filter((p) => {
-    if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
+    if (search && !searchMatch(search, p.name, p.sku)) return false;
     if (branchFilter !== "all" && p.branch_id !== branchFilter) return false;
     if (catFilter !== "all" && p.category_id !== catFilter) return false;
     if (stockFilter === "low" && p.quantity > p.low_stock_alert) return false;
