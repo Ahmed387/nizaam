@@ -94,7 +94,7 @@ export default function AllEmployees() {
   })), [emps, branches, advRemaining, userBranches]);
 
   const filtered = useMemo(() => enriched.filter((e) => {
-    if (search && !e.name.includes(search) && !(e.job_title ?? "").includes(search) && !(e.phone ?? "").includes(search)) return false;
+    if (search && !searchMatch(search, e.name, e.job_title, e.phone)) return false;
     if (branchFilter !== "all" && e.branch_id !== branchFilter) return false;
     if (statusFilter === "active" && !e.is_active) return false;
     if (statusFilter === "inactive" && e.is_active) return false;
