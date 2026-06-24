@@ -210,19 +210,19 @@ export default function ShipmentView() {
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
             <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
-              <Printer className="w-4 h-4" /> طباعة PDF
+              <Printer className="w-4 h-4" /> تحميل PDF للفاتورة
             </Button>
             <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
-              <Printer className="w-4 h-4" /> طباعة حرارية
+              <Printer className="w-4 h-4" /> طباعة الفاتورة
             </Button>
             {canEdit && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => nav(`/branch/${branchId}/shipments/${ship.id}/edit`)}>
-                <Pencil className="w-4 h-4" /> {isAdmin ? "تعديل" : "طلب تعديل"}
+                <Pencil className="w-4 h-4" /> {isAdmin ? "التعديل على الفاتورة" : "طلب تعديل على الفاتورة"}
               </Button>
             )}
             {canDelete && (
               <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDelOpen(true)}>
-                <Trash2 className="w-4 h-4" /> {isAdmin ? "حذف الشحنة" : "طلب حذف"}
+                <Trash2 className="w-4 h-4" /> {isAdmin ? "حذف نهائي للفاتورة" : "طلب حذف للفاتورة"}
               </Button>
             )}
           </div>

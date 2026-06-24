@@ -55,7 +55,7 @@ export default function SaleReturnView() {
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
             <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
-              <Printer className="w-4 h-4" /> طباعة
+              <Printer className="w-4 h-4" /> طباعة الفاتورة
             </Button>
           </div>
         }
