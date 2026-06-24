@@ -340,8 +340,11 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <Switch checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
-                            <span className={item.is_active ? "text-success text-xs font-medium" : "text-muted-foreground text-xs"}>{item.is_active ? "ظاهر" : "مخفي"}</span>
+                            <Switch variant="premium" checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
+                            <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-colors", item.is_active ? "bg-success/10 border-success/30 text-success" : "bg-muted/50 border-border text-muted-foreground")}>
+                              <span className={cn("w-1.5 h-1.5 rounded-full", item.is_active ? "bg-success animate-pulse" : "bg-muted-foreground")} />
+                              <span>{item.is_active ? "ظاهر" : "مخفي"}</span>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-right text-sm">{item.category ?? "—"}</TableCell>
