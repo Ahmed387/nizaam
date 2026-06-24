@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer } from "lucide-react";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
+import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 
 export default function SaleReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
@@ -70,8 +71,9 @@ export default function SaleReturnView() {
           <div className="text-left bg-warning/10 border border-warning/30 rounded-lg p-3">
             <div className="text-xs text-muted-foreground">رقم المرتجع</div>
             <div className="font-mono font-extrabold text-warning text-lg">{ret.return_number}</div>
-            <div className="text-xs text-muted-foreground mt-2">التاريخ</div>
-            <div className="text-sm font-bold">{formatDateTime(ret.created_at)}</div>
+            <div className="text-xs text-muted-foreground mt-2">تاريخ المرتجع</div>
+            <div className="text-sm font-bold"><EditableInvoiceDate table="returns" recordId={ret.id} value={(ret as any).invoice_date} fallback={ret.created_at} onSaved={(d) => setRet({ ...ret, invoice_date: d } as any)} /></div>
+            <div className="text-[10px] text-muted-foreground mt-1.5">تاريخ الإدخال: {formatDateTime(ret.created_at)}</div>
           </div>
         </div>
 

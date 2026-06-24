@@ -17,6 +17,7 @@ import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
+import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
@@ -140,8 +141,9 @@ export default function InvoiceView() {
           <div className="text-left bg-primary/10 border border-primary/30 rounded-lg p-3">
             <div className="text-xs text-muted-foreground">رقم الفاتورة</div>
             <div className="font-mono font-extrabold text-primary text-lg">{inv.invoice_number}</div>
-            <div className="text-xs text-muted-foreground mt-2">التاريخ</div>
-            <div className="text-sm font-bold">{formatDateTime(inv.created_at)}</div>
+            <div className="text-xs text-muted-foreground mt-2">تاريخ الفاتورة</div>
+            <div className="text-sm font-bold"><EditableInvoiceDate table="invoices" recordId={inv.id} value={inv.invoice_date} fallback={inv.created_at} onSaved={(d) => setInv({ ...inv, invoice_date: d })} /></div>
+            <div className="text-[10px] text-muted-foreground mt-1.5">تاريخ الإدخال: {formatDateTime(inv.created_at)}</div>
           </div>
         </div>
 

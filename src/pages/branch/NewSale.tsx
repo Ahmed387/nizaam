@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { PreOrderDialog } from "@/components/PreOrderDialog";
 import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentScheduler";
+import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
 import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
@@ -64,6 +65,7 @@ export default function NewSale() {
 
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<any[]>([]);
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
   const [catalog, setCatalog] = useState<any[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
@@ -764,6 +766,17 @@ export default function NewSale() {
         throw rpcErr;
       }
 
+      // Persist backdated invoice_date if changed (DB trigger restricts to admin/super_admin)
+      const _today = new Date().toISOString().slice(0, 10);
+      if (invoiceDate && invoiceDate !== _today && invId) {
+        const { error: dErr } = await supabase
+          .from("invoices")
+          .update({ invoice_date: invoiceDate } as any)
+          .eq("id", invId as any);
+        if (dErr) console.warn("invoice_date update blocked:", dErr.message);
+      }
+
+
       // === FIFO consume (with batch tracking) + profit columns ===
       try {
         for (const it of items) {
@@ -933,15 +946,20 @@ export default function NewSale() {
         <div className="lg:col-span-2 space-y-4">
           {/* Customer */}
           <div className="card-elevated p-4">
-            <Label className="mb-1.5 block">العميل</Label>
-            <div className="flex gap-2">
-              <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                <option value="">— اختر عميل (اختياري) —</option>
-                {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-              </select>
-              <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
-                <UserPlus className="w-4 h-4" />
-              </Button>
+            <div className="grid md:grid-cols-3 gap-3 mb-3">
+              <div className="md:col-span-2">
+                <Label className="mb-1.5 block">العميل</Label>
+                <div className="flex gap-2">
+                  <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                    <option value="">— اختر عميل (اختياري) —</option>
+                    {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
+                  </select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                    <UserPlus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
             </div>
             {customerId && (() => {
               const b = balanceLabel(customerBalance);

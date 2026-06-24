@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
+import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { toast } from "sonner";
 import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
@@ -54,6 +55,7 @@ export default function NewPurchaseReturn() {
   const [reasonPick, setReasonPick] = useState(COMMON_REASONS[0]);
   const [reasonOther, setReasonOther] = useState("");
   const [notes, setNotes] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
 
   // Refund
@@ -203,7 +205,8 @@ export default function NewPurchaseReturn() {
         refund_cash_amount: cashPart,
         refund_transfer_amount: transferPart,
         refund_balance_amount: balancePart,
-      }).select().single();
+        invoice_date: invoiceDate,
+      } as any).select().single();
       if (error || !pr) throw error ?? new Error("فشل الحفظ");
       const number = (pr as any).return_number as string;
 
@@ -334,9 +337,12 @@ export default function NewPurchaseReturn() {
                   </div>
                 )}
               </div>
-              <div className="flex items-end">
-                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full">
-                  <FileText className="w-4 h-4" /> {shipment ? "تغيير الفاتورة" : "اختيار من فاتورة شراء"}
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
+                </div>
+                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2">
+                  <FileText className="w-4 h-4" /> {shipment ? "تغيير الفاتورة" : "اختيار فاتورة شراء"}
                 </Button>
               </div>
             </div>

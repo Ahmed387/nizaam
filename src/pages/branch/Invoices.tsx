@@ -22,6 +22,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -177,16 +178,16 @@ export default function Invoices() {
     setLoading(true);
     let data: any[] = [];
     if (tab === "sale") {
-      const r = await supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "purchase") {
-      const r = await supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "sale_return") {
-      const r = await supabase.from("returns").select("*, invoices(invoice_number, contact_id, contacts:contact_id(name, phone))").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("returns").select("*, invoices(invoice_number, contact_id, contacts:contact_id(name, phone))").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "purchase_return") {
-      const r = await supabase.from("purchase_returns" as any).select("*, contacts:contact_id(name, phone)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
+      const r = await supabase.from("purchase_returns" as any).select("*, contacts:contact_id(name, phone)").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
       data = r.data ?? [];
     } else if (tab === "income") {
       const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "receipt").eq("status", "active").order("voucher_date", { ascending: false }).limit(500);
@@ -261,7 +262,8 @@ export default function Invoices() {
     };
 
     const getDate = (r: any): number => {
-      const d = r.arrival_date ?? r.created_at;
+      // Prefer invoice_date (transaction date) for sale/purchase/returns; fall back to legacy fields.
+      const d = r.invoice_date ?? r.voucher_date ?? r.arrival_date ?? r.created_at;
       return d ? new Date(d).getTime() : 0;
     };
 
@@ -331,7 +333,7 @@ export default function Invoices() {
           { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
           { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "invoice_date", header: "تاريخ الفاتورة", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", render: (r: any) => (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -355,8 +357,8 @@ export default function Invoices() {
           { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span><AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
+          { key: "invoice_date", header: "تاريخ الفاتورة", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
-          { key: "created_at", header: "تاريخ الإدخال", render: (r: any) => formatDateTime(r.created_at) },
           { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
           {
             key: "actions", header: "إجراءات", render: (r: any) => (
@@ -383,7 +385,7 @@ export default function Invoices() {
           { key: "customer", header: "العميل", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب" },
           { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "invoice_date", header: "تاريخ المرتجع", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
         ],
         onClick: (r: any) => nav(`${base}/sale-returns/${r.id}`),
       };
@@ -394,7 +396,7 @@ export default function Invoices() {
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "invoice_date", header: "تاريخ المرتجع", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
         ],
         onClick: (r: any) => nav(`${base}/purchase-returns/${r.id}`),
       };
@@ -602,8 +604,8 @@ export default function Invoices() {
           )}
         </div>
 
-        {/* Quick date presets (return tabs only) */}
-        {isReturnTab && (
+        {/* Quick date presets */}
+        {active.date && (
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <CalendarIcon className="w-3 h-3" /> اختصارات:

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { printHtml } from "@/lib/export";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
+import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -249,6 +250,7 @@ export default function ShipmentView() {
           </div>
           <div className="text-sm space-y-2">
             <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">المستلم:</span> <b>{ship.received_by}</b></div>
+            <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">تاريخ فاتورة الشراء:</span> <EditableInvoiceDate table="shipments" recordId={ship.id} value={ship.invoice_date} fallback={ship.created_at} onSaved={(d) => setShip({ ...ship, invoice_date: d })} /></div>
             <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">تاريخ الوصول:</span> {formatDate(ship.arrival_date)}</div>
             <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-muted-foreground">تاريخ الإنشاء:</span> {formatDate(ship.created_at)}</div>
             {ship.notes && <div className="flex items-start gap-2"><ClipboardList className="w-3.5 h-3.5 text-muted-foreground mt-0.5" /><span className="text-muted-foreground">ملاحظات:</span> <span className="text-xs">{ship.notes}</span></div>}
