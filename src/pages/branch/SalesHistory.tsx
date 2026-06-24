@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Plus, RotateCcw, BookmarkPlus } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 
 export default function SalesHistory() {
   const { id } = useParams<{ id: string }>();
