@@ -15,6 +15,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 
 interface Line {
   invoice_item_id: string;
@@ -51,6 +52,7 @@ export default function NewSaleReturn() {
   const [reasonPick, setReasonPick] = useState(COMMON_REASONS[0]);
   const [reasonOther, setReasonOther] = useState("");
   const [notes, setNotes] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
 
   // Refund
@@ -200,6 +202,17 @@ export default function NewSaleReturn() {
       });
       if (error || !rr) throw error ?? new Error("فشل الحفظ");
       const number = (rr as any).return_number as string;
+
+      // Persist invoice_date if backdated (DB trigger enforces admin-only)
+      const today = new Date().toISOString().slice(0, 10);
+      if (invoiceDate && invoiceDate !== today && number) {
+        const { error: dErr } = await supabase
+          .from("returns")
+          .update({ invoice_date: invoiceDate } as any)
+          .eq("return_number", number);
+        if (dErr) console.warn("invoice_date update blocked:", dErr.message);
+      }
+
 
       if (!asDraft) {
         // Stock, treasury, invoice returned quantities and customer balance are updated atomically in the database.
@@ -367,7 +380,10 @@ export default function NewSaleReturn() {
 
           {/* Reason + notes */}
           <div className="card-elevated p-4 space-y-3">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
+              </div>
               <div>
                 <Label>السبب *</Label>
                 <Select value={reasonPick} onValueChange={setReasonPick}>

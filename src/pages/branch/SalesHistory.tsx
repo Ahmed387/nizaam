@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Plus, RotateCcw, BookmarkPlus } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 
 export default function SalesHistory() {
   const { id } = useParams<{ id: string }>();
@@ -51,7 +52,7 @@ export default function SalesHistory() {
           { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
           { key: "discount_amount", header: "الخصم", render: (r: any) => Number(r.discount_amount) > 0 ? formatEGP(r.discount_amount) : "—" },
           { key: "cashier", header: "الكاشير", render: (r: any) => r.cashier_name ?? "—" },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "invoice_date", header: "تاريخ الفاتورة", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} /> },
           { key: "status", header: "الحالة", render: (r: any) => (
             <span className={`px-2 py-1 rounded text-xs ${r.status === "active" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
               {r.status === "active" ? "نشطة" : "ملغاة"}

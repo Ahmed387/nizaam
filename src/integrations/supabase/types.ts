@@ -1252,6 +1252,7 @@ export type Database = {
           discount_percent: number
           discount_reason: string | null
           id: string
+          invoice_date: string
           invoice_number: string
           is_migrated: boolean
           migration_source: string | null
@@ -1283,6 +1284,7 @@ export type Database = {
           discount_percent?: number
           discount_reason?: string | null
           id?: string
+          invoice_date?: string
           invoice_number: string
           is_migrated?: boolean
           migration_source?: string | null
@@ -1314,6 +1316,7 @@ export type Database = {
           discount_percent?: number
           discount_reason?: string | null
           id?: string
+          invoice_date?: string
           invoice_number?: string
           is_migrated?: boolean
           migration_source?: string | null
@@ -2162,6 +2165,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          invoice_date: string
           notes: string | null
           reason: string
           refund_account: string | null
@@ -2182,6 +2186,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          invoice_date?: string
           notes?: string | null
           reason: string
           refund_account?: string | null
@@ -2202,6 +2207,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          invoice_date?: string
           notes?: string | null
           reason?: string
           refund_account?: string | null
@@ -2420,6 +2426,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          invoice_date: string
           invoice_id: string
           notes: string | null
           reason: string
@@ -2439,6 +2446,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          invoice_date?: string
           invoice_id: string
           notes?: string | null
           reason: string
@@ -2458,6 +2466,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          invoice_date?: string
           invoice_id?: string
           notes?: string | null
           reason?: string
@@ -2725,6 +2734,7 @@ export type Database = {
           current_balance: number | null
           customs_cost: number
           id: string
+          invoice_date: string
           notes: string | null
           other_cost: number
           other_cost_description: string | null
@@ -2745,6 +2755,7 @@ export type Database = {
           current_balance?: number | null
           customs_cost?: number
           id?: string
+          invoice_date?: string
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null
@@ -2765,6 +2776,7 @@ export type Database = {
           current_balance?: number | null
           customs_cost?: number
           id?: string
+          invoice_date?: string
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null

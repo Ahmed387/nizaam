@@ -20,6 +20,7 @@ import { PartyCombobox } from "@/components/PartyCombobox";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
+import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 
 interface Line {
   id?: string | null;
@@ -57,6 +58,7 @@ export default function NewShipment() {
   const [priceList, setPriceList] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [arrival, setArrival] = useState(new Date().toISOString().split("T")[0]);
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
   const [shipping, setShipping] = useState(0);
   const [customs, setCustoms] = useState(0);
@@ -123,6 +125,7 @@ export default function NewShipment() {
       if (!s) { toast.error("الشحنة غير موجودة"); return; }
       setSupplierId(s.contact_id ?? "");
       setArrival((s.arrival_date ?? "").slice(0, 10));
+      if ((s as any).invoice_date) setInvoiceDate(((s as any).invoice_date as string).slice(0, 10));
       setReceivedBy(s.received_by ?? "");
       setShipping(Number(s.shipping_cost ?? 0));
       setCustoms(Number((s as any).customs_cost ?? 0));
@@ -326,6 +329,14 @@ export default function NewShipment() {
       if (rpcErr) throw rpcErr;
       const ship = { id: (rpcRes as any).shipment_id } as { id: string };
 
+      // Persist invoice_date (DB trigger restricts non-today changes to admin/super_admin)
+      const today = new Date().toISOString().slice(0, 10);
+      if (invoiceDate && invoiceDate !== today) {
+        const { error: dErr } = await supabase.from("shipments").update({ invoice_date: invoiceDate } as any).eq("id", ship.id);
+        if (dErr) console.warn("invoice_date update blocked:", dErr.message);
+      }
+
+
 
       // Treasury / payment plan handling (non-fatal — shipment is already saved)
       const supplier = suppliers.find((s) => s.id === supplierId);
@@ -429,6 +440,9 @@ export default function NewShipment() {
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground">تاريخ الوصول</Label>
             <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ فاتورة الشراء" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground">اسم المستلم</Label>
