@@ -27,8 +27,8 @@ interface Props {
  * Shows the invoice date. Only admin / super_admin can edit it (UI + DB-enforced).
  */
 export function EditableInvoiceDate({ table, recordId, value, fallback, compact, onSaved }: Props) {
-  const { hasRole } = useAuth();
-  const canEdit = hasRole("super_admin");
+  const { isAdmin } = useAuth();
+  const canEdit = isAdmin;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const initial = (value ?? fallback ?? "").slice(0, 10);
