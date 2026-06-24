@@ -317,7 +317,7 @@ export default function NewSale() {
 
 
   const filtered = useMemo(
-    () => products.filter((p) => !search || p.name.includes(search) || p.sku.includes(search)).slice(0, 8),
+    () => products.filter((p) => !search || searchMatch(search, p.name, p.sku)).slice(0, 8),
     [products, search]
   );
 
