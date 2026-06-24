@@ -20,7 +20,9 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning
 
 export default function BranchDashboard() {
   const { id } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const [salesToday, setSalesToday] = useState(0);
+
   const [salesYesterday, setSalesYesterday] = useState(0);
   const [salesMonth, setSalesMonth] = useState(0);
   const [salesLastMonth, setSalesLastMonth] = useState(0);
