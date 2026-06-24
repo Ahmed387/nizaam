@@ -16,6 +16,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X, FileUp } from "lucide-react";
 
