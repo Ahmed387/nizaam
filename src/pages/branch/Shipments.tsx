@@ -111,7 +111,7 @@ export default function Shipments() {
   };
 
   return (
-    <BranchLayout>
+    <BranchLayout backTo={`/branch/${branchId}/dashboard`} backLabel="الرئيسية">
       <PageHeader
         title="الشحنات"
         subtitle="استلام البضاعة من الموردين"
