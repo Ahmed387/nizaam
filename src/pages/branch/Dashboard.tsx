@@ -354,14 +354,15 @@ export default function BranchDashboard() {
       {/* Recent invoices & low stock */}
       <div className="grid lg:grid-cols-2 gap-6">
         <div>
-          <h3 className="font-bold mb-3">آخر الفواتير</h3>
-          <DataTable rows={recent} columns={[
+          <h3 className="font-bold mb-3 text-lg">آخر الفواتير</h3>
+          <DataTable rows={recent} onRowClick={(r: any) => nav(`/branch/${id}/sales/${r.id}`)} columns={[
             { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
             { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
             { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
             { key: "created_at", header: "الوقت", render: (r: any) => formatDateTime(r.created_at) },
           ]} />
         </div>
+
         <div>
           <h3 className="font-bold mb-3 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> تنبيهات المخزون ({lowStock.length})</h3>
           <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافٍ ✓"
