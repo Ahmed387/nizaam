@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { Printer, ArrowRight, Search } from "lucide-react";
 import JsBarcode from "jsbarcode";
 import { toast } from "sonner";
