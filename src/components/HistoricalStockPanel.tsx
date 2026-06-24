@@ -8,6 +8,7 @@ import { Loader2, CalendarSearch, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { exportElementToPdf } from "@/lib/inventoryPdf";
+import { searchMatch } from "@/lib/search";
 
 type Row = { product_id: string; sku: string; name: string; quantity_at_date: number };
 
@@ -83,7 +84,7 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     setRan(true);
   };
 
-  const filtered = rows.filter((r) => !search || r.name?.includes(search) || r.sku?.includes(search));
+  const filtered = rows.filter((r) => !search || searchMatch(search, r.name, r.sku));
 
   const exportCsv = () => {
     const header = [

@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
@@ -316,7 +317,7 @@ export default function NewSale() {
 
 
   const filtered = useMemo(
-    () => products.filter((p) => !search || p.name.includes(search) || p.sku.includes(search)).slice(0, 8),
+    () => products.filter((p) => !search || searchMatch(search, p.name, p.sku)).slice(0, 8),
     [products, search]
   );
 

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { searchMatch } from "@/lib/search";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
@@ -146,7 +147,7 @@ export default function AllSuppliers() {
   }, [suppliers, shipSums, paySums]);
 
   const filtered = useMemo(() => enriched.filter((s) => {
-    if (search && !s.name.includes(search) && !(s.contact_person ?? "").includes(search)) return false;
+    if (search && !searchMatch(search, s.name, s.contact_person)) return false;
     const bal = Number(s.balance) || 0;
     if (balanceFilter === "owed_to_us" && bal <= 0) return false;
     if (balanceFilter === "owed_by_us" && bal >= 0) return false;

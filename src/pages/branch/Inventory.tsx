@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -121,7 +122,7 @@ export default function Inventory() {
   };
 
   const filtered = rows.filter((p) => {
-    if (search && !p.name.includes(search) && !(p.sku ?? "").includes(search) && !(p.legacy_code ?? "").toString().includes(search)) return false;
+    if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;

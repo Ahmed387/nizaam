@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { Printer, ArrowRight, Search } from "lucide-react";
 import JsBarcode from "jsbarcode";
 import { toast } from "sonner";
@@ -63,7 +64,7 @@ export default function PrintBarcodes() {
   const clearAll = () => setSelected({});
 
   const filtered = products.filter(
-    (p) => !search || p.name.includes(search) || p.sku?.includes(search)
+    (p) => !search || searchMatch(search, p.name, p.sku)
   );
 
   const toggle = (p: any) => {
