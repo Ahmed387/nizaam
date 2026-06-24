@@ -149,9 +149,9 @@ export default function Employees() {
 
       <Tabs defaultValue="list">
         <TabsList>
-          <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
-          <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4" /> الحضور والانصراف</TabsTrigger>
-          <TabsTrigger value="advances" className="gap-2"><HandCoins className="w-4 h-4" /> طلبات السلف</TabsTrigger>
+          <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4 shrink-0" /> قائمة الموظفين</TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4 shrink-0" /> الحضور والانصراف</TabsTrigger>
+          <TabsTrigger value="advances" className="gap-2"><HandCoins className="w-4 h-4 shrink-0" /> طلبات السلف</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="mt-4">
