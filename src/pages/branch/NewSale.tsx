@@ -944,11 +944,29 @@ export default function NewSale() {
             </div>
             {customerId && (() => {
               const b = balanceLabel(customerBalance);
-              const tone = b.tone === "bad" ? "border-destructive/40 bg-destructive/10 text-destructive" : b.tone === "good" ? "border-warning/40 bg-warning/10 text-warning-foreground" : "border-border bg-muted/40 text-muted-foreground";
+              const isCustomer = customerType === "customer" || customerType === "both";
+              const partyWord = customerType === "supplier" ? "المورد" : isCustomer ? "العميل" : "الطرف";
+              const friendlyLabel =
+                customerBalance > 0
+                  ? `ليك رصيد عند ${partyWord}`
+                  : customerBalance < 0
+                  ? `مستحق ${partyWord === "المورد" ? "للمورد" : "على " + partyWord}`
+                  : "لا توجد مديونية سابقة";
+              const tone =
+                b.tone === "good"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : b.tone === "bad"
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  : "border-border bg-muted/40 text-muted-foreground";
+              const icon = b.tone === "good" ? "💰" : b.tone === "bad" ? "⚠️" : "ℹ️";
               return (
                 <div className={`mt-3 p-3 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
-                  <div>
-                    {customerBalance === 0 ? "لا توجد مديونية سابقة" : <>{b.label}: <b>{formatEGP(b.amount)}</b></>}
+                  <div className="flex items-center gap-2">
+                    <span className="text-base leading-none">{icon}</span>
+                    <span>
+                      {friendlyLabel}
+                      {customerBalance !== 0 && <>: <b className="font-bold">{formatEGP(b.amount)}</b></>}
+                    </span>
                     {customerType === "both" && <span className="ms-2 text-xs opacity-70">(عميل ومورد)</span>}
                   </div>
                 </div>
