@@ -15,8 +15,8 @@ interface Props {
  * backdating after creation).
  */
 export function InvoiceDateInput({ value, onChange, label = "تاريخ الفاتورة" }: Props) {
-  const { hasRole } = useAuth();
-  const canBackdate = hasRole("super_admin");
+  const { isAdmin } = useAuth();
+  const canBackdate = isAdmin;
   const today = new Date().toISOString().slice(0, 10);
 
   return (
