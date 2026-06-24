@@ -65,11 +65,12 @@ export function ActiveReservationsPanel({ branchId }: { branchId: string }) {
   return (
     <div className="card-elevated p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> الحجوزات النشطة الآن</h3>
-        <span className="text-xs text-muted-foreground">{rows.length} حجز</span>
+        <h3 className="text-lg font-extrabold flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" /> الحجوزات النشطة الآن</h3>
+        <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{rows.length} حجز حالياً</span>
       </div>
       {rows.length === 0 ? (
-        <div className="text-center text-sm text-muted-foreground py-6">لا توجد حجوزات نشطة حالياً</div>
+        <div className="text-center text-base font-semibold text-muted-foreground py-6">لا توجد حجوزات نشطة حالياً</div>
+
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

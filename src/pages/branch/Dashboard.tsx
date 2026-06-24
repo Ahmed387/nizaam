@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
+
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
@@ -19,7 +20,9 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning
 
 export default function BranchDashboard() {
   const { id } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const [salesToday, setSalesToday] = useState(0);
+
   const [salesYesterday, setSalesYesterday] = useState(0);
   const [salesMonth, setSalesMonth] = useState(0);
   const [salesLastMonth, setSalesLastMonth] = useState(0);
@@ -154,10 +157,12 @@ export default function BranchDashboard() {
 
   return (
     <BranchLayout>
-      <PageHeader title="لوحة الفرع" subtitle="نظرة عامة على نشاط اليوم" />
+      <PageHeader title="لوحة الفرع" />
+      <h2 className="text-2xl font-extrabold mb-4 mt-1">نظرة عامة على نشاط اليوم</h2>
 
       {/* Active reservations (real-time) */}
       {id && <div className="mb-6"><ActiveReservationsPanel branchId={id} /></div>}
+
 
 
       {/* Quick actions */}
@@ -179,14 +184,14 @@ export default function BranchDashboard() {
 
       {/* KPI Cards with comparisons */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">مبيعات اليوم</span>
-            <DollarSign className="w-4 h-4 text-success" />
+            <span className="text-base font-bold text-foreground">مبيعات اليوم</span>
+            <DollarSign className="w-6 h-6 text-success" />
           </div>
-          <div className="text-2xl font-bold">{formatEGP(salesToday)}</div>
-          <div className="text-xs mt-1 flex items-center gap-1">
-            {todayVsYesterday >= 0 ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+          <div className="text-3xl font-extrabold">{formatEGP(salesToday)}</div>
+          <div className="text-sm mt-2 flex items-center gap-1 font-semibold">
+            {todayVsYesterday >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
             <span className={todayVsYesterday >= 0 ? "text-success" : "text-destructive"}>
               {todayVsYesterday >= 0 ? "+" : ""}{todayVsYesterday.toFixed(1)}%
             </span>
@@ -194,14 +199,14 @@ export default function BranchDashboard() {
           </div>
         </div>
 
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">مبيعات الشهر</span>
-            <ShoppingBag className="w-4 h-4 text-primary" />
+            <span className="text-base font-bold text-foreground">مبيعات الشهر</span>
+            <ShoppingBag className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-2xl font-bold">{formatEGP(salesMonth)}</div>
-          <div className="text-xs mt-1 flex items-center gap-1">
-            {monthVsLast >= 0 ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+          <div className="text-3xl font-extrabold">{formatEGP(salesMonth)}</div>
+          <div className="text-sm mt-2 flex items-center gap-1 font-semibold">
+            {monthVsLast >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
             <span className={monthVsLast >= 0 ? "text-success" : "text-destructive"}>
               {monthVsLast >= 0 ? "+" : ""}{monthVsLast.toFixed(1)}%
             </span>
@@ -209,30 +214,31 @@ export default function BranchDashboard() {
           </div>
         </div>
 
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">صافي الربح اليوم</span>
-            <TrendingUp className="w-4 h-4 text-success" />
+            <span className="text-base font-bold text-foreground">صافي الربح اليوم</span>
+            <TrendingUp className="w-6 h-6 text-success" />
           </div>
-          <div className={"text-2xl font-bold " + (profitToday >= 0 ? "text-success" : "text-destructive")}>
+          <div className={"text-3xl font-extrabold " + (profitToday >= 0 ? "text-success" : "text-destructive")}>
             {formatEGP(profitToday)}
           </div>
-          <div className="text-xs mt-1 text-muted-foreground">
+          <div className="text-sm mt-2 font-semibold text-muted-foreground">
             هامش: {salesToday > 0 ? ((profitToday / salesToday) * 100).toFixed(1) : 0}%
           </div>
         </div>
 
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">رصيد الخزنة</span>
-            <Wallet className="w-4 h-4 text-primary" />
+            <span className="text-base font-bold text-foreground">رصيد الخزنة</span>
+            <Wallet className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-2xl font-bold">{formatEGP(treasury)}</div>
-          <div className="text-xs mt-1 text-muted-foreground">
+          <div className="text-3xl font-extrabold">{formatEGP(treasury)}</div>
+          <div className="text-sm mt-2 font-semibold text-muted-foreground">
             {newCust} عميل جديد اليوم
           </div>
         </div>
       </div>
+
 
       {monthlyTarget > 0 && (() => {
         const achieved = Math.max(0, profitMonth);
@@ -251,14 +257,15 @@ export default function BranchDashboard() {
               </div>
             </div>
             <Progress value={pct} className="h-3" />
-            <div className="flex items-center justify-between mt-2 text-xs">
-              <span className={onTrack ? "text-success font-semibold" : "text-warning font-semibold"}>
+            <div className="flex items-center justify-between mt-3 text-sm">
+              <span className={onTrack ? "text-success font-bold" : "text-warning font-bold"}>
                 {pct.toFixed(1)}% من الهدف
               </span>
-              <span className="text-muted-foreground">
+              <span className="font-bold text-foreground">
                 {remaining > 0 ? `متبقي ${formatEGP(remaining)} صافي ربح لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
               </span>
             </div>
+
           </div>
         );
       })()}
@@ -347,14 +354,15 @@ export default function BranchDashboard() {
       {/* Recent invoices & low stock */}
       <div className="grid lg:grid-cols-2 gap-6">
         <div>
-          <h3 className="font-bold mb-3">آخر الفواتير</h3>
-          <DataTable rows={recent} columns={[
+          <h3 className="font-bold mb-3 text-lg">آخر الفواتير</h3>
+          <DataTable rows={recent} onRowClick={(r: any) => nav(`/branch/${id}/sales/${r.id}`)} columns={[
             { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
             { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
             { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
             { key: "created_at", header: "الوقت", render: (r: any) => formatDateTime(r.created_at) },
           ]} />
         </div>
+
         <div>
           <h3 className="font-bold mb-3 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> تنبيهات المخزون ({lowStock.length})</h3>
           <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافٍ ✓"
