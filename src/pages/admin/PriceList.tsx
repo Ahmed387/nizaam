@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Trash2, Loader2, Search, X } from "lucide-react";
+import { Plus, Upload, Trash2, Loader2, Search, X, FileUp } from "lucide-react";
 
 type Source = {
   id: string;
@@ -404,7 +404,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
             <div className="space-y-3">
               <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               <Button onClick={() => fileRef.current?.click()} disabled={uploadingFile} className="w-full" size="lg">
-                {uploadingFile ? <><Loader2 className="h-4 w-4 ml-2 animate-spin" /> جاري قراءة الملف...</> : <><Upload className="h-4 w-4 ml-2" /> اختر ملف PDF أو Excel</>}
+                {uploadingFile ? <><Loader2 className="h-4 w-4 ml-2 animate-spin" /> جاري قراءة الملف...</> : <><FileUp className="h-4 w-4 ml-2" /> اختر ملف PDF أو Excel</>}
               </Button>
             </div>
           ) : (
