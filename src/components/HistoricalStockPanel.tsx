@@ -84,7 +84,7 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     setRan(true);
   };
 
-  const filtered = rows.filter((r) => !search || r.name?.includes(search) || r.sku?.includes(search));
+  const filtered = rows.filter((r) => !search || searchMatch(search, r.name, r.sku));
 
   const exportCsv = () => {
     const header = [
