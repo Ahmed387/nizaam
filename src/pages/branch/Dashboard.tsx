@@ -184,14 +184,14 @@ export default function BranchDashboard() {
 
       {/* KPI Cards with comparisons */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">مبيعات اليوم</span>
-            <DollarSign className="w-4 h-4 text-success" />
+            <span className="text-base font-bold text-foreground">مبيعات اليوم</span>
+            <DollarSign className="w-6 h-6 text-success" />
           </div>
-          <div className="text-2xl font-bold">{formatEGP(salesToday)}</div>
-          <div className="text-xs mt-1 flex items-center gap-1">
-            {todayVsYesterday >= 0 ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+          <div className="text-3xl font-extrabold">{formatEGP(salesToday)}</div>
+          <div className="text-sm mt-2 flex items-center gap-1 font-semibold">
+            {todayVsYesterday >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
             <span className={todayVsYesterday >= 0 ? "text-success" : "text-destructive"}>
               {todayVsYesterday >= 0 ? "+" : ""}{todayVsYesterday.toFixed(1)}%
             </span>
@@ -199,14 +199,14 @@ export default function BranchDashboard() {
           </div>
         </div>
 
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">مبيعات الشهر</span>
-            <ShoppingBag className="w-4 h-4 text-primary" />
+            <span className="text-base font-bold text-foreground">مبيعات الشهر</span>
+            <ShoppingBag className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-2xl font-bold">{formatEGP(salesMonth)}</div>
-          <div className="text-xs mt-1 flex items-center gap-1">
-            {monthVsLast >= 0 ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+          <div className="text-3xl font-extrabold">{formatEGP(salesMonth)}</div>
+          <div className="text-sm mt-2 flex items-center gap-1 font-semibold">
+            {monthVsLast >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
             <span className={monthVsLast >= 0 ? "text-success" : "text-destructive"}>
               {monthVsLast >= 0 ? "+" : ""}{monthVsLast.toFixed(1)}%
             </span>
@@ -214,30 +214,31 @@ export default function BranchDashboard() {
           </div>
         </div>
 
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">صافي الربح اليوم</span>
-            <TrendingUp className="w-4 h-4 text-success" />
+            <span className="text-base font-bold text-foreground">صافي الربح اليوم</span>
+            <TrendingUp className="w-6 h-6 text-success" />
           </div>
-          <div className={"text-2xl font-bold " + (profitToday >= 0 ? "text-success" : "text-destructive")}>
+          <div className={"text-3xl font-extrabold " + (profitToday >= 0 ? "text-success" : "text-destructive")}>
             {formatEGP(profitToday)}
           </div>
-          <div className="text-xs mt-1 text-muted-foreground">
+          <div className="text-sm mt-2 font-semibold text-muted-foreground">
             هامش: {salesToday > 0 ? ((profitToday / salesToday) * 100).toFixed(1) : 0}%
           </div>
         </div>
 
-        <div className="card-elevated p-4">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">رصيد الخزنة</span>
-            <Wallet className="w-4 h-4 text-primary" />
+            <span className="text-base font-bold text-foreground">رصيد الخزنة</span>
+            <Wallet className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-2xl font-bold">{formatEGP(treasury)}</div>
-          <div className="text-xs mt-1 text-muted-foreground">
+          <div className="text-3xl font-extrabold">{formatEGP(treasury)}</div>
+          <div className="text-sm mt-2 font-semibold text-muted-foreground">
             {newCust} عميل جديد اليوم
           </div>
         </div>
       </div>
+
 
       {monthlyTarget > 0 && (() => {
         const achieved = Math.max(0, profitMonth);
