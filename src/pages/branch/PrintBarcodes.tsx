@@ -64,7 +64,7 @@ export default function PrintBarcodes() {
   const clearAll = () => setSelected({});
 
   const filtered = products.filter(
-    (p) => !search || p.name.includes(search) || p.sku?.includes(search)
+    (p) => !search || searchMatch(search, p.name, p.sku)
   );
 
   const toggle = (p: any) => {
