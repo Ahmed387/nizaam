@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, ClipboardCheck, HandCoins } from "lucide-react";
+import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, Clock, HandCoins } from "lucide-react";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -150,7 +150,7 @@ export default function Employees() {
       <Tabs defaultValue="list">
         <TabsList>
           <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4 shrink-0" /> قائمة الموظفين</TabsTrigger>
-          <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4 shrink-0" /> الحضور والانصراف</TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2"><Clock className="w-4 h-4 shrink-0" /> الحضور والانصراف</TabsTrigger>
           <TabsTrigger value="advances" className="gap-2"><HandCoins className="w-4 h-4 shrink-0" /> طلبات السلف</TabsTrigger>
         </TabsList>
 
