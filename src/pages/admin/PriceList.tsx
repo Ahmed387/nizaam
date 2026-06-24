@@ -339,8 +339,9 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                           />
                         </TableCell>
                         <TableCell className="text-center">
-                          <div className="flex justify-center">
+                          <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Switch checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
+                            <span className={item.is_active ? "text-success text-xs font-medium" : "text-muted-foreground text-xs"}>{item.is_active ? "ظاهر" : "مخفي"}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right text-sm">{item.category ?? "—"}</TableCell>
