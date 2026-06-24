@@ -173,7 +173,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
     { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, perm: "dashboard.view", newTab: true },
     
     { to: `/branch/${id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, perm: "invoices.view", newTab: true },
-    { to: `/branch/${id}/shipments`, label: "الشحنات", icon: <PackagePlus className="w-4 h-4" />, perm: "shipments.view", newTab: true },
+    
     { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, perm: "inventory.view", newTab: true },
     { to: `/branch/${id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, perm: "customers.view", newTab: true },
     { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, perm: "treasury.view", newTab: true },
