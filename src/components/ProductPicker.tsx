@@ -57,6 +57,7 @@ export function ProductPicker({
       .from("products")
       .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id")
       .eq("branch_id", branchId)
+      .is("archived_at", null)
       .order("name");
     setRows((data ?? []) as ProductRow[]);
     setLoading(false);
