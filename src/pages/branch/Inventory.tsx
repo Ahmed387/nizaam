@@ -60,8 +60,15 @@ export default function Inventory() {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Delete / Archive flow
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteRefs, setDeleteRefs] = useState<any>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
+  const canHardDelete = isAdmin;
 
   const uploadImage = async (file: File) => {
     setUploading(true);
