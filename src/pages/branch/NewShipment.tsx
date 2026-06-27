@@ -71,6 +71,7 @@ export default function NewShipment() {
   const [affectedBatches, setAffectedBatches] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
+  useUnsavedChanges(lines.length > 0, "لديك فاتورة شراء غير محفوظة. هل تريد المغادرة وفقدان البيانات؟");
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
   const [supplierDlg, setSupplierDlg] = useState(false);
   const [newSup, setNewSup] = useState({ name: "", contact_person: "", phone: "", address: "" });
