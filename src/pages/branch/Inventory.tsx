@@ -15,7 +15,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
@@ -60,8 +60,15 @@ export default function Inventory() {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Delete / Archive flow
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteRefs, setDeleteRefs] = useState<any>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
+  const canHardDelete = isAdmin;
 
   const uploadImage = async (file: File) => {
     setUploading(true);
@@ -191,7 +198,49 @@ export default function Inventory() {
   };
 
 
+  const openDelete = async (r: any) => {
+    setDeleteTarget(r);
+    setDeleteRefs(null);
+    setDeleteConfirmName("");
+    const { data, error } = await supabase.rpc("get_product_references_count" as any, { _product_id: r.id });
+    if (error) { toast.error(error.message); setDeleteTarget(null); return; }
+    setDeleteRefs(data);
+  };
+
+  const doArchive = async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    const { error } = await supabase.rpc("archive_product" as any, { _product_id: deleteTarget.id });
+    setDeleteBusy(false);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "UPDATE", entity: "Product", entityId: deleteTarget.id, details: { action: "archive", name: deleteTarget.name } });
+    toast.success("تم أرشفة المنتج. الفواتير القديمة سليمة 100%.");
+    setDeleteTarget(null); setEditAll(null); load();
+  };
+
+  const doRestore = async (r: any) => {
+    const { error } = await supabase.rpc("restore_product" as any, { _product_id: r.id });
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "UPDATE", entity: "Product", entityId: r.id, details: { action: "restore", name: r.name } });
+    toast.success("تم استرجاع المنتج");
+    load();
+  };
+
+  const doHardDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmName.trim() !== deleteTarget.name.trim()) return toast.error("اكتب اسم المنتج بالظبط للتأكيد");
+    setDeleteBusy(true);
+    const { error } = await supabase.rpc("safe_delete_product" as any, { _product_id: deleteTarget.id });
+    setDeleteBusy(false);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "DELETE", entity: "Product", entityId: deleteTarget.id, details: { name: deleteTarget.name, sku: deleteTarget.sku } });
+    toast.success("تم حذف المنتج نهائياً");
+    setDeleteTarget(null); setEditAll(null); load();
+  };
+
   const filtered = rows.filter((p) => {
+    const isArchived = !!p.archived_at;
+    if (showArchived ? !isArchived : isArchived) return false;
     if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
@@ -199,12 +248,15 @@ export default function Inventory() {
     return true;
   });
 
-  // Counts per status (always reflect full rows, ignoring text search)
+  const archivedCount = rows.filter((p) => p.archived_at).length;
+  const activeRows = rows.filter((p) => !p.archived_at);
+
+  // Counts per status (active products only)
   const statusCounts = {
-    all: rows.length,
-    ok: rows.filter((p) => p.quantity > p.low_stock_alert).length,
-    low: rows.filter((p) => p.quantity > 0 && p.quantity <= p.low_stock_alert).length,
-    out: rows.filter((p) => p.quantity <= 0).length,
+    all: activeRows.length,
+    ok: activeRows.filter((p) => p.quantity > p.low_stock_alert).length,
+    low: activeRows.filter((p) => p.quantity > 0 && p.quantity <= p.low_stock_alert).length,
+    out: activeRows.filter((p) => p.quantity <= 0).length,
   };
 
   const submit = async () => {
@@ -368,7 +420,17 @@ export default function Inventory() {
                 <SelectItem value="out">🔴 نفد ({statusCounts.out})</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">عرض {filtered.length} من {rows.length}</span>
+            <Button
+              variant={showArchived ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowArchived((v) => !v)}
+              className="gap-1.5"
+              title="عرض المنتجات المؤرشفة"
+            >
+              <Archive className="w-4 h-4" />
+              {showArchived ? "عرض النشطة" : `المؤرشفة (${archivedCount})`}
+            </Button>
+            <span className="text-xs text-muted-foreground">عرض {filtered.length} من {showArchived ? archivedCount : activeRows.length}</span>
           </div>
 
           {/* Desktop table — compact, no horizontal scroll */}
@@ -444,19 +506,30 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
-                              <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
-                                <History className="w-4 h-4" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)} title="حركة المنتج">
-                                <Activity className="w-4 h-4" />
-                              </Button>
+                              {r.archived_at ? (
+                                <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => doRestore(r)} title="استرجاع المنتج">
+                                  <ArchiveRestore className="w-4 h-4" /> استرجاع
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
+                                    <History className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)} title="حركة المنتج">
+                                    <Activity className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => openDelete(r)} title="حذف / أرشفة المنتج">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           )}
                         </td>
+
 
                       </tr>
                     );
@@ -510,16 +583,26 @@ export default function Inventory() {
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
-                              <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
-                            </Button>
-
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
-                              <History className="w-3.5 h-3.5 ml-1" /> تاريخ
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
-                              <Activity className="w-3.5 h-3.5 ml-1" /> حركة
-                            </Button>
+                            {r.archived_at ? (
+                              <Button size="sm" variant="outline" className="h-8 text-success border-success/40" onClick={() => doRestore(r)}>
+                                <ArchiveRestore className="w-3.5 h-3.5 ml-1" /> استرجاع
+                              </Button>
+                            ) : (
+                              <>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
+                                  <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
+                                  <History className="w-3.5 h-3.5 ml-1" /> تاريخ
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
+                                  <Activity className="w-3.5 h-3.5 ml-1" /> حركة
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => openDelete(r)}>
+                                  <Trash2 className="w-3.5 h-3.5 ml-1" /> حذف
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
 
@@ -771,15 +854,125 @@ export default function Inventory() {
             );
           })()}
 
-          <DialogFooter className="px-5 py-3 border-t bg-muted/30 rounded-b-lg gap-2">
-            <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
-            <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>
-              {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
+          <DialogFooter className="px-5 py-3 border-t bg-muted/30 rounded-b-lg gap-2 sm:justify-between">
+            <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive gap-1.5" onClick={() => editAll && openDelete(editAll)} disabled={savingEdit}>
+              <Trash2 className="w-4 h-4" /> حذف / أرشفة
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
+              <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>
+                {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Delete / Archive Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteBusy) { setDeleteTarget(null); setDeleteRefs(null); setDeleteConfirmName(""); } }}>
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
+          <div className="px-5 py-4 border-b bg-destructive/10">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" /> حذف / أرشفة المنتج
+              </DialogTitle>
+            </DialogHeader>
+            {deleteTarget && (
+              <div className="mt-2 text-sm text-foreground">
+                <span className="font-bold">{deleteTarget.name}</span>
+                <span className="font-mono text-xs mr-2 px-2 py-0.5 rounded bg-background border">{deleteTarget.sku}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="px-5 py-4 space-y-4">
+            {!deleteRefs ? (
+              <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+            ) : deleteRefs.has_any ? (
+              <>
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-warning font-bold text-sm">
+                    <AlertTriangle className="w-4 h-4" /> هذا المنتج مرتبط بـ:
+                  </div>
+                  <ul className="text-sm space-y-1 mr-6 list-disc">
+                    {deleteRefs.sales > 0 && <li>{deleteRefs.sales} فاتورة بيع</li>}
+                    {deleteRefs.purchases > 0 && <li>{deleteRefs.purchases} فاتورة شراء</li>}
+                    {deleteRefs.sale_returns > 0 && <li>{deleteRefs.sale_returns} مرتجع بيع</li>}
+                    {deleteRefs.purchase_returns > 0 && <li>{deleteRefs.purchase_returns} مرتجع شراء</li>}
+                    {deleteRefs.shipments > 0 && <li>{deleteRefs.shipments} تحويل مخزون</li>}
+                    {deleteRefs.adjustments > 0 && <li>{deleteRefs.adjustments} تسوية مخزون</li>}
+                    {deleteRefs.count_sessions > 0 && <li>{deleteRefs.count_sessions} جلسة جرد</li>}
+                    {deleteRefs.quotes > 0 && <li>{deleteRefs.quotes} عرض سعر</li>}
+                    {deleteRefs.active_reservations > 0 && <li className="text-destructive font-semibold">{deleteRefs.active_reservations} حجز نشط</li>}
+                    {deleteRefs.remaining_batches > 0 && <li>{deleteRefs.remaining_batches} دفعة لها رصيد متبقي</li>}
+                  </ul>
+                </div>
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed">
+                  🔴 <span className="font-bold">الحذف النهائي ممنوع</span> للحفاظ على سلامة السجلات المحاسبية. لو حذفنا المنتج، الفواتير القديمة هيتغير إجماليها وهتختلف التقارير التاريخية.
+                </div>
+                <div className="rounded-md border border-success/30 bg-success/5 p-3 text-sm leading-relaxed">
+                  ✅ <span className="font-bold">الحل: أرشفة المنتج</span> — هيختفي من المخزون والـ POS، لكن الفواتير القديمة هتفضل سليمة 100%. تقدر تسترجعه أي وقت من تاب "المؤرشفة".
+                </div>
+                {deleteRefs.active_reservations > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    ⛔ يوجد حجوزات نشطة — قم بإلغائها أولاً قبل الأرشفة.
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="rounded-md border border-success/30 bg-success/5 p-3 text-sm leading-relaxed">
+                  ✅ هذا المنتج ليس له أي حركات أو فواتير — يمكن حذفه نهائياً بأمان.
+                </div>
+                {!canHardDelete && (
+                  <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+                    ⚠️ الحذف النهائي متاح لصاحب الشركة فقط. تقدر تأرشف المنتج بدلاً منه.
+                  </div>
+                )}
+                {canHardDelete && deleteTarget && (
+                  <div>
+                    <Label className="text-xs font-semibold mb-1.5 block">
+                      اكتب اسم المنتج <span className="font-bold text-foreground">"{deleteTarget.name}"</span> للتأكيد
+                    </Label>
+                    <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>إلغاء</Button>
+            {deleteRefs?.has_any ? (
+              <Button
+                className="bg-warning hover:bg-warning/90 text-warning-foreground gap-1.5"
+                disabled={deleteBusy || deleteRefs.active_reservations > 0}
+                onClick={doArchive}
+              >
+                {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                أرشفة المنتج
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" className="gap-1.5" disabled={deleteBusy} onClick={doArchive}>
+                  <Archive className="w-4 h-4" /> أرشفة بدلاً من الحذف
+                </Button>
+                {canHardDelete && (
+                  <Button
+                    variant="destructive"
+                    className="gap-1.5"
+                    disabled={deleteBusy || !deleteTarget || deleteConfirmName.trim() !== deleteTarget.name.trim()}
+                    onClick={doHardDelete}
+                  >
+                    {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    حذف نهائي
+                  </Button>
+                )}
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </BranchLayout>
   );
