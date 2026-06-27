@@ -247,7 +247,7 @@ export default function Inventory() {
         if (shipmentIds.length) {
           const { data: shipments, error: shipmentsError } = await supabase
             .from("shipments" as any)
-            .select("id, shipment_number, source_branch:branches!shipments_branch_id_fkey(name), destination_branch:branches!shipments_branch_id_fkey(name)")
+            .select("id, shipment_number")
             .in("id", shipmentIds);
           if (shipmentsError) throw shipmentsError;
           const shipmentById = new Map((shipments ?? []).map((s: any) => [s.id, s]));
