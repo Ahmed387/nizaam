@@ -1019,16 +1019,16 @@ export default function Inventory() {
                           <AlertTriangle className="w-4 h-4 shrink-0" /> هذا المنتج مرتبط بسجلات حالية
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                          {deleteRefs.sales > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.sales} فاتورة بيع</div>}
-                          {deleteRefs.purchases > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.purchases} فاتورة شراء</div>}
-                          {deleteRefs.sale_returns > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.sale_returns} مرتجع بيع</div>}
-                          {deleteRefs.purchase_returns > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.purchase_returns} مرتجع شراء</div>}
-                          {deleteRefs.shipments > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.shipments} شحنة / تحويل</div>}
-                          {deleteRefs.adjustments > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.adjustments} تسوية مخزون</div>}
-                          {deleteRefs.count_sessions > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.count_sessions} جلسة جرد</div>}
-                          {deleteRefs.quotes > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.quotes} عرض سعر</div>}
-                          {activeReservations > 0 && <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-destructive font-bold">{activeReservations} حجز نشط</div>}
-                          {remainingBatches > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{remainingBatches} دفعة لها رصيد</div>}
+                          {deleteRefs.sales > 0 && <button type="button" onClick={() => loadRefDetails("sales", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.sales} فاتورة بيع</button>}
+                          {deleteRefs.purchases > 0 && <button type="button" onClick={() => loadRefDetails("purchases", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.purchases} فاتورة شراء</button>}
+                          {deleteRefs.sale_returns > 0 && <button type="button" onClick={() => loadRefDetails("sale_returns", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.sale_returns} مرتجع بيع</button>}
+                          {deleteRefs.purchase_returns > 0 && <button type="button" onClick={() => loadRefDetails("purchase_returns", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.purchase_returns} مرتجع شراء</button>}
+                          {deleteRefs.shipments > 0 && <button type="button" onClick={() => loadRefDetails("shipments", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.shipments} شحنة / تحويل</button>}
+                          {deleteRefs.adjustments > 0 && <button type="button" onClick={() => loadRefDetails("adjustments", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.adjustments} تسوية مخزون</button>}
+                          {deleteRefs.count_sessions > 0 && <button type="button" onClick={() => loadRefDetails("count_sessions", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.count_sessions} جلسة جرد</button>}
+                          {deleteRefs.quotes > 0 && <button type="button" onClick={() => loadRefDetails("quotes", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.quotes} عرض سعر</button>}
+                          {activeReservations > 0 && <button type="button" onClick={() => loadRefDetails("reservations", deleteTarget.id)} className="text-right rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-destructive font-bold hover:bg-destructive/20 transition-colors">{activeReservations} حجز نشط</button>}
+                          {remainingBatches > 0 && <button type="button" onClick={() => loadRefDetails("batches", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{remainingBatches} دفعة لها رصيد</button>}
                         </div>
                       </div>
 
