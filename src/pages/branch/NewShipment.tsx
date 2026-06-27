@@ -98,7 +98,7 @@ export default function NewShipment() {
 
   const loadProducts = () => {
     if (!branchId) return;
-    supabase.from("products").select("*").eq("branch_id", branchId).order("name").then(({ data }) => setProducts(data ?? []));
+    supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("name").then(({ data }) => setProducts(data ?? []));
   };
 
   useEffect(() => {
