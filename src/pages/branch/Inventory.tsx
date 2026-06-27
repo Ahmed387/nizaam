@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
-import { searchMatch } from "@/lib/search";
+import { normalizeForSearch, searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle } from "lucide-react";
 
@@ -362,7 +362,9 @@ export default function Inventory() {
 
   const doHardDelete = async () => {
     if (!deleteTarget) return;
-    if (deleteConfirmName.trim() !== deleteTarget.name.trim()) return toast.error("اكتب اسم المنتج بالظبط للتأكيد");
+    if (normalizeForSearch(deleteConfirmName) !== normalizeForSearch(deleteTarget.name)) {
+      return toast.error("اكتب اسم المنتج للتأكيد");
+    }
     setDeleteBusy(true);
     const { error } = await supabase.rpc("safe_delete_product" as any, { _product_id: deleteTarget.id });
     setDeleteBusy(false);
@@ -1009,6 +1011,8 @@ export default function Inventory() {
             const activeReservations = Number(deleteRefs?.active_reservations ?? deleteRefs?.reservations ?? 0);
             const remainingBatches = Number(deleteRefs?.remaining_batches ?? deleteRefs?.batches ?? 0);
             const hasActiveReservations = activeReservations > 0;
+            const hasOpeningStockOnly = !deleteRefs?.has_any && remainingBatches > 0;
+            const deleteNameConfirmed = !!deleteTarget && normalizeForSearch(deleteConfirmName) === normalizeForSearch(deleteTarget.name);
 
             return (
               <>
@@ -1078,6 +1082,11 @@ export default function Inventory() {
                       <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm leading-relaxed text-foreground">
                         <span className="font-extrabold text-success">المنتج آمن للحذف</span> — لا توجد عليه فواتير أو حركات مسجلة.
                       </div>
+                      {hasOpeningStockOnly && (
+                        <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 text-sm leading-relaxed text-foreground">
+                          يوجد رصيد افتتاحي فقط للمنتج. ده لا يُعتبر حركة بيع أو شراء، والحذف النهائي مسموح وهيحذف الرصيد الافتتاحي مع المنتج.
+                        </div>
+                      )}
                       {!canHardDelete && (
                         <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-foreground">
                           الحذف النهائي متاح لصاحب الشركة فقط. تقدر تأرشف المنتج بدلاً منه.
@@ -1089,6 +1098,7 @@ export default function Inventory() {
                             اكتب اسم المنتج <span className="font-bold text-foreground">"{deleteTarget.name}"</span> للتأكيد
                           </Label>
                           <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
+                          <p className="mt-2 text-xs text-muted-foreground">زر الحذف النهائي هيتفعل بعد كتابة الاسم.</p>
                         </div>
                       )}
                     </>
@@ -1115,7 +1125,7 @@ export default function Inventory() {
                         <Button
                           variant="destructive"
                           className="gap-1.5 min-w-[120px]"
-                          disabled={deleteBusy || !deleteTarget || deleteConfirmName.trim() !== deleteTarget.name.trim()}
+                          disabled={deleteBusy || !deleteNameConfirmed}
                           onClick={doHardDelete}
                         >
                           {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
