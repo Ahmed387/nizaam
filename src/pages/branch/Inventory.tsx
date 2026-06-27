@@ -275,7 +275,7 @@ export default function Inventory() {
         title = "فواتير الشراء";
         const { data, error } = await supabase
           .from("invoice_items" as any)
-          .select("*, invoice:invoices(invoice_number, contact:contacts(name), invoice_date, total)")
+          .select("*, invoice:invoices(id, invoice_number, contact:contacts(name), invoice_date, total)")
           .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
