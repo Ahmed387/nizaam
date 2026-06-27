@@ -313,7 +313,7 @@ export default function Inventory() {
         title = "مرتجعات البيع";
         const { data, error } = await supabase
           .from("return_items" as any)
-          .select("*, return:returns(return_number, contact:contacts(name), created_at, total)")
+          .select("*, return:returns(id, return_number, contact:contacts(name), created_at, total)")
           .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
