@@ -338,7 +338,7 @@ export default function Inventory() {
         title = "عروض الأسعار";
         const { data, error } = await supabase
           .from("quote_items" as any)
-          .select("*, quote:quotes(quote_number, contact:contacts(name), created_at, total)")
+          .select("*, quote:quotes(id, quote_number, contact:contacts(name), created_at, total)")
           .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
