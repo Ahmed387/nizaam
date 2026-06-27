@@ -583,16 +583,26 @@ export default function Inventory() {
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
-                              <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
-                            </Button>
-
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
-                              <History className="w-3.5 h-3.5 ml-1" /> تاريخ
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
-                              <Activity className="w-3.5 h-3.5 ml-1" /> حركة
-                            </Button>
+                            {r.archived_at ? (
+                              <Button size="sm" variant="outline" className="h-8 text-success border-success/40" onClick={() => doRestore(r)}>
+                                <ArchiveRestore className="w-3.5 h-3.5 ml-1" /> استرجاع
+                              </Button>
+                            ) : (
+                              <>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
+                                  <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
+                                  <History className="w-3.5 h-3.5 ml-1" /> تاريخ
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
+                                  <Activity className="w-3.5 h-3.5 ml-1" /> حركة
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => openDelete(r)}>
+                                  <Trash2 className="w-3.5 h-3.5 ml-1" /> حذف
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
 
