@@ -633,15 +633,6 @@ export default function Inventory() {
         }}
       />
 
-      {priceEdit && (
-        <PriceEditDialog
-          open={!!priceEdit}
-          onOpenChange={(o) => !o && setPriceEdit(null)}
-          product={priceEdit}
-          onSaved={load}
-        />
-      )}
-
       <Dlg open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
         <DlgContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DlgHeader><DlgTitle>تاريخ أسعار: {historyFor?.name}</DlgTitle></DlgHeader>
@@ -649,80 +640,116 @@ export default function Inventory() {
         </DlgContent>
       </Dlg>
 
-      <Dialog open={!!qtyEdit} onOpenChange={(o) => !o && !savingQty && setQtyEdit(null)}>
-        <DialogContent className="max-w-md">
+      {/* Unified Product Edit Form */}
+      <Dialog open={!!editAll} onOpenChange={(o) => !o && !savingEdit && setEditAll(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>تعديل كمية: {qtyEdit?.name}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Pencil className="w-5 h-5 text-primary" />
+              تعديل بيانات المنتج
+            </DialogTitle>
           </DialogHeader>
-          {qtyEdit && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                الكمية الحالية: <span className="font-bold text-foreground">{qtyEdit.quantity}</span>
+          {editAll && (() => {
+            const newQtyNum = Number(editForm.quantity);
+            const diff = Number.isFinite(newQtyNum) ? newQtyNum - Number(editAll.quantity) : 0;
+            const qtyChanged = diff !== 0;
+            const costChanged = Number(editForm.cost_price) !== Number(editAll.cost_price ?? 0);
+            const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
+            const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
+            const priceChanged = costChanged || sellChanged || marketChanged;
+            return (
+              <div className="space-y-5">
+                {/* Section: Basic info */}
+                <div className="space-y-3">
+                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
+                    <Type className="w-4 h-4" /> البيانات الأساسية
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>اسم المنتج *</Label>
+                      <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label>كود الصنف (SKU) *</Label>
+                      <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="mt-1.5 font-mono" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Quantity */}
+                <div className="space-y-3">
+                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
+                    <Package className="w-4 h-4" /> الكمية في المخزن
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>الكمية الحالية</Label>
+                      <Input value={editAll.quantity} disabled className="mt-1.5 bg-muted/50" />
+                    </div>
+                    <div>
+                      <Label>الكمية الجديدة</Label>
+                      <Input type="number" min="0" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="mt-1.5" />
+                      {qtyChanged && (
+                        <p className="text-xs mt-1">
+                          الفرق:{" "}
+                          <span className={diff > 0 ? "text-success font-bold" : "text-destructive font-bold"}>
+                            {diff > 0 ? "+" : ""}{diff}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {qtyChanged && (
+                    <>
+                      <div>
+                        <Label>ملاحظات تعديل الكمية (اختياري)</Label>
+                        <Textarea value={editForm.qty_notes} onChange={(e) => setEditForm({ ...editForm, qty_notes: e.target.value })} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
+                      </div>
+                      <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
+                        ⚠️ هيتم تسجيل تسوية مخزون رسمية. FIFO عند النقص، دفعة جديدة عند الزيادة.
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Section: Prices */}
+                <div className="space-y-3">
+                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
+                    <Tag className="w-4 h-4" /> الأسعار
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label>سعر الشراء</Label>
+                      <Input type="number" step="0.01" value={editForm.cost_price} onChange={(e) => setEditForm({ ...editForm, cost_price: e.target.value })} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label>سعر البيع</Label>
+                      <Input type="number" step="0.01" value={editForm.selling_price} onChange={(e) => setEditForm({ ...editForm, selling_price: e.target.value })} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label>سعر السوق</Label>
+                      <Input type="number" step="0.01" value={editForm.market_price} onChange={(e) => setEditForm({ ...editForm, market_price: e.target.value })} className="mt-1.5" />
+                    </div>
+                  </div>
+                  {priceChanged && (
+                    <div>
+                      <Label>سبب تعديل السعر * <span className="text-xs text-muted-foreground">(10 أحرف على الأقل)</span></Label>
+                      <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} className="mt-1.5" rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <Label>الكمية الجديدة *</Label>
-                <Input type="number" min="0" value={qtyValue} onChange={(e) => setQtyValue(e.target.value)} className="mt-1.5" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  الفرق: <span className={Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "text-success font-bold" : Number(qtyValue) - Number(qtyEdit.quantity) < 0 ? "text-destructive font-bold" : ""}>
-                    {Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "+" : ""}{Number(qtyValue) - Number(qtyEdit.quantity)}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <Label>ملاحظات (اختياري)</Label>
-                <Textarea value={qtyNotes} onChange={(e) => setQtyNotes(e.target.value)} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
-              </div>
-              <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
-                ⚠️ هيتم تسجيل تسوية مخزون رسمية. لو نقّصت، النظام بيخصم بنظام FIFO من الدفعات. لو زوّدت، بتتعمل دفعة جديدة بسعر تكلفة المنتج الحالي.
-              </div>
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setQtyEdit(null)} disabled={savingQty}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={saveQty} disabled={savingQty}>
-              {savingQty && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
+            <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveEditAll} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!detailsEdit} onOpenChange={(o) => !o && !savingDetails && setDetailsEdit(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {detailsField === "name" ? "تعديل اسم المنتج" : "تعديل كود الصنف"}
-            </DialogTitle>
-          </DialogHeader>
-          {detailsEdit && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                {detailsField === "name" ? "الاسم الحالي" : "الكود الحالي"}: <span className="font-bold text-foreground">{detailsField === "name" ? detailsEdit.name : detailsEdit.sku}</span>
-              </div>
-              <div>
-                <Label>{detailsField === "name" ? "الاسم الجديد *" : "الكود الجديد *"}</Label>
-                <Input
-                  autoFocus
-                  value={detailsValue}
-                  onChange={(e) => setDetailsValue(e.target.value)}
-                  className={`mt-1.5 ${detailsField === "sku" ? "font-mono" : ""}`}
-                  placeholder={detailsField === "name" ? "اسم المنتج" : "كود الصنف"}
-                />
-              </div>
-              {detailsField === "sku" && (
-                <div className="text-[11px] text-warning bg-warning/10 border border-warning/30 rounded p-2">
-                  ⚠️ تغيير كود الصنف قد يؤثر على الباركود والمستندات السابقة. الكود يجب أن يكون فريداً.
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsEdit(null)} disabled={savingDetails}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={saveDetails} disabled={savingDetails}>
-              {savingDetails && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </BranchLayout>
   );
 }
