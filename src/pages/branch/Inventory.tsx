@@ -127,6 +127,37 @@ export default function Inventory() {
     load();
   };
 
+  const openDetailsEdit = (r: any, field: "name" | "sku") => {
+    setDetailsEdit(r);
+    setDetailsField(field);
+    setDetailsValue(String(field === "name" ? (r.name ?? "") : (r.sku ?? "")));
+  };
+  const saveDetails = async () => {
+    if (!detailsEdit) return;
+    const val = detailsValue.trim();
+    if (!val) return toast.error(detailsField === "name" ? "اسم المنتج مطلوب" : "كود الصنف مطلوب");
+    const oldVal = detailsField === "name" ? detailsEdit.name : detailsEdit.sku;
+    if (val === String(oldVal ?? "")) { setDetailsEdit(null); return; }
+    setSavingDetails(true);
+    const patch: any = detailsField === "name" ? { name: val } : { sku: val };
+    const { error } = await supabase.from("products").update(patch).eq("id", detailsEdit.id);
+    setSavingDetails(false);
+    if (error) {
+      if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {
+        return toast.error("كود الصنف مستخدم بالفعل، اختر كود مختلف");
+      }
+      return toast.error(error.message);
+    }
+    await logAudit({
+      userId: user!.id, userName: profile!.name, branchId,
+      action: "UPDATE", entity: "Product", entityId: detailsEdit.id,
+      details: { field: detailsField, old: oldVal, new: val },
+    });
+    toast.success(detailsField === "name" ? "تم تعديل اسم المنتج" : "تم تعديل كود الصنف");
+    setDetailsEdit(null);
+    load();
+  };
+
   const filtered = rows.filter((p) => {
     if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
