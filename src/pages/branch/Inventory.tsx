@@ -506,19 +506,30 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
-                              <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
-                                <History className="w-4 h-4" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)} title="حركة المنتج">
-                                <Activity className="w-4 h-4" />
-                              </Button>
+                              {r.archived_at ? (
+                                <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => doRestore(r)} title="استرجاع المنتج">
+                                  <ArchiveRestore className="w-4 h-4" /> استرجاع
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
+                                    <History className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)} title="حركة المنتج">
+                                    <Activity className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => openDelete(r)} title="حذف / أرشفة المنتج">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           )}
                         </td>
+
 
                       </tr>
                     );
