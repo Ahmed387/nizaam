@@ -854,15 +854,125 @@ export default function Inventory() {
             );
           })()}
 
-          <DialogFooter className="px-5 py-3 border-t bg-muted/30 rounded-b-lg gap-2">
-            <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
-            <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>
-              {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
+          <DialogFooter className="px-5 py-3 border-t bg-muted/30 rounded-b-lg gap-2 sm:justify-between">
+            <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive gap-1.5" onClick={() => editAll && openDelete(editAll)} disabled={savingEdit}>
+              <Trash2 className="w-4 h-4" /> حذف / أرشفة
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
+              <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>
+                {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Delete / Archive Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteBusy) { setDeleteTarget(null); setDeleteRefs(null); setDeleteConfirmName(""); } }}>
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
+          <div className="px-5 py-4 border-b bg-destructive/10">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" /> حذف / أرشفة المنتج
+              </DialogTitle>
+            </DialogHeader>
+            {deleteTarget && (
+              <div className="mt-2 text-sm text-foreground">
+                <span className="font-bold">{deleteTarget.name}</span>
+                <span className="font-mono text-xs mr-2 px-2 py-0.5 rounded bg-background border">{deleteTarget.sku}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="px-5 py-4 space-y-4">
+            {!deleteRefs ? (
+              <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+            ) : deleteRefs.has_any ? (
+              <>
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-warning font-bold text-sm">
+                    <AlertTriangle className="w-4 h-4" /> هذا المنتج مرتبط بـ:
+                  </div>
+                  <ul className="text-sm space-y-1 mr-6 list-disc">
+                    {deleteRefs.sales > 0 && <li>{deleteRefs.sales} فاتورة بيع</li>}
+                    {deleteRefs.purchases > 0 && <li>{deleteRefs.purchases} فاتورة شراء</li>}
+                    {deleteRefs.sale_returns > 0 && <li>{deleteRefs.sale_returns} مرتجع بيع</li>}
+                    {deleteRefs.purchase_returns > 0 && <li>{deleteRefs.purchase_returns} مرتجع شراء</li>}
+                    {deleteRefs.shipments > 0 && <li>{deleteRefs.shipments} تحويل مخزون</li>}
+                    {deleteRefs.adjustments > 0 && <li>{deleteRefs.adjustments} تسوية مخزون</li>}
+                    {deleteRefs.count_sessions > 0 && <li>{deleteRefs.count_sessions} جلسة جرد</li>}
+                    {deleteRefs.quotes > 0 && <li>{deleteRefs.quotes} عرض سعر</li>}
+                    {deleteRefs.active_reservations > 0 && <li className="text-destructive font-semibold">{deleteRefs.active_reservations} حجز نشط</li>}
+                    {deleteRefs.remaining_batches > 0 && <li>{deleteRefs.remaining_batches} دفعة لها رصيد متبقي</li>}
+                  </ul>
+                </div>
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed">
+                  🔴 <span className="font-bold">الحذف النهائي ممنوع</span> للحفاظ على سلامة السجلات المحاسبية. لو حذفنا المنتج، الفواتير القديمة هيتغير إجماليها وهتختلف التقارير التاريخية.
+                </div>
+                <div className="rounded-md border border-success/30 bg-success/5 p-3 text-sm leading-relaxed">
+                  ✅ <span className="font-bold">الحل: أرشفة المنتج</span> — هيختفي من المخزون والـ POS، لكن الفواتير القديمة هتفضل سليمة 100%. تقدر تسترجعه أي وقت من تاب "المؤرشفة".
+                </div>
+                {deleteRefs.active_reservations > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    ⛔ يوجد حجوزات نشطة — قم بإلغائها أولاً قبل الأرشفة.
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="rounded-md border border-success/30 bg-success/5 p-3 text-sm leading-relaxed">
+                  ✅ هذا المنتج ليس له أي حركات أو فواتير — يمكن حذفه نهائياً بأمان.
+                </div>
+                {!canHardDelete && (
+                  <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+                    ⚠️ الحذف النهائي متاح لصاحب الشركة فقط. تقدر تأرشف المنتج بدلاً منه.
+                  </div>
+                )}
+                {canHardDelete && deleteTarget && (
+                  <div>
+                    <Label className="text-xs font-semibold mb-1.5 block">
+                      اكتب اسم المنتج <span className="font-bold text-foreground">"{deleteTarget.name}"</span> للتأكيد
+                    </Label>
+                    <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>إلغاء</Button>
+            {deleteRefs?.has_any ? (
+              <Button
+                className="bg-warning hover:bg-warning/90 text-warning-foreground gap-1.5"
+                disabled={deleteBusy || deleteRefs.active_reservations > 0}
+                onClick={doArchive}
+              >
+                {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                أرشفة المنتج
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" className="gap-1.5" disabled={deleteBusy} onClick={doArchive}>
+                  <Archive className="w-4 h-4" /> أرشفة بدلاً من الحذف
+                </Button>
+                {canHardDelete && (
+                  <Button
+                    variant="destructive"
+                    className="gap-1.5"
+                    disabled={deleteBusy || !deleteTarget || deleteConfirmName.trim() !== deleteTarget.name.trim()}
+                    onClick={doHardDelete}
+                  >
+                    {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    حذف نهائي
+                  </Button>
+                )}
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </BranchLayout>
   );
