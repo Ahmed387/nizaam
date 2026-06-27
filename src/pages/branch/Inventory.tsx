@@ -51,16 +51,15 @@ export default function Inventory() {
     low_stock_alert: "5", quantity: "0", image: "",
   });
   const [uploading, setUploading] = useState(false);
-  const [priceEdit, setPriceEdit] = useState<any>(null);
   const [historyFor, setHistoryFor] = useState<any>(null);
-  const [qtyEdit, setQtyEdit] = useState<any>(null);
-  const [qtyValue, setQtyValue] = useState<string>("0");
-  const [qtyNotes, setQtyNotes] = useState<string>("");
-  const [savingQty, setSavingQty] = useState(false);
-  const [detailsEdit, setDetailsEdit] = useState<any>(null);
-  const [detailsField, setDetailsField] = useState<"name" | "sku">("name");
-  const [detailsValue, setDetailsValue] = useState<string>("");
-  const [savingDetails, setSavingDetails] = useState(false);
+  const [editAll, setEditAll] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    name: "", sku: "", quantity: "0",
+    cost_price: "", selling_price: "", market_price: "",
+    qty_notes: "", price_reason: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
