@@ -870,107 +870,130 @@ export default function Inventory() {
 
       {/* Delete / Archive Dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteBusy) { setDeleteTarget(null); setDeleteRefs(null); setDeleteConfirmName(""); } }}>
-        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
-          <div className="px-5 py-4 border-b bg-destructive/10">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="w-5 h-5" /> حذف / أرشفة المنتج
-              </DialogTitle>
-            </DialogHeader>
-            {deleteTarget && (
-              <div className="mt-2 text-sm text-foreground">
-                <span className="font-bold">{deleteTarget.name}</span>
-                <span className="font-mono text-xs mr-2 px-2 py-0.5 rounded bg-background border">{deleteTarget.sku}</span>
-              </div>
-            )}
-          </div>
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden [&>button]:hidden">
+          {(() => {
+            const activeReservations = Number(deleteRefs?.active_reservations ?? deleteRefs?.reservations ?? 0);
+            const remainingBatches = Number(deleteRefs?.remaining_batches ?? deleteRefs?.batches ?? 0);
+            const hasActiveReservations = activeReservations > 0;
 
-          <div className="px-5 py-4 space-y-4">
-            {!deleteRefs ? (
-              <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-            ) : deleteRefs.has_any ? (
+            return (
               <>
-                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 space-y-2">
-                  <div className="flex items-center gap-2 text-warning font-bold text-sm">
-                    <AlertTriangle className="w-4 h-4" /> هذا المنتج مرتبط بـ:
-                  </div>
-                  <ul className="text-sm space-y-1 mr-6 list-disc">
-                    {deleteRefs.sales > 0 && <li>{deleteRefs.sales} فاتورة بيع</li>}
-                    {deleteRefs.purchases > 0 && <li>{deleteRefs.purchases} فاتورة شراء</li>}
-                    {deleteRefs.sale_returns > 0 && <li>{deleteRefs.sale_returns} مرتجع بيع</li>}
-                    {deleteRefs.purchase_returns > 0 && <li>{deleteRefs.purchase_returns} مرتجع شراء</li>}
-                    {deleteRefs.shipments > 0 && <li>{deleteRefs.shipments} تحويل مخزون</li>}
-                    {deleteRefs.adjustments > 0 && <li>{deleteRefs.adjustments} تسوية مخزون</li>}
-                    {deleteRefs.count_sessions > 0 && <li>{deleteRefs.count_sessions} جلسة جرد</li>}
-                    {deleteRefs.quotes > 0 && <li>{deleteRefs.quotes} عرض سعر</li>}
-                    {deleteRefs.active_reservations > 0 && <li className="text-destructive font-semibold">{deleteRefs.active_reservations} حجز نشط</li>}
-                    {deleteRefs.remaining_batches > 0 && <li>{deleteRefs.remaining_batches} دفعة لها رصيد متبقي</li>}
-                  </ul>
-                </div>
-                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed">
-                  🔴 <span className="font-bold">الحذف النهائي ممنوع</span> للحفاظ على سلامة السجلات المحاسبية. لو حذفنا المنتج، الفواتير القديمة هيتغير إجماليها وهتختلف التقارير التاريخية.
-                </div>
-                <div className="rounded-md border border-success/30 bg-success/5 p-3 text-sm leading-relaxed">
-                  ✅ <span className="font-bold">الحل: أرشفة المنتج</span> — هيختفي من المخزون والـ POS، لكن الفواتير القديمة هتفضل سليمة 100%. تقدر تسترجعه أي وقت من تاب "المؤرشفة".
-                </div>
-                {deleteRefs.active_reservations > 0 && (
-                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                    ⛔ يوجد حجوزات نشطة — قم بإلغائها أولاً قبل الأرشفة.
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="rounded-md border border-success/30 bg-success/5 p-3 text-sm leading-relaxed">
-                  ✅ هذا المنتج ليس له أي حركات أو فواتير — يمكن حذفه نهائياً بأمان.
-                </div>
-                {!canHardDelete && (
-                  <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
-                    ⚠️ الحذف النهائي متاح لصاحب الشركة فقط. تقدر تأرشف المنتج بدلاً منه.
-                  </div>
-                )}
-                {canHardDelete && deleteTarget && (
-                  <div>
-                    <Label className="text-xs font-semibold mb-1.5 block">
-                      اكتب اسم المنتج <span className="font-bold text-foreground">"{deleteTarget.name}"</span> للتأكيد
-                    </Label>
-                    <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>إلغاء</Button>
-            {deleteRefs?.has_any ? (
-              <Button
-                className="bg-warning hover:bg-warning/90 text-warning-foreground gap-1.5"
-                disabled={deleteBusy || deleteRefs.active_reservations > 0}
-                onClick={doArchive}
-              >
-                {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-                أرشفة المنتج
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" className="gap-1.5" disabled={deleteBusy} onClick={doArchive}>
-                  <Archive className="w-4 h-4" /> أرشفة بدلاً من الحذف
-                </Button>
-                {canHardDelete && (
-                  <Button
-                    variant="destructive"
-                    className="gap-1.5"
-                    disabled={deleteBusy || !deleteTarget || deleteConfirmName.trim() !== deleteTarget.name.trim()}
-                    onClick={doHardDelete}
+                <div className="relative px-5 py-4 border-b bg-destructive/10">
+                  <DialogClose
+                    disabled={deleteBusy}
+                    className="absolute top-3 left-3 h-9 w-9 inline-flex items-center justify-center rounded-md border border-destructive/20 bg-background/80 text-destructive shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive disabled:pointer-events-none disabled:opacity-50"
+                    aria-label="إغلاق"
                   >
-                    {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    حذف نهائي
-                  </Button>
-                )}
+                    <X className="w-5 h-5" />
+                  </DialogClose>
+                  <DialogHeader className="text-center space-y-2 pr-10 pl-10">
+                    <DialogTitle className="flex items-center justify-center gap-2 text-destructive text-lg font-extrabold">
+                      <AlertTriangle className="w-5 h-5" /> حذف / أرشفة المنتج
+                    </DialogTitle>
+                    {deleteTarget && (
+                      <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+                        <span className="font-extrabold text-foreground">{deleteTarget.name}</span>
+                        <span className="font-mono text-xs px-2 py-0.5 rounded bg-background border text-muted-foreground">{deleteTarget.sku}</span>
+                      </div>
+                    )}
+                  </DialogHeader>
+                </div>
+
+                <div className="px-5 py-4 space-y-3 bg-background">
+                  {!deleteRefs ? (
+                    <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      جاري فحص ارتباطات المنتج...
+                    </div>
+                  ) : deleteRefs.has_any ? (
+                    <>
+                      <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-warning font-extrabold text-sm">
+                          <AlertTriangle className="w-4 h-4 shrink-0" /> هذا المنتج مرتبط بسجلات حالية
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          {deleteRefs.sales > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.sales} فاتورة بيع</div>}
+                          {deleteRefs.purchases > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.purchases} فاتورة شراء</div>}
+                          {deleteRefs.sale_returns > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.sale_returns} مرتجع بيع</div>}
+                          {deleteRefs.purchase_returns > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.purchase_returns} مرتجع شراء</div>}
+                          {deleteRefs.shipments > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.shipments} شحنة / تحويل</div>}
+                          {deleteRefs.adjustments > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.adjustments} تسوية مخزون</div>}
+                          {deleteRefs.count_sessions > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.count_sessions} جلسة جرد</div>}
+                          {deleteRefs.quotes > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{deleteRefs.quotes} عرض سعر</div>}
+                          {activeReservations > 0 && <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-destructive font-bold">{activeReservations} حجز نشط</div>}
+                          {remainingBatches > 0 && <div className="rounded-md bg-background/70 border px-3 py-2">{remainingBatches} دفعة لها رصيد</div>}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm leading-relaxed text-foreground">
+                        <span className="font-extrabold text-destructive">الحذف النهائي ممنوع</span> للحفاظ على سلامة السجلات المحاسبية والفواتير والتقارير التاريخية.
+                      </div>
+
+                      <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm leading-relaxed text-foreground">
+                        <span className="font-extrabold text-success">الحل الآمن: أرشفة المنتج</span> — هيختفي من المخزون والـ POS، والفواتير القديمة هتفضل سليمة ويمكن استرجاعه من تبويب المؤرشفة.
+                      </div>
+
+                      {hasActiveReservations && (
+                        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive font-semibold">
+                          يوجد حجوزات نشطة — قم بإلغائها أولاً قبل الأرشفة.
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm leading-relaxed text-foreground">
+                        <span className="font-extrabold text-success">المنتج آمن للحذف</span> — لا توجد عليه فواتير أو حركات مسجلة.
+                      </div>
+                      {!canHardDelete && (
+                        <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-foreground">
+                          الحذف النهائي متاح لصاحب الشركة فقط. تقدر تأرشف المنتج بدلاً منه.
+                        </div>
+                      )}
+                      {canHardDelete && deleteTarget && (
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                          <Label className="text-xs font-semibold mb-2 block">
+                            اكتب اسم المنتج <span className="font-bold text-foreground">"{deleteTarget.name}"</span> للتأكيد
+                          </Label>
+                          <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2 sm:justify-between">
+                  <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>إلغاء</Button>
+                  {deleteRefs?.has_any ? (
+                    <Button
+                      className="bg-warning hover:bg-warning/90 text-warning-foreground gap-1.5 min-w-[140px]"
+                      disabled={deleteBusy || hasActiveReservations}
+                      onClick={doArchive}
+                    >
+                      {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                      أرشفة المنتج
+                    </Button>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" className="gap-1.5" disabled={deleteBusy} onClick={doArchive}>
+                        <Archive className="w-4 h-4" /> أرشفة بدلاً من الحذف
+                      </Button>
+                      {canHardDelete && (
+                        <Button
+                          variant="destructive"
+                          className="gap-1.5 min-w-[120px]"
+                          disabled={deleteBusy || !deleteTarget || deleteConfirmName.trim() !== deleteTarget.name.trim()}
+                          onClick={doHardDelete}
+                        >
+                          {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                          حذف نهائي
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </DialogFooter>
               </>
-            )}
-          </DialogFooter>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
