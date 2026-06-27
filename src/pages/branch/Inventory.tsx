@@ -256,17 +256,19 @@ export default function Inventory() {
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent dir="rtl" className="w-80 text-right" side="bottom" align="end">
-                <div className="space-y-2 text-sm">
-                  <div className="font-bold text-primary">جرد الفرع</div>
-                  <p className="text-muted-foreground">
-                    عملية عدّ فعلي للبضاعة الموجودة في المخزن ومقارنتها بأرصدة النظام لاكتشاف الفروقات.
+              <HoverCardContent dir="rtl" className="max-w-[280px] text-right p-4" side="bottom" align="end">
+                <div className="space-y-3">
+                  <div className="text-base font-bold text-foreground leading-tight">جرد الفرع</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    عملية عدّ فعلي للبضاعة في المخزن ومقارنتها بأرصدة النظام لاكتشاف أي فروقات.
                   </p>
-                  <div className="bg-muted/50 rounded p-2 text-xs">
-                    <span className="font-semibold">مثال:</span> أمين المخزن يعد المنتج فيلاقي 95، النظام مسجّل 100 → فرق -5 يتراجع ويتعمله تسوية.
+                  <div className="border-r-2 border-primary/30 pr-3 py-1 text-xs text-muted-foreground leading-relaxed">
+                    <span className="font-semibold text-foreground">مثال:</span>
+                    <br />
+                    أمين المخزن يعد 95 قطعة، والنظام يسجّل 100 → فرق -5 يُراجع ثم تُسوّى.
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    من هنا كمان تقدر تشوف <span className="font-semibold">رصيد أي منتج في تاريخ سابق</span> وتقارنه بالواقع.
+                  <p className="text-xs text-muted-foreground leading-relaxed pt-1 border-t border-border">
+                    يمكنك أيضاً عرض الرصيد التاريخي لأي منتج ومقارنته بالواقع.
                   </p>
                 </div>
               </HoverCardContent>
