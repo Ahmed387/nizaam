@@ -7,7 +7,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +15,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
@@ -642,13 +642,29 @@ export default function Inventory() {
 
       {/* Unified Product Edit Form */}
       <Dialog open={!!editAll} onOpenChange={(o) => !o && !savingEdit && setEditAll(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Pencil className="w-5 h-5 text-primary" />
-              تعديل بيانات المنتج
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
+          {/* Custom header bar with red-hover close */}
+          <div className="flex items-center justify-between px-5 py-3 border-b bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
+            <DialogHeader className="flex-1 text-right space-y-0">
+              <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                <Pencil className="w-5 h-5 text-primary" />
+                تعديل بيانات المنتج
+              </DialogTitle>
+              {editAll && (
+                <p className="text-xs text-muted-foreground mt-0.5 font-normal">
+                  {editAll.name} <span className="font-mono">· {editAll.sku}</span>
+                </p>
+              )}
+            </DialogHeader>
+            <DialogClose
+              disabled={savingEdit}
+              className="group h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive disabled:pointer-events-none disabled:opacity-50"
+              aria-label="إغلاق"
+            >
+              <X className="w-5 h-5" />
+            </DialogClose>
+          </div>
+
           {editAll && (() => {
             const newQtyNum = Number(editForm.quantity);
             const diff = Number.isFinite(newQtyNum) ? newQtyNum - Number(editAll.quantity) : 0;
@@ -658,97 +674,107 @@ export default function Inventory() {
             const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
             const priceChanged = costChanged || sellChanged || marketChanged;
             return (
-              <div className="space-y-5">
+              <div className="px-5 py-4 space-y-5">
                 {/* Section: Basic info */}
-                <div className="space-y-3">
-                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
-                    <Type className="w-4 h-4" /> البيانات الأساسية
+                <section className="rounded-lg border bg-card overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <Type className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-bold text-primary">البيانات الأساسية</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label>اسم المنتج *</Label>
-                      <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1.5" />
+                      <Label className="text-xs font-semibold mb-1.5 block">اسم المنتج <span className="text-destructive">*</span></Label>
+                      <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="مثال: جوافة" />
                     </div>
                     <div>
-                      <Label>كود الصنف (SKU) *</Label>
-                      <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="mt-1.5 font-mono" />
+                      <Label className="text-xs font-semibold mb-1.5 block">كود الصنف (SKU) <span className="text-destructive">*</span></Label>
+                      <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="font-mono" placeholder="SKU-100029" />
                     </div>
                   </div>
-                </div>
+                </section>
 
                 {/* Section: Quantity */}
-                <div className="space-y-3">
-                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
-                    <Package className="w-4 h-4" /> الكمية في المخزن
+                <section className="rounded-lg border bg-card overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <Package className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-bold text-primary">الكمية في المخزن</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <Label>الكمية الحالية</Label>
-                      <Input value={editAll.quantity} disabled className="mt-1.5 bg-muted/50" />
-                    </div>
-                    <div>
-                      <Label>الكمية الجديدة</Label>
-                      <Input type="number" min="0" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="mt-1.5" />
-                      {qtyChanged && (
-                        <p className="text-xs mt-1">
-                          الفرق:{" "}
-                          <span className={diff > 0 ? "text-success font-bold" : "text-destructive font-bold"}>
-                            {diff > 0 ? "+" : ""}{diff}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {qtyChanged && (
-                    <>
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                       <div>
-                        <Label>ملاحظات تعديل الكمية (اختياري)</Label>
-                        <Textarea value={editForm.qty_notes} onChange={(e) => setEditForm({ ...editForm, qty_notes: e.target.value })} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
+                        <Label className="text-xs font-semibold mb-1.5 block text-muted-foreground">الكمية الحالية</Label>
+                        <Input value={editAll.quantity} disabled className="bg-muted/60 font-bold text-center" />
                       </div>
-                      <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
-                        ⚠️ هيتم تسجيل تسوية مخزون رسمية. FIFO عند النقص، دفعة جديدة عند الزيادة.
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">الكمية الجديدة</Label>
+                        <Input type="number" min="0" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="text-center font-bold" />
                       </div>
-                    </>
-                  )}
-                </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block text-muted-foreground">الفرق</Label>
+                        <div className={`h-10 rounded-md border flex items-center justify-center font-bold text-sm ${qtyChanged ? (diff > 0 ? "bg-success/10 border-success/30 text-success" : "bg-destructive/10 border-destructive/30 text-destructive") : "bg-muted/30 text-muted-foreground"}`}>
+                          {qtyChanged ? `${diff > 0 ? "+" : ""}${diff}` : "بدون تغيير"}
+                        </div>
+                      </div>
+                    </div>
+                    {qtyChanged && (
+                      <>
+                        <div>
+                          <Label className="text-xs font-semibold mb-1.5 block">ملاحظات (اختياري)</Label>
+                          <Textarea value={editForm.qty_notes} onChange={(e) => setEditForm({ ...editForm, qty_notes: e.target.value })} rows={2} placeholder="سبب تعديل الكمية…" />
+                        </div>
+                        <div className="text-[11px] text-warning bg-warning/10 border border-warning/30 rounded px-3 py-2 leading-relaxed">
+                          ⚠️ هيتم تسجيل تسوية مخزون رسمية — FIFO عند النقص، دفعة جديدة عند الزيادة.
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
 
                 {/* Section: Prices */}
-                <div className="space-y-3">
-                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
-                    <Tag className="w-4 h-4" /> الأسعار
+                <section className="rounded-lg border bg-card overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <Tag className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-bold text-primary">الأسعار</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <Label>سعر الشراء</Label>
-                      <Input type="number" step="0.01" value={editForm.cost_price} onChange={(e) => setEditForm({ ...editForm, cost_price: e.target.value })} className="mt-1.5" />
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">سعر الشراء</Label>
+                        <Input type="number" step="0.01" value={editForm.cost_price} onChange={(e) => setEditForm({ ...editForm, cost_price: e.target.value })} className="text-center" />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block text-success">سعر البيع</Label>
+                        <Input type="number" step="0.01" value={editForm.selling_price} onChange={(e) => setEditForm({ ...editForm, selling_price: e.target.value })} className="text-center" />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">سعر السوق</Label>
+                        <Input type="number" step="0.01" value={editForm.market_price} onChange={(e) => setEditForm({ ...editForm, market_price: e.target.value })} className="text-center" />
+                      </div>
                     </div>
-                    <div>
-                      <Label>سعر البيع</Label>
-                      <Input type="number" step="0.01" value={editForm.selling_price} onChange={(e) => setEditForm({ ...editForm, selling_price: e.target.value })} className="mt-1.5" />
-                    </div>
-                    <div>
-                      <Label>سعر السوق</Label>
-                      <Input type="number" step="0.01" value={editForm.market_price} onChange={(e) => setEditForm({ ...editForm, market_price: e.target.value })} className="mt-1.5" />
-                    </div>
+                    {priceChanged && (
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">
+                          سبب تعديل السعر <span className="text-destructive">*</span>
+                          <span className="text-[10px] text-muted-foreground mr-1 font-normal">(10 أحرف على الأقل)</span>
+                        </Label>
+                        <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
+                      </div>
+                    )}
                   </div>
-                  {priceChanged && (
-                    <div>
-                      <Label>سبب تعديل السعر * <span className="text-xs text-muted-foreground">(10 أحرف على الأقل)</span></Label>
-                      <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} className="mt-1.5" rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
-                    </div>
-                  )}
-                </div>
+                </section>
               </div>
             );
           })()}
-          <DialogFooter>
+
+          <DialogFooter className="px-5 py-3 border-t bg-muted/30 rounded-b-lg gap-2">
             <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={saveEditAll} disabled={savingEdit}>
+            <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>
               {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
     </BranchLayout>
   );
