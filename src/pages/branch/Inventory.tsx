@@ -519,7 +519,7 @@ export default function Inventory() {
             
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" }); setOpen(false); }}>إلغاء</Button>
             <Button className="btn-gradient" onClick={submit}>إضافة</Button>
           </DialogFooter>
         </DialogContent>
