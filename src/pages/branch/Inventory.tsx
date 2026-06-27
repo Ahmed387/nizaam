@@ -244,19 +244,19 @@ export default function Inventory() {
       />
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
-        <TabsList className="flex flex-wrap gap-1 h-auto">
-          <TabsTrigger value="products">الأصناف المتاحة في المخزن</TabsTrigger>
-          <TabsTrigger value="transfers">نقل المخزون بين الفروع</TabsTrigger>
+        <TabsList className="flex flex-wrap gap-1 h-auto p-1.5">
+          <TabsTrigger value="products" className="text-base font-bold px-4 py-2">الأصناف المتاحة في المخزن</TabsTrigger>
+          <TabsTrigger value="transfers" className="text-base font-bold px-4 py-2">نقل المخزون بين الفروع</TabsTrigger>
           <div className="inline-flex items-center">
-            <TabsTrigger value="adjustments" className="rounded-l-none">
-              <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزن في الفرع
+            <TabsTrigger value="adjustments" className="text-base font-bold px-4 py-2 rounded-l-none">
+              <ClipboardList className="w-5 h-5 ml-1.5" /> تسوية المخزن في الفرع
             </TabsTrigger>
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="h-9 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                  className="h-10 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
                   aria-label="ما هي تسوية المخزن في الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
@@ -285,15 +285,15 @@ export default function Inventory() {
             </Popover>
           </div>
           <div className="inline-flex items-center">
-            <TabsTrigger value="count" className="rounded-l-none">
-              <ClipboardCheck className="w-4 h-4 ml-1" /> جرد الفرع
+            <TabsTrigger value="count" className="text-base font-bold px-4 py-2 rounded-l-none">
+              <ClipboardCheck className="w-5 h-5 ml-1.5" /> جرد الفرع
             </TabsTrigger>
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="h-9 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                  className="h-10 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
                   aria-label="ما هو جرد الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
