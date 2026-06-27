@@ -411,12 +411,29 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openQtyEdit(r)} title="تعديل الكمية (تسوية)">
-                                <Edit3 className="w-4 h-4" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPriceEdit(r)} title="تعديل السعر">
-                                <Tag className="w-4 h-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج">
+                                    <Settings2 className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                  <DropdownMenuLabel className="text-right">تعديل بيانات المنتج</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => openDetailsEdit(r, "name")} className="gap-2 cursor-pointer">
+                                    <Type className="w-4 h-4 text-primary" /> تعديل اسم المنتج
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openDetailsEdit(r, "sku")} className="gap-2 cursor-pointer">
+                                    <Hash className="w-4 h-4 text-primary" /> تعديل كود الصنف
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openQtyEdit(r)} className="gap-2 cursor-pointer">
+                                    <Package className="w-4 h-4 text-primary" /> تعديل الكمية
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setPriceEdit(r)} className="gap-2 cursor-pointer">
+                                    <Tag className="w-4 h-4 text-primary" /> تعديل سعر المنتج
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
                                 <History className="w-4 h-4" />
                               </Button>
@@ -426,6 +443,7 @@ export default function Inventory() {
                             </div>
                           )}
                         </td>
+
                       </tr>
                     );
                   })}
