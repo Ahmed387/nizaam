@@ -1217,7 +1217,9 @@ export default function Inventory() {
                   }
                   if (type === "sales" || type === "purchases") {
                     return [
-                      { key: "invoice.invoice_number", header: "رقم الفاتورة", render: (r: any) => <span className="font-mono text-primary">{r.invoice?.invoice_number}</span> },
+                      { key: "invoice.invoice_number", header: "رقم الفاتورة", render: (r: any) => r.invoice?.id ? (
+                        <a href={`/branch/${branchId}/sales/${r.invoice.id}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary underline hover:opacity-80">{r.invoice?.invoice_number}</a>
+                      ) : <span className="font-mono text-primary">{r.invoice?.invoice_number}</span> },
                       { key: "invoice.contact.name", header: "الطرف", render: (r: any) => r.invoice?.contact?.name ?? "—" },
                       { key: "quantity", header: "الكمية", render: (r: any) => Number(r.quantity).toLocaleString() },
                       { key: "unit_price", header: "سعر الوحدة", render: (r: any) => formatEGP(Number(r.unit_price)) },
@@ -1227,7 +1229,9 @@ export default function Inventory() {
                   }
                   if (type === "shipments") {
                     return [
-                      { key: "shipment.shipment_number", header: "رقم الشحنة", render: (r: any) => <span className="font-mono text-primary">{r.shipment?.shipment_number}</span> },
+                      { key: "shipment.shipment_number", header: "رقم الشحنة", render: (r: any) => r.shipment?.id ? (
+                        <a href={`/branch/${branchId}/shipments/${r.shipment.id}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary underline hover:opacity-80">{r.shipment?.shipment_number}</a>
+                      ) : <span className="font-mono text-primary">{r.shipment?.shipment_number}</span> },
                       { key: "from", header: "من", render: (r: any) => r.shipment?.source_branch?.name ?? "—" },
                       { key: "to", header: "إلى", render: (r: any) => r.shipment?.destination_branch?.name ?? "—" },
                       { key: "quantity", header: "الكمية المنقولة", render: (r: any) => Number(r.quantity).toLocaleString() },
@@ -1236,8 +1240,11 @@ export default function Inventory() {
                     ];
                   }
                   if (type === "sale_returns" || type === "purchase_returns") {
+                    const path = type === "sale_returns" ? "sale-returns" : "purchase-returns";
                     return [
-                      { key: "return.return_number", header: "رقم المرتجع", render: (r: any) => <span className="font-mono text-primary">{r.return?.return_number}</span> },
+                      { key: "return.return_number", header: "رقم المرتجع", render: (r: any) => r.return?.id ? (
+                        <a href={`/branch/${branchId}/${path}/${r.return.id}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary underline hover:opacity-80">{r.return?.return_number}</a>
+                      ) : <span className="font-mono text-primary">{r.return?.return_number}</span> },
                       { key: "return.contact.name", header: "الطرف", render: (r: any) => r.return?.contact?.name ?? "—" },
                       { key: "quantity", header: "الكمية المرتجعة", render: (r: any) => Number(r.quantity).toLocaleString() },
                       { key: "unit_price", header: "سعر الوحدة", render: (r: any) => formatEGP(Number(r.unit_price)) },
@@ -1257,7 +1264,9 @@ export default function Inventory() {
                   }
                   if (type === "quotes") {
                     return [
-                      { key: "quote.quote_number", header: "رقم العرض", render: (r: any) => <span className="font-mono text-primary">{r.quote?.quote_number}</span> },
+                      { key: "quote.quote_number", header: "رقم العرض", render: (r: any) => r.quote?.id ? (
+                        <a href={`/branch/${branchId}/quotes/${r.quote.id}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary underline hover:opacity-80">{r.quote?.quote_number}</a>
+                      ) : <span className="font-mono text-primary">{r.quote?.quote_number}</span> },
                       { key: "quote.contact.name", header: "العميل", render: (r: any) => r.quote?.contact?.name ?? "—" },
                       { key: "quantity", header: "الكمية", render: (r: any) => Number(r.quantity).toLocaleString() },
                       { key: "unit_price", header: "سعر الوحدة", render: (r: any) => formatEGP(Number(r.unit_price)) },
