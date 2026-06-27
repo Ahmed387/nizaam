@@ -1104,6 +1104,125 @@ export default function Inventory() {
         </DialogContent>
       </Dialog>
 
+      {/* Reference detail drill-down dialog */}
+      <Dialog open={!!refDetail} onOpenChange={(o) => !o && setRefDetail(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
+          <div className="relative px-5 py-4 border-b bg-primary/5">
+            <DialogClose
+              className="absolute top-3 left-3 h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive"
+              aria-label="إغلاق"
+            >
+              <X className="w-5 h-5" />
+            </DialogClose>
+            <DialogHeader className="text-center space-y-1 pr-10 pl-10">
+              <DialogTitle className="text-lg font-bold text-primary">{refDetail?.title}</DialogTitle>
+              <div className="text-sm text-muted-foreground">
+                {deleteTarget?.name} <span className="font-mono text-xs">{deleteTarget?.sku}</span>
+              </div>
+            </DialogHeader>
+          </div>
+          <div className="px-5 py-4 bg-background">
+            {refDetail?.loading ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                جاري تحميل التفاصيل...
+              </div>
+            ) : (
+              <DataTable
+                loading={refDetail?.loading ?? false}
+                rows={refDetail?.rows ?? []}
+                empty="لا توجد تفاصيل"
+                columns={(() => {
+                  const type = refDetail?.type;
+                  if (type === "batches") {
+                    return [
+                      { key: "created_at", header: "تاريخ الدفعة", render: (r: any) => formatDateTime(r.created_at) },
+                      { key: "quantity_purchased", header: "الكمية الأصلية", render: (r: any) => Number(r.quantity_purchased).toLocaleString() },
+                      { key: "quantity_remaining", header: "المتبقي (الرصيد)", render: (r: any) => <span className="font-bold text-success">{Number(r.quantity_remaining).toLocaleString()}</span> },
+                      { key: "cost_price", header: "تكلفة الوحدة", render: (r: any) => formatEGP(Number(r.cost_price)) },
+                      { key: "batch_type", header: "نوع الدفعة", render: (r: any) => r.batch_type === "transfer" ? "تحويل" : r.batch_type === "purchase" ? "شراء" : r.batch_type },
+                    ];
+                  }
+                  if (type === "adjustments") {
+                    return [
+                      { key: "adjustment.adjustment_number", header: "رقم التسوية", render: (r: any) => <span className="font-mono text-primary">{r.adjustment?.adjustment_number}</span> },
+                      { key: "adjustment.reason", header: "السبب", render: (r: any) => r.adjustment?.reason },
+                      { key: "system_quantity", header: "الكمية في النظام", render: (r: any) => Number(r.system_quantity).toLocaleString() },
+                      { key: "actual_quantity", header: "الكمية الفعلية", render: (r: any) => Number(r.actual_quantity).toLocaleString() },
+                      { key: "difference", header: "الفرق", render: (r: any) => <span className={r.difference > 0 ? "text-success" : r.difference < 0 ? "text-destructive" : ""}>{r.difference > 0 ? "+" : ""}{Number(r.difference).toLocaleString()}</span> },
+                      { key: "adjustment.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.adjustment?.created_at) },
+                    ];
+                  }
+                  if (type === "sales" || type === "purchases") {
+                    return [
+                      { key: "invoice.invoice_number", header: "رقم الفاتورة", render: (r: any) => <span className="font-mono text-primary">{r.invoice?.invoice_number}</span> },
+                      { key: "invoice.contact.name", header: "الطرف", render: (r: any) => r.invoice?.contact?.name ?? "—" },
+                      { key: "quantity", header: "الكمية", render: (r: any) => Number(r.quantity).toLocaleString() },
+                      { key: "unit_price", header: "سعر الوحدة", render: (r: any) => formatEGP(Number(r.unit_price)) },
+                      { key: "invoice.invoice_date", header: "تاريخ الفاتورة", render: (r: any) => r.invoice?.invoice_date ? new Date(r.invoice.invoice_date).toLocaleDateString("ar-EG") : "—" },
+                      { key: "invoice.total", header: "إجمالي الفاتورة", render: (r: any) => formatEGP(Number(r.invoice?.total ?? 0)) },
+                    ];
+                  }
+                  if (type === "shipments") {
+                    return [
+                      { key: "shipment.shipment_number", header: "رقم الشحنة", render: (r: any) => <span className="font-mono text-primary">{r.shipment?.shipment_number}</span> },
+                      { key: "from", header: "من", render: (r: any) => r.shipment?.source_branch?.name ?? "—" },
+                      { key: "to", header: "إلى", render: (r: any) => r.shipment?.destination_branch?.name ?? "—" },
+                      { key: "quantity", header: "الكمية المنقولة", render: (r: any) => Number(r.quantity).toLocaleString() },
+                      { key: "shipment.status", header: "الحالة", render: (r: any) => r.shipment?.status === "received" ? "تم الاستلام" : r.shipment?.status === "sent" ? "مرسلة" : r.shipment?.status },
+                      { key: "shipment.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.shipment?.created_at) },
+                    ];
+                  }
+                  if (type === "sale_returns" || type === "purchase_returns") {
+                    return [
+                      { key: "return.return_number", header: "رقم المرتجع", render: (r: any) => <span className="font-mono text-primary">{r.return?.return_number}</span> },
+                      { key: "return.contact.name", header: "الطرف", render: (r: any) => r.return?.contact?.name ?? "—" },
+                      { key: "quantity", header: "الكمية المرتجعة", render: (r: any) => Number(r.quantity).toLocaleString() },
+                      { key: "unit_price", header: "سعر الوحدة", render: (r: any) => formatEGP(Number(r.unit_price)) },
+                      { key: "return.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.return?.created_at) },
+                      { key: "return.total", header: "إجمالي المرتجع", render: (r: any) => formatEGP(Number(r.return?.total ?? 0)) },
+                    ];
+                  }
+                  if (type === "count_sessions") {
+                    return [
+                      { key: "session.session_number", header: "رقم الجلسة", render: (r: any) => <span className="font-mono text-primary">{r.session?.session_number}</span> },
+                      { key: "system_quantity", header: "كمية النظام", render: (r: any) => Number(r.system_quantity).toLocaleString() },
+                      { key: "counted_quantity", header: "الكمية المعدودة", render: (r: any) => Number(r.counted_quantity).toLocaleString() },
+                      { key: "difference", header: "الفرق", render: (r: any) => <span className={r.difference > 0 ? "text-success" : r.difference < 0 ? "text-destructive" : ""}>{r.difference > 0 ? "+" : ""}{Number(r.difference).toLocaleString()}</span> },
+                      { key: "session.status", header: "الحالة", render: (r: any) => r.session?.status === "approved" ? "معتمدة" : r.session?.status === "pending" ? "معلقة" : r.session?.status },
+                      { key: "session.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.session?.created_at) },
+                    ];
+                  }
+                  if (type === "quotes") {
+                    return [
+                      { key: "quote.quote_number", header: "رقم العرض", render: (r: any) => <span className="font-mono text-primary">{r.quote?.quote_number}</span> },
+                      { key: "quote.contact.name", header: "العميل", render: (r: any) => r.quote?.contact?.name ?? "—" },
+                      { key: "quantity", header: "الكمية", render: (r: any) => Number(r.quantity).toLocaleString() },
+                      { key: "unit_price", header: "سعر الوحدة", render: (r: any) => formatEGP(Number(r.unit_price)) },
+                      { key: "quote.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.quote?.created_at) },
+                      { key: "quote.total", header: "إجمالي العرض", render: (r: any) => formatEGP(Number(r.quote?.total ?? 0)) },
+                    ];
+                  }
+                  if (type === "reservations") {
+                    return [
+                      { key: "contact.name", header: "العميل/الحساب", render: (r: any) => r.contact?.name ?? "—" },
+                      { key: "quantity", header: "الكمية المحجوزة", render: (r: any) => Number(r.quantity).toLocaleString() },
+                      { key: "draft_id", header: "رقم المسودة", render: (r: any) => <span className="font-mono text-xs">{r.draft_id}</span> },
+                      { key: "expires_at", header: "تنتهي في", render: (r: any) => r.expires_at ? new Date(r.expires_at).toLocaleString("ar-EG") : "—" },
+                      { key: "created_at", header: "تاريخ الحجز", render: (r: any) => formatDateTime(r.created_at) },
+                    ];
+                  }
+                  return [];
+                })()}
+              />
+            )}
+          </div>
+          <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setRefDetail(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </BranchLayout>
   );
 }
