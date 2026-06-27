@@ -237,12 +237,24 @@ export default function Inventory() {
         title = "الدفعات ذات الرصيد";
         const { data, error } = await supabase
           .from("product_batches" as any)
-          .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name))")
+          .select("*")
           .eq("product_id", productId)
           .gt("quantity_remaining", 0)
           .order("created_at", { ascending: false });
         if (error) throw error;
-        rows = data ?? [];
+        const batchRows = data ?? [];
+        const shipmentIds = Array.from(new Set(batchRows.map((r: any) => r.shipment_id).filter(Boolean)));
+        if (shipmentIds.length) {
+          const { data: shipments, error: shipmentsError } = await supabase
+            .from("shipments" as any)
+            .select("id, shipment_number")
+            .in("id", shipmentIds);
+          if (shipmentsError) throw shipmentsError;
+          const shipmentById = new Map((shipments ?? []).map((s: any) => [s.id, s]));
+          rows = batchRows.map((r: any) => ({ ...r, shipment: shipmentById.get(r.shipment_id) ?? null }));
+        } else {
+          rows = batchRows;
+        }
       } else if (type === "adjustments") {
         title = "تسويات المخزون";
         const { data, error } = await supabase
@@ -271,10 +283,32 @@ export default function Inventory() {
         title = "الشحنات / التحويلات";
         const { data, error } = await supabase
           .from("shipment_items" as any)
-          .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name), arrival_date, created_at)")
+          .select("*")
           .eq("product_id", productId);
         if (error) throw error;
-        rows = data ?? [];
+        const itemRows = data ?? [];
+        const shipmentIds = Array.from(new Set(itemRows.map((r: any) => r.shipment_id).filter(Boolean)));
+        if (shipmentIds.length) {
+          const { data: shipments, error: shipmentsError } = await supabase
+            .from("shipments" as any)
+            .select("id, shipment_number, branch_id, arrival_date, created_at")
+            .in("id", shipmentIds);
+          if (shipmentsError) throw shipmentsError;
+          const branchIds = Array.from(new Set((shipments ?? []).map((s: any) => s.branch_id).filter(Boolean)));
+          let branchById = new Map<string, any>();
+          if (branchIds.length) {
+            const { data: branches, error: branchesError } = await supabase
+              .from("branches" as any)
+              .select("id, name")
+              .in("id", branchIds);
+            if (branchesError) throw branchesError;
+            branchById = new Map((branches ?? []).map((b: any) => [b.id, b]));
+          }
+          const shipmentById = new Map((shipments ?? []).map((s: any) => [s.id, { ...s, destination_branch: branchById.get(s.branch_id) ?? null }]));
+          rows = itemRows.map((r: any) => ({ ...r, shipment: shipmentById.get(r.shipment_id) ?? null }));
+        } else {
+          rows = itemRows;
+        }
       } else if (type === "sale_returns") {
         title = "مرتجعات البيع";
         const { data, error } = await supabase
