@@ -224,16 +224,20 @@ export default function Inventory() {
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent dir="rtl" className="w-80 text-right" side="bottom" align="end">
-                <div className="space-y-2 text-sm">
-                  <div className="font-bold text-primary">تسوية المخزن في الفرع</div>
-                  <p className="text-muted-foreground">
-                    حركة تصحيحية بتعدّل كمية المنتج في النظام عشان توافق الكمية الفعلية على أرض الواقع.
+              <HoverCardContent dir="rtl" className="max-w-[280px] text-right p-4" side="bottom" align="end">
+                <div className="space-y-3">
+                  <div className="text-base font-bold text-foreground leading-tight">تسوية المخزن في الفرع</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    حركة تصحيحية لتعديل كمية المنتج في النظام حتى تطابق الكمية الفعلية على أرض الواقع.
                   </p>
-                  <div className="bg-muted/50 rounded p-2 text-xs">
-                    <span className="font-semibold">مثال:</span> النظام بيقول 100 قطعة، والموجود فعلياً 95. التسوية بتنقّص 5 عشان النظام يطابق الواقع.
+                  <div className="border-r-2 border-primary/30 pr-3 py-1 text-xs text-muted-foreground leading-relaxed">
+                    <span className="font-semibold text-foreground">مثال:</span>
+                    <br />
+                    النظام يسجّل 100 قطعة، والفعلي 95 → تسوية تنقص 5 قطع لتصحيح الرصيد.
                   </div>
-                  <p className="text-xs text-muted-foreground">بتستخدمها بعد الجرد لما تلاقي فروقات (هالك، سرقة، خطأ إدخال…).</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed pt-1 border-t border-border">
+                    تُستخدم بعد الجرد لمعالجة الفروقات (هالك، سرقة، خطأ إدخال...).
+                  </p>
                 </div>
               </HoverCardContent>
             </HoverCard>
