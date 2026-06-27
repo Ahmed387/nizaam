@@ -644,26 +644,31 @@ export default function Inventory() {
       <Dialog open={!!editAll} onOpenChange={(o) => !o && !savingEdit && setEditAll(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
           {/* Custom header bar with red-hover close */}
-          <div className="flex items-center justify-between px-5 py-3 border-b bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
-            <DialogHeader className="flex-1 text-right space-y-0">
-              <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-                <Pencil className="w-5 h-5 text-primary" />
-                تعديل بيانات المنتج
-              </DialogTitle>
-              {editAll && (
-                <p className="text-xs text-muted-foreground mt-0.5 font-normal">
-                  {editAll.name} <span className="font-mono">· {editAll.sku}</span>
-                </p>
-              )}
-            </DialogHeader>
+          <div className="relative px-5 py-4 border-b bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
             <DialogClose
               disabled={savingEdit}
-              className="group h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive disabled:pointer-events-none disabled:opacity-50"
+              className="absolute top-3 left-3 h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive disabled:pointer-events-none disabled:opacity-50"
               aria-label="إغلاق"
             >
               <X className="w-5 h-5" />
             </DialogClose>
+            <DialogHeader className="text-center space-y-2">
+              <DialogTitle className="flex items-center justify-center gap-2 text-lg font-bold">
+                <Pencil className="w-5 h-5 text-primary" />
+                تعديل بيانات المنتج
+              </DialogTitle>
+              {editAll && (
+                <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+                  <span className="font-bold text-foreground">{editAll.name}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                    {editAll.sku}
+                  </span>
+                </div>
+              )}
+            </DialogHeader>
           </div>
+
 
           {editAll && (() => {
             const newQtyNum = Number(editForm.quantity);
