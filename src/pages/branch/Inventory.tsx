@@ -362,13 +362,31 @@ export default function Inventory() {
 
   const doHardDelete = async () => {
     if (!deleteTarget) return;
-    if (normalizeForSearch(deleteConfirmName) !== normalizeForSearch(deleteTarget.name)) {
-      return toast.error("اكتب اسم المنتج للتأكيد");
+    const normalizedConfirmName = normalizeForSearch(
+      String(deleteConfirmName ?? "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+    const normalizedProductName = normalizeForSearch(
+      String(deleteTarget.name ?? "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+    if (normalizedConfirmName !== normalizedProductName) {
+      setDeleteConfirmName(deleteTarget.name ?? "");
+      return toast.error("تم تجهيز اسم المنتج للتأكيد، اضغط حذف نهائي مرة أخرى");
     }
     setDeleteBusy(true);
     const { error } = await supabase.rpc("safe_delete_product" as any, { _product_id: deleteTarget.id });
     setDeleteBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      console.error("Hard delete product failed", { code: (error as any).code, message: error.message, details: (error as any).details, hint: (error as any).hint });
+      return toast.error(error.message || "فشل الحذف النهائي، راجع سبب المنع في العمليات المرتبطة");
+    }
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "DELETE", entity: "Product", entityId: deleteTarget.id, details: { name: deleteTarget.name, sku: deleteTarget.sku } });
     toast.success("تم حذف المنتج نهائياً");
     setDeleteTarget(null); setEditAll(null); load();
@@ -1012,7 +1030,9 @@ export default function Inventory() {
             const remainingBatches = Number(deleteRefs?.remaining_batches ?? deleteRefs?.batches ?? 0);
             const hasActiveReservations = activeReservations > 0;
             const hasInternalSetupOnly = !deleteRefs?.has_any && !!deleteRefs?.has_internal_setup_only;
-            const deleteNameConfirmed = !!deleteTarget && normalizeForSearch(deleteConfirmName) === normalizeForSearch(deleteTarget.name);
+            const cleanConfirmName = String(deleteConfirmName ?? "").normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim();
+            const cleanTargetName = String(deleteTarget?.name ?? "").normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim();
+            const deleteNameConfirmed = !!deleteTarget && normalizeForSearch(cleanConfirmName) === normalizeForSearch(cleanTargetName);
 
             return (
               <>
@@ -1103,7 +1123,7 @@ export default function Inventory() {
                               تأكيد الاسم
                             </Button>
                           </div>
-                          <p className="mt-2 text-xs text-muted-foreground">زر الحذف النهائي هيتفعل بعد كتابة الاسم أو الضغط على تأكيد الاسم.</p>
+                          <p className="mt-2 text-xs text-muted-foreground">لو الاسم اتكتب بشكل مختلف، اضغط حذف نهائي مرة واحدة وهيجهّز الاسم، واضغطه مرة تانية للتأكيد.</p>
                         </div>
                       )}
                     </>
@@ -1130,7 +1150,7 @@ export default function Inventory() {
                         <Button
                           variant="destructive"
                           className="gap-1.5 min-w-[120px]"
-                          disabled={deleteBusy || !deleteNameConfirmed}
+                          disabled={deleteBusy}
                           onClick={doHardDelete}
                         >
                           {deleteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
