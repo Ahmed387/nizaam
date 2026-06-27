@@ -1030,7 +1030,7 @@ export default function Inventory() {
                       </div>
 
                       <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm leading-relaxed text-foreground">
-                        <span className="font-extrabold text-success">الحل الآمن: أرشفة المنتج</span> — هيختفي من المخزون والـ POS، والفواتير القديمة هتفضل سليمة ويمكن استرجاعه من تبويب المؤرشفة.
+                        <span className="font-extrabold text-success">الحل الآمن: أرشفة المنتج</span> — هيختفي من المخزون ومن شاشة البيع (الشاشة اللي الكاشير بيعمل منها فواتير البيع للعملاء)، والفواتير القديمة هتفضل سليمة ويمكن استرجاعه من تبويب المؤرشفة.
                       </div>
 
                       {hasActiveReservations && (
