@@ -207,73 +207,83 @@ export default function Inventory() {
       />
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
-        <TabsList>
+        <TabsList className="flex flex-wrap gap-1 h-auto">
           <TabsTrigger value="products">الأصناف المتاحة في المخزن</TabsTrigger>
           <TabsTrigger value="transfers">نقل المخزون بين الفروع</TabsTrigger>
-          <TabsTrigger value="adjustments">
-            <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزن في الفرع
-            <HoverCard openDelay={150}>
-              <HoverCardTrigger asChild>
-                <span
-                  role="button"
-                  tabIndex={0}
+          <div className="inline-flex items-center">
+            <TabsTrigger value="adjustments" className="rounded-l-none">
+              <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزن في الفرع
+            </TabsTrigger>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center mr-1 text-muted-foreground hover:text-primary cursor-help"
+                  className="h-9 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
                   aria-label="ما هي تسوية المخزن في الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
-                </span>
-              </HoverCardTrigger>
-              <HoverCardContent dir="rtl" className="max-w-[280px] text-right p-4" side="bottom" align="end">
-                <div className="space-y-3">
-                  <div className="text-base font-bold text-foreground leading-tight">تسوية المخزن في الفرع</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                </button>
+              </PopoverTrigger>
+              <PopoverContent dir="rtl" className="w-[320px] text-right p-0 overflow-hidden" side="bottom" align="start" sideOffset={8}>
+                <div className="bg-primary/10 border-b border-border px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-primary" />
+                    <div className="text-sm font-bold text-foreground">تسوية المخزن في الفرع</div>
+                  </div>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-foreground leading-relaxed">
                     حركة تصحيحية لتعديل كمية المنتج في النظام حتى تطابق الكمية الفعلية على أرض الواقع.
                   </p>
-                  <div className="border-r-2 border-primary/30 pr-3 py-1 text-xs text-muted-foreground leading-relaxed">
-                    <span className="font-semibold text-foreground">مثال:</span>
-                    <br />
-                    النظام يسجّل 100 قطعة، والفعلي 95 → تسوية تنقص 5 قطع لتصحيح الرصيد.
+                  <div className="rounded-md bg-muted/50 border border-border p-3 text-xs leading-relaxed">
+                    <div className="font-semibold text-foreground mb-1">مثال:</div>
+                    <div className="text-muted-foreground">النظام يسجّل 100 قطعة، والفعلي 95 → تسوية تنقص 5 قطع لتصحيح الرصيد.</div>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed pt-1 border-t border-border">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     تُستخدم بعد الجرد لمعالجة الفروقات (هالك، سرقة، خطأ إدخال...).
                   </p>
                 </div>
-              </HoverCardContent>
-            </HoverCard>
-          </TabsTrigger>
-          <TabsTrigger value="count">
-            <ClipboardCheck className="w-4 h-4 ml-1" /> جرد الفرع
-            <HoverCard openDelay={150}>
-              <HoverCardTrigger asChild>
-                <span
-                  role="button"
-                  tabIndex={0}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="inline-flex items-center">
+            <TabsTrigger value="count" className="rounded-l-none">
+              <ClipboardCheck className="w-4 h-4 ml-1" /> جرد الفرع
+            </TabsTrigger>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center mr-1 text-muted-foreground hover:text-primary cursor-help"
+                  className="h-9 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
                   aria-label="ما هو جرد الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
-                </span>
-              </HoverCardTrigger>
-              <HoverCardContent dir="rtl" className="max-w-[280px] text-right p-4" side="bottom" align="end">
-                <div className="space-y-3">
-                  <div className="text-base font-bold text-foreground leading-tight">جرد الفرع</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                </button>
+              </PopoverTrigger>
+              <PopoverContent dir="rtl" className="w-[320px] text-right p-0 overflow-hidden" side="bottom" align="start" sideOffset={8}>
+                <div className="bg-primary/10 border-b border-border px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4 text-primary" />
+                    <div className="text-sm font-bold text-foreground">جرد الفرع</div>
+                  </div>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-foreground leading-relaxed">
                     عملية عدّ فعلي للبضاعة في المخزن ومقارنتها بأرصدة النظام لاكتشاف أي فروقات.
                   </p>
-                  <div className="border-r-2 border-primary/30 pr-3 py-1 text-xs text-muted-foreground leading-relaxed">
-                    <span className="font-semibold text-foreground">مثال:</span>
-                    <br />
-                    أمين المخزن يعد 95 قطعة، والنظام يسجّل 100 → فرق -5 يُراجع ثم تُسوّى.
+                  <div className="rounded-md bg-muted/50 border border-border p-3 text-xs leading-relaxed">
+                    <div className="font-semibold text-foreground mb-1">مثال:</div>
+                    <div className="text-muted-foreground">أمين المخزن يعد 95 قطعة، والنظام يسجّل 100 → فرق -5 يُراجع ثم تُسوّى.</div>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed pt-1 border-t border-border">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     يمكنك أيضاً عرض الرصيد التاريخي لأي منتج ومقارنته بالواقع.
                   </p>
                 </div>
-              </HoverCardContent>
-            </HoverCard>
-          </TabsTrigger>
+              </PopoverContent>
+            </Popover>
+          </div>
         </TabsList>
 
         <TabsContent value="products" className="mt-4">
