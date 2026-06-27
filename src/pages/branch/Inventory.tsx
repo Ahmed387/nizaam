@@ -690,6 +690,44 @@ export default function Inventory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!detailsEdit} onOpenChange={(o) => !o && !savingDetails && setDetailsEdit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {detailsField === "name" ? "تعديل اسم المنتج" : "تعديل كود الصنف"}
+            </DialogTitle>
+          </DialogHeader>
+          {detailsEdit && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                {detailsField === "name" ? "الاسم الحالي" : "الكود الحالي"}: <span className="font-bold text-foreground">{detailsField === "name" ? detailsEdit.name : detailsEdit.sku}</span>
+              </div>
+              <div>
+                <Label>{detailsField === "name" ? "الاسم الجديد *" : "الكود الجديد *"}</Label>
+                <Input
+                  autoFocus
+                  value={detailsValue}
+                  onChange={(e) => setDetailsValue(e.target.value)}
+                  className={`mt-1.5 ${detailsField === "sku" ? "font-mono" : ""}`}
+                  placeholder={detailsField === "name" ? "اسم المنتج" : "كود الصنف"}
+                />
+              </div>
+              {detailsField === "sku" && (
+                <div className="text-[11px] text-warning bg-warning/10 border border-warning/30 rounded p-2">
+                  ⚠️ تغيير كود الصنف قد يؤثر على الباركود والمستندات السابقة. الكود يجب أن يكون فريداً.
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsEdit(null)} disabled={savingDetails}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveDetails} disabled={savingDetails}>
+              {savingDetails && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
