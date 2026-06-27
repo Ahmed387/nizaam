@@ -271,7 +271,7 @@ export default function Inventory() {
         title = "الشحنات / التحويلات";
         const { data, error } = await supabase
           .from("shipment_items" as any)
-          .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name), status, created_at)")
+          .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name), arrival_date, created_at)")
           .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
@@ -1162,8 +1162,8 @@ export default function Inventory() {
                       { key: "from", header: "من", render: (r: any) => r.shipment?.source_branch?.name ?? "—" },
                       { key: "to", header: "إلى", render: (r: any) => r.shipment?.destination_branch?.name ?? "—" },
                       { key: "quantity", header: "الكمية المنقولة", render: (r: any) => Number(r.quantity).toLocaleString() },
-                      { key: "shipment.status", header: "الحالة", render: (r: any) => r.shipment?.status === "received" ? "تم الاستلام" : r.shipment?.status === "sent" ? "مرسلة" : r.shipment?.status },
-                      { key: "shipment.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.shipment?.created_at) },
+                      { key: "shipment.arrival_date", header: "تاريخ الشحنة", render: (r: any) => r.shipment?.arrival_date ? new Date(r.shipment.arrival_date).toLocaleDateString("ar-EG") : "—" },
+                      { key: "shipment.created_at", header: "تاريخ التسجيل", render: (r: any) => formatDateTime(r.shipment?.created_at) },
                     ];
                   }
                   if (type === "sale_returns" || type === "purchase_returns") {
