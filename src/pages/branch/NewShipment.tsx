@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
@@ -70,6 +71,7 @@ export default function NewShipment() {
   const [affectedBatches, setAffectedBatches] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
+  useUnsavedChanges(lines.length > 0, "لديك فاتورة شراء غير محفوظة. هل تريد المغادرة وفقدان البيانات؟");
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
   const [supplierDlg, setSupplierDlg] = useState(false);
   const [newSup, setNewSup] = useState({ name: "", contact_person: "", phone: "", address: "" });

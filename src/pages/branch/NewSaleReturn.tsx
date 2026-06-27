@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
@@ -54,6 +55,8 @@ export default function NewSaleReturn() {
   const [notes, setNotes] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
+  useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع بيع غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
+
 
   // Refund
   const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([]);

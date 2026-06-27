@@ -479,7 +479,13 @@ export default function Inventory() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => {
+        if (!o) {
+          const dirty = !!(form.name || form.cost_price || form.selling_price || form.market_price || form.image || (form.quantity && form.quantity !== "0") || form.category_id);
+          if (dirty && !window.confirm("لديك بيانات منتج لم يتم حفظها. هل تريد الإغلاق وفقدانها؟")) return;
+        }
+        setOpen(o);
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>إضافة منتج جديد</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4">
@@ -513,7 +519,7 @@ export default function Inventory() {
             
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" }); setOpen(false); }}>إلغاء</Button>
             <Button className="btn-gradient" onClick={submit}>إضافة</Button>
           </DialogFooter>
         </DialogContent>

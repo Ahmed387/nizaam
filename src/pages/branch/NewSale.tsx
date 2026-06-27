@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
@@ -87,6 +88,7 @@ export default function NewSale() {
   const [scheduleType, setScheduleType] = useState<"open" | "scheduled">("open");
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [transferFees, setTransferFees] = useState<TransferFee[]>([]);
+  useUnsavedChanges(items.length > 0, "لديك فاتورة بيع غير محفوظة. هل تريد المغادرة وفقدان البيانات؟");
   const [newCustOpen, setNewCustOpen] = useState(false);
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
