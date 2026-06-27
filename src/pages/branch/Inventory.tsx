@@ -66,6 +66,8 @@ export default function Inventory() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  // Reference detail drill-down
+  const [refDetail, setRefDetail] = useState<{ type: string; title: string; rows: any[]; loading: boolean } | null>(null);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
   const canHardDelete = isAdmin;
