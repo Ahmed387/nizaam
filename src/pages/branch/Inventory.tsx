@@ -510,29 +510,10 @@ export default function Inventory() {
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="outline" className="h-8">
-                                  <Settings2 className="w-3.5 h-3.5 ml-1" /> تعديل
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel className="text-right">تعديل بيانات المنتج</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => openDetailsEdit(r, "name")} className="gap-2 cursor-pointer">
-                                  <Type className="w-4 h-4 text-primary" /> تعديل اسم المنتج
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openDetailsEdit(r, "sku")} className="gap-2 cursor-pointer">
-                                  <Hash className="w-4 h-4 text-primary" /> تعديل كود الصنف
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openQtyEdit(r)} className="gap-2 cursor-pointer">
-                                  <Package className="w-4 h-4 text-primary" /> تعديل الكمية
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setPriceEdit(r)} className="gap-2 cursor-pointer">
-                                  <Tag className="w-4 h-4 text-primary" /> تعديل سعر المنتج
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
+                              <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
+                            </Button>
+
                             <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
                               <History className="w-3.5 h-3.5 ml-1" /> تاريخ
                             </Button>
