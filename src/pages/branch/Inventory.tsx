@@ -15,8 +15,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil } from "lucide-react";
+
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
@@ -51,16 +51,15 @@ export default function Inventory() {
     low_stock_alert: "5", quantity: "0", image: "",
   });
   const [uploading, setUploading] = useState(false);
-  const [priceEdit, setPriceEdit] = useState<any>(null);
   const [historyFor, setHistoryFor] = useState<any>(null);
-  const [qtyEdit, setQtyEdit] = useState<any>(null);
-  const [qtyValue, setQtyValue] = useState<string>("0");
-  const [qtyNotes, setQtyNotes] = useState<string>("");
-  const [savingQty, setSavingQty] = useState(false);
-  const [detailsEdit, setDetailsEdit] = useState<any>(null);
-  const [detailsField, setDetailsField] = useState<"name" | "sku">("name");
-  const [detailsValue, setDetailsValue] = useState<string>("");
-  const [savingDetails, setSavingDetails] = useState(false);
+  const [editAll, setEditAll] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    name: "", sku: "", quantity: "0",
+    cost_price: "", selling_price: "", market_price: "",
+    qty_notes: "", price_reason: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
@@ -95,68 +94,102 @@ export default function Inventory() {
   }, [branchId]);
   useRealtimeRefresh(["products", "categories", "stock_adjustments", "product_batches"], load);
 
-  const openQtyEdit = (r: any) => {
-    setQtyEdit(r);
-    setQtyValue(String(r.quantity ?? 0));
-    setQtyNotes("");
+  const openEditAll = (r: any) => {
+    setEditAll(r);
+    setEditForm({
+      name: String(r.name ?? ""),
+      sku: String(r.sku ?? ""),
+      quantity: String(r.quantity ?? 0),
+      cost_price: String(r.cost_price ?? ""),
+      selling_price: String(r.selling_price ?? ""),
+      market_price: String(r.market_price ?? ""),
+      qty_notes: "",
+      price_reason: "",
+    });
   };
-  const saveQty = async () => {
-    if (!qtyEdit) return;
-    const newQty = Number(qtyValue);
+
+  const saveEditAll = async () => {
+    if (!editAll) return;
+    const name = editForm.name.trim();
+    const sku = editForm.sku.trim();
+    if (!name) return toast.error("اسم المنتج مطلوب");
+    if (!sku) return toast.error("كود الصنف مطلوب");
+
+    const newQty = Number(editForm.quantity);
     if (!Number.isFinite(newQty) || newQty < 0) return toast.error("الكمية غير صالحة");
-    if (newQty === Number(qtyEdit.quantity)) {
-      setQtyEdit(null);
+
+    const nameChanged = name !== String(editAll.name ?? "");
+    const skuChanged = sku !== String(editAll.sku ?? "");
+    const qtyChanged = newQty !== Number(editAll.quantity);
+    const costChanged = Number(editForm.cost_price) !== Number(editAll.cost_price ?? 0);
+    const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
+    const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
+    const priceChanged = costChanged || sellChanged || marketChanged;
+
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged) {
+      setEditAll(null);
       return;
     }
-    setSavingQty(true);
-    const { error } = await supabase.rpc("admin_set_product_quantity", {
-      p_product_id: qtyEdit.id,
-      p_actual_quantity: newQty,
-      p_reason: "manual_edit",
-      p_notes: qtyNotes || null,
-    });
-    setSavingQty(false);
-    if (error) return toast.error(error.message);
-    await logAudit({
-      userId: user!.id, userName: profile!.name, branchId,
-      action: "UPDATE", entity: "Product", entityId: qtyEdit.id,
-      details: { name: qtyEdit.name, old_qty: qtyEdit.quantity, new_qty: newQty, reason: "manual_edit" },
-    });
-    toast.success("تم تعديل الكمية وتسجيل تسوية");
-    setQtyEdit(null);
+    if (priceChanged && editForm.price_reason.trim().length < 10) {
+      return toast.error("يجب إدخال سبب تعديل السعر (10 أحرف على الأقل)");
+    }
+
+    setSavingEdit(true);
+
+    // 1) Name / SKU
+    if (nameChanged || skuChanged) {
+      const patch: any = {};
+      if (nameChanged) patch.name = name;
+      if (skuChanged) patch.sku = sku;
+      const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
+      if (error) {
+        setSavingEdit(false);
+        if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {
+          return toast.error("كود الصنف مستخدم بالفعل، اختر كود مختلف");
+        }
+        return toast.error(error.message);
+      }
+      await logAudit({
+        userId: user!.id, userName: profile!.name, branchId,
+        action: "UPDATE", entity: "Product", entityId: editAll.id,
+        details: { name_old: editAll.name, name_new: nameChanged ? name : undefined, sku_old: editAll.sku, sku_new: skuChanged ? sku : undefined },
+      });
+    }
+
+    // 2) Prices
+    if (priceChanged) {
+      const { error } = await supabase.rpc("update_product_price_with_reason" as any, {
+        _product_id: editAll.id,
+        _selling_price: editForm.selling_price === "" ? null : Number(editForm.selling_price),
+        _cost_price: editForm.cost_price === "" ? null : Number(editForm.cost_price),
+        _market_price: editForm.market_price === "" ? null : Number(editForm.market_price),
+        _reason: editForm.price_reason.trim(),
+      });
+      if (error) { setSavingEdit(false); return toast.error(error.message); }
+    }
+
+    // 3) Quantity (last — triggers stock adjustment)
+    if (qtyChanged) {
+      const { error } = await supabase.rpc("admin_set_product_quantity", {
+        p_product_id: editAll.id,
+        p_actual_quantity: newQty,
+        p_reason: "manual_edit",
+        p_notes: editForm.qty_notes || null,
+      });
+      if (error) { setSavingEdit(false); return toast.error(error.message); }
+      await logAudit({
+        userId: user!.id, userName: profile!.name, branchId,
+        action: "UPDATE", entity: "Product", entityId: editAll.id,
+        details: { name: editAll.name, old_qty: editAll.quantity, new_qty: newQty, reason: "manual_edit" },
+      });
+    }
+
+    setSavingEdit(false);
+    toast.success("تم حفظ تعديلات المنتج");
+    setEditAll(null);
     load();
   };
 
-  const openDetailsEdit = (r: any, field: "name" | "sku") => {
-    setDetailsEdit(r);
-    setDetailsField(field);
-    setDetailsValue(String(field === "name" ? (r.name ?? "") : (r.sku ?? "")));
-  };
-  const saveDetails = async () => {
-    if (!detailsEdit) return;
-    const val = detailsValue.trim();
-    if (!val) return toast.error(detailsField === "name" ? "اسم المنتج مطلوب" : "كود الصنف مطلوب");
-    const oldVal = detailsField === "name" ? detailsEdit.name : detailsEdit.sku;
-    if (val === String(oldVal ?? "")) { setDetailsEdit(null); return; }
-    setSavingDetails(true);
-    const patch: any = detailsField === "name" ? { name: val } : { sku: val };
-    const { error } = await supabase.from("products").update(patch).eq("id", detailsEdit.id);
-    setSavingDetails(false);
-    if (error) {
-      if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {
-        return toast.error("كود الصنف مستخدم بالفعل، اختر كود مختلف");
-      }
-      return toast.error(error.message);
-    }
-    await logAudit({
-      userId: user!.id, userName: profile!.name, branchId,
-      action: "UPDATE", entity: "Product", entityId: detailsEdit.id,
-      details: { field: detailsField, old: oldVal, new: val },
-    });
-    toast.success(detailsField === "name" ? "تم تعديل اسم المنتج" : "تم تعديل كود الصنف");
-    setDetailsEdit(null);
-    load();
-  };
 
   const filtered = rows.filter((p) => {
     if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
@@ -411,29 +444,10 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج">
-                                    <Settings2 className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
-                                  <DropdownMenuLabel className="text-right">تعديل بيانات المنتج</DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => openDetailsEdit(r, "name")} className="gap-2 cursor-pointer">
-                                    <Type className="w-4 h-4 text-primary" /> تعديل اسم المنتج
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => openDetailsEdit(r, "sku")} className="gap-2 cursor-pointer">
-                                    <Hash className="w-4 h-4 text-primary" /> تعديل كود الصنف
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => openQtyEdit(r)} className="gap-2 cursor-pointer">
-                                    <Package className="w-4 h-4 text-primary" /> تعديل الكمية
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => setPriceEdit(r)} className="gap-2 cursor-pointer">
-                                    <Tag className="w-4 h-4 text-primary" /> تعديل سعر المنتج
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
                                 <History className="w-4 h-4" />
                               </Button>
@@ -496,29 +510,10 @@ export default function Inventory() {
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="outline" className="h-8">
-                                  <Settings2 className="w-3.5 h-3.5 ml-1" /> تعديل
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel className="text-right">تعديل بيانات المنتج</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => openDetailsEdit(r, "name")} className="gap-2 cursor-pointer">
-                                  <Type className="w-4 h-4 text-primary" /> تعديل اسم المنتج
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openDetailsEdit(r, "sku")} className="gap-2 cursor-pointer">
-                                  <Hash className="w-4 h-4 text-primary" /> تعديل كود الصنف
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openQtyEdit(r)} className="gap-2 cursor-pointer">
-                                  <Package className="w-4 h-4 text-primary" /> تعديل الكمية
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setPriceEdit(r)} className="gap-2 cursor-pointer">
-                                  <Tag className="w-4 h-4 text-primary" /> تعديل سعر المنتج
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
+                              <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
+                            </Button>
+
                             <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
                               <History className="w-3.5 h-3.5 ml-1" /> تاريخ
                             </Button>
@@ -638,15 +633,6 @@ export default function Inventory() {
         }}
       />
 
-      {priceEdit && (
-        <PriceEditDialog
-          open={!!priceEdit}
-          onOpenChange={(o) => !o && setPriceEdit(null)}
-          product={priceEdit}
-          onSaved={load}
-        />
-      )}
-
       <Dlg open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
         <DlgContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DlgHeader><DlgTitle>تاريخ أسعار: {historyFor?.name}</DlgTitle></DlgHeader>
@@ -654,80 +640,116 @@ export default function Inventory() {
         </DlgContent>
       </Dlg>
 
-      <Dialog open={!!qtyEdit} onOpenChange={(o) => !o && !savingQty && setQtyEdit(null)}>
-        <DialogContent className="max-w-md">
+      {/* Unified Product Edit Form */}
+      <Dialog open={!!editAll} onOpenChange={(o) => !o && !savingEdit && setEditAll(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>تعديل كمية: {qtyEdit?.name}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Pencil className="w-5 h-5 text-primary" />
+              تعديل بيانات المنتج
+            </DialogTitle>
           </DialogHeader>
-          {qtyEdit && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                الكمية الحالية: <span className="font-bold text-foreground">{qtyEdit.quantity}</span>
+          {editAll && (() => {
+            const newQtyNum = Number(editForm.quantity);
+            const diff = Number.isFinite(newQtyNum) ? newQtyNum - Number(editAll.quantity) : 0;
+            const qtyChanged = diff !== 0;
+            const costChanged = Number(editForm.cost_price) !== Number(editAll.cost_price ?? 0);
+            const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
+            const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
+            const priceChanged = costChanged || sellChanged || marketChanged;
+            return (
+              <div className="space-y-5">
+                {/* Section: Basic info */}
+                <div className="space-y-3">
+                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
+                    <Type className="w-4 h-4" /> البيانات الأساسية
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>اسم المنتج *</Label>
+                      <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label>كود الصنف (SKU) *</Label>
+                      <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="mt-1.5 font-mono" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Quantity */}
+                <div className="space-y-3">
+                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
+                    <Package className="w-4 h-4" /> الكمية في المخزن
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>الكمية الحالية</Label>
+                      <Input value={editAll.quantity} disabled className="mt-1.5 bg-muted/50" />
+                    </div>
+                    <div>
+                      <Label>الكمية الجديدة</Label>
+                      <Input type="number" min="0" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="mt-1.5" />
+                      {qtyChanged && (
+                        <p className="text-xs mt-1">
+                          الفرق:{" "}
+                          <span className={diff > 0 ? "text-success font-bold" : "text-destructive font-bold"}>
+                            {diff > 0 ? "+" : ""}{diff}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {qtyChanged && (
+                    <>
+                      <div>
+                        <Label>ملاحظات تعديل الكمية (اختياري)</Label>
+                        <Textarea value={editForm.qty_notes} onChange={(e) => setEditForm({ ...editForm, qty_notes: e.target.value })} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
+                      </div>
+                      <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
+                        ⚠️ هيتم تسجيل تسوية مخزون رسمية. FIFO عند النقص، دفعة جديدة عند الزيادة.
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Section: Prices */}
+                <div className="space-y-3">
+                  <div className="text-sm font-bold text-primary flex items-center gap-2 border-b pb-1">
+                    <Tag className="w-4 h-4" /> الأسعار
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label>سعر الشراء</Label>
+                      <Input type="number" step="0.01" value={editForm.cost_price} onChange={(e) => setEditForm({ ...editForm, cost_price: e.target.value })} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label>سعر البيع</Label>
+                      <Input type="number" step="0.01" value={editForm.selling_price} onChange={(e) => setEditForm({ ...editForm, selling_price: e.target.value })} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label>سعر السوق</Label>
+                      <Input type="number" step="0.01" value={editForm.market_price} onChange={(e) => setEditForm({ ...editForm, market_price: e.target.value })} className="mt-1.5" />
+                    </div>
+                  </div>
+                  {priceChanged && (
+                    <div>
+                      <Label>سبب تعديل السعر * <span className="text-xs text-muted-foreground">(10 أحرف على الأقل)</span></Label>
+                      <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} className="mt-1.5" rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <Label>الكمية الجديدة *</Label>
-                <Input type="number" min="0" value={qtyValue} onChange={(e) => setQtyValue(e.target.value)} className="mt-1.5" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  الفرق: <span className={Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "text-success font-bold" : Number(qtyValue) - Number(qtyEdit.quantity) < 0 ? "text-destructive font-bold" : ""}>
-                    {Number(qtyValue) - Number(qtyEdit.quantity) > 0 ? "+" : ""}{Number(qtyValue) - Number(qtyEdit.quantity)}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <Label>ملاحظات (اختياري)</Label>
-                <Textarea value={qtyNotes} onChange={(e) => setQtyNotes(e.target.value)} className="mt-1.5" rows={2} placeholder="سبب التعديل…" />
-              </div>
-              <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2">
-                ⚠️ هيتم تسجيل تسوية مخزون رسمية. لو نقّصت، النظام بيخصم بنظام FIFO من الدفعات. لو زوّدت، بتتعمل دفعة جديدة بسعر تكلفة المنتج الحالي.
-              </div>
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setQtyEdit(null)} disabled={savingQty}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={saveQty} disabled={savingQty}>
-              {savingQty && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
+            <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveEditAll} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!detailsEdit} onOpenChange={(o) => !o && !savingDetails && setDetailsEdit(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {detailsField === "name" ? "تعديل اسم المنتج" : "تعديل كود الصنف"}
-            </DialogTitle>
-          </DialogHeader>
-          {detailsEdit && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                {detailsField === "name" ? "الاسم الحالي" : "الكود الحالي"}: <span className="font-bold text-foreground">{detailsField === "name" ? detailsEdit.name : detailsEdit.sku}</span>
-              </div>
-              <div>
-                <Label>{detailsField === "name" ? "الاسم الجديد *" : "الكود الجديد *"}</Label>
-                <Input
-                  autoFocus
-                  value={detailsValue}
-                  onChange={(e) => setDetailsValue(e.target.value)}
-                  className={`mt-1.5 ${detailsField === "sku" ? "font-mono" : ""}`}
-                  placeholder={detailsField === "name" ? "اسم المنتج" : "كود الصنف"}
-                />
-              </div>
-              {detailsField === "sku" && (
-                <div className="text-[11px] text-warning bg-warning/10 border border-warning/30 rounded p-2">
-                  ⚠️ تغيير كود الصنف قد يؤثر على الباركود والمستندات السابقة. الكود يجب أن يكون فريداً.
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsEdit(null)} disabled={savingDetails}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={saveDetails} disabled={savingDetails}>
-              {savingDetails && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </BranchLayout>
   );
 }
