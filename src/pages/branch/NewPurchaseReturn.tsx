@@ -58,6 +58,8 @@ export default function NewPurchaseReturn() {
   const [notes, setNotes] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
+  useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
+
 
   // Refund
   const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([]);
