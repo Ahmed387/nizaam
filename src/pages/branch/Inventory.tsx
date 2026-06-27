@@ -21,6 +21,7 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import StockTransfers from "./StockTransfers";
 import Sessions from "./inventory-count/Sessions";
 import { HistoricalStockPanel } from "@/components/HistoricalStockPanel";
