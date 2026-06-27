@@ -15,7 +15,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3 } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
@@ -56,6 +57,10 @@ export default function Inventory() {
   const [qtyValue, setQtyValue] = useState<string>("0");
   const [qtyNotes, setQtyNotes] = useState<string>("");
   const [savingQty, setSavingQty] = useState(false);
+  const [detailsEdit, setDetailsEdit] = useState<any>(null);
+  const [detailsField, setDetailsField] = useState<"name" | "sku">("name");
+  const [detailsValue, setDetailsValue] = useState<string>("");
+  const [savingDetails, setSavingDetails] = useState(false);
 
   const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
 
@@ -119,6 +124,37 @@ export default function Inventory() {
     });
     toast.success("تم تعديل الكمية وتسجيل تسوية");
     setQtyEdit(null);
+    load();
+  };
+
+  const openDetailsEdit = (r: any, field: "name" | "sku") => {
+    setDetailsEdit(r);
+    setDetailsField(field);
+    setDetailsValue(String(field === "name" ? (r.name ?? "") : (r.sku ?? "")));
+  };
+  const saveDetails = async () => {
+    if (!detailsEdit) return;
+    const val = detailsValue.trim();
+    if (!val) return toast.error(detailsField === "name" ? "اسم المنتج مطلوب" : "كود الصنف مطلوب");
+    const oldVal = detailsField === "name" ? detailsEdit.name : detailsEdit.sku;
+    if (val === String(oldVal ?? "")) { setDetailsEdit(null); return; }
+    setSavingDetails(true);
+    const patch: any = detailsField === "name" ? { name: val } : { sku: val };
+    const { error } = await supabase.from("products").update(patch).eq("id", detailsEdit.id);
+    setSavingDetails(false);
+    if (error) {
+      if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {
+        return toast.error("كود الصنف مستخدم بالفعل، اختر كود مختلف");
+      }
+      return toast.error(error.message);
+    }
+    await logAudit({
+      userId: user!.id, userName: profile!.name, branchId,
+      action: "UPDATE", entity: "Product", entityId: detailsEdit.id,
+      details: { field: detailsField, old: oldVal, new: val },
+    });
+    toast.success(detailsField === "name" ? "تم تعديل اسم المنتج" : "تم تعديل كود الصنف");
+    setDetailsEdit(null);
     load();
   };
 
@@ -208,19 +244,19 @@ export default function Inventory() {
       />
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
-        <TabsList className="flex flex-wrap gap-1 h-auto">
-          <TabsTrigger value="products">الأصناف المتاحة في المخزن</TabsTrigger>
-          <TabsTrigger value="transfers">نقل المخزون بين الفروع</TabsTrigger>
+        <TabsList className="flex flex-wrap gap-1 h-auto p-1.5">
+          <TabsTrigger value="products" className="text-base font-bold px-4 py-2">الأصناف المتاحة في المخزن</TabsTrigger>
+          <TabsTrigger value="transfers" className="text-base font-bold px-4 py-2">نقل المخزون بين الفروع</TabsTrigger>
           <div className="inline-flex items-center">
-            <TabsTrigger value="adjustments" className="rounded-l-none">
-              <ClipboardList className="w-4 h-4 ml-1" /> تسوية المخزن في الفرع
+            <TabsTrigger value="adjustments" className="text-base font-bold px-4 py-2 rounded-l-none">
+              <ClipboardList className="w-5 h-5 ml-1.5" /> تسوية المخزن في الفرع
             </TabsTrigger>
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="h-9 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                  className="h-10 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
                   aria-label="ما هي تسوية المخزن في الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
@@ -249,15 +285,15 @@ export default function Inventory() {
             </Popover>
           </div>
           <div className="inline-flex items-center">
-            <TabsTrigger value="count" className="rounded-l-none">
-              <ClipboardCheck className="w-4 h-4 ml-1" /> جرد الفرع
+            <TabsTrigger value="count" className="text-base font-bold px-4 py-2 rounded-l-none">
+              <ClipboardCheck className="w-5 h-5 ml-1.5" /> جرد الفرع
             </TabsTrigger>
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="h-9 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                  className="h-10 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-primary rounded-r-md border border-r-0 border-border bg-muted/30 hover:bg-muted/60 transition-colors"
                   aria-label="ما هو جرد الفرع؟"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
@@ -375,12 +411,29 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openQtyEdit(r)} title="تعديل الكمية (تسوية)">
-                                <Edit3 className="w-4 h-4" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPriceEdit(r)} title="تعديل السعر">
-                                <Tag className="w-4 h-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج">
+                                    <Settings2 className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                  <DropdownMenuLabel className="text-right">تعديل بيانات المنتج</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => openDetailsEdit(r, "name")} className="gap-2 cursor-pointer">
+                                    <Type className="w-4 h-4 text-primary" /> تعديل اسم المنتج
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openDetailsEdit(r, "sku")} className="gap-2 cursor-pointer">
+                                    <Hash className="w-4 h-4 text-primary" /> تعديل كود الصنف
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openQtyEdit(r)} className="gap-2 cursor-pointer">
+                                    <Package className="w-4 h-4 text-primary" /> تعديل الكمية
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setPriceEdit(r)} className="gap-2 cursor-pointer">
+                                    <Tag className="w-4 h-4 text-primary" /> تعديل سعر المنتج
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
                                 <History className="w-4 h-4" />
                               </Button>
@@ -390,6 +443,7 @@ export default function Inventory() {
                             </div>
                           )}
                         </td>
+
                       </tr>
                     );
                   })}
@@ -442,12 +496,29 @@ export default function Inventory() {
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => openQtyEdit(r)}>
-                              <Edit3 className="w-3.5 h-3.5 ml-1" /> كمية
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => setPriceEdit(r)}>
-                              <Tag className="w-3.5 h-3.5 ml-1" /> سعر
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline" className="h-8">
+                                  <Settings2 className="w-3.5 h-3.5 ml-1" /> تعديل
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel className="text-right">تعديل بيانات المنتج</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => openDetailsEdit(r, "name")} className="gap-2 cursor-pointer">
+                                  <Type className="w-4 h-4 text-primary" /> تعديل اسم المنتج
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openDetailsEdit(r, "sku")} className="gap-2 cursor-pointer">
+                                  <Hash className="w-4 h-4 text-primary" /> تعديل كود الصنف
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openQtyEdit(r)} className="gap-2 cursor-pointer">
+                                  <Package className="w-4 h-4 text-primary" /> تعديل الكمية
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setPriceEdit(r)} className="gap-2 cursor-pointer">
+                                  <Tag className="w-4 h-4 text-primary" /> تعديل سعر المنتج
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
                               <History className="w-3.5 h-3.5 ml-1" /> تاريخ
                             </Button>
@@ -456,6 +527,7 @@ export default function Inventory() {
                             </Button>
                           </div>
                         )}
+
                       </div>
                     </div>
                   );
@@ -614,6 +686,44 @@ export default function Inventory() {
             <Button variant="outline" onClick={() => setQtyEdit(null)} disabled={savingQty}>إلغاء</Button>
             <Button className="btn-gradient" onClick={saveQty} disabled={savingQty}>
               {savingQty && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailsEdit} onOpenChange={(o) => !o && !savingDetails && setDetailsEdit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {detailsField === "name" ? "تعديل اسم المنتج" : "تعديل كود الصنف"}
+            </DialogTitle>
+          </DialogHeader>
+          {detailsEdit && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                {detailsField === "name" ? "الاسم الحالي" : "الكود الحالي"}: <span className="font-bold text-foreground">{detailsField === "name" ? detailsEdit.name : detailsEdit.sku}</span>
+              </div>
+              <div>
+                <Label>{detailsField === "name" ? "الاسم الجديد *" : "الكود الجديد *"}</Label>
+                <Input
+                  autoFocus
+                  value={detailsValue}
+                  onChange={(e) => setDetailsValue(e.target.value)}
+                  className={`mt-1.5 ${detailsField === "sku" ? "font-mono" : ""}`}
+                  placeholder={detailsField === "name" ? "اسم المنتج" : "كود الصنف"}
+                />
+              </div>
+              {detailsField === "sku" && (
+                <div className="text-[11px] text-warning bg-warning/10 border border-warning/30 rounded p-2">
+                  ⚠️ تغيير كود الصنف قد يؤثر على الباركود والمستندات السابقة. الكود يجب أن يكون فريداً.
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsEdit(null)} disabled={savingDetails}>إلغاء</Button>
+            <Button className="btn-gradient" onClick={saveDetails} disabled={savingDetails}>
+              {savingDetails && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ
             </Button>
           </DialogFooter>
         </DialogContent>
