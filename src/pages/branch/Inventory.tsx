@@ -228,6 +228,111 @@ export default function Inventory() {
     load();
   };
 
+  const loadRefDetails = async (type: string, productId: string) => {
+    setRefDetail({ type, title: "جاري التحميل...", rows: [], loading: true });
+    let rows: any[] = [];
+    let title = "";
+    try {
+      if (type === "batches") {
+        title = "الدفعات ذات الرصيد";
+        const { data, error } = await supabase
+          .from("product_batches" as any)
+          .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name))")
+          .eq("product_id", productId)
+          .gt("quantity_remaining", 0)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "adjustments") {
+        title = "تسويات المخزون";
+        const { data, error } = await supabase
+          .from("stock_adjustment_items" as any)
+          .select("*, adjustment:stock_adjustments(adjustment_number, reason, notes, created_at)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "sales") {
+        title = "فواتير البيع";
+        const { data, error } = await supabase
+          .from("invoice_items" as any)
+          .select("*, invoice:invoices(invoice_number, contact:contacts(name), invoice_date, total)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "purchases") {
+        title = "فواتير الشراء";
+        const { data, error } = await supabase
+          .from("invoice_items" as any)
+          .select("*, invoice:invoices(invoice_number, contact:contacts(name), invoice_date, total)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "shipments") {
+        title = "الشحنات / التحويلات";
+        const { data, error } = await supabase
+          .from("shipment_items" as any)
+          .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name), status, created_at)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "sale_returns") {
+        title = "مرتجعات البيع";
+        const { data, error } = await supabase
+          .from("return_items" as any)
+          .select("*, return:returns(return_number, contact:contacts(name), created_at, total)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "purchase_returns") {
+        title = "مرتجعات الشراء";
+        const { data, error } = await supabase
+          .from("purchase_return_items" as any)
+          .select("*, return:purchase_returns(return_number, contact:contacts(name), created_at, total)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "count_sessions") {
+        title = "جلسات الجرد";
+        const { data, error } = await supabase
+          .from("inventory_session_items" as any)
+          .select("*, session:inventory_sessions(session_number, status, created_at)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "quotes") {
+        title = "عروض الأسعار";
+        const { data, error } = await supabase
+          .from("quote_items" as any)
+          .select("*, quote:quotes(quote_number, contact:contacts(name), created_at, total)")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      } else if (type === "reservations") {
+        title = "الحجوزات النشطة";
+        const { data, error } = await supabase
+          .from("inventory_reservations" as any)
+          .select("*, contact:contacts(name)")
+          .eq("product_id", productId)
+          .eq("status", "active")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        rows = data ?? [];
+      }
+      setRefDetail({ type, title, rows, loading: false });
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل تحميل التفاصيل");
+      setRefDetail(null);
+    }
+  };
+
   const doHardDelete = async () => {
     if (!deleteTarget) return;
     if (deleteConfirmName.trim() !== deleteTarget.name.trim()) return toast.error("اكتب اسم المنتج بالظبط للتأكيد");
