@@ -94,68 +94,102 @@ export default function Inventory() {
   }, [branchId]);
   useRealtimeRefresh(["products", "categories", "stock_adjustments", "product_batches"], load);
 
-  const openQtyEdit = (r: any) => {
-    setQtyEdit(r);
-    setQtyValue(String(r.quantity ?? 0));
-    setQtyNotes("");
+  const openEditAll = (r: any) => {
+    setEditAll(r);
+    setEditForm({
+      name: String(r.name ?? ""),
+      sku: String(r.sku ?? ""),
+      quantity: String(r.quantity ?? 0),
+      cost_price: String(r.cost_price ?? ""),
+      selling_price: String(r.selling_price ?? ""),
+      market_price: String(r.market_price ?? ""),
+      qty_notes: "",
+      price_reason: "",
+    });
   };
-  const saveQty = async () => {
-    if (!qtyEdit) return;
-    const newQty = Number(qtyValue);
+
+  const saveEditAll = async () => {
+    if (!editAll) return;
+    const name = editForm.name.trim();
+    const sku = editForm.sku.trim();
+    if (!name) return toast.error("اسم المنتج مطلوب");
+    if (!sku) return toast.error("كود الصنف مطلوب");
+
+    const newQty = Number(editForm.quantity);
     if (!Number.isFinite(newQty) || newQty < 0) return toast.error("الكمية غير صالحة");
-    if (newQty === Number(qtyEdit.quantity)) {
-      setQtyEdit(null);
+
+    const nameChanged = name !== String(editAll.name ?? "");
+    const skuChanged = sku !== String(editAll.sku ?? "");
+    const qtyChanged = newQty !== Number(editAll.quantity);
+    const costChanged = Number(editForm.cost_price) !== Number(editAll.cost_price ?? 0);
+    const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
+    const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
+    const priceChanged = costChanged || sellChanged || marketChanged;
+
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged) {
+      setEditAll(null);
       return;
     }
-    setSavingQty(true);
-    const { error } = await supabase.rpc("admin_set_product_quantity", {
-      p_product_id: qtyEdit.id,
-      p_actual_quantity: newQty,
-      p_reason: "manual_edit",
-      p_notes: qtyNotes || null,
-    });
-    setSavingQty(false);
-    if (error) return toast.error(error.message);
-    await logAudit({
-      userId: user!.id, userName: profile!.name, branchId,
-      action: "UPDATE", entity: "Product", entityId: qtyEdit.id,
-      details: { name: qtyEdit.name, old_qty: qtyEdit.quantity, new_qty: newQty, reason: "manual_edit" },
-    });
-    toast.success("تم تعديل الكمية وتسجيل تسوية");
-    setQtyEdit(null);
+    if (priceChanged && editForm.price_reason.trim().length < 10) {
+      return toast.error("يجب إدخال سبب تعديل السعر (10 أحرف على الأقل)");
+    }
+
+    setSavingEdit(true);
+
+    // 1) Name / SKU
+    if (nameChanged || skuChanged) {
+      const patch: any = {};
+      if (nameChanged) patch.name = name;
+      if (skuChanged) patch.sku = sku;
+      const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
+      if (error) {
+        setSavingEdit(false);
+        if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {
+          return toast.error("كود الصنف مستخدم بالفعل، اختر كود مختلف");
+        }
+        return toast.error(error.message);
+      }
+      await logAudit({
+        userId: user!.id, userName: profile!.name, branchId,
+        action: "UPDATE", entity: "Product", entityId: editAll.id,
+        details: { name_old: editAll.name, name_new: nameChanged ? name : undefined, sku_old: editAll.sku, sku_new: skuChanged ? sku : undefined },
+      });
+    }
+
+    // 2) Prices
+    if (priceChanged) {
+      const { error } = await supabase.rpc("update_product_price_with_reason" as any, {
+        _product_id: editAll.id,
+        _selling_price: editForm.selling_price === "" ? null : Number(editForm.selling_price),
+        _cost_price: editForm.cost_price === "" ? null : Number(editForm.cost_price),
+        _market_price: editForm.market_price === "" ? null : Number(editForm.market_price),
+        _reason: editForm.price_reason.trim(),
+      });
+      if (error) { setSavingEdit(false); return toast.error(error.message); }
+    }
+
+    // 3) Quantity (last — triggers stock adjustment)
+    if (qtyChanged) {
+      const { error } = await supabase.rpc("admin_set_product_quantity", {
+        p_product_id: editAll.id,
+        p_actual_quantity: newQty,
+        p_reason: "manual_edit",
+        p_notes: editForm.qty_notes || null,
+      });
+      if (error) { setSavingEdit(false); return toast.error(error.message); }
+      await logAudit({
+        userId: user!.id, userName: profile!.name, branchId,
+        action: "UPDATE", entity: "Product", entityId: editAll.id,
+        details: { name: editAll.name, old_qty: editAll.quantity, new_qty: newQty, reason: "manual_edit" },
+      });
+    }
+
+    setSavingEdit(false);
+    toast.success("تم حفظ تعديلات المنتج");
+    setEditAll(null);
     load();
   };
 
-  const openDetailsEdit = (r: any, field: "name" | "sku") => {
-    setDetailsEdit(r);
-    setDetailsField(field);
-    setDetailsValue(String(field === "name" ? (r.name ?? "") : (r.sku ?? "")));
-  };
-  const saveDetails = async () => {
-    if (!detailsEdit) return;
-    const val = detailsValue.trim();
-    if (!val) return toast.error(detailsField === "name" ? "اسم المنتج مطلوب" : "كود الصنف مطلوب");
-    const oldVal = detailsField === "name" ? detailsEdit.name : detailsEdit.sku;
-    if (val === String(oldVal ?? "")) { setDetailsEdit(null); return; }
-    setSavingDetails(true);
-    const patch: any = detailsField === "name" ? { name: val } : { sku: val };
-    const { error } = await supabase.from("products").update(patch).eq("id", detailsEdit.id);
-    setSavingDetails(false);
-    if (error) {
-      if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {
-        return toast.error("كود الصنف مستخدم بالفعل، اختر كود مختلف");
-      }
-      return toast.error(error.message);
-    }
-    await logAudit({
-      userId: user!.id, userName: profile!.name, branchId,
-      action: "UPDATE", entity: "Product", entityId: detailsEdit.id,
-      details: { field: detailsField, old: oldVal, new: val },
-    });
-    toast.success(detailsField === "name" ? "تم تعديل اسم المنتج" : "تم تعديل كود الصنف");
-    setDetailsEdit(null);
-    load();
-  };
 
   const filtered = rows.filter((p) => {
     if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
