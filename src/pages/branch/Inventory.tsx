@@ -198,7 +198,49 @@ export default function Inventory() {
   };
 
 
+  const openDelete = async (r: any) => {
+    setDeleteTarget(r);
+    setDeleteRefs(null);
+    setDeleteConfirmName("");
+    const { data, error } = await supabase.rpc("get_product_references_count" as any, { _product_id: r.id });
+    if (error) { toast.error(error.message); setDeleteTarget(null); return; }
+    setDeleteRefs(data);
+  };
+
+  const doArchive = async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    const { error } = await supabase.rpc("archive_product" as any, { _product_id: deleteTarget.id });
+    setDeleteBusy(false);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "UPDATE", entity: "Product", entityId: deleteTarget.id, details: { action: "archive", name: deleteTarget.name } });
+    toast.success("تم أرشفة المنتج. الفواتير القديمة سليمة 100%.");
+    setDeleteTarget(null); setEditAll(null); load();
+  };
+
+  const doRestore = async (r: any) => {
+    const { error } = await supabase.rpc("restore_product" as any, { _product_id: r.id });
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "UPDATE", entity: "Product", entityId: r.id, details: { action: "restore", name: r.name } });
+    toast.success("تم استرجاع المنتج");
+    load();
+  };
+
+  const doHardDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmName.trim() !== deleteTarget.name.trim()) return toast.error("اكتب اسم المنتج بالظبط للتأكيد");
+    setDeleteBusy(true);
+    const { error } = await supabase.rpc("safe_delete_product" as any, { _product_id: deleteTarget.id });
+    setDeleteBusy(false);
+    if (error) return toast.error(error.message);
+    await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "DELETE", entity: "Product", entityId: deleteTarget.id, details: { name: deleteTarget.name, sku: deleteTarget.sku } });
+    toast.success("تم حذف المنتج نهائياً");
+    setDeleteTarget(null); setEditAll(null); load();
+  };
+
   const filtered = rows.filter((p) => {
+    const isArchived = !!p.archived_at;
+    if (showArchived ? !isArchived : isArchived) return false;
     if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
@@ -206,12 +248,15 @@ export default function Inventory() {
     return true;
   });
 
-  // Counts per status (always reflect full rows, ignoring text search)
+  const archivedCount = rows.filter((p) => p.archived_at).length;
+  const activeRows = rows.filter((p) => !p.archived_at);
+
+  // Counts per status (active products only)
   const statusCounts = {
-    all: rows.length,
-    ok: rows.filter((p) => p.quantity > p.low_stock_alert).length,
-    low: rows.filter((p) => p.quantity > 0 && p.quantity <= p.low_stock_alert).length,
-    out: rows.filter((p) => p.quantity <= 0).length,
+    all: activeRows.length,
+    ok: activeRows.filter((p) => p.quantity > p.low_stock_alert).length,
+    low: activeRows.filter((p) => p.quantity > 0 && p.quantity <= p.low_stock_alert).length,
+    out: activeRows.filter((p) => p.quantity <= 0).length,
   };
 
   const submit = async () => {
