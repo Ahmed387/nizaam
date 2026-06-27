@@ -248,8 +248,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("stock_adjustment_items" as any)
           .select("*, adjustment:stock_adjustments(adjustment_number, reason, notes, created_at)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "sales") {
@@ -257,8 +256,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("invoice_items" as any)
           .select("*, invoice:invoices(invoice_number, contact:contacts(name), invoice_date, total)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "purchases") {
@@ -266,8 +264,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("invoice_items" as any)
           .select("*, invoice:invoices(invoice_number, contact:contacts(name), invoice_date, total)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "shipments") {
@@ -275,8 +272,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("shipment_items" as any)
           .select("*, shipment:shipments(shipment_number, source_branch:branches(name), destination_branch:branches(name), status, created_at)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "sale_returns") {
@@ -284,8 +280,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("return_items" as any)
           .select("*, return:returns(return_number, contact:contacts(name), created_at, total)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "purchase_returns") {
@@ -293,8 +288,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("purchase_return_items" as any)
           .select("*, return:purchase_returns(return_number, contact:contacts(name), created_at, total)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "count_sessions") {
@@ -311,8 +305,7 @@ export default function Inventory() {
         const { data, error } = await supabase
           .from("quote_items" as any)
           .select("*, quote:quotes(quote_number, contact:contacts(name), created_at, total)")
-          .eq("product_id", productId)
-          .order("created_at", { ascending: false });
+          .eq("product_id", productId);
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "reservations") {
