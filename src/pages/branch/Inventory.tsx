@@ -1011,7 +1011,7 @@ export default function Inventory() {
             const activeReservations = Number(deleteRefs?.active_reservations ?? deleteRefs?.reservations ?? 0);
             const remainingBatches = Number(deleteRefs?.remaining_batches ?? deleteRefs?.batches ?? 0);
             const hasActiveReservations = activeReservations > 0;
-            const hasOpeningStockOnly = !deleteRefs?.has_any && remainingBatches > 0;
+            const hasInternalSetupOnly = !deleteRefs?.has_any && !!deleteRefs?.has_internal_setup_only;
             const deleteNameConfirmed = !!deleteTarget && normalizeForSearch(deleteConfirmName) === normalizeForSearch(deleteTarget.name);
 
             return (
@@ -1082,9 +1082,9 @@ export default function Inventory() {
                       <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm leading-relaxed text-foreground">
                         <span className="font-extrabold text-success">المنتج آمن للحذف</span> — لا توجد عليه فواتير أو حركات مسجلة.
                       </div>
-                      {hasOpeningStockOnly && (
+                      {hasInternalSetupOnly && (
                         <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 text-sm leading-relaxed text-foreground">
-                          يوجد رصيد افتتاحي فقط للمنتج. ده لا يُعتبر حركة بيع أو شراء، والحذف النهائي مسموح وهيحذف الرصيد الافتتاحي مع المنتج.
+                          يوجد رصيد/تسوية داخلية فقط للمنتج. ده لا يُعتبر فاتورة بيع أو شراء أو شحنة، والحذف النهائي مسموح وهيحذف السجلات الداخلية مع المنتج.
                         </div>
                       )}
                       {!canHardDelete && (
@@ -1097,8 +1097,13 @@ export default function Inventory() {
                           <Label className="text-xs font-semibold mb-2 block">
                             اكتب اسم المنتج <span className="font-bold text-foreground">"{deleteTarget.name}"</span> للتأكيد
                           </Label>
-                          <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
-                          <p className="mt-2 text-xs text-muted-foreground">زر الحذف النهائي هيتفعل بعد كتابة الاسم.</p>
+                          <div className="flex gap-2">
+                            <Input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={deleteTarget.name} />
+                            <Button type="button" variant="outline" onClick={() => setDeleteConfirmName(deleteTarget.name)} disabled={deleteBusy}>
+                              تأكيد الاسم
+                            </Button>
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">زر الحذف النهائي هيتفعل بعد كتابة الاسم أو الضغط على تأكيد الاسم.</p>
                         </div>
                       )}
                     </>
