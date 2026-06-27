@@ -479,7 +479,13 @@ export default function Inventory() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => {
+        if (!o) {
+          const dirty = !!(form.name || form.cost_price || form.selling_price || form.market_price || form.image || (form.quantity && form.quantity !== "0") || form.category_id);
+          if (dirty && !window.confirm("لديك بيانات منتج لم يتم حفظها. هل تريد الإغلاق وفقدانها؟")) return;
+        }
+        setOpen(o);
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>إضافة منتج جديد</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4">
