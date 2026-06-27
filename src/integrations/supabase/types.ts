@@ -1998,6 +1998,8 @@ export type Database = {
       }
       products: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           branch_id: string
           category_id: string | null
           cost_price: number
@@ -2017,6 +2019,8 @@ export type Database = {
           tenant_id: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           branch_id: string
           category_id?: string | null
           cost_price?: number
@@ -2036,6 +2040,8 @@ export type Database = {
           tenant_id?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           branch_id?: string
           category_id?: string | null
           cost_price?: number
@@ -3746,6 +3752,7 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: undefined
       }
+      archive_product: { Args: { _product_id: string }; Returns: undefined }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number
@@ -3912,6 +3919,10 @@ export type Database = {
           total_balance: number
           vodafone_balance: number
         }[]
+      }
+      get_product_references_count: {
+        Args: { _product_id: string }
+        Returns: Json
       }
       get_system_category: {
         Args: {
@@ -4120,6 +4131,8 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: undefined
       }
+      restore_product: { Args: { _product_id: string }; Returns: undefined }
+      safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
