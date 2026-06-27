@@ -420,7 +420,17 @@ export default function Inventory() {
                 <SelectItem value="out">🔴 نفد ({statusCounts.out})</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">عرض {filtered.length} من {rows.length}</span>
+            <Button
+              variant={showArchived ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowArchived((v) => !v)}
+              className="gap-1.5"
+              title="عرض المنتجات المؤرشفة"
+            >
+              <Archive className="w-4 h-4" />
+              {showArchived ? "عرض النشطة" : `المؤرشفة (${archivedCount})`}
+            </Button>
+            <span className="text-xs text-muted-foreground">عرض {filtered.length} من {showArchived ? archivedCount : activeRows.length}</span>
           </div>
 
           {/* Desktop table — compact, no horizontal scroll */}
