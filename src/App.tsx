@@ -129,6 +129,7 @@ import InvCountSnapshot from "./pages/branch/inventory-count/Snapshot";
 import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
 import SuperUsers from "./pages/super/AllUsers";
+import AttachmentsHub from "./pages/AttachmentsHub";
 
 const queryClient = new QueryClient();
 
