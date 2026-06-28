@@ -710,19 +710,17 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       </div>
                     </div>
                     <div className="text-left">
-                      <div className={`text-xl font-extrabold ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</div>
-                      <div className="text-[10px] text-muted-foreground">صافي الربح</div>
+                      <div className="text-xl font-extrabold text-primary">{formatEGP(b.totalReceived)}</div>
+                      <div className="text-[10px] text-muted-foreground">إجمالي المتحصلات</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <Row label="الفواتير" value={String(b.invoices)} />
                     <Row label="المبيعات" value={formatEGP(b.sales)} />
-                    <Row label="الربح (FIFO)" value={formatEGP(b.profit)} accent="success" />
-                    <Row label="المصروفات" value={formatEGP(b.expenses)} accent="destructive" />
+                    <Row label="المصروفات التشغيلية" value={formatEGP(b.expenses)} accent="destructive" />
                     <Row label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة`} />
                     <Row label="الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} />
                     <Row label="الموظفين" value={String(b.employees)} />
-                    <Row label="إجمالي المتحصلات" value={formatEGP(b.totalReceived)} accent="success" />
                   </div>
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="text-[10px] font-bold text-muted-foreground mb-2">تفصيل المتحصلات حسب طريقة الدفع</div>
