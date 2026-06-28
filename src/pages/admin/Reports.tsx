@@ -544,15 +544,27 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </div>
 
           <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">المبيعات حسب الكاشير</h4>
+            <h4 className="font-bold mb-1">المبيعات حسب الكاشير / البائع</h4>
+            <p className="text-[11px] text-muted-foreground mb-3">أداء تشغيلي لكل بائع — لتفاصيل الربحية والهامش لكل كاشير، فلتر "الكاشير" متاح في <Link to="/admin/reports-hub?tab=profitability" className="text-primary hover:underline">📊 الربحية</Link></p>
             <DataTable rows={salesByCashier} loading={loading} empty="لا توجد فواتير"
               columns={[
                 { key: "name", header: "الكاشير", render: (r: any) => <b>{r.name}</b> },
                 { key: "count", header: "عدد الفواتير" },
                 { key: "total", header: "الإجمالي", render: (r: any) => <b className="text-primary">{formatEGP(r.total)}</b> },
                 { key: "avg", header: "متوسط الفاتورة", render: (r: any) => formatEGP(r.count > 0 ? r.total / r.count : 0) },
+                { key: "share", header: "نسبة من الإجمالي", render: (r: any) => {
+                  const tot = salesByCashier.reduce((s, c) => s + c.total, 0);
+                  const pct = tot > 0 ? (r.total / tot) * 100 : 0;
+                  return (
+                    <div className="flex items-center gap-2 min-w-[120px]">
+                      <div className="flex-1 h-1.5 bg-surface-2 rounded overflow-hidden"><div className="h-full bg-primary" style={{ width: `${Math.min(100, pct)}%` }} /></div>
+                      <span className="text-xs font-bold tabular-nums w-12 text-end">{pct.toFixed(1)}%</span>
+                    </div>
+                  );
+                } },
               ]} />
           </div>
+
         </TabsContent>
 
         {/* TAB Profitability removed — single source: /admin/reports-hub?tab=profitability (📊 الربحية) */}
