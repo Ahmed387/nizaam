@@ -624,24 +624,24 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         {scope === "global" && (
           <TabsContent value="branches" className="mt-4 space-y-6">
             <div className="card-elevated p-5">
-              <h4 className="font-bold mb-4">مقارنة أداء الفروع</h4>
+              <h4 className="font-bold mb-4">مقارنة الفروع — المبيعات والمصروفات التشغيلية</h4>
               {perBranch.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground text-sm">لا توجد فروع</div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={perBranch.map((b) => ({ name: b.name, مبيعات: b.sales, ربح: b.profit, مصروفات: b.expenses }))}>
+                  <BarChart data={perBranch.map((b) => ({ name: b.name, مبيعات: b.sales, مصروفات: b.expenses }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
                     <Legend />
                     <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="ربح" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="مصروفات" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
+
 
             {/* ===== Per-branch receipts × expenses (operational — net profit moved to 📊 الربحية / 👑 نظرة المالك) ===== */}
             <div className="card-elevated p-0 overflow-hidden">
