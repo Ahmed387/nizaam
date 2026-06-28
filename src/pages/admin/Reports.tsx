@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { lineProfit } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
 import {
   FileSpreadsheet, Printer, ShoppingCart, TrendingUp, TrendingDown,
@@ -51,12 +52,13 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [payTx, setPayTx] = useState<any[]>([]);
   const [overdueIns, setOverdueIns] = useState<any[]>([]);
   const [payPlans, setPayPlans] = useState<any[]>([]);
+  const [invPayments, setInvPayments] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp] = await Promise.all([
+    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("vouchers").select("*, voucher_categories(name)").eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
@@ -73,6 +75,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("payment_transactions").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("payment_installments").select("*, payment_plans!inner(entity_type,entity_name,branch_id)").eq("status", "overdue"),
       supabase.from("payment_plans").select("*").neq("status", "completed"),
+      supabase.from("invoice_payments").select("branch_id, payment_method, amount, created_at").gte("created_at", fromIso).lte("created_at", toIso),
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
@@ -94,6 +97,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     setPayTx(ptx.data ?? []);
     setOverdueIns(oi.data ?? []);
     setPayPlans(pp.data ?? []);
+    setInvPayments(ipay.data ?? []);
     setLoading(false);
   };
 
@@ -151,27 +155,17 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
 
   // ============ Aggregated KPIs for current scope ============
+  // ⚠️ Single source of truth: src/lib/profitEngine.ts → lineProfit()
   const k = useMemo(() => {
     const sales = activeInv.reduce((s, i) => s + Number(i.total), 0);
-    // SINGLE PROFIT FORMULA: SUM((unit_price - unit_cost_at_sale) × net_quantity)
-    // net_quantity = quantity − returned_quantity (DB generated column).
-    // unit_cost_at_sale is captured at sale time via FIFO from product_batches.
-    const cost = activeInv.reduce(
-      (s, i) => s + i.invoice_items.reduce((x: number, it: any) => {
-        const netQty = Number(it.net_quantity ?? (Number(it.quantity) - Number(it.returned_quantity ?? 0)));
-        return x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Math.max(0, netQty);
-      }, 0),
-      0,
-    );
-    const netRevenue = activeInv.reduce(
-      (s, i) => s + i.invoice_items.reduce((x: number, it: any) => {
-        const qty = Number(it.quantity) || 0;
-        const netQty = Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0)));
-        const unitRev = qty > 0 ? Number(it.total) / qty : 0;
-        return x + unitRev * Math.max(0, netQty);
-      }, 0),
-      0,
-    );
+    let cost = 0, netRevenue = 0;
+    for (const inv of activeInv) {
+      for (const it of inv.invoice_items) {
+        const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
+        cost += lp.cost;
+        netRevenue += lp.revenue;
+      }
+    }
     const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
     const inventoryValue = scopedProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
     const inventoryQty = scopedProducts.reduce((s, p) => s + p.quantity, 0);
@@ -194,20 +188,34 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   }, [activeInv, scopedExpenses, scopedProducts, scopedShipments, scopedSupPayments, scopedTreasury, scopedReturns]);
 
   // Per-branch (used in global mode)
+  // ⚠️ Uses lineProfit() — single source of truth for revenue/cost/profit
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
-    // SINGLE PROFIT FORMULA (net_quantity-based) — matches k.profit above
     let cost = 0, netRevenue = 0;
     for (const i of bInv) for (const it of i.invoice_items) {
-      const qty = Number(it.quantity) || 0;
-      const netQty = Math.max(0, Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0))));
-      cost += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * netQty;
-      netRevenue += (qty > 0 ? Number(it.total) / qty : 0) * netQty;
+      const lp = lineProfit(it, { invoiceIsMigrated: !!i.is_migrated });
+      cost += lp.cost;
+      netRevenue += lp.revenue;
     }
     const profit = netRevenue - cost;
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
     const bProducts = products.filter((p) => p.branch_id === b.id);
+
+    // Payments received into treasury, grouped by method (for this branch)
+    const bPays = invPayments.filter((p: any) => p.branch_id === b.id);
+    const methodTotal = (m: string) =>
+      bPays.filter((p: any) => p.payment_method === m).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const cashIn = methodTotal("cash");
+    const walletIn = methodTotal("vodafone") + methodTotal("wallet") + methodTotal("etisalat") + methodTotal("orange");
+    const instapayIn = methodTotal("instapay");
+    const bankIn = methodTotal("bank") + methodTotal("bank_transfer");
+    const creditIn = methodTotal("credit_balance");
+    const otherIn = bPays
+      .filter((p: any) => !["cash","vodafone","wallet","etisalat","orange","instapay","bank","bank_transfer","credit_balance"].includes(p.payment_method))
+      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const totalReceived = cashIn + walletIn + instapayIn + bankIn + creditIn + otherIn;
+
     return {
       ...b,
       invoices: bInv.length, sales, cost, profit,
@@ -218,26 +226,22 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       treasuryBalance:
         treasury.filter((t) => t.branch_id === b.id && t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0) -
         treasury.filter((t) => t.branch_id === b.id && t.type === "payment").reduce((s, t) => s + Number(t.amount), 0),
+      cashIn, walletIn, instapayIn, bankIn, creditIn, otherIn, totalReceived,
     };
-  }), [branches, invoices, expenses, products, employees, treasury]);
+  }), [branches, invoices, expenses, products, employees, treasury, invPayments]);
 
-  // Top products in scope — qty (gross) / returned / net / revenue (net) / profit (net)
+  // Top products in scope — uses lineProfit() (single source of truth)
   const topProductsAll = useMemo(() => {
     const m: Record<string, { name: string; qty: number; returned: number; netQty: number; revenue: number; profit: number }> = {};
     for (const inv of activeInv) for (const it of inv.invoice_items) {
       const key = it.product_name;
       if (!m[key]) m[key] = { name: key, qty: 0, returned: 0, netQty: 0, revenue: 0, profit: 0 };
-      const unitCost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
-      const qty = Number(it.quantity) || 0;
-      const ret = Number(it.returned_quantity ?? 0);
-      const netQty = Math.max(0, Number(it.net_quantity ?? (qty - ret)));
-      const unitRev = qty > 0 ? Number(it.total) / qty : 0;
-      const netRevenue = unitRev * netQty;
-      m[key].qty += qty;
-      m[key].returned += ret;
-      m[key].netQty += netQty;
-      m[key].revenue += netRevenue;
-      m[key].profit += netRevenue - unitCost * netQty;
+      const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
+      m[key].qty += Number(it.quantity) || 0;
+      m[key].returned += Number(it.returned_quantity ?? 0);
+      m[key].netQty += lp.netQty;
+      m[key].revenue += lp.revenue;
+      m[key].profit += lp.profit;
     }
     return Object.values(m);
   }, [activeInv]);
@@ -701,6 +705,66 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               )}
             </div>
 
+            {/* ===== Per-branch receipts × expenses × net profit ===== */}
+            <div className="card-elevated p-0 overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات وصافي الربح</h4>
+                <span className="text-[10px] text-muted-foreground">
+                  المتحصلات من سندات الفاتورة • الربح موحّد من <code className="px-1 rounded bg-muted">profitEngine</code>
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-2 border-b border-border">
+                    <tr>
+                      <th className="px-3 py-2 text-right font-bold">الفرع</th>
+                      <th className="px-3 py-2 text-right">💵 نقدي</th>
+                      <th className="px-3 py-2 text-right">📱 محفظة</th>
+                      <th className="px-3 py-2 text-right">⚡ انستاباي</th>
+                      <th className="px-3 py-2 text-right">🏦 تحويل بنكي</th>
+                      <th className="px-3 py-2 text-right">💳 رصيد عميل</th>
+                      <th className="px-3 py-2 text-right">⋯ أخرى</th>
+                      <th className="px-3 py-2 text-right font-bold bg-primary/5">إجمالي المتحصلات</th>
+                      <th className="px-3 py-2 text-right">المصروفات</th>
+                      <th className="px-3 py-2 text-right font-bold bg-success/5">صافي الربح</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perBranch.map((b) => (
+                      <tr key={b.id} className="border-b border-border hover:bg-surface-2/50 cursor-pointer" onClick={() => setScope(b.id)}>
+                        <td className="px-3 py-2 font-bold">{b.name}<div className="text-[9px] text-muted-foreground font-normal">{b.code}</div></td>
+                        <td className="px-3 py-2">{b.cashIn > 0 ? formatEGP(b.cashIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.walletIn > 0 ? formatEGP(b.walletIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.instapayIn > 0 ? formatEGP(b.instapayIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.bankIn > 0 ? formatEGP(b.bankIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.creditIn > 0 ? formatEGP(b.creditIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.otherIn > 0 ? formatEGP(b.otherIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2 font-bold bg-primary/5">{formatEGP(b.totalReceived)}</td>
+                        <td className="px-3 py-2 text-destructive">{formatEGP(b.expenses)}</td>
+                        <td className={`px-3 py-2 font-extrabold bg-success/5 ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-surface-2 border-t-2 border-border font-extrabold">
+                    <tr>
+                      <td className="px-3 py-2">الإجمالي</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.cashIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.walletIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.instapayIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.bankIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.creditIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.otherIn, 0))}</td>
+                      <td className="px-3 py-2 bg-primary/10">{formatEGP(perBranch.reduce((s, b) => s + b.totalReceived, 0))}</td>
+                      <td className="px-3 py-2 text-destructive">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
+                      <td className={`px-3 py-2 bg-success/10 ${perBranch.reduce((s, b) => s + b.net, 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                        {formatEGP(perBranch.reduce((s, b) => s + b.net, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
             <div className="grid lg:grid-cols-2 gap-4">
               {perBranch.map((b) => (
                 <div key={b.id} className="card-elevated p-5 hover:border-primary/50 transition cursor-pointer" onClick={() => setScope(b.id)}>
@@ -727,6 +791,18 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                     <Row label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة`} />
                     <Row label="الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} />
                     <Row label="الموظفين" value={String(b.employees)} />
+                    <Row label="إجمالي المتحصلات" value={formatEGP(b.totalReceived)} accent="success" />
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <div className="text-[10px] font-bold text-muted-foreground mb-2">تفصيل المتحصلات حسب طريقة الدفع</div>
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                      <PMRow label="💵 نقدي" value={b.cashIn} />
+                      <PMRow label="📱 محفظة" value={b.walletIn} />
+                      <PMRow label="⚡ انستاباي" value={b.instapayIn} />
+                      <PMRow label="🏦 تحويل بنكي" value={b.bankIn} />
+                      {b.creditIn > 0 && <PMRow label="💳 رصيد عميل" value={b.creditIn} />}
+                      {b.otherIn > 0 && <PMRow label="⋯ أخرى" value={b.otherIn} />}
+                    </div>
                   </div>
                   <div className="flex items-center justify-end gap-1 text-xs text-primary mt-3 pt-3 border-t border-border">
                     عرض تقرير الفرع التفصيلي <ChevronLeft className="w-3 h-3" />
@@ -840,6 +916,15 @@ function Row({ label, value, hint, accent }: { label: string; value: string; hin
         <div className={`font-bold ${c}`}>{value}</div>
         {hint && <div className="text-[9px] text-muted-foreground">{hint}</div>}
       </div>
+    </div>
+  );
+}
+
+function PMRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between px-2 py-1 rounded bg-surface-2/70">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-bold ${value > 0 ? "" : "text-muted-foreground"}`}>{value > 0 ? formatEGP(value) : "—"}</span>
     </div>
   );
 }
