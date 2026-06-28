@@ -198,26 +198,26 @@ export default function AdminDashboard() {
                 <b className="text-success text-2xl">{formatEGP(b.todaySales)}</b>
               </Link>
 
-              {/* Quick actions grid — larger */}
+              {/* Quick actions grid — clearer colors */}
               <div className="p-4">
                 <div className="text-sm font-bold text-foreground mb-3 px-1">الإجراءات السريعة</div>
                 <div className="grid grid-cols-5 gap-2">
                   {[
-                    { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-emerald-700", bg: "bg-emerald-100", border: "border-emerald-200", hover: "hover:bg-emerald-200" },
-                    { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-blue-700", bg: "bg-blue-100", border: "border-blue-200", hover: "hover:bg-blue-200" },
-                    { to: `/branch/${b.id}/pre-orders`, label: "حجز", icon: BookmarkPlus, color: "text-violet-700", bg: "bg-violet-100", border: "border-violet-200", hover: "hover:bg-violet-200" },
-                    { to: `/branch/${b.id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-amber-700", bg: "bg-amber-100", border: "border-amber-200", hover: "hover:bg-amber-200" },
-                    { to: `/branch/${b.id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-amber-800", bg: "bg-amber-100", border: "border-amber-200", hover: "hover:bg-amber-200" },
-                    { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-emerald-700", bg: "bg-emerald-100", border: "border-emerald-200", hover: "hover:bg-emerald-200" },
-                    { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, color: "text-rose-700", bg: "bg-rose-100", border: "border-rose-200", hover: "hover:bg-rose-200" },
-                    { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowLeftRight, color: "text-blue-700", bg: "bg-blue-100", border: "border-blue-200", hover: "hover:bg-blue-200" },
-                    { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض سعر", icon: FileText, color: "text-violet-700", bg: "bg-violet-100", border: "border-violet-200", hover: "hover:bg-violet-200" },
-                    { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardList, color: "text-blue-700", bg: "bg-blue-100", border: "border-blue-200", hover: "hover:bg-blue-200" },
-                    { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardList, color: "text-amber-700", bg: "bg-amber-100", border: "border-amber-200", hover: "hover:bg-amber-200" },
-                    { to: `/branch/${b.id}/shipments`, label: "الشحنات", icon: Truck, color: "text-blue-700", bg: "bg-blue-100", border: "border-blue-200", hover: "hover:bg-blue-200" },
-                    { to: `/branch/${b.id}/treasury`, label: "الخزنة", icon: Wallet, color: "text-blue-700", bg: "bg-blue-100", border: "border-blue-200", hover: "hover:bg-blue-200" },
-                    { to: `/branch/${b.id}/reports`, label: "التقارير", icon: BarChart3, color: "text-violet-700", bg: "bg-violet-100", border: "border-violet-200", hover: "hover:bg-violet-200" },
-                    { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-slate-700", bg: "bg-slate-200", border: "border-slate-300", hover: "hover:bg-slate-300" },
+                    { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/20", border: "border-success/40", hover: "hover:bg-success/30" },
+                    { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/pre-orders`, label: "حجز", icon: BookmarkPlus, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
+                    { to: `/branch/${b.id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
+                    { to: `/branch/${b.id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
+                    { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/20", border: "border-success/40", hover: "hover:bg-success/30" },
+                    { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/20", border: "border-destructive/40", hover: "hover:bg-destructive/30" },
+                    { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض سعر", icon: FileText, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
+                    { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardList, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardList, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
+                    { to: `/branch/${b.id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/treasury`, label: "الخزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/reports`, label: "التقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
+                    { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-muted-foreground", bg: "bg-muted", border: "border-border", hover: "hover:bg-muted/70" },
                   ].map((q) => (
                     <Link key={q.label} to={q.to}
                       className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl ${q.bg} border ${q.border} ${q.hover} transition-all hover:scale-105 hover:shadow-md group`}>
@@ -227,6 +227,7 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
+
             </div>
           ))}
         </div>
