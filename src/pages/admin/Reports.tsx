@@ -643,13 +643,11 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               )}
             </div>
 
-            {/* ===== Per-branch receipts × expenses × net profit ===== */}
+            {/* ===== Per-branch receipts × expenses (operational — net profit moved to 📊 الربحية / 👑 نظرة المالك) ===== */}
             <div className="card-elevated p-0 overflow-hidden">
-              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات وصافي الربح</h4>
-                <span className="text-[10px] text-muted-foreground">
-                  المتحصلات من سندات الفاتورة • الربح موحّد من <code className="px-1 rounded bg-muted">profitEngine</code>
-                </span>
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية</h4>
+                <Link to="/admin/reports-hub?tab=owner" className="text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 👑 نظرة المالك</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -663,8 +661,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       <th className="px-3 py-2 text-right">💳 رصيد عميل</th>
                       <th className="px-3 py-2 text-right">⋯ أخرى</th>
                       <th className="px-3 py-2 text-right font-bold bg-primary/5">إجمالي المتحصلات</th>
-                      <th className="px-3 py-2 text-right">المصروفات</th>
-                      <th className="px-3 py-2 text-right font-bold bg-success/5">صافي الربح</th>
+                      <th className="px-3 py-2 text-right">المصروفات التشغيلية</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -679,7 +676,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                         <td className="px-3 py-2">{b.otherIn > 0 ? formatEGP(b.otherIn) : <span className="text-muted-foreground">—</span>}</td>
                         <td className="px-3 py-2 font-bold bg-primary/5">{formatEGP(b.totalReceived)}</td>
                         <td className="px-3 py-2 text-destructive">{formatEGP(b.expenses)}</td>
-                        <td className={`px-3 py-2 font-extrabold bg-success/5 ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -694,9 +690,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.otherIn, 0))}</td>
                       <td className="px-3 py-2 bg-primary/10">{formatEGP(perBranch.reduce((s, b) => s + b.totalReceived, 0))}</td>
                       <td className="px-3 py-2 text-destructive">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
-                      <td className={`px-3 py-2 bg-success/10 ${perBranch.reduce((s, b) => s + b.net, 0) >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatEGP(perBranch.reduce((s, b) => s + b.net, 0))}
-                      </td>
                     </tr>
                   </tfoot>
                 </table>
