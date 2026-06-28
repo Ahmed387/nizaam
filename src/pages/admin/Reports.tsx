@@ -593,14 +593,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               empty="✅ لا توجد أقساط موردين متأخرة"
               columns={[
                 { key: "supplier", header: "المورد", render: (r: any) => <b>{r.payment_plans?.entity_name ?? "—"}</b> },
-          <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">أقساط الموردين المتأخرة</h4>
-            <DataTable
-              rows={scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier")}
-              loading={loading}
-              empty="✅ لا توجد أقساط موردين متأخرة"
-              columns={[
-                { key: "supplier", header: "المورد", render: (r: any) => <b>{r.payment_plans?.entity_name ?? "—"}</b> },
                 { key: "due_date", header: "تاريخ الاستحقاق", render: (r: any) => new Date(r.due_date).toLocaleDateString("ar-EG") },
                 { key: "days_late", header: "أيام التأخير", render: (r: any) => {
                   const days = Math.max(0, Math.floor((Date.now() - new Date(r.due_date).getTime()) / 86400000));
