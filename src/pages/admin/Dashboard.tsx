@@ -11,7 +11,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import {
   DollarSign, AlertTriangle, Trash2, Plus, Users, Boxes, Receipt, CheckSquare,
   BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight,
-  HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList,
+  HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
 } from "lucide-react";
 
 export default function AdminDashboard() {
