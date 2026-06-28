@@ -297,6 +297,33 @@ export default function ExecutiveInsights({ embedded }: Props) {
         )}
       </div>
 
+      {/* Top pre-ordered products */}
+      <div className="card-elevated p-4 mb-6">
+        <h3 className="font-bold mb-3 flex items-center gap-2 text-accent"><Package className="w-4 h-4" /> أكثر المنتجات طلباً في الحجوزات (Pre-orders)</h3>
+        {topPreOrderProducts.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا توجد طلبات حجز في الفترة</div> : (
+          <div className="grid lg:grid-cols-2 gap-4">
+            <ResponsiveContainer width="100%" height={Math.max(280, topPreOrderProducts.length * 36)}>
+              <BarChart data={topPreOrderProducts} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 18 ? v.slice(0, 18) + "…" : v)} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Bar dataKey="qty" name="الكمية المطلوبة" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <DataTable rows={topPreOrderProducts} empty=""
+              columns={[
+                { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
+                { key: "count", header: "عدد الطلبات" },
+                { key: "qty", header: "إجمالي الكمية", render: (r: any) => formatNumber(r.qty) },
+                { key: "value", header: "القيمة المتوقعة", render: (r: any) => formatEGP(r.value) },
+              ]} />
+          </div>
+        )}
+      </div>
+
+
+
       {/* Weak / Stagnant */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <div className="card-elevated p-4">
