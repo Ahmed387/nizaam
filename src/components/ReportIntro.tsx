@@ -34,25 +34,26 @@ export function ReportIntro({ icon, title, purpose, shows, unique, accent = "pri
       </div>
 
       {/* Body */}
-      <div className="grid md:grid-cols-5 gap-4 px-5 py-4">
-        <div className="md:col-span-3">
-          <div className={`inline-flex items-center gap-1.5 text-[11px] font-bold mb-2 px-2 py-0.5 rounded-full ${a.chip}`}>
+      <div className="px-5 py-5 space-y-5">
+        <div>
+          <div className={`inline-flex items-center gap-1.5 text-xs font-bold mb-2.5 px-2.5 py-1 rounded-full ${a.chip}`}>
             <span>📋</span><span>محتوى التقرير</span>
           </div>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {shows.map((s, i) => (
-              <li key={i} className="text-sm flex items-start gap-2 leading-relaxed">
-                <span className={`mt-1.5 w-1.5 h-1.5 rounded-full ${a.dot} shrink-0`} />
-                <span className="text-foreground/90">{s}</span>
+              <li key={i} className="text-sm md:text-base flex items-start gap-2.5 leading-loose">
+                <span className={`mt-2 w-1.5 h-1.5 rounded-full ${a.dot} shrink-0`} />
+                <span className="text-foreground/90 break-words whitespace-normal">{s}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className="md:col-span-2">
-          <div className={`inline-flex items-center gap-1.5 text-[11px] font-bold mb-2 px-2 py-0.5 rounded-full ${a.chip}`}>
+
+        <div className={`rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} p-4`}>
+          <div className={`inline-flex items-center gap-1.5 text-xs font-bold mb-2 px-2.5 py-1 rounded-full ${a.chip}`}>
             <span>⭐</span><span>المميز فيه</span>
           </div>
-          <p className="text-sm leading-relaxed bg-card/60 rounded-lg p-3 border border-border/50 text-foreground/90">
+          <p className="text-base md:text-lg leading-loose text-foreground break-words whitespace-normal">
             {unique}
           </p>
         </div>
