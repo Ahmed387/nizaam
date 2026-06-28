@@ -161,75 +161,78 @@ export default function AdminDashboard() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-7 w-1.5 bg-primary rounded-full" />
-          <h3 className="font-bold text-lg">الفروع — دخول مباشر وإجراءات سريعة</h3>
+          <h3 className="font-bold text-xl">الفروع — دخول مباشر وإجراءات سريعة</h3>
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
           {branchSummary.map((b: any) => (
-            <div key={b.id} className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:shadow-lg transition-shadow">
+            <div key={b.id} className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm hover:shadow-lg transition-shadow">
               {activeCountBranches.has(b.id) && (
                 <div className="absolute top-4 -left-12 rotate-[-45deg] bg-warning text-warning-foreground text-[10px] font-bold px-12 py-1 shadow-md z-10 flex items-center gap-1 justify-center">
                   <ClipboardCheck className="w-3 h-3" /> جارٍ الجرد
                 </div>
               )}
               {/* Header strip */}
-              <div className="bg-gradient-to-l from-primary/10 via-primary/5 to-transparent p-5 border-b border-border">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-md">
-                      <Building2 className="w-6 h-6" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-bold text-lg truncate">{b.name}</div>
-                      <div className="text-xs text-muted-foreground">{b.code ?? "—"}</div>
-                    </div>
+              <div className="bg-gradient-to-l from-primary/20 via-primary/10 to-transparent p-5 border-b border-border">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-md">
+                    <Building2 className="w-6 h-6" />
                   </div>
-                  <Button asChild size="sm" className="gap-1 shrink-0">
-                    <Link to={`/branch/${b.id}/dashboard`}>دخول الفرع <ArrowUpRight className="w-3.5 h-3.5" /></Link>
-                  </Button>
+                  <div className="min-w-0">
+                    <div className="font-bold text-xl truncate">{b.name}</div>
+                    <div className="text-sm font-medium text-muted-foreground">{b.code ?? "—"}</div>
+                  </div>
                 </div>
-                <Link
-                  to={`/admin/reports?branch=${b.id}`}
-                  className="mt-4 flex items-center justify-between p-3 rounded-xl bg-card hover:bg-surface-2 transition border border-border"
-                  title="عرض تقرير الفرع التفصيلي"
-                >
-                  <span className="text-sm font-medium text-muted-foreground">مبيعات اليوم</span>
-                  <b className="text-success text-lg">{formatEGP(b.todaySales)}</b>
-                </Link>
+                {/* Large branch entry button */}
+                <Button asChild size="lg" className="w-full mt-4 gap-2 text-base font-bold shadow-md">
+                  <Link to={`/branch/${b.id}/dashboard`}>دخول الفرع <ArrowUpRight className="w-5 h-5" /></Link>
+                </Button>
               </div>
 
-              {/* Quick actions grid — larger */}
+              {/* Today's sales */}
+              <Link
+                to={`/admin/reports?branch=${b.id}`}
+                className="mx-4 mt-4 flex items-center justify-between p-4 rounded-xl bg-card hover:bg-surface-2 transition border border-border"
+                title="عرض تقرير الفرع التفصيلي"
+              >
+                <span className="text-base font-semibold text-muted-foreground">مبيعات اليوم</span>
+                <b className="text-success text-2xl">{formatEGP(b.todaySales)}</b>
+              </Link>
+
+              {/* Quick actions grid — clearer colors */}
               <div className="p-4">
-                <div className="text-[11px] font-bold text-muted-foreground mb-3 px-1">الإجراءات السريعة</div>
+                <div className="text-sm font-bold text-foreground mb-3 px-1">الإجراءات السريعة</div>
                 <div className="grid grid-cols-5 gap-2">
                   {[
-                    { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/10", hover: "hover:bg-success/20" },
-                    { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/10", hover: "hover:bg-primary/20" },
-                    { to: `/branch/${b.id}/pre-orders`, label: "حجز", icon: BookmarkPlus, color: "text-secondary", bg: "bg-secondary/10", hover: "hover:bg-secondary/20" },
-                    { to: `/branch/${b.id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/10", hover: "hover:bg-warning/20" },
-                    { to: `/branch/${b.id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/10", hover: "hover:bg-warning/20" },
-                    { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/10", hover: "hover:bg-success/20" },
-                    { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/10", hover: "hover:bg-destructive/20" },
-                    { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/10", hover: "hover:bg-primary/20" },
-                    { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض سعر", icon: FileText, color: "text-secondary", bg: "bg-secondary/10", hover: "hover:bg-secondary/20" },
-                    { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardList, color: "text-primary", bg: "bg-primary/10", hover: "hover:bg-primary/20" },
-                    { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardList, color: "text-warning", bg: "bg-warning/10", hover: "hover:bg-warning/20" },
-                    { to: `/branch/${b.id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/10", hover: "hover:bg-primary/20" },
-                    { to: `/branch/${b.id}/treasury`, label: "الخزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/10", hover: "hover:bg-primary/20" },
-                    { to: `/branch/${b.id}/reports`, label: "التقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/10", hover: "hover:bg-secondary/20" },
-                    { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/20", hover: "hover:bg-accent/30" },
+                    { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/20", border: "border-success/40", hover: "hover:bg-success/30" },
+                    { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/pre-orders`, label: "حجز", icon: BookmarkPlus, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
+                    { to: `/branch/${b.id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
+                    { to: `/branch/${b.id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
+                    { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/20", border: "border-success/40", hover: "hover:bg-success/30" },
+                    { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/20", border: "border-destructive/40", hover: "hover:bg-destructive/30" },
+                    { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض سعر", icon: FileText, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
+                    { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardList, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardList, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
+                    { to: `/branch/${b.id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/treasury`, label: "الخزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/reports`, label: "التقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
+                    { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-muted-foreground", bg: "bg-muted", border: "border-border", hover: "hover:bg-muted/70" },
                   ].map((q) => (
                     <Link key={q.label} to={q.to}
-                      className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl ${q.bg} ${q.hover} transition-all hover:scale-105 hover:shadow-md group`}>
+                      className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl ${q.bg} border ${q.border} ${q.hover} transition-all hover:scale-105 hover:shadow-md group`}>
                       <q.icon className={`w-5 h-5 ${q.color}`} />
-                      <span className={`text-[11px] font-bold text-center leading-tight ${q.color}`}>{q.label}</span>
+                      <span className={`text-xs font-bold text-center leading-tight ${q.color}`}>{q.label}</span>
                     </Link>
                   ))}
                 </div>
               </div>
+
             </div>
           ))}
         </div>
       </div>
+
 
       {/* Latest 5 invoices */}
       <div>
