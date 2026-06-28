@@ -8,6 +8,7 @@ import { exportToExcel, printReport } from "@/lib/export";
 import { formatEGP as fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { CalendarRange, Download, FileText, Loader2, Play, Sparkles } from "lucide-react";
+import { ReportIntro } from "@/components/ReportIntro";
 
 interface Report {
   id: string;
