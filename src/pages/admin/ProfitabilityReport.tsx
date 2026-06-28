@@ -330,9 +330,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
               </table>
             </div>
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-destructive/50 shadow-sm">
-              <div className="px-4 py-3 bg-destructive/10 border-b border-destructive/20 flex items-center justify-between">
-                <h4 className="font-extrabold text-destructive text-base flex items-center gap-2"><TrendingDown className="w-5 h-5" /> أقل 10 منتجات بالهامش</h4>
-                <span className="text-[11px] font-semibold text-destructive/80 bg-destructive/15 px-2 py-0.5 rounded-full">يستحق مراجعة</span>
+              <div className="px-5 py-4 bg-destructive/10 border-b border-destructive/20 text-center">
+                <h4 className="font-extrabold text-destructive text-base md:text-lg flex items-center justify-center gap-2"><TrendingDown className="w-5 h-5" /> أقل 10 منتجات بالهامش</h4>
+                <p className="mt-1 text-xs md:text-sm text-destructive/80">منتجات بهامش ضعيف — راجع التسعير أو تكلفة الشراء.</p>
               </div>
               <table className="w-full text-sm table-fixed">
                 <colgroup>
