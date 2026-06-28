@@ -322,7 +322,6 @@ export default function Invoices() {
           { key: "invoice_number", header: "رقم", render: (r: any) => (
             <span className="flex items-center gap-1.5">
               <span className="font-mono text-primary">{r.invoice_number}</span>
-              <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
               {r.is_migrated && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title={`مستورد من: ${r.migration_source ?? "نظام قديم"}`}>
                   بيانات مستوردة
@@ -340,6 +339,7 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / إدارة" onClick={() => nav(`${base}/sales/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
+                <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canDeleteInvoice && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي" onClick={() => setDelTarget(r)}>
                     <Trash2 className="w-4 h-4" />
@@ -354,7 +354,7 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span><AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
+          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة" },
           { key: "invoice_date", header: "تاريخ الفاتورة", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
@@ -366,6 +366,7 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
+                <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canDeleteInvoice && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف الشحنة" : "طلب حذف"} onClick={() => setDelShipment(r)}>
                     <Trash2 className="w-4 h-4" />
@@ -380,23 +381,43 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span><AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
+          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span></span> },
           { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "customer", header: "العميل", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب" },
           { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
           { key: "invoice_date", header: "تاريخ المرتجع", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/sale-returns/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/sale-returns/${r.id}`),
       };
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span><AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
+          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span></span> },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب" },
           { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
           { key: "invoice_date", header: "تاريخ المرتجع", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/purchase-returns/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/purchase-returns/${r.id}`),
       };
@@ -413,10 +434,20 @@ export default function Invoices() {
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
         columns: [
-          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}<AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} /></span> },
+          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}</span> },
           { key: "to_branch_id", header: "إلى", render: (r: any) => branchName(r.to_branch_id) },
           { key: "status", header: "الحالة" },
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          {
+            key: "actions", header: "إجراءات", render: (r: any) => (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/transfers/${r.id}`)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
+              </div>
+            ),
+          },
         ],
         onClick: (r: any) => nav(`${base}/transfers/${r.id}`),
       };
