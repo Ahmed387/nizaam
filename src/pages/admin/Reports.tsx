@@ -456,25 +456,27 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </div>
 
-      {/* ===== Tab role banner — operations only ===== */}
-      <div className="card-elevated p-4 mb-4 border-r-4 border-primary bg-primary/5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary shrink-0" />
-            <div>
-              <h2 className="font-bold">العمليات اليومية</h2>
-              <p className="text-xs text-muted-foreground">
-                المبيعات، الكاشير، طرق الدفع، الخزنة، المصروفات، الموظفين — بدون تكرار للربحية أو Top/Bottom
-              </p>
-            </div>
-          </div>
+      <ReportIntro
+        icon="🏢"
+        title="التقارير المركزية — العمليات اليومية"
+        purpose="نبض الشركة التشغيلي: مين باع، كام، إزاي اتسحبت الفلوس، وفين راحت."
+        shows={[
+          "إجمالي المبيعات، المرتجعات، عدد ومتوسط الفواتير",
+          "تفصيل طرق الدفع (نقدي / محفظة / إنستاباي / تحويل)",
+          "أداء كل كاشير ونسبته من إجمالي البيع",
+          "حركة الخزنة، المصروفات التشغيلية، أقساط الموردين المتأخرة",
+        ]}
+        unique="المرجع الوحيد للنشاط اليومي ومصفوفة الفروع × طرق الدفع — مفيش حسابات ربحية أو Top/Bottom هنا."
+        accent="primary"
+        extra={
           <div className="flex flex-wrap gap-2 text-[11px]">
             <Link to="/admin/reports-hub?tab=owner" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">👑 لملخص لحظي → نظرة المالك</Link>
             <Link to="/admin/reports-hub?tab=profitability" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">📊 لتفاصيل الربح → الربحية</Link>
             <Link to="/admin/reports-hub?tab=insights" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">🎯 لأعلى/أقل → الرؤى</Link>
           </div>
-        </div>
-      </div>
+        }
+      />
+
 
       {/* ===== Section 1: Operational KPIs (no profit — moved to Profitability tab) ===== */}
       <Section icon={<ShoppingCart className="w-5 h-5" />} title="حركة المبيعات والمرتجعات" color="success">
