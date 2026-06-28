@@ -593,11 +593,25 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               empty="✅ لا توجد أقساط موردين متأخرة"
               columns={[
                 { key: "supplier", header: "المورد", render: (r: any) => <b>{r.payment_plans?.entity_name ?? "—"}</b> },
-                { key: "due_date", header: "الاستحقاق", render: (r: any) => new Date(r.due_date).toLocaleDateString("ar-EG") },
-                { key: "amount", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(Number(r.amount) - Number(r.paid_amount || 0))}</b> },
+          <div className="card-elevated p-4">
+            <h4 className="font-bold mb-3">أقساط الموردين المتأخرة</h4>
+            <DataTable
+              rows={scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier")}
+              loading={loading}
+              empty="✅ لا توجد أقساط موردين متأخرة"
+              columns={[
+                { key: "supplier", header: "المورد", render: (r: any) => <b>{r.payment_plans?.entity_name ?? "—"}</b> },
+                { key: "due_date", header: "تاريخ الاستحقاق", render: (r: any) => new Date(r.due_date).toLocaleDateString("ar-EG") },
+                { key: "days_late", header: "أيام التأخير", render: (r: any) => {
+                  const days = Math.max(0, Math.floor((Date.now() - new Date(r.due_date).getTime()) / 86400000));
+                  const tone = days > 30 ? "bg-destructive text-destructive-foreground" : days > 14 ? "bg-warning text-warning-foreground" : "bg-amber-500/20 text-amber-700 dark:text-amber-400";
+                  return <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${tone}`}>{days} يوم</span>;
+                } },
+                { key: "amount", header: "المبلغ المستحق", render: (r: any) => <b className="text-destructive">{formatEGP(Number(r.amount) - Number(r.paid_amount || 0))}</b> },
               ]} />
           </div>
         </TabsContent>
+
 
         {/* ===== TAB 4: INVENTORY ===== */}
         <TabsContent value="inventory" className="mt-4 space-y-4">
