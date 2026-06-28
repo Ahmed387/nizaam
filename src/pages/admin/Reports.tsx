@@ -509,7 +509,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <TabsTrigger value="inventory">📦 المخزون</TabsTrigger>
           <TabsTrigger value="employees">👥 الموظفين</TabsTrigger>
           {scope === "global" && <TabsTrigger value="branches">🏢 أداء الفروع</TabsTrigger>}
-          <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
+          
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
         </TabsList>
 
