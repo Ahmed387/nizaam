@@ -456,36 +456,48 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </div>
 
-      {/* ===== Section 1: Profitability ===== */}
-      <Section icon={<TrendingUp className="w-5 h-5" />} title="الربحية والمبيعات" color="success">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <MiniKpi label="المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} hint={`${k.invoicesCount} فاتورة`} />
-          <MiniKpi label="التكلفة" value={formatEGP(k.cost)} icon={<Package className="w-4 h-4" />} />
-          <MiniKpi label="إجمالي الربح" value={formatEGP(k.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-          <MiniKpi label="المصروفات" value={formatEGP(k.exp)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
-          <MiniKpi label="صافي الربح" value={formatEGP(k.net)} icon={<Wallet className="w-4 h-4" />} accent={k.net >= 0 ? "success" : "destructive"} />
+      {/* ===== Tab role banner — operations only ===== */}
+      <div className="card-elevated p-4 mb-4 border-r-4 border-primary bg-primary/5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary shrink-0" />
+            <div>
+              <h2 className="font-bold">العمليات اليومية</h2>
+              <p className="text-xs text-muted-foreground">
+                المبيعات، الكاشير، طرق الدفع، الخزنة، المصروفات، الموظفين — بدون تكرار للربحية أو Top/Bottom
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px]">
+            <Link to="/admin/reports-hub?tab=owner" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">👑 لملخص لحظي → نظرة المالك</Link>
+            <Link to="/admin/reports-hub?tab=profitability" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">📊 لتفاصيل الربح → الربحية</Link>
+            <Link to="/admin/reports-hub?tab=insights" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">🎯 لأعلى/أقل → الرؤى</Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Section 1: Operational KPIs (no profit — moved to Profitability tab) ===== */}
+      <Section icon={<ShoppingCart className="w-5 h-5" />} title="حركة المبيعات والمرتجعات" color="success">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <MiniKpi label="إجمالي المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} hint={`${k.invoicesCount} فاتورة`} />
+          <MiniKpi label="متوسط الفاتورة" value={formatEGP(k.invoicesCount > 0 ? k.sales / k.invoicesCount : 0)} icon={<Receipt className="w-4 h-4" />} />
+          <MiniKpi label="المرتجعات" value={formatEGP(k.returnsTotal)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${scopedReturns.length} مرتجع`} />
+          <MiniKpi label="المصروفات التشغيلية" value={formatEGP(k.exp)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
         </div>
       </Section>
 
-      {/* ===== Section 2: Inventory & Suppliers ===== */}
-      <Section icon={<Store className="w-5 h-5" />} title="المخزون والموردين" color="primary">
+      {/* ===== Section 2: Inventory & Suppliers (operational only) ===== */}
+      <Section icon={<Store className="w-5 h-5" />} title="حركة المخزون والمشتريات" color="primary">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
           <MiniKpi label="تكلفة الشحنات" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
           <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
         </div>
-        {scope === "global" && (
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <MiniKpi label="إجمالي مشتريات من الموردين" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="قيمة كل الشحنات تاريخياً" />
-            <MiniKpi label="إجمالي ما سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="من جميع الدفعات" />
-            <MiniKpi label="المتبقي علينا (من contacts)" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد — صيغة موحدة`} />
-          </div>
-        )}
         <div className="text-xs text-muted-foreground mt-3 text-end">
-          تنبيهات المخزون المنخفض في{" "}
+          أرصدة الموردين الكاملة (مدين/دائن) في{" "}
+          <Link to="/admin/reports-hub?tab=insights" className="text-primary font-bold hover:underline">🎯 الرؤى التنفيذية</Link>
+          {" "}— تنبيهات المخزون في{" "}
           <Link to="/admin/dashboard" className="text-primary font-bold hover:underline">لوحة التحكم</Link>
-          {" "}— كل المخزون في{" "}
-          <Link to="/admin/inventory" className="text-primary font-bold hover:underline">صفحة المخزون</Link>
         </div>
       </Section>
 
@@ -500,16 +512,14 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </Section>
 
-      {/* ===== Detailed tabs — 6 sections ===== */}
+      {/* ===== Detailed tabs — operations only (profit/Top-Bottom removed → see 📊 الربحية & 🎯 الرؤى) ===== */}
       <Tabs defaultValue={scope === "global" ? "branches" : "sales"} className="mt-2">
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="sales">🛒 المبيعات</TabsTrigger>
-          <TabsTrigger value="profit">📈 الربحية</TabsTrigger>
-          <TabsTrigger value="purchases">🚚 المشتريات والموردين</TabsTrigger>
+          <TabsTrigger value="sales">🛒 المبيعات وطرق الدفع</TabsTrigger>
+          <TabsTrigger value="purchases">🚚 المشتريات والموردين (تشغيلي)</TabsTrigger>
           <TabsTrigger value="inventory">📦 المخزون</TabsTrigger>
           <TabsTrigger value="employees">👥 الموظفين</TabsTrigger>
           {scope === "global" && <TabsTrigger value="branches">🏢 أداء الفروع</TabsTrigger>}
-          
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
         </TabsList>
 
@@ -545,62 +555,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </div>
         </TabsContent>
 
-        {/* ===== TAB 2: PROFITABILITY (FIFO single source of truth) ===== */}
-        <TabsContent value="profit" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MiniKpi label="المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} />
-            <MiniKpi label="التكلفة (FIFO)" value={formatEGP(k.cost)} icon={<Package className="w-4 h-4" />} hint="unit_cost_at_sale" />
-            <MiniKpi label="إجمالي الربح" value={formatEGP(k.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-            <MiniKpi label="هامش الربح" value={`${k.sales > 0 ? ((k.profit / k.sales) * 100).toFixed(1) : "0"}%`} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-          </div>
+        {/* TAB Profitability removed — single source: /admin/reports-hub?tab=profitability (📊 الربحية) */}
 
-          <div className="card-elevated p-4">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h4 className="font-bold">أكثر 15 منتج — ترتيب حسب</h4>
-              <div className="flex gap-1">
-                {([
-                  { k: "profit", label: "الربح" },
-                  { k: "revenue", label: "الإيراد" },
-                  { k: "qty", label: "الكمية" },
-                ] as const).map((s) => (
-                  <button key={s.k} onClick={() => setProductSort(s.k)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
-                      productSort === s.k ? "bg-primary/10 border-primary text-primary" : "border-border bg-surface hover:border-primary/50"
-                    }`}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {topProductsAll.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={340}>
-                <BarChart data={[...topProductsAll].sort((a, b) => Number(b[productSort === "qty" ? "netQty" : productSort]) - Number(a[productSort === "qty" ? "netQty" : productSort])).slice(0, 10)} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Bar dataKey={productSort === "qty" ? "netQty" : productSort} name={productSort === "profit" ? "الربح الصافي" : productSort === "revenue" ? "الإيراد الصافي" : "الكمية الصافية"}
-                    fill={productSort === "profit" ? "hsl(var(--success))" : productSort === "revenue" ? "hsl(var(--primary))" : "hsl(var(--warning))"}
-                    radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <DataTable rows={[...topProductsAll].sort((a, b) => Number(b[productSort === "qty" ? "netQty" : productSort]) - Number(a[productSort === "qty" ? "netQty" : productSort])).slice(0, 15)} loading={loading} empty="لا توجد بيانات"
-            columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "qty", header: "الكمية المباعة", render: (r: any) => <span className="text-muted-foreground">{r.qty}</span> },
-              { key: "returned", header: "المرتجع", render: (r: any) => r.returned > 0 ? <span className="text-warning font-bold">{r.returned}</span> : <span className="text-muted-foreground">0</span> },
-              { key: "netQty", header: "الصافي", render: (r: any) => <b>{r.netQty}</b> },
-              { key: "revenue", header: "الإيراد (صافي)", render: (r: any) => <span className="text-primary font-bold">{formatEGP(r.revenue)}</span> },
-              { key: "profit", header: "الربح (صافي)", render: (r: any) => <b className={r.profit >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.profit)}</b> },
-              { key: "margin", header: "الهامش", render: (r: any) => `${r.revenue > 0 ? ((r.profit / r.revenue) * 100).toFixed(1) : "0"}%` },
-            ]} />
-
-        </TabsContent>
 
         {/* ===== TAB 3: PURCHASES & SUPPLIERS (with payables aging) ===== */}
         <TabsContent value="purchases" className="mt-4 space-y-4">
@@ -668,32 +624,30 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         {scope === "global" && (
           <TabsContent value="branches" className="mt-4 space-y-6">
             <div className="card-elevated p-5">
-              <h4 className="font-bold mb-4">مقارنة أداء الفروع</h4>
+              <h4 className="font-bold mb-4">مقارنة الفروع — المبيعات والمصروفات التشغيلية</h4>
               {perBranch.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground text-sm">لا توجد فروع</div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={perBranch.map((b) => ({ name: b.name, مبيعات: b.sales, ربح: b.profit, مصروفات: b.expenses }))}>
+                  <BarChart data={perBranch.map((b) => ({ name: b.name, مبيعات: b.sales, مصروفات: b.expenses }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
                     <Legend />
                     <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="ربح" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="مصروفات" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
 
-            {/* ===== Per-branch receipts × expenses × net profit ===== */}
+
+            {/* ===== Per-branch receipts × expenses (operational — net profit moved to 📊 الربحية / 👑 نظرة المالك) ===== */}
             <div className="card-elevated p-0 overflow-hidden">
-              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات وصافي الربح</h4>
-                <span className="text-[10px] text-muted-foreground">
-                  المتحصلات من سندات الفاتورة • الربح موحّد من <code className="px-1 rounded bg-muted">profitEngine</code>
-                </span>
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية</h4>
+                <Link to="/admin/reports-hub?tab=owner" className="text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 👑 نظرة المالك</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -707,8 +661,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       <th className="px-3 py-2 text-right">💳 رصيد عميل</th>
                       <th className="px-3 py-2 text-right">⋯ أخرى</th>
                       <th className="px-3 py-2 text-right font-bold bg-primary/5">إجمالي المتحصلات</th>
-                      <th className="px-3 py-2 text-right">المصروفات</th>
-                      <th className="px-3 py-2 text-right font-bold bg-success/5">صافي الربح</th>
+                      <th className="px-3 py-2 text-right">المصروفات التشغيلية</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -723,7 +676,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                         <td className="px-3 py-2">{b.otherIn > 0 ? formatEGP(b.otherIn) : <span className="text-muted-foreground">—</span>}</td>
                         <td className="px-3 py-2 font-bold bg-primary/5">{formatEGP(b.totalReceived)}</td>
                         <td className="px-3 py-2 text-destructive">{formatEGP(b.expenses)}</td>
-                        <td className={`px-3 py-2 font-extrabold bg-success/5 ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -738,9 +690,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.otherIn, 0))}</td>
                       <td className="px-3 py-2 bg-primary/10">{formatEGP(perBranch.reduce((s, b) => s + b.totalReceived, 0))}</td>
                       <td className="px-3 py-2 text-destructive">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
-                      <td className={`px-3 py-2 bg-success/10 ${perBranch.reduce((s, b) => s + b.net, 0) >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatEGP(perBranch.reduce((s, b) => s + b.net, 0))}
-                      </td>
                     </tr>
                   </tfoot>
                 </table>
@@ -761,19 +710,17 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       </div>
                     </div>
                     <div className="text-left">
-                      <div className={`text-xl font-extrabold ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</div>
-                      <div className="text-[10px] text-muted-foreground">صافي الربح</div>
+                      <div className="text-xl font-extrabold text-primary">{formatEGP(b.totalReceived)}</div>
+                      <div className="text-[10px] text-muted-foreground">إجمالي المتحصلات</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <Row label="الفواتير" value={String(b.invoices)} />
                     <Row label="المبيعات" value={formatEGP(b.sales)} />
-                    <Row label="الربح (FIFO)" value={formatEGP(b.profit)} accent="success" />
-                    <Row label="المصروفات" value={formatEGP(b.expenses)} accent="destructive" />
+                    <Row label="المصروفات التشغيلية" value={formatEGP(b.expenses)} accent="destructive" />
                     <Row label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة`} />
                     <Row label="الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} />
                     <Row label="الموظفين" value={String(b.employees)} />
-                    <Row label="إجمالي المتحصلات" value={formatEGP(b.totalReceived)} accent="success" />
                   </div>
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="text-[10px] font-bold text-muted-foreground mb-2">تفصيل المتحصلات حسب طريقة الدفع</div>
