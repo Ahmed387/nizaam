@@ -35,15 +35,18 @@ interface Props {
 }
 
 export function RecordAttachments({ recordType, recordId, canEdit = true }: Props) {
-  const { user, isAdmin, hasRole } = useAuth();
+  const { user, isAdmin, hasRole, can } = useAuth() as any;
   const [rows, setRows] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<null | "compress" | "upload">(null);
   const [delTarget, setDelTarget] = useState<Attachment | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const canView = isAdmin || can?.("attachments.view");
+  const canCreate = canEdit && (isAdmin || can?.("attachments.create"));
+  const canDelete = isAdmin || can?.("attachments.delete");
   const canDeleteRow = (a: Attachment) =>
-    canEdit && (a.uploaded_by === user?.id || isAdmin || hasRole("branch_manager") || hasRole("accountant"));
+    canEdit && canDelete && (a.uploaded_by === user?.id || isAdmin || hasRole("branch_manager") || hasRole("accountant"));
 
   const load = async () => {
     setLoading(true);
