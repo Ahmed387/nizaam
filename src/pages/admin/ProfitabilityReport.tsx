@@ -294,9 +294,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         return (
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-success/50 shadow-sm">
-              <div className="px-4 py-3 bg-success/10 border-b border-success/20 flex items-center justify-between">
-                <h4 className="font-extrabold text-success text-base flex items-center gap-2"><TrendingUp className="w-5 h-5" /> أعلى 10 منتجات بالهامش</h4>
-                <span className="text-[11px] font-semibold text-success/80 bg-success/15 px-2 py-0.5 rounded-full">جودة ربح</span>
+              <div className="px-5 py-4 bg-success/10 border-b border-success/20 text-center">
+                <h4 className="font-extrabold text-success text-base md:text-lg flex items-center justify-center gap-2"><TrendingUp className="w-5 h-5" /> أعلى 10 منتجات بالهامش</h4>
+                <p className="mt-1 text-xs md:text-sm text-success/80">المنتجات الأكثر ربحية نسبةً للإيراد — ركز على دعم مبيعاتها.</p>
               </div>
               <table className="w-full text-sm table-fixed">
                 <colgroup>
@@ -330,9 +330,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
               </table>
             </div>
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-destructive/50 shadow-sm">
-              <div className="px-4 py-3 bg-destructive/10 border-b border-destructive/20 flex items-center justify-between">
-                <h4 className="font-extrabold text-destructive text-base flex items-center gap-2"><TrendingDown className="w-5 h-5" /> أقل 10 منتجات بالهامش</h4>
-                <span className="text-[11px] font-semibold text-destructive/80 bg-destructive/15 px-2 py-0.5 rounded-full">يستحق مراجعة</span>
+              <div className="px-5 py-4 bg-destructive/10 border-b border-destructive/20 text-center">
+                <h4 className="font-extrabold text-destructive text-base md:text-lg flex items-center justify-center gap-2"><TrendingDown className="w-5 h-5" /> أقل 10 منتجات بالهامش</h4>
+                <p className="mt-1 text-xs md:text-sm text-destructive/80">منتجات بهامش ضعيف — راجع التسعير أو تكلفة الشراء.</p>
               </div>
               <table className="w-full text-sm table-fixed">
                 <colgroup>
@@ -370,21 +370,26 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       })()}
 
 
-      <h3 className="font-bold mb-2">حسب المنتج</h3>
       <div className="card-elevated overflow-hidden mb-4">
+        <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
+          <h3 className="font-extrabold text-base md:text-lg">الربحية حسب المنتج</h3>
+          <p className="mt-1 text-xs md:text-sm text-muted-foreground max-w-2xl mx-auto">
+            كل صف يوضح المنتج وكميته المباعة وإيراده الصافي بعد المرتجعات وتكلفته الحقيقية، مع ربحه وهامشه. اضغط الصف للتفاصيل.
+          </p>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs md:text-sm border-collapse">
             <thead>
-              <tr className="bg-surface-2 border-b border-border">
-                <th className="px-3 py-2 w-8"></th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-foreground">اسم المنتج</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الكمية المباعة</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">المرتجع</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الصافي</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الإيراد (صافي)</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">التكلفة</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الربح (صافي)</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الهامش %</th>
+              <tr className="bg-surface-2 border-b-2 border-border">
+                <th className="px-3 py-3 w-8"></th>
+                <th className="px-3 py-3 text-right font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">اسم المنتج</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الكمية المباعة</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">المرتجع</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الصافي</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الإيراد (صافي)</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">التكلفة</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الربح (صافي)</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الهامش %</th>
               </tr>
             </thead>
             <tbody>
@@ -397,24 +402,24 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 const profitUnit = r.qty > 0 ? (r.profit / r.qty) : 0;
                 return (
                   <Fragment key={key}>
-                    <tr key={key} className="border-b border-border hover:bg-surface-2/40 cursor-pointer" onClick={() => {
+                    <tr key={key} className={`border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors ${expanded.has(key) ? "bg-primary/5" : ""}`} onClick={() => {
                       const n = new Set(expanded); n.has(key) ? n.delete(key) : n.add(key); setExpanded(n);
                     }}>
-                      <td className="px-3 py-2">{open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}</td>
-                      <td className="px-3 py-2">{r.product_name}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.gross_qty}</td>
-                      <td className="px-3 py-2">{r.returned_qty > 0 ? <span className="text-warning font-bold">{r.returned_qty}</span> : <span className="text-muted-foreground">0</span>}</td>
-                      <td className="px-3 py-2 font-bold">{r.qty}</td>
-                      <td className="px-3 py-2">{formatEGP(r.revenue)}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-3">{open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}</td>
+                      <td className="px-3 py-3 font-semibold border-r border-border/40">{r.product_name}</td>
+                      <td className="px-3 py-3 text-center tabular-nums text-muted-foreground border-r border-border/40">{r.gross_qty}</td>
+                      <td className="px-3 py-3 text-center tabular-nums border-r border-border/40">{r.returned_qty > 0 ? <span className="text-warning font-bold">{r.returned_qty}</span> : <span className="text-muted-foreground">0</span>}</td>
+                      <td className="px-3 py-3 text-center tabular-nums font-bold border-r border-border/40">{r.qty}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap font-semibold border-r border-border/40">{formatEGP(r.revenue)}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">
                         {r.cost_unknown
                           ? <span className="text-xs text-muted-foreground italic">غير متاح</span>
                           : formatEGP(r.cost)}
                       </td>
-                      <td className={`px-3 py-2 font-bold ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>
+                      <td className={`px-3 py-3 text-center tabular-nums whitespace-nowrap font-extrabold border-r border-border/40 ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>
                         {r.cost_unknown ? <span className="text-muted-foreground italic font-normal">غير متاح</span> : formatEGP(r.profit)}
                       </td>
-                      <td className={`px-3 py-2 ${!r.cost_unknown && r.margin < 10 ? "text-destructive font-bold" : ""}`}>
+                      <td className={`px-3 py-3 text-center tabular-nums whitespace-nowrap font-bold border-r border-border/40 ${!r.cost_unknown && r.margin < 10 ? "text-destructive" : ""}`}>
                         {r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%`}
                       </td>
                     </tr>

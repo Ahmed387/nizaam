@@ -666,51 +666,52 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
             {/* ===== Per-branch receipts × expenses (operational — net profit moved to 📊 الربحية / 👑 نظرة المالك) ===== */}
             <div className="card-elevated p-0 overflow-hidden">
-              <div className="px-5 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
-                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية</h4>
-                <Link to="/admin/reports-hub?tab=owner" className="text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 👑 نظرة المالك</Link>
+              <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center relative">
+                <h4 className="font-extrabold text-base md:text-lg">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية</h4>
+                <p className="mt-1 text-xs md:text-sm text-muted-foreground">قارن المتحصلات النقدية والإلكترونية لكل فرع مع المصروفات التشغيلية في نفس الفترة.</p>
+                <Link to="/admin/reports-hub?tab=owner" className="absolute top-3 left-3 text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 👑 نظرة المالك</Link>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-surface-2 border-b border-border">
+                <table className="w-full text-xs md:text-sm border-collapse">
+                  <thead className="bg-surface-2 border-b-2 border-border">
                     <tr>
-                      <th className="px-3 py-2 text-right font-bold">الفرع</th>
-                      <th className="px-3 py-2 text-right">💵 نقدي</th>
-                      <th className="px-3 py-2 text-right">📱 محفظة</th>
-                      <th className="px-3 py-2 text-right">⚡ انستاباي</th>
-                      <th className="px-3 py-2 text-right">🏦 تحويل بنكي</th>
-                      <th className="px-3 py-2 text-right">💳 رصيد عميل</th>
-                      <th className="px-3 py-2 text-right">⋯ أخرى</th>
-                      <th className="px-3 py-2 text-right font-bold bg-primary/5">إجمالي المتحصلات</th>
-                      <th className="px-3 py-2 text-right">المصروفات التشغيلية</th>
+                      <th className="px-3 py-3 text-right font-bold uppercase tracking-wider text-foreground/80">الفرع</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">💵 نقدي</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">📱 محفظة</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">⚡ انستاباي</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">🏦 تحويل بنكي</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">💳 رصيد عميل</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">⋯ أخرى</th>
+                      <th className="px-3 py-3 text-center font-extrabold uppercase tracking-wider text-primary bg-primary/5 border-r border-border/60">إجمالي المتحصلات</th>
+                      <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-destructive border-r border-border/60">المصروفات التشغيلية</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {perBranch.map((b) => (
-                      <tr key={b.id} className="border-b border-border hover:bg-surface-2/50 cursor-pointer" onClick={() => setScope(b.id)}>
-                        <td className="px-3 py-2 font-bold">{b.name}<div className="text-[9px] text-muted-foreground font-normal">{b.code}</div></td>
-                        <td className="px-3 py-2">{b.cashIn > 0 ? formatEGP(b.cashIn) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-3 py-2">{b.walletIn > 0 ? formatEGP(b.walletIn) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-3 py-2">{b.instapayIn > 0 ? formatEGP(b.instapayIn) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-3 py-2">{b.bankIn > 0 ? formatEGP(b.bankIn) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-3 py-2">{b.creditIn > 0 ? formatEGP(b.creditIn) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-3 py-2">{b.otherIn > 0 ? formatEGP(b.otherIn) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-3 py-2 font-bold bg-primary/5">{formatEGP(b.totalReceived)}</td>
-                        <td className="px-3 py-2 text-destructive">{formatEGP(b.expenses)}</td>
+                    {perBranch.map((b, i) => (
+                      <tr key={b.id} className={`border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors ${i % 2 === 1 ? "bg-surface-2/30" : ""}`} onClick={() => setScope(b.id)}>
+                        <td className="px-3 py-3 font-bold">{b.name}<div className="text-[10px] text-muted-foreground font-normal">{b.code}</div></td>
+                        <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{b.cashIn > 0 ? formatEGP(b.cashIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{b.walletIn > 0 ? formatEGP(b.walletIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{b.instapayIn > 0 ? formatEGP(b.instapayIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{b.bankIn > 0 ? formatEGP(b.bankIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{b.creditIn > 0 ? formatEGP(b.creditIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{b.otherIn > 0 ? formatEGP(b.otherIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-3 text-center font-extrabold tabular-nums whitespace-nowrap bg-primary/5 text-primary border-r border-border/40">{formatEGP(b.totalReceived)}</td>
+                        <td className="px-3 py-3 text-center font-bold tabular-nums whitespace-nowrap text-destructive border-r border-border/40">{formatEGP(b.expenses)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="bg-surface-2 border-t-2 border-border font-extrabold">
                     <tr>
-                      <td className="px-3 py-2">الإجمالي</td>
-                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.cashIn, 0))}</td>
-                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.walletIn, 0))}</td>
-                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.instapayIn, 0))}</td>
-                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.bankIn, 0))}</td>
-                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.creditIn, 0))}</td>
-                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.otherIn, 0))}</td>
-                      <td className="px-3 py-2 bg-primary/10">{formatEGP(perBranch.reduce((s, b) => s + b.totalReceived, 0))}</td>
-                      <td className="px-3 py-2 text-destructive">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
+                      <td className="px-3 py-3">الإجمالي</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.cashIn, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.walletIn, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.instapayIn, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.bankIn, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.creditIn, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.otherIn, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap bg-primary/10 text-primary border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.totalReceived, 0))}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap text-destructive border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
