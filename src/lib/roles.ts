@@ -46,7 +46,7 @@ export const PERMISSION_GROUPS: { key: string; label: string; actions: ("view" |
   { key: "advances", label: "السلف", actions: ["view", "create", "update"] },
   { key: "attendance", label: "الحضور والانصراف", actions: ["view", "create", "update"] },
   { key: "reports", label: "التقارير", actions: ["view"] },
-  { key: "attachments", label: "المرفقات (ملفات الفواتير والمستندات)", actions: ["view"] },
+  { key: "attachments", label: "المرفقات (ملفات الفواتير والمستندات)", actions: ["view", "create", "update", "delete"] },
 ];
 
 
