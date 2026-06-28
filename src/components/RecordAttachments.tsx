@@ -173,10 +173,10 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
       ) : rows.length === 0 ? (
         <button
           type="button"
-          onClick={() => canEdit && fileRef.current?.click()}
+          onClick={() => canCreate && fileRef.current?.click()}
           className="w-full text-xs text-muted-foreground text-center py-3 bg-surface-2 rounded border border-dashed border-border hover:bg-surface-3"
         >
-          {canEdit ? "لا توجد مرفقات — اضغط لإضافة مرفق" : "لا توجد مرفقات"}
+          {canCreate ? "لا توجد مرفقات — اضغط لإضافة مرفق" : "لا توجد مرفقات"}
         </button>
       ) : (
         <div className="space-y-1.5">
