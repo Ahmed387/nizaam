@@ -148,7 +148,7 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
           <Paperclip className="w-4 h-4" /> المرفقات
           {rows.length > 0 && <span className="text-muted-foreground">({rows.length})</span>}
         </div>
-        {canEdit && (
+        {canCreate && (
           <>
             <input
               ref={fileRef}
