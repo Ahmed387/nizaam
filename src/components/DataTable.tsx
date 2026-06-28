@@ -9,6 +9,9 @@ export function DataTable<T>({
   loading,
   empty = "لا توجد بيانات",
   onRowClick,
+  title,
+  description,
+  footer,
 }: {
   columns: {
     key: string;
@@ -17,6 +20,8 @@ export function DataTable<T>({
     className?: string;
     align?: Align;
     width?: string;
+    /** Mark numeric columns: applies tabular-nums + bolder typography. */
+    numeric?: boolean;
     /** Keep this column visible (sticky) while scrolling horizontally on mobile. Defaults to the first column. */
     sticky?: boolean;
   }[];
@@ -24,35 +29,53 @@ export function DataTable<T>({
   loading?: boolean;
   empty?: string;
   onRowClick?: (row: T) => void;
+  /** Optional card header — title at top, description centered below. */
+  title?: ReactNode;
+  description?: ReactNode;
+  /** Optional footer row (totals, etc). */
+  footer?: ReactNode;
 }) {
-  if (loading) {
-    return (
-      <div className="card-elevated p-12 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-  if (!rows.length) {
-    return <div className="card-elevated p-12 text-center text-muted-foreground">{empty}</div>;
-  }
-
   const alignClass = (a?: Align) =>
     a === "center" ? "text-center" : a === "left" ? "text-left" : "text-right";
 
   const isActionsColumn = (c: { key: string; header: any }) =>
     c.key === "actions" || (typeof c.header === "string" && c.header.includes("إجراءات"));
 
-  return (
-    <div className="card-elevated overflow-hidden">
-      <div className="w-full">
+  const Header =
+    title || description ? (
+      <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
+        {title && (
+          <h3 className="font-extrabold text-base md:text-lg text-foreground tracking-tight">{title}</h3>
+        )}
+        {description && (
+          <p className="mt-1 text-xs md:text-sm text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            {description}
+          </p>
+        )}
+      </div>
+    ) : null;
+
+  const Body = (() => {
+    if (loading) {
+      return (
+        <div className="p-12 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      );
+    }
+    if (!rows.length) {
+      return <div className="p-12 text-center text-muted-foreground">{empty}</div>;
+    }
+    return (
+      <div className="w-full overflow-x-auto">
         <table className="w-full text-xs md:text-sm border-collapse table-fixed">
           <thead>
-            <tr className="bg-surface-2 border-b border-border">
-              {columns.map((c) => (
+            <tr className="bg-surface-2 border-b-2 border-border">
+              {columns.map((c, idx) => (
                 <th
                   key={c.key}
                   style={c.width ? { width: c.width } : isActionsColumn(c) ? { width: "7.25rem" } : undefined}
-                  className={`px-1.5 md:px-2 py-2 md:py-2.5 font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground break-words whitespace-normal ${alignClass(c.align)} ${c.className ?? ""}`}
+                  className={`px-2 md:px-3 py-3 font-bold text-[11px] md:text-xs uppercase tracking-wider text-foreground/80 break-words whitespace-normal ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {c.header}
                 </th>
@@ -64,12 +87,12 @@ export function DataTable<T>({
               <tr
                 key={i}
                 onClick={() => onRowClick?.(row)}
-                className={`border-b border-border last:border-0 transition-colors hover:bg-muted/40 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface/20" : "bg-card"}`}
+                className={`border-b border-border/60 last:border-0 transition-colors hover:bg-primary/5 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface-2/30" : "bg-card"}`}
               >
-                {columns.map((c) => (
+                {columns.map((c, idx) => (
                   <td
                     key={c.key}
-                    className={`px-1.5 md:px-2 py-2 md:py-2.5 align-middle break-words whitespace-normal min-w-0 ${isActionsColumn(c) ? "[&>div]:flex-wrap [&>div]:justify-end [&_button]:h-7 [&_button]:w-7 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                    className={`px-2 md:px-3 py-2.5 md:py-3 align-middle break-words whitespace-normal min-w-0 ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-wrap [&>div]:justify-end [&_button]:h-7 [&_button]:w-7 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                   >
                     {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                   </td>
@@ -77,9 +100,20 @@ export function DataTable<T>({
               </tr>
             ))}
           </tbody>
+          {footer && (
+            <tfoot className="bg-surface-2 border-t-2 border-border font-extrabold">
+              {footer}
+            </tfoot>
+          )}
         </table>
       </div>
+    );
+  })();
 
+  return (
+    <div className="card-elevated overflow-hidden">
+      {Header}
+      {Body}
     </div>
   );
 }
