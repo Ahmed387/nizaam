@@ -486,25 +486,18 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </Section>
 
-      {/* ===== Section 2: Inventory & Suppliers ===== */}
-      <Section icon={<Store className="w-5 h-5" />} title="المخزون والموردين" color="primary">
+      {/* ===== Section 2: Inventory & Suppliers (operational only) ===== */}
+      <Section icon={<Store className="w-5 h-5" />} title="حركة المخزون والمشتريات" color="primary">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
           <MiniKpi label="تكلفة الشحنات" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
           <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
         </div>
-        {scope === "global" && (
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <MiniKpi label="إجمالي مشتريات من الموردين" value={formatEGP(supplierTotalOwed)} icon={<Truck className="w-4 h-4" />} hint="قيمة كل الشحنات تاريخياً" />
-            <MiniKpi label="إجمالي ما سددناه" value={formatEGP(supplierTotalPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" hint="من جميع الدفعات" />
-            <MiniKpi label="المتبقي علينا (من contacts)" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint={`${suppliers.length} مورد — صيغة موحدة`} />
-          </div>
-        )}
         <div className="text-xs text-muted-foreground mt-3 text-end">
-          تنبيهات المخزون المنخفض في{" "}
+          أرصدة الموردين الكاملة (مدين/دائن) في{" "}
+          <Link to="/admin/reports-hub?tab=insights" className="text-primary font-bold hover:underline">🎯 الرؤى التنفيذية</Link>
+          {" "}— تنبيهات المخزون في{" "}
           <Link to="/admin/dashboard" className="text-primary font-bold hover:underline">لوحة التحكم</Link>
-          {" "}— كل المخزون في{" "}
-          <Link to="/admin/inventory" className="text-primary font-bold hover:underline">صفحة المخزون</Link>
         </div>
       </Section>
 
@@ -519,16 +512,14 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </Section>
 
-      {/* ===== Detailed tabs — 6 sections ===== */}
+      {/* ===== Detailed tabs — operations only (profit/Top-Bottom removed → see 📊 الربحية & 🎯 الرؤى) ===== */}
       <Tabs defaultValue={scope === "global" ? "branches" : "sales"} className="mt-2">
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="sales">🛒 المبيعات</TabsTrigger>
-          <TabsTrigger value="profit">📈 الربحية</TabsTrigger>
-          <TabsTrigger value="purchases">🚚 المشتريات والموردين</TabsTrigger>
+          <TabsTrigger value="sales">🛒 المبيعات وطرق الدفع</TabsTrigger>
+          <TabsTrigger value="purchases">🚚 المشتريات والموردين (تشغيلي)</TabsTrigger>
           <TabsTrigger value="inventory">📦 المخزون</TabsTrigger>
           <TabsTrigger value="employees">👥 الموظفين</TabsTrigger>
           {scope === "global" && <TabsTrigger value="branches">🏢 أداء الفروع</TabsTrigger>}
-          
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
         </TabsList>
 
