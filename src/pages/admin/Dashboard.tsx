@@ -14,6 +14,7 @@ import {
   HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
   BookmarkPlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Truck,
 } from "lucide-react";
+import { ExecutiveProfitSummary } from "@/components/ExecutiveProfitSummary";
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -97,6 +98,8 @@ export default function AdminDashboard() {
           </Button>
         }
       />
+
+      <ExecutiveProfitSummary />
 
       {/* Operational KPIs — TODAY only */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
