@@ -49,11 +49,11 @@ export function ReportIntro({ icon, title, purpose, shows, unique, accent = "pri
           </ul>
         </div>
 
-        <div className={`rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} p-4`}>
-          <div className={`inline-flex items-center gap-1.5 text-xs font-bold mb-2 px-2.5 py-1 rounded-full ${a.chip}`}>
+        <div className={`rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} p-4 text-center`}>
+          <div className={`inline-flex items-center gap-1.5 text-xs font-bold mb-3 px-2.5 py-1 rounded-full ${a.chip}`}>
             <span>⭐</span><span>المميز فيه</span>
           </div>
-          <p className="text-base md:text-lg leading-loose text-foreground break-words whitespace-normal">
+          <p className="text-base md:text-lg leading-loose text-foreground break-words whitespace-normal text-center">
             {unique}
           </p>
         </div>
