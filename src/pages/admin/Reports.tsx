@@ -919,3 +919,12 @@ function Row({ label, value, hint, accent }: { label: string; value: string; hin
     </div>
   );
 }
+
+function PMRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between px-2 py-1 rounded bg-surface-2/70">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-bold ${value > 0 ? "" : "text-muted-foreground"}`}>{value > 0 ? formatEGP(value) : "—"}</span>
+    </div>
+  );
+}
