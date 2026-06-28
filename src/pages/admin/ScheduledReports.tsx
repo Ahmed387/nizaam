@@ -129,6 +129,20 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader title="التقارير المجدولة" subtitle="تقارير أسبوعية تلقائية كل يوم أحد" />
+      <ReportIntro
+        icon="⏰"
+        title="التقارير المجدولة — الأتمتة"
+        purpose="بدل ما تفتح النظام كل يوم، خليه يبعتلك التقارير لوحده على فترات منتظمة."
+        shows={[
+          "أرشيف التقارير الأسبوعية المُولّدة تلقائياً كل يوم أحد",
+          "تحميل أي تقرير قديم بصيغة Excel أو طباعة",
+          "زر 'إنشاء تقرير الآن' لو محتاج لقطة فورية",
+          "ملخص: مبيعات، مصروفات، مرتجعات، صافي للأسبوع",
+        ]}
+        unique="الوحيد اللي بيشتغل تلقائي بدون تدخل ويحتفظ بأرشيف تاريخي — مش Real-time زي التبويبات التانية."
+        accent="info"
+      />
+
 
       <div className="flex justify-end mb-4">
         <Button onClick={runNow} disabled={running} className="gap-2">
