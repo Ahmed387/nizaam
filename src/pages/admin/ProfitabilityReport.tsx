@@ -298,17 +298,25 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 <h4 className="font-bold text-success flex items-center gap-2"><TrendingUp className="w-4 h-4" /> أعلى 10 منتجات بالهامش</h4>
                 <span className="text-[10px] text-muted-foreground">جودة ربح — مش حجم</span>
               </div>
-              <table className="w-full text-xs">
-                <thead className="bg-surface-2/40"><tr><th className="px-3 py-1.5 text-right">#</th><th className="px-3 py-1.5 text-right">المنتج</th><th className="px-3 py-1.5 text-right">الكمية</th><th className="px-3 py-1.5 text-right">الربح</th><th className="px-3 py-1.5 text-right">الهامش</th></tr></thead>
+              <table className="w-full text-sm table-fixed">
+                <thead className="bg-surface-2/40">
+                  <tr>
+                    <th className="px-3 py-2 w-10 text-right whitespace-nowrap">#</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">المنتج</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الكمية</th>
+                    <th className="px-3 py-2 w-28 text-right whitespace-nowrap">الربح</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الهامش</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {topMargin.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">لا يوجد</td></tr>}
                   {topMargin.map((r, i) => (
-                    <tr key={r.product_id ?? r.product_name} className="border-t border-border/60">
-                      <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
-                      <td className="px-3 py-1.5 font-medium truncate max-w-[180px]">{r.product_name}</td>
-                      <td className="px-3 py-1.5">{r.qty}</td>
-                      <td className="px-3 py-1.5 text-success font-bold">{formatEGP(r.profit)}</td>
-                      <td className="px-3 py-1.5 font-extrabold text-success">{r.margin.toFixed(1)}%</td>
+                    <tr key={r.product_id ?? r.product_name} className="border-t border-border/60 align-top">
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{i + 1}</td>
+                      <td className="px-3 py-2 font-medium break-words" title={r.product_name}>{r.product_name}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{r.qty}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap text-success font-bold">{formatEGP(r.profit)}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap font-extrabold text-success">{r.margin.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -319,17 +327,25 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 <h4 className="font-bold text-destructive flex items-center gap-2"><TrendingDown className="w-4 h-4" /> أقل 10 منتجات بالهامش</h4>
                 <span className="text-[10px] text-muted-foreground">يستحق مراجعة تسعير</span>
               </div>
-              <table className="w-full text-xs">
-                <thead className="bg-surface-2/40"><tr><th className="px-3 py-1.5 text-right">#</th><th className="px-3 py-1.5 text-right">المنتج</th><th className="px-3 py-1.5 text-right">الكمية</th><th className="px-3 py-1.5 text-right">الربح</th><th className="px-3 py-1.5 text-right">الهامش</th></tr></thead>
+              <table className="w-full text-sm table-fixed">
+                <thead className="bg-surface-2/40">
+                  <tr>
+                    <th className="px-3 py-2 w-10 text-right whitespace-nowrap">#</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">المنتج</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الكمية</th>
+                    <th className="px-3 py-2 w-28 text-right whitespace-nowrap">الربح</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الهامش</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {bottomMargin.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">لا يوجد</td></tr>}
                   {bottomMargin.map((r, i) => (
-                    <tr key={r.product_id ?? r.product_name} className="border-t border-border/60">
-                      <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
-                      <td className="px-3 py-1.5 font-medium truncate max-w-[180px]">{r.product_name}</td>
-                      <td className="px-3 py-1.5">{r.qty}</td>
-                      <td className={`px-3 py-1.5 font-bold ${r.profit >= 0 ? "text-warning" : "text-destructive"}`}>{formatEGP(r.profit)}</td>
-                      <td className={`px-3 py-1.5 font-extrabold ${r.margin < 0 ? "text-destructive" : r.margin < 10 ? "text-destructive" : "text-warning"}`}>{r.margin.toFixed(1)}%</td>
+                    <tr key={r.product_id ?? r.product_name} className="border-t border-border/60 align-top">
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{i + 1}</td>
+                      <td className="px-3 py-2 font-medium break-words" title={r.product_name}>{r.product_name}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{r.qty}</td>
+                      <td className={`px-3 py-2 text-right whitespace-nowrap font-bold ${r.profit >= 0 ? "text-warning" : "text-destructive"}`}>{formatEGP(r.profit)}</td>
+                      <td className={`px-3 py-2 text-right whitespace-nowrap font-extrabold ${r.margin < 0 ? "text-destructive" : r.margin < 10 ? "text-destructive" : "text-warning"}`}>{r.margin.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
