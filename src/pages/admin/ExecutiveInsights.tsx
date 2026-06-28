@@ -41,6 +41,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [preOrders, setPreOrders] = useState<any[]>([]);
 
   const loadBranches = async () => {
     if (!tenantId) return;
@@ -64,25 +65,45 @@ export default function ExecutiveInsights({ embedded }: Props) {
       .select("amount, branch_id, voucher_categories(name, system_key)")
       .eq("tenant_id", tenantId).eq("type", "payment").eq("status", "active")
       .gte("voucher_date", from).lte("voucher_date", to);
+    let poQ = supabase.from("pre_orders")
+      .select("id, product_name, quantity, expected_price, status, branch_id, created_at")
+      .eq("tenant_id", tenantId)
+      .gte("created_at", fromIso).lte("created_at", toIso);
 
     if (branchId !== "all") {
       cQ = cQ.eq("branch_id", branchId);
       iQ = iQ.eq("branch_id", branchId);
       pQ = pQ.eq("branch_id", branchId);
       eQ = eQ.eq("branch_id", branchId);
+      poQ = poQ.eq("branch_id", branchId);
     }
 
-    const [c, i, p, e] = await Promise.all([cQ, iQ, pQ, eQ]);
+    const [c, i, p, e, po] = await Promise.all([cQ, iQ, pQ, eQ, poQ]);
     setContacts(c.data ?? []);
     setInvoices(i.data ?? []);
     setAllProducts(p.data ?? []);
     setExpenses((e.data ?? []).filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key)));
+    setPreOrders(po.data ?? []);
     setLoading(false);
   };
 
   useEffect(() => { loadBranches(); /* eslint-disable-next-line */ }, [tenantId]);
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, branchId]);
-  useRealtimeRefresh(["contacts", "invoices", "invoice_items", "vouchers", "products"], load);
+  useRealtimeRefresh(["contacts", "invoices", "invoice_items", "vouchers", "products", "pre_orders"], load);
+
+  // === Pre-orders: most-requested products ===
+  const topPreOrderProducts = useMemo(() => {
+    const m: Record<string, { name: string; count: number; qty: number; value: number; cancelled: number }> = {};
+    for (const po of preOrders) {
+      const k = po.product_name ?? "—";
+      if (!m[k]) m[k] = { name: k, count: 0, qty: 0, value: 0, cancelled: 0 };
+      m[k].count += 1;
+      m[k].qty += Number(po.quantity) || 0;
+      m[k].value += (Number(po.expected_price) || 0) * (Number(po.quantity) || 0);
+      if (po.status === "cancelled") m[k].cancelled += 1;
+    }
+    return Object.values(m).sort((a, b) => b.qty - a.qty).slice(0, 10);
+  }, [preOrders]);
 
   // === Suppliers ===
   // balance < 0 → we owe them; balance > 0 → they owe us
@@ -187,6 +208,10 @@ export default function ExecutiveInsights({ embedded }: Props) {
 
       <h2>أقل المصروفات</h2>
       ${tbl(bottomExpenses.map((e) => [e.name, formatEGP(e.value)]), ["الفئة", "المبلغ"])}
+
+      <h2>أكثر المنتجات طلباً في الحجوزات (Pre-orders)</h2>
+      ${tbl(topPreOrderProducts.map((p) => [p.name, String(p.count), formatNumber(p.qty), formatEGP(p.value)]),
+        ["المنتج", "عدد الطلبات", "إجمالي الكمية", "القيمة المتوقعة"])}
     `;
     printReport(`الرؤى التنفيذية — ${branchName}`, html);
   };
@@ -275,6 +300,33 @@ export default function ExecutiveInsights({ embedded }: Props) {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Top pre-ordered products */}
+      <div className="card-elevated p-4 mb-6">
+        <h3 className="font-bold mb-3 flex items-center gap-2 text-accent"><Package className="w-4 h-4" /> أكثر المنتجات طلباً في الحجوزات (Pre-orders)</h3>
+        {topPreOrderProducts.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا توجد طلبات حجز في الفترة</div> : (
+          <div className="grid lg:grid-cols-2 gap-4">
+            <ResponsiveContainer width="100%" height={Math.max(280, topPreOrderProducts.length * 36)}>
+              <BarChart data={topPreOrderProducts} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 18 ? v.slice(0, 18) + "…" : v)} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Bar dataKey="qty" name="الكمية المطلوبة" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <DataTable rows={topPreOrderProducts} empty=""
+              columns={[
+                { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
+                { key: "count", header: "عدد الطلبات" },
+                { key: "qty", header: "إجمالي الكمية", render: (r: any) => formatNumber(r.qty) },
+                { key: "value", header: "القيمة المتوقعة", render: (r: any) => formatEGP(r.value) },
+              ]} />
+          </div>
+        )}
+      </div>
+
+
 
       {/* Weak / Stagnant */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
