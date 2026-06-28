@@ -462,38 +462,42 @@ function HeroCard({
 }) {
   const pos = net >= 0;
   return (
-    <div className={`card-elevated p-5 bg-gradient-to-br ${gradient} border-2 ${pos ? "border-success/30" : "border-destructive/30"}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="font-bold text-base">{title}</h3>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+    <div className={`card-elevated p-6 bg-gradient-to-br ${gradient} border-2 ${pos ? "border-success/30" : "border-destructive/30"} text-center`}>
+      {/* Header */}
+      <div className="mb-4">
+        <h3 className="font-extrabold text-xl md:text-2xl text-foreground">{title}</h3>
+        <p className="text-sm md:text-base font-medium text-muted-foreground mt-1">{subtitle}</p>
+      </div>
+
+      {/* Net profit — centered and prominent */}
+      <div className="mb-4">
+        <div className="text-sm md:text-base font-semibold text-muted-foreground mb-1">صافي الربح</div>
+        <div className={`text-4xl md:text-5xl font-black tracking-tight ${pos ? "text-success" : "text-destructive"}`}>
+          {formatEGP(net)}
         </div>
         {delta !== null && (
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
-            {delta >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          <div className={`inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-sm font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+            {delta >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
             {Math.abs(delta).toFixed(1)}%
           </div>
         )}
       </div>
-      <div className="mb-3">
-        <div className="text-xs text-muted-foreground mb-1">صافي الربح</div>
-        <div className={`text-3xl font-extrabold ${pos ? "text-success" : "text-destructive"}`}>
-          {formatEGP(net)}
+
+      {/* Sales & Expenses */}
+      <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/50">
+        <div className="text-center">
+          <div className="text-sm font-semibold text-muted-foreground mb-1">المبيعات</div>
+          <div className="font-extrabold text-lg md:text-xl text-foreground">{formatEGP(sales)}</div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/50">
-        <div>
-          <div className="text-[10px] text-muted-foreground">المبيعات</div>
-          <div className="font-bold text-sm">{formatEGP(sales)}</div>
-        </div>
-        <div>
-          <div className="text-[10px] text-muted-foreground">المصروفات</div>
-          <div className="font-bold text-sm text-destructive">{formatEGP(expenses)}</div>
+        <div className="text-center">
+          <div className="text-sm font-semibold text-muted-foreground mb-1">المصروفات</div>
+          <div className="font-extrabold text-lg md:text-xl text-destructive">{formatEGP(expenses)}</div>
         </div>
       </div>
     </div>
   );
 }
+
 
 function CashCard({
   label, value, icon, accent, link, hint,
