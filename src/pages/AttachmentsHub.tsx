@@ -221,9 +221,16 @@ export default function AttachmentsHub({ scope }: Props) {
   }, [rows, scope, branchParamId, branchFilter, typeFilter, from, to, q]);
 
   const open = async (a: Att) => {
+    // Open the tab synchronously inside the user gesture, then navigate it
+    // once the signed URL is ready — avoids popup-blocker on async open.
+    const win = window.open("about:blank", "_blank");
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(a.file_path, 600);
-    if (error) return toast.error(error.message);
-    window.open(data.signedUrl, "_blank");
+    if (error || !data?.signedUrl) {
+      win?.close();
+      return toast.error(error?.message || "تعذر فتح الملف");
+    }
+    if (win) win.location.href = data.signedUrl;
+    else window.location.href = data.signedUrl;
   };
 
   const download = async (a: Att) => {
