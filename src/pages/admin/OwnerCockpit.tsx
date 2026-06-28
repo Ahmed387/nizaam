@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { ReportIntro } from "@/components/ReportIntro";
 import { fetchProfitWindow, rangeFor, rangeForDates, lineProfit } from "@/lib/profitEngine";
 import {
   TrendingUp, TrendingDown, Wallet, AlertTriangle, Package,
@@ -223,6 +224,19 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
 
   return (
     <div className={embedded ? "space-y-4" : "p-6 space-y-4"}>
+      <ReportIntro
+        icon="👑"
+        title="نظرة المالك — Cockpit"
+        purpose="لو معاك دقيقة واحدة بس على شركتك، التبويب ده اللي تشوفه."
+        shows={[
+          "اليوم vs أمس والشهر vs الشهر اللي فات (مبيعات + ربح)",
+          "السيولة الحالية: خزنة، علينا للموردين، لنا عند العملاء",
+          "منحنى المبيعات والربح آخر 30 يوم + ترتيب الفروع",
+          "تنبيهات قرار: متأخرات، مخزون منخفض، حجوزات معلقة",
+        ]}
+        unique="ملخص استراتيجي في صفحة واحدة بـ Drill-down لأي تبويب — مفيش جداول تفصيلية، الهدف لمحة سريعة."
+        accent="success"
+      />
       {/* Header — live status */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

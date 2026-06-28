@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/DataTable";
 import { StatCard } from "@/components/StatCard";
+import { ReportIntro } from "@/components/ReportIntro";
 import { printReport } from "@/lib/export";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -218,6 +219,19 @@ export default function ExecutiveInsights({ embedded }: Props) {
 
   return (
     <div className={embedded ? "" : "p-6"}>
+      <ReportIntro
+        icon="🎯"
+        title="الرؤى التنفيذية — قرارات لا أرقام"
+        purpose="مش بيقولك الأرقام بس، بيقولك تعمل إيه: مين تكلمه، إيه تشتري، إيه توقف، فين الفلوس النايمة."
+        shows={[
+          "أعلى/أقل الموردين (لينا/علينا) — لإدارة الديون",
+          "أفضل/أقل المنتجات مبيعاً + المنتجات الراكدة",
+          "أكتر/أقل المصروفات بنوعها (Pie chart)",
+          "الأكثر طلباً في الحجوزات + تصدير PDF شامل",
+        ]}
+        unique="المرجع الوحيد لقوائم Top/Bottom في النظام كله — مع تحليل وقرار، مش مجرد أرقام جامدة."
+        accent="warning"
+      />
       {/* Filters */}
       <div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div>

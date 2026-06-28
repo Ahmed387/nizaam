@@ -11,6 +11,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { lineProfit } from "@/lib/profitEngine";
+import { ReportIntro } from "@/components/ReportIntro";
 
 interface Row {
   product_id: string | null;
@@ -219,6 +220,20 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
   return (
     <Wrapper>
       <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
+      <ReportIntro
+        icon="📊"
+        title="تقرير الربحية — المحاسبة الدقيقة"
+        purpose="الجواب الرسمي على سؤال: 'كسبت كام فعلاً؟' محسوب بنظام FIFO على مستوى كل فاتورة ومنتج."
+        shows={[
+          "الإيراد - التكلفة (FIFO) = صافي الربح + هامش %",
+          "ربح كل فاتورة، كل منتج، وكل دفعة شراء (Drill-down)",
+          "فلاتر بالفرع، الكاشير، الفئة، والفترة الزمنية",
+          "أعلى/أقل 10 منتجات بالهامش (جودة الربح)",
+        ]}
+        unique="المرجع المحاسبي الوحيد للربح — أي رقم ربح في أي مكان تاني في النظام بييجي من نفس المحرك."
+        accent="info"
+      />
+
 
       {hasAnyMigrated && (
         <div className="card-elevated p-3 mb-3 border-amber-500/30 bg-amber-500/5 flex flex-wrap items-center justify-between gap-2">
