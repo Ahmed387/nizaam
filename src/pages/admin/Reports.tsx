@@ -456,14 +456,33 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         </div>
       </div>
 
-      {/* ===== Section 1: Profitability ===== */}
-      <Section icon={<TrendingUp className="w-5 h-5" />} title="الربحية والمبيعات" color="success">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <MiniKpi label="المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} hint={`${k.invoicesCount} فاتورة`} />
-          <MiniKpi label="التكلفة" value={formatEGP(k.cost)} icon={<Package className="w-4 h-4" />} />
-          <MiniKpi label="إجمالي الربح" value={formatEGP(k.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-          <MiniKpi label="المصروفات" value={formatEGP(k.exp)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
-          <MiniKpi label="صافي الربح" value={formatEGP(k.net)} icon={<Wallet className="w-4 h-4" />} accent={k.net >= 0 ? "success" : "destructive"} />
+      {/* ===== Tab role banner — operations only ===== */}
+      <div className="card-elevated p-4 mb-4 border-r-4 border-primary bg-primary/5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary shrink-0" />
+            <div>
+              <h2 className="font-bold">العمليات اليومية</h2>
+              <p className="text-xs text-muted-foreground">
+                المبيعات، الكاشير، طرق الدفع، الخزنة، المصروفات، الموظفين — بدون تكرار للربحية أو Top/Bottom
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px]">
+            <Link to="/admin/reports-hub?tab=owner" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">👑 لملخص لحظي → نظرة المالك</Link>
+            <Link to="/admin/reports-hub?tab=profitability" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">📊 لتفاصيل الربح → الربحية</Link>
+            <Link to="/admin/reports-hub?tab=insights" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">🎯 لأعلى/أقل → الرؤى</Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Section 1: Operational KPIs (no profit — moved to Profitability tab) ===== */}
+      <Section icon={<ShoppingCart className="w-5 h-5" />} title="حركة المبيعات والمرتجعات" color="success">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <MiniKpi label="إجمالي المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} hint={`${k.invoicesCount} فاتورة`} />
+          <MiniKpi label="متوسط الفاتورة" value={formatEGP(k.invoicesCount > 0 ? k.sales / k.invoicesCount : 0)} icon={<Receipt className="w-4 h-4" />} />
+          <MiniKpi label="المرتجعات" value={formatEGP(k.returnsTotal)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${scopedReturns.length} مرتجع`} />
+          <MiniKpi label="المصروفات التشغيلية" value={formatEGP(k.exp)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" />
         </div>
       </Section>
 
