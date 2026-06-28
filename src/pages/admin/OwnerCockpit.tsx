@@ -462,38 +462,42 @@ function HeroCard({
 }) {
   const pos = net >= 0;
   return (
-    <div className={`card-elevated p-5 bg-gradient-to-br ${gradient} border-2 ${pos ? "border-success/30" : "border-destructive/30"}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="font-bold text-base">{title}</h3>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+    <div className={`card-elevated p-6 bg-gradient-to-br ${gradient} border-2 ${pos ? "border-success/30" : "border-destructive/30"} text-center`}>
+      {/* Header */}
+      <div className="mb-4">
+        <h3 className="font-extrabold text-xl md:text-2xl text-foreground">{title}</h3>
+        <p className="text-sm md:text-base font-medium text-muted-foreground mt-1">{subtitle}</p>
+      </div>
+
+      {/* Net profit — centered and prominent */}
+      <div className="mb-4">
+        <div className="text-sm md:text-base font-semibold text-muted-foreground mb-1">صافي الربح</div>
+        <div className={`text-4xl md:text-5xl font-black tracking-tight ${pos ? "text-success" : "text-destructive"}`}>
+          {formatEGP(net)}
         </div>
         {delta !== null && (
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
-            {delta >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          <div className={`inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-sm font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+            {delta >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
             {Math.abs(delta).toFixed(1)}%
           </div>
         )}
       </div>
-      <div className="mb-3">
-        <div className="text-xs text-muted-foreground mb-1">صافي الربح</div>
-        <div className={`text-3xl font-extrabold ${pos ? "text-success" : "text-destructive"}`}>
-          {formatEGP(net)}
+
+      {/* Sales & Expenses */}
+      <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/50">
+        <div className="text-center">
+          <div className="text-sm font-semibold text-muted-foreground mb-1">المبيعات</div>
+          <div className="font-extrabold text-lg md:text-xl text-foreground">{formatEGP(sales)}</div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/50">
-        <div>
-          <div className="text-[10px] text-muted-foreground">المبيعات</div>
-          <div className="font-bold text-sm">{formatEGP(sales)}</div>
-        </div>
-        <div>
-          <div className="text-[10px] text-muted-foreground">المصروفات</div>
-          <div className="font-bold text-sm text-destructive">{formatEGP(expenses)}</div>
+        <div className="text-center">
+          <div className="text-sm font-semibold text-muted-foreground mb-1">المصروفات</div>
+          <div className="font-extrabold text-lg md:text-xl text-destructive">{formatEGP(expenses)}</div>
         </div>
       </div>
     </div>
   );
 }
+
 
 function CashCard({
   label, value, icon, accent, link, hint,
@@ -507,25 +511,25 @@ function CashCard({
     warning: "text-warning border-warning/30 bg-warning/5",
   }[accent];
   return (
-    <Link to={link} className={`block rounded-xl p-4 border ${c} hover:scale-[1.02] transition-transform`}>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-        {icon}<span className="font-medium">{label}</span>
+    <Link to={link} className={`block rounded-xl p-4 border ${c} hover:scale-[1.02] transition-transform text-center`}>
+      <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
+        {icon}<span className="font-semibold">{label}</span>
       </div>
-      <div className={`text-xl font-extrabold ${c.split(" ")[0]}`}>{formatEGP(value)}</div>
-      {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
+      <div className={`text-2xl md:text-3xl font-black ${c.split(" ")[0]}`}>{formatEGP(value)}</div>
+      {hint && <div className="text-xs text-muted-foreground mt-1 font-medium">{hint}</div>}
     </Link>
   );
 }
 
 function BranchCard({ title, branch, positive }: { title: string; branch: { name: string; net: number; revenue: number }; positive: boolean }) {
   return (
-    <div className={`card-elevated p-5 border-2 ${positive ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-      <h4 className="text-sm font-bold mb-2">{title}</h4>
-      <div className="text-2xl font-extrabold mb-1">{branch.name}</div>
-      <div className={`text-3xl font-extrabold ${positive ? "text-success" : "text-destructive"} mb-2`}>
+    <div className={`card-elevated p-6 border-2 ${positive ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"} text-center`}>
+      <h4 className="text-base md:text-lg font-bold mb-3">{title}</h4>
+      <div className="text-2xl md:text-3xl font-black mb-2 text-foreground">{branch.name}</div>
+      <div className={`text-3xl md:text-4xl font-black ${positive ? "text-success" : "text-destructive"} mb-2`}>
         {formatEGP(branch.net)}
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm text-muted-foreground font-medium">
         من إجمالي مبيعات {formatEGP(branch.revenue)}
       </div>
     </div>
@@ -545,15 +549,16 @@ function AlertTile({
     ok: "bg-success/5 border-success/30 text-success",
   }[severity];
   return (
-    <Link to={link} className={`block rounded-lg p-3 border ${c} hover:opacity-90 transition`}>
-      <div className="flex items-center gap-1.5 text-xs mb-1.5">
-        {icon}<span className="font-medium">{label}</span>
+    <Link to={link} className={`block rounded-lg p-4 border ${c} hover:opacity-90 transition text-center`}>
+      <div className="flex items-center justify-center gap-1.5 text-sm mb-2">
+        {icon}<span className="font-semibold">{label}</span>
       </div>
-      <div className="text-2xl font-extrabold">{count}</div>
-      {hint && <div className="text-[10px] mt-0.5 opacity-80">{hint}</div>}
+      <div className="text-3xl md:text-4xl font-black">{count}</div>
+      {hint && <div className="text-xs mt-1 font-medium opacity-90">{hint}</div>}
     </Link>
   );
 }
+
 
 function DrillLink({ to, label }: { to: string; label: string }) {
   return (
