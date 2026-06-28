@@ -73,7 +73,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
           .from("payment_installments")
           .select("amount, paid_amount, payment_plans!inner(entity_type)")
           .eq("status", "overdue"),
-        supabase.from("products").select("id, quantity, min_stock_alert").eq("is_active", true),
+        supabase.from("products").select("id, quantity, low_stock_alert"),
         supabase
           .from("invoice_items")
           .select("product_id, quantity, returned_quantity, invoices!inner(tenant_id, status, created_at)")
