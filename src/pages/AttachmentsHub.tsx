@@ -118,69 +118,57 @@ export default function AttachmentsHub({ scope }: Props) {
     const docMap: Record<string, { number: string; branch_id: string | null; date?: string }> = {};
 
     const lookups: Promise<any>[] = [];
+    const wrap = (p: any) => Promise.resolve(p);
     if (byType.invoice?.length) {
-      lookups.push(
-        supabase.from("invoices").select("id, invoice_number, branch_id").in("id", byType.invoice).then(({ data }) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`invoice:${r.id}`] = { number: r.invoice_number, branch_id: r.branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("invoices").select("id, invoice_number, branch_id").in("id", byType.invoice)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`invoice:${r.id}`] = { number: r.invoice_number, branch_id: r.branch_id }; });
+      }));
     }
     if (byType.sale_return?.length) {
-      lookups.push(
-        supabase.from("returns").select("id, return_number, branch_id").in("id", byType.sale_return).then(({ data }) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`sale_return:${r.id}`] = { number: r.return_number, branch_id: r.branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("returns").select("id, return_number, branch_id").in("id", byType.sale_return)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`sale_return:${r.id}`] = { number: r.return_number, branch_id: r.branch_id }; });
+      }));
     }
     if (byType.purchase_return?.length) {
-      lookups.push(
-        supabase.from("purchase_returns").select("id, return_number, branch_id").in("id", byType.purchase_return).then(({ data }) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`purchase_return:${r.id}`] = { number: r.return_number, branch_id: r.branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("purchase_returns").select("id, return_number, branch_id").in("id", byType.purchase_return)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`purchase_return:${r.id}`] = { number: r.return_number, branch_id: r.branch_id }; });
+      }));
     }
     if (byType.shipment?.length) {
-      lookups.push(
-        supabase.from("shipments").select("id, shipment_number, branch_id").in("id", byType.shipment).then(({ data }) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`shipment:${r.id}`] = { number: r.shipment_number, branch_id: r.branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("shipments").select("id, shipment_number, branch_id").in("id", byType.shipment)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`shipment:${r.id}`] = { number: r.shipment_number, branch_id: r.branch_id }; });
+      }));
     }
     if (byType.stock_transfer?.length) {
-      lookups.push(
-        supabase.from("stock_transfers").select("id, from_branch_id").in("id", byType.stock_transfer).then(({ data }) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`stock_transfer:${r.id}`] = { number: r.id.slice(0, 8), branch_id: r.from_branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("stock_transfers").select("id, from_branch_id").in("id", byType.stock_transfer)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`stock_transfer:${r.id}`] = { number: String(r.id).slice(0, 8), branch_id: r.from_branch_id }; });
+      }));
     }
     if (byType.stock_adjustment?.length) {
-      lookups.push(
-        supabase.from("stock_adjustments").select("id, adjustment_number, branch_id").in("id", byType.stock_adjustment).then(({ data }) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`stock_adjustment:${r.id}`] = { number: r.adjustment_number, branch_id: r.branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("stock_adjustments").select("id, adjustment_number, branch_id").in("id", byType.stock_adjustment)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`stock_adjustment:${r.id}`] = { number: r.adjustment_number, branch_id: r.branch_id }; });
+      }));
     }
     if (byType.voucher?.length) {
-      lookups.push(
-        supabase.from("vouchers" as any).select("id, voucher_number, branch_id").in("id", byType.voucher).then(({ data }: any) => {
-          (data ?? []).forEach((r: any) => {
-            docMap[`voucher:${r.id}`] = { number: r.voucher_number, branch_id: r.branch_id };
-          });
-        })
-      );
+      lookups.push(wrap(
+        supabase.from("vouchers" as any).select("id, voucher_number, branch_id").in("id", byType.voucher)
+      ).then(({ data }: any) => {
+        (data ?? []).forEach((r: any) => { docMap[`voucher:${r.id}`] = { number: r.voucher_number, branch_id: r.branch_id }; });
+      }));
     }
+
 
     // Branches + uploaders
     const [{ data: brList }, { data: profs }] = await Promise.all([
