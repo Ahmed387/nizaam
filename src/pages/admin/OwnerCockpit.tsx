@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { ReportIntro } from "@/components/ReportIntro";
 import { fetchProfitWindow, rangeFor, rangeForDates, lineProfit } from "@/lib/profitEngine";
 import {
   TrendingUp, TrendingDown, Wallet, AlertTriangle, Package,
