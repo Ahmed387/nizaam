@@ -402,24 +402,24 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 const profitUnit = r.qty > 0 ? (r.profit / r.qty) : 0;
                 return (
                   <Fragment key={key}>
-                    <tr key={key} className="border-b border-border hover:bg-surface-2/40 cursor-pointer" onClick={() => {
+                    <tr key={key} className={`border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors ${expanded.has(key) ? "bg-primary/5" : ""}`} onClick={() => {
                       const n = new Set(expanded); n.has(key) ? n.delete(key) : n.add(key); setExpanded(n);
                     }}>
-                      <td className="px-3 py-2">{open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}</td>
-                      <td className="px-3 py-2">{r.product_name}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.gross_qty}</td>
-                      <td className="px-3 py-2">{r.returned_qty > 0 ? <span className="text-warning font-bold">{r.returned_qty}</span> : <span className="text-muted-foreground">0</span>}</td>
-                      <td className="px-3 py-2 font-bold">{r.qty}</td>
-                      <td className="px-3 py-2">{formatEGP(r.revenue)}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-3">{open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}</td>
+                      <td className="px-3 py-3 font-semibold border-r border-border/40">{r.product_name}</td>
+                      <td className="px-3 py-3 text-center tabular-nums text-muted-foreground border-r border-border/40">{r.gross_qty}</td>
+                      <td className="px-3 py-3 text-center tabular-nums border-r border-border/40">{r.returned_qty > 0 ? <span className="text-warning font-bold">{r.returned_qty}</span> : <span className="text-muted-foreground">0</span>}</td>
+                      <td className="px-3 py-3 text-center tabular-nums font-bold border-r border-border/40">{r.qty}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap font-semibold border-r border-border/40">{formatEGP(r.revenue)}</td>
+                      <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap border-r border-border/40">
                         {r.cost_unknown
                           ? <span className="text-xs text-muted-foreground italic">غير متاح</span>
                           : formatEGP(r.cost)}
                       </td>
-                      <td className={`px-3 py-2 font-bold ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>
+                      <td className={`px-3 py-3 text-center tabular-nums whitespace-nowrap font-extrabold border-r border-border/40 ${r.profit >= 0 ? "text-success" : "text-destructive"}`}>
                         {r.cost_unknown ? <span className="text-muted-foreground italic font-normal">غير متاح</span> : formatEGP(r.profit)}
                       </td>
-                      <td className={`px-3 py-2 ${!r.cost_unknown && r.margin < 10 ? "text-destructive font-bold" : ""}`}>
+                      <td className={`px-3 py-3 text-center tabular-nums whitespace-nowrap font-bold border-r border-border/40 ${!r.cost_unknown && r.margin < 10 ? "text-destructive" : ""}`}>
                         {r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%`}
                       </td>
                     </tr>
