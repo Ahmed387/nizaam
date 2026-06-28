@@ -133,7 +133,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
 
     // Stock + stagnant
     const prodRows = (prods.data ?? []) as any[];
-    const low = prodRows.filter((p) => Number(p.min_stock_alert || 0) > 0 && Number(p.quantity || 0) <= Number(p.min_stock_alert)).length;
+    const low = prodRows.filter((p) => Number(p.low_stock_alert || 0) > 0 && Number(p.quantity || 0) <= Number(p.low_stock_alert)).length;
     setLowStockCount(low);
 
     const soldIds = new Set<string>();
