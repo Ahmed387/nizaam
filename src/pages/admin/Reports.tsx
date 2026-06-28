@@ -188,20 +188,34 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   }, [activeInv, scopedExpenses, scopedProducts, scopedShipments, scopedSupPayments, scopedTreasury, scopedReturns]);
 
   // Per-branch (used in global mode)
+  // ⚠️ Uses lineProfit() — single source of truth for revenue/cost/profit
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
-    // SINGLE PROFIT FORMULA (net_quantity-based) — matches k.profit above
     let cost = 0, netRevenue = 0;
     for (const i of bInv) for (const it of i.invoice_items) {
-      const qty = Number(it.quantity) || 0;
-      const netQty = Math.max(0, Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0))));
-      cost += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * netQty;
-      netRevenue += (qty > 0 ? Number(it.total) / qty : 0) * netQty;
+      const lp = lineProfit(it, { invoiceIsMigrated: !!i.is_migrated });
+      cost += lp.cost;
+      netRevenue += lp.revenue;
     }
     const profit = netRevenue - cost;
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
     const bProducts = products.filter((p) => p.branch_id === b.id);
+
+    // Payments received into treasury, grouped by method (for this branch)
+    const bPays = invPayments.filter((p: any) => p.branch_id === b.id);
+    const methodTotal = (m: string) =>
+      bPays.filter((p: any) => p.payment_method === m).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const cashIn = methodTotal("cash");
+    const walletIn = methodTotal("vodafone") + methodTotal("wallet") + methodTotal("etisalat") + methodTotal("orange");
+    const instapayIn = methodTotal("instapay");
+    const bankIn = methodTotal("bank") + methodTotal("bank_transfer");
+    const creditIn = methodTotal("credit_balance");
+    const otherIn = bPays
+      .filter((p: any) => !["cash","vodafone","wallet","etisalat","orange","instapay","bank","bank_transfer","credit_balance"].includes(p.payment_method))
+      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const totalReceived = cashIn + walletIn + instapayIn + bankIn + creditIn + otherIn;
+
     return {
       ...b,
       invoices: bInv.length, sales, cost, profit,
@@ -212,8 +226,9 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       treasuryBalance:
         treasury.filter((t) => t.branch_id === b.id && t.type === "receipt").reduce((s, t) => s + Number(t.amount), 0) -
         treasury.filter((t) => t.branch_id === b.id && t.type === "payment").reduce((s, t) => s + Number(t.amount), 0),
+      cashIn, walletIn, instapayIn, bankIn, creditIn, otherIn, totalReceived,
     };
-  }), [branches, invoices, expenses, products, employees, treasury]);
+  }), [branches, invoices, expenses, products, employees, treasury, invPayments]);
 
   // Top products in scope — qty (gross) / returned / net / revenue (net) / profit (net)
   const topProductsAll = useMemo(() => {
