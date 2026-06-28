@@ -301,11 +301,11 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
               <table className="w-full text-sm table-fixed">
                 <thead className="bg-surface-2/40">
                   <tr>
-                    <th className="px-3 py-2 w-10 text-right">#</th>
-                    <th className="px-3 py-2 text-right">المنتج</th>
-                    <th className="px-3 py-2 w-16 text-right">الكمية</th>
-                    <th className="px-3 py-2 w-28 text-right">الربح</th>
-                    <th className="px-3 py-2 w-20 text-right">الهامش</th>
+                    <th className="px-3 py-2 w-10 text-right whitespace-nowrap">#</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">المنتج</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الكمية</th>
+                    <th className="px-3 py-2 w-28 text-right whitespace-nowrap">الربح</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الهامش</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -330,11 +330,11 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
               <table className="w-full text-sm table-fixed">
                 <thead className="bg-surface-2/40">
                   <tr>
-                    <th className="px-3 py-2 w-10 text-right">#</th>
-                    <th className="px-3 py-2 text-right">المنتج</th>
-                    <th className="px-3 py-2 w-16 text-right">الكمية</th>
-                    <th className="px-3 py-2 w-28 text-right">الربح</th>
-                    <th className="px-3 py-2 w-20 text-right">الهامش</th>
+                    <th className="px-3 py-2 w-10 text-right whitespace-nowrap">#</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">المنتج</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الكمية</th>
+                    <th className="px-3 py-2 w-28 text-right whitespace-nowrap">الربح</th>
+                    <th className="px-3 py-2 w-20 text-right whitespace-nowrap">الهامش</th>
                   </tr>
                 </thead>
                 <tbody>
