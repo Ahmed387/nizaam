@@ -10,42 +10,55 @@ interface Props {
   extra?: ReactNode;
 }
 
-const ACCENTS = {
-  primary: "border-primary bg-primary/5",
-  success: "border-success bg-success/5",
-  warning: "border-warning bg-warning/5",
-  destructive: "border-destructive bg-destructive/5",
-  info: "border-blue-500 bg-blue-500/5",
+const ACCENTS: Record<string, { border: string; bg: string; chip: string; dot: string; ring: string }> = {
+  primary:     { border: "border-primary/40",     bg: "from-primary/10 via-primary/5 to-transparent",         chip: "bg-primary/15 text-primary",         dot: "bg-primary",     ring: "ring-primary/20" },
+  success:     { border: "border-success/40",     bg: "from-success/10 via-success/5 to-transparent",         chip: "bg-success/15 text-success",         dot: "bg-success",     ring: "ring-success/20" },
+  warning:     { border: "border-warning/40",     bg: "from-warning/10 via-warning/5 to-transparent",         chip: "bg-warning/15 text-warning",         dot: "bg-warning",     ring: "ring-warning/20" },
+  destructive: { border: "border-destructive/40", bg: "from-destructive/10 via-destructive/5 to-transparent", chip: "bg-destructive/15 text-destructive", dot: "bg-destructive", ring: "ring-destructive/20" },
+  info:        { border: "border-blue-500/40",    bg: "from-blue-500/10 via-blue-500/5 to-transparent",       chip: "bg-blue-500/15 text-blue-500",       dot: "bg-blue-500",    ring: "ring-blue-500/20" },
 };
 
 export function ReportIntro({ icon, title, purpose, shows, unique, accent = "primary", extra }: Props) {
+  const a = ACCENTS[accent];
   return (
-    <div className={`card-elevated p-4 mb-4 border-r-4 ${ACCENTS[accent]}`}>
-      <div className="flex items-start gap-3">
-        <div className="text-3xl leading-none shrink-0">{icon}</div>
+    <div className={`relative overflow-hidden rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} backdrop-blur-sm mb-5 shadow-sm`}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-border/40">
+        <div className={`w-11 h-11 rounded-xl ${a.chip} ring-4 ${a.ring} flex items-center justify-center text-2xl shrink-0`}>
+          {icon}
+        </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-extrabold text-base">{title}</h3>
-          <p className="text-sm text-muted-foreground mt-0.5">{purpose}</p>
-          <div className="mt-2.5 grid md:grid-cols-2 gap-2">
-            <div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">بيعرض إيه</div>
-              <ul className="space-y-0.5">
-                {shows.map((s, i) => (
-                  <li key={i} className="text-xs flex items-start gap-1.5">
-                    <span className="text-success shrink-0 mt-0.5">✓</span>
-                    <span>{s}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">المميز فيه</div>
-              <p className="text-xs leading-relaxed bg-surface-2/60 rounded p-2 border border-border/50">{unique}</p>
-            </div>
-          </div>
-          {extra && <div className="mt-2">{extra}</div>}
+          <h3 className="font-extrabold text-lg leading-tight truncate">{title}</h3>
+          <p className="text-sm text-muted-foreground leading-snug mt-0.5">{purpose}</p>
         </div>
       </div>
+
+      {/* Body */}
+      <div className="grid md:grid-cols-5 gap-4 px-5 py-4">
+        <div className="md:col-span-3">
+          <div className={`inline-flex items-center gap-1.5 text-[11px] font-bold mb-2 px-2 py-0.5 rounded-full ${a.chip}`}>
+            <span>📋</span><span>محتوى التقرير</span>
+          </div>
+          <ul className="space-y-1.5">
+            {shows.map((s, i) => (
+              <li key={i} className="text-sm flex items-start gap-2 leading-relaxed">
+                <span className={`mt-1.5 w-1.5 h-1.5 rounded-full ${a.dot} shrink-0`} />
+                <span className="text-foreground/90">{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="md:col-span-2">
+          <div className={`inline-flex items-center gap-1.5 text-[11px] font-bold mb-2 px-2 py-0.5 rounded-full ${a.chip}`}>
+            <span>⭐</span><span>المميز فيه</span>
+          </div>
+          <p className="text-sm leading-relaxed bg-card/60 rounded-lg p-3 border border-border/50 text-foreground/90">
+            {unique}
+          </p>
+        </div>
+      </div>
+
+      {extra && <div className="px-5 pb-4">{extra}</div>}
     </div>
   );
 }
