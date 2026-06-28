@@ -705,6 +705,66 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               )}
             </div>
 
+            {/* ===== Per-branch receipts × expenses × net profit ===== */}
+            <div className="card-elevated p-0 overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+                <h4 className="font-bold">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات وصافي الربح</h4>
+                <span className="text-[10px] text-muted-foreground">
+                  المتحصلات من سندات الفاتورة • الربح موحّد من <code className="px-1 rounded bg-muted">profitEngine</code>
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-2 border-b border-border">
+                    <tr>
+                      <th className="px-3 py-2 text-right font-bold">الفرع</th>
+                      <th className="px-3 py-2 text-right">💵 نقدي</th>
+                      <th className="px-3 py-2 text-right">📱 محفظة</th>
+                      <th className="px-3 py-2 text-right">⚡ انستاباي</th>
+                      <th className="px-3 py-2 text-right">🏦 تحويل بنكي</th>
+                      <th className="px-3 py-2 text-right">💳 رصيد عميل</th>
+                      <th className="px-3 py-2 text-right">⋯ أخرى</th>
+                      <th className="px-3 py-2 text-right font-bold bg-primary/5">إجمالي المتحصلات</th>
+                      <th className="px-3 py-2 text-right">المصروفات</th>
+                      <th className="px-3 py-2 text-right font-bold bg-success/5">صافي الربح</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perBranch.map((b) => (
+                      <tr key={b.id} className="border-b border-border hover:bg-surface-2/50 cursor-pointer" onClick={() => setScope(b.id)}>
+                        <td className="px-3 py-2 font-bold">{b.name}<div className="text-[9px] text-muted-foreground font-normal">{b.code}</div></td>
+                        <td className="px-3 py-2">{b.cashIn > 0 ? formatEGP(b.cashIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.walletIn > 0 ? formatEGP(b.walletIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.instapayIn > 0 ? formatEGP(b.instapayIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.bankIn > 0 ? formatEGP(b.bankIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.creditIn > 0 ? formatEGP(b.creditIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2">{b.otherIn > 0 ? formatEGP(b.otherIn) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2 font-bold bg-primary/5">{formatEGP(b.totalReceived)}</td>
+                        <td className="px-3 py-2 text-destructive">{formatEGP(b.expenses)}</td>
+                        <td className={`px-3 py-2 font-extrabold bg-success/5 ${b.net >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-surface-2 border-t-2 border-border font-extrabold">
+                    <tr>
+                      <td className="px-3 py-2">الإجمالي</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.cashIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.walletIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.instapayIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.bankIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.creditIn, 0))}</td>
+                      <td className="px-3 py-2">{formatEGP(perBranch.reduce((s, b) => s + b.otherIn, 0))}</td>
+                      <td className="px-3 py-2 bg-primary/10">{formatEGP(perBranch.reduce((s, b) => s + b.totalReceived, 0))}</td>
+                      <td className="px-3 py-2 text-destructive">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
+                      <td className={`px-3 py-2 bg-success/10 ${perBranch.reduce((s, b) => s + b.net, 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                        {formatEGP(perBranch.reduce((s, b) => s + b.net, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
             <div className="grid lg:grid-cols-2 gap-4">
               {perBranch.map((b) => (
                 <div key={b.id} className="card-elevated p-5 hover:border-primary/50 transition cursor-pointer" onClick={() => setScope(b.id)}>
@@ -731,6 +791,18 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                     <Row label="المخزون" value={formatEGP(b.inventoryValue)} hint={`${b.inventoryQty} قطعة`} />
                     <Row label="الخزنة" value={formatEGP(b.treasuryBalance)} accent={b.treasuryBalance >= 0 ? "success" : "destructive"} />
                     <Row label="الموظفين" value={String(b.employees)} />
+                    <Row label="إجمالي المتحصلات" value={formatEGP(b.totalReceived)} accent="success" />
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <div className="text-[10px] font-bold text-muted-foreground mb-2">تفصيل المتحصلات حسب طريقة الدفع</div>
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                      <PMRow label="💵 نقدي" value={b.cashIn} />
+                      <PMRow label="📱 محفظة" value={b.walletIn} />
+                      <PMRow label="⚡ انستاباي" value={b.instapayIn} />
+                      <PMRow label="🏦 تحويل بنكي" value={b.bankIn} />
+                      {b.creditIn > 0 && <PMRow label="💳 رصيد عميل" value={b.creditIn} />}
+                      {b.otherIn > 0 && <PMRow label="⋯ أخرى" value={b.otherIn} />}
+                    </div>
                   </div>
                   <div className="flex items-center justify-end gap-1 text-xs text-primary mt-3 pt-3 border-t border-border">
                     عرض تقرير الفرع التفصيلي <ChevronLeft className="w-3 h-3" />
