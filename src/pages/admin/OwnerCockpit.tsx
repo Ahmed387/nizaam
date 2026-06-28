@@ -238,23 +238,23 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
         accent="success"
       />
       {/* Header — live status */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            نظرة المالك — لمحة شاملة عن شركتك
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            كل الأرقام تأتي من نفس مصدر حساب الربح الموحد — تتحدث تلقائياً
-          </p>
+      <div className="relative flex flex-col items-center text-center gap-3 py-4">
+        <div className="absolute top-3 left-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            {loading ? "جاري التحديث..." : "مباشر"}
+          </div>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          {loading ? "جاري التحديث..." : "مباشر"}
-        </div>
+        <h2 className="text-2xl md:text-3xl font-extrabold flex items-center justify-center gap-2.5 text-foreground">
+          <Activity className="w-7 h-7 text-primary" />
+          <span>نظرة المالك — لمحة شاملة عن شركتك</span>
+        </h2>
+        <p className="text-sm md:text-base font-medium text-foreground/80 max-w-2xl">
+          كل الأرقام تأتي من نفس مصدر حساب الربح الموحد — تتحدث تلقائياً
+        </p>
       </div>
 
       {/* ===== ROW 1 — Today + Month-to-date (the headline) ===== */}
