@@ -227,11 +227,20 @@ export default function AttachmentsHub({ scope }: Props) {
   };
 
   const download = async (a: Att) => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(a.file_path, 600, {
-      download: a.file_name,
-    } as any);
-    if (error) return toast.error(error.message);
-    window.open(data.signedUrl, "_blank");
+    try {
+      const { data, error } = await supabase.storage.from(BUCKET).download(a.file_path);
+      if (error || !data) return toast.error(error?.message || "تعذر التحميل");
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = a.file_name || "attachment";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر التحميل");
+    }
   };
 
   const Layout = scope === "admin" ? AdminLayout : BranchLayout;
