@@ -208,6 +208,10 @@ export default function ExecutiveInsights({ embedded }: Props) {
 
       <h2>أقل المصروفات</h2>
       ${tbl(bottomExpenses.map((e) => [e.name, formatEGP(e.value)]), ["الفئة", "المبلغ"])}
+
+      <h2>أكثر المنتجات طلباً في الحجوزات (Pre-orders)</h2>
+      ${tbl(topPreOrderProducts.map((p) => [p.name, String(p.count), formatNumber(p.qty), formatEGP(p.value)]),
+        ["المنتج", "عدد الطلبات", "إجمالي الكمية", "القيمة المتوقعة"])}
     `;
     printReport(`الرؤى التنفيذية — ${branchName}`, html);
   };
