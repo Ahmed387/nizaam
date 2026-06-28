@@ -215,7 +215,7 @@ export default function AttachmentsHub({ scope }: Props) {
     if (from) out = out.filter((r) => r.uploaded_at >= from);
     if (to) out = out.filter((r) => r.uploaded_at <= to + "T23:59:59");
     if (q) out = out.filter((r) =>
-      matchesSearch(q, r.file_name, r.doc_number ?? "", r.branch_name ?? "", r.uploader_name ?? "")
+      searchMatch(q, r.file_name, r.doc_number ?? "", r.branch_name ?? "", r.uploader_name ?? "")
     );
     return out;
   }, [rows, scope, branchParamId, branchFilter, typeFilter, from, to, q]);
