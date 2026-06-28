@@ -275,7 +275,7 @@ export function ExecutiveProfitSummary() {
           </div>
 
           <Link
-            to="/admin/reports?tab=profitability"
+            to="/admin/reports?tab=central"
             className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-foreground text-background text-sm font-bold rounded-xl hover:opacity-90 transition-all group"
           >
             عرض التقرير التفصيلي
