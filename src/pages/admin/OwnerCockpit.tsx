@@ -511,25 +511,25 @@ function CashCard({
     warning: "text-warning border-warning/30 bg-warning/5",
   }[accent];
   return (
-    <Link to={link} className={`block rounded-xl p-4 border ${c} hover:scale-[1.02] transition-transform`}>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-        {icon}<span className="font-medium">{label}</span>
+    <Link to={link} className={`block rounded-xl p-4 border ${c} hover:scale-[1.02] transition-transform text-center`}>
+      <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
+        {icon}<span className="font-semibold">{label}</span>
       </div>
-      <div className={`text-xl font-extrabold ${c.split(" ")[0]}`}>{formatEGP(value)}</div>
-      {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
+      <div className={`text-2xl md:text-3xl font-black ${c.split(" ")[0]}`}>{formatEGP(value)}</div>
+      {hint && <div className="text-xs text-muted-foreground mt-1 font-medium">{hint}</div>}
     </Link>
   );
 }
 
 function BranchCard({ title, branch, positive }: { title: string; branch: { name: string; net: number; revenue: number }; positive: boolean }) {
   return (
-    <div className={`card-elevated p-5 border-2 ${positive ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-      <h4 className="text-sm font-bold mb-2">{title}</h4>
-      <div className="text-2xl font-extrabold mb-1">{branch.name}</div>
-      <div className={`text-3xl font-extrabold ${positive ? "text-success" : "text-destructive"} mb-2`}>
+    <div className={`card-elevated p-6 border-2 ${positive ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"} text-center`}>
+      <h4 className="text-base md:text-lg font-bold mb-3">{title}</h4>
+      <div className="text-2xl md:text-3xl font-black mb-2 text-foreground">{branch.name}</div>
+      <div className={`text-3xl md:text-4xl font-black ${positive ? "text-success" : "text-destructive"} mb-2`}>
         {formatEGP(branch.net)}
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm text-muted-foreground font-medium">
         من إجمالي مبيعات {formatEGP(branch.revenue)}
       </div>
     </div>
@@ -549,15 +549,16 @@ function AlertTile({
     ok: "bg-success/5 border-success/30 text-success",
   }[severity];
   return (
-    <Link to={link} className={`block rounded-lg p-3 border ${c} hover:opacity-90 transition`}>
-      <div className="flex items-center gap-1.5 text-xs mb-1.5">
-        {icon}<span className="font-medium">{label}</span>
+    <Link to={link} className={`block rounded-lg p-4 border ${c} hover:opacity-90 transition text-center`}>
+      <div className="flex items-center justify-center gap-1.5 text-sm mb-2">
+        {icon}<span className="font-semibold">{label}</span>
       </div>
-      <div className="text-2xl font-extrabold">{count}</div>
-      {hint && <div className="text-[10px] mt-0.5 opacity-80">{hint}</div>}
+      <div className="text-3xl md:text-4xl font-black">{count}</div>
+      {hint && <div className="text-xs mt-1 font-medium opacity-90">{hint}</div>}
     </Link>
   );
 }
+
 
 function DrillLink({ to, label }: { to: string; label: string }) {
   return (
