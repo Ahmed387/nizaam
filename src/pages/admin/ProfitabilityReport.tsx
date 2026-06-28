@@ -344,11 +344,11 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 </colgroup>
                 <thead className="bg-surface-2/60">
                   <tr>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">#</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-xs uppercase tracking-wide text-muted-foreground">المنتج</th>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">الكمية</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-xs uppercase tracking-wide text-muted-foreground">الربح</th>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">الهامش</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">#</th>
+                    <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-foreground">اسم المنتج</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">الكمية</th>
+                    <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الربح</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">الهامش</th>
                   </tr>
                 </thead>
                 <tbody>
