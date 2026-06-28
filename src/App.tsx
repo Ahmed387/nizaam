@@ -246,6 +246,8 @@ const App = () => (
 
             <Route path="/branch/:id/reports" element={<ProtectedRoute perm="reports.view"><BranchReports /></ProtectedRoute>} />
             <Route path="/branch/:id/attendance" element={<ProtectedRoute perm="attendance.view"><Attendance /></ProtectedRoute>} />
+            <Route path="/branch/:id/attachments" element={<ProtectedRoute perm="attachments.view"><AttachmentsHub scope="branch" /></ProtectedRoute>} />
+
 
             {/* جرد المخزن */}
             <Route path="/branch/:id/inventory-count" element={<ProtectedRoute perm="inventory.view"><InvCountSessions /></ProtectedRoute>} />
