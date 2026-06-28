@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { lineProfit } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
 import {
   FileSpreadsheet, Printer, ShoppingCart, TrendingUp, TrendingDown,
