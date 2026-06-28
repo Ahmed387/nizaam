@@ -11,7 +11,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import {
   DollarSign, AlertTriangle, Trash2, Plus, Users, Boxes, Receipt, CheckSquare,
   BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight,
-  HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList,
+  HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
       {/* Quick actions */}
       <div className="card-elevated p-4 mb-6">
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة — على مستوى الشركة</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
             { to: "/admin/branches", label: "إضافة فرع", icon: Plus, color: "text-primary", bg: "bg-primary/10" },
             { to: "/admin/employees", label: "الموظفين", icon: Users, color: "text-secondary", bg: "bg-secondary/10" },
@@ -143,6 +143,7 @@ export default function AdminDashboard() {
             { to: "/admin/approvals-hub?tab=approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
             { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
             { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
+            { to: "/admin/attachments", label: "كل المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/10" },
           ].map((s) => (
             <Link key={s.label} to={s.to}
               className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all group">

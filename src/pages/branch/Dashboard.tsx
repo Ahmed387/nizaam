@@ -8,7 +8,8 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target, ShoppingCart, RotateCcw, PackagePlus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, Undo2, BookmarkPlus, Truck } from "lucide-react";
+import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target, ShoppingCart, RotateCcw, PackagePlus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, Undo2, BookmarkPlus, Truck, Paperclip } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -21,6 +22,7 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning
 export default function BranchDashboard() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const { can, isAdmin } = useAuth();
   const [salesToday, setSalesToday] = useState(0);
 
   const [salesYesterday, setSalesYesterday] = useState(0);
@@ -153,7 +155,11 @@ export default function BranchDashboard() {
     { to: `/branch/${id}/inventory?tab=count`, label: "جرد الفرع", icon: ClipboardList, color: "text-primary", bg: "bg-primary/10" },
     { to: `/branch/${id}/inventory?tab=adjustments`, label: "تسوية مخزون", icon: ClipboardList, color: "text-warning", bg: "bg-warning/10" },
     { to: `/branch/${id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/10" },
+    ...(isAdmin || can("attachments.view")
+      ? [{ to: `/branch/${id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/10" }]
+      : []),
   ];
+
 
   return (
     <BranchLayout>
