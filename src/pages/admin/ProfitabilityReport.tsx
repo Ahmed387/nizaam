@@ -271,6 +271,60 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         </div>
       </div>
 
+      {/* Top / Bottom margin lists — unique to Profitability (margin-quality view, not volume-based like Insights) */}
+      {rows.length > 0 && (() => {
+        const eligible = rows.filter((r) => !r.cost_unknown && r.qty > 0 && r.revenue > 0);
+        const topMargin = [...eligible].sort((a, b) => b.margin - a.margin).slice(0, 10);
+        const bottomMargin = [...eligible].sort((a, b) => a.margin - b.margin).slice(0, 10);
+        return (
+          <div className="grid md:grid-cols-2 gap-3 mb-4">
+            <div className="card-elevated p-0 overflow-hidden border-r-4 border-success/40">
+              <div className="px-4 py-2.5 bg-success/5 border-b border-border flex items-center justify-between">
+                <h4 className="font-bold text-success flex items-center gap-2"><TrendingUp className="w-4 h-4" /> أعلى 10 منتجات بالهامش</h4>
+                <span className="text-[10px] text-muted-foreground">جودة ربح — مش حجم</span>
+              </div>
+              <table className="w-full text-xs">
+                <thead className="bg-surface-2/40"><tr><th className="px-3 py-1.5 text-right">#</th><th className="px-3 py-1.5 text-right">المنتج</th><th className="px-3 py-1.5 text-right">الكمية</th><th className="px-3 py-1.5 text-right">الربح</th><th className="px-3 py-1.5 text-right">الهامش</th></tr></thead>
+                <tbody>
+                  {topMargin.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">لا يوجد</td></tr>}
+                  {topMargin.map((r, i) => (
+                    <tr key={r.product_id ?? r.product_name} className="border-t border-border/60">
+                      <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                      <td className="px-3 py-1.5 font-medium truncate max-w-[180px]">{r.product_name}</td>
+                      <td className="px-3 py-1.5">{r.qty}</td>
+                      <td className="px-3 py-1.5 text-success font-bold">{formatEGP(r.profit)}</td>
+                      <td className="px-3 py-1.5 font-extrabold text-success">{r.margin.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="card-elevated p-0 overflow-hidden border-r-4 border-destructive/40">
+              <div className="px-4 py-2.5 bg-destructive/5 border-b border-border flex items-center justify-between">
+                <h4 className="font-bold text-destructive flex items-center gap-2"><TrendingDown className="w-4 h-4" /> أقل 10 منتجات بالهامش</h4>
+                <span className="text-[10px] text-muted-foreground">يستحق مراجعة تسعير</span>
+              </div>
+              <table className="w-full text-xs">
+                <thead className="bg-surface-2/40"><tr><th className="px-3 py-1.5 text-right">#</th><th className="px-3 py-1.5 text-right">المنتج</th><th className="px-3 py-1.5 text-right">الكمية</th><th className="px-3 py-1.5 text-right">الربح</th><th className="px-3 py-1.5 text-right">الهامش</th></tr></thead>
+                <tbody>
+                  {bottomMargin.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">لا يوجد</td></tr>}
+                  {bottomMargin.map((r, i) => (
+                    <tr key={r.product_id ?? r.product_name} className="border-t border-border/60">
+                      <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                      <td className="px-3 py-1.5 font-medium truncate max-w-[180px]">{r.product_name}</td>
+                      <td className="px-3 py-1.5">{r.qty}</td>
+                      <td className={`px-3 py-1.5 font-bold ${r.profit >= 0 ? "text-warning" : "text-destructive"}`}>{formatEGP(r.profit)}</td>
+                      <td className={`px-3 py-1.5 font-extrabold ${r.margin < 0 ? "text-destructive" : r.margin < 10 ? "text-destructive" : "text-warning"}`}>{r.margin.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+
       <h3 className="font-bold mb-2">حسب المنتج</h3>
       <div className="card-elevated overflow-hidden mb-4">
         <div className="overflow-x-auto">
