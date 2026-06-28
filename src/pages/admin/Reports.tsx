@@ -155,27 +155,17 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
 
   // ============ Aggregated KPIs for current scope ============
+  // ⚠️ Single source of truth: src/lib/profitEngine.ts → lineProfit()
   const k = useMemo(() => {
     const sales = activeInv.reduce((s, i) => s + Number(i.total), 0);
-    // SINGLE PROFIT FORMULA: SUM((unit_price - unit_cost_at_sale) × net_quantity)
-    // net_quantity = quantity − returned_quantity (DB generated column).
-    // unit_cost_at_sale is captured at sale time via FIFO from product_batches.
-    const cost = activeInv.reduce(
-      (s, i) => s + i.invoice_items.reduce((x: number, it: any) => {
-        const netQty = Number(it.net_quantity ?? (Number(it.quantity) - Number(it.returned_quantity ?? 0)));
-        return x + Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Math.max(0, netQty);
-      }, 0),
-      0,
-    );
-    const netRevenue = activeInv.reduce(
-      (s, i) => s + i.invoice_items.reduce((x: number, it: any) => {
-        const qty = Number(it.quantity) || 0;
-        const netQty = Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0)));
-        const unitRev = qty > 0 ? Number(it.total) / qty : 0;
-        return x + unitRev * Math.max(0, netQty);
-      }, 0),
-      0,
-    );
+    let cost = 0, netRevenue = 0;
+    for (const inv of activeInv) {
+      for (const it of inv.invoice_items) {
+        const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
+        cost += lp.cost;
+        netRevenue += lp.revenue;
+      }
+    }
     const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
     const inventoryValue = scopedProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
     const inventoryQty = scopedProducts.reduce((s, p) => s + p.quantity, 0);
