@@ -611,19 +611,11 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
           </div>
 
-          {scope === "global" && (
-            <div className="card-elevated p-4">
-              <h4 className="font-bold mb-3">قائمة الموردين — الرصيد الحالي</h4>
-              <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
-                columns={[
-                  { key: "name", header: "الشركة", render: (r: any) => <b>{r.name}</b> },
-                  { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
-                  { key: "totalOwed", header: "إجمالي المشتريات", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
-                  { key: "totalPaid", header: "المسدد", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },
-                  { key: "remaining", header: "المتبقي علينا", render: (r: any) => <b className={r.remaining < 0 ? "text-destructive" : "text-success"}>{formatEGP(Math.abs(r.remaining))}</b> },
-                ]} />
-            </div>
-          )}
+          <div className="text-xs text-muted-foreground text-end">
+            قائمة الموردين الكاملة وأرصدتهم في{" "}
+            <Link to="/admin/reports-hub?tab=insights" className="text-primary font-bold hover:underline">🎯 الرؤى التنفيذية</Link>
+          </div>
+
 
           <div className="card-elevated p-4">
             <h4 className="font-bold mb-3">أقساط الموردين المتأخرة</h4>
