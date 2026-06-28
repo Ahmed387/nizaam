@@ -12,6 +12,7 @@ import {
   DollarSign, AlertTriangle, Trash2, Plus, Users, Boxes, Receipt, CheckSquare,
   BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight,
   HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
+  BookmarkPlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Truck,
 } from "lucide-react";
 
 export default function AdminDashboard() {
