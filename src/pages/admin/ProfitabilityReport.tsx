@@ -370,21 +370,26 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       })()}
 
 
-      <h3 className="font-bold mb-2">حسب المنتج</h3>
       <div className="card-elevated overflow-hidden mb-4">
+        <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
+          <h3 className="font-extrabold text-base md:text-lg">الربحية حسب المنتج</h3>
+          <p className="mt-1 text-xs md:text-sm text-muted-foreground max-w-2xl mx-auto">
+            كل صف يوضح المنتج وكميته المباعة وإيراده الصافي بعد المرتجعات وتكلفته الحقيقية، مع ربحه وهامشه. اضغط الصف للتفاصيل.
+          </p>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs md:text-sm border-collapse">
             <thead>
-              <tr className="bg-surface-2 border-b border-border">
-                <th className="px-3 py-2 w-8"></th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-foreground">اسم المنتج</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الكمية المباعة</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">المرتجع</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الصافي</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الإيراد (صافي)</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">التكلفة</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الربح (صافي)</th>
-                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الهامش %</th>
+              <tr className="bg-surface-2 border-b-2 border-border">
+                <th className="px-3 py-3 w-8"></th>
+                <th className="px-3 py-3 text-right font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">اسم المنتج</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الكمية المباعة</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">المرتجع</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الصافي</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الإيراد (صافي)</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">التكلفة</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الربح (صافي)</th>
+                <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-foreground/80 border-r border-border/60">الهامش %</th>
               </tr>
             </thead>
             <tbody>
