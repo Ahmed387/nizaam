@@ -50,6 +50,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [allShipments, setAllShipments] = useState<any[]>([]);
   const [allSupPayments, setAllSupPayments] = useState<any[]>([]);
   const [payTx, setPayTx] = useState<any[]>([]);
+  const [overdueIns, setOverdueIns] = useState<any[]>([]);
   const [payPlans, setPayPlans] = useState<any[]>([]);
   const [invPayments, setInvPayments] = useState<any[]>([]);
 
