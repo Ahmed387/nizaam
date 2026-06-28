@@ -1,41 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP } from "@/lib/format";
 import { TrendingUp, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
+import { fetchProfitWindow, rangeFor, type ProfitPeriod } from "@/lib/profitEngine";
 
-type Period = "day" | "week" | "month" | "year";
-
-const PERIODS: { key: Period; label: string }[] = [
+const PERIODS: { key: ProfitPeriod; label: string }[] = [
   { key: "day", label: "يومي" },
   { key: "week", label: "أسبوعي" },
   { key: "month", label: "شهري" },
   { key: "year", label: "سنوي" },
 ];
 
-function rangeFor(p: Period): { from: Date; to: Date; prevFrom: Date; prevTo: Date } {
-  const now = new Date();
-  const to = new Date(now);
-  to.setHours(23, 59, 59, 999);
-  const from = new Date(now);
-  from.setHours(0, 0, 0, 0);
-  if (p === "week") from.setDate(from.getDate() - 6);
-  else if (p === "month") from.setDate(from.getDate() - 29);
-  else if (p === "year") from.setDate(from.getDate() - 364);
-  const spanMs = to.getTime() - from.getTime() + 1;
-  const prevTo = new Date(from.getTime() - 1);
-  const prevFrom = new Date(prevTo.getTime() - spanMs + 1);
-  return { from, to, prevFrom, prevTo };
-}
-
 const BRANCH_COLORS = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
 const BRANCH_DOT = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
 
 export function ExecutiveProfitSummary() {
   const { tenantId } = useAuth();
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<ProfitPeriod>("month");
   const [loading, setLoading] = useState(true);
   const [sales, setSales] = useState(0);
   const [cost, setCost] = useState(0);
@@ -46,95 +29,12 @@ export function ExecutiveProfitSummary() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const { from, to, prevFrom, prevTo } = rangeFor(period);
-    const fromIso = from.toISOString();
-    const toIso = to.toISOString();
-    const prevFromIso = prevFrom.toISOString();
-    const prevToIso = prevTo.toISOString();
-    const fromDate = from.toISOString().slice(0, 10);
-    const toDate = to.toISOString().slice(0, 10);
-    const prevFromDate = prevFrom.toISOString().slice(0, 10);
-    const prevToDate = prevTo.toISOString().slice(0, 10);
-
-    const [invRes, expRes, prevInvRes, prevExpRes, branchesRes] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("branch_id, invoice_items(quantity, returned_quantity, net_quantity, total, unit_cost_at_sale, cost_price)")
-        .eq("status", "active")
-        .gte("created_at", fromIso)
-        .lte("created_at", toIso),
-      supabase
-        .from("vouchers")
-        .select("amount, branch_id")
-        .eq("type", "payment")
-        .eq("status", "active")
-        .gte("voucher_date", fromDate)
-        .lte("voucher_date", toDate),
-      supabase
-        .from("invoices")
-        .select("invoice_items(quantity, returned_quantity, net_quantity, total, unit_cost_at_sale, cost_price)")
-        .eq("status", "active")
-        .gte("created_at", prevFromIso)
-        .lte("created_at", prevToIso),
-      supabase
-        .from("vouchers")
-        .select("amount")
-        .eq("type", "payment")
-        .eq("status", "active")
-        .gte("voucher_date", prevFromDate)
-        .lte("voucher_date", prevToDate),
-      supabase.from("branches").select("id, name").eq("is_active", true),
-    ]);
-
-    const calcInv = (rows: any[]) => {
-      let s = 0, c = 0;
-      for (const inv of rows ?? []) {
-        for (const it of inv.invoice_items ?? []) {
-          const qty = Number(it.quantity) || 0;
-          const netQty = Math.max(0, Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0))));
-          const unitRev = qty > 0 ? Number(it.total) / qty : 0;
-          s += unitRev * netQty;
-          c += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * netQty;
-        }
-      }
-      return { sales: s, cost: c };
-    };
-
-    const cur = calcInv(invRes.data ?? []);
-    const exp = (expRes.data ?? []).reduce((a, v: any) => a + Number(v.amount || 0), 0);
-    const prev = calcInv(prevInvRes.data ?? []);
-    const prevExp = (prevExpRes.data ?? []).reduce((a, v: any) => a + Number(v.amount || 0), 0);
-
-    setSales(cur.sales);
-    setCost(cur.cost);
-    setExpenses(exp);
-    setPrevNet(prev.sales - prev.cost - prevExp);
-
-    // Per-branch profit (revenue - cost - branch expenses)
-    const branches = branchesRes.data ?? [];
-    const expByBranch: Record<string, number> = {};
-    for (const v of (expRes.data ?? []) as any[]) {
-      if (!v.branch_id) continue;
-      expByBranch[v.branch_id] = (expByBranch[v.branch_id] || 0) + Number(v.amount || 0);
-    }
-    const profitByBranch: Record<string, number> = {};
-    for (const inv of (invRes.data ?? []) as any[]) {
-      let s = 0, c = 0;
-      for (const it of inv.invoice_items ?? []) {
-        const qty = Number(it.quantity) || 0;
-        const netQty = Math.max(0, Number(it.net_quantity ?? (qty - Number(it.returned_quantity ?? 0))));
-        const unitRev = qty > 0 ? Number(it.total) / qty : 0;
-        s += unitRev * netQty;
-        c += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * netQty;
-      }
-      profitByBranch[inv.branch_id] = (profitByBranch[inv.branch_id] || 0) + (s - c);
-    }
-    const bp = branches.map((b: any) => ({
-      id: b.id,
-      name: b.name,
-      profit: (profitByBranch[b.id] || 0) - (expByBranch[b.id] || 0),
-    }));
-    setBranchProfits(bp);
+    const w = await fetchProfitWindow({ tenantId, range: rangeFor(period) });
+    setSales(w.totals.revenue);
+    setCost(w.totals.cost);
+    setExpenses(w.totals.expenses);
+    setPrevNet(w.prevNet);
+    setBranchProfits(w.perBranch.map((b) => ({ id: b.id, name: b.name, profit: b.net })));
     setLoading(false);
   };
 

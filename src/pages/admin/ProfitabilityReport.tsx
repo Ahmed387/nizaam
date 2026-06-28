@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { lineProfit } from "@/lib/profitEngine";
 
 interface Row {
   product_id: string | null;
@@ -117,18 +118,26 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     for (const r of filtered as any[]) {
       const qtyRaw = Number(r.quantity) || 0;
       const retQty = Number(r.returned_quantity) || 0;
-      const netQty = Math.max(0, qtyRaw - retQty);
+      const lp = lineProfit(
+        {
+          quantity: qtyRaw,
+          returned_quantity: retQty,
+          selling_price: r.selling_price,
+          line_discount: r.line_discount,
+          unit_cost_at_sale: r.unit_cost_at_sale,
+        },
+        { invoiceIsMigrated: !!r.invoice?.is_migrated }
+      );
+      const netQty = lp.netQty;
       const unitSell = Number(r.selling_price) || 0;
-      const unitDisc = qtyRaw > 0 ? Number(r.line_discount || 0) / qtyRaw : 0;
-      const unitCost = Number(r.unit_cost_at_sale || 0);
       const origCost = Number(r.original_unit_cost ?? r.unit_cost_at_sale ?? 0);
-      const costUnknown = unitCost <= 0 && r.invoice?.is_migrated;
-      const revenue = netQty * unitSell - netQty * unitDisc;
-      const cost = netQty * unitCost;
-      const profit = costUnknown ? 0 : (revenue - cost);
+      const costUnknown = lp.costUnknown;
+      const revenue = lp.revenue;
+      const cost = lp.cost;
+      const profit = lp.profit;
       const origRevenue = qtyRaw * unitSell - Number(r.line_discount || 0);
       const origProfit = origRevenue - qtyRaw * origCost;
-      const wasEdited = Math.abs(unitCost - origCost) > 0.001;
+      const wasEdited = Math.abs(Number(r.unit_cost_at_sale || 0) - origCost) > 0.001;
       const hasReturn = retQty > 0;
 
       const key = r.product_id ?? r.product_name;
