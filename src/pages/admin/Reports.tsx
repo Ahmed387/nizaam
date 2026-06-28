@@ -230,23 +230,18 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     };
   }), [branches, invoices, expenses, products, employees, treasury, invPayments]);
 
-  // Top products in scope — qty (gross) / returned / net / revenue (net) / profit (net)
+  // Top products in scope — uses lineProfit() (single source of truth)
   const topProductsAll = useMemo(() => {
     const m: Record<string, { name: string; qty: number; returned: number; netQty: number; revenue: number; profit: number }> = {};
     for (const inv of activeInv) for (const it of inv.invoice_items) {
       const key = it.product_name;
       if (!m[key]) m[key] = { name: key, qty: 0, returned: 0, netQty: 0, revenue: 0, profit: 0 };
-      const unitCost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
-      const qty = Number(it.quantity) || 0;
-      const ret = Number(it.returned_quantity ?? 0);
-      const netQty = Math.max(0, Number(it.net_quantity ?? (qty - ret)));
-      const unitRev = qty > 0 ? Number(it.total) / qty : 0;
-      const netRevenue = unitRev * netQty;
-      m[key].qty += qty;
-      m[key].returned += ret;
-      m[key].netQty += netQty;
-      m[key].revenue += netRevenue;
-      m[key].profit += netRevenue - unitCost * netQty;
+      const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
+      m[key].qty += Number(it.quantity) || 0;
+      m[key].returned += Number(it.returned_quantity ?? 0);
+      m[key].netQty += lp.netQty;
+      m[key].revenue += lp.revenue;
+      m[key].profit += lp.profit;
     }
     return Object.values(m);
   }, [activeInv]);
