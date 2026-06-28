@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatDateTime } from "@/lib/format";
-import { matchesSearch } from "@/lib/search";
+import { searchMatch } from "@/lib/search";
 import { Paperclip, Eye, Download, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
