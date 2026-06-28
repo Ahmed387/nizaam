@@ -61,9 +61,8 @@ type Filters = {
   fromBranch: string;
   toBranch: string;
   partyId: string;
-  migrated: "all" | "only" | "hide";
 };
-const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", migrated: "all" };
+const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "" };
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -290,12 +289,6 @@ export default function Invoices() {
         if (active.party === "customer" && r.invoices?.contact_id !== filters.partyId) return false;
         if (active.party === "supplier" && r.contact_id !== filters.partyId) return false;
       }
-      // Migrated filter (applies to sale/purchase tabs which carry is_migrated)
-      if (filters.migrated !== "all" && (tab === "sale" || tab === "purchase")) {
-        const mig = !!r.is_migrated;
-        if (filters.migrated === "only" && !mig) return false;
-        if (filters.migrated === "hide" && mig) return false;
-      }
       return true;
     });
   }, [rows, filters, tab, active]);
@@ -322,11 +315,6 @@ export default function Invoices() {
           { key: "invoice_number", header: "رقم", render: (r: any) => (
             <span className="flex items-center gap-1.5">
               <span className="font-mono text-primary">{r.invoice_number}</span>
-              {r.is_migrated && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title={`مستورد من: ${r.migration_source ?? "نظام قديم"}`}>
-                  بيانات مستوردة
-                </span>
-              )}
             </span>
           ) },
           { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
@@ -812,19 +800,6 @@ export default function Invoices() {
                 </Select>
               </div>
             </>
-          )}
-          {(tab === "sale" || tab === "purchase") && (
-            <div className="space-y-1">
-              <Label className="text-xs">البيانات المستوردة</Label>
-              <Select value={inputF.migrated} onValueChange={(v) => setInputF({ ...inputF, migrated: v as any })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل (مستورد + جديد)</SelectItem>
-                  <SelectItem value="only">المستورد فقط</SelectItem>
-                  <SelectItem value="hide">إخفاء المستورد</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           )}
         </div>
 
