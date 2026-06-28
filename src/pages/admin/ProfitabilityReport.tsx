@@ -294,9 +294,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         return (
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-success/50 shadow-sm">
-              <div className="px-4 py-3 bg-success/10 border-b border-success/20 flex items-center justify-between">
-                <h4 className="font-extrabold text-success text-base flex items-center gap-2"><TrendingUp className="w-5 h-5" /> أعلى 10 منتجات بالهامش</h4>
-                <span className="text-[11px] font-semibold text-success/80 bg-success/15 px-2 py-0.5 rounded-full">جودة ربح</span>
+              <div className="px-5 py-4 bg-success/10 border-b border-success/20 text-center">
+                <h4 className="font-extrabold text-success text-base md:text-lg flex items-center justify-center gap-2"><TrendingUp className="w-5 h-5" /> أعلى 10 منتجات بالهامش</h4>
+                <p className="mt-1 text-xs md:text-sm text-success/80">المنتجات الأكثر ربحية نسبةً للإيراد — ركز على دعم مبيعاتها.</p>
               </div>
               <table className="w-full text-sm table-fixed">
                 <colgroup>
