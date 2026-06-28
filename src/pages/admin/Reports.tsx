@@ -555,62 +555,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </div>
         </TabsContent>
 
-        {/* ===== TAB 2: PROFITABILITY (FIFO single source of truth) ===== */}
-        <TabsContent value="profit" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MiniKpi label="المبيعات" value={formatEGP(k.sales)} icon={<ShoppingCart className="w-4 h-4" />} />
-            <MiniKpi label="التكلفة (FIFO)" value={formatEGP(k.cost)} icon={<Package className="w-4 h-4" />} hint="unit_cost_at_sale" />
-            <MiniKpi label="إجمالي الربح" value={formatEGP(k.profit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-            <MiniKpi label="هامش الربح" value={`${k.sales > 0 ? ((k.profit / k.sales) * 100).toFixed(1) : "0"}%`} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-          </div>
+        {/* TAB Profitability removed — single source: /admin/reports-hub?tab=profitability (📊 الربحية) */}
 
-          <div className="card-elevated p-4">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h4 className="font-bold">أكثر 15 منتج — ترتيب حسب</h4>
-              <div className="flex gap-1">
-                {([
-                  { k: "profit", label: "الربح" },
-                  { k: "revenue", label: "الإيراد" },
-                  { k: "qty", label: "الكمية" },
-                ] as const).map((s) => (
-                  <button key={s.k} onClick={() => setProductSort(s.k)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
-                      productSort === s.k ? "bg-primary/10 border-primary text-primary" : "border-border bg-surface hover:border-primary/50"
-                    }`}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {topProductsAll.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={340}>
-                <BarChart data={[...topProductsAll].sort((a, b) => Number(b[productSort === "qty" ? "netQty" : productSort]) - Number(a[productSort === "qty" ? "netQty" : productSort])).slice(0, 10)} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Bar dataKey={productSort === "qty" ? "netQty" : productSort} name={productSort === "profit" ? "الربح الصافي" : productSort === "revenue" ? "الإيراد الصافي" : "الكمية الصافية"}
-                    fill={productSort === "profit" ? "hsl(var(--success))" : productSort === "revenue" ? "hsl(var(--primary))" : "hsl(var(--warning))"}
-                    radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <DataTable rows={[...topProductsAll].sort((a, b) => Number(b[productSort === "qty" ? "netQty" : productSort]) - Number(a[productSort === "qty" ? "netQty" : productSort])).slice(0, 15)} loading={loading} empty="لا توجد بيانات"
-            columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "qty", header: "الكمية المباعة", render: (r: any) => <span className="text-muted-foreground">{r.qty}</span> },
-              { key: "returned", header: "المرتجع", render: (r: any) => r.returned > 0 ? <span className="text-warning font-bold">{r.returned}</span> : <span className="text-muted-foreground">0</span> },
-              { key: "netQty", header: "الصافي", render: (r: any) => <b>{r.netQty}</b> },
-              { key: "revenue", header: "الإيراد (صافي)", render: (r: any) => <span className="text-primary font-bold">{formatEGP(r.revenue)}</span> },
-              { key: "profit", header: "الربح (صافي)", render: (r: any) => <b className={r.profit >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.profit)}</b> },
-              { key: "margin", header: "الهامش", render: (r: any) => `${r.revenue > 0 ? ((r.profit / r.revenue) * 100).toFixed(1) : "0"}%` },
-            ]} />
-
-        </TabsContent>
 
         {/* ===== TAB 3: PURCHASES & SUPPLIERS (with payables aging) ===== */}
         <TabsContent value="purchases" className="mt-4 space-y-4">
