@@ -795,27 +795,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </TabsContent>
         )}
 
-        {/* ===== Extra: EXPENSES ===== */}
-        <TabsContent value="expenses" className="mt-4 space-y-4">
-          {expByType.length > 0 && (
-            <div className="card-elevated p-4">
-              <h4 className="font-bold mb-3">المصروفات حسب النوع</h4>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie data={expByType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${formatEGP(e.value)}`}>
-                    {expByType.map((_, i) => <RCell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-          <DataTable rows={expByType} empty="لا توجد مصروفات"
-            columns={[
-              { key: "name", header: "النوع" },
-              { key: "value", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.value)}</b> },
-            ]} />
-        </TabsContent>
+        {/* Expenses moved to 🎯 الرؤى التنفيذية (Pie + Top/Bottom) — no duplication */}
 
         {/* ===== Extra: PAYMENT METHODS & COMMISSIONS ===== */}
         <TabsContent value="payments" className="mt-4 space-y-4">
