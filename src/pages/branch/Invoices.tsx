@@ -61,9 +61,8 @@ type Filters = {
   fromBranch: string;
   toBranch: string;
   partyId: string;
-  migrated: "all" | "only" | "hide";
 };
-const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", migrated: "all" };
+const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "" };
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
