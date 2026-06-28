@@ -18,7 +18,7 @@ export default function ReportsHub() {
   const tab = params.get("tab") ?? "owner";
   return (
     <AdminLayout>
-      <PageHeader title="التقارير" subtitle="نظرة المالك، التقارير المركزية، الربحية، الرؤى التنفيذية، والتقارير المجدولة" />
+      <PageHeader title="التقارير" subtitle="👑 ملخص لحظي • 🏢 عمليات يومية • 📊 ربحية محاسبية • 🎯 أعلى/أقل للقرار • ⏰ أتمتة — كل تبويب فريد بدون تكرار" />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
         <TabsList className="flex-wrap h-auto">
           {canSeeProfit && <TabsTrigger value="owner">👑 نظرة المالك</TabsTrigger>}
