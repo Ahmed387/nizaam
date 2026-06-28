@@ -84,7 +84,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
           .from("pre_orders")
           .select("id")
           .eq("tenant_id", tenantId)
-          .in("status", ["pending", "partial"]),
+          .in("status", ["pending"]),
       ]);
 
     // Today
