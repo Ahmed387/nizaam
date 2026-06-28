@@ -185,21 +185,30 @@ export default function AdminDashboard() {
                 <span className="text-muted-foreground">مبيعات اليوم</span>
                 <b className="text-success">{formatEGP(b.todaySales)}</b>
               </Link>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
                 {[
                   { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
                   { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/pre-orders`, label: "طلبات الحجز", icon: BookmarkPlus, color: "text-secondary", bg: "bg-secondary/10" },
+                  { to: `/branch/${b.id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/10" },
+                  { to: `/branch/${b.id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/10" },
+                  { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/10" },
+                  { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/10" },
+                  { to: `/branch/${b.id}/transfers`, label: "تحويل مخازن", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض أسعار", icon: FileText, color: "text-secondary", bg: "bg-secondary/10" },
+                  { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد الفرع", icon: ClipboardList, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية مخزون", icon: ClipboardList, color: "text-warning", bg: "bg-warning/10" },
+                  { to: `/branch/${b.id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/10" },
                   { to: `/branch/${b.id}/treasury`, label: "خزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/10" },
-                  { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowRightLeft, color: "text-warning", bg: "bg-warning/10" },
                   { to: `/branch/${b.id}/reports`, label: "تقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/10" },
-                  { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardCheck, color: "text-primary", bg: "bg-primary/10" },
+                  { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/10" },
                 ].map((q) => (
                   <Link key={q.label} to={q.to}
                     className="flex flex-col items-center gap-1 p-1.5 rounded border border-border hover:border-primary hover:shadow-sm transition-all">
                     <div className={`w-7 h-7 rounded-full ${q.bg} flex items-center justify-center`}>
                       <q.icon className={`w-3.5 h-3.5 ${q.color}`} />
                     </div>
-                    <span className="text-[10px] font-semibold">{q.label}</span>
+                    <span className="text-[10px] font-semibold text-center leading-tight">{q.label}</span>
                   </Link>
                 ))}
               </div>
