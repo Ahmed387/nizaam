@@ -636,7 +636,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
             <MiniKpi label="عدد المنتجات" value={String(scopedProducts.length)} icon={<Package className="w-4 h-4" />} />
-            <MiniKpi label="منتجات راكدة" value={String(slowMoving.length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" hint="بدون بيع في الفترة" />
           </div>
 
           <div className="text-xs text-muted-foreground text-end">
@@ -644,17 +643,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             <Link to="/admin/dashboard" className="text-primary font-bold hover:underline">لوحة التحكم</Link>
             {" "}— كل المخزون في{" "}
             <Link to="/admin/inventory" className="text-primary font-bold hover:underline">صفحة المخزون التفصيلية</Link>
-          </div>
-
-          <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">منتجات راكدة (مخزون بدون بيع في الفترة)</h4>
-            <DataTable rows={slowMoving} loading={loading} empty="✅ لا توجد منتجات راكدة"
-              columns={[
-                { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-                { key: "sku", header: "الكود", render: (r: any) => r.sku ?? "—" },
-                { key: "quantity", header: "المتوفر", render: (r: any) => <b>{r.quantity}</b> },
-                { key: "stockValue", header: "قيمة الراكد", render: (r: any) => <b className="text-warning">{formatEGP(r.stockValue)}</b> },
-              ]} />
+            {" "}— تحليل المنتجات الراكدة في{" "}
+            <Link to="/admin/reports-hub?tab=insights" className="text-primary font-bold hover:underline">🎯 الرؤى التنفيذية</Link>
           </div>
         </TabsContent>
 
