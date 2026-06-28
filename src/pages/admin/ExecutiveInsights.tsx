@@ -229,7 +229,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
           "أكتر/أقل المصروفات بنوعها (Pie chart)",
           "الأكثر طلباً في الحجوزات + تصدير PDF شامل",
         ]}
-        unique="المرجع الوحيد لقوائم Top/Bottom في النظام كله — مع تحليل وقرار، مش مجرد أرقام جامدة."
+        unique="يُظهر قوائم الأفضل والأسوأ مع تحليل يساعدك على اتخاذ القرار."
         accent="warning"
       />
       {/* Filters */}

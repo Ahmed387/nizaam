@@ -467,7 +467,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           "أداء كل كاشير ونسبته من إجمالي البيع",
           "حركة الخزنة، المصروفات التشغيلية، أقساط الموردين المتأخرة",
         ]}
-        unique="المرجع الوحيد للنشاط اليومي ومصفوفة الفروع × طرق الدفع — مفيش حسابات ربحية أو Top/Bottom هنا."
+        unique="يُظهر النشاط اليومي للفروع وطرق الدفع، بدون تفاصيل ربحية أو قوائم أفضل/أسوأ."
         accent="primary"
         extra={
           <div className="flex flex-wrap gap-2 text-[11px]">
