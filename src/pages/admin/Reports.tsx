@@ -58,7 +58,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     setLoading(true);
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
-    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp] = await Promise.all([
+    const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
       supabase.from("branches").select("id,name,code").eq("is_active", true),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("vouchers").select("*, voucher_categories(name)").eq("type", "payment").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
@@ -75,6 +75,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("payment_transactions").select("*").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("payment_installments").select("*, payment_plans!inner(entity_type,entity_name,branch_id)").eq("status", "overdue"),
       supabase.from("payment_plans").select("*").neq("status", "completed"),
+      supabase.from("invoice_payments").select("branch_id, payment_method, amount, created_at").gte("created_at", fromIso).lte("created_at", toIso),
     ]);
     setBranches(b.data ?? []);
     setInvoices(inv.data ?? []);
@@ -96,6 +97,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     setPayTx(ptx.data ?? []);
     setOverdueIns(oi.data ?? []);
     setPayPlans(pp.data ?? []);
+    setInvPayments(ipay.data ?? []);
     setLoading(false);
   };
 
