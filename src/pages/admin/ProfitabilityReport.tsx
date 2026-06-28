@@ -308,11 +308,11 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 </colgroup>
                 <thead className="bg-surface-2/60">
                   <tr>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">#</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-xs uppercase tracking-wide text-muted-foreground">المنتج</th>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">الكمية</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-xs uppercase tracking-wide text-muted-foreground">الربح</th>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">الهامش</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">#</th>
+                    <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-foreground">اسم المنتج</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">الكمية</th>
+                    <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الربح</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">الهامش</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -344,11 +344,11 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 </colgroup>
                 <thead className="bg-surface-2/60">
                   <tr>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">#</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-xs uppercase tracking-wide text-muted-foreground">المنتج</th>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">الكمية</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-xs uppercase tracking-wide text-muted-foreground">الربح</th>
-                    <th className="px-2 py-2.5 text-center font-bold text-xs uppercase tracking-wide text-muted-foreground">الهامش</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">#</th>
+                    <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-foreground">اسم المنتج</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">الكمية</th>
+                    <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الربح</th>
+                    <th className="px-2 py-2.5 text-center font-bold text-sm uppercase tracking-wide text-muted-foreground">الهامش</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -377,14 +377,14 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
             <thead>
               <tr className="bg-surface-2 border-b border-border">
                 <th className="px-3 py-2 w-8"></th>
-                <th className="px-3 py-2 text-right">المنتج</th>
-                <th className="px-3 py-2 text-right">الكمية المباعة</th>
-                <th className="px-3 py-2 text-right">المرتجع</th>
-                <th className="px-3 py-2 text-right">الصافي</th>
-                <th className="px-3 py-2 text-right">الإيراد (صافي)</th>
-                <th className="px-3 py-2 text-right">التكلفة</th>
-                <th className="px-3 py-2 text-right">الربح (صافي)</th>
-                <th className="px-3 py-2 text-right">الهامش %</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-foreground">اسم المنتج</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الكمية المباعة</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">المرتجع</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الصافي</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الإيراد (صافي)</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">التكلفة</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الربح (صافي)</th>
+                <th className="px-3 py-2.5 text-right font-bold text-sm uppercase tracking-wide text-muted-foreground">الهامش %</th>
               </tr>
             </thead>
             <tbody>
