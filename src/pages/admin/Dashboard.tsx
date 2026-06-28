@@ -143,6 +143,7 @@ export default function AdminDashboard() {
             { to: "/admin/approvals-hub?tab=approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
             { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
             { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
+            { to: "/admin/attachments", label: "كل المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/10" },
           ].map((s) => (
             <Link key={s.label} to={s.to}
               className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all group">
