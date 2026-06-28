@@ -509,7 +509,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <TabsTrigger value="inventory">📦 المخزون</TabsTrigger>
           <TabsTrigger value="employees">👥 الموظفين</TabsTrigger>
           {scope === "global" && <TabsTrigger value="branches">🏢 أداء الفروع</TabsTrigger>}
-          <TabsTrigger value="expenses">💸 المصروفات</TabsTrigger>
+          
           <TabsTrigger value="payments">💳 المدفوعات والعمولات</TabsTrigger>
         </TabsList>
 
@@ -611,19 +611,11 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
           </div>
 
-          {scope === "global" && (
-            <div className="card-elevated p-4">
-              <h4 className="font-bold mb-3">قائمة الموردين — الرصيد الحالي</h4>
-              <DataTable rows={topSuppliers} loading={loading} empty="لا يوجد موردين"
-                columns={[
-                  { key: "name", header: "الشركة", render: (r: any) => <b>{r.name}</b> },
-                  { key: "phone", header: "الهاتف", render: (r: any) => r.phone ?? "—" },
-                  { key: "totalOwed", header: "إجمالي المشتريات", render: (r: any) => <span className="text-muted-foreground">{formatEGP(r.totalOwed)}</span> },
-                  { key: "totalPaid", header: "المسدد", render: (r: any) => <span className="text-success">{formatEGP(r.totalPaid)}</span> },
-                  { key: "remaining", header: "المتبقي علينا", render: (r: any) => <b className={r.remaining < 0 ? "text-destructive" : "text-success"}>{formatEGP(Math.abs(r.remaining))}</b> },
-                ]} />
-            </div>
-          )}
+          <div className="text-xs text-muted-foreground text-end">
+            قائمة الموردين الكاملة وأرصدتهم في{" "}
+            <Link to="/admin/reports-hub?tab=insights" className="text-primary font-bold hover:underline">🎯 الرؤى التنفيذية</Link>
+          </div>
+
 
           <div className="card-elevated p-4">
             <h4 className="font-bold mb-3">أقساط الموردين المتأخرة</h4>
@@ -644,7 +636,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
             <MiniKpi label="عدد المنتجات" value={String(scopedProducts.length)} icon={<Package className="w-4 h-4" />} />
-            <MiniKpi label="منتجات راكدة" value={String(slowMoving.length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" hint="بدون بيع في الفترة" />
           </div>
 
           <div className="text-xs text-muted-foreground text-end">
@@ -652,17 +643,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             <Link to="/admin/dashboard" className="text-primary font-bold hover:underline">لوحة التحكم</Link>
             {" "}— كل المخزون في{" "}
             <Link to="/admin/inventory" className="text-primary font-bold hover:underline">صفحة المخزون التفصيلية</Link>
-          </div>
-
-          <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">منتجات راكدة (مخزون بدون بيع في الفترة)</h4>
-            <DataTable rows={slowMoving} loading={loading} empty="✅ لا توجد منتجات راكدة"
-              columns={[
-                { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-                { key: "sku", header: "الكود", render: (r: any) => r.sku ?? "—" },
-                { key: "quantity", header: "المتوفر", render: (r: any) => <b>{r.quantity}</b> },
-                { key: "stockValue", header: "قيمة الراكد", render: (r: any) => <b className="text-warning">{formatEGP(r.stockValue)}</b> },
-              ]} />
+            {" "}— تحليل المنتجات الراكدة في{" "}
+            <Link to="/admin/reports-hub?tab=insights" className="text-primary font-bold hover:underline">🎯 الرؤى التنفيذية</Link>
           </div>
         </TabsContent>
 
@@ -813,27 +795,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </TabsContent>
         )}
 
-        {/* ===== Extra: EXPENSES ===== */}
-        <TabsContent value="expenses" className="mt-4 space-y-4">
-          {expByType.length > 0 && (
-            <div className="card-elevated p-4">
-              <h4 className="font-bold mb-3">المصروفات حسب النوع</h4>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie data={expByType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${formatEGP(e.value)}`}>
-                    {expByType.map((_, i) => <RCell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-          <DataTable rows={expByType} empty="لا توجد مصروفات"
-            columns={[
-              { key: "name", header: "النوع" },
-              { key: "value", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.value)}</b> },
-            ]} />
-        </TabsContent>
+        {/* Expenses moved to 🎯 الرؤى التنفيذية (Pie + Top/Bottom) — no duplication */}
 
         {/* ===== Extra: PAYMENT METHODS & COMMISSIONS ===== */}
         <TabsContent value="payments" className="mt-4 space-y-4">
