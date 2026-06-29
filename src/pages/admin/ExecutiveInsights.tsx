@@ -351,21 +351,21 @@ export default function ExecutiveInsights({ embedded }: Props) {
       {/* Weak / Stagnant */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-warning">أضعف المنتجات مبيعاً (نشطة)</h3>
+          <h3 className="font-bold mb-3 text-center text-warning">أضعف المنتجات مبيعاً (نشطة)</h3>
           <DataTable rows={weakestSold} empty="لا توجد بيانات"
             columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "qty", header: "الكمية", render: (r: any) => formatNumber(r.qty) },
-              { key: "revenue", header: "الإيراد", render: (r: any) => formatEGP(r.revenue) },
+              { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="text-center block">{r.name}</b> },
+              { key: "qty", header: "الكمية", align: "center", render: (r: any) => formatNumber(r.qty) },
+              { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => formatEGP(r.revenue) },
             ]} />
         </div>
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-destructive"><AlertCircle className="w-4 h-4" /> منتجات راكدة (لم تُباع)</h3>
+          <h3 className="font-bold mb-3 text-center flex justify-center items-center gap-2 text-destructive"><AlertCircle className="w-4 h-4" /> منتجات راكدة (لم تُباع)</h3>
           <DataTable rows={stagnantProducts} empty="ممتاز — جميع المنتجات تتحرك"
             columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "sku", header: "الكود" },
-              { key: "quantity", header: "المخزون", render: (r: any) => <span className="text-destructive font-bold">{formatNumber(r.quantity)}</span> },
+              { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="text-center block">{r.name}</b> },
+              { key: "sku", header: "الكود", align: "center" },
+              { key: "quantity", header: "المخزون", align: "center", render: (r: any) => <span className="text-destructive font-bold">{formatNumber(r.quantity)}</span> },
             ]} />
         </div>
       </div>
