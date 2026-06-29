@@ -21,45 +21,45 @@ const ACCENTS: Record<string, { border: string; bg: string; chip: string; dot: s
 export function ReportIntro({ icon, title, purpose, shows, unique, accent = "primary", extra }: Props) {
   const a = ACCENTS[accent];
   return (
-    <div className={`relative overflow-hidden rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} backdrop-blur-sm mb-5 shadow-sm text-start`}>
+    <div dir="rtl" className={`relative overflow-hidden rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} backdrop-blur-sm mb-5 shadow-sm text-right`}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-border/40">
+      <div className="flex flex-row items-center gap-3 px-5 pt-4 pb-3 border-b border-border/40 text-right">
         <div className={`w-11 h-11 rounded-xl ${a.chip} ring-4 ${a.ring} flex items-center justify-center text-2xl shrink-0`}>
           {icon}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 text-right">
           <h3 className="font-extrabold text-lg leading-tight">{title}</h3>
           <p className="text-sm text-muted-foreground leading-snug mt-0.5">{purpose}</p>
         </div>
       </div>
 
       {/* Body */}
-      <div className="px-5 py-5 space-y-5">
-        <div>
+      <div className="px-5 py-5 space-y-5 text-right">
+        <div className="text-right">
           <div className={`inline-flex items-center gap-1.5 text-xs font-bold mb-2.5 px-2.5 py-1 rounded-full ${a.chip}`}>
             <span>📋</span><span>محتوى التقرير</span>
           </div>
           <ul className="space-y-2">
             {shows.map((s, i) => (
-              <li key={i} className="text-sm md:text-base flex items-start gap-2.5 leading-loose text-start">
+              <li key={i} className="text-sm md:text-base flex flex-row items-start gap-2.5 leading-loose text-right">
                 <span className={`mt-2 w-1.5 h-1.5 rounded-full ${a.dot} shrink-0`} />
-                <span className="text-foreground/90 break-words whitespace-normal">{s}</span>
+                <span className="text-foreground/90 break-words whitespace-normal text-right flex-1">{s}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className={`rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} p-4 text-start`}>
+        <div className={`rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} p-4 text-right`}>
           <div className={`inline-flex items-center gap-1.5 text-xs font-bold mb-3 px-2.5 py-1 rounded-full ${a.chip}`}>
             <span>⭐</span><span>المميز فيه</span>
           </div>
-          <p className="text-base md:text-lg leading-loose text-foreground break-words whitespace-normal">
+          <p className="text-base md:text-lg leading-loose text-foreground break-words whitespace-normal text-right">
             {unique}
           </p>
         </div>
       </div>
 
-      {extra && <div className="px-5 pb-4">{extra}</div>}
+      {extra && <div className="px-5 pb-4 text-right">{extra}</div>}
     </div>
   );
 }
