@@ -12,6 +12,7 @@ import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, Che
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { lineProfit } from "@/lib/profitEngine";
 import { ReportIntro } from "@/components/ReportIntro";
+import { StatCard } from "@/components/StatCard";
 
 interface Row {
   product_id: string | null;
