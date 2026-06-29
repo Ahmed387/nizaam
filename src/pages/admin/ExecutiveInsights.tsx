@@ -186,10 +186,10 @@ export default function ExecutiveInsights({ embedded }: Props) {
         <div>عدد المنتجات الراكدة<b>${stagnantProducts.length}</b></div>
       </div>
 
-      <h2>أكبر الموردين الدائنين (احنا ليهم فلوس)</h2>
-      ${tbl(suppliersWeOwe.map((s) => [s.name, `<b class="neg">${formatEGP(s.amount)}</b>`]), ["المورد", "المبلغ المستحق"])}
+      <h2>أكبر الموردين الدائنين (إحنا مدينين لهم — علينا فلوس)</h2>
+      ${tbl(suppliersWeOwe.map((s) => [s.name, `<b class="neg">${formatEGP(s.amount)}</b>`]), ["المورد", "المبلغ المستحق علينا"])}
 
-      <h2>الموردين الذين لنا عندهم رصيد (هم لينا فلوس)</h2>
+      <h2>موردين لنا رصيد عندهم (إحنا لينا فلوس عندهم)</h2>
       ${tbl(suppliersOwingUs.map((s) => [s.name, `<b class="pos">${formatEGP(s.amount)}</b>`]), ["المورد", "الرصيد لصالحنا"])}
 
       <h2>أعلى 10 منتجات مبيعاً (الأكثر طلباً)</h2>
