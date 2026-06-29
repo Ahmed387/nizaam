@@ -186,10 +186,10 @@ export default function ExecutiveInsights({ embedded }: Props) {
         <div>عدد المنتجات الراكدة<b>${stagnantProducts.length}</b></div>
       </div>
 
-      <h2>أكبر الموردين الدائنين (احنا ليهم فلوس)</h2>
-      ${tbl(suppliersWeOwe.map((s) => [s.name, `<b class="neg">${formatEGP(s.amount)}</b>`]), ["المورد", "المبلغ المستحق"])}
+      <h2>أكبر الموردين الدائنين (إحنا مدينين لهم — علينا فلوس)</h2>
+      ${tbl(suppliersWeOwe.map((s) => [s.name, `<b class="neg">${formatEGP(s.amount)}</b>`]), ["المورد", "المبلغ المستحق علينا"])}
 
-      <h2>الموردين الذين لنا عندهم رصيد (هم لينا فلوس)</h2>
+      <h2>موردين لنا رصيد عندهم (إحنا لينا فلوس عندهم)</h2>
       ${tbl(suppliersOwingUs.map((s) => [s.name, `<b class="pos">${formatEGP(s.amount)}</b>`]), ["المورد", "الرصيد لصالحنا"])}
 
       <h2>أعلى 10 منتجات مبيعاً (الأكثر طلباً)</h2>
@@ -272,7 +272,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
       {/* Suppliers section */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-destructive"><Users className="w-4 h-4" /> أكبر الموردين الدائنين (احنا ليهم فلوس)</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-destructive"><Users className="w-4 h-4" /> أكبر الموردين الدائنين (إحنا مدينين لهم — علينا فلوس)</h3>
           {suppliersWeOwe.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا يوجد موردون مستحقون</div> : (
             <>
               <ResponsiveContainer width="100%" height={Math.max(220, suppliersWeOwe.length * 36)}>
@@ -289,7 +289,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
         </div>
 
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-success"><Users className="w-4 h-4" /> الموردين الذين لنا عندهم رصيد (هم لينا فلوس)</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-success"><Users className="w-4 h-4" /> موردين لنا رصيد عندهم (إحنا لينا فلوس عندهم)</h3>
           {suppliersOwingUs.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا يوجد</div> : (
             <ResponsiveContainer width="100%" height={Math.max(220, suppliersOwingUs.length * 36)}>
               <BarChart data={suppliersOwingUs} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
