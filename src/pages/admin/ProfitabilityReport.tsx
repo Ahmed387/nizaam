@@ -276,13 +276,13 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       </div>
 
       <div className="grid md:grid-cols-4 gap-3 mb-4">
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="w-3 h-3" /> الإيراد</div><div className="text-xl font-bold">{formatEGP(totals.revenue)}</div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="w-3 h-3" /> التكلفة</div><div className="text-xl font-bold">{formatEGP(totals.cost)}</div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="w-3 h-3" /> صافي الربح</div><div className={`text-xl font-bold ${totals.profit >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(totals.profit)}</div></div>
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground">أعلى/أقل هامش</div>
-          <div className="text-sm font-bold text-success truncate">↑ {totals.best?.product_name ?? "—"} ({totals.best?.margin.toFixed(1) ?? 0}%)</div>
-          <div className={`text-sm font-bold truncate ${(totals.worst?.margin ?? 0) < 10 ? "text-destructive" : "text-warning"}`}>↓ {totals.worst?.product_name ?? "—"} ({totals.worst?.margin.toFixed(1) ?? 0}%)</div>
+        <StatCard label="الإيراد" value={formatEGP(totals.revenue)} icon={<DollarSign />} accent="primary" hint="إجمالي المبيعات بعد المرتجعات" />
+        <StatCard label="التكلفة" value={formatEGP(totals.cost)} icon={<Wallet />} accent="warning" hint="تكلفة البضاعة المباعة (FIFO)" />
+        <StatCard label="صافي الربح" value={formatEGP(totals.profit)} icon={<TrendingUp />} accent={totals.profit >= 0 ? "success" : "destructive"} hint="الإيراد − التكلفة" />
+        <div className={`rounded-2xl p-4 h-full border border-secondary/30 bg-secondary/10 flex flex-col items-center justify-center text-center`}>
+          <div className="text-sm font-semibold text-muted-foreground mb-2">أعلى/أقل هامش</div>
+          <div className="text-sm font-bold text-success truncate w-full">↑ {totals.best?.product_name ?? "—"} ({totals.best?.margin.toFixed(1) ?? 0}%)</div>
+          <div className={`text-sm font-bold truncate w-full mt-1 ${(totals.worst?.margin ?? 0) < 10 ? "text-destructive" : "text-warning"}`}>↓ {totals.worst?.product_name ?? "—"} ({totals.worst?.margin.toFixed(1) ?? 0}%)</div>
         </div>
       </div>
 
