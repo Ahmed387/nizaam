@@ -320,9 +320,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                   {topMargin.map((r, i) => (
                     <tr key={r.product_id ?? r.product_name} className={`border-t border-border/50 align-middle hover:bg-success/5 transition-colors ${i % 2 === 1 ? "bg-surface/30" : ""}`}>
                       <td className="px-2 py-3 text-center text-muted-foreground font-semibold tabular-nums">{i + 1}</td>
-                      <td className="px-3 py-3 font-semibold text-foreground break-words leading-snug" title={r.product_name}>{r.product_name}</td>
+                      <td className="px-3 py-3 font-semibold text-foreground break-words leading-snug text-center" title={r.product_name}>{r.product_name}</td>
                       <td className="px-2 py-3 text-center font-bold tabular-nums">{r.qty}</td>
-                      <td className="px-3 py-3 text-right whitespace-nowrap text-success font-extrabold tabular-nums">{formatEGP(r.profit)}</td>
+                      <td className="px-3 py-3 text-center whitespace-nowrap text-success font-extrabold tabular-nums">{formatEGP(r.profit)}</td>
                       <td className="px-2 py-3 text-center whitespace-nowrap font-extrabold text-success tabular-nums">{r.margin.toFixed(1)}%</td>
                     </tr>
                   ))}
