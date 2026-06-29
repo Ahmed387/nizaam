@@ -442,11 +442,11 @@ export default function Invoices() {
       case "quote": return {
         newLink: `${base}/quotes/new`, newLabel: "عرض سعر جديد", newPerm: "sales.create",
         columns: [
-          { key: "quote_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.quote_number}</span> },
-          { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? r.customer_name ?? "—" },
-          { key: "total", header: "الإجمالي", render: (r: any) => formatEGP(r.total) },
-          { key: "valid_until", header: "صالح حتى", render: (r: any) => r.valid_until ? formatDate(r.valid_until) : "—" },
-          { key: "status", header: "الحالة" },
+          { key: "quote_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="font-mono text-primary font-semibold">{r.quote_number}</span> },
+          { key: "customer", header: "العميل", align: "right", render: (r: any) => r.contacts?.name ?? r.customer_name ?? "—" },
+          { key: "total", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
+          { key: "valid_until", header: "صالح حتى", align: "right", width: "10rem", render: (r: any) => r.valid_until ? formatDate(r.valid_until) : "—" },
+          { key: "status", header: "الحالة", align: "center", width: "7rem" },
         ],
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
