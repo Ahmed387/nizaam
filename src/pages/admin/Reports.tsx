@@ -822,21 +822,25 @@ function Section({ icon, title, color, children }: { icon: React.ReactNode; titl
 }
 
 function MiniKpi({ label, value, icon, hint, accent }: { label: string; value: string; icon: React.ReactNode; hint?: string; accent?: "success" | "destructive" | "warning" }) {
-  const colorMap = {
-    success: "text-success",
-    destructive: "text-destructive",
-    warning: "text-warning",
-  };
+  const styles = {
+    success:     { bg: "bg-success/5",     border: "border-success/25",     chip: "bg-success/15 text-success",         value: "text-success",     label: "text-success/80" },
+    destructive: { bg: "bg-destructive/5", border: "border-destructive/25", chip: "bg-destructive/15 text-destructive", value: "text-destructive", label: "text-destructive/80" },
+    warning:     { bg: "bg-warning/5",     border: "border-warning/30",     chip: "bg-warning/15 text-warning",         value: "text-warning",     label: "text-warning/80" },
+    neutral:     { bg: "bg-surface-2",     border: "border-border",         chip: "bg-primary/15 text-primary",         value: "text-foreground",  label: "text-muted-foreground" },
+  } as const;
+  const s = accent ? styles[accent] : styles.neutral;
   return (
-    <div className="bg-surface-2 rounded-xl p-4 border border-border">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-        {icon}<span className="font-medium">{label}</span>
+    <div className={`rounded-xl p-4 border ${s.border} ${s.bg} flex flex-col items-center justify-center text-center`}>
+      <div className="flex items-center justify-center gap-1.5 mb-2">
+        <span className={`text-xs font-semibold ${s.label}`}>{label}</span>
+        <span className={`w-5 h-5 rounded-full flex items-center justify-center ${s.chip} [&_svg]:w-3 [&_svg]:h-3`}>{icon}</span>
       </div>
-      <div className={`font-extrabold text-lg ${accent ? colorMap[accent] : ""}`}>{value}</div>
-      {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
+      <div className={`font-extrabold text-2xl md:text-3xl tabular-nums leading-none ${s.value}`}>{value}</div>
+      {hint && <div className="text-[11px] text-muted-foreground mt-1.5 font-medium">{hint}</div>}
     </div>
   );
 }
+
 
 function Row({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: "success" | "destructive" }) {
   const c = accent === "success" ? "text-success" : accent === "destructive" ? "text-destructive" : "";
