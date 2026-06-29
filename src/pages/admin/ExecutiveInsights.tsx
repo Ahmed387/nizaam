@@ -272,7 +272,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
       {/* Suppliers section */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-destructive"><Users className="w-4 h-4" /> أكبر الموردين الدائنين (احنا ليهم فلوس)</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-destructive"><Users className="w-4 h-4" /> أكبر الموردين الدائنين (إحنا مدينين لهم — علينا فلوس)</h3>
           {suppliersWeOwe.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا يوجد موردون مستحقون</div> : (
             <>
               <ResponsiveContainer width="100%" height={Math.max(220, suppliersWeOwe.length * 36)}>
