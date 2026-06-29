@@ -322,7 +322,7 @@ export default function Invoices() {
           { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / إدارة" onClick={() => nav(`${base}/sales/${r.id}`)}>
                   <Eye className="w-4 h-4" />
@@ -349,7 +349,7 @@ export default function Invoices() {
           { key: "arrival_date", header: "تاريخ الوصول", align: "right", width: "10rem", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
@@ -376,7 +376,7 @@ export default function Invoices() {
           { key: "total_refund", header: "المرتجع", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_refund) },
           { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/sale-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
@@ -397,7 +397,7 @@ export default function Invoices() {
           { key: "total_amount", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
           { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/purchase-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
@@ -427,7 +427,7 @@ export default function Invoices() {
           { key: "status", header: "الحالة", align: "center", width: "7rem" },
           { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/transfers/${r.id}`)}>
                   <Eye className="w-4 h-4" />
