@@ -342,15 +342,15 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.shipment_number ?? "—"}</span></span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
-          { key: "received_by", header: "استلم بواسطة" },
-          { key: "invoice_date", header: "تاريخ الفاتورة", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
-          { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
-          { key: "total_cost", header: "الإجمالي", render: (r: any) => formatEGP(r.total_cost) },
+          { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span></span> },
+          { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
+          { key: "received_by", header: "استلم بواسطة", align: "right" },
+          { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "arrival_date", header: "تاريخ الوصول", align: "right", width: "10rem", render: (r: any) => formatDate(r.arrival_date) },
+          { key: "total_cost", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
           {
-            key: "actions", header: "إجراءات", render: (r: any) => (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+              <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
@@ -369,15 +369,15 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number ?? "—"}</span></span> },
-          { key: "inv", header: "رقم الفاتورة", render: (r: any) => r.invoices?.invoice_number ?? "—" },
-          { key: "customer", header: "العميل", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
-          { key: "reason", header: "السبب" },
-          { key: "total_refund", header: "المرتجع", render: (r: any) => formatEGP(r.total_refund) },
-          { key: "invoice_date", header: "تاريخ المرتجع", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.return_number ?? "—"}</span></span> },
+          { key: "inv", header: "رقم الفاتورة", align: "right", width: "8rem", render: (r: any) => r.invoices?.invoice_number ?? "—" },
+          { key: "customer", header: "العميل", align: "right", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
+          { key: "reason", header: "السبب", align: "right" },
+          { key: "total_refund", header: "المرتجع", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_refund) },
+          { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", render: (r: any) => (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+              <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/sale-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
@@ -391,14 +391,14 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", render: (r: any) => <span className="inline-flex items-center gap-1.5"><span className="font-mono text-primary">{r.return_number}</span></span> },
-          { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },
-          { key: "reason", header: "السبب" },
-          { key: "total_amount", header: "الإجمالي", render: (r: any) => formatEGP(r.total_amount) },
-          { key: "invoice_date", header: "تاريخ المرتجع", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.return_number}</span></span> },
+          { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
+          { key: "reason", header: "السبب", align: "right" },
+          { key: "total_amount", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
+          { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", render: (r: any) => (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+              <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/purchase-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
@@ -422,13 +422,13 @@ export default function Invoices() {
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
         columns: [
-          { key: "from_branch_id", header: "من", render: (r: any) => <span className="inline-flex items-center gap-1.5">{branchName(r.from_branch_id)}</span> },
-          { key: "to_branch_id", header: "إلى", render: (r: any) => branchName(r.to_branch_id) },
-          { key: "status", header: "الحالة" },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "from_branch_id", header: "من", align: "right", width: "10rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5">{branchName(r.from_branch_id)}</span> },
+          { key: "to_branch_id", header: "إلى", align: "right", width: "10rem", render: (r: any) => branchName(r.to_branch_id) },
+          { key: "status", header: "الحالة", align: "center", width: "7rem" },
+          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
           {
-            key: "actions", header: "إجراءات", render: (r: any) => (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+              <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/transfers/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
