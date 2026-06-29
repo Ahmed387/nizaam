@@ -74,7 +74,7 @@ export function DataTable<T>({
               {columns.map((c, idx) => (
                 <th
                   key={c.key}
-                  style={c.width ? { width: c.width } : isActionsColumn(c) ? { width: "8.5rem" } : undefined}
+                  style={c.width ? { width: c.width } : isActionsColumn(c) ? { width: "10rem" } : undefined}
                   className={`px-2 md:px-3 py-3.5 font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground break-words whitespace-normal ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {c.header}
@@ -92,7 +92,7 @@ export function DataTable<T>({
                 {columns.map((c, idx) => (
                   <td
                     key={c.key}
-                    className={`px-2 md:px-3 py-3 md:py-3.5 align-middle break-words whitespace-normal min-w-0 ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-wrap [&>div]:justify-end [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                    className={`px-2 md:px-3 py-3 md:py-3.5 align-middle break-words whitespace-normal min-w-0 ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-nowrap [&>div]:justify-center [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                   >
                     {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                   </td>
