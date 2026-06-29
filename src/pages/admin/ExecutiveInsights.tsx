@@ -289,7 +289,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
         </div>
 
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-success"><Users className="w-4 h-4" /> الموردين الذين لنا عندهم رصيد (هم لينا فلوس)</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-success"><Users className="w-4 h-4" /> موردين لنا رصيد عندهم (إحنا لينا فلوس عندهم)</h3>
           {suppliersOwingUs.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا يوجد</div> : (
             <ResponsiveContainer width="100%" height={Math.max(220, suppliersOwingUs.length * 36)}>
               <BarChart data={suppliersOwingUs} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
