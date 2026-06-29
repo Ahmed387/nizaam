@@ -413,10 +413,10 @@ export default function Invoices() {
       case "expense": return {
         newLink: `${base}/treasury`, newLabel: tab === "income" ? "سند قبض جديد" : "سند صرف جديد", newPerm: tab === "income" ? "receipt_vouchers.create" : "payment_vouchers.create",
         columns: [
-          { key: "description", header: "البيان" },
-          { key: "amount", header: "المبلغ", render: (r: any) => formatEGP(r.amount) },
-          { key: "category", header: "التصنيف" },
-          { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "description", header: "البيان", align: "right" },
+          { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
+          { key: "category", header: "التصنيف", align: "right", width: "10rem" },
+          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
         ],
       };
       case "transfer": return {
