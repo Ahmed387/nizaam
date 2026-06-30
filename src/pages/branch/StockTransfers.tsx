@@ -236,6 +236,9 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
 
   const totalPendingIncoming = incoming.filter((t) => t.status === "pending").length;
 
+  const allIds = useMemo(() => [...incoming, ...outgoing].map((t: any) => t.id), [incoming, outgoing]);
+  const attCounts = useAttachmentCounts("stock_transfer", allIds);
+
   return (
     <ConditionalLayout
       embedded={embedded}
