@@ -12,17 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
-import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Trash2, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -72,6 +74,12 @@ export default function Invoices() {
   const [delBusy, setDelBusy] = useState(false);
   const [delReason, setDelReason] = useState("");
   const canDeleteInvoice = isAdmin || isManager;
+  // Voucher actions (income/expense tabs)
+  const [viewVoucher, setViewVoucher] = useState<any>(null);
+  const [cancelVoucher, setCancelVoucher] = useState<any>(null);
+  const [cancelVoucherReason, setCancelVoucherReason] = useState("");
+  const [deleteVoucher, setDeleteVoucher] = useState<any>(null);
+  const [voucherBusy, setVoucherBusy] = useState(false);
 
   const handleDeleteInvoice = async () => {
     if (!delTarget) return;
@@ -300,6 +308,8 @@ export default function Invoices() {
       case "sale_return": return "sale_return";
       case "purchase_return": return "purchase_return";
       case "transfer": return "stock_transfer";
+      case "income":
+      case "expense": return "voucher";
       default: return null;
     }
   }, [tab]);
@@ -417,7 +427,31 @@ export default function Invoices() {
           { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
           { key: "category", header: "التصنيف", align: "right", width: "10rem" },
           { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
+          {
+            key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
+              const canCancel = r.status === "active" && (isAdmin || (isManager && r.source === "manual"));
+              return (
+                <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض السند" onClick={() => setViewVoucher(r)}>
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                  {canCancel && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي." onClick={() => setCancelVoucher(r)}>
+                      <XCircle className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي — يمسح السند ومرفقاته من قاعدة البيانات بدون رجوع." onClick={() => setDeleteVoucher(r)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              );
+            },
+          },
         ],
+        onClick: (r: any) => setViewVoucher(r),
       };
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
@@ -451,7 +485,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -898,6 +932,64 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Voucher view dialog */}
+      <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)} />
+
+      {/* Cancel voucher */}
+      <Dialog open={!!cancelVoucher} onOpenChange={(o) => { if (!o) { setCancelVoucher(null); setCancelVoucherReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>إلغاء السند {cancelVoucher?.voucher_number}</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2">
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs leading-relaxed">
+              <b>إلغاء السند ≠ حذف السند.</b><br />
+              السند هيفضل ظاهر بحالة <b>«ملغي»</b> مع سبب الإلغاء — للتدقيق.<br />
+              <b>أثره المحاسبي على الخزينة هيترجع تلقائياً.</b>
+            </div>
+            <Label>سبب الإلغاء *</Label>
+            <Textarea value={cancelVoucherReason} onChange={(e) => setCancelVoucherReason(e.target.value)} rows={3} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCancelVoucher(null)} disabled={voucherBusy}>تراجع</Button>
+            <Button variant="destructive" disabled={voucherBusy} onClick={async () => {
+              if (!cancelVoucherReason.trim()) return toast.error("اكتب سبب الإلغاء");
+              setVoucherBusy(true);
+              const { error } = await supabase.rpc("cancel_voucher" as any, { p_voucher_id: cancelVoucher.id, p_reason: cancelVoucherReason.trim() });
+              setVoucherBusy(false);
+              if (error) return toast.error(error.message);
+              toast.success("تم إلغاء السند");
+              setCancelVoucher(null); setCancelVoucherReason(""); load();
+            }}>تأكيد الإلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete voucher */}
+      <Dialog open={!!deleteVoucher} onOpenChange={(o) => !o && setDeleteVoucher(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>حذف السند {deleteVoucher?.voucher_number} نهائياً</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2 text-sm">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed">
+              <b>الفرق:</b><br />
+              • <b>إلغاء</b> = السند يفضل بحالة «ملغي» مع تتبع السبب.<br />
+              • <b>حذف نهائي</b> = السند ومرفقاته يتمسحوا خالص من قاعدة البيانات.
+            </div>
+            <p>لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.</p>
+            <p className="text-destructive font-semibold">العملية دي مالهاش رجوع.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteVoucher(null)} disabled={voucherBusy}>تراجع</Button>
+            <Button variant="destructive" disabled={voucherBusy} onClick={async () => {
+              setVoucherBusy(true);
+              const { error } = await supabase.rpc("delete_voucher_admin" as any, { p_voucher_id: deleteVoucher.id, p_reason: "حذف من شاشة الفواتير والمستندات" });
+              setVoucherBusy(false);
+              if (error) return toast.error(error.message);
+              toast.success("تم حذف السند نهائياً");
+              setDeleteVoucher(null); load();
+            }}>تأكيد الحذف</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </BranchLayout>
   );
