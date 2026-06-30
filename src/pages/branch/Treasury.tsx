@@ -187,6 +187,7 @@ export default function Treasury() {
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
   const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
+  const voucherAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
   const wallets = [
     { key: "cash_balance" as const, label: "نقدي", icon: Wallet, color: "text-success", method: "cash" as const },
