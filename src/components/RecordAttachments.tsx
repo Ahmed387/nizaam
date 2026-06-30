@@ -26,7 +26,7 @@ interface Attachment {
 
 const BUCKET = "record-attachments";
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB hard cap AFTER compression
-const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xls,.xlsx,.csv";
 
 interface Props {
   recordType: RecordType;
