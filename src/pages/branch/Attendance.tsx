@@ -196,18 +196,18 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               const p = e.user_id ? presence[e.user_id] : null;
               const canUsePresence = !!(p && isToday(p.last_login_at) && !a?.check_in);
               return (
-                <div className="flex gap-1 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => checkIn(e.id)} disabled={!!a?.check_in}>
-                    <LogIn className="w-3.5 h-3.5 ml-1" /> حضور
+                <div className="flex gap-2 flex-nowrap items-center justify-center">
+                  <Button size="sm" variant="outline" className="whitespace-nowrap gap-1.5 shrink-0" onClick={() => checkIn(e.id)} disabled={!!a?.check_in}>
+                    <LogIn className="w-3.5 h-3.5 shrink-0" /> حضور
                   </Button>
                   {canUsePresence && (
-                    <Button size="sm" variant="ghost" title="استخدم وقت أول دخول للسيستم"
+                    <Button size="sm" variant="ghost" className="whitespace-nowrap shrink-0" title="استخدم وقت أول دخول للسيستم"
                       onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: computeLate(p!.last_login_at!, e) ?? "present" })}>
                       من السيستم
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => checkOut(e.id)} disabled={!a?.check_in || !!a?.check_out}>
-                    <LogOut className="w-3.5 h-3.5 ml-1" /> انصراف
+                  <Button size="sm" variant="outline" className="whitespace-nowrap gap-1.5 shrink-0" onClick={() => checkOut(e.id)} disabled={!a?.check_in || !!a?.check_out}>
+                    <LogOut className="w-3.5 h-3.5 shrink-0" /> انصراف
                   </Button>
                 </div>
               );
