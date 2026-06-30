@@ -321,7 +321,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xls,.xlsx,.csv"
                 multiple
                 className="hidden"
                 onChange={(e) => {
