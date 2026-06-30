@@ -74,6 +74,12 @@ export default function Invoices() {
   const [delBusy, setDelBusy] = useState(false);
   const [delReason, setDelReason] = useState("");
   const canDeleteInvoice = isAdmin || isManager;
+  // Voucher actions (income/expense tabs)
+  const [viewVoucher, setViewVoucher] = useState<any>(null);
+  const [cancelVoucher, setCancelVoucher] = useState<any>(null);
+  const [cancelVoucherReason, setCancelVoucherReason] = useState("");
+  const [deleteVoucher, setDeleteVoucher] = useState<any>(null);
+  const [voucherBusy, setVoucherBusy] = useState(false);
 
   const handleDeleteInvoice = async () => {
     if (!delTarget) return;
