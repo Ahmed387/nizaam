@@ -485,7 +485,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
