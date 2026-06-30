@@ -451,7 +451,12 @@ export default function Treasury() {
             </div>
           )}
         </DialogContent>
-      </Dialog>
+      <VoucherViewDialog
+        voucher={viewVoucher?._raw ?? null}
+        open={!!viewVoucher}
+        onOpenChange={(o) => !o && setViewVoucher(null)}
+        categoryName={viewVoucher?._category_name}
+      />
     </BranchLayout>
   );
 }
