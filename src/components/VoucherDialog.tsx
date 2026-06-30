@@ -209,115 +209,171 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
 
   const selectedParty = partyOptions.find((p) => p.id === form.party_id);
 
+  const isReceipt = type === "receipt";
+  const accentClass = isReceipt ? "text-success" : "text-destructive";
+  const accentBg = isReceipt ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30";
+  const HeaderIcon = isReceipt ? ArrowDownCircle : ArrowUpCircle;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{type === "receipt" ? "سند قبض جديد" : "سند صرف جديد"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-2">
-          <div>
-            <Label>التصنيف *</Label>
-            <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-              <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر التصنيف" /></SelectTrigger>
-              <SelectContent>
-                {grouped.map(({ root, children }) => (
-                  <div key={root.id}>
-                    <SelectItem value={root.id}>{root.name}</SelectItem>
-                    {children.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>— {c.name}</SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
+        {/* Header banner */}
+        <div className={cn("px-6 py-4 border-b flex items-center gap-3", accentBg)}>
+          <div className={cn("w-11 h-11 rounded-full bg-background flex items-center justify-center shadow-sm", accentClass)}>
+            <HeaderIcon className="w-6 h-6" />
           </div>
-
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <Label>المبلغ *</Label>
-              <Input type="number" min={0} step="0.01" value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>التاريخ</Label>
-              <Input type="date" value={form.voucher_date}
-                onChange={(e) => setForm({ ...form, voucher_date: e.target.value })} className="mt-1.5" />
-            </div>
+          <div className="flex-1">
+            <DialogHeader className="space-y-0.5">
+              <DialogTitle className="text-lg font-bold">
+                {isReceipt ? "سند قبض جديد" : "سند صرف جديد"}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                {isReceipt ? "تسجيل مبلغ مستلم في خزينة الفرع" : "تسجيل مبلغ مصروف من خزينة الفرع"}
+              </p>
+            </DialogHeader>
           </div>
+        </div>
 
-          <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom />
-
-          <div className="grid sm:grid-cols-2 gap-3">
+        <div className="px-6 py-5 space-y-5">
+          {/* 1. Classification + Amount + Date */}
+          <section className="rounded-lg border bg-card p-4 space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Tag className="w-4 h-4 text-primary" /> بيانات السند الأساسية
+            </h3>
             <div>
-              <Label>{type === "receipt" ? "نوع الحساب" : "الجهة"}</Label>
-              <Select value={form.party_type} onValueChange={(v) => setForm({ ...form, party_type: v as any })}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder={type === "receipt" ? "اختر نوع الحساب" : "اختر النوع"} /></SelectTrigger>
+              <Label className="text-xs font-medium">التصنيف *</Label>
+              <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
+                <SelectTrigger className="mt-1.5 h-10"><SelectValue placeholder="اختر التصنيف المناسب" /></SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).map((k) => (
-                    <SelectItem key={k} value={k}>{PARTY_TYPE_LABEL[k]}</SelectItem>
+                  {grouped.map(({ root, children }) => (
+                    <div key={root.id}>
+                      <SelectItem value={root.id}>{root.name}</SelectItem>
+                      {children.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>— {c.name}</SelectItem>
+                      ))}
+                    </div>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>{form.party_type && form.party_type !== "other" ? (type === "receipt" ? "اختر الحساب" : "اختر الجهة") : (type === "receipt" ? "اسم الحساب" : "اسم الجهة")}</Label>
-              {form.party_type && form.party_type !== "other" ? (
-                <Popover open={partyOpen} onOpenChange={setPartyOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="mt-1.5 w-full justify-between font-normal">
-                      {selectedParty?.name ?? "اختر..."}
-                      <ChevronsUpDown className="ms-2 h-4 w-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
-                    <Command>
-                      <CommandInput placeholder="بحث..." />
-                      <CommandList>
-                        <CommandEmpty>لا توجد نتائج</CommandEmpty>
-                        <CommandGroup>
-                          {partyOptions.map((p) => (
-                            <CommandItem key={p.id} value={p.name} onSelect={() => {
-                              setForm((f) => ({ ...f, party_id: p.id, party_name: p.name }));
-                              setPartyOpen(false);
-                            }}>
-                              <Check className={cn("me-2 h-4 w-4", form.party_id === p.id ? "opacity-100" : "opacity-0")} />
-                              {p.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <Input value={form.party_name} onChange={(e) => setForm({ ...form, party_name: e.target.value })}
-                  placeholder={type === "receipt" ? "استُلم من" : "صُرف إلى"} className="mt-1.5" />
-              )}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium flex items-center gap-1"><Wallet className="w-3.5 h-3.5" /> المبلغ (ج.م) *</Label>
+                <Input
+                  type="number" min={0} step="0.01" value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  className={cn("mt-1.5 h-11 text-lg font-bold tabular-nums", accentClass)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> تاريخ السند</Label>
+                <Input type="date" value={form.voucher_date}
+                  onChange={(e) => setForm({ ...form, voucher_date: e.target.value })} className="mt-1.5 h-11" />
+              </div>
             </div>
-          </div>
+          </section>
 
-          {partyBalance && (
-            <div className="rounded-md border bg-muted/30 p-2.5 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{partyBalance.label}</span>
-              <Badge variant={partyBalance.tone === "bad" ? "destructive" : partyBalance.tone === "good" ? "default" : "secondary"}>
-                {formatEGP(partyBalance.amount)}
-              </Badge>
+          {/* 2. Payment method */}
+          <section className="rounded-lg border bg-card p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Receipt className="w-4 h-4 text-primary" /> طريقة الدفع
+            </h3>
+            <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom />
+          </section>
+
+          {/* 3. Party */}
+          <section className="rounded-lg border bg-card p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <UserIcon className="w-4 h-4 text-primary" />
+              {isReceipt ? "الجهة المُستلَم منها" : "الجهة المصروف إليها"}
+              <span className="text-xs font-normal text-muted-foreground">(اختياري)</span>
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium">{isReceipt ? "نوع الحساب" : "نوع الجهة"}</Label>
+                <Select value={form.party_type} onValueChange={(v) => setForm({ ...form, party_type: v as any })}>
+                  <SelectTrigger className="mt-1.5 h-10"><SelectValue placeholder={isReceipt ? "اختر نوع الحساب" : "اختر النوع"} /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).map((k) => (
+                      <SelectItem key={k} value={k}>{PARTY_TYPE_LABEL[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{form.party_type && form.party_type !== "other" ? (isReceipt ? "اختر الحساب" : "اختر الجهة") : (isReceipt ? "اسم الحساب" : "اسم الجهة")}</Label>
+                {form.party_type && form.party_type !== "other" ? (
+                  <Popover open={partyOpen} onOpenChange={setPartyOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="mt-1.5 w-full justify-between font-normal h-10">
+                        {selectedParty?.name ?? "اختر..."}
+                        <ChevronsUpDown className="ms-2 h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                      <Command>
+                        <CommandInput placeholder="بحث..." />
+                        <CommandList>
+                          <CommandEmpty>لا توجد نتائج</CommandEmpty>
+                          <CommandGroup>
+                            {partyOptions.map((p) => (
+                              <CommandItem key={p.id} value={p.name} onSelect={() => {
+                                setForm((f) => ({ ...f, party_id: p.id, party_name: p.name }));
+                                setPartyOpen(false);
+                              }}>
+                                <Check className={cn("me-2 h-4 w-4", form.party_id === p.id ? "opacity-100" : "opacity-0")} />
+                                {p.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <Input value={form.party_name} onChange={(e) => setForm({ ...form, party_name: e.target.value })}
+                    placeholder={isReceipt ? "استُلم من..." : "صُرف إلى..."} className="mt-1.5 h-10" />
+                )}
+              </div>
             </div>
-          )}
 
-          <div>
-            <Label>وصف / ملاحظات</Label>
+            {partyBalance && (
+              <div className={cn(
+                "rounded-md border p-3 flex items-center justify-between text-sm",
+                partyBalance.tone === "bad" ? "bg-destructive/10 border-destructive/30" :
+                partyBalance.tone === "good" ? "bg-success/10 border-success/30" :
+                "bg-muted/40"
+              )}>
+                <span className="font-medium">{partyBalance.label}</span>
+                <span className={cn(
+                  "font-bold tabular-nums",
+                  partyBalance.tone === "bad" ? "text-destructive" :
+                  partyBalance.tone === "good" ? "text-success" : ""
+                )}>
+                  {formatEGP(partyBalance.amount)}
+                </span>
+              </div>
+            )}
+          </section>
+
+          {/* 4. Notes */}
+          <section className="rounded-lg border bg-card p-4 space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <StickyNote className="w-4 h-4 text-primary" /> وصف / ملاحظات
+              <span className="text-xs font-normal text-muted-foreground">(اختياري)</span>
+            </h3>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="mt-1.5" rows={2} />
-          </div>
+              rows={2} placeholder="أضف ملاحظة أو وصف يوضّح سبب السند..." />
+          </section>
 
-          <div className="space-y-2">
+          {/* 5. Attachments */}
+          <section className="rounded-lg border bg-card p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-1.5">
-                <Paperclip className="w-4 h-4" /> المرفقات
-                {attachFiles.length > 0 && <span className="text-xs text-muted-foreground">({attachFiles.length})</span>}
-              </Label>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Paperclip className="w-4 h-4 text-primary" /> المرفقات
+                {attachFiles.length > 0 && <span className="text-xs font-normal text-muted-foreground">({attachFiles.length} ملف)</span>}
+              </h3>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -338,28 +394,32 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
               />
-              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-1">
+              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
                 <Upload className="w-4 h-4" /> إضافة مرفق
               </Button>
             </div>
             {attachFiles.length === 0 ? (
-              <div className="text-xs text-muted-foreground text-center py-2 bg-muted/30 rounded border border-dashed">
-                لا توجد مرفقات (اختياري — صور أو PDF حتى 5MB)
-              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full text-xs text-muted-foreground py-4 bg-muted/30 hover:bg-muted/50 rounded border border-dashed transition-colors"
+              >
+                لا توجد مرفقات — اضغط لإضافة صور / PDF / Excel (حتى 5MB لكل ملف)
+              </button>
             ) : (
               <div className="space-y-1.5">
                 {attachFiles.map((f, idx) => {
                   const isImg = f.type.startsWith("image/");
                   return (
                     <div key={idx} className="flex items-center gap-2 p-2 rounded border bg-muted/30 text-sm">
-                      <div className="shrink-0 w-7 h-7 rounded bg-background flex items-center justify-center">
+                      <div className="shrink-0 w-8 h-8 rounded bg-background flex items-center justify-center border">
                         {isImg ? <ImageIcon className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="truncate font-medium">{f.name}</div>
                         <div className="text-[10px] text-muted-foreground">{Math.round(f.size / 1024)} KB</div>
                       </div>
-                      <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                      <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10"
                         onClick={() => setAttachFiles((prev) => prev.filter((_, i) => i !== idx))}>
                         <X className="w-4 h-4" />
                       </Button>
@@ -368,11 +428,12 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
                 })}
               </div>
             )}
-          </div>
+          </section>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button onClick={submit} disabled={busy} className="gap-2">
+
+        <DialogFooter className="px-6 py-4 border-t bg-muted/20">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>إلغاء</Button>
+          <Button onClick={submit} disabled={busy} className="gap-2 min-w-32">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ السند
           </Button>
         </DialogFooter>
