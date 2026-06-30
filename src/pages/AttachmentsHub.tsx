@@ -342,16 +342,28 @@ export default function AttachmentsHub({ scope }: Props) {
           {
             key: "actions",
             header: "إجراءات",
-            render: (r: Att) => (
-              <div className="flex gap-1 justify-end">
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => open(r)} title="عرض">
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => download(r)} title="تحميل">
-                  <Download className="w-4 h-4" />
-                </Button>
-              </div>
-            ),
+            render: (r: Att) => {
+              const openAtt = async () => {
+                const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(r.file_path, 600);
+                if (error) return toast.error(error.message);
+                window.open(data.signedUrl, "_blank");
+              };
+              const downloadAtt = async () => {
+                const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(r.file_path, 600, { download: r.file_name });
+                if (error) return toast.error(error.message);
+                window.open(data.signedUrl, "_blank");
+              };
+              return (
+                <div className="flex gap-1 justify-end">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={openAtt} title="عرض">
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={downloadAtt} title="تحميل">
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </div>
+              );
+            },
           },
         ]}
       />
