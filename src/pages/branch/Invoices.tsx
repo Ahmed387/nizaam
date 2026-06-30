@@ -427,7 +427,31 @@ export default function Invoices() {
           { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
           { key: "category", header: "التصنيف", align: "right", width: "10rem" },
           { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
+          {
+            key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
+              const canCancel = r.status === "active" && (isAdmin || (isManager && r.source === "manual"));
+              return (
+                <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض السند" onClick={() => setViewVoucher(r)}>
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                  {canCancel && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي." onClick={() => setCancelVoucher(r)}>
+                      <XCircle className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي — يمسح السند ومرفقاته من قاعدة البيانات بدون رجوع." onClick={() => setDeleteVoucher(r)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              );
+            },
+          },
         ],
+        onClick: (r: any) => setViewVoucher(r),
       };
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
