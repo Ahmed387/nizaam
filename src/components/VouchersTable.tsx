@@ -332,8 +332,14 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         <DialogContent>
           <DialogHeader><DialogTitle>حذف السند {deleteTarget?.voucher_number} نهائياً</DialogTitle></DialogHeader>
           <div className="space-y-2 py-2 text-sm">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed">
+              <b>الفرق بين الإلغاء والحذف النهائي:</b><br />
+              • <b>إلغاء</b> = السند يفضل في السجلات بحالة «ملغي» مع تتبع السبب.<br />
+              • <b>حذف نهائي</b> = السند ومرفقاته يتمسحوا خالص من قاعدة البيانات.<br />
+              يُستخدم بس لو السند مكرر أو اتعمل بالغلط ومش عايز يفضل له أثر.
+            </div>
             <p>
-              هتمسح السند نهائياً من النظام. لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
+              لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
             </p>
             <p className="text-destructive font-semibold">
               العملية دي مالهاش رجوع.
