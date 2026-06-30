@@ -933,6 +933,64 @@ export default function Invoices() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Voucher view dialog */}
+      <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)} />
+
+      {/* Cancel voucher */}
+      <Dialog open={!!cancelVoucher} onOpenChange={(o) => { if (!o) { setCancelVoucher(null); setCancelVoucherReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>إلغاء السند {cancelVoucher?.voucher_number}</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2">
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs leading-relaxed">
+              <b>إلغاء السند ≠ حذف السند.</b><br />
+              السند هيفضل ظاهر بحالة <b>«ملغي»</b> مع سبب الإلغاء — للتدقيق.<br />
+              <b>أثره المحاسبي على الخزينة هيترجع تلقائياً.</b>
+            </div>
+            <Label>سبب الإلغاء *</Label>
+            <Textarea value={cancelVoucherReason} onChange={(e) => setCancelVoucherReason(e.target.value)} rows={3} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCancelVoucher(null)} disabled={voucherBusy}>تراجع</Button>
+            <Button variant="destructive" disabled={voucherBusy} onClick={async () => {
+              if (!cancelVoucherReason.trim()) return toast.error("اكتب سبب الإلغاء");
+              setVoucherBusy(true);
+              const { error } = await supabase.rpc("cancel_voucher" as any, { p_voucher_id: cancelVoucher.id, p_reason: cancelVoucherReason.trim() });
+              setVoucherBusy(false);
+              if (error) return toast.error(error.message);
+              toast.success("تم إلغاء السند");
+              setCancelVoucher(null); setCancelVoucherReason(""); load();
+            }}>تأكيد الإلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete voucher */}
+      <Dialog open={!!deleteVoucher} onOpenChange={(o) => !o && setDeleteVoucher(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>حذف السند {deleteVoucher?.voucher_number} نهائياً</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2 text-sm">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed">
+              <b>الفرق:</b><br />
+              • <b>إلغاء</b> = السند يفضل بحالة «ملغي» مع تتبع السبب.<br />
+              • <b>حذف نهائي</b> = السند ومرفقاته يتمسحوا خالص من قاعدة البيانات.
+            </div>
+            <p>لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.</p>
+            <p className="text-destructive font-semibold">العملية دي مالهاش رجوع.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteVoucher(null)} disabled={voucherBusy}>تراجع</Button>
+            <Button variant="destructive" disabled={voucherBusy} onClick={async () => {
+              setVoucherBusy(true);
+              const { error } = await supabase.rpc("delete_voucher_admin" as any, { p_voucher_id: deleteVoucher.id, p_reason: "حذف من شاشة الفواتير والمستندات" });
+              setVoucherBusy(false);
+              if (error) return toast.error(error.message);
+              toast.success("تم حذف السند نهائياً");
+              setDeleteVoucher(null); load();
+            }}>تأكيد الحذف</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </BranchLayout>
   );
 }
