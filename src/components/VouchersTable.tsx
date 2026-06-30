@@ -267,17 +267,23 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
             return (
               <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند">
+                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
                   <Eye className="w-4 h-4" />
                 </Button>
                 <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canCancel && (
-                  <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
+                  <Button
+                    size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-warning"
+                    title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي. يُستخدم لو السند اتنفذ بالغلط بعد ما أثّر على الرصيد."
+                  >
                     <XCircle className="w-4 h-4" />
                   </Button>
                 )}
                 {isAdmin && (
-                  <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive" title="حذف السند نهائياً">
+                  <Button
+                    size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive"
+                    title="حذف نهائي — يمسح السند ومرفقاته من قاعدة البيانات بدون رجوع. يُستخدم لو السند مكرر أو اتعمل بالغلط أصلاً."
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
