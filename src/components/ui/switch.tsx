@@ -17,7 +17,7 @@ const Switch = React.forwardRef<
   <SwitchPrimitives.Root
     className={cn(
       "peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
-      variant === "default" && "h-6 w-11 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+      variant === "default" && "h-6 w-11 overflow-hidden data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
       variant === "premium" && "h-7 w-14 overflow-hidden border border-border bg-muted data-[state=checked]:bg-success/20 data-[state=checked]:border-success/40",
       className,
     )}
