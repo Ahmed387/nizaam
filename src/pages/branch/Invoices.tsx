@@ -302,6 +302,8 @@ export default function Invoices() {
       case "sale_return": return "sale_return";
       case "purchase_return": return "purchase_return";
       case "transfer": return "stock_transfer";
+      case "income":
+      case "expense": return "voucher";
       default: return null;
     }
   }, [tab]);
