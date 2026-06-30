@@ -188,7 +188,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             },
           },
           {
-            key: "actions", header: "",
+            key: "actions", header: "إجراءات",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
               const allowed = canManageRole(e.role);
