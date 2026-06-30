@@ -451,6 +451,8 @@ export default function Treasury() {
             </div>
           )}
         </DialogContent>
+      </Dialog>
+
       <VoucherViewDialog
         voucher={viewVoucher?._raw ?? null}
         open={!!viewVoucher}
