@@ -295,6 +295,7 @@ export default function Treasury() {
 
         <TabsContent value="transfers" className="mt-4">
           <DataTable loading={loading} rows={transfers}
+            onRowClick={(r: any) => setViewTransfer(r)}
             columns={[
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "direction", header: "الاتجاه", render: (r: any) => (
@@ -318,12 +319,17 @@ export default function Treasury() {
                   ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">✓ مؤكد {formatDateTime(r.acknowledged_at)}</span>
                   : r.to_branch_id === branchId && canAck
                     ? (
-                      <div className="flex gap-1">
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد</Button>
                         <Button size="sm" variant="outline" className="text-destructive" onClick={() => setOpenReject(r)}><XCircle className="w-3.5 h-3.5 ml-1" /> رفض</Button>
                       </div>
                     )
                     : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار التأكيد</span>
+              )},
+              { key: "actions", header: "الإجراءات", render: (r: any) => (
+                <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                  <AttachmentsDialogButton recordType="treasury_transfer" recordId={r.id} count={transferAttCounts[r.id] ?? 0} />
+                </div>
               )},
             ]} />
         </TabsContent>
