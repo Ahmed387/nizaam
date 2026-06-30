@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, Clock, HandCoins } from "lucide-react";
+import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, CalendarCheck, HandCoins } from "lucide-react";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
