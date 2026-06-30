@@ -18,6 +18,8 @@ import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox } from "lucide-react";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 type Item = { product_id: string; quantity: string };
 
