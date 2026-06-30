@@ -308,6 +308,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         <DialogContent>
           <DialogHeader><DialogTitle>إلغاء السند {cancelTarget?.voucher_number}</DialogTitle></DialogHeader>
           <div className="space-y-2 py-2">
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs leading-relaxed">
+              <b>إلغاء السند ≠ حذف السند.</b><br />
+              السند هيفضل ظاهر في الجدول بحالة <b>«ملغي»</b> مع سبب الإلغاء واسم اللي ألغاه — للتدقيق والمراجعة.<br />
+              <b>أثره المحاسبي على الخزينة هيترجع تلقائياً.</b>
+            </div>
             <Label>سبب الإلغاء *</Label>
             <Textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3} />
             {cancelTarget?.source === "system" && cancelTarget.source_type !== "treasury" && (
