@@ -204,6 +204,27 @@ export default function AttachmentsHub({ scope }: Props) {
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["attachments"], load);
 
+  // Dedupe type options by their Arabic label; one filter value can map to many record_type keys
+  const typeGroups = useMemo(() => {
+    const groups: Record<string, string[]> = {};
+    Object.entries(TYPE_LABELS).forEach(([key, label]) => {
+      groups[label] = groups[label] || [];
+      groups[label].push(key);
+    });
+    return groups;
+  }, []);
+
+  // Only show types & branches that actually have attachments after the other filters
+  const availableTypeLabels = useMemo(() => {
+    const present = new Set(rows.map((r) => TYPE_LABELS[r.record_type] ?? r.record_type));
+    return Object.keys(typeGroups).filter((label) => present.has(label));
+  }, [rows, typeGroups]);
+
+  const availableBranches = useMemo(() => {
+    const present = new Set(rows.map((r) => r.branch_id).filter(Boolean) as string[]);
+    return Object.entries(branches).filter(([id]) => present.has(id));
+  }, [rows, branches]);
+
   const filtered = useMemo(() => {
     let out = rows;
     if (scope === "branch" && branchParamId) {
@@ -211,82 +232,18 @@ export default function AttachmentsHub({ scope }: Props) {
     } else if (branchFilter !== "all") {
       out = out.filter((r) => r.branch_id === branchFilter);
     }
-    if (typeFilter !== "all") out = out.filter((r) => r.record_type === typeFilter);
+    if (typeFilter !== "all") {
+      const keys = typeGroups[typeFilter] ?? [typeFilter];
+      out = out.filter((r) => keys.includes(r.record_type));
+    }
     if (from) out = out.filter((r) => r.uploaded_at >= from);
     if (to) out = out.filter((r) => r.uploaded_at <= to + "T23:59:59");
     if (q) out = out.filter((r) =>
       searchMatch(q, r.file_name, r.doc_number ?? "", r.branch_name ?? "", r.uploader_name ?? "")
     );
     return out;
-  }, [rows, scope, branchParamId, branchFilter, typeFilter, from, to, q]);
-
-  const open = async (a: Att) => {
-    // Open the tab synchronously inside the user gesture, then navigate it
-    // once the signed URL is ready — avoids popup-blocker on async open.
-    const win = window.open("about:blank", "_blank");
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(a.file_path, 600);
-    if (error || !data?.signedUrl) {
-      win?.close();
-      return toast.error(error?.message || "تعذر فتح الملف");
-    }
-    if (win) win.location.href = data.signedUrl;
-    else window.location.href = data.signedUrl;
-  };
-
-  const download = async (a: Att) => {
-    try {
-      const { data, error } = await supabase.storage.from(BUCKET).download(a.file_path);
-      if (error || !data) return toast.error(error?.message || "تعذر التحميل");
-      const url = URL.createObjectURL(data);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = a.file_name || "attachment";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e: any) {
-      toast.error(e?.message || "تعذر التحميل");
-    }
-  };
-
-  const Layout = scope === "admin" ? AdminLayout : BranchLayout;
-
-  const branchOptions = Object.entries(branches);
-
-  const content = (
-    <>
-      <PageHeader
-        title="المرفقات"
-        subtitle={
-          scope === "admin"
-            ? "كل ملفات المرفقات في الشركة (فواتير، شحنات، مرتجعات، تحويلات، سندات)"
-            : "مرفقات هذا الفرع فقط"
-        }
-      />
-
-      <div className="card-elevated p-4 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-        <Input placeholder="بحث (اسم الملف، رقم المستند، من رفع)..." value={q} onChange={(e) => setQ(e.target.value)} />
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger><SelectValue placeholder="نوع المستند" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الأنواع</SelectItem>
-            {Object.entries(TYPE_LABELS).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {scope === "admin" && (
-          <Select value={branchFilter} onValueChange={setBranchFilter}>
-            <SelectTrigger><SelectValue placeholder="الفرع" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الفروع</SelectItem>
-              {branchOptions.map(([id, name]) => (
-                <SelectItem key={id} value={id}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+  }, [rows, scope, branchParamId, branchFilter, typeFilter, typeGroups, from, to, q]);
+...
         <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="من" />
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} placeholder="إلى" />
       </div>
