@@ -284,6 +284,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                       )}
                     </div>
                     <div>{statusBadge(r.status)}</div>
+                    <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
                     {r.status === "pending" && (
                       <div className="flex items-center gap-1">
                         <Input
