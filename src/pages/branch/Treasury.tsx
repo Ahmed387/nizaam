@@ -78,6 +78,8 @@ export default function Treasury() {
         description: v.description ?? v.voucher_number,
         reference_number: v.reference_number,
         amount: v.amount,
+        _raw: v,
+        _category_name: v.voucher_categories?.name ?? "—",
       })));
     setTransfers(tt.data ?? []);
     const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
