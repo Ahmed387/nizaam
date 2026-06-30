@@ -10,15 +10,19 @@ export default function FinanceHub() {
   const tab = params.get("tab") ?? "vouchers";
   return (
     <AdminLayout>
-      <PageHeader title="المالية" subtitle="السندات المالية والذمم" />
-      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="vouchers">السندات المالية</TabsTrigger>
-          <TabsTrigger value="receivables">الذمم المالية</TabsTrigger>
-        </TabsList>
-        <TabsContent value="vouchers" className="mt-4"><AllVouchers embedded /></TabsContent>
-        <TabsContent value="receivables" className="mt-4"><Receivables embedded /></TabsContent>
-      </Tabs>
+      <div dir="rtl" className="text-right">
+        <PageHeader title="المالية" subtitle="السندات المالية والذمم" />
+        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })} dir="rtl">
+          <div className="flex justify-start">
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="vouchers">السندات المالية</TabsTrigger>
+              <TabsTrigger value="receivables">الذمم المالية</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="vouchers" className="mt-4"><AllVouchers embedded /></TabsContent>
+          <TabsContent value="receivables" className="mt-4"><Receivables embedded /></TabsContent>
+        </Tabs>
+      </div>
     </AdminLayout>
   );
 }
