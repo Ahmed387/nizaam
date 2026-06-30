@@ -276,6 +276,7 @@ export default function Treasury() {
           </div>
 
           <DataTable loading={loading} rows={filtered}
+            onRowClick={(r: any) => setViewVoucher(r)}
             columns={[
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "type", header: "النوع", render: (r: any) => (
@@ -295,6 +296,11 @@ export default function Treasury() {
                 <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
                 </span>
+              )},
+              { key: "actions", header: "الإجراءات", render: (r: any) => (
+                <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                  <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={voucherAttCounts[r.id] ?? 0} />
+                </div>
               )},
             ]} />
         </TabsContent>
