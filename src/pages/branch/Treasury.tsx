@@ -19,6 +19,9 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/co
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { RecordAttachments } from "@/components/RecordAttachments";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface WalletBalances {
   cash_balance: number;
