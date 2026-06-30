@@ -243,7 +243,43 @@ export default function AttachmentsHub({ scope }: Props) {
     );
     return out;
   }, [rows, scope, branchParamId, branchFilter, typeFilter, typeGroups, from, to, q]);
-...
+
+  const Layout = scope === "admin" ? AdminLayout : BranchLayout;
+  const branchOptions = availableBranches;
+
+  const content = (
+    <>
+      <PageHeader
+        title="المرفقات"
+        subtitle={
+          scope === "admin"
+            ? "كل ملفات المرفقات في الشركة (فواتير، شحنات، مرتجعات، تحويلات، سندات)"
+            : "مرفقات هذا الفرع فقط"
+        }
+      />
+
+      <div className="card-elevated p-4 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        <Input placeholder="بحث (اسم الملف، رقم المستند، من رفع)..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger><SelectValue placeholder="نوع المستند" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الأنواع</SelectItem>
+            {availableTypeLabels.map((label) => (
+              <SelectItem key={label} value={label}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {scope === "admin" && (
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger><SelectValue placeholder="الفرع" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الفروع</SelectItem>
+              {branchOptions.map(([id, name]) => (
+                <SelectItem key={id} value={id}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="من" />
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} placeholder="إلى" />
       </div>
