@@ -401,6 +401,46 @@ export default function Treasury() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!viewTransfer} onOpenChange={(o) => !o && setViewTransfer(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              تحويل خزنة — {formatEGP(Number(viewTransfer?.amount ?? 0))}
+            </DialogTitle>
+          </DialogHeader>
+          {viewTransfer && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2 bg-surface-2 rounded-lg p-3">
+                <div><span className="text-muted-foreground">من:</span> <b>{viewTransfer.from_branch?.name ?? "—"}</b></div>
+                <div><span className="text-muted-foreground">إلى:</span> <b>{viewTransfer.to_branch?.name ?? "—"}</b></div>
+                <div><span className="text-muted-foreground">التاريخ:</span> {formatDateTime(viewTransfer.created_at)}</div>
+                <div><span className="text-muted-foreground">طريقة الدفع:</span> {PAYMENT_METHOD_LABELS[(viewTransfer.payment_method ?? "cash") as PaymentMethod]}</div>
+                {Number(viewTransfer.fee_amount) > 0 && (
+                  <div><span className="text-muted-foreground">العمولة:</span> <span className="text-warning">{formatEGP(viewTransfer.fee_amount)}</span></div>
+                )}
+                {viewTransfer.reference_number && (
+                  <div><span className="text-muted-foreground">رقم العملية:</span> {viewTransfer.reference_number}</div>
+                )}
+                {viewTransfer.reason && (
+                  <div className="col-span-2"><span className="text-muted-foreground">السبب:</span> {viewTransfer.reason}</div>
+                )}
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">الحالة:</span>{" "}
+                  {viewTransfer.rejected_at ? (
+                    <span className="text-destructive font-bold">مرفوض</span>
+                  ) : viewTransfer.acknowledged_at ? (
+                    <span className="text-success font-bold">مؤكد — {formatDateTime(viewTransfer.acknowledged_at)}</span>
+                  ) : (
+                    <span className="text-warning font-bold">بانتظار التأكيد</span>
+                  )}
+                </div>
+              </div>
+              <RecordAttachments recordType="treasury_transfer" recordId={viewTransfer.id} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
