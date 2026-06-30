@@ -267,17 +267,23 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
             return (
               <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند">
+                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
                   <Eye className="w-4 h-4" />
                 </Button>
                 <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canCancel && (
-                  <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
+                  <Button
+                    size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-warning"
+                    title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي. يُستخدم لو السند اتنفذ بالغلط بعد ما أثّر على الرصيد."
+                  >
                     <XCircle className="w-4 h-4" />
                   </Button>
                 )}
                 {isAdmin && (
-                  <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive" title="حذف السند نهائياً">
+                  <Button
+                    size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive"
+                    title="حذف نهائي — يمسح السند ومرفقاته من قاعدة البيانات بدون رجوع. يُستخدم لو السند مكرر أو اتعمل بالغلط أصلاً."
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -302,6 +308,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         <DialogContent>
           <DialogHeader><DialogTitle>إلغاء السند {cancelTarget?.voucher_number}</DialogTitle></DialogHeader>
           <div className="space-y-2 py-2">
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs leading-relaxed">
+              <b>إلغاء السند ≠ حذف السند.</b><br />
+              السند هيفضل ظاهر في الجدول بحالة <b>«ملغي»</b> مع سبب الإلغاء واسم اللي ألغاه — للتدقيق والمراجعة.<br />
+              <b>أثره المحاسبي على الخزينة هيترجع تلقائياً.</b>
+            </div>
             <Label>سبب الإلغاء *</Label>
             <Textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3} />
             {cancelTarget?.source === "system" && cancelTarget.source_type !== "treasury" && (
@@ -321,8 +332,14 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         <DialogContent>
           <DialogHeader><DialogTitle>حذف السند {deleteTarget?.voucher_number} نهائياً</DialogTitle></DialogHeader>
           <div className="space-y-2 py-2 text-sm">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed">
+              <b>الفرق بين الإلغاء والحذف النهائي:</b><br />
+              • <b>إلغاء</b> = السند يفضل في السجلات بحالة «ملغي» مع تتبع السبب.<br />
+              • <b>حذف نهائي</b> = السند ومرفقاته يتمسحوا خالص من قاعدة البيانات.<br />
+              يُستخدم بس لو السند مكرر أو اتعمل بالغلط ومش عايز يفضل له أثر.
+            </div>
             <p>
-              هتمسح السند نهائياً من النظام. لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
+              لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
             </p>
             <p className="text-destructive font-semibold">
               العملية دي مالهاش رجوع.

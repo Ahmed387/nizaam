@@ -19,6 +19,9 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/co
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { RecordAttachments } from "@/components/RecordAttachments";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface WalletBalances {
   cash_balance: number;
@@ -51,6 +54,7 @@ export default function Treasury() {
   const [tForm, setTForm] = useState({ to: "", amount: "", reason: "" });
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [tFeeCharged, setTFeeCharged] = useState(true);
+  const [viewTransfer, setViewTransfer] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -179,6 +183,7 @@ export default function Treasury() {
 
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
+  const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
 
   const wallets = [
     { key: "cash_balance" as const, label: "نقدي", icon: Wallet, color: "text-success", method: "cash" as const },
@@ -291,6 +296,7 @@ export default function Treasury() {
 
         <TabsContent value="transfers" className="mt-4">
           <DataTable loading={loading} rows={transfers}
+            onRowClick={(r: any) => setViewTransfer(r)}
             columns={[
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "direction", header: "الاتجاه", render: (r: any) => (
@@ -314,12 +320,17 @@ export default function Treasury() {
                   ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">✓ مؤكد {formatDateTime(r.acknowledged_at)}</span>
                   : r.to_branch_id === branchId && canAck
                     ? (
-                      <div className="flex gap-1">
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد</Button>
                         <Button size="sm" variant="outline" className="text-destructive" onClick={() => setOpenReject(r)}><XCircle className="w-3.5 h-3.5 ml-1" /> رفض</Button>
                       </div>
                     )
                     : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار التأكيد</span>
+              )},
+              { key: "actions", header: "الإجراءات", render: (r: any) => (
+                <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                  <AttachmentsDialogButton recordType="treasury_transfer" recordId={r.id} count={transferAttCounts[r.id] ?? 0} />
+                </div>
               )},
             ]} />
         </TabsContent>
@@ -388,6 +399,46 @@ export default function Treasury() {
             <Button variant="outline" onClick={() => { setOpenReject(null); setRejectReason(""); }}>إلغاء</Button>
             <Button variant="destructive" onClick={reject}>تأكيد الرفض</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewTransfer} onOpenChange={(o) => !o && setViewTransfer(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              تحويل خزنة — {formatEGP(Number(viewTransfer?.amount ?? 0))}
+            </DialogTitle>
+          </DialogHeader>
+          {viewTransfer && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2 bg-surface-2 rounded-lg p-3">
+                <div><span className="text-muted-foreground">من:</span> <b>{viewTransfer.from_branch?.name ?? "—"}</b></div>
+                <div><span className="text-muted-foreground">إلى:</span> <b>{viewTransfer.to_branch?.name ?? "—"}</b></div>
+                <div><span className="text-muted-foreground">التاريخ:</span> {formatDateTime(viewTransfer.created_at)}</div>
+                <div><span className="text-muted-foreground">طريقة الدفع:</span> {PAYMENT_METHOD_LABELS[(viewTransfer.payment_method ?? "cash") as PaymentMethod]}</div>
+                {Number(viewTransfer.fee_amount) > 0 && (
+                  <div><span className="text-muted-foreground">العمولة:</span> <span className="text-warning">{formatEGP(viewTransfer.fee_amount)}</span></div>
+                )}
+                {viewTransfer.reference_number && (
+                  <div><span className="text-muted-foreground">رقم العملية:</span> {viewTransfer.reference_number}</div>
+                )}
+                {viewTransfer.reason && (
+                  <div className="col-span-2"><span className="text-muted-foreground">السبب:</span> {viewTransfer.reason}</div>
+                )}
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">الحالة:</span>{" "}
+                  {viewTransfer.rejected_at ? (
+                    <span className="text-destructive font-bold">مرفوض</span>
+                  ) : viewTransfer.acknowledged_at ? (
+                    <span className="text-success font-bold">مؤكد — {formatDateTime(viewTransfer.acknowledged_at)}</span>
+                  ) : (
+                    <span className="text-warning font-bold">بانتظار التأكيد</span>
+                  )}
+                </div>
+              </div>
+              <RecordAttachments recordType="treasury_transfer" recordId={viewTransfer.id} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </BranchLayout>

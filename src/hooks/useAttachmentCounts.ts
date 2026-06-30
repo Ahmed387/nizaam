@@ -8,6 +8,7 @@ export type RecordType =
   | "sale_return"
   | "purchase_return"
   | "stock_transfer"
+  | "treasury_transfer"
   | "inventory_adjustment"
   | "quote";
 

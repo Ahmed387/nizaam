@@ -18,6 +18,8 @@ import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox } from "lucide-react";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 type Item = { product_id: string; quantity: string };
 
@@ -234,6 +236,9 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
 
   const totalPendingIncoming = incoming.filter((t) => t.status === "pending").length;
 
+  const allIds = useMemo(() => [...incoming, ...outgoing].map((t: any) => t.id), [incoming, outgoing]);
+  const attCounts = useAttachmentCounts("stock_transfer", allIds);
+
   return (
     <ConditionalLayout
       embedded={embedded}
@@ -279,6 +284,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                       )}
                     </div>
                     <div>{statusBadge(r.status)}</div>
+                    <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
                     {r.status === "pending" && (
                       <div className="flex items-center gap-1">
                         <Input
@@ -322,6 +328,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                       )}
                     </div>
                     <div>{statusBadge(r.status)}</div>
+                    <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
                   </div>
 
                 ))}
