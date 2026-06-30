@@ -235,9 +235,10 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
       <DataTable
         loading={loading}
         rows={rows}
+        onRowClick={(r: Voucher) => setViewTarget(r)}
         columns={[
           { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
-            <span className="inline-flex items-center gap-1.5"><span className="font-mono">{r.voucher_number}</span><AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} /></span>
+            <span className="font-mono">{r.voucher_number}</span>
           ) },
           { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => formatDate(r.voucher_date) },
           ...(!type ? [{ key: "type", header: "النوع", render: (r: Voucher) => (
@@ -262,13 +263,14 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
               ? <Badge variant="default">نشط</Badge>
               : <Badge variant="destructive">ملغي</Badge>
           ) },
-          { key: "actions", header: "", render: (r: Voucher) => {
+          { key: "actions", header: "الإجراءات", render: (r: Voucher) => {
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
             return (
-              <div className="flex items-center gap-1 justify-end">
-                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
+              <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند">
                   <Eye className="w-4 h-4" />
                 </Button>
+                <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canCancel && (
                   <Button size="sm" variant="ghost" onClick={() => setCancelTarget(r)} className="text-destructive" title="إلغاء السند">
                     <XCircle className="w-4 h-4" />
@@ -284,6 +286,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           } },
         ]}
       />
+
 
       {canAdd && type && (
         <VoucherDialog
