@@ -199,7 +199,7 @@ export function AppShell({
   );
 
   return (
-    <div className="min-h-screen flex bg-background w-full">
+    <div dir="rtl" className="min-h-screen flex bg-background w-full">
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 inset-x-0 z-40 h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4">
         <div className="flex items-center gap-1">
