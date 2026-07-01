@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, LogIn, LogOut } from "lucide-react";
+import { Plus, LogIn, LogOut, ArrowRight, Zap } from "lucide-react";
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
 const STATUS = {
@@ -188,26 +188,50 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             },
           },
           {
-            key: "actions", header: "إجراءات", width: "16rem",
+            key: "actions", header: "إجراءات", align: "center", width: "9rem",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
               const allowed = canManageRole(e.role);
               if (!allowed) return <span className="text-xs text-muted-foreground">—</span>;
               const p = e.user_id ? presence[e.user_id] : null;
               const canUsePresence = !!(p && isToday(p.last_login_at) && !a?.check_in);
+              const completed = !!a?.check_in && !!a?.check_out;
+              if (completed) {
+                return (
+                  <div className="flex justify-center">
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" aria-label="مكتمل" />
+                  </div>
+                );
+              }
               return (
-                <div className="flex gap-2 flex-nowrap items-center justify-center">
-                  <Button size="sm" variant="outline" className="whitespace-nowrap gap-1.5 shrink-0" onClick={() => checkIn(e.id)} disabled={!!a?.check_in}>
-                    <LogIn className="w-3.5 h-3.5 shrink-0" /> حضور
+                <div className="flex gap-1 items-center justify-center flex-nowrap">
+                  <Button
+                    size="icon" variant="ghost"
+                    className="h-8 w-8 text-success hover:bg-success/10 disabled:opacity-40"
+                    title="تسجيل حضور"
+                    onClick={() => checkIn(e.id)}
+                    disabled={!!a?.check_in}
+                  >
+                    <LogIn className="w-4 h-4" />
                   </Button>
                   {canUsePresence && (
-                    <Button size="sm" variant="ghost" className="whitespace-nowrap shrink-0" title="استخدم وقت أول دخول للسيستم"
-                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: computeLate(p!.last_login_at!, e) ?? "present" })}>
-                      من السيستم
+                    <Button
+                      size="icon" variant="ghost"
+                      className="h-8 w-8 text-info hover:bg-info/10"
+                      title="استخدم وقت أول دخول للسيستم"
+                      onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: computeLate(p!.last_login_at!, e) ?? "present" })}
+                    >
+                      <Zap className="w-4 h-4" />
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" className="whitespace-nowrap gap-1.5 shrink-0" onClick={() => checkOut(e.id)} disabled={!a?.check_in || !!a?.check_out}>
-                    <LogOut className="w-3.5 h-3.5 shrink-0" /> انصراف
+                  <Button
+                    size="icon" variant="ghost"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                    title="تسجيل انصراف"
+                    onClick={() => checkOut(e.id)}
+                    disabled={!a?.check_in || !!a?.check_out}
+                  >
+                    <LogOut className="w-4 h-4" />
                   </Button>
                 </div>
               );
