@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type RecordType =
@@ -19,6 +19,10 @@ export type RecordType =
  */
 export function useAttachmentCounts(recordType: RecordType, ids: string[]) {
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const channelIdRef = useRef<string>();
+  if (!channelIdRef.current) {
+    channelIdRef.current = Math.random().toString(36).slice(2);
+  }
   const key = ids.join(",");
 
   useEffect(() => {
@@ -44,7 +48,7 @@ export function useAttachmentCounts(recordType: RecordType, ids: string[]) {
     load();
 
     const ch = supabase
-      .channel(`att-list-${recordType}`)
+      .channel(`att-list-${recordType}-${channelIdRef.current}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "attachments", filter: `record_type=eq.${recordType}` },
