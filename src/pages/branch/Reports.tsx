@@ -274,9 +274,9 @@ export default function BranchReports() {
         <TabsContent value="products" className="mt-4">
           <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
-              { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
-              { key: "qty", header: "الكمية" },
-              { key: "revenue", header: "الإيراد", render: (r: any) => <b className="text-primary">{formatEGP(r.revenue)}</b> },
+              { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
+              { key: "qty", header: "الكمية", align: "center" },
+              { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="text-primary block text-center">{formatEGP(r.revenue)}</b> },
             ]} />
         </TabsContent>
         <TabsContent value="expenses" className="mt-4">
