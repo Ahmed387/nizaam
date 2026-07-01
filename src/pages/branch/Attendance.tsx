@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, LogIn, LogOut, ArrowRight, Zap } from "lucide-react";
+
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
 const STATUS = {
@@ -188,7 +189,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             },
           },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "9rem",
+            key: "actions", header: "إجراءات", align: "center", width: "11rem",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
               const allowed = canManageRole(e.role);
@@ -199,39 +200,39 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               if (completed) {
                 return (
                   <div className="flex justify-center">
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" aria-label="مكتمل" />
+                    <ArrowRight className="w-6 h-6 text-muted-foreground" aria-label="مكتمل" />
                   </div>
                 );
               }
               return (
-                <div className="flex gap-1 items-center justify-center flex-nowrap">
+                <div className="flex gap-2 items-center justify-center flex-nowrap">
                   <Button
                     size="icon" variant="ghost"
-                    className="h-8 w-8 text-success hover:bg-success/10 disabled:opacity-40"
+                    className="h-10 w-10 text-success hover:bg-success/10 disabled:opacity-40"
                     title="تسجيل حضور"
                     onClick={() => checkIn(e.id)}
                     disabled={!!a?.check_in}
                   >
-                    <LogIn className="w-4 h-4" />
+                    <LogIn className="w-6 h-6" />
                   </Button>
                   {canUsePresence && (
                     <Button
                       size="icon" variant="ghost"
-                      className="h-8 w-8 text-info hover:bg-info/10"
+                      className="h-10 w-10 text-info hover:bg-info/10"
                       title="استخدم وقت أول دخول للسيستم"
                       onClick={() => upsert(e.id, { check_in: p!.last_login_at, status: computeLate(p!.last_login_at!, e) ?? "present" })}
                     >
-                      <Zap className="w-4 h-4" />
+                      <Zap className="w-6 h-6" />
                     </Button>
                   )}
                   <Button
                     size="icon" variant="ghost"
-                    className="h-8 w-8 text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                    className="h-10 w-10 text-destructive hover:bg-destructive/10 disabled:opacity-40"
                     title="تسجيل انصراف"
                     onClick={() => checkOut(e.id)}
                     disabled={!a?.check_in || !!a?.check_out}
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-6 h-6" />
                   </Button>
                 </div>
               );
