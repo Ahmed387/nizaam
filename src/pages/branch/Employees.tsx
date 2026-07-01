@@ -165,17 +165,28 @@ export default function Employees() {
             onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
             empty="لا يوجد موظفين"
             columns={[
-              { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
-              { key: "job_title", header: "الوظيفة" },
-              { key: "email", header: "الإيميل", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
-              { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-              { key: "base_salary", header: "الراتب", render: (r: any) => formatEGP(r.base_salary) },
-              { key: "hire_date", header: "تاريخ التعيين", render: (r: any) => formatDate(r.hire_date) },
+              { key: "name", header: "الاسم", align: "center", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+              { key: "job_title", header: "الوظيفة", align: "center" },
+              { key: "email", header: "الإيميل", align: "center", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
+              { key: "phone", header: "التليفون", align: "center", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
+              { key: "base_salary", header: "الراتب", align: "center", numeric: true, render: (r: any) => formatEGP(r.base_salary) },
+              { key: "hire_date", header: "تاريخ التعيين", align: "center", render: (r: any) => formatDate(r.hire_date) },
               {
-                key: "is_active", header: "الحالة",
-                render: (r: any) => <span className={r.is_active ? "text-success" : "text-muted-foreground"}>{r.is_active ? "نشط" : "موقوف"}</span>,
+                key: "is_active", header: "الحالة", align: "center",
+                render: (r: any) => <span className={r.is_active ? "text-success font-semibold" : "text-muted-foreground"}>{r.is_active ? "نشط" : "موقوف"}</span>,
               },
-              { key: "go", header: "", render: () => <ArrowRight className="w-4 h-4 text-muted-foreground" /> },
+              {
+                key: "actions", header: "إجراءات", align: "center", width: "6rem",
+                render: (r: any) => (
+                  <Button
+                    size="icon" variant="ghost" className="h-8 w-8 mx-auto"
+                    title="فتح ملف الموظف"
+                    onClick={(e) => { e.stopPropagation(); nav(`/admin/employees/${r.id}`); }}
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                ),
+              },
             ]}
           />
         </TabsContent>
