@@ -40,7 +40,7 @@ export function VoucherViewDialog({
         <div className={`px-6 pt-6 pb-5 border-b ${bannerBg}`}>
           <DialogHeader>
             <DialogTitle asChild>
-              <div className="flex items-center justify-between gap-3 pl-10">
+              <div className="flex items-center justify-between gap-3 pr-12">
                 <div className="flex items-center gap-3">
                   <Badge variant={isReceipt ? "default" : "destructive"} className="text-sm px-3 py-1">
                     {VOUCHER_TYPE_LABEL[voucher.type]}
