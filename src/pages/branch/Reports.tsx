@@ -289,9 +289,9 @@ export default function BranchReports() {
         <TabsContent value="lowstock" className="mt-4">
           <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافي"
             columns={[
-              { key: "name", header: "المنتج" },
-              { key: "quantity", header: "المتوفر", render: (r: any) => <b className="text-destructive">{r.quantity}</b> },
-              { key: "low_stock_alert", header: "حد التنبيه" },
+              { key: "name", header: "المنتج", align: "center" },
+              { key: "quantity", header: "المتوفر", align: "center", render: (r: any) => <b className="text-destructive">{r.quantity}</b> },
+              { key: "low_stock_alert", header: "حد التنبيه", align: "center" },
             ]} />
         </TabsContent>
       </Tabs>
