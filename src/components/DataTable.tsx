@@ -36,7 +36,7 @@ export function DataTable<T>({
   footer?: ReactNode;
 }) {
   const alignClass = (a?: Align) =>
-    a === "center" ? "text-center" : a === "left" ? "text-left" : "text-right";
+    a === "right" ? "text-right" : a === "left" ? "text-left" : "text-center";
 
   const isActionsColumn = (c: { key: string; header: any }) =>
     c.key === "actions" || (typeof c.header === "string" && c.header.includes("إجراءات"));
