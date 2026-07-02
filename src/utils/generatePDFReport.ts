@@ -369,8 +369,9 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
     const sections = Array.from(container.querySelectorAll<HTMLElement>("[data-pdf-section]"));
 
     for (const section of sections) {
-      // Render section to canvas at scale 2 for crisp text.
-      const canvas = await html2canvas(section, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      // Render via html-to-image (SVG foreignObject) — preserves Arabic OpenType
+      // shaping/ligatures that html2canvas's manual glyph layout breaks.
+      const canvas = await htiToCanvas(section, { pixelRatio: 2, backgroundColor: "#ffffff", cacheBust: true });
       const drawW = usableW;
       const drawH = (canvas.height / canvas.width) * drawW;
 
