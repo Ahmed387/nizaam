@@ -135,20 +135,18 @@ export default function Contacts() {
       "الحالة": b > 0.01 ? "مستحق لنا" : b < -0.01 ? "علينا للجهة" : "متعادل",
     };
   });
+  const filterSuffix = balanceFilters.length === 1
+    ? (balanceFilters[0] === "owe_us" ? "_لنا" : balanceFilters[0] === "we_owe" ? "_علينا" : "_متعادلين")
+    : "";
   const handleExportExcel = () => {
     const data = exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
-    const title = balanceFilter === "owe_us" ? "العملاء_والموردين_لنا"
-      : balanceFilter === "we_owe" ? "العملاء_والموردين_علينا"
-      : "العملاء_والموردين";
-    exportToExcel(title, [{ name: "الأرصدة", rows: data }]);
+    exportToExcel("العملاء_والموردين" + filterSuffix, [{ name: "الأرصدة", rows: data }]);
   };
   const handleExportPDF = () => {
     const data = exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
-    const title = balanceFilter === "owe_us" ? "أرصدة الجهات (مستحق لنا)"
-      : balanceFilter === "we_owe" ? "أرصدة الجهات (علينا)"
-      : "أرصدة العملاء والموردين";
+    const title = "أرصدة العملاء والموردين" + (filterSuffix ? ` (${BALANCE_LABELS[balanceFilters[0]]})` : "");
     const summary = `
       <div class="kpi">
         <div><span class="muted">مستحق لنا</span><b class="pos">${formatEGP(balanceTotals.oweUs)}</b></div>
