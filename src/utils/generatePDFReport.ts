@@ -269,15 +269,23 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
         ? invRows.map(invoiceCardHtml).join("")
         : `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد فواتير في الفترة المحددة</div>`);
 
+    // Ensure Arabic font (Cairo) is loaded so html2canvas renders proper glyph shaping.
+    await ensureArabicFont();
+
     // A4 portrait: 210 × 297mm → 96dpi ≈ 794 × 1123 px
     const container = document.createElement("div");
     container.style.cssText = `
       position:fixed;left:-99999px;top:0;width:794px;padding:36px 40px;
-      background:#ffffff;color:${C.text};font-family:'Cairo','Segoe UI','Tahoma',sans-serif;
+      background:#ffffff;color:${C.text};font-family:'Cairo','Noto Naskh Arabic','Segoe UI','Tahoma',Arial,sans-serif;
       direction:rtl;text-align:right;box-sizing:border-box;
+      font-feature-settings:"liga","calt","kern";text-rendering:optimizeLegibility;
     `;
     container.innerHTML = header + summary + details;
     document.body.appendChild(container);
+
+    // Give the browser a paint tick so fonts apply before rasterization.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    if ((document as any).fonts?.ready) { try { await (document as any).fonts.ready; } catch {} }
 
     const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
     document.body.removeChild(container);
