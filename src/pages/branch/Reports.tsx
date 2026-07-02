@@ -287,27 +287,63 @@ export default function BranchReports() {
                 </div>
 
                 <div className="card-elevated p-4">
-                  <h4 className="font-bold mb-3">أكثر 10 منتجات إيراداً</h4>
+                  <h4 className="font-bold mb-3 text-base">أكثر 10 منتجات إيراداً</h4>
                   {topProducts.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={Math.max(360, topProducts.length * 56)}>
-                      <BarChart data={topProducts} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
+                    <ResponsiveContainer width="100%" height={Math.max(400, topProducts.length * 60)}>
+                      <BarChart data={topProducts} layout="vertical" margin={{ top: 12, right: 80, bottom: 12, left: 24 }}>
                         <defs>
                           <linearGradient id="topProductsGradient" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
+                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.7} />
                             <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={1} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => formatEGP(Number(v))} />
-                        <YAxis type="category" dataKey="name" width={180} interval={0} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 24 ? v.slice(0, 24) + "…" : v)} />
-                        <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                        <Bar dataKey="revenue" name="الإيراد" fill="url(#topProductsGradient)" radius={[0, 4, 4, 0]} background={{ fill: "hsl(var(--muted))", fillOpacity: 0.2 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: 12, fill: "hsl(var(--foreground))", fontWeight: 500 }}
+                          tickMargin={10}
+                          axisLine={{ stroke: "hsl(var(--border))" }}
+                          tickLine={false}
+                          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={220}
+                          interval={0}
+                          tick={{ fontSize: 13, fill: "hsl(var(--foreground))", fontWeight: 600 }}
+                          tickMargin={12}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(v: any) => (typeof v === "string" && v.length > 28 ? v.slice(0, 28) + "…" : v)}
+                        />
+                        <Tooltip
+                          formatter={(v: any) => formatEGP(Number(v))}
+                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
+                          labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
+                          cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.3 }}
+                        />
+                        <Bar
+                          dataKey="revenue"
+                          name="الإيراد"
+                          fill="url(#topProductsGradient)"
+                          radius={[0, 6, 6, 0]}
+                          barSize={22}
+                        >
+                          <LabelList
+                            dataKey="revenue"
+                            position="right"
+                            formatter={(v: number) => formatEGP(Number(v))}
+                            style={{ fill: "hsl(var(--foreground))", fontSize: 12, fontWeight: 700 }}
+                          />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
                 </div>
+
               </>
             );
           })()}
