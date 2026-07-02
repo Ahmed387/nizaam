@@ -347,7 +347,7 @@ export default function BranchDashboard() {
               {topCustomers.map((c, i) => (
                 <div
                   key={c.id ?? c.name}
-                  onClick={() => c.id && navigate(`/branch/${id}/contacts/${c.id}`)}
+                  onClick={() => c.id && nav(`/branch/${id}/contacts/${c.id}`)}
                   className={`flex items-center justify-between p-2 rounded transition-colors ${c.id ? "cursor-pointer hover:bg-surface-2" : "opacity-70"}`}
                   role={c.id ? "button" : undefined}
                   title={c.id ? "عرض تفاصيل العميل" : undefined}
