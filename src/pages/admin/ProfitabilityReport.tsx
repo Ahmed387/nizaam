@@ -221,7 +221,25 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
 
   return (
     <Wrapper>
-      <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
+      <PageHeader
+        title="تقرير الربحية"
+        subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع"
+        actions={
+          <Button
+            onClick={() => tenantId && generateProfitReport({
+              tenantId,
+              branchId: branchId || null,
+              branchName: branchId ? (branches.find((b) => b.id === branchId)?.name ?? "—") : "كل الفروع",
+              from, to,
+              userName: profile?.name ?? "—",
+            })}
+            disabled={!tenantId}
+            className="gap-2"
+          >
+            <FileText className="w-4 h-4" /> تحميل PDF الربحية
+          </Button>
+        }
+      />
       <ReportIntro
         icon="📊"
         title="تقرير الربحية — المحاسبة الدقيقة"
