@@ -50,7 +50,7 @@ interface InvRow {
 
 export default function ProfitabilityReport({ embedded }: { embedded?: boolean } = {}) {
   const Wrapper: any = embedded ? Fragment : AdminLayout;
-  const { tenantId } = useAuth();
+  const { tenantId, profile } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
