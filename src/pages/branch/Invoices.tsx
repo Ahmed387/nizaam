@@ -504,18 +504,31 @@ export default function Invoices() {
   };
 
   const handleExportPDF = async () => {
-    // NEW: detailed sales PDF report (prototype). Other tabs keep the existing behavior.
+    const branchName = branches.find((b) => b.id === branchId)?.name ?? "—";
+    const userName = profile?.name ?? user?.email ?? "—";
     if (tab === "sale") {
       const { generateSalesReport } = await import("@/utils/generatePDFReport");
-      await generateSalesReport({
-        branchId: branchId!,
-        branchName: branches.find((b) => b.id === branchId)?.name ?? "—",
-        invoices: filteredRows,
-        filters: { from: filters.from, to: filters.to },
-        userName: profile?.name ?? user?.email ?? "—",
-      });
+      await generateSalesReport({ branchId: branchId!, branchName, invoices: filteredRows, filters: { from: filters.from, to: filters.to }, userName });
       return;
     }
+    if (tab === "sale_return") {
+      const { generateSaleReturnsReport } = await import("@/utils/generatePDFReport");
+      await generateSaleReturnsReport({ branchName, returns: filteredRows, filters: { from: filters.from, to: filters.to }, userName });
+      return;
+    }
+    if (tab === "purchase_return") {
+      const { generatePurchaseReturnsReport } = await import("@/utils/generatePDFReport");
+      await generatePurchaseReturnsReport({ branchName, returns: filteredRows, filters: { from: filters.from, to: filters.to }, userName });
+      return;
+    }
+    if (tab === "transfer") {
+      const { generateStockTransfersReport } = await import("@/utils/generatePDFReport");
+      const branchNames: Record<string, string> = {};
+      branches.forEach((b: any) => { branchNames[b.id] = b.name; });
+      await generateStockTransfersReport({ branchId: branchId!, branchName, transfers: filteredRows, branchNames, filters: { from: filters.from, to: filters.to }, userName });
+      return;
+    }
+
     const cols = cfg.columns as any[];
     const head = `<tr>${cols.map((c) => `<th>${c.header}</th>`).join("")}</tr>`;
     const body = filteredRows.map((r) => `<tr>${cols.map((c) => {
