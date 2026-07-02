@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
 } from "recharts";
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))", "#8b5cf6", "#06b6d4"];
