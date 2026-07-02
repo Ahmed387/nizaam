@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatEGP } from "@/lib/format";
 import { AlertCircle, Search, RefreshCw, Calendar } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 type Plan = {
   id: string;
