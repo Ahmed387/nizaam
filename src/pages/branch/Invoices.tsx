@@ -631,7 +631,7 @@ export default function Invoices() {
               <FileSpreadsheet className="w-4 h-4" /> Excel
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length} className="gap-2">
-              <Printer className="w-4 h-4" /> PDF
+              <Printer className="w-4 h-4" /> {pdfBtnLabel}
             </Button>
             <PermGate perm="preorders.view">
               <Button asChild variant="outline" size="sm" className="gap-2">
