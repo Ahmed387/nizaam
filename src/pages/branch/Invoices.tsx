@@ -503,7 +503,19 @@ export default function Invoices() {
     exportToExcel(currentTabLabel, [{ name: currentTabLabel, rows: exportRows }]);
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    // NEW: detailed sales PDF report (prototype). Other tabs keep the existing behavior.
+    if (tab === "sale") {
+      const { generateSalesReport } = await import("@/utils/generatePDFReport");
+      await generateSalesReport({
+        branchId: branchId!,
+        branchName: branches.find((b) => b.id === branchId)?.name ?? "—",
+        invoices: filteredRows,
+        filters: { from: filters.from, to: filters.to },
+        userName: profile?.name ?? user?.email ?? "—",
+      });
+      return;
+    }
     const cols = cfg.columns as any[];
     const head = `<tr>${cols.map((c) => `<th>${c.header}</th>`).join("")}</tr>`;
     const body = filteredRows.map((r) => `<tr>${cols.map((c) => {
@@ -514,6 +526,18 @@ export default function Invoices() {
     }).join("")}</tr>`).join("");
     printReport(currentTabLabel, `<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
   };
+
+  // Descriptive PDF button label per tab
+  const pdfBtnLabel =
+    tab === "sale" ? "تقرير تفصيلي بالمبيعات" :
+    tab === "purchase" ? "تقرير تفصيلي بالمشتريات" :
+    tab === "sale_return" ? "تقرير تفصيلي بمرتجعات البيع" :
+    tab === "purchase_return" ? "تقرير تفصيلي بمرتجعات الشراء" :
+    tab === "income" ? "تقرير تفصيلي بسندات القبض" :
+    tab === "expense" ? "تقرير تفصيلي بسندات الصرف" :
+    tab === "transfer" ? "تقرير تفصيلي بتحويلات المخازن" :
+    tab === "quote" ? "تقرير تفصيلي بعروض الأسعار" :
+    "PDF";
 
   // Status options per tab
   const statusOptions: { value: string; label: string }[] = useMemo(() => {
