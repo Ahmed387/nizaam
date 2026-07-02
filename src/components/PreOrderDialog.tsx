@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Loader2, BookmarkPlus } from "lucide-react";
+import { Loader2, BookmarkPlus, ChevronDown } from "lucide-react";
 
 interface CatalogItem {
   id?: string | null;
@@ -66,7 +66,6 @@ export function PreOrderDialog({
     if (!custName) return toast.error("اكتب اسم العميل");
     if (qty < 1) return toast.error("كمية غير صحيحة");
     if (deposit < 0 || deposit > total) return toast.error("مبلغ العربون غير صحيح");
-
     if (deposit > 0 && payment !== "cash" && !refNum.trim()) return toast.error("أدخل رقم المرجع/التحويل لطريقة الدفع الإلكترونية");
 
     setBusy(true);
@@ -103,108 +102,209 @@ export function PreOrderDialog({
     }
   };
 
+  const selectCls =
+    "w-full appearance-none bg-background border border-border rounded-xl px-4 py-3 pr-10 text-sm text-foreground outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary";
+  const inputCls =
+    "w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary";
+  const softInputCls =
+    "w-full bg-muted/50 border-none rounded-lg px-3 py-2.5 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/20";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><BookmarkPlus className="w-5 h-5 text-primary" /> تسجيل طلب حجز</DialogTitle>
+      <DialogContent
+        dir="rtl"
+        className="max-w-lg p-0 gap-0 overflow-hidden rounded-3xl max-h-[92vh] flex flex-col"
+      >
+        <DialogHeader className="px-6 py-5 border-b border-border shrink-0">
+          <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+            <BookmarkPlus className="w-5 h-5 text-primary" />
+            تسجيل طلب حجز
+          </DialogTitle>
         </DialogHeader>
 
-        {catalogItem && (
-          <div className="rounded-lg bg-surface-2 p-3 text-sm">
-            <div className="font-bold">{catalogItem.product_name}</div>
-            {catalogItem.model_code && <div className="text-xs text-muted-foreground">موديل: {catalogItem.model_code}</div>}
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs">العميل (اختياري)</Label>
-            <select className="w-full bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">— عميل جديد —</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-            </select>
-          </div>
-          {!customerId && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">اسم العميل *</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Product header */}
+          {catalogItem && (
+            <div className="bg-muted/40 rounded-2xl p-4 border border-border flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-bold text-foreground text-base leading-tight truncate">{catalogItem.product_name}</h3>
+                {catalogItem.model_code && (
+                  <p className="text-[11px] text-muted-foreground mt-1 font-mono uppercase tracking-wider truncate">
+                    موديل: {catalogItem.model_code}
+                  </p>
+                )}
               </div>
-              <div>
-                <Label className="text-xs">تليفون</Label>
-                <Input value={phone} dir="ltr" className="text-right" onChange={(e) => setPhone(e.target.value)} />
-              </div>
+              <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full shrink-0">طلب حجز</span>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">الكمية</Label>
-              <Input type="number" min="1" value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} />
-            </div>
-            <div>
-              <Label className="text-xs">السعر المتوقع للوحدة</Label>
-              <Input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(parseFloat(e.target.value) || 0)} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">العربون (اختياري)</Label>
-              <Input type="number" min="0" step="0.01" value={deposit} onChange={(e) => setDeposit(parseFloat(e.target.value) || 0)} />
-            </div>
-            <div>
-              <Label className="text-xs">طريقة الدفع</Label>
-              <select className="w-full bg-input border border-border rounded-lg p-2 text-sm h-10" value={payment} onChange={(e) => setPayment(e.target.value)}>
-                <option value="cash">كاش</option>
-                <option value="visa">فيزا</option>
-                <option value="vodafone_cash">فودافون كاش</option>
-                <option value="instapay">انستاباي</option>
-                <option value="bank_transfer">تحويل بنكي</option>
+          {/* Customer */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">
+              العميل <span className="text-muted-foreground/70 text-xs font-normal">(اختياري)</span>
+            </Label>
+            <div className="relative">
+              <select
+                className={selectCls}
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+              >
+                <option value="">— عميل جديد —</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.phone ? `(${c.phone})` : ""}
+                  </option>
+                ))}
               </select>
+              <ChevronDown className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
-          {deposit > 0 && payment !== "cash" && (
-            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-surface-2 border border-border">
-              <div className="col-span-2 text-xs text-muted-foreground">بيانات التحويل / الدفع الإلكتروني</div>
-              <div>
-                <Label className="text-xs">رقم المرجع *</Label>
-                <Input value={refNum} dir="ltr" className="text-right" onChange={(e) => setRefNum(e.target.value)} placeholder="رقم العملية" />
+          {!customerId && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">اسم العميل *</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
               </div>
-              <div>
-                <Label className="text-xs">حُوّل إلى حساب</Label>
-                <Input value={transferAccount} dir="ltr" className="text-right" onChange={(e) => setTransferAccount(e.target.value)} placeholder="رقم/اسم الحساب" />
-              </div>
-              <div className="col-span-2">
-                <Label className="text-xs">المستلم في الفرع</Label>
-                <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اسم المستلم" />
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">تليفون</Label>
+                <Input value={phone} dir="ltr" className={`${inputCls} text-right`} onChange={(e) => setPhone(e.target.value)} />
               </div>
             </div>
           )}
 
-          <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm space-y-1">
-            <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(total)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">العربون</span><span className="text-success font-bold">{formatEGP(deposit)}</span></div>
-            <div className="flex justify-between"><span className="font-bold">المتبقي عند الاستلام</span><span className="text-primary font-extrabold">{formatEGP(remaining)}</span></div>
-            {deposit === 0 && (
-              <div className="text-[11px] px-2 py-1 rounded bg-warning/10 text-warning border border-warning/30 text-center font-bold">حجز بدون عربون</div>
-            )}
+          {/* Qty & Price */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">الكمية</Label>
+              <Input
+                type="number"
+                min="1"
+                value={qty}
+                onChange={(e) => setQty(parseInt(e.target.value) || 1)}
+                className={`${inputCls} font-medium`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">السعر المتوقع للوحدة</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                  className={`${inputCls} pl-12 font-medium`}
+                />
+                <span className="absolute inset-y-0 left-4 flex items-center text-muted-foreground text-xs pointer-events-none">جنيه</span>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <Label className="text-xs">ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          {/* Payment card */}
+          <div className="p-5 border border-border rounded-2xl bg-card space-y-4 shadow-sm">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">بيانات الدفع والتحويل</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">طريقة الدفع</Label>
+                <div className="relative">
+                  <select className={`${softInputCls} pr-9 h-10 appearance-none`} value={payment} onChange={(e) => setPayment(e.target.value)}>
+                    <option value="cash">كاش</option>
+                    <option value="visa">فيزا</option>
+                    <option value="vodafone_cash">فودافون كاش</option>
+                    <option value="instapay">انستاباي</option>
+                    <option value="bank_transfer">تحويل بنكي</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  العربون <span className="text-muted-foreground/70">(اختياري)</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deposit}
+                  onChange={(e) => setDeposit(parseFloat(e.target.value) || 0)}
+                  className={softInputCls}
+                />
+              </div>
+
+              {deposit > 0 && payment !== "cash" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">رقم المرجع *</Label>
+                    <Input value={refNum} dir="ltr" className={`${softInputCls} text-right`} onChange={(e) => setRefNum(e.target.value)} placeholder="رقم العملية" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">حُوّل إلى حساب</Label>
+                    <Input value={transferAccount} dir="ltr" className={`${softInputCls} text-right`} onChange={(e) => setTransferAccount(e.target.value)} placeholder="رقم/اسم الحساب" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs font-medium text-muted-foreground">المستلم في الفرع</Label>
+                    <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} className={softInputCls} placeholder="اسم المستلم" />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Totals */}
+          <div className="bg-primary rounded-2xl p-6 text-primary-foreground shadow-lg">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-primary-foreground/80">
+                <span className="text-sm">الإجمالي</span>
+                <span className="font-bold text-lg">{formatEGP(total)}</span>
+              </div>
+              <div className="flex justify-between items-center text-emerald-300">
+                <span className="text-sm">العربون</span>
+                <span className="font-bold">- {formatEGP(deposit)}</span>
+              </div>
+              <div className="pt-3 mt-1 border-t border-primary-foreground/20 flex justify-between items-center">
+                <span className="text-sm font-medium">المتبقي عند الاستلام</span>
+                <span className="text-2xl font-black">{formatEGP(remaining)}</span>
+              </div>
+              {deposit === 0 && (
+                <div className="text-[11px] px-2 py-1.5 rounded-lg bg-warning/20 text-warning-foreground border border-warning/30 text-center font-bold">
+                  حجز بدون عربون
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">ملاحظات إضافية</Label>
+            <Textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="أضف أي تفاصيل أخرى هنا..."
+              className={`${inputCls} resize-none`}
+            />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>إلغاء</Button>
-          <Button className="btn-gradient" onClick={submit} disabled={busy}>
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد الحجز"}
+        {/* Actions */}
+        <div className="px-6 py-4 bg-muted/40 border-t border-border flex items-center gap-3 shrink-0">
+          <Button
+            className="flex-1 h-12 rounded-xl font-bold btn-gradient shadow-lg"
+            onClick={submit}
+            disabled={busy}
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد طلب الحجز"}
           </Button>
-        </DialogFooter>
+          <Button
+            variant="ghost"
+            className="h-12 px-6 rounded-xl font-medium"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+          >
+            إلغاء
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
