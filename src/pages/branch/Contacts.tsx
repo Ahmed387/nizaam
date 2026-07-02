@@ -53,7 +53,15 @@ export default function Contacts() {
     notes: "",
   });
   const [search, setSearch] = useState("");
-  const [balanceFilter, setBalanceFilter] = useState<"all" | "owe_us" | "we_owe" | "settled">("all");
+  type BalanceKey = "owe_us" | "we_owe" | "settled";
+  const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
+  const toggleBalance = (k: BalanceKey) =>
+    setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
+  const BALANCE_LABELS: Record<BalanceKey, string> = {
+    owe_us: "عملاء وموردين لنا عندهم",
+    we_owe: "عملاء وموردين علينا لهم",
+    settled: "متعادلين (مصفيين حسابهم)",
+  };
   const isManager = hasRole("branch_manager");
 
   const load = async () => {
