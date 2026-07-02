@@ -131,12 +131,12 @@ function headerHtml(opts: {
   `;
 }
 
-// section title with accent bar (bar on right for RTL)
+// section title — centered, prominent, with accent underline
 function sectionTitle(text: string) {
   return `
-    <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin:8px 0 14px;">
-      <div style="font-size:16px;font-weight:800;color:${C.ink};">${text}</div>
-      <div style="width:4px;height:22px;background:${C.accent};border-radius:2px;"></div>
+    <div style="text-align:center;margin:16px 0 18px;padding:12px 0;border-top:1px solid ${C.border};border-bottom:1px solid ${C.border};background:${C.softBg};">
+      <div style="font-size:20px;font-weight:800;color:${C.ink};letter-spacing:-0.2px;">${text}</div>
+      <div style="width:90px;height:3px;background:${C.accent};border-radius:2px;margin:8px auto 0;"></div>
     </div>
   `;
 }
