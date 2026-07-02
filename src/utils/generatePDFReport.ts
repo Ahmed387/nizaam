@@ -1146,3 +1146,169 @@ export async function generateStockTransfersReport(input: StockTransfersReportIn
   }
 }
 
+
+// ============================================================================
+// ========================  SALES PROFIT REPORT  =============================
+// ============================================================================
+// Unified profit report — uses profitEngine (single source of truth).
+// Works for a specific branch OR all branches. Shows KPIs + delta vs previous
+// window + per-branch breakdown (when scope = all branches).
+
+import { fetchProfitWindow, rangeForDates, type ProfitWindow } from "@/lib/profitEngine";
+
+export interface ProfitReportInput {
+  tenantId: string;
+  branchId: string | null;      // null = all branches
+  branchName: string;           // "كل الفروع" if null
+  from: string;                 // YYYY-MM-DD
+  to: string;                   // YYYY-MM-DD
+  userName: string;
+}
+
+function deltaPill(cur: number, prev: number): string {
+  const diff = cur - prev;
+  const pct = prev !== 0 ? (diff / Math.abs(prev)) * 100 : (cur > 0 ? 100 : 0);
+  const up = diff >= 0;
+  const color = up ? C.good : C.bad;
+  const bg = up ? "#e6f4f1" : "#fee2e2";
+  const arrow = up ? "▲" : "▼";
+  return `<span style="background:${bg};color:${color};font-weight:800;font-size:11px;padding:3px 10px;border-radius:10px;direction:ltr;display:inline-block;">${arrow} ${fmtEGP(Math.abs(diff))} (${pct.toFixed(1)}%)</span>`;
+}
+
+function profitBranchTableHtml(rows: ProfitWindow["perBranch"]) {
+  const sorted = [...rows].sort((a, b) => b.net - a.net);
+  const totalNet = sorted.reduce((s, r) => s + r.net, 0);
+  const totalRev = sorted.reduce((s, r) => s + r.revenue, 0);
+  const totalCost = sorted.reduce((s, r) => s + r.cost, 0);
+  const totalExp = sorted.reduce((s, r) => s + r.expenses, 0);
+
+  const body = sorted.map((r, i) => {
+    const margin = r.revenue > 0 ? (r.net / r.revenue) * 100 : 0;
+    const netColor = r.net >= 0 ? C.good : C.bad;
+    return `<tr>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};">${i + 1}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:12px;font-weight:700;color:${C.ink};">${r.name}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(r.revenue)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(r.cost)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.warn};white-space:nowrap;">${fmtNum(r.expenses)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:12px;font-weight:800;color:${netColor};white-space:nowrap;">${fmtNum(r.net)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${netColor};white-space:nowrap;">${margin.toFixed(1)}%</td>
+    </tr>`;
+  }).join("");
+
+  const totalMargin = totalRev > 0 ? (totalNet / totalRev) * 100 : 0;
+  const totalColor = totalNet >= 0 ? C.good : C.bad;
+  const totalRow = `<tr style="background:${C.softBg};">
+    <td colspan="2" style="padding:11px 12px;border-top:2px solid ${C.ink};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">الإجمالي</td>
+    <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};white-space:nowrap;">${fmtNum(totalRev)}</td>
+    <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};white-space:nowrap;">${fmtNum(totalCost)}</td>
+    <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.warn};white-space:nowrap;">${fmtNum(totalExp)}</td>
+    <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:13px;font-weight:800;color:${totalColor};white-space:nowrap;">${fmtNum(totalNet)}</td>
+    <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${totalColor};white-space:nowrap;">${totalMargin.toFixed(1)}%</td>
+  </tr>`;
+
+  return `<div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;background:${C.cardBg};margin-bottom:18px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:${C.ink};">
+          <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:40px;">#</th>
+          <th style="padding:11px 12px;text-align:right;color:#ffffff;font-size:11px;font-weight:700;">الفرع</th>
+          <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:100px;">الإيراد</th>
+          <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:100px;">التكلفة</th>
+          <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:100px;">المصروفات</th>
+          <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:110px;">صافي الربح</th>
+          <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:70px;">الهامش</th>
+        </tr>
+      </thead>
+      <tbody>${body || `<tr><td colspan="7" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد بيانات</td></tr>`}${sorted.length ? totalRow : ""}</tbody>
+    </table>
+  </div>`;
+}
+
+function profitFormulaHtml(t: ProfitWindow["totals"]) {
+  return `<div style="border:1px solid ${C.border};background:${C.softBg};border-radius:10px;padding:16px 20px;margin-bottom:18px;">
+    <div style="font-size:12px;font-weight:800;color:${C.ink};margin-bottom:10px;text-align:center;">معادلة صافي الربح</div>
+    <div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:12px;color:${C.text};direction:ltr;">
+      <span style="background:${C.accentSoft};color:${C.accent};font-weight:800;padding:4px 10px;border-radius:8px;">Revenue ${fmtEGP(t.revenue)}</span>
+      <span style="font-weight:800;color:${C.muted};">−</span>
+      <span style="background:#fef3c7;color:#b45309;font-weight:800;padding:4px 10px;border-radius:8px;">COGS ${fmtEGP(t.cost)}</span>
+      <span style="font-weight:800;color:${C.muted};">−</span>
+      <span style="background:#fee2e2;color:${C.bad};font-weight:800;padding:4px 10px;border-radius:8px;">Expenses ${fmtEGP(t.expenses)}</span>
+      <span style="font-weight:800;color:${C.muted};">=</span>
+      <span style="background:${t.net >= 0 ? "#dcfce7" : "#fee2e2"};color:${t.net >= 0 ? C.good : C.bad};font-weight:800;padding:4px 12px;border-radius:8px;">Net ${fmtEGP(t.net)}</span>
+    </div>
+  </div>`;
+}
+
+export async function generateProfitReport(input: ProfitReportInput): Promise<void> {
+  const t1 = toast.loading("⏳ جاري تجهيز تقرير الربحية...");
+  try {
+    const range = rangeForDates(input.from, input.to);
+    const window = await fetchProfitWindow({ tenantId: input.tenantId, range, branchId: input.branchId });
+    toast.dismiss(t1);
+    const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+
+    const t = window.totals;
+    const header = headerHtml({
+      title: "تقرير ربحية المبيعات",
+      branchName: input.branchName,
+      userName: input.userName,
+      fromDate: input.from,
+      toDate: input.to,
+    });
+
+    const kpi = sectionTitle("الملخّص التنفيذي للربحية") + kpiCardsHtml([
+      { label: "إجمالي الإيراد", value: fmtEGP(t.revenue), highlight: true },
+      { label: "تكلفة البضاعة (COGS)", value: fmtEGP(t.cost), color: C.warn },
+      { label: "إجمالي الربح (Gross)", value: fmtEGP(t.gross), color: t.gross >= 0 ? C.good : C.bad },
+      { label: "المصروفات التشغيلية", value: fmtEGP(t.expenses), color: C.bad },
+      { label: "صافي الربح (Net)", value: fmtEGP(t.net), color: t.net >= 0 ? C.good : C.bad, highlight: true },
+      { label: "هامش صافي الربح", value: fmtPct(t.margin), color: t.margin >= 0 ? C.good : C.bad },
+    ]);
+
+    const formula = profitFormulaHtml(t);
+
+    // Delta vs prev period
+    const deltaBox = `<div style="border:1px solid ${C.border};border-radius:10px;padding:16px 20px;margin-bottom:18px;background:${C.cardBg};">
+      <div style="font-size:12px;font-weight:800;color:${C.ink};margin-bottom:10px;text-align:center;">مقارنة بالفترة السابقة</div>
+      <div style="display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:12px;">
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:${C.muted};margin-bottom:4px;">صافي الفترة الحالية</div>
+          <div style="font-size:16px;font-weight:800;color:${t.net >= 0 ? C.good : C.bad};direction:ltr;">${fmtEGP(t.net)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:${C.muted};margin-bottom:4px;">صافي الفترة السابقة</div>
+          <div style="font-size:16px;font-weight:800;color:${C.ink};direction:ltr;">${fmtEGP(window.prevNet)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:${C.muted};margin-bottom:4px;">التغيّر</div>
+          <div>${deltaPill(t.net, window.prevNet)}</div>
+        </div>
+      </div>
+    </div>`;
+
+    const perBranchSection = !input.branchId && window.perBranch.length > 0
+      ? sectionTitle("توزيع الربحية على الفروع") + profitBranchTableHtml(window.perBranch)
+      : "";
+
+    const sectionsHtml = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="kpi">${kpi}</div>`,
+      `<div data-pdf-section="formula">${formula}</div>`,
+      `<div data-pdf-section="delta">${deltaBox}</div>`,
+      ...(perBranchSection ? [`<div data-pdf-section="perbranch">${perBranchSection}</div>`] : []),
+    ].join("");
+
+    await renderSectionsToPdf({
+      sectionsHtml,
+      branchName: input.branchName,
+      fileName: `تقرير-ربحية-المبيعات-${input.branchName}-${input.from}-${input.to}.pdf`,
+    });
+    toast.dismiss(t2);
+    toast.success("✅ تم إنشاء تقرير الربحية");
+  } catch (e: any) {
+    console.error("[generateProfitReport]", e);
+    toast.dismiss();
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  }
+}
