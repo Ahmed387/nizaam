@@ -343,13 +343,21 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
       userName: input.userName,
     });
 
-    // A4 portrait: 210mm × 297mm → at 96dpi ≈ 794 × 1123 px, minus 15mm margins each side
+    // A4 landscape: 297mm × 210mm → at 96dpi ≈ 1123 × 794 px
     const container = document.createElement("div");
     container.style.cssText = `
-      position:fixed;left:-99999px;top:0;width:794px;padding:56px 56px 56px 56px;
+      position:fixed;left:-99999px;top:0;width:1123px;padding:40px 40px 40px 40px;
       background:#ffffff;color:#1a202c;font-family:'Cairo','Segoe UI','Tahoma',sans-serif;
       direction:rtl;text-align:right;box-sizing:border-box;
     `;
+    container.innerHTML = header + cards + tableHtml + totalsHtml;
+    document.body.appendChild(container);
+
+    // Render → PDF
+    const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    document.body.removeChild(container);
+
+    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
     container.innerHTML = header + cards + tableHtml + totalsHtml;
     document.body.appendChild(container);
 
