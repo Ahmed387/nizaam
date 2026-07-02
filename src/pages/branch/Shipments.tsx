@@ -148,28 +148,21 @@ export default function Shipments() {
         title="الشحنات"
         subtitle="استلام البضاعة من الموردين"
         actions={
-          <PermGate perm="shipments.create">
-            <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
-              <Plus className="w-4 h-4" /> شحنة جديدة
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportPdf} className="gap-2">
+              <FileDown className="w-4 h-4" /> تحميل PDF
             </Button>
-          </PermGate>
+            <PermGate perm="shipments.create">
+              <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
+                <Plus className="w-4 h-4" /> شحنة جديدة
+              </Button>
+            </PermGate>
+          </div>
         }
       />
 
       {(() => {
         const suppliers = Array.from(new Map(rows.filter(r => r.contact_id).map(r => [r.contact_id, r.contacts?.name ?? "—"])).entries());
-        const filtered = rows.filter((r: any) => {
-          if (fSupplier !== "all" && r.contact_id !== fSupplier) return false;
-          if (fStatus !== "all" && r._payment_status !== fStatus) return false;
-          if (fFrom && r.arrival_date && r.arrival_date < fFrom) return false;
-          if (fTo && r.arrival_date && r.arrival_date > fTo) return false;
-          if (search) {
-            const q = search.toLowerCase();
-            const hay = `${r.contacts?.name ?? ""} ${r.received_by ?? ""} ${r.notes ?? ""}`.toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
-          return true;
-        });
         return (
           <>
             <Card className="p-3 mb-3 grid grid-cols-1 md:grid-cols-5 gap-3">
