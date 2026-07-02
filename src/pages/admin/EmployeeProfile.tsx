@@ -20,7 +20,7 @@ import { logAudit } from "@/lib/roles";
 import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, Calculator } from "lucide-react";
+import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
 import { summarizeMonth, AttendanceSummary } from "@/lib/salaryCalc";
 
 export default function EmployeeProfile() {
@@ -555,26 +555,108 @@ export default function EmployeeProfile() {
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>تعديل بيانات الموظف</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>الاسم *</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Pencil className="w-5 h-5 text-primary" />
+              تعديل بيانات الموظف
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-6 pb-6 space-y-5">
+            {/* Basic info */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+                <User className="w-4 h-4 text-primary" /> بيانات أساسية
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" /> الاسم *
+                  </Label>
+                  <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-2" />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-muted-foreground" /> التليفون
+                  </Label>
+                  <Input dir="ltr" className="text-right mt-2" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <IdCard className="w-3.5 h-3.5 text-muted-foreground" /> الرقم القومي
+                  </Label>
+                  <Input dir="ltr" className="text-right mt-2" maxLength={14} value={editForm.national_id} onChange={(e) => setEditForm({ ...editForm, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" />
+                </div>
+              </div>
+            </div>
+
+            {/* System access */}
             {emp.has_system_access !== false && (
-              <>
-                <div><Label>البريد الإلكتروني</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="employee@company.com" /></div>
-                <div><Label>كلمة المرور (للدخول كموظف)</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={editForm.login_password} onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })} placeholder="اتركه فارغاً إذا لا تريد تغييره" /></div>
-              </>
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+                  <KeyRound className="w-4 h-4 text-primary" /> بيانات الدخول للنظام
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-muted-foreground" /> البريد الإلكتروني
+                    </Label>
+                    <Input type="email" dir="ltr" className="text-right mt-2" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="employee@company.com" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-muted-foreground" /> كلمة المرور (للدخول كموظف)
+                    </Label>
+                    <Input type="password" dir="ltr" className="text-right mt-2" value={editForm.login_password} onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })} placeholder="اتركه فارغاً إذا لا تريد تغييره" />
+                  </div>
+                </div>
+              </div>
             )}
-            <div><Label>الراتب الأساسي</Label><Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>تاريخ التعيين</Label><Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الرقم القومي</Label><Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={editForm.national_id} onChange={(e) => setEditForm({ ...editForm, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" /></div>
-            <ShiftEditor value={editShift} onChange={setEditShift} />
-            <div><Label>ملاحظات</Label><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} className="mt-1.5" /></div>
+
+            {/* Employment info */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+                <Banknote className="w-4 h-4 text-primary" /> بيانات التوظيف
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Banknote className="w-3.5 h-3.5 text-muted-foreground" /> الراتب الأساسي
+                  </Label>
+                  <Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-2" />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" /> تاريخ التعيين
+                  </Label>
+                  <Input type="date" value={editForm.hire_date} onChange={(e) => setEditForm({ ...editForm, hire_date: e.target.value })} className="mt-2" />
+                </div>
+              </div>
+            </div>
+
+            {/* Shift schedule */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-primary" /> مواعيد العمل (الشيفت)
+              </h4>
+              <ShiftEditor value={editShift} onChange={setEditShift} showTitle={false} />
+            </div>
+
+            {/* Notes */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-1">
+                <FileText className="w-4 h-4 text-primary" /> ملاحظات
+              </h4>
+              <Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={3} />
+            </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="px-6 py-4 border-t bg-muted/30 gap-2">
             <Button variant="outline" onClick={() => setEditOpen(false)}>إلغاء</Button>
-            <Button onClick={submitEdit}>حفظ</Button>
+            <Button onClick={submitEdit} className="gap-2">
+              <Pencil className="w-4 h-4" /> حفظ التعديلات
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -26,7 +26,7 @@ const DAYS = [
   { v: 5, label: "الجمعة" },
 ];
 
-export function ShiftEditor({ value, onChange }: { value: ShiftValue; onChange: (v: ShiftValue) => void }) {
+export function ShiftEditor({ value, onChange, showTitle = true }: { value: ShiftValue; onChange: (v: ShiftValue) => void; showTitle?: boolean }) {
   const toggleDay = (d: number) => {
     const set = new Set(value.work_days || []);
     if (set.has(d)) set.delete(d); else set.add(d);
@@ -34,7 +34,7 @@ export function ShiftEditor({ value, onChange }: { value: ShiftValue; onChange: 
   };
   return (
     <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
-      <div className="text-sm font-semibold">مواعيد العمل (الشيفت)</div>
+      {showTitle && <div className="text-sm font-semibold">مواعيد العمل (الشيفت)</div>}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label className="text-xs">بداية الدوام</Label>
