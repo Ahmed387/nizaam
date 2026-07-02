@@ -270,16 +270,46 @@ export default function BranchReports() {
 
 
                   <div className="card-elevated p-4">
-                    <h4 className="font-bold mb-3">المصروفات حسب النوع</h4>
+                    <h4 className="font-bold mb-3 text-base">المصروفات حسب النوع</h4>
                     {expensesData.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مصروفات</div>
                     ) : (
-                      <ResponsiveContainer width="100%" height={280}>
+                      <ResponsiveContainer width="100%" height={360}>
                         <PieChart>
-                          <Pie data={expensesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${formatEGP(e.value)}`}>
-                            {expensesData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                          <Pie
+                            data={expensesData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="45%"
+                            outerRadius={105}
+                            innerRadius={60}
+                            paddingAngle={2}
+                            labelLine={{ stroke: "hsl(var(--border))", strokeWidth: 1.5 }}
+                            label={({ name, value, percent }: any) => {
+                              const pct = (percent * 100).toFixed(0);
+                              return `${name} (${pct}%)`;
+                            }}
+                          >
+                            {expensesData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="hsl(var(--card))" strokeWidth={2} />)}
                           </Pie>
-                          <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                          <Tooltip
+                            formatter={(value: any, name: any, props: any) => {
+                              const total = expensesData.reduce((s, d) => s + d.value, 0);
+                              const pct = total ? ((Number(value) / total) * 100).toFixed(1) : "0";
+                              return [`${formatEGP(Number(value))} (${pct}%)`, name];
+                            }}
+                            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
+                            labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
+                          />
+                          <Legend
+                            verticalAlign="bottom"
+                            align="center"
+                            layout="horizontal"
+                            iconType="circle"
+                            wrapperStyle={{ fontSize: 13, fontWeight: 600, paddingTop: 12, direction: "rtl" }}
+                            formatter={(value: any) => <span className="text-foreground font-semibold">{value}</span>}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     )}
