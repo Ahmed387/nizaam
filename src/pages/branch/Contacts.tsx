@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -302,21 +302,23 @@ export default function Contacts() {
 
       {/* Balance KPIs (always reflect current filtered list) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <ArrowDownLeft className="w-3.5 h-3.5 text-success" /> مستحق لنا (عملاء + موردين)
+        <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
+          <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
+            <ArrowDownLeft className="w-5 h-5 text-success" /> مستحق لنا (عملاء + موردين)
           </div>
-          <div className="text-xl font-bold text-success mt-1">{formatEGP(balanceTotals.oweUs)}</div>
+          <div className="text-2xl font-extrabold text-success mt-2">{formatEGP(balanceTotals.oweUs)}</div>
         </div>
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <ArrowUpRight className="w-3.5 h-3.5 text-destructive" /> علينا للغير
+        <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
+          <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
+            <ArrowUpRight className="w-5 h-5 text-destructive" /> علينا للغير
           </div>
-          <div className="text-xl font-bold text-destructive mt-1">{formatEGP(balanceTotals.weOwe)}</div>
+          <div className="text-2xl font-extrabold text-destructive mt-2">{formatEGP(balanceTotals.weOwe)}</div>
         </div>
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground">صافي الذمم</div>
-          <div className={`text-xl font-bold mt-1 ${balanceTotals.net >= 0 ? "text-success" : "text-destructive"}`}>
+        <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
+          <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
+            <Scale className="w-5 h-5 text-primary" /> صافي الخصم
+          </div>
+          <div className={`text-2xl font-extrabold mt-2 ${balanceTotals.net >= 0 ? "text-success" : "text-destructive"}`}>
             {formatEGP(balanceTotals.net)}
           </div>
         </div>
