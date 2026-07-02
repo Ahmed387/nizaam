@@ -23,6 +23,44 @@ const C = {
   pill: "#eef7f5",
 };
 
+// ---------- Arabic font loader ----------
+// html2canvas rasterizes DOM using whatever font the browser actually has available.
+// Default system fallbacks often lack proper Arabic ligature/shaping tables, which
+// produces the "disconnected letters" look. We inject Cairo from Google Fonts once
+// and wait for it to load before rendering.
+let __arabicFontPromise: Promise<void> | null = null;
+function ensureArabicFont(): Promise<void> {
+  if (__arabicFontPromise) return __arabicFontPromise;
+  __arabicFontPromise = new Promise<void>((resolve) => {
+    try {
+      const HREF = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap";
+      if (!document.querySelector(`link[data-arabic-font="cairo"]`)) {
+        const pre1 = document.createElement("link");
+        pre1.rel = "preconnect"; pre1.href = "https://fonts.googleapis.com";
+        document.head.appendChild(pre1);
+        const pre2 = document.createElement("link");
+        pre2.rel = "preconnect"; pre2.href = "https://fonts.gstatic.com"; pre2.crossOrigin = "anonymous";
+        document.head.appendChild(pre2);
+        const link = document.createElement("link");
+        link.rel = "stylesheet"; link.href = HREF;
+        link.setAttribute("data-arabic-font", "cairo");
+        document.head.appendChild(link);
+      }
+      const fonts: any = (document as any).fonts;
+      if (fonts?.load) {
+        Promise.all([
+          fonts.load('400 14px "Cairo"'),
+          fonts.load('700 14px "Cairo"'),
+          fonts.load('800 20px "Cairo"'),
+        ]).then(() => resolve()).catch(() => resolve());
+      } else {
+        setTimeout(resolve, 1200);
+      }
+    } catch { resolve(); }
+  });
+  return __arabicFontPromise;
+}
+
 // ---------- helpers ----------
 const fmtEGP = (n: number) =>
   (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ج.م";
@@ -269,15 +307,23 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
         ? invRows.map(invoiceCardHtml).join("")
         : `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد فواتير في الفترة المحددة</div>`);
 
+    // Ensure Arabic font (Cairo) is loaded so html2canvas renders proper glyph shaping.
+    await ensureArabicFont();
+
     // A4 portrait: 210 × 297mm → 96dpi ≈ 794 × 1123 px
     const container = document.createElement("div");
     container.style.cssText = `
       position:fixed;left:-99999px;top:0;width:794px;padding:36px 40px;
-      background:#ffffff;color:${C.text};font-family:'Cairo','Segoe UI','Tahoma',sans-serif;
+      background:#ffffff;color:${C.text};font-family:'Cairo','Noto Naskh Arabic','Segoe UI','Tahoma',Arial,sans-serif;
       direction:rtl;text-align:right;box-sizing:border-box;
+      font-feature-settings:"liga","calt","kern";text-rendering:optimizeLegibility;
     `;
     container.innerHTML = header + summary + details;
     document.body.appendChild(container);
+
+    // Give the browser a paint tick so fonts apply before rasterization.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    if ((document as any).fonts?.ready) { try { await (document as any).fonts.ready; } catch {} }
 
     const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
     document.body.removeChild(container);
