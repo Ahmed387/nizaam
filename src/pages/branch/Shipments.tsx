@@ -240,6 +240,7 @@ export default function Shipments() {
             header: "",
             render: (r: any) => (
               <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <Button size="sm" variant="ghost" onClick={() => nav(`/branch/${branchId}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
