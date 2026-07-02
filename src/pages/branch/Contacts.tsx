@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
@@ -51,7 +53,15 @@ export default function Contacts() {
     notes: "",
   });
   const [search, setSearch] = useState("");
-  const [balanceFilter, setBalanceFilter] = useState<"all" | "owe_us" | "we_owe" | "settled">("all");
+  type BalanceKey = "owe_us" | "we_owe" | "settled";
+  const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
+  const toggleBalance = (k: BalanceKey) =>
+    setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
+  const BALANCE_LABELS: Record<BalanceKey, string> = {
+    owe_us: "عملاء وموردين لنا عندهم",
+    we_owe: "عملاء وموردين علينا لهم",
+    settled: "متعادلين (مصفيين حسابهم)",
+  };
   const isManager = hasRole("branch_manager");
 
   const load = async () => {
@@ -72,12 +82,17 @@ export default function Contacts() {
     if (filter !== "all") {
       r = r.filter((x) => x.type === filter || x.type === "both");
     }
-    if (balanceFilter !== "all") {
+    if (balanceFilters.length > 0) {
       r = r.filter((x) => {
         const b = Number(x.balance ?? 0);
-        if (balanceFilter === "owe_us") return b > 0.01;
-        if (balanceFilter === "we_owe") return b < -0.01;
-        return Math.abs(b) < 0.01;
+        const isOweUs = b > 0.01;
+        const isWeOwe = b < -0.01;
+        const isSettled = Math.abs(b) < 0.01;
+        return (
+          (balanceFilters.includes("owe_us") && isOweUs) ||
+          (balanceFilters.includes("we_owe") && isWeOwe) ||
+          (balanceFilters.includes("settled") && isSettled)
+        );
       });
     }
     if (search.trim()) {
@@ -89,7 +104,7 @@ export default function Contacts() {
       );
     }
     return r;
-  }, [rows, filter, balanceFilter, search]);
+  }, [rows, filter, balanceFilters, search]);
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -120,20 +135,18 @@ export default function Contacts() {
       "الحالة": b > 0.01 ? "مستحق لنا" : b < -0.01 ? "علينا للجهة" : "متعادل",
     };
   });
+  const filterSuffix = balanceFilters.length === 1
+    ? (balanceFilters[0] === "owe_us" ? "_لنا" : balanceFilters[0] === "we_owe" ? "_علينا" : "_متعادلين")
+    : "";
   const handleExportExcel = () => {
     const data = exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
-    const title = balanceFilter === "owe_us" ? "العملاء_والموردين_لنا"
-      : balanceFilter === "we_owe" ? "العملاء_والموردين_علينا"
-      : "العملاء_والموردين";
-    exportToExcel(title, [{ name: "الأرصدة", rows: data }]);
+    exportToExcel("العملاء_والموردين" + filterSuffix, [{ name: "الأرصدة", rows: data }]);
   };
   const handleExportPDF = () => {
     const data = exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
-    const title = balanceFilter === "owe_us" ? "أرصدة الجهات (مستحق لنا)"
-      : balanceFilter === "we_owe" ? "أرصدة الجهات (علينا)"
-      : "أرصدة العملاء والموردين";
+    const title = "أرصدة العملاء والموردين" + (filterSuffix ? ` (${BALANCE_LABELS[balanceFilters[0]]})` : "");
     const summary = `
       <div class="kpi">
         <div><span class="muted">مستحق لنا</span><b class="pos">${formatEGP(balanceTotals.oweUs)}</b></div>
@@ -263,12 +276,7 @@ export default function Contacts() {
   return (
     <BranchLayout>
       <PageHeader
-        title="جهات التواصل"
-        subtitle={
-          counts.both > 0
-            ? `${counts.all} جهة • ${counts.customer - counts.both} عميل • ${counts.supplier - counts.both} مورد • ${counts.both} عميل ومورد`
-            : `${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`
-        }
+        title="الموردين والعملاء"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filtered.length} className="gap-2">
@@ -283,6 +291,14 @@ export default function Contacts() {
           </div>
         }
       />
+
+      <div className="mb-4 text-base sm:text-lg font-semibold text-foreground/90">
+        {counts.both > 0
+          ? <>إجمالي <span className="text-primary">{counts.all}</span> جهة • <span className="text-primary">{counts.customer - counts.both}</span> عميل • <span className="text-primary">{counts.supplier - counts.both}</span> مورد • <span className="text-primary">{counts.both}</span> عميل ومورد</>
+          : <>إجمالي <span className="text-primary">{counts.all}</span> جهة • <span className="text-primary">{counts.customer}</span> عميل • <span className="text-primary">{counts.supplier}</span> مورد</>
+        }
+      </div>
+
 
       {/* Balance KPIs (always reflect current filtered list) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -321,15 +337,46 @@ export default function Contacts() {
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={balanceFilter} onValueChange={(v) => setBalanceFilter(v as any)}>
-            <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الأرصدة</SelectItem>
-              <SelectItem value="owe_us">مستحق لنا فقط 💰</SelectItem>
-              <SelectItem value="we_owe">علينا فقط 📤</SelectItem>
-              <SelectItem value="settled">متعادل</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-2 min-w-[200px] justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5" />
+                  {balanceFilters.length === 0
+                    ? "كل العملاء والموردين"
+                    : `${balanceFilters.length} تصنيف محدد`}
+                </span>
+                {balanceFilters.length > 0 && (
+                  <Badge variant="secondary" className="h-5">{balanceFilters.length}</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2" align="end">
+              <div className="text-xs text-muted-foreground px-2 pb-2 border-b mb-1">
+                اختر تصنيف أو أكثر
+              </div>
+              {(["owe_us", "we_owe", "settled"] as const).map((k) => (
+                <label
+                  key={k}
+                  className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent cursor-pointer text-sm"
+                >
+                  <Checkbox
+                    checked={balanceFilters.includes(k)}
+                    onCheckedChange={() => toggleBalance(k)}
+                  />
+                  <span className="flex-1">{BALANCE_LABELS[k]}</span>
+                </label>
+              ))}
+              {balanceFilters.length > 0 && (
+                <button
+                  onClick={() => setBalanceFilters([])}
+                  className="w-full mt-1 pt-2 border-t text-xs text-muted-foreground hover:text-foreground"
+                >
+                  مسح الاختيارات
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
           <Input
             placeholder="بحث بالاسم أو التليفون..."
             value={search}
