@@ -75,13 +75,13 @@ function headerHtml(opts: {
 
 function summaryCardsHtml(cards: { label: string; value: string; color?: string }[]) {
   return `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px;">
       ${cards
         .map(
           (c) => `
-        <div style="border:1.5px solid #2d3748;border-radius:6px;padding:10px 12px;background:#fff;">
-          <div style="font-size:10px;color:#4a5568;margin-bottom:4px;">${c.label}</div>
-          <div style="font-size:14px;font-weight:800;color:${c.color ?? "#1a202c"};">${c.value}</div>
+        <div style="border:1.5px solid #2d3748;border-radius:6px;padding:10px 12px;background:#fff;min-width:0;">
+          <div style="font-size:10px;color:#4a5568;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.label}</div>
+          <div style="font-size:13px;font-weight:800;color:${c.color ?? "#1a202c"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.value}</div>
         </div>`
         )
         .join("")}
@@ -202,18 +202,28 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
         const statusLabel = cancelled ? "ملغاة" : "نشطة";
 
         const linesHtml = r.items.length
-          ? `<tr style="background:${bg};"><td colspan="10" style="padding:0;border:0;">
-              <table style="width:100%;border-collapse:collapse;margin:0;">
+          ? `<tr style="background:${bg};"><td colspan="10" style="padding:0 0 0 24px;border:0;">
+              <table style="width:100%;border-collapse:collapse;margin:0;table-layout:fixed;">
+                <colgroup>
+                  <col style="width:26%" />
+                  <col style="width:7%" />
+                  <col style="width:11%" />
+                  <col style="width:9%" />
+                  <col style="width:12%" />
+                  <col style="width:11%" />
+                  <col style="width:12%" />
+                  <col style="width:12%" />
+                </colgroup>
                 <thead>
                   <tr style="background:#e2e8f0;color:#1a202c;font-size:9px;">
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;text-align:right;">اسم الصنف</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">كمية</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">سعر الوحدة</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">خصم</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">الإجمالي</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">التكلفة</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">الربح</th>
-                    <th style="padding:4px 6px;border:0.5px solid #a0aec0;">هامش%</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;text-align:right;">اسم الصنف</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">كمية</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">سعر الوحدة</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">خصم</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">الإجمالي</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">التكلفة</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">الربح</th>
+                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">هامش%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -230,14 +240,14 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
                       const lineMargin = lineProfit === null ? null : (tot > 0 ? (lineProfit / tot) * 100 : 0);
                       const lpColor = lineProfit === null ? "#4a5568" : lineProfit >= 0 ? "#276749" : "#c53030";
                       return `<tr style="font-size:9px;color:#2d3748;">
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:right;">${it.product_name ?? "—"}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;">${fmtNum(q)}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;">${fmtEGP(up)}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;">${fmtEGP(disc)}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;font-weight:700;">${fmtEGP(tot)}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;">${noCost ? "غير متاح" : fmtEGP(lineCost)}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;color:${lpColor};font-weight:700;">${lineProfit === null ? "غير متاح" : fmtEGP(lineProfit)}</td>
-                        <td style="padding:3px 6px;border:0.5px solid #cbd5e0;text-align:center;color:${lpColor};">${lineMargin === null ? "—" : fmtPct(lineMargin)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.product_name ?? "—"}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${fmtNum(q)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${fmtEGP(up)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${fmtEGP(disc)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;font-weight:700;white-space:nowrap;">${fmtEGP(tot)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${noCost ? "غير متاح" : fmtEGP(lineCost)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;color:${lpColor};font-weight:700;white-space:nowrap;">${lineProfit === null ? "غير متاح" : fmtEGP(lineProfit)}</td>
+                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;color:${lpColor};white-space:nowrap;">${lineMargin === null ? "—" : fmtPct(lineMargin)}</td>
                       </tr>`;
                     })
                     .join("")}
@@ -248,16 +258,16 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
 
         return `
           <tr style="background:${bg};color:${textColor};font-size:10px;">
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;font-family:monospace;">${r.inv.invoice_number ?? "—"}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;">${fmtDate(r.inv.invoice_date || r.inv.created_at)}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:right;">${r.inv.contacts?.name ?? "عميل نقدي"}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;">${PAY_LABELS[r.inv.payment_method] ?? r.inv.payment_method ?? "—"}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;font-weight:700;">${fmtEGP(r.inv.total)}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;">${fmtEGP(r.paid)}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;color:${remainingColor};font-weight:${r.remaining > 0 ? 700 : 400};">${fmtEGP(r.remaining)}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;color:${profitColor};font-weight:700;">${profitStr}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;color:${profitColor};">${marginStr}</td>
-            <td style="padding:6px 8px;border:0.5px solid #a0aec0;text-align:center;font-weight:700;">${statusLabel}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;font-family:monospace;white-space:nowrap;">${r.inv.invoice_number ?? "—"}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;white-space:nowrap;">${fmtDate(r.inv.invoice_date || r.inv.created_at)}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.inv.contacts?.name ?? "عميل نقدي"}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;white-space:nowrap;">${PAY_LABELS[r.inv.payment_method] ?? r.inv.payment_method ?? "—"}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;font-weight:700;white-space:nowrap;">${fmtEGP(r.inv.total)}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;white-space:nowrap;">${fmtEGP(r.paid)}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;color:${remainingColor};font-weight:${r.remaining > 0 ? 700 : 400};white-space:nowrap;">${fmtEGP(r.remaining)}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;color:${profitColor};font-weight:700;white-space:nowrap;">${profitStr}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;color:${profitColor};white-space:nowrap;">${marginStr}</td>
+            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;font-weight:700;white-space:nowrap;">${statusLabel}</td>
           </tr>
           ${linesHtml}
         `;
@@ -266,19 +276,31 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
 
     const tableHtml = `
       <div style="font-weight:800;font-size:13px;color:#1a202c;text-decoration:underline;margin-bottom:6px;">تفاصيل الفواتير</div>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed;">
+        <colgroup>
+          <col style="width:9%" />
+          <col style="width:8%" />
+          <col style="width:15%" />
+          <col style="width:9%" />
+          <col style="width:10%" />
+          <col style="width:10%" />
+          <col style="width:10%" />
+          <col style="width:10%" />
+          <col style="width:8%" />
+          <col style="width:7%" />
+        </colgroup>
         <thead>
           <tr style="background:#2d3748;color:#ffffff;font-size:10px;">
-            <th style="padding:8px;border:2px solid #2d3748;">رقم الفاتورة</th>
-            <th style="padding:8px;border:2px solid #2d3748;">التاريخ</th>
-            <th style="padding:8px;border:2px solid #2d3748;">العميل</th>
-            <th style="padding:8px;border:2px solid #2d3748;">طريقة الدفع</th>
-            <th style="padding:8px;border:2px solid #2d3748;">الإجمالي</th>
-            <th style="padding:8px;border:2px solid #2d3748;">المدفوع</th>
-            <th style="padding:8px;border:2px solid #2d3748;">المتبقي</th>
-            <th style="padding:8px;border:2px solid #2d3748;">الربح</th>
-            <th style="padding:8px;border:2px solid #2d3748;">هامش%</th>
-            <th style="padding:8px;border:2px solid #2d3748;">الحالة</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">رقم الفاتورة</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">التاريخ</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">العميل</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">طريقة الدفع</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">الإجمالي</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">المدفوع</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">المتبقي</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">الربح</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">هامش%</th>
+            <th style="padding:8px 4px;border:2px solid #2d3748;">الحالة</th>
           </tr>
         </thead>
         <tbody>${invoiceRowsHtml || `<tr><td colspan="10" style="text-align:center;padding:20px;">لا توجد فواتير</td></tr>`}</tbody>
@@ -321,10 +343,10 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
       userName: input.userName,
     });
 
-    // A4 portrait: 210mm × 297mm → at 96dpi ≈ 794 × 1123 px, minus 15mm margins each side
+    // A4 landscape: 297mm × 210mm → at 96dpi ≈ 1123 × 794 px
     const container = document.createElement("div");
     container.style.cssText = `
-      position:fixed;left:-99999px;top:0;width:794px;padding:56px 56px 56px 56px;
+      position:fixed;left:-99999px;top:0;width:1123px;padding:40px 40px 40px 40px;
       background:#ffffff;color:#1a202c;font-family:'Cairo','Segoe UI','Tahoma',sans-serif;
       direction:rtl;text-align:right;box-sizing:border-box;
     `;
@@ -335,7 +357,7 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
     const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
     document.body.removeChild(container);
 
-    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24;
