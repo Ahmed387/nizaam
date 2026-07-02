@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { Plus, Eye, Trash2 } from "lucide-react";
+import { Plus, Eye, Trash2, FileDown } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
