@@ -3,7 +3,7 @@
  * Renders a hidden HTML report to a multi-page A4 (portrait) PDF via html2canvas + jsPDF.
  */
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { toCanvas as htiToCanvas } from "html-to-image";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
