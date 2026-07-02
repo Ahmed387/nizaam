@@ -332,7 +332,7 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
     const container = document.createElement("div");
     container.style.cssText = `
       position:fixed;left:-99999px;top:0;width:794px;padding:36px 40px;
-      background:#ffffff;color:${C.text};font-family:'Cairo','Noto Naskh Arabic','Segoe UI','Tahoma',Arial,sans-serif;
+      background:#ffffff;color:${C.text};font-family:'CairoPDF','Cairo','Noto Naskh Arabic','Segoe UI','Tahoma',Arial,sans-serif;
       direction:rtl;text-align:right;box-sizing:border-box;
       font-feature-settings:"liga","calt","kern";text-rendering:optimizeLegibility;
     `;
