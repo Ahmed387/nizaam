@@ -640,7 +640,7 @@ export default function EmployeeProfile() {
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
                 <Clock className="w-4 h-4 text-primary" /> مواعيد العمل (الشيفت)
               </h4>
-              <ShiftEditor value={editShift} onChange={setEditShift} />
+              <ShiftEditor value={editShift} onChange={setEditShift} showTitle={false} />
             </div>
 
             {/* Notes */}
