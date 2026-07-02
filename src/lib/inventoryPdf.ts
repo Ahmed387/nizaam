@@ -52,12 +52,7 @@ export async function exportElementToPdf(
     const imgH = sliceCanvas.height / ratio;
     pdf.addImage(imgData, "JPEG", margin, margin, imgW, imgH);
 
-    // Footer
-    pdf.setFontSize(9);
-    pdf.setTextColor(100);
-    const footer = `Page ${i + 1} / ${totalPages}  |  Session: ${opts.sessionId.slice(0, 8)}  |  ${ts}`;
-    pdf.text(footer, pageW / 2, pageH - 12, { align: "center" });
-  }
+    // Footer removed intentionally — jsPDF cannot shape Arabic text and produced garbled output.
 
   pdf.save(opts.filename);
 }
