@@ -51,8 +51,8 @@ export async function exportElementToPdf(
     const imgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
     const imgH = sliceCanvas.height / ratio;
     pdf.addImage(imgData, "JPEG", margin, margin, imgW, imgH);
-
     // Footer removed intentionally — jsPDF cannot shape Arabic text and produced garbled output.
+  }
 
   pdf.save(opts.filename);
 }
