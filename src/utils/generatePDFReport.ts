@@ -75,13 +75,13 @@ function headerHtml(opts: {
 
 function summaryCardsHtml(cards: { label: string; value: string; color?: string }[]) {
   return `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px;">
       ${cards
         .map(
           (c) => `
-        <div style="border:1.5px solid #2d3748;border-radius:6px;padding:10px 12px;background:#fff;">
-          <div style="font-size:10px;color:#4a5568;margin-bottom:4px;">${c.label}</div>
-          <div style="font-size:14px;font-weight:800;color:${c.color ?? "#1a202c"};">${c.value}</div>
+        <div style="border:1.5px solid #2d3748;border-radius:6px;padding:10px 12px;background:#fff;min-width:0;">
+          <div style="font-size:10px;color:#4a5568;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.label}</div>
+          <div style="font-size:13px;font-weight:800;color:${c.color ?? "#1a202c"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.value}</div>
         </div>`
         )
         .join("")}
