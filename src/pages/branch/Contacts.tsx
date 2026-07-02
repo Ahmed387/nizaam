@@ -337,15 +337,46 @@ export default function Contacts() {
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={balanceFilter} onValueChange={(v) => setBalanceFilter(v as any)}>
-            <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الأرصدة</SelectItem>
-              <SelectItem value="owe_us">مستحق لنا فقط 💰</SelectItem>
-              <SelectItem value="we_owe">علينا فقط 📤</SelectItem>
-              <SelectItem value="settled">متعادل</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-2 min-w-[200px] justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5" />
+                  {balanceFilters.length === 0
+                    ? "كل العملاء والموردين"
+                    : `${balanceFilters.length} تصنيف محدد`}
+                </span>
+                {balanceFilters.length > 0 && (
+                  <Badge variant="secondary" className="h-5">{balanceFilters.length}</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2" align="end">
+              <div className="text-xs text-muted-foreground px-2 pb-2 border-b mb-1">
+                اختر تصنيف أو أكثر
+              </div>
+              {(["owe_us", "we_owe", "settled"] as const).map((k) => (
+                <label
+                  key={k}
+                  className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent cursor-pointer text-sm"
+                >
+                  <Checkbox
+                    checked={balanceFilters.includes(k)}
+                    onCheckedChange={() => toggleBalance(k)}
+                  />
+                  <span className="flex-1">{BALANCE_LABELS[k]}</span>
+                </label>
+              ))}
+              {balanceFilters.length > 0 && (
+                <button
+                  onClick={() => setBalanceFilters([])}
+                  className="w-full mt-1 pt-2 border-t text-xs text-muted-foreground hover:text-foreground"
+                >
+                  مسح الاختيارات
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
           <Input
             placeholder="بحث بالاسم أو التليفون..."
             value={search}
