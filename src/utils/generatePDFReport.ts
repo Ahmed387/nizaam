@@ -682,3 +682,498 @@ export async function generateShipmentsReport(input: ShipmentsReportInput): Prom
     toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
   }
 }
+
+// ============================================================================
+// ================== SHARED render pipeline (RTL, A4 portrait) ===============
+// ============================================================================
+async function renderSectionsToPdf(opts: {
+  sectionsHtml: string;
+  fileName: string;
+  branchName: string;
+}): Promise<void> {
+  await ensureArabicFont();
+  const container = document.createElement("div");
+  container.style.cssText = `
+    position:fixed;left:-99999px;top:0;width:794px;padding:36px 40px;
+    background:#ffffff;color:${C.text};font-family:'CairoPDF','Cairo','Noto Naskh Arabic','Segoe UI','Tahoma',Arial,sans-serif;
+    direction:rtl;text-align:right;box-sizing:border-box;
+    font-feature-settings:"liga","calt","kern";text-rendering:optimizeLegibility;
+  `;
+  container.innerHTML = opts.sectionsHtml;
+  document.body.appendChild(container);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  if ((document as any).fonts?.ready) { try { await (document as any).fonts.ready; } catch {} }
+
+  const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 24;
+  const footerH = 24;
+  const usableW = pageW - margin * 2;
+  const usableH = pageH - margin * 2 - footerH;
+  let cursorY = margin;
+
+  const sections = Array.from(container.querySelectorAll<HTMLElement>("[data-pdf-section]"));
+  for (const section of sections) {
+    const canvas = await htiToCanvas(section, { pixelRatio: 2, backgroundColor: "#ffffff", cacheBust: true });
+    const drawW = usableW;
+    const drawH = (canvas.height / canvas.width) * drawW;
+
+    if (drawH > usableH) {
+      const ratio = canvas.width / drawW;
+      const pageCanvasH = usableH * ratio;
+      let offset = 0;
+      while (offset < canvas.height) {
+        if (cursorY > margin) { pdf.addPage(); cursorY = margin; }
+        const sliceH = Math.min(pageCanvasH, canvas.height - offset);
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width; slice.height = sliceH;
+        const ctx = slice.getContext("2d")!;
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, offset, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const imgH = sliceH / ratio;
+        pdf.addImage(slice.toDataURL("image/png"), "PNG", margin, cursorY, drawW, imgH);
+        cursorY += imgH;
+        offset += sliceH;
+        if (offset < canvas.height) { pdf.addPage(); cursorY = margin; }
+      }
+      continue;
+    }
+    if (drawH > (pageH - margin - footerH) - cursorY && cursorY > margin) {
+      pdf.addPage(); cursorY = margin;
+    }
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, cursorY, drawW, drawH);
+    cursorY += drawH + 4;
+  }
+  document.body.removeChild(container);
+
+  const totalPages = pdf.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    pdf.setPage(p);
+    pdf.setDrawColor(226, 232, 238);
+    pdf.setLineWidth(0.6);
+    pdf.line(margin, pageH - footerH, pageW - margin, pageH - footerH);
+    pdf.setFontSize(9);
+    pdf.setTextColor(107, 122, 134);
+    pdf.text(opts.branchName, margin, pageH - 10);
+    pdf.text(`صفحة ${p} من ${totalPages}`, pageW - margin, pageH - 10, { align: "right" });
+  }
+  pdf.save(opts.fileName);
+}
+
+// small reusable pieces for return/transfer cards
+function kv(label: string, value: string, color = C.ink) {
+  return `<div style="display:flex;gap:6px;align-items:baseline;">
+    <span style="color:${C.muted};font-size:11px;">${label}:</span>
+    <span style="color:${color};font-size:12px;font-weight:700;">${value}</span>
+  </div>`;
+}
+function pill(text: string, color: string, bg: string) {
+  return `<span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${text}</span>`;
+}
+
+// ============================================================================
+// ========================  SALE RETURNS REPORT  =============================
+// ============================================================================
+
+function saleReturnCardHtml(r: { ret: any; items: any[] }) {
+  const cancelled = r.ret.status === "cancelled";
+  const method = PAY_LABELS[r.ret.refund_method] ?? r.ret.refund_method ?? "—";
+  const customer = r.ret.invoices?.contacts?.name ?? "عميل نقدي";
+  const phone = r.ret.invoices?.contacts?.phone ?? "";
+  const invNo = r.ret.invoices?.invoice_number ?? "—";
+  const totalQty = r.items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+  const total = Number(r.ret.total_refund || 0);
+
+  const rows = r.items.map((it) => {
+    const q = Number(it.quantity || 0);
+    const tot = Number(it.refund || 0);
+    const unit = q > 0 ? tot / q : 0;
+    return `<tr>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.products?.name ?? "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${it.products?.sku ?? "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(unit)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.warn};white-space:nowrap;">${fmtNum(tot)}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;margin-bottom:18px;background:${C.cardBg};${cancelled ? "opacity:0.75;" : ""}page-break-inside:avoid;">
+      <div style="padding:14px 18px;background:${C.softBg};border-bottom:1px solid ${C.border};display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 20px;">
+        ${kv("رقم المرتجع", r.ret.return_number ?? "—", C.ink)}
+        ${kv("الفاتورة الأصلية", invNo)}
+        ${kv("تاريخ المرتجع", fmtDate(r.ret.invoice_date || r.ret.created_at))}
+        ${kv("العميل", customer)}
+        ${kv("تليفون", phone || "—")}
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="color:${C.muted};font-size:11px;">طريقة الاسترداد:</span>
+          ${pill(method, C.warn, "#fff7ed")}
+          ${cancelled ? pill("ملغي", C.bad, "#fee2e2") : ""}
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:${C.ink};">
+            <th style="padding:11px 12px;text-align:right;color:#fff;font-size:11px;font-weight:700;">اسم الصنف</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:100px;">الكود</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">الكمية</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:110px;">سعر الوحدة</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:120px;">قيمة الاسترداد</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="5" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد أصناف</td></tr>`}
+          <tr style="background:${C.accentSoft};">
+            <td colspan="2" style="padding:11px 12px;border-top:2px solid ${C.ink};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">إجمالي المرتجع</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};">${fmtNum(totalQty)}</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;color:${C.muted};">—</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.warn};white-space:nowrap;">${fmtNum(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${r.ret.reason}</div>` : ""}
+    </div>
+  `;
+}
+
+export type SaleReturnsReportInput = {
+  branchName: string;
+  returns: any[];
+  filters: { from?: string; to?: string };
+  userName: string;
+};
+export async function generateSaleReturnsReport(input: SaleReturnsReportInput): Promise<void> {
+  const t1 = toast.loading("⏳ جاري تحضير البيانات...");
+  try {
+    const ids = input.returns.map((r) => r.id);
+    const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+    const batches = ids.length
+      ? await Promise.all(chunk(ids, 100).map((xs) => supabase.from("return_items").select("*, products(name, sku)").in("return_id", xs)))
+      : [];
+    const allItems: any[] = batches.flatMap((b) => b.data ?? []);
+    const byRet = new Map<string, any[]>();
+    allItems.forEach((it) => { const arr = byRet.get(it.return_id) ?? []; arr.push(it); byRet.set(it.return_id, arr); });
+    toast.dismiss(t1);
+    const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+
+    let totalRefund = 0, totalQty = 0, cancelledCount = 0;
+    const rows = input.returns.map((ret) => {
+      const items = byRet.get(ret.id) ?? [];
+      if (ret.status !== "cancelled") totalRefund += Number(ret.total_refund || 0);
+      else cancelledCount++;
+      totalQty += items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+      return { ret, items };
+    });
+
+    const header = headerHtml({ title: "تقرير تفصيلي بمرتجعات البيع", branchName: input.branchName, userName: input.userName, fromDate: input.filters.from, toDate: input.filters.to });
+    const summary = sectionTitle("ملخص مرتجعات البيع") + kpiCardsHtml([
+      { label: "عدد المرتجعات", value: fmtNum(input.returns.length) },
+      { label: "إجمالي قيمة الاسترداد", value: fmtEGP(totalRefund), highlight: true, color: C.warn },
+      { label: "إجمالي الأصناف المرتجعة", value: fmtNum(totalQty) },
+      { label: "متوسط قيمة المرتجع", value: input.returns.length ? fmtEGP(totalRefund / Math.max(1, input.returns.length - cancelledCount)) : fmtEGP(0) },
+      { label: "مرتجعات نشطة", value: fmtNum(input.returns.length - cancelledCount), color: C.good },
+      { label: "مرتجعات ملغاة", value: fmtNum(cancelledCount), color: cancelledCount > 0 ? C.bad : C.muted },
+    ]);
+    const details = sectionTitle("تفاصيل المرتجعات");
+    const empty = `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد مرتجعات في الفترة المحددة</div>`;
+    const html = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="summary">${summary}</div>`,
+      `<div data-pdf-section="details-title">${details}</div>`,
+      ...(rows.length ? rows.map((r) => `<div data-pdf-section="return" style="margin-bottom:14px;">${saleReturnCardHtml(r)}</div>`) : [`<div data-pdf-section="empty">${empty}</div>`]),
+    ].join("");
+
+    await renderSectionsToPdf({ sectionsHtml: html, branchName: input.branchName, fileName: `تقرير-مرتجعات-البيع-${input.branchName}-${input.filters.from || "الكل"}-${input.filters.to || "الكل"}.pdf` });
+    toast.dismiss(t2);
+    toast.success("✅ تم إنشاء التقرير بنجاح");
+  } catch (e: any) {
+    console.error("[generateSaleReturnsReport]", e);
+    toast.dismiss();
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  }
+}
+
+// ============================================================================
+// =======================  PURCHASE RETURNS REPORT  ==========================
+// ============================================================================
+
+function purchaseReturnCardHtml(r: { ret: any; items: any[] }) {
+  const cancelled = r.ret.status === "cancelled";
+  const method = PAY_LABELS[r.ret.refund_method] ?? r.ret.refund_method ?? "—";
+  const totalQty = r.items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+  const total = Number(r.ret.total_amount || 0);
+
+  const rows = r.items.map((it) => {
+    const q = Number(it.quantity || 0);
+    const uc = Number(it.unit_cost || 0);
+    const tot = Number(it.total || uc * q);
+    return `<tr>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${it.products?.sku ?? "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(uc)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.warn};white-space:nowrap;">${fmtNum(tot)}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;margin-bottom:18px;background:${C.cardBg};${cancelled ? "opacity:0.75;" : ""}page-break-inside:avoid;">
+      <div style="padding:14px 18px;background:${C.softBg};border-bottom:1px solid ${C.border};display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 20px;">
+        ${kv("رقم المرتجع", r.ret.return_number ?? "—", C.ink)}
+        ${kv("المورد", r.ret.contacts?.name ?? "—")}
+        ${kv("تاريخ المرتجع", fmtDate(r.ret.invoice_date || r.ret.created_at))}
+        ${kv("الشحنة الأصلية", r.ret.shipments?.shipment_number ?? "—")}
+        ${kv("تليفون المورد", r.ret.contacts?.phone ?? "—")}
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="color:${C.muted};font-size:11px;">طريقة الاسترداد:</span>
+          ${pill(method, C.warn, "#fff7ed")}
+          ${cancelled ? pill("ملغي", C.bad, "#fee2e2") : ""}
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:${C.ink};">
+            <th style="padding:11px 12px;text-align:right;color:#fff;font-size:11px;font-weight:700;">اسم الصنف</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:100px;">الكود</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">الكمية</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:110px;">سعر التكلفة</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:120px;">قيمة الاسترداد</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="5" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد أصناف</td></tr>`}
+          <tr style="background:${C.accentSoft};">
+            <td colspan="2" style="padding:11px 12px;border-top:2px solid ${C.ink};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">إجمالي المرتجع</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};">${fmtNum(totalQty)}</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;color:${C.muted};">—</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.warn};white-space:nowrap;">${fmtNum(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${r.ret.reason}</div>` : ""}
+    </div>
+  `;
+}
+
+export type PurchaseReturnsReportInput = {
+  branchName: string;
+  returns: any[];
+  filters: { from?: string; to?: string };
+  userName: string;
+};
+export async function generatePurchaseReturnsReport(input: PurchaseReturnsReportInput): Promise<void> {
+  const t1 = toast.loading("⏳ جاري تحضير البيانات...");
+  try {
+    const ids = input.returns.map((r) => r.id);
+    const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+    const shipIds = Array.from(new Set(input.returns.map((r) => r.shipment_id).filter(Boolean)));
+    const [itemBatches, shipmentsRes] = await Promise.all([
+      ids.length ? Promise.all(chunk(ids, 100).map((xs) => supabase.from("purchase_return_items").select("*, products(sku)").in("purchase_return_id", xs))) : Promise.resolve([]),
+      shipIds.length ? supabase.from("shipments").select("id, shipment_number").in("id", shipIds) : Promise.resolve({ data: [] } as any),
+    ]);
+    const allItems: any[] = (itemBatches as any[]).flatMap((b) => b.data ?? []);
+    const byRet = new Map<string, any[]>();
+    allItems.forEach((it) => { const arr = byRet.get(it.purchase_return_id) ?? []; arr.push(it); byRet.set(it.purchase_return_id, arr); });
+    const shipMap = new Map<string, any>();
+    ((shipmentsRes as any).data ?? []).forEach((s: any) => shipMap.set(s.id, s));
+
+    toast.dismiss(t1);
+    const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+
+    let totalAmount = 0, totalQty = 0, cancelledCount = 0;
+    const rows = input.returns.map((ret) => {
+      const items = byRet.get(ret.id) ?? [];
+      if (ret.status !== "cancelled") totalAmount += Number(ret.total_amount || 0);
+      else cancelledCount++;
+      totalQty += items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+      const enriched = { ...ret, shipments: shipMap.get(ret.shipment_id) ?? ret.shipments };
+      return { ret: enriched, items };
+    });
+
+    const header = headerHtml({ title: "تقرير تفصيلي بمرتجعات الشراء", branchName: input.branchName, userName: input.userName, fromDate: input.filters.from, toDate: input.filters.to });
+    const summary = sectionTitle("ملخص مرتجعات الشراء") + kpiCardsHtml([
+      { label: "عدد المرتجعات", value: fmtNum(input.returns.length) },
+      { label: "إجمالي قيمة الاسترداد", value: fmtEGP(totalAmount), highlight: true, color: C.warn },
+      { label: "إجمالي الأصناف المرتجعة", value: fmtNum(totalQty) },
+      { label: "متوسط قيمة المرتجع", value: (input.returns.length - cancelledCount) > 0 ? fmtEGP(totalAmount / (input.returns.length - cancelledCount)) : fmtEGP(0) },
+      { label: "مرتجعات نشطة", value: fmtNum(input.returns.length - cancelledCount), color: C.good },
+      { label: "مرتجعات ملغاة", value: fmtNum(cancelledCount), color: cancelledCount > 0 ? C.bad : C.muted },
+    ]);
+    const details = sectionTitle("تفاصيل المرتجعات");
+    const empty = `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد مرتجعات في الفترة المحددة</div>`;
+    const html = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="summary">${summary}</div>`,
+      `<div data-pdf-section="details-title">${details}</div>`,
+      ...(rows.length ? rows.map((r) => `<div data-pdf-section="return" style="margin-bottom:14px;">${purchaseReturnCardHtml(r)}</div>`) : [`<div data-pdf-section="empty">${empty}</div>`]),
+    ].join("");
+
+    await renderSectionsToPdf({ sectionsHtml: html, branchName: input.branchName, fileName: `تقرير-مرتجعات-الشراء-${input.branchName}-${input.filters.from || "الكل"}-${input.filters.to || "الكل"}.pdf` });
+    toast.dismiss(t2);
+    toast.success("✅ تم إنشاء التقرير بنجاح");
+  } catch (e: any) {
+    console.error("[generatePurchaseReturnsReport]", e);
+    toast.dismiss();
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  }
+}
+
+// ============================================================================
+// =======================  STOCK TRANSFERS REPORT  ===========================
+// ============================================================================
+
+function transferGroupCardHtml(g: {
+  rows: any[]; fromName: string; toName: string; createdAt: string; reason: string | null;
+}) {
+  const totalQtyReq = g.rows.reduce((s, r) => s + Number(r.quantity || 0), 0);
+  const totalQtyRec = g.rows.reduce((s, r) => s + Number(r.received_quantity ?? r.quantity ?? 0), 0);
+  const totalValue = g.rows.reduce((s, r) => s + Number(r.total_value_at_transfer ?? (Number(r.cost_price_at_transfer || 0) * Number(r.quantity || 0))), 0);
+  const pending = g.rows.filter((r) => r.status === "pending").length;
+  const confirmed = g.rows.filter((r) => r.status === "confirmed").length;
+  const rejected = g.rows.filter((r) => r.status === "rejected").length;
+
+  const statusPill = (s: string) =>
+    s === "confirmed" ? pill("تم الاستلام", C.good, "#ecfdf5")
+    : s === "rejected" ? pill("مرفوض", C.bad, "#fee2e2")
+    : pill("قيد الانتظار", C.warn, "#fff7ed");
+
+  const rowsHtml = g.rows.map((r) => {
+    const q = Number(r.quantity || 0);
+    const rec = Number(r.received_quantity ?? 0);
+    const uc = Number(r.cost_price_at_transfer || 0);
+    const val = Number(r.total_value_at_transfer ?? uc * q);
+    return `<tr>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${r.products?.name ?? "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${rec === q ? C.good : rec === 0 ? C.bad : C.warn};font-weight:700;white-space:nowrap;">${r.status === "pending" ? "—" : fmtNum(rec)}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${uc > 0 ? fmtNum(uc) : "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.ink};white-space:nowrap;">${val > 0 ? fmtNum(val) : "—"}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;white-space:nowrap;">${statusPill(r.status)}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;margin-bottom:18px;background:${C.cardBg};page-break-inside:avoid;">
+      <div style="padding:14px 18px;background:${C.softBg};border-bottom:1px solid ${C.border};display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 20px;">
+        ${kv("من فرع", g.fromName || "—", C.ink)}
+        ${kv("إلى فرع", g.toName || "—", C.accent)}
+        ${kv("التاريخ", fmtDate(g.createdAt))}
+        ${kv("عدد الأصناف", fmtNum(g.rows.length))}
+        ${kv("قيد الانتظار / مستلم / مرفوض", `${pending} / ${confirmed} / ${rejected}`)}
+        ${kv("إجمالي قيمة النقل", fmtEGP(totalValue), C.accent)}
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:${C.ink};">
+            <th style="padding:11px 12px;text-align:right;color:#fff;font-size:11px;font-weight:700;">اسم الصنف</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">الكمية المرسلة</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">المستلم فعلياً</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:100px;">تكلفة الوحدة</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:110px;">قيمة الصنف</th>
+            <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:110px;">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          <tr style="background:${C.accentSoft};">
+            <td style="padding:11px 12px;border-top:2px solid ${C.ink};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">الإجمالي</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};">${fmtNum(totalQtyReq)}</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};">${fmtNum(totalQtyRec)}</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;color:${C.muted};">—</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.accent};white-space:nowrap;">${fmtNum(totalValue)}</td>
+            <td style="padding:11px 8px;border-top:2px solid ${C.ink};"></td>
+          </tr>
+        </tbody>
+      </table>
+      ${g.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${g.reason}</div>` : ""}
+    </div>
+  `;
+}
+
+export type StockTransfersReportInput = {
+  branchId: string;
+  branchName: string;
+  transfers: any[]; // individual transfer rows (with group_id)
+  branchNames: Record<string, string>;
+  filters: { from?: string; to?: string };
+  userName: string;
+};
+export async function generateStockTransfersReport(input: StockTransfersReportInput): Promise<void> {
+  const t1 = toast.loading("⏳ جاري تحضير البيانات...");
+  try {
+    // Enrich with product names if missing
+    const productIds = Array.from(new Set(input.transfers.map((t) => t.product_id).filter(Boolean)));
+    const productMap = new Map<string, any>();
+    if (productIds.length) {
+      const { data } = await supabase.from("products").select("id, name").in("id", productIds);
+      (data ?? []).forEach((p: any) => productMap.set(p.id, p));
+    }
+    const enriched = input.transfers.map((t) => ({
+      ...t,
+      products: t.products ?? productMap.get(t.product_id) ?? null,
+    }));
+
+    // Group by group_id (fallback single)
+    const groups = new Map<string, any[]>();
+    for (const t of enriched) {
+      const key = t.group_id ?? `single-${t.id}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(t);
+    }
+    const gList = Array.from(groups.entries()).map(([key, rows]) => ({
+      key, rows,
+      fromName: input.branchNames[rows[0].from_branch_id] ?? "—",
+      toName: input.branchNames[rows[0].to_branch_id] ?? "—",
+      createdAt: rows[0].created_at,
+      reason: rows[0].reason,
+    })).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+    toast.dismiss(t1);
+    const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+
+    let totalValue = 0, totalItems = 0, pending = 0, confirmed = 0, rejected = 0, incomingCount = 0, outgoingCount = 0;
+    for (const t of enriched) {
+      const q = Number(t.quantity || 0);
+      const uc = Number(t.cost_price_at_transfer || 0);
+      const val = Number(t.total_value_at_transfer ?? uc * q);
+      totalValue += val;
+      totalItems += q;
+      if (t.status === "pending") pending++;
+      else if (t.status === "confirmed") confirmed++;
+      else if (t.status === "rejected") rejected++;
+      if (t.to_branch_id === input.branchId) incomingCount++;
+      if (t.from_branch_id === input.branchId) outgoingCount++;
+    }
+
+    const header = headerHtml({ title: "تقرير تفصيلي بتحويلات المخازن", branchName: input.branchName, userName: input.userName, fromDate: input.filters.from, toDate: input.filters.to });
+    const summary = sectionTitle("ملخص تحويلات المخازن") + kpiCardsHtml([
+      { label: "عدد المجموعات", value: fmtNum(gList.length) },
+      { label: "إجمالي عدد الأصناف المحوّلة", value: fmtNum(enriched.length) },
+      { label: "إجمالي الكميات", value: fmtNum(totalItems) },
+      { label: "إجمالي قيمة النقل", value: fmtEGP(totalValue), highlight: true, color: C.accent },
+      { label: "تحويلات صادرة", value: fmtNum(outgoingCount) },
+      { label: "تحويلات واردة", value: fmtNum(incomingCount) },
+      { label: "قيد الانتظار", value: fmtNum(pending), color: pending > 0 ? C.warn : C.muted },
+      { label: "تم الاستلام", value: fmtNum(confirmed), color: C.good },
+      { label: "مرفوض", value: fmtNum(rejected), color: rejected > 0 ? C.bad : C.muted },
+    ]);
+    const details = sectionTitle("تفاصيل التحويلات");
+    const empty = `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد تحويلات في الفترة المحددة</div>`;
+    const html = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="summary">${summary}</div>`,
+      `<div data-pdf-section="details-title">${details}</div>`,
+      ...(gList.length ? gList.map((g) => `<div data-pdf-section="transfer" style="margin-bottom:14px;">${transferGroupCardHtml(g)}</div>`) : [`<div data-pdf-section="empty">${empty}</div>`]),
+    ].join("");
+
+    await renderSectionsToPdf({ sectionsHtml: html, branchName: input.branchName, fileName: `تقرير-تحويلات-المخازن-${input.branchName}-${input.filters.from || "الكل"}-${input.filters.to || "الكل"}.pdf` });
+    toast.dismiss(t2);
+    toast.success("✅ تم إنشاء التقرير بنجاح");
+  } catch (e: any) {
+    console.error("[generateStockTransfersReport]", e);
+    toast.dismiss();
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  }
+}
+
