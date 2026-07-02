@@ -106,16 +106,22 @@ export default function BranchDashboard() {
       value,
     })));
 
-    const dayMap: Record<string, number> = {};
+    const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const dayMap: Record<string, { date: string; displayDate: string; total: number }> = {};
     for (let i = 0; i < 30; i++) {
       const d = new Date(last30); d.setDate(d.getDate() + i);
-      dayMap[d.toISOString().slice(5, 10)] = 0;
+      const key = d.toISOString().slice(5, 10);
+      dayMap[key] = {
+        date: key,
+        displayDate: `${d.getDate()} ${monthNames[d.getMonth()]}`,
+        total: 0,
+      };
     }
     (invLast30.data ?? []).forEach((x: any) => {
       const k = x.created_at.slice(5, 10);
-      if (k in dayMap) dayMap[k] += netInvoiceTotal(x);
+      if (k in dayMap) dayMap[k].total += netInvoiceTotal(x);
     });
-    setSalesByDay(Object.entries(dayMap).map(([date, total]) => ({ date, total })));
+    setSalesByDay(Object.values(dayMap).map((d) => ({ date: d.date, displayDate: d.displayDate, total: d.total })));
 
     const prodMap: Record<string, { name: string; qty: number; revenue: number }> = {};
     (invItemsToday.data ?? []).forEach((it: any) => {
