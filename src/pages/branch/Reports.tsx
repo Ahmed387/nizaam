@@ -12,7 +12,9 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
-import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw } from "lucide-react";
+import { generateProfitReport } from "@/utils/generatePDFReport";
+import { useAuth } from "@/contexts/AuthContext";
+import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
@@ -25,6 +27,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 
 export default function BranchReports() {
   const { id: branchId } = useParams<{ id: string }>();
+  const { tenantId, profile } = useAuth();
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);
@@ -160,7 +163,18 @@ export default function BranchReports() {
         title="تقارير الفرع"
         subtitle={`${from} → ${to}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="default"
+              onClick={() => tenantId && branchId && generateProfitReport({
+                tenantId, branchId, branchName, from, to,
+                userName: profile?.name ?? "—",
+              })}
+              disabled={!tenantId || !branchId}
+              className="gap-2"
+            >
+              <FileText className="w-4 h-4" /> تقرير ربحية PDF
+            </Button>
             <Button variant="outline" onClick={exportXlsx} className="gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
             <Button onClick={printSummary} className="gap-2"><Printer className="w-4 h-4" /> طباعة / PDF</Button>
           </div>

@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft, FileText } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { lineProfit } from "@/lib/profitEngine";
 import { ReportIntro } from "@/components/ReportIntro";
 import { StatCard } from "@/components/StatCard";
+import { generateProfitReport } from "@/utils/generatePDFReport";
 
 interface Row {
   product_id: string | null;
@@ -49,7 +50,7 @@ interface InvRow {
 
 export default function ProfitabilityReport({ embedded }: { embedded?: boolean } = {}) {
   const Wrapper: any = embedded ? Fragment : AdminLayout;
-  const { tenantId } = useAuth();
+  const { tenantId, profile } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
@@ -220,7 +221,25 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
 
   return (
     <Wrapper>
-      <PageHeader title="تقرير الربحية" subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع" />
+      <PageHeader
+        title="تقرير الربحية"
+        subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع"
+        actions={
+          <Button
+            onClick={() => tenantId && generateProfitReport({
+              tenantId,
+              branchId: branchId || null,
+              branchName: branchId ? (branches.find((b) => b.id === branchId)?.name ?? "—") : "كل الفروع",
+              from, to,
+              userName: profile?.name ?? "—",
+            })}
+            disabled={!tenantId}
+            className="gap-2"
+          >
+            <FileText className="w-4 h-4" /> تحميل PDF الربحية
+          </Button>
+        }
+      />
       <ReportIntro
         icon="📊"
         title="تقرير الربحية — المحاسبة الدقيقة"
