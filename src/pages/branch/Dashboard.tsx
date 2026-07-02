@@ -106,16 +106,22 @@ export default function BranchDashboard() {
       value,
     })));
 
-    const dayMap: Record<string, number> = {};
+    const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const dayMap: Record<string, { date: string; displayDate: string; total: number }> = {};
     for (let i = 0; i < 30; i++) {
       const d = new Date(last30); d.setDate(d.getDate() + i);
-      dayMap[d.toISOString().slice(5, 10)] = 0;
+      const key = d.toISOString().slice(5, 10);
+      dayMap[key] = {
+        date: key,
+        displayDate: `${d.getDate()} ${monthNames[d.getMonth()]}`,
+        total: 0,
+      };
     }
     (invLast30.data ?? []).forEach((x: any) => {
       const k = x.created_at.slice(5, 10);
-      if (k in dayMap) dayMap[k] += netInvoiceTotal(x);
+      if (k in dayMap) dayMap[k].total += netInvoiceTotal(x);
     });
-    setSalesByDay(Object.entries(dayMap).map(([date, total]) => ({ date, total })));
+    setSalesByDay(Object.values(dayMap).map((d) => ({ date: d.date, displayDate: d.displayDate, total: d.total })));
 
     const prodMap: Record<string, { name: string; qty: number; revenue: number }> = {};
     (invItemsToday.data ?? []).forEach((it: any) => {
@@ -303,7 +309,7 @@ export default function BranchDashboard() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
-                dataKey="date"
+                dataKey="displayDate"
                 tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
                 tickMargin={10}
                 axisLine={{ stroke: "hsl(var(--border))" }}
@@ -322,7 +328,8 @@ export default function BranchDashboard() {
               <Tooltip
                 contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}
                 labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
-                formatter={(v: any) => [formatEGP(Number(v)), "المبيعات"]}
+                formatter={(v: any) => [formatEGP(Number(v)), "إجمالي المبيعات"]}
+                labelFormatter={(label: string) => `📅 ${label}`}
                 cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 1, strokeDasharray: "4 4" }}
               />
               <Area
