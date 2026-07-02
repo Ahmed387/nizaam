@@ -322,15 +322,15 @@ export default function Invoices() {
       case "sale": return {
         newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
-          { key: "invoice_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
-            <span className="flex items-center justify-end gap-1.5">
+          { key: "invoice_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
+            <span className="flex items-center justify-center gap-1.5">
               <span className="font-mono text-primary font-semibold">{r.invoice_number}</span>
             </span>
           ) },
-          { key: "customer", header: "العميل", align: "right", render: (r: any) => r.contacts?.name ?? "نقدي" },
-          { key: "total", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
+          { key: "customer", header: "العميل", align: "center", render: (r: any) => r.contacts?.name ?? "نقدي" },
+          { key: "total", header: "المبلغ", align: "center", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
-          { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", width: "10rem", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
