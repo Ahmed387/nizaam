@@ -27,6 +27,9 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 
 export default function BranchReports() {
   const { id: branchId } = useParams<{ id: string }>();
+export default function BranchReports() {
+  const { id: branchId } = useParams<{ id: string }>();
+  const { tenantId, user, profile } = useAuth();
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);
