@@ -29,35 +29,55 @@ const C = {
 // produces the "disconnected letters" look. We inject Cairo from Google Fonts once
 // and wait for it to load before rendering.
 let __arabicFontPromise: Promise<void> | null = null;
+async function fetchAsDataUrl(url: string, mime: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    let binary = ""; const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return `data:${mime};base64,${btoa(binary)}`;
+  } catch { return null; }
+}
 function ensureArabicFont(): Promise<void> {
   if (__arabicFontPromise) return __arabicFontPromise;
-  __arabicFontPromise = new Promise<void>((resolve) => {
-    try {
-      const HREF = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap";
-      if (!document.querySelector(`link[data-arabic-font="cairo"]`)) {
-        const pre1 = document.createElement("link");
-        pre1.rel = "preconnect"; pre1.href = "https://fonts.googleapis.com";
-        document.head.appendChild(pre1);
-        const pre2 = document.createElement("link");
-        pre2.rel = "preconnect"; pre2.href = "https://fonts.gstatic.com"; pre2.crossOrigin = "anonymous";
-        document.head.appendChild(pre2);
-        const link = document.createElement("link");
-        link.rel = "stylesheet"; link.href = HREF;
-        link.setAttribute("data-arabic-font", "cairo");
-        document.head.appendChild(link);
-      }
-      const fonts: any = (document as any).fonts;
-      if (fonts?.load) {
-        Promise.all([
-          fonts.load('400 14px "Cairo"'),
-          fonts.load('700 14px "Cairo"'),
-          fonts.load('800 20px "Cairo"'),
-        ]).then(() => resolve()).catch(() => resolve());
-      } else {
-        setTimeout(resolve, 1200);
-      }
-    } catch { resolve(); }
-  });
+  __arabicFontPromise = (async () => {
+    if (document.querySelector('style[data-arabic-font="cairo-inline"]')) return;
+    // Use a stable Google Fonts mirror on jsdelivr — TTF files with full Arabic shaping.
+    // Base64-inlined so html2canvas sees a self-contained font (no async network fetch during raster).
+    const base = "https://cdn.jsdelivr.net/gh/google/fonts/ofl/cairo/static";
+    const files: { weight: number; file: string }[] = [
+      { weight: 400, file: "Cairo-Regular.ttf" },
+      { weight: 600, file: "Cairo-SemiBold.ttf" },
+      { weight: 700, file: "Cairo-Bold.ttf" },
+      { weight: 800, file: "Cairo-ExtraBold.ttf" },
+    ];
+    const results = await Promise.all(
+      files.map((f) => fetchAsDataUrl(`${base}/${f.file}`, "font/ttf").then((u) => ({ ...f, url: u })))
+    );
+    const faces = results
+      .filter((r) => r.url)
+      .map((r) => `@font-face{font-family:'CairoPDF';font-style:normal;font-weight:${r.weight};font-display:block;src:url(${r.url}) format('truetype');}`)
+      .join("\n");
+    if (!faces) return; // network failure — will fall back to system fonts
+    const style = document.createElement("style");
+    style.setAttribute("data-arabic-font", "cairo-inline");
+    style.textContent = faces;
+    document.head.appendChild(style);
+    const fonts: any = (document as any).fonts;
+    if (fonts?.load) {
+      try {
+        await Promise.all([
+          fonts.load('400 14px "CairoPDF"'),
+          fonts.load('700 14px "CairoPDF"'),
+          fonts.load('800 22px "CairoPDF"'),
+        ]);
+        if (fonts.ready) await fonts.ready;
+      } catch {}
+    } else {
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  })();
   return __arabicFontPromise;
 }
 
