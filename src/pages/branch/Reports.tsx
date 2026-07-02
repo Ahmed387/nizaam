@@ -73,7 +73,7 @@ export default function BranchReports() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [branchId]);
+  useEffect(() => { load(); }, [branchId, from, to]);
   useRealtimeRefresh(["invoices", "invoice_items", "returns", "return_items", "products", "vouchers"], load);
 
   const activeInv = invoices.filter((i) => i.status === "active");
