@@ -132,7 +132,11 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
               p.entity_type === "supplier" ? `/branch/${p.branch_id}/suppliers/${p.entity_id}` :
               `/admin/employees/${p.entity_id}`;
             return (
-              <tr key={p.id} className="border-t hover:bg-surface-2/50">
+              <tr
+                key={p.id}
+                className="border-t hover:bg-surface-2/50 cursor-pointer"
+                onClick={() => navigate(link)}
+              >
                 <td className="px-3 py-2 font-medium">{p.entity_name}</td>
                 <td className="px-3 py-2 text-muted-foreground">{branches[p.branch_id] ?? "—"}</td>
                 <td className="px-3 py-2">
@@ -153,7 +157,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
                   ) : <span className="text-xs text-muted-foreground">—</span>}
                 </td>
                 <td className="px-3 py-2 text-left">
-                  <Button asChild size="sm" variant="outline">
+                  <Button asChild size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
                     <Link to={link}>فتح</Link>
                   </Button>
                 </td>
