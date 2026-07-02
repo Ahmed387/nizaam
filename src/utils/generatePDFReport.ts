@@ -152,9 +152,9 @@ function kpiCardsHtml(cards: Card[]) {
           const border = c.highlight ? C.accent : C.border;
           const valColor = c.color ?? (c.highlight ? C.accent : C.ink);
           return `
-            <div style="border:1px solid ${border};background:${bg};border-radius:10px;padding:16px 18px;min-height:74px;">
-              <div style="font-size:11px;color:${C.muted};margin-bottom:8px;text-align:center;">${c.label}</div>
-              <div style="font-size:17px;font-weight:800;color:${valColor};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.value}</div>
+            <div style="border:1px solid ${border};background:${bg};border-radius:10px;padding:18px 14px;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+              <div style="font-size:12px;color:${C.muted};margin-bottom:10px;font-weight:600;line-height:1.3;">${c.label}</div>
+              <div style="font-size:19px;font-weight:800;color:${valColor};line-height:1.2;direction:ltr;unicode-bidi:isolate;">${c.value}</div>
             </div>`;
         })
         .join("")}
