@@ -163,7 +163,18 @@ export default function BranchReports() {
         title="تقارير الفرع"
         subtitle={`${from} → ${to}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="default"
+              onClick={() => tenantId && branchId && generateProfitReport({
+                tenantId, branchId, branchName, from, to,
+                userName: profile?.name ?? "—",
+              })}
+              disabled={!tenantId || !branchId}
+              className="gap-2"
+            >
+              <FileText className="w-4 h-4" /> تقرير ربحية PDF
+            </Button>
             <Button variant="outline" onClick={exportXlsx} className="gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
             <Button onClick={printSummary} className="gap-2"><Printer className="w-4 h-4" /> طباعة / PDF</Button>
           </div>
