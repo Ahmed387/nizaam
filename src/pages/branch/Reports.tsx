@@ -227,19 +227,47 @@ export default function BranchReports() {
               <>
                 <div className="grid lg:grid-cols-2 gap-6">
                   <div className="card-elevated p-4">
-                    <h4 className="font-bold mb-3">المبيعات والأرباح اليومية</h4>
-                    <ResponsiveContainer width="100%" height={280}>
-                      <AreaChart data={dailyData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                        <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                        <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                        <Legend />
-                        <Area type="monotone" dataKey="sales" name="المبيعات" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
-                        <Area type="monotone" dataKey="profit" name="الربح" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.3} />
+                    <h4 className="font-bold mb-3 text-base">المبيعات والأرباح اليومية</h4>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <AreaChart data={dailyData} margin={{ top: 10, right: 24, left: 24, bottom: 8 }}>
+                        <defs>
+                          <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                          </linearGradient>
+                          <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.5} />
+                            <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.05} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 12, fill: "hsl(var(--foreground))", fontWeight: 500 }}
+                          tickMargin={10}
+                          axisLine={{ stroke: "hsl(var(--border))" }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12, fill: "hsl(var(--foreground))", fontWeight: 500 }}
+                          tickMargin={12}
+                          width={70}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+                        />
+                        <Tooltip
+                          formatter={(v: any) => formatEGP(Number(v))}
+                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
+                          labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 13, fontWeight: 600, paddingTop: 8 }} iconType="circle" />
+                        <Area type="monotone" dataKey="sales" name="المبيعات" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#salesGrad)" />
+                        <Area type="monotone" dataKey="profit" name="الربح" stroke="hsl(var(--success))" strokeWidth={2.5} fill="url(#profitGrad)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
+
 
                   <div className="card-elevated p-4">
                     <h4 className="font-bold mb-3">المصروفات حسب النوع</h4>
