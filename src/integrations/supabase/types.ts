@@ -2917,6 +2917,7 @@ export type Database = {
       stock_transfers: {
         Row: {
           confirmed_by: string | null
+          cost_price_at_transfer: number | null
           created_at: string
           from_branch_id: string
           group_id: string | null
@@ -2928,10 +2929,12 @@ export type Database = {
           status: Database["public"]["Enums"]["transfer_status"]
           tenant_id: string | null
           to_branch_id: string
+          total_value_at_transfer: number | null
           transferred_by: string
         }
         Insert: {
           confirmed_by?: string | null
+          cost_price_at_transfer?: number | null
           created_at?: string
           from_branch_id: string
           group_id?: string | null
@@ -2943,10 +2946,12 @@ export type Database = {
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
           to_branch_id: string
+          total_value_at_transfer?: number | null
           transferred_by: string
         }
         Update: {
           confirmed_by?: string | null
+          cost_price_at_transfer?: number | null
           created_at?: string
           from_branch_id?: string
           group_id?: string | null
@@ -2958,6 +2963,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
           to_branch_id?: string
+          total_value_at_transfer?: number | null
           transferred_by?: string
         }
         Relationships: [
