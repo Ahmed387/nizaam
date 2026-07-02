@@ -82,12 +82,17 @@ export default function Contacts() {
     if (filter !== "all") {
       r = r.filter((x) => x.type === filter || x.type === "both");
     }
-    if (balanceFilter !== "all") {
+    if (balanceFilters.length > 0) {
       r = r.filter((x) => {
         const b = Number(x.balance ?? 0);
-        if (balanceFilter === "owe_us") return b > 0.01;
-        if (balanceFilter === "we_owe") return b < -0.01;
-        return Math.abs(b) < 0.01;
+        const isOweUs = b > 0.01;
+        const isWeOwe = b < -0.01;
+        const isSettled = Math.abs(b) < 0.01;
+        return (
+          (balanceFilters.includes("owe_us") && isOweUs) ||
+          (balanceFilters.includes("we_owe") && isWeOwe) ||
+          (balanceFilters.includes("settled") && isSettled)
+        );
       });
     }
     if (search.trim()) {
@@ -99,7 +104,7 @@ export default function Contacts() {
       );
     }
     return r;
-  }, [rows, filter, balanceFilter, search]);
+  }, [rows, filter, balanceFilters, search]);
 
   const counts = useMemo(() => ({
     all: rows.length,
