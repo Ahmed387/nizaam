@@ -274,44 +274,55 @@ export default function BranchReports() {
                     {expensesData.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مصروفات</div>
                     ) : (
-                      <ResponsiveContainer width="100%" height={360}>
-                        <PieChart>
-                          <Pie
-                            data={expensesData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="45%"
-                            outerRadius={105}
-                            innerRadius={60}
-                            paddingAngle={2}
-                            labelLine={{ stroke: "hsl(var(--border))", strokeWidth: 1.5 }}
-                            label={({ name, value, percent }: any) => {
-                              const pct = (percent * 100).toFixed(0);
-                              return `${name} (${pct}%)`;
-                            }}
-                          >
-                            {expensesData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="hsl(var(--card))" strokeWidth={2} />)}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value: any, name: any, props: any) => {
-                              const total = expensesData.reduce((s, d) => s + d.value, 0);
-                              const pct = total ? ((Number(value) / total) * 100).toFixed(1) : "0";
-                              return [`${formatEGP(Number(value))} (${pct}%)`, name];
-                            }}
-                            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
-                            labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
-                          />
-                          <Legend
-                            verticalAlign="bottom"
-                            align="center"
-                            layout="horizontal"
-                            iconType="circle"
-                            wrapperStyle={{ fontSize: 13, fontWeight: 600, paddingTop: 12, direction: "rtl" }}
-                            formatter={(value: any) => <span className="text-foreground font-semibold">{value}</span>}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                        <ResponsiveContainer width="100%" height={280}>
+                          <PieChart>
+                            <Pie
+                              data={expensesData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              innerRadius={60}
+                              paddingAngle={2}
+                              label={false}
+                              labelLine={false}
+                            >
+                              {expensesData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="hsl(var(--card))" strokeWidth={2} />)}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value: any, name: any) => {
+                                const total = expensesData.reduce((s, d) => s + d.value, 0);
+                                const pct = total ? ((Number(value) / total) * 100).toFixed(1) : "0";
+                                return [`${formatEGP(Number(value))} (${pct}%)`, name];
+                              }}
+                              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
+                              labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto pr-2" dir="rtl">
+                          {(() => {
+                            const total = expensesData.reduce((s, d) => s + d.value, 0);
+                            return expensesData.map((d, i) => {
+                              const pct = total ? ((d.value / total) * 100).toFixed(1) : "0";
+                              return (
+                                <div key={i} className="flex items-center justify-between gap-3 p-2 rounded-lg bg-muted/40 border border-border/50">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                    <span className="font-semibold text-sm truncate">{d.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-xs text-muted-foreground font-bold">{pct}%</span>
+                                    <span className="text-sm font-bold">{formatEGP(d.value)}</span>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
