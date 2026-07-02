@@ -276,12 +276,7 @@ export default function Contacts() {
   return (
     <BranchLayout>
       <PageHeader
-        title="جهات التواصل"
-        subtitle={
-          counts.both > 0
-            ? `${counts.all} جهة • ${counts.customer - counts.both} عميل • ${counts.supplier - counts.both} مورد • ${counts.both} عميل ومورد`
-            : `${counts.all} جهة • ${counts.customer} عميل • ${counts.supplier} مورد`
-        }
+        title="الموردين والعملاء"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filtered.length} className="gap-2">
@@ -296,6 +291,14 @@ export default function Contacts() {
           </div>
         }
       />
+
+      <div className="mb-4 text-base sm:text-lg font-semibold text-foreground/90">
+        {counts.both > 0
+          ? <>إجمالي <span className="text-primary">{counts.all}</span> جهة • <span className="text-primary">{counts.customer - counts.both}</span> عميل • <span className="text-primary">{counts.supplier - counts.both}</span> مورد • <span className="text-primary">{counts.both}</span> عميل ومورد</>
+          : <>إجمالي <span className="text-primary">{counts.all}</span> جهة • <span className="text-primary">{counts.customer}</span> عميل • <span className="text-primary">{counts.supplier}</span> مورد</>
+        }
+      </div>
+
 
       {/* Balance KPIs (always reflect current filtered list) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
