@@ -332,11 +332,12 @@ export default function BranchReports() {
                   {topProducts.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={Math.max(400, topProducts.length * 60)}>
-                      <BarChart data={topProducts} layout="vertical" margin={{ top: 12, right: 80, bottom: 12, left: 24 }}>
+                    <div dir="ltr">
+                    <ResponsiveContainer width="100%" height={Math.max(420, topProducts.length * 64)}>
+                      <BarChart data={topProducts} layout="vertical" margin={{ top: 12, right: 120, bottom: 12, left: 12 }}>
                         <defs>
                           <linearGradient id="topProductsGradient" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.7} />
+                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.75} />
                             <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={1} />
                           </linearGradient>
                         </defs>
@@ -352,17 +353,17 @@ export default function BranchReports() {
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={220}
+                          width={260}
                           interval={0}
-                          tick={{ fontSize: 13, fill: "hsl(var(--foreground))", fontWeight: 600 }}
+                          tick={{ fontSize: 13, fill: "hsl(var(--foreground))", fontWeight: 600, textAnchor: "end" }}
                           tickMargin={12}
                           axisLine={false}
                           tickLine={false}
-                          tickFormatter={(v: any) => (typeof v === "string" && v.length > 28 ? v.slice(0, 28) + "…" : v)}
+                          tickFormatter={(v: any) => (typeof v === "string" && v.length > 30 ? v.slice(0, 30) + "…" : v)}
                         />
                         <Tooltip
                           formatter={(v: any) => formatEGP(Number(v))}
-                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
+                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600, direction: "rtl" }}
                           labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
                           cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.3 }}
                         />
@@ -376,12 +377,14 @@ export default function BranchReports() {
                           <LabelList
                             dataKey="revenue"
                             position="right"
+                            offset={10}
                             formatter={(v: number) => formatEGP(Number(v))}
                             style={{ fill: "hsl(var(--foreground))", fontSize: 12, fontWeight: 700 }}
                           />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
+                    </div>
                   )}
                 </div>
 
