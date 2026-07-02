@@ -33,7 +33,7 @@ export function ShiftEditor({ value, onChange, showTitle = true }: { value: Shif
     onChange({ ...value, work_days: Array.from(set).sort() });
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
       {showTitle && <div className="text-sm font-semibold">مواعيد العمل (الشيفت)</div>}
       <div className="grid grid-cols-2 gap-3">
         <div>
