@@ -358,14 +358,6 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
     document.body.removeChild(container);
 
     const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
-    container.innerHTML = header + cards + tableHtml + totalsHtml;
-    document.body.appendChild(container);
-
-    // Render → PDF
-    const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-    document.body.removeChild(container);
-
-    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24;
