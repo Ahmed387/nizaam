@@ -285,7 +285,7 @@ export default function BranchReports() {
                             outerRadius={105}
                             innerRadius={60}
                             paddingAngle={2}
-                            labelLine={{ stroke: "hsl(var(--border))", strokeWidth: 1.5, length: 18, length2: 12 }}
+                            labelLine={{ stroke: "hsl(var(--border))", strokeWidth: 1.5 }}
                             label={({ name, value, percent }: any) => {
                               const pct = (percent * 100).toFixed(0);
                               return `${name} (${pct}%)`;
