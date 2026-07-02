@@ -127,11 +127,12 @@ export default function BranchDashboard() {
     });
     setTopProducts(Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5));
 
-    const custMap: Record<string, { name: string; total: number }> = {};
+    const custMap: Record<string, { id: string | null; name: string; total: number }> = {};
     (invAll30.data ?? []).forEach((x: any) => {
+      const cid = x.contact_id || "__unknown__";
       const name = x.contacts?.name || "غير معروف";
-      if (!custMap[name]) custMap[name] = { name, total: 0 };
-      custMap[name].total += netInvoiceTotal(x);
+      if (!custMap[cid]) custMap[cid] = { id: x.contact_id ?? null, name, total: 0 };
+      custMap[cid].total += netInvoiceTotal(x);
     });
     setTopCustomers(Object.values(custMap).sort((a, b) => b.total - a.total).slice(0, 5));
   }, [id]);
