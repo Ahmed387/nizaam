@@ -726,17 +726,7 @@ async function renderSectionsToPdf(opts: {
   }
   document.body.removeChild(container);
 
-  const totalPages = pdf.getNumberOfPages();
-  for (let p = 1; p <= totalPages; p++) {
-    pdf.setPage(p);
-    pdf.setDrawColor(226, 232, 238);
-    pdf.setLineWidth(0.6);
-    pdf.line(margin, pageH - footerH, pageW - margin, pageH - footerH);
-    pdf.setFontSize(9);
-    pdf.setTextColor(107, 122, 134);
-    pdf.text(opts.branchName, margin, pageH - 10);
-    pdf.text(`صفحة ${p} من ${totalPages}`, pageW - margin, pageH - 10, { align: "right" });
-  }
+  // Footer removed intentionally — jsPDF cannot shape Arabic text.
   pdf.save(opts.fileName);
 }
 
