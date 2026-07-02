@@ -20,6 +20,7 @@ import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { generateShipmentsReport } from "@/utils/generatePDFReport";
 
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
