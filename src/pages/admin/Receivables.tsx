@@ -42,6 +42,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const [q, setQ] = useState("");
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
