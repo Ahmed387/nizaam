@@ -1,16 +1,27 @@
 /**
- * Shared PDF report generator (RTL Arabic).
- * Renders a hidden HTML report to a multi-page A4 PDF via html2canvas + jsPDF.
- *
- * Currently exposes:
- *  - generateSalesReport(): تقرير تفصيلي بالمبيعات
- *
- * Additional per-tab reports will be added here as prototypes are approved.
+ * Shared PDF report generator (RTL Arabic) — elegant card-style layout.
+ * Renders a hidden HTML report to a multi-page A4 (portrait) PDF via html2canvas + jsPDF.
  */
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+// ---------- theme ----------
+const C = {
+  ink: "#0f2c3f",        // deep navy for headings
+  text: "#1f3a4d",       // body text
+  muted: "#6b7a86",      // secondary labels
+  border: "#e2e8ee",     // hairline
+  accent: "#0f766e",     // teal accent (bar + highlighted values)
+  accentSoft: "#e6f4f1", // teal soft bg
+  good: "#0f766e",       // profit/paid
+  warn: "#c2410c",       // remaining
+  bad: "#b91c1c",        // cancelled/loss
+  cardBg: "#ffffff",
+  softBg: "#f8fafc",
+  pill: "#eef7f5",
+};
 
 // ---------- helpers ----------
 const fmtEGP = (n: number) =>
@@ -38,53 +49,143 @@ const PAY_LABELS: Record<string, string> = {
   bank_transfer: "تحويل بنكي", credit: "آجل", balance: "خصم من الرصيد",
 };
 
-// ---------- shared header/footer HTML ----------
+// ---------- header ----------
 function headerHtml(opts: {
-  tenantName: string; tenantLogo?: string | null; branchName: string;
-  title: string; fromDate?: string; toDate?: string; userName: string;
+  title: string; branchName: string; userName: string;
+  fromDate?: string; toDate?: string;
 }) {
   const period =
     opts.fromDate || opts.toDate
       ? `من ${opts.fromDate ? fmtDate(opts.fromDate) : "البداية"} إلى ${opts.toDate ? fmtDate(opts.toDate) : "اليوم"}`
-      : "كل الفترات المتاحة";
-  const logo = opts.tenantLogo
-    ? `<img src="${opts.tenantLogo}" crossorigin="anonymous" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #2d3748;background:#fff;" />`
-    : `<div style="width:56px;height:56px;border-radius:50%;background:#2d3748;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;">${(opts.tenantName || "?").slice(0, 1)}</div>`;
-
+      : "جميع الفترات المتاحة";
   return `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:10px;">
-      <div style="display:flex;gap:10px;align-items:center;">
-        ${logo}
-        <div>
-          <div style="font-size:16px;font-weight:800;color:#1a202c;">${opts.tenantName}</div>
-          <div style="font-size:11px;color:#4a5568;">فرع: ${opts.branchName}</div>
-        </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:14px;border-bottom:1px solid ${C.border};margin-bottom:22px;">
+      <div style="font-size:11px;color:${C.muted};line-height:2;text-align:right;min-width:220px;">
+        <div><b style="color:${C.text};">تاريخ التقرير:</b> ${fmtDateTime(new Date().toISOString())}</div>
+        <div><b style="color:${C.text};">المستخدم:</b> ${opts.userName}</div>
+        <div><b style="color:${C.text};">الفترة:</b> ${period}</div>
       </div>
-      <div style="text-align:center;flex:1;">
-        <div style="font-size:18px;font-weight:800;color:#1a202c;">${opts.title}</div>
-        <div style="font-size:11px;color:#4a5568;margin-top:2px;">الفترة: ${period}</div>
-      </div>
-      <div style="text-align:left;font-size:10px;color:#4a5568;line-height:1.6;">
-        <div>تاريخ الطباعة: ${fmtDateTime(new Date().toISOString())}</div>
-        <div>المستخدم: ${opts.userName}</div>
+      <div style="text-align:left;flex:1;">
+        <div style="font-size:24px;font-weight:800;color:${C.ink};letter-spacing:-0.3px;">${opts.title}</div>
+        <div style="font-size:13px;color:${C.accent};margin-top:6px;font-weight:600;">${opts.branchName}</div>
       </div>
     </div>
-    <div style="border-bottom:2px solid #2d3748;margin-bottom:12px;"></div>
   `;
 }
 
-function summaryCardsHtml(cards: { label: string; value: string; color?: string }[]) {
+// section title with accent bar (bar on right for RTL)
+function sectionTitle(text: string) {
   return `
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin:8px 0 14px;">
+      <div style="font-size:16px;font-weight:800;color:${C.ink};">${text}</div>
+      <div style="width:4px;height:22px;background:${C.accent};border-radius:2px;"></div>
+    </div>
+  `;
+}
+
+// ---------- KPI cards ----------
+type Card = { label: string; value: string; highlight?: boolean; color?: string };
+function kpiCardsHtml(cards: Card[]) {
+  return `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;">
       ${cards
-        .map(
-          (c) => `
-        <div style="border:1.5px solid #2d3748;border-radius:6px;padding:10px 12px;background:#fff;min-width:0;">
-          <div style="font-size:10px;color:#4a5568;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.label}</div>
-          <div style="font-size:13px;font-weight:800;color:${c.color ?? "#1a202c"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.value}</div>
-        </div>`
-        )
+        .map((c) => {
+          const bg = c.highlight ? C.accentSoft : C.softBg;
+          const border = c.highlight ? C.accent : C.border;
+          const valColor = c.color ?? (c.highlight ? C.accent : C.ink);
+          return `
+            <div style="border:1px solid ${border};background:${bg};border-radius:10px;padding:16px 18px;min-height:74px;">
+              <div style="font-size:11px;color:${C.muted};margin-bottom:8px;text-align:center;">${c.label}</div>
+              <div style="font-size:17px;font-weight:800;color:${valColor};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.value}</div>
+            </div>`;
+        })
         .join("")}
+    </div>
+  `;
+}
+
+// ---------- invoice card ----------
+function invoiceCardHtml(r: {
+  inv: any; items: any[]; paid: number; remaining: number; profit: number | null;
+}) {
+  const cancelled = r.inv.status === "cancelled";
+  const payLabel = PAY_LABELS[r.inv.payment_method] ?? r.inv.payment_method ?? "—";
+  const payColor = r.inv.payment_method === "credit" ? C.warn : C.accent;
+
+  const headerCell = (label: string, value: string, valueColor = C.ink) => `
+    <div style="display:flex;gap:6px;align-items:baseline;">
+      <span style="color:${C.muted};font-size:11px;">${label}:</span>
+      <span style="color:${valueColor};font-size:12px;font-weight:700;">${value}</span>
+    </div>`;
+
+  const payPill = `<span style="background:${C.pill};color:${payColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${payLabel}</span>`;
+
+  const itemsRows = r.items.map((it) => {
+    const q = Number(it.quantity || 0);
+    const up = Number(it.selling_price || 0);
+    const tot = Number(it.total || 0);
+    const uc = Number(it.unit_cost_at_sale || it.cost_price || 0);
+    const lineCost = uc * q;
+    const noCost = r.inv.is_migrated && uc === 0;
+    const lineProfit = noCost ? null : tot - lineCost;
+    const lpColor = lineProfit === null ? C.muted : lineProfit >= 0 ? C.good : C.bad;
+    return `
+      <tr>
+        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
+        <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
+        <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(up)}</td>
+        <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-weight:700;white-space:nowrap;">${fmtNum(tot)}</td>
+        <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${noCost ? "—" : fmtNum(lineCost)}</td>
+        <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${lpColor};font-weight:700;white-space:nowrap;">${lineProfit === null ? "—" : fmtNum(lineProfit)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const totalQty = r.items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+  const totalRow = `
+    <tr style="background:${C.softBg};">
+      <td style="padding:11px 12px;border-top:2px solid ${C.ink};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">إجمالي الفاتورة</td>
+      <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};">${fmtNum(totalQty)}</td>
+      <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;color:${C.muted};">-</td>
+      <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};white-space:nowrap;">${fmtNum(Number(r.inv.total || 0))}</td>
+      <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${C.ink};white-space:nowrap;">${fmtNum(r.items.reduce((s, it) => s + Number(it.unit_cost_at_sale || it.cost_price || 0) * Number(it.quantity || 0), 0))}</td>
+      <td style="padding:11px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:12px;font-weight:800;color:${r.profit === null ? C.muted : r.profit >= 0 ? C.good : C.bad};white-space:nowrap;">${r.profit === null ? "—" : fmtNum(r.profit)}</td>
+    </tr>
+  `;
+
+  return `
+    <div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;margin-bottom:18px;background:${C.cardBg};${cancelled ? "opacity:0.75;" : ""}page-break-inside:avoid;">
+      <div style="padding:14px 18px;background:${C.softBg};border-bottom:1px solid ${C.border};display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 20px;">
+        ${headerCell("رقم الفاتورة", r.inv.invoice_number ?? "—", C.ink)}
+        ${headerCell("العميل", r.inv.contacts?.name ?? "عميل نقدي")}
+        <div style="display:flex;gap:6px;align-items:center;justify-content:flex-start;">
+          <span style="color:${C.muted};font-size:11px;">التاريخ:</span>
+          <span style="color:${C.ink};font-size:12px;font-weight:700;">${fmtDate(r.inv.invoice_date || r.inv.created_at)}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="color:${C.muted};font-size:11px;">طريقة الدفع:</span>
+          ${payPill}
+          ${cancelled ? `<span style="background:#fee2e2;color:${C.bad};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">ملغاة</span>` : ""}
+        </div>
+        ${headerCell("المدفوع", fmtEGP(r.paid), C.good)}
+        ${headerCell("المتبقي", fmtEGP(r.remaining), r.remaining > 0 ? C.warn : C.good)}
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:${C.ink};">
+            <th style="padding:11px 12px;text-align:right;color:#ffffff;font-size:11px;font-weight:700;">اسم الصنف</th>
+            <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:60px;">الكمية</th>
+            <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:100px;">سعر الوحدة</th>
+            <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:100px;">الإجمالي</th>
+            <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:90px;">التكلفة</th>
+            <th style="padding:11px 8px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;width:90px;">صافي الربح</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsRows || `<tr><td colspan="6" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد أصناف</td></tr>`}
+          ${totalRow}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -93,7 +194,7 @@ function summaryCardsHtml(cards: { label: string; value: string; color?: string 
 export type SalesReportInput = {
   branchId: string;
   branchName: string;
-  invoices: any[]; // filteredRows from screen (already-filtered invoices w/ contacts:contact_id(name))
+  invoices: any[];
   filters: { from?: string; to?: string };
   userName: string;
 };
@@ -101,30 +202,12 @@ export type SalesReportInput = {
 export async function generateSalesReport(input: SalesReportInput): Promise<void> {
   const t1 = toast.loading("⏳ جاري تحضير البيانات...");
   try {
-    // Company info from tenants (via first invoice's tenant_id, or from settings)
-    const tenantId = (input.invoices[0] as any)?.tenant_id;
-    let tenantName = "—";
-    let tenantLogo: string | null = null;
-    if (tenantId) {
-      const { data: t } = await supabase.from("tenants").select("name, logo_url").eq("id", tenantId).maybeSingle();
-      tenantName = t?.name ?? "—";
-      tenantLogo = (t as any)?.logo_url ?? null;
-    }
-
     const invIds = input.invoices.map((r) => r.id);
-
-    // Fetch line items and payments in parallel (batch by 100 to avoid URL length limits)
     const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
-    const itemBatches = await Promise.all(
-      chunk(invIds, 100).map((ids) =>
-        supabase.from("invoice_items").select("*").in("invoice_id", ids)
-      )
-    );
-    const paymentBatches = await Promise.all(
-      chunk(invIds, 100).map((ids) =>
-        supabase.from("invoice_payments").select("invoice_id, amount, payment_method").in("invoice_id", ids)
-      )
-    );
+    const [itemBatches, paymentBatches] = await Promise.all([
+      Promise.all(chunk(invIds, 100).map((ids) => supabase.from("invoice_items").select("*").in("invoice_id", ids))),
+      Promise.all(chunk(invIds, 100).map((ids) => supabase.from("invoice_payments").select("invoice_id, amount, payment_method").in("invoice_id", ids))),
+    ]);
     const allItems: any[] = itemBatches.flatMap((r) => r.data ?? []);
     const allPayments: any[] = paymentBatches.flatMap((r) => r.data ?? []);
     const itemsByInv = new Map<string, any[]>();
@@ -133,241 +216,82 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
       arr.push(it); itemsByInv.set(it.invoice_id, arr);
     });
     const paidByInv = new Map<string, number>();
-    const paidMethodTotals: Record<string, number> = {};
     allPayments.forEach((p) => {
       paidByInv.set(p.invoice_id, (paidByInv.get(p.invoice_id) ?? 0) + Number(p.amount || 0));
-      const key = p.payment_method || "other";
-      paidMethodTotals[key] = (paidMethodTotals[key] ?? 0) + Number(p.amount || 0);
     });
 
     toast.dismiss(t1);
     const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
 
-    // ---- Compute totals ----
-    let totalSales = 0, totalPaid = 0, totalRemaining = 0, totalProfit = 0;
-    let totalDiscount = 0, totalVat = 0;
-    let activeCount = 0, activeAmount = 0, cancelledCount = 0, cancelledAmount = 0;
+    // Totals
+    let totalSales = 0, totalPaid = 0, totalRemaining = 0, totalProfit = 0, totalCost = 0;
     let hasAnyCostData = false;
-
     const invRows = input.invoices.map((inv) => {
       const items = itemsByInv.get(inv.id) ?? [];
       const paid = paidByInv.get(inv.id) ?? 0;
       const total = Number(inv.total || 0);
       const remaining = Math.max(0, total - paid);
-
-      // Profit calc — only if cost data is trustworthy (not fully migrated with zero costs)
       let cost = 0; let hasCost = false;
       items.forEach((it) => {
-        const unitCost = Number(it.unit_cost_at_sale || it.cost_price || 0);
-        if (unitCost > 0) hasCost = true;
-        cost += unitCost * Number(it.quantity || 0);
+        const uc = Number(it.unit_cost_at_sale || it.cost_price || 0);
+        if (uc > 0) hasCost = true;
+        cost += uc * Number(it.quantity || 0);
       });
       const isMigratedNoCost = inv.is_migrated && !hasCost;
       const profit = isMigratedNoCost ? null : total - cost;
-      if (profit !== null) { totalProfit += profit; hasAnyCostData = true; }
-
-      totalSales += total;
-      totalDiscount += Number(inv.discount_amount || 0);
-      totalVat += Number(inv.vat_amount || 0);
-      if (inv.status === "cancelled") { cancelledCount++; cancelledAmount += total; }
-      else {
-        activeCount++; activeAmount += total;
-        totalPaid += paid; totalRemaining += remaining;
+      if (profit !== null) { totalProfit += profit; totalCost += cost; hasAnyCostData = true; }
+      if (inv.status !== "cancelled") {
+        totalSales += total; totalPaid += paid; totalRemaining += remaining;
       }
-
-      return { inv, items, paid, remaining, profit, cost, hasCost };
+      return { inv, items, paid, remaining, profit };
     });
 
     const marginPct = hasAnyCostData && totalSales > 0 ? (totalProfit / totalSales) * 100 : null;
 
-    // ---- Build HTML ----
-    const cards = summaryCardsHtml([
-      { label: "إجمالي المبيعات", value: fmtEGP(totalSales), color: "#2b6cb0" },
-      { label: "عدد الفواتير", value: fmtNum(input.invoices.length) },
-      { label: "إجمالي الربح", value: hasAnyCostData ? fmtEGP(totalProfit) : "غير متاح", color: hasAnyCostData ? (totalProfit >= 0 ? "#276749" : "#c53030") : "#4a5568" },
-      { label: "إجمالي المحصّل", value: fmtEGP(totalPaid), color: "#276749" },
-      { label: "إجمالي المتبقي", value: fmtEGP(totalRemaining), color: totalRemaining > 0 ? "#c05621" : "#276749" },
-      { label: "هامش الربح", value: marginPct !== null ? fmtPct(marginPct) : "غير متاح", color: marginPct !== null ? (marginPct >= 0 ? "#276749" : "#c53030") : "#4a5568" },
+    // Build HTML
+    const header = headerHtml({
+      title: "تقرير تفصيلي بالمبيعات والأرباح",
+      branchName: input.branchName, userName: input.userName,
+      fromDate: input.filters.from, toDate: input.filters.to,
+    });
+
+    const summary = sectionTitle("إجمالي الأداء المالي للفرع") + kpiCardsHtml([
+      { label: "إجمالي المبيعات", value: fmtEGP(totalSales) },
+      { label: "المحصّل النقدي", value: fmtEGP(totalPaid), highlight: true },
+      { label: "إجمالي المتبقي (الآجل)", value: fmtEGP(totalRemaining), color: totalRemaining > 0 ? C.warn : C.good },
+      { label: "إجمالي التكلفة", value: hasAnyCostData ? fmtEGP(totalCost) : "غير متاح" },
+      { label: "صافي الأرباح", value: hasAnyCostData ? fmtEGP(totalProfit) : "غير متاح", color: hasAnyCostData ? (totalProfit >= 0 ? C.good : C.bad) : C.muted },
+      { label: "هامش الربح الإجمالي", value: marginPct !== null ? fmtPct(marginPct) : "غير متاح", color: marginPct !== null ? (marginPct >= 0 ? C.good : C.bad) : C.muted },
     ]);
 
-    const invoiceRowsHtml = invRows
-      .map((r, i) => {
-        const cancelled = r.inv.status === "cancelled";
-        const bg = cancelled ? "#fed7d7" : i % 2 === 0 ? "#ffffff" : "#f7fafc";
-        const textColor = cancelled ? "#c53030" : "#1a202c";
-        const remainingColor = r.remaining > 0 ? "#c05621" : textColor;
-        const profitStr = r.profit === null ? "غير متاح" : fmtEGP(r.profit);
-        const profitColor = r.profit === null ? "#4a5568" : r.profit >= 0 ? "#276749" : "#c53030";
-        const marginStr = r.profit === null ? "—" : fmtPct(Number(r.inv.total) > 0 ? (r.profit / Number(r.inv.total)) * 100 : 0);
-        const statusLabel = cancelled ? "ملغاة" : "نشطة";
+    const details = sectionTitle("تفاصيل الفواتير المحقّقة") +
+      (invRows.length
+        ? invRows.map(invoiceCardHtml).join("")
+        : `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد فواتير في الفترة المحددة</div>`);
 
-        const linesHtml = r.items.length
-          ? `<tr style="background:${bg};"><td colspan="10" style="padding:0 0 0 24px;border:0;">
-              <table style="width:100%;border-collapse:collapse;margin:0;table-layout:fixed;">
-                <colgroup>
-                  <col style="width:26%" />
-                  <col style="width:7%" />
-                  <col style="width:11%" />
-                  <col style="width:9%" />
-                  <col style="width:12%" />
-                  <col style="width:11%" />
-                  <col style="width:12%" />
-                  <col style="width:12%" />
-                </colgroup>
-                <thead>
-                  <tr style="background:#e2e8f0;color:#1a202c;font-size:9px;">
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;text-align:right;">اسم الصنف</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">كمية</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">سعر الوحدة</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">خصم</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">الإجمالي</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">التكلفة</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">الربح</th>
-                    <th style="padding:5px 6px;border:0.5px solid #a0aec0;">هامش%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${r.items
-                    .map((it) => {
-                      const q = Number(it.quantity || 0);
-                      const up = Number(it.selling_price || 0);
-                      const disc = Number(it.line_discount || 0);
-                      const tot = Number(it.total || 0);
-                      const uc = Number(it.unit_cost_at_sale || it.cost_price || 0);
-                      const lineCost = uc * q;
-                      const noCost = r.inv.is_migrated && uc === 0;
-                      const lineProfit = noCost ? null : tot - lineCost;
-                      const lineMargin = lineProfit === null ? null : (tot > 0 ? (lineProfit / tot) * 100 : 0);
-                      const lpColor = lineProfit === null ? "#4a5568" : lineProfit >= 0 ? "#276749" : "#c53030";
-                      return `<tr style="font-size:9px;color:#2d3748;">
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.product_name ?? "—"}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${fmtNum(q)}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${fmtEGP(up)}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${fmtEGP(disc)}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;font-weight:700;white-space:nowrap;">${fmtEGP(tot)}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;white-space:nowrap;">${noCost ? "غير متاح" : fmtEGP(lineCost)}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;color:${lpColor};font-weight:700;white-space:nowrap;">${lineProfit === null ? "غير متاح" : fmtEGP(lineProfit)}</td>
-                        <td style="padding:4px 6px;border:0.5px solid #cbd5e0;text-align:center;color:${lpColor};white-space:nowrap;">${lineMargin === null ? "—" : fmtPct(lineMargin)}</td>
-                      </tr>`;
-                    })
-                    .join("")}
-                </tbody>
-              </table>
-            </td></tr>`
-          : "";
-
-        return `
-          <tr style="background:${bg};color:${textColor};font-size:10px;">
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;font-family:monospace;white-space:nowrap;">${r.inv.invoice_number ?? "—"}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;white-space:nowrap;">${fmtDate(r.inv.invoice_date || r.inv.created_at)}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.inv.contacts?.name ?? "عميل نقدي"}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;white-space:nowrap;">${PAY_LABELS[r.inv.payment_method] ?? r.inv.payment_method ?? "—"}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;font-weight:700;white-space:nowrap;">${fmtEGP(r.inv.total)}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;white-space:nowrap;">${fmtEGP(r.paid)}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;color:${remainingColor};font-weight:${r.remaining > 0 ? 700 : 400};white-space:nowrap;">${fmtEGP(r.remaining)}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;color:${profitColor};font-weight:700;white-space:nowrap;">${profitStr}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;color:${profitColor};white-space:nowrap;">${marginStr}</td>
-            <td style="padding:7px 6px;border:0.5px solid #a0aec0;text-align:center;font-weight:700;white-space:nowrap;">${statusLabel}</td>
-          </tr>
-          ${linesHtml}
-        `;
-      })
-      .join("");
-
-    const tableHtml = `
-      <div style="font-weight:800;font-size:13px;color:#1a202c;text-decoration:underline;margin-bottom:6px;">تفاصيل الفواتير</div>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed;">
-        <colgroup>
-          <col style="width:9%" />
-          <col style="width:8%" />
-          <col style="width:15%" />
-          <col style="width:9%" />
-          <col style="width:10%" />
-          <col style="width:10%" />
-          <col style="width:10%" />
-          <col style="width:10%" />
-          <col style="width:8%" />
-          <col style="width:7%" />
-        </colgroup>
-        <thead>
-          <tr style="background:#2d3748;color:#ffffff;font-size:10px;">
-            <th style="padding:8px 4px;border:2px solid #2d3748;">رقم الفاتورة</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">التاريخ</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">العميل</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">طريقة الدفع</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">الإجمالي</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">المدفوع</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">المتبقي</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">الربح</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">هامش%</th>
-            <th style="padding:8px 4px;border:2px solid #2d3748;">الحالة</th>
-          </tr>
-        </thead>
-        <tbody>${invoiceRowsHtml || `<tr><td colspan="10" style="text-align:center;padding:20px;">لا توجد فواتير</td></tr>`}</tbody>
-      </table>
-    `;
-
-    const totalsRows: string[] = [];
-    const addTotal = (label: string, value: string, color?: string) =>
-      totalsRows.push(`<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #cbd5e0;font-size:11px;">
-        <span style="color:#4a5568;">${label}</span>
-        <span style="font-weight:700;color:${color ?? "#1a202c"};">${value}</span>
-      </div>`);
-
-    addTotal("الفواتير النشطة", `${fmtNum(activeCount)} فاتورة — ${fmtEGP(activeAmount)}`, "#276749");
-    addTotal("الفواتير الملغاة", `${fmtNum(cancelledCount)} فاتورة — ${fmtEGP(cancelledAmount)}`, "#c53030");
-    addTotal("إجمالي المبيعات", fmtEGP(totalSales));
-    addTotal("إجمالي الخصومات", fmtEGP(totalDiscount), "#c05621");
-    addTotal("إجمالي ض.ق.م", fmtEGP(totalVat));
-    Object.entries(paidMethodTotals).forEach(([k, v]) => {
-      addTotal(`محصّل — ${PAY_LABELS[k] ?? k}`, fmtEGP(v), "#276749");
-    });
-    addTotal("إجمالي المتبقي", fmtEGP(totalRemaining), totalRemaining > 0 ? "#c05621" : "#276749");
-    if (hasAnyCostData) {
-      addTotal("إجمالي الربح الصافي", fmtEGP(totalProfit), totalProfit >= 0 ? "#276749" : "#c53030");
-      if (marginPct !== null) addTotal("هامش الربح الإجمالي", fmtPct(marginPct), marginPct >= 0 ? "#276749" : "#c53030");
-    } else {
-      addTotal("إجمالي الربح الصافي", "غير متاح (كل الفواتير مستوردة بدون بيانات تكلفة)", "#4a5568");
-    }
-
-    const totalsHtml = `
-      <div style="border-top:2px solid #2d3748;padding-top:10px;margin-top:6px;">
-        <div style="font-weight:800;font-size:13px;color:#1a202c;text-decoration:underline;margin-bottom:6px;">الإجماليات النهائية</div>
-        <div style="border:1.5px solid #2d3748;border-radius:6px;overflow:hidden;background:#f7fafc;">${totalsRows.join("")}</div>
-      </div>
-    `;
-
-    const header = headerHtml({
-      tenantName, tenantLogo, branchName: input.branchName,
-      title: "تقرير تفصيلي بالمبيعات", fromDate: input.filters.from, toDate: input.filters.to,
-      userName: input.userName,
-    });
-
-    // A4 landscape: 297mm × 210mm → at 96dpi ≈ 1123 × 794 px
+    // A4 portrait: 210 × 297mm → 96dpi ≈ 794 × 1123 px
     const container = document.createElement("div");
     container.style.cssText = `
-      position:fixed;left:-99999px;top:0;width:1123px;padding:40px 40px 40px 40px;
-      background:#ffffff;color:#1a202c;font-family:'Cairo','Segoe UI','Tahoma',sans-serif;
+      position:fixed;left:-99999px;top:0;width:794px;padding:36px 40px;
+      background:#ffffff;color:${C.text};font-family:'Cairo','Segoe UI','Tahoma',sans-serif;
       direction:rtl;text-align:right;box-sizing:border-box;
     `;
-    container.innerHTML = header + cards + tableHtml + totalsHtml;
+    container.innerHTML = header + summary + details;
     document.body.appendChild(container);
 
-    // Render → PDF
     const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
     document.body.removeChild(container);
 
-    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24;
-    const footerH = 22;
+    const footerH = 24;
     const usableH = pageH - margin * 2 - footerH;
     const imgW = pageW - margin * 2;
     const ratio = canvas.width / imgW;
     const pageCanvasH = usableH * ratio;
     const totalPages = Math.max(1, Math.ceil(canvas.height / pageCanvasH));
-    const ts = fmtDateTime(new Date().toISOString());
 
     for (let i = 0; i < totalPages; i++) {
       if (i > 0) pdf.addPage();
@@ -379,20 +303,21 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
       ctx.fillRect(0, 0, slice.width, slice.height);
       ctx.drawImage(canvas, 0, i * pageCanvasH, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
       const imgH = slice.height / ratio;
-      pdf.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", margin, margin, imgW, imgH);
+      pdf.addImage(slice.toDataURL("image/jpeg", 0.93), "JPEG", margin, margin, imgW, imgH);
 
-      // Footer line + text
-      pdf.setDrawColor(45, 55, 72);
-      pdf.setLineWidth(1.5);
-      pdf.line(margin, pageH - footerH - 4, pageW - margin, pageH - footerH - 4);
+      // Footer
+      pdf.setDrawColor(226, 232, 238);
+      pdf.setLineWidth(0.6);
+      pdf.line(margin, pageH - footerH, pageW - margin, pageH - footerH);
       pdf.setFontSize(9);
-      pdf.setTextColor(74, 85, 104);
-      pdf.text(`Page ${i + 1} / ${totalPages}  |  ${tenantName}  |  ${ts}`, pageW / 2, pageH - 10, { align: "center" });
+      pdf.setTextColor(107, 122, 134);
+      pdf.text(input.branchName, margin, pageH - 10);
+      pdf.text(`صفحة ${i + 1} من ${totalPages}`, pageW - margin, pageH - 10, { align: "right" });
     }
 
     const fromStr = input.filters.from || "الكل";
     const toStr = input.filters.to || "الكل";
-    pdf.save(`فواتير-البيع-${input.branchName}-${fromStr}-${toStr}.pdf`);
+    pdf.save(`تقرير-المبيعات-${input.branchName}-${fromStr}-${toStr}.pdf`);
     toast.dismiss(t2);
     toast.success("✅ تم إنشاء التقرير بنجاح");
   } catch (e: any) {
