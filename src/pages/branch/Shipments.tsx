@@ -91,6 +91,37 @@ export default function Shipments() {
   const shipmentIds = useMemo(() => rows.map((r: any) => r.id), [rows]);
   const attCounts = useAttachmentCounts("shipment", shipmentIds);
 
+  const [branchName, setBranchName] = useState("");
+  useEffect(() => {
+    if (!branchId) return;
+    supabase.from("branches").select("name").eq("id", branchId).maybeSingle()
+      .then(({ data }) => setBranchName(data?.name ?? ""));
+  }, [branchId]);
+
+  const filtered = useMemo(() => rows.filter((r: any) => {
+    if (fSupplier !== "all" && r.contact_id !== fSupplier) return false;
+    if (fStatus !== "all" && r._payment_status !== fStatus) return false;
+    if (fFrom && r.arrival_date && r.arrival_date < fFrom) return false;
+    if (fTo && r.arrival_date && r.arrival_date > fTo) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const hay = `${r.contacts?.name ?? ""} ${r.received_by ?? ""} ${r.notes ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }), [rows, fSupplier, fStatus, fFrom, fTo, search]);
+
+  const handleExportPdf = async () => {
+    if (!branchId) return;
+    if (filtered.length === 0) { toast.error("لا توجد شحنات لتصديرها"); return; }
+    await generateShipmentsReport({
+      branchId, branchName,
+      shipments: filtered,
+      filters: { from: fFrom || undefined, to: fTo || undefined },
+      userName: profile?.name ?? "—",
+    });
+  };
+
   const doDelete = async () => {
     if (!delTarget) return;
     const label = `شحنة ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
