@@ -12,7 +12,9 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
-import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw } from "lucide-react";
+import { generateProfitReport } from "@/utils/generatePDFReport";
+import { useAuth } from "@/contexts/AuthContext";
+import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
