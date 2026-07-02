@@ -184,7 +184,7 @@ export default function BranchReports() {
       <div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1.5" /></div>
         <div><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1.5" /></div>
-        <Button onClick={load} disabled={loading}>تحديث</Button>
+        {loading && <div className="text-xs text-muted-foreground self-center">جاري التحديث…</div>}
         <div className="flex gap-2 mr-auto">
           <Button size="sm" variant="ghost" onClick={() => { setFrom(today()); setTo(today()); }}>اليوم</Button>
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(7)); setTo(today()); }}>آخر 7 أيام</Button>
