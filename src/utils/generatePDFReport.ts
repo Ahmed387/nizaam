@@ -302,15 +302,13 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
       { label: "هامش الربح الإجمالي", value: marginPct !== null ? fmtPct(marginPct) : "غير متاح", color: marginPct !== null ? (marginPct >= 0 ? C.good : C.bad) : C.muted },
     ]);
 
-    const details = sectionTitle("تفاصيل الفواتير المحقّقة") +
-      (invRows.length
-        ? invRows.map(invoiceCardHtml).join("")
-        : `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد فواتير في الفترة المحددة</div>`);
+    const details = sectionTitle("تفاصيل الفواتير المحقّقة");
 
     // Ensure Arabic font (Cairo) is loaded so html2canvas renders proper glyph shaping.
     await ensureArabicFont();
 
-    // A4 portrait: 210 × 297mm → 96dpi ≈ 794 × 1123 px
+    // Off-screen staging area — each top-level child is captured independently so we
+    // never slice a card in half and every card stays crisp (rendered at scale 2).
     const container = document.createElement("div");
     container.style.cssText = `
       position:fixed;left:-99999px;top:0;width:794px;padding:36px 40px;
@@ -318,48 +316,91 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
       direction:rtl;text-align:right;box-sizing:border-box;
       font-feature-settings:"liga","calt","kern";text-rendering:optimizeLegibility;
     `;
-    container.innerHTML = header + summary + details;
+    // Wrap each logical block so we can iterate as atomic sections.
+    const emptyState = `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد فواتير في الفترة المحددة</div>`;
+    const sectionsHtml = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="summary">${summary}</div>`,
+      `<div data-pdf-section="details-title">${details}</div>`,
+      ...(invRows.length
+        ? invRows.map((r) => `<div data-pdf-section="invoice" style="margin-bottom:14px;">${invoiceCardHtml(r)}</div>`)
+        : [`<div data-pdf-section="empty">${emptyState}</div>`]),
+    ].join("");
+    container.innerHTML = sectionsHtml;
     document.body.appendChild(container);
 
-    // Give the browser a paint tick so fonts apply before rasterization.
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     if ((document as any).fonts?.ready) { try { await (document as any).fonts.ready; } catch {} }
-
-    const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-    document.body.removeChild(container);
 
     const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24;
     const footerH = 24;
+    const usableW = pageW - margin * 2;
     const usableH = pageH - margin * 2 - footerH;
-    const imgW = pageW - margin * 2;
-    const ratio = canvas.width / imgW;
-    const pageCanvasH = usableH * ratio;
-    const totalPages = Math.max(1, Math.ceil(canvas.height / pageCanvasH));
+    let cursorY = margin;
+    let pageIndex = 0;
+    const pageMarkers: number[] = [];
 
-    for (let i = 0; i < totalPages; i++) {
-      if (i > 0) pdf.addPage();
-      const slice = document.createElement("canvas");
-      slice.width = canvas.width;
-      slice.height = Math.min(pageCanvasH, canvas.height - i * pageCanvasH);
-      const ctx = slice.getContext("2d")!;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, slice.width, slice.height);
-      ctx.drawImage(canvas, 0, i * pageCanvasH, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
-      const imgH = slice.height / ratio;
-      pdf.addImage(slice.toDataURL("image/jpeg", 0.93), "JPEG", margin, margin, imgW, imgH);
+    const addFooterMarker = () => { pageMarkers.push(pageIndex); };
+    addFooterMarker();
 
-      // Footer
+    const sections = Array.from(container.querySelectorAll<HTMLElement>("[data-pdf-section]"));
+
+    for (const section of sections) {
+      // Render section to canvas at scale 2 for crisp text.
+      const canvas = await html2canvas(section, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      const drawW = usableW;
+      const drawH = (canvas.height / canvas.width) * drawW;
+
+      // If a single section is taller than a page, we have to slice it (fallback for
+      // very long invoices). Otherwise, keep it atomic on a single page.
+      if (drawH > usableH) {
+        // Slice this oversized section into page-sized chunks.
+        const ratio = canvas.width / drawW;
+        const pageCanvasH = usableH * ratio;
+        let offset = 0;
+        while (offset < canvas.height) {
+          if (cursorY > margin) { pdf.addPage(); pageIndex++; addFooterMarker(); cursorY = margin; }
+          const sliceH = Math.min(pageCanvasH, canvas.height - offset);
+          const slice = document.createElement("canvas");
+          slice.width = canvas.width; slice.height = sliceH;
+          const ctx = slice.getContext("2d")!;
+          ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, slice.width, slice.height);
+          ctx.drawImage(canvas, 0, offset, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          const imgH = sliceH / ratio;
+          pdf.addImage(slice.toDataURL("image/png"), "PNG", margin, cursorY, drawW, imgH);
+          cursorY += imgH;
+          offset += sliceH;
+          if (offset < canvas.height) { pdf.addPage(); pageIndex++; addFooterMarker(); cursorY = margin; }
+        }
+        continue;
+      }
+
+      // Page break if the section won't fit in remaining space.
+      if (drawH > (pageH - margin - footerH) - cursorY && cursorY > margin) {
+        pdf.addPage(); pageIndex++; addFooterMarker(); cursorY = margin;
+      }
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, cursorY, drawW, drawH);
+      cursorY += drawH + 4;
+    }
+
+    document.body.removeChild(container);
+
+    // Draw footers on every page now that we know the total count.
+    const totalPages = pdf.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
       pdf.setDrawColor(226, 232, 238);
       pdf.setLineWidth(0.6);
       pdf.line(margin, pageH - footerH, pageW - margin, pageH - footerH);
       pdf.setFontSize(9);
       pdf.setTextColor(107, 122, 134);
       pdf.text(input.branchName, margin, pageH - 10);
-      pdf.text(`صفحة ${i + 1} من ${totalPages}`, pageW - margin, pageH - 10, { align: "right" });
+      pdf.text(`صفحة ${p} من ${totalPages}`, pageW - margin, pageH - 10, { align: "right" });
     }
+
 
     const fromStr = input.filters.from || "الكل";
     const toStr = input.filters.to || "الكل";
