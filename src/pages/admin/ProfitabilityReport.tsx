@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft, FileText } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { lineProfit } from "@/lib/profitEngine";
 import { ReportIntro } from "@/components/ReportIntro";
 import { StatCard } from "@/components/StatCard";
+import { generateProfitReport } from "@/utils/generatePDFReport";
 
 interface Row {
   product_id: string | null;
