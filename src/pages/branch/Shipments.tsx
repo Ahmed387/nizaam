@@ -13,13 +13,14 @@ import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { Plus, Eye, Trash2 } from "lucide-react";
+import { Plus, Eye, Trash2, FileDown } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { generateShipmentsReport } from "@/utils/generatePDFReport";
 
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -90,6 +91,37 @@ export default function Shipments() {
   const shipmentIds = useMemo(() => rows.map((r: any) => r.id), [rows]);
   const attCounts = useAttachmentCounts("shipment", shipmentIds);
 
+  const [branchName, setBranchName] = useState("");
+  useEffect(() => {
+    if (!branchId) return;
+    supabase.from("branches").select("name").eq("id", branchId).maybeSingle()
+      .then(({ data }) => setBranchName(data?.name ?? ""));
+  }, [branchId]);
+
+  const filtered = useMemo(() => rows.filter((r: any) => {
+    if (fSupplier !== "all" && r.contact_id !== fSupplier) return false;
+    if (fStatus !== "all" && r._payment_status !== fStatus) return false;
+    if (fFrom && r.arrival_date && r.arrival_date < fFrom) return false;
+    if (fTo && r.arrival_date && r.arrival_date > fTo) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const hay = `${r.contacts?.name ?? ""} ${r.received_by ?? ""} ${r.notes ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }), [rows, fSupplier, fStatus, fFrom, fTo, search]);
+
+  const handleExportPdf = async () => {
+    if (!branchId) return;
+    if (filtered.length === 0) { toast.error("لا توجد شحنات لتصديرها"); return; }
+    await generateShipmentsReport({
+      branchId, branchName,
+      shipments: filtered,
+      filters: { from: fFrom || undefined, to: fTo || undefined },
+      userName: profile?.name ?? "—",
+    });
+  };
+
   const doDelete = async () => {
     if (!delTarget) return;
     const label = `شحنة ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
@@ -116,28 +148,21 @@ export default function Shipments() {
         title="الشحنات"
         subtitle="استلام البضاعة من الموردين"
         actions={
-          <PermGate perm="shipments.create">
-            <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
-              <Plus className="w-4 h-4" /> شحنة جديدة
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportPdf} className="gap-2">
+              <FileDown className="w-4 h-4" /> تحميل PDF
             </Button>
-          </PermGate>
+            <PermGate perm="shipments.create">
+              <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
+                <Plus className="w-4 h-4" /> شحنة جديدة
+              </Button>
+            </PermGate>
+          </div>
         }
       />
 
       {(() => {
         const suppliers = Array.from(new Map(rows.filter(r => r.contact_id).map(r => [r.contact_id, r.contacts?.name ?? "—"])).entries());
-        const filtered = rows.filter((r: any) => {
-          if (fSupplier !== "all" && r.contact_id !== fSupplier) return false;
-          if (fStatus !== "all" && r._payment_status !== fStatus) return false;
-          if (fFrom && r.arrival_date && r.arrival_date < fFrom) return false;
-          if (fTo && r.arrival_date && r.arrival_date > fTo) return false;
-          if (search) {
-            const q = search.toLowerCase();
-            const hay = `${r.contacts?.name ?? ""} ${r.received_by ?? ""} ${r.notes ?? ""}`.toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
-          return true;
-        });
         return (
           <>
             <Card className="p-3 mb-3 grid grid-cols-1 md:grid-cols-5 gap-3">
