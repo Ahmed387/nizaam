@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatEGP } from "@/lib/format";
 import { AlertCircle, Search, RefreshCw, Calendar } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 type Plan = {
   id: string;
@@ -42,6 +42,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const [q, setQ] = useState("");
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
@@ -131,7 +132,11 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
               p.entity_type === "supplier" ? `/branch/${p.branch_id}/suppliers/${p.entity_id}` :
               `/admin/employees/${p.entity_id}`;
             return (
-              <tr key={p.id} className="border-t hover:bg-surface-2/50">
+              <tr
+                key={p.id}
+                className="border-t hover:bg-surface-2/50 cursor-pointer"
+                onClick={() => navigate(link)}
+              >
                 <td className="px-3 py-2 font-medium">{p.entity_name}</td>
                 <td className="px-3 py-2 text-muted-foreground">{branches[p.branch_id] ?? "—"}</td>
                 <td className="px-3 py-2">
@@ -152,7 +157,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
                   ) : <span className="text-xs text-muted-foreground">—</span>}
                 </td>
                 <td className="px-3 py-2 text-left">
-                  <Button asChild size="sm" variant="outline">
+                  <Button asChild size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
                     <Link to={link}>فتح</Link>
                   </Button>
                 </td>
