@@ -281,23 +281,59 @@ export default function BranchDashboard() {
       {/* Charts row */}
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
         <div className="card-elevated p-4 lg:col-span-2">
-          <h3 className="font-bold mb-3">المبيعات آخر 30 يوم</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={salesByDay}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-base">المبيعات آخر 30 يوم</h3>
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-primary" /><span className="text-muted-foreground font-semibold">إجمالي يومي</span></div>
+              {salesByDay.length > 0 && (
+                <div className="text-muted-foreground">
+                  متوسط: <b className="text-foreground">{formatEGP(salesByDay.reduce((s, d) => s + Number(d.total || 0), 0) / salesByDay.length)}</b>
+                </div>
+              )}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={salesByDay} margin={{ top: 10, right: 16, bottom: 6, left: 8 }}>
               <defs>
                 <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
+                  <stop offset="60%" stopColor="hsl(var(--primary))" stopOpacity={0.18} />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-              <Tooltip
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
-                formatter={(v: any) => formatEGP(Number(v))}
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
+                tickMargin={10}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
+                interval="preserveStartEnd"
+                minTickGap={24}
               />
-              <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="url(#grad1)" strokeWidth={2} />
+              <YAxis
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
+                tickMargin={10}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+                tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+              />
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}
+                labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, marginBottom: 4 }}
+                formatter={(v: any) => [formatEGP(Number(v)), "المبيعات"]}
+                cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 1, strokeDasharray: "4 4" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="total"
+                stroke="hsl(var(--primary))"
+                fill="url(#grad1)"
+                strokeWidth={2.75}
+                activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--card))" }}
+                dot={false}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
