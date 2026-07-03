@@ -7,6 +7,8 @@ import { DataTable } from "./DataTable";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Checkbox } from "./ui/checkbox";
 import { VoucherDialog } from "./VoucherDialog";
 import { VoucherViewDialog } from "./VoucherViewDialog";
 import { supabase } from "@/integrations/supabase/client";
