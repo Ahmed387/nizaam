@@ -1312,3 +1312,184 @@ export async function generateProfitReport(input: ProfitReportInput): Promise<vo
     toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
   }
 }
+
+// ============================================================================
+// ========================  VOUCHERS REPORT  =================================
+// (سندات القبض والصرف — تفصيلي مع تجميع حسب التصنيف)
+// ============================================================================
+
+function voucherRowHtml(v: any, catName: string, branchName?: string, showBranch?: boolean) {
+  const cancelled = v.status === "cancelled";
+  const payLabel = PAY_LABELS[v.payment_method] ?? v.payment_method ?? "—";
+  const amountColor = v.type === "receipt" ? C.good : C.bad;
+  const amountSign = v.type === "receipt" ? "+" : "-";
+  return `
+    <tr style="${cancelled ? "opacity:0.55;text-decoration:line-through;" : ""}">
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-family:monospace;white-space:nowrap;">${v.voucher_number ?? "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtDate(v.voucher_date)}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${v.party_name || "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${payLabel}</td>
+      ${showBranch ? `<td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${branchName ?? "—"}</td>` : ""}
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${v.description || "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:12px;font-weight:800;color:${amountColor};white-space:nowrap;direction:ltr;">${amountSign} ${fmtNum(Number(v.amount || 0))}</td>
+    </tr>
+  `;
+}
+
+function voucherCategoryCardHtml(opts: {
+  title: string;
+  typeLabel: "receipt" | "payment";
+  vouchers: any[];
+  branchMap?: Record<string, string>;
+  showBranch?: boolean;
+}) {
+  const activeTotal = opts.vouchers
+    .filter((v) => v.status === "active")
+    .reduce((s, v) => s + Number(v.amount || 0), 0);
+  const cancelledCount = opts.vouchers.filter((v) => v.status === "cancelled").length;
+  const headerColor = opts.typeLabel === "receipt" ? C.good : C.bad;
+  const totalBg = opts.typeLabel === "receipt" ? "#ecfdf5" : "#fef2f2";
+
+  const rows = opts.vouchers
+    .map((v) => voucherRowHtml(v, opts.title, opts.branchMap?.[v.branch_id], opts.showBranch))
+    .join("");
+
+  return `
+    <div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;margin-bottom:16px;background:${C.cardBg};page-break-inside:avoid;">
+      <div style="padding:12px 16px;background:${C.softBg};border-bottom:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <span style="width:6px;height:20px;background:${headerColor};border-radius:3px;display:inline-block;"></span>
+          <span style="font-size:14px;font-weight:800;color:${C.ink};">${opts.title}</span>
+          <span style="font-size:11px;color:${C.muted};">(${fmtNum(opts.vouchers.length)} سند${cancelledCount ? ` — ${cancelledCount} ملغي` : ""})</span>
+        </div>
+        <div style="font-size:13px;font-weight:800;color:${headerColor};direction:ltr;">${fmtEGP(activeTotal)}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:${C.ink};">
+            <th style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:90px;">رقم السند</th>
+            <th style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">التاريخ</th>
+            <th style="padding:10px 8px;text-align:right;color:#fff;font-size:11px;font-weight:700;">الجهة</th>
+            <th style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">طريقة الدفع</th>
+            ${opts.showBranch ? `<th style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:90px;">الفرع</th>` : ""}
+            <th style="padding:10px 8px;text-align:right;color:#fff;font-size:11px;font-weight:700;">الوصف</th>
+            <th style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:100px;">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="${opts.showBranch ? 7 : 6}" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد سندات</td></tr>`}
+          <tr style="background:${totalBg};">
+            <td colspan="${opts.showBranch ? 6 : 5}" style="padding:10px 12px;border-top:2px solid ${C.ink};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">إجمالي التصنيف (النشط فقط)</td>
+            <td style="padding:10px 8px;border-top:2px solid ${C.ink};text-align:center;font-size:13px;font-weight:800;color:${headerColor};direction:ltr;">${fmtEGP(activeTotal)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+export type VouchersReportInput = {
+  branchName: string;
+  vouchers: any[];
+  categoriesMap: Record<string, string>;
+  branchesMap?: Record<string, string>;
+  showBranch?: boolean;
+  filters: { from?: string; to?: string; type?: "" | "receipt" | "payment" };
+  userName: string;
+};
+
+export async function generateVouchersReport(input: VouchersReportInput): Promise<void> {
+  const t1 = toast.loading("⏳ جاري تحضير البيانات...");
+  try {
+    const active = input.vouchers.filter((v) => v.status === "active");
+    const receipts = active.filter((v) => v.type === "receipt");
+    const payments = active.filter((v) => v.type === "payment");
+    const totalIn = receipts.reduce((s, v) => s + Number(v.amount || 0), 0);
+    const totalOut = payments.reduce((s, v) => s + Number(v.amount || 0), 0);
+    const net = totalIn - totalOut;
+    const cancelledCount = input.vouchers.filter((v) => v.status === "cancelled").length;
+
+    // group by (type, category)
+    const groupBy = (arr: any[]) => {
+      const m = new Map<string, any[]>();
+      arr.forEach((v) => {
+        const key = v.category_id || "__none__";
+        const list = m.get(key) ?? [];
+        list.push(v); m.set(key, list);
+      });
+      return m;
+    };
+    const receiptsByCat = groupBy(receipts.concat(input.vouchers.filter((v) => v.type === "receipt" && v.status === "cancelled")));
+    const paymentsByCat = groupBy(payments.concat(input.vouchers.filter((v) => v.type === "payment" && v.status === "cancelled")));
+
+    toast.dismiss(t1);
+    const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+
+    const titleType =
+      input.filters.type === "receipt" ? "تقرير تفصيلي بسندات القبض"
+      : input.filters.type === "payment" ? "تقرير تفصيلي بسندات الصرف"
+      : "تقرير تفصيلي بالسندات المالية (قبض وصرف)";
+
+    const header = headerHtml({
+      title: titleType,
+      branchName: input.branchName,
+      userName: input.userName,
+      fromDate: input.filters.from,
+      toDate: input.filters.to,
+    });
+
+    const summary = sectionTitle("الملخّص المالي") + kpiCardsHtml([
+      { label: "إجمالي القبض (داخل)", value: fmtEGP(totalIn), highlight: true, color: C.good },
+      { label: "إجمالي الصرف (خارج)", value: fmtEGP(totalOut), color: C.bad },
+      { label: "الصافي", value: fmtEGP(net), highlight: true, color: net >= 0 ? C.good : C.bad },
+      { label: "عدد سندات القبض", value: fmtNum(receipts.length), color: C.good },
+      { label: "عدد سندات الصرف", value: fmtNum(payments.length), color: C.bad },
+      { label: "السندات الملغاة", value: fmtNum(cancelledCount), color: cancelledCount > 0 ? C.warn : C.muted },
+    ]);
+
+    const buildTypeSection = (label: string, byCat: Map<string, any[]>, typeLabel: "receipt" | "payment") => {
+      if (byCat.size === 0) return "";
+      const cards = Array.from(byCat.entries()).map(([catId, list]) => {
+        const catName = catId === "__none__" ? "بدون تصنيف" : (input.categoriesMap[catId] ?? "تصنيف محذوف");
+        return `<div data-pdf-section="voucher-cat" style="margin-bottom:14px;">${voucherCategoryCardHtml({
+          title: catName,
+          typeLabel,
+          vouchers: list,
+          branchMap: input.branchesMap,
+          showBranch: !!input.showBranch,
+        })}</div>`;
+      }).join("");
+      return `<div data-pdf-section="type-title">${sectionTitle(label)}</div>` + cards;
+    };
+
+    const receiptsSection = (input.filters.type === "" || input.filters.type === "receipt" || !input.filters.type)
+      ? buildTypeSection("تفاصيل سندات القبض حسب التصنيف", receiptsByCat, "receipt") : "";
+    const paymentsSection = (input.filters.type === "" || input.filters.type === "payment" || !input.filters.type)
+      ? buildTypeSection("تفاصيل سندات الصرف حسب التصنيف", paymentsByCat, "payment") : "";
+
+    const empty = input.vouchers.length === 0
+      ? `<div data-pdf-section="empty"><div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد سندات في الفلاتر المحددة</div></div>`
+      : "";
+
+    const html = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="summary">${summary}</div>`,
+      receiptsSection,
+      paymentsSection,
+      empty,
+    ].join("");
+
+    await renderSectionsToPdf({
+      sectionsHtml: html,
+      branchName: input.branchName,
+      fileName: `تقرير-السندات-${input.branchName}-${input.filters.from || "الكل"}-${input.filters.to || "الكل"}.pdf`,
+    });
+
+    toast.dismiss(t2);
+    toast.success("✅ تم إنشاء تقرير السندات");
+  } catch (e: any) {
+    console.error("[generateVouchersReport]", e);
+    toast.dismiss();
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  }
+}

@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { generateVouchersReport } from "@/utils/generatePDFReport";
 
 interface Props {
   branchId?: string;
@@ -31,7 +32,7 @@ interface Props {
 }
 
 export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Props) {
-  const { isAdmin, hasRole } = useAuth();
+  const { isAdmin, hasRole, user, profile } = useAuth();
   const [rows, setRows] = useState<Voucher[]>([]);
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -192,7 +193,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
                 <ChevronDown className="w-4 h-4 opacity-60" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-64 p-2">
+            <PopoverContent align="start" side="bottom" sideOffset={6} avoidCollisions={false} className="w-64 p-2">
               <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
                 <button
                   type="button"
@@ -233,14 +234,24 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
                   size="sm"
                   className="w-full gap-2"
                   onClick={() => {
-                    const html = `<table><thead><tr>${Object.keys(exportRows[0] ?? {}).map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>${exportRows.map(r => `<tr>${Object.values(r).map(v => `<td>${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-                    const title = filters.category_ids.length
-                      ? `السندات — ${filters.category_ids.map(id => catMap[id]).filter(Boolean).join("، ")}`
-                      : "السندات — كل التصنيفات";
-                    printReport(title, html);
+                    const filtered = filters.category_ids.length
+                      ? rows.filter((r) => filters.category_ids.includes(r.category_id))
+                      : rows;
+                    const branchName = branchId
+                      ? (branchMap[branchId] ?? "الفرع")
+                      : adminAllBranches ? "كل الفروع" : "كل الفروع";
+                    generateVouchersReport({
+                      branchName,
+                      vouchers: filtered,
+                      categoriesMap: catMap,
+                      branchesMap: branchMap,
+                      showBranch: !!adminAllBranches,
+                      filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
+                      userName: profile?.name || user?.email || "مستخدم",
+                    });
                   }}
                 >
-                  <FileDown className="w-4 h-4" /> تحميل PDF للتصنيفات المختارة
+                  <FileDown className="w-4 h-4" /> تقرير PDF تفصيلي للتصنيفات المختارة
                 </Button>
               </div>
             </PopoverContent>
@@ -282,9 +293,17 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         <div className="flex gap-2 ms-auto">
           <Button size="sm" variant="outline" onClick={() => exportToExcel("vouchers", [{ name: "السندات", rows: exportRows }])}>Excel</Button>
           <Button size="sm" variant="outline" onClick={() => {
-            const html = `<table><thead><tr>${Object.keys(exportRows[0] ?? {}).map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>${exportRows.map(r => `<tr>${Object.values(r).map(v => `<td>${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-            printReport("السندات", html);
-          }}>PDF</Button>
+            const branchName = branchId ? (branchMap[branchId] ?? "الفرع") : "كل الفروع";
+            generateVouchersReport({
+              branchName,
+              vouchers: rows,
+              categoriesMap: catMap,
+              branchesMap: branchMap,
+              showBranch: !!adminAllBranches,
+              filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
+              userName: profile?.name || user?.email || "مستخدم",
+            });
+          }}>PDF تفصيلي</Button>
           {canAdd && (
             <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" /> {type === "receipt" ? "سند قبض جديد" : "سند صرف جديد"}
