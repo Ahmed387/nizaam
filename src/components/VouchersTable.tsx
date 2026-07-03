@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { generateVouchersReport } from "@/utils/generatePDFReport";
 
 interface Props {
   branchId?: string;
