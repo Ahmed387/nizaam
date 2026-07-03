@@ -156,117 +156,122 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         </div>
       </div>
 
-      <div className="card-elevated p-3 flex flex-wrap gap-3 items-end">
-        <div>
-          <Label className="text-xs">من تاريخ</Label>
-          <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} className="h-9 mt-1" />
-        </div>
-        <div>
-          <Label className="text-xs">إلى تاريخ</Label>
-          <Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} className="h-9 mt-1" />
-        </div>
-        {!type && (
-          <div>
-            <Label className="text-xs">النوع</Label>
-            <Select value={filters.type || "all"} onValueChange={(v) => setFilters({ ...filters, type: v === "all" ? "" : v as any })}>
-              <SelectTrigger className="h-9 mt-1 w-32"><SelectValue /></SelectTrigger>
+      <div className="card-elevated p-4 space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">من تاريخ</Label>
+            <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} className="h-9" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
+            <Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} className="h-9" />
+          </div>
+          {!type && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">النوع</Label>
+              <Select value={filters.type || "all"} onValueChange={(v) => setFilters({ ...filters, type: v === "all" ? "" : v as any })}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="receipt">قبض</SelectItem>
+                  <SelectItem value="payment">صرف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">التصنيف</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 w-full justify-between font-normal">
+                  <span className="truncate">
+                    {filters.category_ids.length === 0
+                      ? "كل التصنيفات"
+                      : filters.category_ids.length === 1
+                        ? (catMap[filters.category_ids[0]] ?? "تصنيف")
+                        : `${filters.category_ids.length} تصنيفات مختارة`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" side="bottom" sideOffset={6} avoidCollisions={false} className="w-64 p-2">
+                <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setFilters({ ...filters, category_ids: [] })}
+                  >مسح الاختيار</button>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setFilters({ ...filters, category_ids: cats.map(c => c.id) })}
+                  >تحديد الكل</button>
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-0.5">
+                  {cats.map((c) => {
+                    const checked = filters.category_ids.includes(c.id);
+                    return (
+                      <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setFilters({
+                              ...filters,
+                              category_ids: v
+                                ? [...filters.category_ids, c.id]
+                                : filters.category_ids.filter((id) => id !== c.id),
+                            });
+                          }}
+                        />
+                        <span className="flex-1">{c.name}</span>
+                        {checked && <Check className="w-3 h-3 text-primary" />}
+                      </label>
+                    );
+                  })}
+                  {cats.length === 0 && <div className="text-xs text-muted-foreground p-2">لا يوجد تصنيفات</div>}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">طريقة الدفع</Label>
+            <Select value={filters.payment_method || "all"} onValueChange={(v) => setFilters({ ...filters, payment_method: v === "all" ? "" : v })}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="receipt">قبض</SelectItem>
-                <SelectItem value="payment">صرف</SelectItem>
+                {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-        )}
-        <div>
-          <Label className="text-xs">التصنيف</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 mt-1 w-52 justify-between font-normal">
-                <span className="truncate">
-                  {filters.category_ids.length === 0
-                    ? "كل التصنيفات"
-                    : filters.category_ids.length === 1
-                      ? (catMap[filters.category_ids[0]] ?? "تصنيف")
-                      : `${filters.category_ids.length} تصنيفات مختارة`}
-                </span>
-                <ChevronDown className="w-4 h-4 opacity-60" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" side="bottom" sideOffset={6} avoidCollisions={false} className="w-64 p-2">
-              <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => setFilters({ ...filters, category_ids: [] })}
-                >مسح الاختيار</button>
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => setFilters({ ...filters, category_ids: cats.map(c => c.id) })}
-                >تحديد الكل</button>
-              </div>
-              <div className="max-h-64 overflow-y-auto space-y-0.5">
-                {cats.map((c) => {
-                  const checked = filters.category_ids.includes(c.id);
-                  return (
-                    <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(v) => {
-                          setFilters({
-                            ...filters,
-                            category_ids: v
-                              ? [...filters.category_ids, c.id]
-                              : filters.category_ids.filter((id) => id !== c.id),
-                          });
-                        }}
-                      />
-                      <span className="flex-1">{c.name}</span>
-                      {checked && <Check className="w-3 h-3 text-primary" />}
-                    </label>
-                  );
-                })}
-                {cats.length === 0 && <div className="text-xs text-muted-foreground p-2">لا يوجد تصنيفات</div>}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div>
-          <Label className="text-xs">طريقة الدفع</Label>
-          <Select value={filters.payment_method || "all"} onValueChange={(v) => setFilters({ ...filters, payment_method: v === "all" ? "" : v })}>
-            <SelectTrigger className="h-9 mt-1 w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
-              {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">المصدر</Label>
-          <Select value={filters.source || "all"} onValueChange={(v) => setFilters({ ...filters, source: v === "all" ? "" : v })}>
-            <SelectTrigger className="h-9 mt-1 w-28"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
-              <SelectItem value="manual">يدوي</SelectItem>
-              <SelectItem value="system">تلقائي</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {adminAllBranches && (
-          <div>
-            <Label className="text-xs">الفرع</Label>
-            <Select value={filters.branch_id || "all"} onValueChange={(v) => setFilters({ ...filters, branch_id: v === "all" ? "" : v })}>
-              <SelectTrigger className="h-9 mt-1 w-40"><SelectValue /></SelectTrigger>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">المصدر</Label>
+            <Select value={filters.source || "all"} onValueChange={(v) => setFilters({ ...filters, source: v === "all" ? "" : v })}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">كل الفروع</SelectItem>
-                {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="manual">يدوي</SelectItem>
+                <SelectItem value="system">تلقائي</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
-        <div className="flex gap-2 ms-auto">
-          <Button size="sm" variant="outline" onClick={() => exportToExcel("vouchers", [{ name: "السندات", rows: exportRows }])}>Excel</Button>
+          {adminAllBranches && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">الفرع</Label>
+              <Select value={filters.branch_id || "all"} onValueChange={(v) => setFilters({ ...filters, branch_id: v === "all" ? "" : v })}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الفروع</SelectItem>
+                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2 items-center justify-end pt-2 border-t">
+          <Button size="sm" variant="outline" onClick={() => exportToExcel("vouchers", [{ name: "السندات", rows: exportRows }])}>
+            <FileDown className="w-4 h-4 ms-1" /> Excel
+          </Button>
           <Button size="sm" variant="outline" onClick={() => {
             const branchName = branchId ? (branchMap[branchId] ?? "الفرع") : "كل الفروع";
             generateVouchersReport({
@@ -278,7 +283,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
               filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
               userName: profile?.name || user?.email || "مستخدم",
             });
-          }}>PDF تفصيلي</Button>
+          }}>
+            <FileDown className="w-4 h-4 ms-1" /> PDF تفصيلي
+          </Button>
           {canAdd && (
             <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" /> {type === "receipt" ? "سند قبض جديد" : "سند صرف جديد"}
@@ -286,6 +293,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
           )}
         </div>
       </div>
+
 
       <DataTable
         loading={loading}
