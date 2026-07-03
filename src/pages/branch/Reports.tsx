@@ -92,6 +92,10 @@ export default function BranchReports() {
   const cashOut = treasury.filter((t) => t.type === "payment").reduce((s, t) => s + Number(t.amount), 0);
   const totalReturns = returns.reduce((s, r: any) => s + Number(r.total_refund ?? 0), 0);
 
+  // stock lookup by product name
+  const stockByName: Record<string, number> = {};
+  for (const p of products) stockByName[p.name] = Number(p.quantity ?? 0);
+
   // Top products
   const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
   for (const inv of activeInv) {
@@ -102,13 +106,16 @@ export default function BranchReports() {
       productMap[k].revenue += netLineTotal(it);
     }
   }
-  const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  const topProducts = Object.values(productMap)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+    .map((p) => ({ ...p, stock: stockByName[p.name] ?? 0 }));
 
   // Least sold: include all products, showing those with lowest sales (including zero)
   const leastProducts = products
     .map((p) => {
       const sold = productMap[p.name];
-      return { name: p.name, qty: sold?.qty ?? 0, revenue: sold?.revenue ?? 0 };
+      return { name: p.name, qty: sold?.qty ?? 0, revenue: sold?.revenue ?? 0, stock: Number(p.quantity ?? 0) };
     })
     .sort((a, b) => a.qty - b.qty || a.revenue - b.revenue)
     .slice(0, 10);
