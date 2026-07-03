@@ -1591,9 +1591,13 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
         { label: "إجمالي الإيراد", value: fmtEGP(totalRev), color: C.good },
       ])}</div>`);
       const table = simpleTable(
-        ["#", "المنتج", "الكمية المباعة", "الإيراد", "النسبة من الإيراد"],
-        rows.map((r, i) => [String(i + 1), r.name, fmtNum(r.qty), fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"]),
-        ["36px", "", "110px", "130px", "110px"],
+        ["#", "المنتج", "الكمية المباعة", "المتوفر", "الإيراد", "النسبة من الإيراد"],
+        rows.map((r, i) => {
+          const stock = r.stock ?? 0;
+          const stockCell = `<b style="color:${stock <= 0 ? C.bad : stock <= 5 ? C.warn : C.text};">${fmtNum(stock)}</b>`;
+          return [String(i + 1), r.name, fmtNum(r.qty), stockCell, fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"];
+        }),
+        ["36px", "", "110px", "80px", "130px", "110px"],
       );
       sections.push(`<div data-pdf-section="prods">${table}</div>`);
     }
