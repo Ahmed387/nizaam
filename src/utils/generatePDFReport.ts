@@ -1515,8 +1515,8 @@ export type BranchTabReportInput = {
   };
   daily?: { date: string; sales: number; profit: number }[];
   expensesByType?: { name: string; value: number }[];
-  topProducts?: { name: string; qty: number; revenue: number }[];
-  leastProducts?: { name: string; qty: number; revenue: number }[];
+  topProducts?: { name: string; qty: number; revenue: number; stock?: number }[];
+  leastProducts?: { name: string; qty: number; revenue: number; stock?: number }[];
   expenses?: { date: string; type: string; description?: string; amount: number }[];
   lowStock?: { name: string; sku?: string; quantity: number; low_stock_alert: number }[];
 };
