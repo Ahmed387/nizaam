@@ -293,9 +293,17 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         <div className="flex gap-2 ms-auto">
           <Button size="sm" variant="outline" onClick={() => exportToExcel("vouchers", [{ name: "السندات", rows: exportRows }])}>Excel</Button>
           <Button size="sm" variant="outline" onClick={() => {
-            const html = `<table><thead><tr>${Object.keys(exportRows[0] ?? {}).map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>${exportRows.map(r => `<tr>${Object.values(r).map(v => `<td>${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-            printReport("السندات", html);
-          }}>PDF</Button>
+            const branchName = branchId ? (branchMap[branchId] ?? "الفرع") : "كل الفروع";
+            generateVouchersReport({
+              branchName,
+              vouchers: rows,
+              categoriesMap: catMap,
+              branchesMap: branchMap,
+              showBranch: !!adminAllBranches,
+              filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
+              userName: profile?.name || user?.email || "مستخدم",
+            });
+          }}>PDF تفصيلي</Button>
           {canAdd && (
             <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" /> {type === "receipt" ? "سند قبض جديد" : "سند صرف جديد"}
