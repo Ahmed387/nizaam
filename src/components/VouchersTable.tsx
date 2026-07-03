@@ -192,7 +192,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
                 <ChevronDown className="w-4 h-4 opacity-60" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-64 p-2">
+            <PopoverContent align="start" side="bottom" sideOffset={6} avoidCollisions={false} className="w-64 p-2">
               <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
                 <button
                   type="button"
