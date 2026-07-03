@@ -31,7 +31,7 @@ interface Props {
 }
 
 export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Props) {
-  const { isAdmin, hasRole } = useAuth();
+  const { isAdmin, hasRole, user, profile } = useAuth();
   const [rows, setRows] = useState<Voucher[]>([]);
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
