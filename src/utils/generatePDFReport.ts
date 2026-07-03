@@ -1400,6 +1400,7 @@ export type VouchersReportInput = {
 
 export async function generateVouchersReport(input: VouchersReportInput): Promise<void> {
   const t1 = toast.loading("⏳ جاري تحضير البيانات...");
+  let t2: string | number | undefined;
   try {
     const active = input.vouchers.filter((v) => v.status === "active");
     const receipts = active.filter((v) => v.type === "receipt");
@@ -1409,7 +1410,6 @@ export async function generateVouchersReport(input: VouchersReportInput): Promis
     const net = totalIn - totalOut;
     const cancelledCount = input.vouchers.filter((v) => v.status === "cancelled").length;
 
-    // group by (type, category)
     const groupBy = (arr: any[]) => {
       const m = new Map<string, any[]>();
       arr.forEach((v) => {
@@ -1423,7 +1423,7 @@ export async function generateVouchersReport(input: VouchersReportInput): Promis
     const paymentsByCat = groupBy(payments.concat(input.vouchers.filter((v) => v.type === "payment" && v.status === "cancelled")));
 
     toast.dismiss(t1);
-    const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+    t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
 
     const titleType =
       input.filters.type === "receipt" ? "تقرير تفصيلي بسندات القبض"
@@ -1485,11 +1485,12 @@ export async function generateVouchersReport(input: VouchersReportInput): Promis
       fileName: `تقرير-السندات-${input.branchName}-${input.filters.from || "الكل"}-${input.filters.to || "الكل"}.pdf`,
     });
 
-    toast.dismiss(t2);
     toast.success("✅ تم إنشاء تقرير السندات");
   } catch (e: any) {
     console.error("[generateVouchersReport]", e);
-    toast.dismiss();
     toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  } finally {
+    toast.dismiss(t1);
+    if (t2 !== undefined) toast.dismiss(t2);
   }
 }
