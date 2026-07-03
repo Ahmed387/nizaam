@@ -11,10 +11,10 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { exportToExcel, printReport } from "@/lib/export";
-import { generateProfitReport } from "@/utils/generatePDFReport";
+import { exportToExcel } from "@/lib/export";
+import { generateProfitReport, generateBranchTabReport, type ReportsTabKey } from "@/utils/generatePDFReport";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileSpreadsheet, Printer, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
+import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
@@ -104,12 +104,51 @@ export default function BranchReports() {
   }
   const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
 
+  // Least sold: include all products, showing those with lowest sales (including zero)
+  const leastProducts = products
+    .map((p) => {
+      const sold = productMap[p.name];
+      return { name: p.name, qty: sold?.qty ?? 0, revenue: sold?.revenue ?? 0 };
+    })
+    .sort((a, b) => a.qty - b.qty || a.revenue - b.revenue)
+    .slice(0, 10);
+
   // Expenses by type
   const expByType: Record<string, number> = {};
   for (const e of expenses) expByType[e.type] = (expByType[e.type] ?? 0) + Number(e.amount);
 
   // Low stock
   const lowStock = products.filter((p) => p.quantity <= p.low_stock_alert);
+
+  // daily series (used by both chart tab & PDF)
+  const dailyData = (() => {
+    const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
+    for (const inv of activeInv) {
+      const d = inv.created_at.slice(0, 10);
+      if (!dayMap[d]) dayMap[d] = { date: d, sales: 0, profit: 0 };
+      dayMap[d].sales += netInvoiceTotal(inv);
+      const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * netQty(it), 0);
+      dayMap[d].profit += netInvoiceTotal(inv) - cost;
+    }
+    return Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
+  })();
+
+  const buildTabReport = (tab: ReportsTabKey) => generateBranchTabReport({
+    tab,
+    branchName,
+    userName: profile?.name ?? "—",
+    from, to,
+    totals: {
+      totalSales, totalCost, grossProfit, totalExpenses, netProfit,
+      cashIn, cashOut, totalReturns, invoicesCount: activeInv.length,
+    },
+    daily: dailyData,
+    expensesByType: Object.entries(expByType).map(([name, value]) => ({ name, value })),
+    topProducts, leastProducts,
+    expenses: expenses.map((e) => ({ date: e.date, type: e.type, description: e.description, amount: Number(e.amount) })),
+    lowStock: lowStock.map((p: any) => ({ name: p.name, sku: p.sku, quantity: Number(p.quantity), low_stock_alert: Number(p.low_stock_alert) })),
+  });
+
 
   const exportXlsx = () => {
     exportToExcel(`تقرير-${branchName}-${from}-${to}`, [
@@ -132,30 +171,6 @@ export default function BranchReports() {
     ]);
   };
 
-  const printSummary = () => {
-    const html = `
-      <div class="kpi">
-        <div>إجمالي المبيعات<b class="pos">${formatEGP(totalSales)}</b></div>
-        <div>إجمالي التكلفة<b>${formatEGP(totalCost)}</b></div>
-        <div>إجمالي الربح<b class="pos">${formatEGP(grossProfit)}</b></div>
-        <div>المصروفات<b class="neg">${formatEGP(totalExpenses)}</b></div>
-        <div>صافي الربح<b class="${netProfit >= 0 ? "pos" : "neg"}">${formatEGP(netProfit)}</b></div>
-      </div>
-      <h3>أكثر المنتجات مبيعاً</h3>
-      <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead><tbody>
-        ${topProducts.map((p) => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("")}
-      </tbody></table>
-      <h3>المصروفات حسب النوع</h3>
-      <table><thead><tr><th>النوع</th><th>المبلغ</th></tr></thead><tbody>
-        ${Object.entries(expByType).map(([k, v]) => `<tr><td>${k}</td><td>${formatEGP(v)}</td></tr>`).join("") || "<tr><td colspan='2'>لا يوجد</td></tr>"}
-      </tbody></table>
-      ${lowStock.length ? `<h3>تنبيه: مخزون منخفض (${lowStock.length})</h3>
-        <table><thead><tr><th>المنتج</th><th>المتوفر</th><th>الحد الأدنى</th></tr></thead><tbody>
-        ${lowStock.map((p) => `<tr><td>${p.name}</td><td class="neg">${p.quantity}</td><td>${p.low_stock_alert}</td></tr>`).join("")}
-        </tbody></table>` : ""}
-    `;
-    printReport(`تقرير الفرع: ${branchName} (${from} → ${to})`, html);
-  };
 
   return (
     <BranchLayout>
@@ -176,7 +191,6 @@ export default function BranchReports() {
               <FileText className="w-4 h-4" /> تقرير ربحية PDF
             </Button>
             <Button variant="outline" onClick={exportXlsx} className="gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
-            <Button onClick={printSummary} className="gap-2"><Printer className="w-4 h-4" /> طباعة / PDF</Button>
           </div>
         }
       />
@@ -205,11 +219,17 @@ export default function BranchReports() {
         <TabsList>
           <TabsTrigger value="charts">📊 التحليل البصري</TabsTrigger>
           <TabsTrigger value="products">أكثر مبيعاً</TabsTrigger>
+          <TabsTrigger value="leastsold">الأقل مبيعاً</TabsTrigger>
           <TabsTrigger value="expenses">سندات الصرف</TabsTrigger>
           <TabsTrigger value="lowstock">مخزون منخفض</TabsTrigger>
         </TabsList>
 
         <TabsContent value="charts" className="mt-4 space-y-6">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("charts")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           {(() => {
             // sales by day
             const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
@@ -393,7 +413,12 @@ export default function BranchReports() {
           })()}
         </TabsContent>
 
-        <TabsContent value="products" className="mt-4">
+        <TabsContent value="products" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("products")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
@@ -401,14 +426,37 @@ export default function BranchReports() {
               { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="text-primary block text-center">{formatEGP(r.revenue)}</b> },
             ]} />
         </TabsContent>
-        <TabsContent value="expenses" className="mt-4">
+        <TabsContent value="leastsold" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("leastsold")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
+          <DataTable rows={leastProducts} loading={loading} empty="لا توجد بيانات"
+            columns={[
+              { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
+              { key: "qty", header: "الكمية المباعة", align: "center", render: (r: any) => <b className="text-destructive">{r.qty}</b> },
+              { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="block text-center">{formatEGP(r.revenue)}</b> },
+            ]} />
+        </TabsContent>
+        <TabsContent value="expenses" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("expenses")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           <DataTable rows={Object.entries(expByType).map(([type, amount]) => ({ type, amount }))} empty="لا توجد مصروفات"
             columns={[
               { key: "type", header: "النوع" },
               { key: "amount", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.amount)}</b> },
             ]} />
         </TabsContent>
-        <TabsContent value="lowstock" className="mt-4">
+        <TabsContent value="lowstock" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("lowstock")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافي"
             columns={[
               { key: "name", header: "المنتج", align: "center" },

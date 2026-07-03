@@ -1494,3 +1494,177 @@ export async function generateVouchersReport(input: VouchersReportInput): Promis
     if (t2 !== undefined) toast.dismiss(t2);
   }
 }
+
+// ============================================================================
+// ================  BRANCH REPORTS — PER-TAB DETAILED PDF  ===================
+// ============================================================================
+
+export type ReportsTabKey = "charts" | "products" | "leastsold" | "expenses" | "lowstock";
+
+export type BranchTabReportInput = {
+  tab: ReportsTabKey;
+  branchName: string;
+  userName: string;
+  from: string;
+  to: string;
+  // summary numbers
+  totals: {
+    totalSales: number; totalCost: number; grossProfit: number;
+    totalExpenses: number; netProfit: number; cashIn: number; cashOut: number;
+    totalReturns: number; invoicesCount: number;
+  };
+  daily?: { date: string; sales: number; profit: number }[];
+  expensesByType?: { name: string; value: number }[];
+  topProducts?: { name: string; qty: number; revenue: number }[];
+  leastProducts?: { name: string; qty: number; revenue: number }[];
+  expenses?: { date: string; type: string; description?: string; amount: number }[];
+  lowStock?: { name: string; sku?: string; quantity: number; low_stock_alert: number }[];
+};
+
+function simpleTable(headers: string[], rows: string[][], widths?: string[]) {
+  const ths = headers.map((h, i) => `<th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;${widths?.[i] ? `width:${widths[i]};` : ""}">${h}</th>`).join("");
+  const trs = rows.length
+    ? rows.map((r) => `<tr>${r.map((c) => `<td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};">${c}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${headers.length}" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد بيانات</td></tr>`;
+  return `<table style="width:100%;border-collapse:collapse;border:1px solid ${C.border};border-radius:8px;overflow:hidden;margin-bottom:16px;">
+    <thead><tr style="background:${C.ink};">${ths}</tr></thead>
+    <tbody>${trs}</tbody>
+  </table>`;
+}
+
+const TAB_TITLES: Record<ReportsTabKey, string> = {
+  charts: "تقرير التحليل البصري التفصيلي",
+  products: "تقرير الأكثر مبيعاً التفصيلي",
+  leastsold: "تقرير الأقل مبيعاً التفصيلي",
+  expenses: "تقرير سندات الصرف التفصيلي",
+  lowstock: "تقرير المخزون المنخفض التفصيلي",
+};
+
+export async function generateBranchTabReport(input: BranchTabReportInput): Promise<void> {
+  const t1 = toast.loading("🖨️ جاري تحضير التقرير...");
+  let t2: string | number | undefined;
+  try {
+    const header = headerHtml({
+      title: TAB_TITLES[input.tab],
+      branchName: input.branchName,
+      userName: input.userName,
+      fromDate: input.from,
+      toDate: input.to,
+    });
+
+    const T = input.totals;
+    const sections: string[] = [`<div data-pdf-section="header">${header}</div>`];
+
+    if (input.tab === "charts") {
+      const kpi = kpiCardsHtml([
+        { label: "إجمالي المبيعات (صافي)", value: fmtEGP(T.totalSales), highlight: true },
+        { label: "إجمالي التكلفة", value: fmtEGP(T.totalCost) },
+        { label: "إجمالي الربح", value: fmtEGP(T.grossProfit), color: C.good },
+        { label: "المصروفات", value: fmtEGP(T.totalExpenses), color: C.warn },
+        { label: "صافي الربح", value: fmtEGP(T.netProfit), color: T.netProfit >= 0 ? C.good : C.bad },
+        { label: "المرتجعات", value: fmtEGP(T.totalReturns), color: C.warn },
+        { label: "وارد الخزنة", value: fmtEGP(T.cashIn), color: C.good },
+        { label: "صادر الخزنة", value: fmtEGP(T.cashOut), color: C.bad },
+        { label: "عدد الفواتير", value: fmtNum(T.invoicesCount) },
+      ]);
+      sections.push(`<div data-pdf-section="kpi">${kpi}</div>`);
+
+      sections.push(`<div data-pdf-section="daily-title">${sectionTitle("المبيعات والأرباح اليومية")}</div>`);
+      const dailyRows = (input.daily ?? []).map((d) => [d.date, fmtEGP(d.sales), fmtEGP(d.profit)]);
+      sections.push(`<div data-pdf-section="daily">${simpleTable(["التاريخ", "المبيعات", "الربح"], dailyRows)}</div>`);
+
+      sections.push(`<div data-pdf-section="exp-title">${sectionTitle("المصروفات حسب النوع")}</div>`);
+      const totalExp = (input.expensesByType ?? []).reduce((s, e) => s + e.value, 0);
+      const expRows = (input.expensesByType ?? [])
+        .sort((a, b) => b.value - a.value)
+        .map((e) => [e.name, fmtEGP(e.value), totalExp ? fmtPct((e.value / totalExp) * 100) : "—"]);
+      sections.push(`<div data-pdf-section="exp">${simpleTable(["النوع", "المبلغ", "النسبة"], expRows)}</div>`);
+    }
+
+    if (input.tab === "products" || input.tab === "leastsold") {
+      const rows = (input.tab === "products" ? input.topProducts : input.leastProducts) ?? [];
+      const totalRev = rows.reduce((s, r) => s + r.revenue, 0);
+      const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+      sections.push(`<div data-pdf-section="kpi">${kpiCardsHtml([
+        { label: "عدد الأصناف", value: fmtNum(rows.length), highlight: true },
+        { label: "إجمالي الكميات المباعة", value: fmtNum(totalQty) },
+        { label: "إجمالي الإيراد", value: fmtEGP(totalRev), color: C.good },
+      ])}</div>`);
+      const table = simpleTable(
+        ["#", "المنتج", "الكمية المباعة", "الإيراد", "النسبة من الإيراد"],
+        rows.map((r, i) => [String(i + 1), r.name, fmtNum(r.qty), fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"]),
+        ["36px", "", "110px", "130px", "110px"],
+      );
+      sections.push(`<div data-pdf-section="prods">${table}</div>`);
+    }
+
+    if (input.tab === "expenses") {
+      const rows = input.expenses ?? [];
+      const total = rows.reduce((s, e) => s + Number(e.amount || 0), 0);
+      sections.push(`<div data-pdf-section="kpi">${kpiCardsHtml([
+        { label: "عدد السندات", value: fmtNum(rows.length), highlight: true },
+        { label: "إجمالي المصروفات", value: fmtEGP(total), color: C.warn },
+        { label: "متوسط السند", value: fmtEGP(rows.length ? total / rows.length : 0) },
+      ])}</div>`);
+      // by type
+      const byType: Record<string, number> = {};
+      rows.forEach((e) => { byType[e.type] = (byType[e.type] ?? 0) + Number(e.amount || 0); });
+      sections.push(`<div data-pdf-section="by-type-title">${sectionTitle("المصروفات حسب النوع")}</div>`);
+      sections.push(`<div data-pdf-section="by-type">${simpleTable(
+        ["النوع", "المبلغ", "النسبة"],
+        Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([n, v]) => [n, fmtEGP(v), total ? fmtPct((v / total) * 100) : "—"]),
+      )}</div>`);
+      // full list
+      sections.push(`<div data-pdf-section="full-title">${sectionTitle("تفاصيل السندات")}</div>`);
+      const listRows = rows
+        .slice()
+        .sort((a, b) => (a.date > b.date ? -1 : 1))
+        .map((e, i) => [String(i + 1), fmtDate(e.date), e.type, e.description || "—", fmtEGP(Number(e.amount || 0))]);
+      sections.push(`<div data-pdf-section="full">${simpleTable(
+        ["#", "التاريخ", "النوع", "الوصف", "المبلغ"],
+        listRows,
+        ["36px", "90px", "140px", "", "110px"],
+      )}</div>`);
+    }
+
+    if (input.tab === "lowstock") {
+      const rows = input.lowStock ?? [];
+      const critical = rows.filter((r) => r.quantity === 0).length;
+      sections.push(`<div data-pdf-section="kpi">${kpiCardsHtml([
+        { label: "عدد الأصناف تحت الحد", value: fmtNum(rows.length), highlight: true, color: C.warn },
+        { label: "أصناف نافذة (0)", value: fmtNum(critical), color: C.bad },
+        { label: "أصناف بحاجة تجديد", value: fmtNum(rows.length - critical) },
+      ])}</div>`);
+      const listRows = rows
+        .slice()
+        .sort((a, b) => a.quantity - b.quantity)
+        .map((p, i) => [
+          String(i + 1),
+          p.name,
+          p.sku || "—",
+          `<b style="color:${p.quantity === 0 ? C.bad : C.warn};">${fmtNum(p.quantity)}</b>`,
+          fmtNum(p.low_stock_alert),
+          fmtNum(Math.max(0, p.low_stock_alert - p.quantity)),
+        ]);
+      sections.push(`<div data-pdf-section="ls">${simpleTable(
+        ["#", "المنتج", "الكود", "المتوفر", "حد التنبيه", "الكمية المطلوبة"],
+        listRows,
+        ["36px", "", "110px", "90px", "90px", "110px"],
+      )}</div>`);
+    }
+
+    t2 = toast.loading("📄 جاري إنشاء ملف PDF...");
+    await renderSectionsToPdf({
+      sectionsHtml: sections.join(""),
+      branchName: input.branchName,
+      fileName: `${TAB_TITLES[input.tab]}-${input.branchName}-${input.from}-${input.to}.pdf`,
+    });
+    toast.success("✅ تم إنشاء التقرير");
+  } catch (e: any) {
+    console.error("[generateBranchTabReport]", e);
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  } finally {
+    toast.dismiss(t1);
+    if (t2 !== undefined) toast.dismiss(t2);
+  }
+}
