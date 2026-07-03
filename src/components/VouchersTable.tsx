@@ -229,31 +229,6 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
                 })}
                 {cats.length === 0 && <div className="text-xs text-muted-foreground p-2">لا يوجد تصنيفات</div>}
               </div>
-              <div className="border-t mt-2 pt-2 px-1">
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => {
-                    const filtered = filters.category_ids.length
-                      ? rows.filter((r) => filters.category_ids.includes(r.category_id))
-                      : rows;
-                    const branchName = branchId
-                      ? (branchMap[branchId] ?? "الفرع")
-                      : adminAllBranches ? "كل الفروع" : "كل الفروع";
-                    generateVouchersReport({
-                      branchName,
-                      vouchers: filtered,
-                      categoriesMap: catMap,
-                      branchesMap: branchMap,
-                      showBranch: !!adminAllBranches,
-                      filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
-                      userName: profile?.name || user?.email || "مستخدم",
-                    });
-                  }}
-                >
-                  <FileDown className="w-4 h-4" /> تقرير PDF تفصيلي للتصنيفات المختارة
-                </Button>
-              </div>
             </PopoverContent>
           </Popover>
         </div>
