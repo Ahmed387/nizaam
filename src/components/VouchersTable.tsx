@@ -45,7 +45,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [filters, setFilters] = useState({
     from: "",
     to: "",
-    category_id: "",
+    category_ids: [] as string[],
     payment_method: "",
     source: "",
     branch_id: "",
