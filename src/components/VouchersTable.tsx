@@ -246,6 +246,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
             </PopoverContent>
           </Popover>
         </div>
+        <div>
+          <Label className="text-xs">طريقة الدفع</Label>
           <Select value={filters.payment_method || "all"} onValueChange={(v) => setFilters({ ...filters, payment_method: v === "all" ? "" : v })}>
             <SelectTrigger className="h-9 mt-1 w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
