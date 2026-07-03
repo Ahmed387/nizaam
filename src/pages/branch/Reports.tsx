@@ -215,7 +215,6 @@ export default function BranchReports() {
               <FileText className="w-4 h-4" /> تقرير ربحية PDF
             </Button>
             <Button variant="outline" onClick={exportXlsx} className="gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</Button>
-            <Button onClick={printSummary} className="gap-2"><Printer className="w-4 h-4" /> طباعة / PDF</Button>
           </div>
         }
       />
