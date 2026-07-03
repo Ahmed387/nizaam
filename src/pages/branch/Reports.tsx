@@ -104,12 +104,51 @@ export default function BranchReports() {
   }
   const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
 
+  // Least sold: include all products, showing those with lowest sales (including zero)
+  const leastProducts = products
+    .map((p) => {
+      const sold = productMap[p.name];
+      return { name: p.name, qty: sold?.qty ?? 0, revenue: sold?.revenue ?? 0 };
+    })
+    .sort((a, b) => a.qty - b.qty || a.revenue - b.revenue)
+    .slice(0, 10);
+
   // Expenses by type
   const expByType: Record<string, number> = {};
   for (const e of expenses) expByType[e.type] = (expByType[e.type] ?? 0) + Number(e.amount);
 
   // Low stock
   const lowStock = products.filter((p) => p.quantity <= p.low_stock_alert);
+
+  // daily series (used by both chart tab & PDF)
+  const dailyData = (() => {
+    const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
+    for (const inv of activeInv) {
+      const d = inv.created_at.slice(0, 10);
+      if (!dayMap[d]) dayMap[d] = { date: d, sales: 0, profit: 0 };
+      dayMap[d].sales += netInvoiceTotal(inv);
+      const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * netQty(it), 0);
+      dayMap[d].profit += netInvoiceTotal(inv) - cost;
+    }
+    return Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
+  })();
+
+  const buildTabReport = (tab: ReportsTabKey) => generateBranchTabReport({
+    tab,
+    branchName,
+    userName: profile?.name ?? "—",
+    from, to,
+    totals: {
+      totalSales, totalCost, grossProfit, totalExpenses, netProfit,
+      cashIn, cashOut, totalReturns, invoicesCount: activeInv.length,
+    },
+    daily: dailyData,
+    expensesByType: Object.entries(expByType).map(([name, value]) => ({ name, value })),
+    topProducts, leastProducts,
+    expenses: expenses.map((e) => ({ date: e.date, type: e.type, description: e.description, amount: Number(e.amount) })),
+    lowStock: lowStock.map((p: any) => ({ name: p.name, sku: p.sku, quantity: Number(p.quantity), low_stock_alert: Number(p.low_stock_alert) })),
+  });
+
 
   const exportXlsx = () => {
     exportToExcel(`تقرير-${branchName}-${from}-${to}`, [
