@@ -171,30 +171,6 @@ export default function BranchReports() {
     ]);
   };
 
-  const printSummary = () => {
-    const html = `
-      <div class="kpi">
-        <div>إجمالي المبيعات<b class="pos">${formatEGP(totalSales)}</b></div>
-        <div>إجمالي التكلفة<b>${formatEGP(totalCost)}</b></div>
-        <div>إجمالي الربح<b class="pos">${formatEGP(grossProfit)}</b></div>
-        <div>المصروفات<b class="neg">${formatEGP(totalExpenses)}</b></div>
-        <div>صافي الربح<b class="${netProfit >= 0 ? "pos" : "neg"}">${formatEGP(netProfit)}</b></div>
-      </div>
-      <h3>أكثر المنتجات مبيعاً</h3>
-      <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead><tbody>
-        ${topProducts.map((p) => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("")}
-      </tbody></table>
-      <h3>المصروفات حسب النوع</h3>
-      <table><thead><tr><th>النوع</th><th>المبلغ</th></tr></thead><tbody>
-        ${Object.entries(expByType).map(([k, v]) => `<tr><td>${k}</td><td>${formatEGP(v)}</td></tr>`).join("") || "<tr><td colspan='2'>لا يوجد</td></tr>"}
-      </tbody></table>
-      ${lowStock.length ? `<h3>تنبيه: مخزون منخفض (${lowStock.length})</h3>
-        <table><thead><tr><th>المنتج</th><th>المتوفر</th><th>الحد الأدنى</th></tr></thead><tbody>
-        ${lowStock.map((p) => `<tr><td>${p.name}</td><td class="neg">${p.quantity}</td><td>${p.low_stock_alert}</td></tr>`).join("")}
-        </tbody></table>` : ""}
-    `;
-    printReport(`تقرير الفرع: ${branchName} (${from} → ${to})`, html);
-  };
 
   return (
     <BranchLayout>
