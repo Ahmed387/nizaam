@@ -219,6 +219,7 @@ export default function BranchReports() {
         <TabsList>
           <TabsTrigger value="charts">📊 التحليل البصري</TabsTrigger>
           <TabsTrigger value="products">أكثر مبيعاً</TabsTrigger>
+          <TabsTrigger value="leastsold">الأقل مبيعاً</TabsTrigger>
           <TabsTrigger value="expenses">سندات الصرف</TabsTrigger>
           <TabsTrigger value="lowstock">مخزون منخفض</TabsTrigger>
         </TabsList>
