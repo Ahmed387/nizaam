@@ -63,7 +63,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     if (filters.type) q = q.eq("type", filters.type);
     if (filters.from) q = q.gte("voucher_date", filters.from);
     if (filters.to) q = q.lte("voucher_date", filters.to);
-    if (filters.category_id) q = q.eq("category_id", filters.category_id);
+    if (filters.category_ids.length) q = q.in("category_id", filters.category_ids);
     if (filters.payment_method) q = q.eq("payment_method", filters.payment_method);
     if (filters.source) q = q.eq("source", filters.source);
     if (filters.branch_id) q = q.eq("branch_id", filters.branch_id);
