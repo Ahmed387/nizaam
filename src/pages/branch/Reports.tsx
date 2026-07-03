@@ -225,6 +225,11 @@ export default function BranchReports() {
         </TabsList>
 
         <TabsContent value="charts" className="mt-4 space-y-6">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("charts")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           {(() => {
             // sales by day
             const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
