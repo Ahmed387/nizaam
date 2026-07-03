@@ -156,7 +156,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         </div>
       </div>
 
-      <div className="card-elevated p-3 flex flex-wrap gap-2 items-end">
+      <div className="card-elevated p-3 flex flex-wrap gap-3 items-end">
         <div>
           <Label className="text-xs">من تاريخ</Label>
           <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} className="h-9 mt-1" />
