@@ -429,7 +429,8 @@ export default function BranchReports() {
           <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
-              { key: "qty", header: "الكمية", align: "center" },
+              { key: "qty", header: "الكمية المباعة", align: "center" },
+              { key: "stock", header: "المتوفر", align: "center", render: (r: any) => <b className={`block text-center ${r.stock <= 0 ? "text-destructive" : r.stock <= 5 ? "text-warning" : ""}`}>{r.stock}</b> },
               { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="text-primary block text-center">{formatEGP(r.revenue)}</b> },
             ]} />
         </TabsContent>
@@ -443,6 +444,7 @@ export default function BranchReports() {
             columns={[
               { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
               { key: "qty", header: "الكمية المباعة", align: "center", render: (r: any) => <b className="text-destructive">{r.qty}</b> },
+              { key: "stock", header: "المتوفر", align: "center", render: (r: any) => <b className={`block text-center ${r.stock <= 0 ? "text-destructive" : r.stock <= 5 ? "text-warning" : ""}`}>{r.stock}</b> },
               { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="block text-center">{formatEGP(r.revenue)}</b> },
             ]} />
         </TabsContent>
