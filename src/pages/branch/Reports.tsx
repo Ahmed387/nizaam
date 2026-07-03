@@ -11,7 +11,7 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { exportToExcel, printReport } from "@/lib/export";
+import { exportToExcel } from "@/lib/export";
 import { generateProfitReport, generateBranchTabReport, type ReportsTabKey } from "@/utils/generatePDFReport";
 import { useAuth } from "@/contexts/AuthContext";
 import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
