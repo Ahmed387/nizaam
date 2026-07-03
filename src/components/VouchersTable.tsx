@@ -7,6 +7,8 @@ import { DataTable } from "./DataTable";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Checkbox } from "./ui/checkbox";
 import { VoucherDialog } from "./VoucherDialog";
 import { VoucherViewDialog } from "./VoucherViewDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +17,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2, Trash2, Eye } from "lucide-react";
+import { Plus, XCircle, Loader2, Trash2, Eye, FileDown, ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
@@ -43,7 +45,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [filters, setFilters] = useState({
     from: "",
     to: "",
-    category_id: "",
+    category_ids: [] as string[],
     payment_method: "",
     source: "",
     branch_id: "",
@@ -61,7 +63,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     if (filters.type) q = q.eq("type", filters.type);
     if (filters.from) q = q.gte("voucher_date", filters.from);
     if (filters.to) q = q.lte("voucher_date", filters.to);
-    if (filters.category_id) q = q.eq("category_id", filters.category_id);
+    if (filters.category_ids.length) q = q.in("category_id", filters.category_ids);
     if (filters.payment_method) q = q.eq("payment_method", filters.payment_method);
     if (filters.source) q = q.eq("source", filters.source);
     if (filters.branch_id) q = q.eq("branch_id", filters.branch_id);
@@ -177,13 +179,72 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         )}
         <div>
           <Label className="text-xs">التصنيف</Label>
-          <Select value={filters.category_id || "all"} onValueChange={(v) => setFilters({ ...filters, category_id: v === "all" ? "" : v })}>
-            <SelectTrigger className="h-9 mt-1 w-40"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل التصنيفات</SelectItem>
-              {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 mt-1 w-52 justify-between font-normal">
+                <span className="truncate">
+                  {filters.category_ids.length === 0
+                    ? "كل التصنيفات"
+                    : filters.category_ids.length === 1
+                      ? (catMap[filters.category_ids[0]] ?? "تصنيف")
+                      : `${filters.category_ids.length} تصنيفات مختارة`}
+                </span>
+                <ChevronDown className="w-4 h-4 opacity-60" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64 p-2">
+              <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => setFilters({ ...filters, category_ids: [] })}
+                >مسح الاختيار</button>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => setFilters({ ...filters, category_ids: cats.map(c => c.id) })}
+                >تحديد الكل</button>
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-0.5">
+                {cats.map((c) => {
+                  const checked = filters.category_ids.includes(c.id);
+                  return (
+                    <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setFilters({
+                            ...filters,
+                            category_ids: v
+                              ? [...filters.category_ids, c.id]
+                              : filters.category_ids.filter((id) => id !== c.id),
+                          });
+                        }}
+                      />
+                      <span className="flex-1">{c.name}</span>
+                      {checked && <Check className="w-3 h-3 text-primary" />}
+                    </label>
+                  );
+                })}
+                {cats.length === 0 && <div className="text-xs text-muted-foreground p-2">لا يوجد تصنيفات</div>}
+              </div>
+              <div className="border-t mt-2 pt-2 px-1">
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    const html = `<table><thead><tr>${Object.keys(exportRows[0] ?? {}).map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>${exportRows.map(r => `<tr>${Object.values(r).map(v => `<td>${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+                    const title = filters.category_ids.length
+                      ? `السندات — ${filters.category_ids.map(id => catMap[id]).filter(Boolean).join("، ")}`
+                      : "السندات — كل التصنيفات";
+                    printReport(title, html);
+                  }}
+                >
+                  <FileDown className="w-4 h-4" /> تحميل PDF للتصنيفات المختارة
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <div>
           <Label className="text-xs">طريقة الدفع</Label>
