@@ -413,7 +413,12 @@ export default function BranchReports() {
           })()}
         </TabsContent>
 
-        <TabsContent value="products" className="mt-4">
+        <TabsContent value="products" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("products")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
@@ -421,14 +426,37 @@ export default function BranchReports() {
               { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="text-primary block text-center">{formatEGP(r.revenue)}</b> },
             ]} />
         </TabsContent>
-        <TabsContent value="expenses" className="mt-4">
+        <TabsContent value="leastsold" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("leastsold")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
+          <DataTable rows={leastProducts} loading={loading} empty="لا توجد بيانات"
+            columns={[
+              { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
+              { key: "qty", header: "الكمية المباعة", align: "center", render: (r: any) => <b className="text-destructive">{r.qty}</b> },
+              { key: "revenue", header: "الإيراد", align: "center", render: (r: any) => <b className="block text-center">{formatEGP(r.revenue)}</b> },
+            ]} />
+        </TabsContent>
+        <TabsContent value="expenses" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("expenses")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           <DataTable rows={Object.entries(expByType).map(([type, amount]) => ({ type, amount }))} empty="لا توجد مصروفات"
             columns={[
               { key: "type", header: "النوع" },
               { key: "amount", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.amount)}</b> },
             ]} />
         </TabsContent>
-        <TabsContent value="lowstock" className="mt-4">
+        <TabsContent value="lowstock" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => buildTabReport("lowstock")} className="gap-2">
+              <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
+            </Button>
+          </div>
           <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافي"
             columns={[
               { key: "name", header: "المنتج", align: "center" },
