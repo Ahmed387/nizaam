@@ -17,7 +17,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2, Trash2, Eye } from "lucide-react";
+import { Plus, XCircle, Loader2, Trash2, Eye, FileDown, ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
