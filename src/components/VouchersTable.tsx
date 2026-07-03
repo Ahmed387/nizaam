@@ -233,14 +233,24 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
                   size="sm"
                   className="w-full gap-2"
                   onClick={() => {
-                    const html = `<table><thead><tr>${Object.keys(exportRows[0] ?? {}).map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>${exportRows.map(r => `<tr>${Object.values(r).map(v => `<td>${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-                    const title = filters.category_ids.length
-                      ? `السندات — ${filters.category_ids.map(id => catMap[id]).filter(Boolean).join("، ")}`
-                      : "السندات — كل التصنيفات";
-                    printReport(title, html);
+                    const filtered = filters.category_ids.length
+                      ? rows.filter((r) => filters.category_ids.includes(r.category_id))
+                      : rows;
+                    const branchName = branchId
+                      ? (branchMap[branchId] ?? "الفرع")
+                      : adminAllBranches ? "كل الفروع" : "كل الفروع";
+                    generateVouchersReport({
+                      branchName,
+                      vouchers: filtered,
+                      categoriesMap: catMap,
+                      branchesMap: branchMap,
+                      showBranch: !!adminAllBranches,
+                      filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
+                      userName: profile?.name || user?.email || "مستخدم",
+                    });
                   }}
                 >
-                  <FileDown className="w-4 h-4" /> تحميل PDF للتصنيفات المختارة
+                  <FileDown className="w-4 h-4" /> تقرير PDF تفصيلي للتصنيفات المختارة
                 </Button>
               </div>
             </PopoverContent>
