@@ -66,32 +66,33 @@ export function InstallmentScheduler({ remaining, value, onChange }: Props) {
 
 
       {value.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {value.map((r, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground w-16">قسط {i + 1}</span>
+            <div key={i} className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-sm">
+              <span className="text-sm font-bold text-muted-foreground w-14 text-right shrink-0">قسط {i + 1}</span>
               <Input type="date" value={r.due_date} onChange={(e) => {
                 const c = [...value]; c[i] = { ...c[i], due_date: e.target.value }; onChange(c);
-              }} className="flex-1 h-10" />
+              }} className="flex-1 h-11 text-base" />
               <Input type="number" min={0} step="0.01" value={r.amount} onChange={(e) => {
                 const c = [...value]; c[i] = { ...c[i], amount: Number(e.target.value) }; onChange(c);
-              }} className="w-32 h-10" />
-              <Button type="button" size="icon" variant="ghost" onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="text-destructive shrink-0">
-                <Trash2 className="w-4 h-4" />
+              }} className="w-32 h-11 text-base" />
+              <Button type="button" size="icon" variant="ghost" onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="text-destructive shrink-0 h-10 w-10 hover:bg-destructive/10">
+                <Trash2 className="w-5 h-5" />
               </Button>
             </div>
           ))}
-          <Button type="button" variant="outline" onClick={() => onChange([...value, { due_date: firstDate, amount: 0 }])} className="gap-1.5 h-10 text-sm font-semibold">
-            <Plus className="w-4 h-4" /> إضافة قسط
+          <Button type="button" variant="outline" onClick={() => onChange([...value, { due_date: firstDate, amount: 0 }])} className="gap-2 h-11 w-full text-base font-semibold">
+            <Plus className="w-5 h-5" /> إضافة قسط جديد
           </Button>
-          <div className="text-sm flex justify-between border-t pt-2 mt-2">
-            <span>إجمالي الأقساط: <b>{formatEGP(total)}</b></span>
-            <span className={diff === 0 ? "text-success" : "text-destructive"}>
+          <div className="text-sm flex justify-between items-center p-3 rounded-lg bg-muted/30 border">
+            <span>إجمالي الأقساط: <b className="text-base">{formatEGP(total)}</b></span>
+            <span className={diff === 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
               {diff === 0 ? "✓ مطابق" : `الفرق: ${formatEGP(diff)}`}
             </span>
           </div>
         </div>
       )}
+
 
     </div>
   );
