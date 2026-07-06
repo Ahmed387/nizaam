@@ -334,13 +334,21 @@ export default function NewSale() {
     () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
     [items]
   );
+  // Invoice-level discount (EGP or %)
+  const invoiceDiscount = useMemo(() => {
+    const raw = invoiceDiscountMode === "amount"
+      ? Number(invoiceDiscountInput) || 0
+      : (subtotal * (Number(invoiceDiscountInput) || 0)) / 100;
+    return Math.max(0, Math.min(subtotal, +raw.toFixed(2)));
+  }, [invoiceDiscountInput, invoiceDiscountMode, subtotal]);
+  const subtotalAfterInvoiceDiscount = Math.max(0, subtotal - invoiceDiscount);
   const vatAmount = useMemo(
-    () => (vatEnabled ? +(subtotal * (Number(vatRate) || 0) / 100).toFixed(2) : 0),
-    [subtotal, vatEnabled, vatRate]
+    () => (vatEnabled ? +(subtotalAfterInvoiceDiscount * (Number(vatRate) || 0) / 100).toFixed(2) : 0),
+    [subtotalAfterInvoiceDiscount, vatEnabled, vatRate]
   );
-  const total = subtotal + vatAmount;
+  const total = subtotalAfterInvoiceDiscount + vatAmount;
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
-  const totalProfit = (subtotal - totalCost);
+  const totalProfit = (subtotalAfterInvoiceDiscount - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
   // Loss detection per line — effective unit price after discount vs cost
