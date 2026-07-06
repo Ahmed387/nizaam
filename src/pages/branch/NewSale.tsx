@@ -387,8 +387,8 @@ export default function NewSale() {
     [items]
   );
   const totalDiscountAmount = useMemo(
-    () => items.reduce((s, i) => s + Math.min(i.line_discount, i.quantity * i.selling_price), 0),
-    [items]
+    () => items.reduce((s, i) => s + Math.min(i.line_discount, i.quantity * i.selling_price), 0) + invoiceDiscount,
+    [items, invoiceDiscount]
   );
   const effectiveDiscountPct = totalBeforeDiscount > 0
     ? (totalDiscountAmount / totalBeforeDiscount) * 100
