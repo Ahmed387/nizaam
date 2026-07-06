@@ -261,6 +261,27 @@ function NewProductDialog({
             <Label className="text-xs">تنبيه عند انخفاض المخزون</Label>
             <Input type="number" min={0} value={low} onChange={(e) => setLow(Number(e.target.value))} className="mt-1.5" />
           </div>
+          <div>
+            <Label className="text-xs">صورة المنتج (اختياري)</Label>
+            <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+              {image ? (
+                <img src={image} alt="" className="w-16 h-16 rounded-md object-cover border" />
+              ) : (
+                <div className="w-16 h-16 rounded-md border border-dashed flex items-center justify-center text-[10px] text-muted-foreground">لا توجد</div>
+              )}
+              <label className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-md cursor-pointer text-xs hover:bg-muted ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {image ? "تغيير" : "رفع"}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImg(e.target.files[0])} />
+              </label>
+              {image && (
+                <Button type="button" variant="ghost" size="sm" className="h-8 text-destructive hover:bg-destructive/10" onClick={() => setImage("")}>
+                  <Trash2 className="w-3.5 h-3.5 ml-1" /> حذف
+                </Button>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">يتم ضغط الصورة تلقائيًا.</p>
+          </div>
           <div className="text-[11px] text-muted-foreground bg-muted/50 rounded p-2">
             سيتم إضافة الصنف بكمية 0، وتقدر تعدلها بعد كده.
           </div>
