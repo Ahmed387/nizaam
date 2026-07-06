@@ -1160,7 +1160,7 @@ export default function NewSale() {
               {filtered.length === 0 ? (
                 <div className="p-10 text-center text-muted-foreground text-sm">لا توجد منتجات مطابقة</div>
               ) : (
-                <div className="p-4 grid grid-cols-1 gap-3 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 grid grid-cols-1 gap-3">
                   {filtered.map((p) => {
                     const avail = availability[p.id] ?? Number(p.quantity || 0);
                     const stock = Number(p.quantity || 0);
@@ -1223,7 +1223,7 @@ export default function NewSale() {
               {filteredCatalog.length === 0 ? (
                 <div className="p-10 text-center text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>
               ) : (
-                <div className="p-4 grid grid-cols-1 gap-3 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 grid grid-cols-1 gap-3">
                   {filteredCatalog.map((c: any) => (
                     <div key={c.id} className="rounded-xl border-2 border-border bg-surface-1 hover:border-primary/50 hover:shadow-lg transition-all flex items-center gap-3 p-3 overflow-hidden">
                       <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
