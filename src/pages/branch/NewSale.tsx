@@ -1402,7 +1402,7 @@ export default function NewSale() {
         </main>
 
         {/* Left rail: الملخص المالي + الدفع + الحفظ (sticky) */}
-        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4">
 
 
           {/* Multi-payment methods */}
