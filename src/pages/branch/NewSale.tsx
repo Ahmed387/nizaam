@@ -1298,13 +1298,14 @@ export default function NewSale() {
                               {(i.product_name || "?").trim().charAt(0)}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
-                                {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0" />}
-                                <span className="line-clamp-2">{i.product_name}</span>
+                              <div className="flex items-start gap-2">
+                                {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0 mt-1.5" />}
+                                {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0 mt-1.5" />}
+                                <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
                               </div>
                               {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
                             </div>
+
                           </div>
                           {(() => {
                             const r = reservations[i.product_id];
@@ -1340,25 +1341,25 @@ export default function NewSale() {
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
                         </td>
                         <td className="p-2 text-center">
-                          <div className="flex items-center gap-1 justify-center">
+                          <div className="inline-flex items-stretch rounded-lg border border-border overflow-hidden bg-background">
                             <Input
                               type="number" min="0" step="0.01"
                               value={i.discount_input || ""}
                               onChange={(e) => setDiscountInput(k, parseFloat(e.target.value) || 0)}
-                              className="w-24 text-center"
+                              className="w-24 h-9 text-center border-0 rounded-none focus-visible:ring-0"
                               placeholder={i.discount_mode === "amount" ? "مبلغ" : "%"}
                             />
-                            <div className="flex flex-col">
+                            <div className="flex flex-col border-r border-border">
                               <button
                                 type="button"
                                 onClick={() => setDiscountMode(k, "amount")}
-                                className={`px-1.5 py-0.5 text-[10px] rounded-t border ${i.discount_mode === "amount" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                                className={`px-2 text-[11px] font-bold flex-1 ${i.discount_mode === "amount" ? "bg-primary text-primary-foreground" : "bg-surface-2 hover:bg-muted"}`}
                                 title="مبلغ بالجنيه"
                               >ج.م</button>
                               <button
                                 type="button"
                                 onClick={() => setDiscountMode(k, "percent")}
-                                className={`px-1.5 py-0.5 text-[10px] rounded-b border-t-0 border ${i.discount_mode === "percent" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                                className={`px-2 text-[11px] font-bold flex-1 border-t border-border ${i.discount_mode === "percent" ? "bg-primary text-primary-foreground" : "bg-surface-2 hover:bg-muted"}`}
                                 title="نسبة مئوية"
                               >%</button>
                             </div>
@@ -1367,6 +1368,7 @@ export default function NewSale() {
                             <div className="text-[10px] text-muted-foreground mt-1">= {formatEGP(i.line_discount)}</div>
                           )}
                         </td>
+
 
                         {showCost && (
                           <td className="p-2 text-center">
