@@ -56,8 +56,9 @@ export default function Inventory() {
   const [editForm, setEditForm] = useState({
     name: "", sku: "", quantity: "0",
     cost_price: "", selling_price: "", market_price: "",
-    qty_notes: "", price_reason: "",
+    qty_notes: "", price_reason: "", image: "",
   });
+  const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete / Archive flow
