@@ -1085,12 +1085,23 @@ export default function NewSale() {
 
           <div className="card-elevated p-4">
             <Tabs defaultValue="stock" className="w-full">
-              <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-                <TabsList>
-                  <TabsTrigger value="stock" className="gap-2"><Search className="w-4 h-4" /> منتجات المخزن</TabsTrigger>
-                  <TabsTrigger value="catalog" className="gap-2"><BookmarkPlus className="w-4 h-4" /> قائمة الأسعار (حجز)</TabsTrigger>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 mb-3">
+                <div />
+                <TabsList className="h-12 p-1.5 bg-muted/80 rounded-lg">
+                  <TabsTrigger
+                    value="stock"
+                    className="gap-2 px-5 py-2 text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground"
+                  >
+                    <Search className="w-5 h-5" /> منتجات المخزن
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="catalog"
+                    className="gap-2 px-5 py-2 text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground"
+                  >
+                    <BookmarkPlus className="w-5 h-5" /> قائمة الأسعار (حجز)
+                  </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-start">
                   <Button type="button" size="sm" variant="outline" onClick={() => setCameraOpen(true)} className="gap-2">
                     <Camera className="w-4 h-4" /> كاميرا
                   </Button>
@@ -1100,6 +1111,7 @@ export default function NewSale() {
                   </Button>
                 </div>
               </div>
+
 
               {scannerMode && (
                 <div className="mb-3 p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-3">
