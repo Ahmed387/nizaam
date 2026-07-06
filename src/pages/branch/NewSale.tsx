@@ -1431,14 +1431,32 @@ export default function NewSale() {
             )}
 
           </div>
-        </main>
+          )}
+        </div>
 
-        {/* Left rail: الملخص المالي + الدفع + الحفظ (sticky) */}
-        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4">
-
+        {/* ============ SECTION 3: طرق الدفع ============ */}
+        <div className="card-elevated overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleSection("payment")}
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+              طرق الدفع
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+              {openSections.payment ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </div>
+          </button>
+          {openSections.payment && (
+          <div className="p-4 space-y-4">
 
           {/* Multi-payment methods */}
           <div className="card-elevated p-5">
+
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="font-bold">طرق الدفع</h3>
