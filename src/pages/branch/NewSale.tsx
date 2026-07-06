@@ -1093,43 +1093,8 @@ export default function NewSale() {
               <Input placeholder="أو ابحث بالاسم أو الكود يدوياً" value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
             </div>
             {search && (
-              <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
-                {filtered.map((p) => (
-                  <button key={p.id} onClick={() => addItem(p)} className="w-full text-right p-3 rounded-lg border border-border hover:bg-surface-2 hover:border-primary/50 transition">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">{p.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{p.sku}</div>
-                      </div>
-                      <div className="text-left text-xs space-y-0.5">
-                        {Number(p.old_price) > 0 && Number(p.old_price) !== Number(p.selling_price) && (
-                          <div>📉 السعر القديم: <span className="text-muted-foreground line-through">{formatEGP(p.old_price)}</span></div>
-                        )}
-                        <div>🏷️ سعر البيع: <span className="text-success font-bold">{formatEGP(p.selling_price)}</span></div>
-                        {showCost && <div>📦 شراء: <span className="text-muted-foreground">{formatEGP(p.cost_price)}</span></div>}
-                        {showCost && Number(p.cost_price) > 0 && (
-                          <div>💵 الربح: <span className="text-primary font-bold">{formatEGP(Number(p.selling_price) - Number(p.cost_price))}</span></div>
-                        )}
-                        <div>💰 سوق: <span className="text-primary">{formatEGP(pricesMap[p.name] ?? p.market_price)}</span></div>
-                        {(() => {
-                          const avail = availability[p.id] ?? Number(p.quantity || 0);
-                          const stock = Number(p.quantity || 0);
-                          const reserved = Math.max(0, stock - avail);
-                          const minLevel = Number((p as any).min_stock_level ?? p.low_stock_alert ?? 5);
-                          const cls = avail <= 0 ? "text-destructive" : avail < 3 ? "text-warning" : avail <= minLevel ? "text-warning" : "text-foreground";
-                          const badge = avail <= 0 ? "غير متاح حالياً" : avail < 3 ? "كمية محدودة" : avail <= minLevel ? "مخزون منخفض" : null;
-                          return (
-                            <>
-                              <div>📊 المتاح: <span className={`${cls} font-bold`}>{avail}</span> {badge && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-1 ${avail <= 0 ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>{badge}</span>}</div>
-                              {reserved > 0 && <div className="text-[10px] text-muted-foreground">في المخزون {stock} | محجوز {reserved}</div>}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-                {filtered.length === 0 && <div className="text-center py-4 text-muted-foreground text-sm">لا توجد نتائج</div>}
+              <div className="mt-2 text-xs text-muted-foreground">
+                عرض {filtered.length} نتيجة في اللوحة الرئيسية ←
               </div>
             )}
           </div>
