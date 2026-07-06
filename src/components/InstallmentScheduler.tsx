@@ -66,23 +66,23 @@ export function InstallmentScheduler({ remaining, value, onChange }: Props) {
 
 
       {value.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {value.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-16">قسط {i + 1}</span>
+              <span className="text-sm font-medium text-muted-foreground w-16">قسط {i + 1}</span>
               <Input type="date" value={r.due_date} onChange={(e) => {
                 const c = [...value]; c[i] = { ...c[i], due_date: e.target.value }; onChange(c);
-              }} className="flex-1" />
+              }} className="flex-1 h-10" />
               <Input type="number" min={0} step="0.01" value={r.amount} onChange={(e) => {
                 const c = [...value]; c[i] = { ...c[i], amount: Number(e.target.value) }; onChange(c);
-              }} className="w-32" />
-              <Button type="button" size="sm" variant="ghost" onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="text-destructive">
+              }} className="w-32 h-10" />
+              <Button type="button" size="icon" variant="ghost" onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="text-destructive shrink-0">
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           ))}
-          <Button type="button" size="sm" variant="ghost" onClick={() => onChange([...value, { due_date: firstDate, amount: 0 }])} className="gap-1">
-            <Plus className="w-3 h-3" /> قسط
+          <Button type="button" variant="outline" onClick={() => onChange([...value, { due_date: firstDate, amount: 0 }])} className="gap-1.5 h-10 text-sm font-semibold">
+            <Plus className="w-4 h-4" /> إضافة قسط
           </Button>
           <div className="text-sm flex justify-between border-t pt-2 mt-2">
             <span>إجمالي الأقساط: <b>{formatEGP(total)}</b></span>
@@ -92,6 +92,7 @@ export function InstallmentScheduler({ remaining, value, onChange }: Props) {
           </div>
         </div>
       )}
+
     </div>
   );
 }
