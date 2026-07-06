@@ -1171,10 +1171,16 @@ export default function NewSale() {
               </div>
             )}
           </div>
+        </aside>
 
+        {/* Center: عناصر الفاتورة */}
+        <main className="lg:col-span-6 space-y-4">
           {/* Items */}
           <div className="card-elevated overflow-hidden">
-            <div className="p-4 border-b border-border font-bold">عناصر الفاتورة ({items.length})</div>
+            <div className="p-4 border-b border-border font-bold flex items-center justify-between">
+              <span>عناصر الفاتورة ({items.length})</span>
+              {items.length > 0 && <span className="text-xs text-muted-foreground font-normal">إجمالي الكمية: {items.reduce((s,i)=>s+Number(i.quantity||0),0)}</span>}
+            </div>
             {items.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">ابحث عن منتج لإضافته</div>
             ) : (
