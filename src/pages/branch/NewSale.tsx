@@ -944,8 +944,9 @@ export default function NewSale() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid lg:grid-cols-12 gap-6 items-start">
+        {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
+        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
           {/* Customer */}
           <div className="card-elevated p-4">
             <div className="grid md:grid-cols-3 gap-3 mb-3">
@@ -1170,10 +1171,16 @@ export default function NewSale() {
               </div>
             )}
           </div>
+        </aside>
 
+        {/* Center: عناصر الفاتورة */}
+        <main className="lg:col-span-6 space-y-4">
           {/* Items */}
           <div className="card-elevated overflow-hidden">
-            <div className="p-4 border-b border-border font-bold">عناصر الفاتورة ({items.length})</div>
+            <div className="p-4 border-b border-border font-bold flex items-center justify-between">
+              <span>عناصر الفاتورة ({items.length})</span>
+              {items.length > 0 && <span className="text-xs text-muted-foreground font-normal">إجمالي الكمية: {items.reduce((s,i)=>s+Number(i.quantity||0),0)}</span>}
+            </div>
             {items.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">ابحث عن منتج لإضافته</div>
             ) : (
@@ -1277,10 +1284,11 @@ export default function NewSale() {
             )}
 
           </div>
-        </div>
+        </main>
 
-        {/* Summary */}
-        <div className="space-y-4">
+        {/* Left rail: الملخص المالي + الدفع + الحفظ (sticky) */}
+        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+
 
           {/* Multi-payment methods */}
           <div className="card-elevated p-5">
@@ -1560,7 +1568,7 @@ export default function NewSale() {
             )}
 
             <Button
-              className="w-full mt-4 h-12 btn-gradient text-base"
+              className="w-full mt-4 h-14 btn-gradient text-base font-extrabold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-transform"
               disabled={busy || !items.length || hasLoss || !paymentsValid || (overLimit && isCashierOnly)}
               onClick={submit}
             >
@@ -1568,8 +1576,9 @@ export default function NewSale() {
             </Button>
           </div>
 
-        </div>
+        </aside>
       </div>
+
 
       <PreOrderDialog
         open={!!preOrderItem}
