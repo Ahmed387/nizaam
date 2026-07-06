@@ -1605,7 +1605,45 @@ export default function NewSale() {
 
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
+
+              {/* Invoice-level discount */}
+              <div className="mt-2 p-2.5 rounded-lg bg-surface-2 border border-dashed border-border space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-xs">خصم إجمالي الفاتورة</span>
+                  <div className="inline-flex rounded-md border border-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceDiscountMode("amount")}
+                      className={`px-2 py-0.5 text-[10px] ${invoiceDiscountMode === "amount" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                    >ج.م</button>
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceDiscountMode("percent")}
+                      className={`px-2 py-0.5 text-[10px] border-r border-border ${invoiceDiscountMode === "percent" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                    >%</button>
+                  </div>
+                </div>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={invoiceDiscountInput || ""}
+                  onChange={(e) => setInvoiceDiscountInput(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder={invoiceDiscountMode === "amount" ? "قيمة الخصم بالجنيه" : "نسبة الخصم %"}
+                  className="h-8 text-sm"
+                  disabled={items.length === 0}
+                />
+                {invoiceDiscount > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">قيمة الخصم</span>
+                    <span className="font-bold text-destructive">- {formatEGP(invoiceDiscount)}</span>
+                  </div>
+                )}
+              </div>
+
+              {invoiceDiscount > 0 && (
+                <div className="flex justify-between"><span className="text-muted-foreground">بعد الخصم</span><span className="font-bold">{formatEGP(subtotalAfterInvoiceDiscount)}</span></div>
+              )}
+
 
               {/* VAT toggle (optional, editable rate) */}
               <div className="mt-2 p-2.5 rounded-lg bg-surface-2 border border-dashed border-border space-y-2">
