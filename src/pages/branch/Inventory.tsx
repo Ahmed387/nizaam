@@ -115,7 +115,21 @@ export default function Inventory() {
       market_price: String(r.market_price ?? ""),
       qty_notes: "",
       price_reason: "",
+      image: String(r.image ?? ""),
     });
+  };
+
+  const uploadEditImage = async (file: File) => {
+    setEditUploading(true);
+    try {
+      const url = await uploadProductImage(file, branchId!);
+      setEditForm((f) => ({ ...f, image: url }));
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setEditUploading(false);
+    }
   };
 
   const saveEditAll = async () => {
