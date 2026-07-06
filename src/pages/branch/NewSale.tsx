@@ -1090,9 +1090,9 @@ export default function NewSale() {
             )}
             </div>
           </div>
-          </div>
           )}
         </div>
+
 
         {/* ============ SECTION 2: اختيار المنتجات ============ */}
         <div className="card-elevated overflow-hidden">
