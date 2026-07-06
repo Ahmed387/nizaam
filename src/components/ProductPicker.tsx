@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronsUpDown, Plus, Check, Loader2, PackageSearch } from "lucide-react";
+import { ChevronsUpDown, Plus, Check, Loader2, PackageSearch, Upload, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 
 export interface ProductRow {
