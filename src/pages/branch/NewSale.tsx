@@ -1431,8 +1431,11 @@ export default function NewSale() {
             )}
 
           </div>
+
+          </div>
           )}
         </div>
+
 
         {/* ============ SECTION 3: طرق الدفع ============ */}
         <div className="card-elevated overflow-hidden">
