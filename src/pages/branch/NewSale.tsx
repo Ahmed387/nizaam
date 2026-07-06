@@ -1090,10 +1090,32 @@ export default function NewSale() {
             )}
             </div>
           </div>
+          </div>
+          )}
+        </div>
 
-          {/* Unified add-product card with tabs */}
+        {/* ============ SECTION 2: اختيار المنتجات ============ */}
+        <div className="card-elevated overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleSection("products")}
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+              اختيار المنتجات وعناصر الفاتورة
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+              {openSections.products ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </div>
+          </button>
+          {openSections.products && (
+          <div className="p-4 space-y-4">
 
           <div className="card-elevated p-4">
+
             <Tabs defaultValue="stock" className="w-full">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 mb-3">
                 <div />
