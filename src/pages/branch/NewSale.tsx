@@ -1168,7 +1168,7 @@ export default function NewSale() {
                           {(p.name || "?").trim().charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-base leading-snug line-clamp-2 group-hover:text-primary transition-colors">{p.name}</div>
+                          <div className="font-bold text-base leading-snug line-clamp-3 group-hover:text-primary transition-colors">{p.name}</div>
                           <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{p.sku}</div>
                           {showCost && Number(p.cost_price) > 0 && (
                             <div className="text-[10px] text-muted-foreground mt-1">
