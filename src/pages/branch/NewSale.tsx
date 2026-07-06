@@ -104,6 +104,9 @@ export default function NewSale() {
   const [vatEnabled, setVatEnabled] = useState(false);
   const [vatRate, setVatRate] = useState<number>(14);
   const [invoiceNotes, setInvoiceNotes] = useState<string>("");
+  // Invoice-level discount
+  const [invoiceDiscountMode, setInvoiceDiscountMode] = useState<"amount" | "percent">("amount");
+  const [invoiceDiscountInput, setInvoiceDiscountInput] = useState<number>(0);
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
@@ -331,13 +334,21 @@ export default function NewSale() {
     () => items.reduce((s, i) => s + Math.max(0, i.quantity * i.selling_price - i.line_discount), 0),
     [items]
   );
+  // Invoice-level discount (EGP or %)
+  const invoiceDiscount = useMemo(() => {
+    const raw = invoiceDiscountMode === "amount"
+      ? Number(invoiceDiscountInput) || 0
+      : (subtotal * (Number(invoiceDiscountInput) || 0)) / 100;
+    return Math.max(0, Math.min(subtotal, +raw.toFixed(2)));
+  }, [invoiceDiscountInput, invoiceDiscountMode, subtotal]);
+  const subtotalAfterInvoiceDiscount = Math.max(0, subtotal - invoiceDiscount);
   const vatAmount = useMemo(
-    () => (vatEnabled ? +(subtotal * (Number(vatRate) || 0) / 100).toFixed(2) : 0),
-    [subtotal, vatEnabled, vatRate]
+    () => (vatEnabled ? +(subtotalAfterInvoiceDiscount * (Number(vatRate) || 0) / 100).toFixed(2) : 0),
+    [subtotalAfterInvoiceDiscount, vatEnabled, vatRate]
   );
-  const total = subtotal + vatAmount;
+  const total = subtotalAfterInvoiceDiscount + vatAmount;
   const totalCost = useMemo(() => items.reduce((s, i) => s + i.quantity * i.cost_price, 0), [items]);
-  const totalProfit = (subtotal - totalCost);
+  const totalProfit = (subtotalAfterInvoiceDiscount - totalCost);
   const profitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
   // Loss detection per line — effective unit price after discount vs cost
@@ -376,8 +387,8 @@ export default function NewSale() {
     [items]
   );
   const totalDiscountAmount = useMemo(
-    () => items.reduce((s, i) => s + Math.min(i.line_discount, i.quantity * i.selling_price), 0),
-    [items]
+    () => items.reduce((s, i) => s + Math.min(i.line_discount, i.quantity * i.selling_price), 0) + invoiceDiscount,
+    [items, invoiceDiscount]
   );
   const effectiveDiscountPct = totalBeforeDiscount > 0
     ? (totalDiscountAmount / totalBeforeDiscount) * 100
@@ -739,9 +750,9 @@ export default function NewSale() {
         p_branch_id: branchId!,
         p_customer_id: custId,
         p_subtotal: subtotal,
-        p_discount_amount: 0,
-        p_discount_percent: 0,
-        p_discount_reason: null,
+        p_discount_amount: invoiceDiscount,
+        p_discount_percent: subtotal > 0 ? +((invoiceDiscount / subtotal) * 100).toFixed(2) : 0,
+        p_discount_reason: invoiceDiscount > 0 ? `خصم إجمالي الفاتورة (${invoiceDiscountMode === "amount" ? "مبلغ" : "%"})` : null,
         p_total: total,
         p_payment_method: primaryMethod,
         p_items: items as any,
@@ -946,9 +957,9 @@ export default function NewSale() {
       )}
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
-        {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
-        <aside className="lg:col-span-3 space-y-3 lg:sticky lg:top-4 lg:pl-1">
-          {/* Customer */}
+        {/* Center: بيانات العميل + إضافة منتج + النتائج + عناصر الفاتورة */}
+        <main className="lg:col-span-9 space-y-4">
+          {/* Customer (compact horizontal) */}
           <div className="card-elevated overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
               <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
@@ -960,23 +971,24 @@ export default function NewSale() {
               </div>
             </div>
             <div className="p-3 space-y-2">
-              <div>
-                <Label className="mb-1 block">العميل</Label>
-                <div className="flex gap-2">
-                  <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                    <option value="">— اختر عميل (اختياري) —</option>
-                    {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-                  </select>
-                  <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
-                    <UserPlus className="w-4 h-4" />
-                  </Button>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div>
+                  <Label className="mb-1 block">العميل</Label>
+                  <div className="flex gap-2">
+                    <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                      <option value="">— اختر عميل (اختياري) —</option>
+                      {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
+                    </select>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                      <UserPlus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-start">
-                <div className="w-full md:w-1/2">
+                <div>
                   <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
                 </div>
               </div>
+
             {customerId && (() => {
               const b = balanceLabel(customerBalance);
               const isCustomer = customerType === "customer" || customerType === "both";
@@ -1068,11 +1080,9 @@ export default function NewSale() {
             )}
             </div>
           </div>
-        </aside>
 
-        {/* Center: إضافة منتج + النتائج + عناصر الفاتورة */}
-        <main className="lg:col-span-6 space-y-4">
           {/* Unified add-product card with tabs */}
+
           <div className="card-elevated p-4">
             <Tabs defaultValue="stock" className="w-full">
               <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
@@ -1595,7 +1605,45 @@ export default function NewSale() {
 
           <div className="card-elevated p-5">
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف</span><span className="font-bold">{formatEGP(subtotal)}</span></div>
+
+              {/* Invoice-level discount */}
+              <div className="mt-2 p-2.5 rounded-lg bg-surface-2 border border-dashed border-border space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-xs">خصم إجمالي الفاتورة</span>
+                  <div className="inline-flex rounded-md border border-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceDiscountMode("amount")}
+                      className={`px-2 py-0.5 text-[10px] ${invoiceDiscountMode === "amount" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                    >ج.م</button>
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceDiscountMode("percent")}
+                      className={`px-2 py-0.5 text-[10px] border-r border-border ${invoiceDiscountMode === "percent" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                    >%</button>
+                  </div>
+                </div>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={invoiceDiscountInput || ""}
+                  onChange={(e) => setInvoiceDiscountInput(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder={invoiceDiscountMode === "amount" ? "قيمة الخصم بالجنيه" : "نسبة الخصم %"}
+                  className="h-8 text-sm"
+                  disabled={items.length === 0}
+                />
+                {invoiceDiscount > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">قيمة الخصم</span>
+                    <span className="font-bold text-destructive">- {formatEGP(invoiceDiscount)}</span>
+                  </div>
+                )}
+              </div>
+
+              {invoiceDiscount > 0 && (
+                <div className="flex justify-between"><span className="text-muted-foreground">بعد الخصم</span><span className="font-bold">{formatEGP(subtotalAfterInvoiceDiscount)}</span></div>
+              )}
+
 
               {/* VAT toggle (optional, editable rate) */}
               <div className="mt-2 p-2.5 rounded-lg bg-surface-2 border border-dashed border-border space-y-2">
