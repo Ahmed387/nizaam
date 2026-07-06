@@ -959,9 +959,8 @@ export default function NewSale() {
                 <div className="text-[11px] text-muted-foreground">اختر عميل أو أضف جديد</div>
               </div>
             </div>
-            <div className="p-3">
-            <div className="grid md:grid-cols-3 gap-2 mb-2">
-              <div className="md:col-span-2">
+            <div className="p-3 space-y-2">
+              <div>
                 <Label className="mb-1 block">العميل</Label>
                 <div className="flex gap-2">
                   <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
@@ -973,8 +972,11 @@ export default function NewSale() {
                   </Button>
                 </div>
               </div>
-              <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
-            </div>
+              <div className="flex justify-end">
+                <div className="w-full md:w-1/2">
+                  <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
+                </div>
+              </div>
             {customerId && (() => {
               const b = balanceLabel(customerBalance);
               const isCustomer = customerType === "customer" || customerType === "both";
