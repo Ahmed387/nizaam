@@ -104,6 +104,9 @@ export default function NewSale() {
   const [vatEnabled, setVatEnabled] = useState(false);
   const [vatRate, setVatRate] = useState<number>(14);
   const [invoiceNotes, setInvoiceNotes] = useState<string>("");
+  // Invoice-level discount
+  const [invoiceDiscountMode, setInvoiceDiscountMode] = useState<"amount" | "percent">("amount");
+  const [invoiceDiscountInput, setInvoiceDiscountInput] = useState<number>(0);
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
