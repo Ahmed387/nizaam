@@ -1081,8 +1081,10 @@ export default function NewSale() {
           </div>
         </aside>
 
-        {/* Center: إضافة منتج + النتائج + عناصر الفاتورة */}
-        <main className="lg:col-span-6 space-y-4">
+        {/* Unified add-product card with tabs */}
+        {(() => null)()}
+        <div style={{display:'contents'}}>
+
           {/* Unified add-product card with tabs */}
           <div className="card-elevated p-4">
             <Tabs defaultValue="stock" className="w-full">
