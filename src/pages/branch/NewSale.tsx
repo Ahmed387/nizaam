@@ -1576,8 +1576,9 @@ export default function NewSale() {
             </Button>
           </div>
 
-        </div>
+        </aside>
       </div>
+
 
       <PreOrderDialog
         open={!!preOrderItem}
