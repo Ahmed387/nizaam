@@ -947,10 +947,10 @@ export default function NewSale() {
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
         {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
-        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
+        <aside className="lg:col-span-3 space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
           {/* Customer */}
           <div className="card-elevated overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
               <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
                 <UserIcon className="w-4 h-4" />
               </div>
@@ -959,12 +959,12 @@ export default function NewSale() {
                 <div className="text-[11px] text-muted-foreground">اختر عميل أو أضف جديد</div>
               </div>
             </div>
-            <div className="p-4">
-            <div className="grid md:grid-cols-3 gap-3 mb-3">
+            <div className="p-3">
+            <div className="grid md:grid-cols-3 gap-2 mb-2">
               <div className="md:col-span-2">
-                <Label className="mb-1.5 block">العميل</Label>
+                <Label className="mb-1 block">العميل</Label>
                 <div className="flex gap-2">
-                  <select className="flex-1 bg-input border border-border rounded-lg p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                  <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
                     <option value="">— اختر عميل (اختياري) —</option>
                     {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
                   </select>
@@ -993,7 +993,7 @@ export default function NewSale() {
                   : "border-border bg-muted/40 text-muted-foreground";
               const icon = b.tone === "good" ? "💰" : b.tone === "bad" ? "⚠️" : "ℹ️";
               return (
-                <div className={`mt-3 p-3 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
+                <div className={`mt-2 p-2.5 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-base leading-none">{icon}</span>
                     <span>
@@ -1006,7 +1006,7 @@ export default function NewSale() {
               );
             })()}
             {customerId && customerBalance < 0 && total > 0 && (
-              <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 space-y-2">
+              <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 space-y-2">
                 <label className="flex items-start gap-2 text-sm cursor-pointer">
                   <input
                     type="checkbox"
@@ -1046,7 +1046,7 @@ export default function NewSale() {
               </div>
             )}
             {customerCredit > 0 && (
-              <div className="mt-3 p-3 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
+              <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm">
                   هذا العميل لديه رصيد دائن: <b className="text-primary">{formatEGP(customerCredit)}</b>
                   {creditToApply > 0 && <span className="text-success ms-2">— سيتم استخدام {formatEGP(creditToApply)}</span>}
@@ -1148,7 +1148,7 @@ export default function NewSale() {
               {filtered.length === 0 ? (
                 <div className="p-10 text-center text-muted-foreground text-sm">لا توجد منتجات مطابقة</div>
               ) : (
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 grid grid-cols-1 gap-3 max-h-[70vh] overflow-y-auto">
                   {filtered.map((p) => {
                     const avail = availability[p.id] ?? Number(p.quantity || 0);
                     const stock = Number(p.quantity || 0);
@@ -1162,43 +1162,33 @@ export default function NewSale() {
                         key={p.id}
                         onClick={() => addItem(p)}
                         disabled={avail <= 0}
-                        className="group text-right rounded-xl border-2 border-border bg-surface-1 hover:border-primary hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-none flex flex-col overflow-hidden"
+                        className="group text-right rounded-xl border-2 border-border bg-surface-1 hover:border-primary hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-none flex items-center gap-3 p-3 overflow-hidden"
                       >
-                        {/* Header strip with product identity */}
-                        <div className="flex items-start gap-3 p-3 bg-gradient-to-l from-primary/5 to-transparent">
-                          <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
-                            {(p.name || "?").trim().charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">{p.name}</div>
-                            <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">{p.sku}</div>
-                          </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold shrink-0 ${stockTone}`}>{stockLabel}</span>
+                        <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
+                          {(p.name || "?").trim().charAt(0)}
                         </div>
-
-                        {/* Price + availability */}
-                        <div className="flex items-end justify-between px-3 pb-3 pt-2 border-t border-dashed border-border">
-                          <div>
-                            {Number(p.old_price) > 0 && Number(p.old_price) !== Number(p.selling_price) && (
-                              <div className="text-[10px] text-muted-foreground line-through">{formatEGP(p.old_price)}</div>
-                            )}
-                            <div className="text-xl font-extrabold text-success leading-tight">{formatEGP(p.selling_price)}</div>
-                          </div>
-                          <div className="text-left text-[11px] space-y-0.5">
-                            <div className="text-muted-foreground">المتاح: <span className="font-extrabold text-foreground text-sm">{avail}</span></div>
-                            {reserved > 0 && <div className="text-[9px] text-muted-foreground">محجوز: {reserved}</div>}
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-base leading-snug line-clamp-2 group-hover:text-primary transition-colors">{p.name}</div>
+                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{p.sku}</div>
+                          {showCost && Number(p.cost_price) > 0 && (
+                            <div className="text-[10px] text-muted-foreground mt-1">
+                              شراء: {formatEGP(p.cost_price)} · ربح: <span className="text-primary font-bold">{formatEGP(profit)}</span>
+                            </div>
+                          )}
                         </div>
-
-                        {showCost && Number(p.cost_price) > 0 && (
-                          <div className="flex justify-between text-[10px] text-muted-foreground bg-muted/40 px-3 py-1.5 border-t border-border">
-                            <span>شراء: {formatEGP(p.cost_price)}</span>
-                            <span className="text-primary font-bold">ربح: {formatEGP(profit)}</span>
+                        <div className="shrink-0 text-left flex flex-col items-end gap-1">
+                          {Number(p.old_price) > 0 && Number(p.old_price) !== Number(p.selling_price) && (
+                            <div className="text-[11px] text-muted-foreground line-through">{formatEGP(p.old_price)}</div>
+                          )}
+                          <div className="text-xl font-extrabold text-success leading-tight">{formatEGP(p.selling_price)}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${stockTone}`}>{stockLabel}</span>
+                            <span className="text-[11px] text-muted-foreground">متوفر: <b className="text-foreground">{avail}</b></span>
                           </div>
-                        )}
-
-                        <div className="px-3 py-2 bg-primary text-primary-foreground text-xs font-bold text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          + إضافة للفاتورة
+                          {reserved > 0 && <div className="text-[9px] text-muted-foreground">محجوز: {reserved}</div>}
+                        </div>
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-primary/20">
+                          <Plus className="w-4 h-4" />
                         </div>
                       </button>
                     );
@@ -1221,26 +1211,27 @@ export default function NewSale() {
               {filteredCatalog.length === 0 ? (
                 <div className="p-10 text-center text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>
               ) : (
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 grid grid-cols-1 gap-3 max-h-[70vh] overflow-y-auto">
                   {filteredCatalog.map((c: any) => (
-                    <div key={c.id} className="rounded-xl border-2 border-border bg-surface-1 hover:border-primary/50 hover:shadow-lg transition-all flex flex-col overflow-hidden">
-                      <div className="flex items-start gap-3 p-3 bg-gradient-to-l from-primary/5 to-transparent">
-                        <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
-                          {(c.product_name || "?").trim().charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-bold text-sm leading-snug line-clamp-2">{c.product_name}</div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                            {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
-                          </div>
+                    <div key={c.id} className="rounded-xl border-2 border-border bg-surface-1 hover:border-primary/50 hover:shadow-lg transition-all flex items-center gap-3 p-3 overflow-hidden">
+                      <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
+                        {(c.product_name || "?").trim().charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-base leading-snug line-clamp-2">{c.product_name}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between px-3 py-3 border-t border-dashed border-border">
+                      <div className="shrink-0 text-left flex flex-col items-end gap-1">
+                        {Number(c.old_price) > 0 && Number(c.old_price) !== Number(c.display_price) && (
+                          <div className="text-[11px] text-muted-foreground line-through">{formatEGP(c.old_price)}</div>
+                        )}
                         <div className="text-xl font-extrabold text-primary leading-tight">{formatEGP(c.display_price)}</div>
-                        <Button size="sm" className="gap-1 btn-gradient" onClick={() => setPreOrderItem(c)}>
-                          <BookmarkPlus className="w-3 h-3" /> حجز
-                        </Button>
                       </div>
+                      <Button size="sm" className="gap-1 btn-gradient shrink-0" onClick={() => setPreOrderItem(c)}>
+                        <BookmarkPlus className="w-3 h-3" /> حجز
+                      </Button>
                     </div>
                   ))}
                 </div>
