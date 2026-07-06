@@ -949,7 +949,17 @@ export default function NewSale() {
         {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
         <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
           {/* Customer */}
-          <div className="card-elevated p-4">
+          <div className="card-elevated overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                <UserIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="font-bold text-sm">بيانات العميل</div>
+                <div className="text-[11px] text-muted-foreground">اختر عميل أو أضف جديد</div>
+              </div>
+            </div>
+            <div className="p-4">
             <div className="grid md:grid-cols-3 gap-3 mb-3">
               <div className="md:col-span-2">
                 <Label className="mb-1.5 block">العميل</Label>
