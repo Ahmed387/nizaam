@@ -947,7 +947,7 @@ export default function NewSale() {
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
         {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
-        <aside className="lg:col-span-3 space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
+        <aside className="lg:col-span-3 space-y-3 lg:sticky lg:top-4 lg:pl-1">
           {/* Customer */}
           <div className="card-elevated overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
@@ -959,9 +959,8 @@ export default function NewSale() {
                 <div className="text-[11px] text-muted-foreground">اختر عميل أو أضف جديد</div>
               </div>
             </div>
-            <div className="p-3">
-            <div className="grid md:grid-cols-3 gap-2 mb-2">
-              <div className="md:col-span-2">
+            <div className="p-3 space-y-2">
+              <div>
                 <Label className="mb-1 block">العميل</Label>
                 <div className="flex gap-2">
                   <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
@@ -973,8 +972,11 @@ export default function NewSale() {
                   </Button>
                 </div>
               </div>
-              <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
-            </div>
+              <div className="flex justify-start">
+                <div className="w-full md:w-1/2">
+                  <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
+                </div>
+              </div>
             {customerId && (() => {
               const b = balanceLabel(customerBalance);
               const isCustomer = customerType === "customer" || customerType === "both";
