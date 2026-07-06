@@ -149,8 +149,9 @@ export default function Inventory() {
     const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
     const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
     const priceChanged = costChanged || sellChanged || marketChanged;
+    const imageChanged = (editForm.image || "") !== (editAll.image || "");
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged) {
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged) {
       setEditAll(null);
       return;
     }
@@ -160,8 +161,8 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU
-    if (nameChanged || skuChanged) {
+    // 1) Name / SKU / Image
+    if (nameChanged || skuChanged || imageChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
