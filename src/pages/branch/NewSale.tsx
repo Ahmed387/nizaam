@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1550,24 +1551,45 @@ export default function NewSale() {
 
           {/* Credit / installments — auto-active when payments < total */}
           <div className="card-elevated p-5">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={creditMode} onChange={(e) => setCreditMode(e.target.checked)} className="w-4 h-4" />
-              <span className="font-bold">بيع بالآجل (تسجيل المتبقي كمديونية)</span>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="credit-mode"
+                checked={creditMode}
+                onCheckedChange={(v) => setCreditMode(!!v)}
+                className="w-5 h-5"
+              />
+              <Label htmlFor="credit-mode" className="font-bold text-base cursor-pointer">
+                بيع بالآجل (تسجيل المتبقي كمديونية)
+              </Label>
               {creditRemaining > 0 && !creditMode && (
                 <span className="text-xs text-warning mr-2">— مُفعّل تلقائياً (يوجد متبقي)</span>
               )}
-            </label>
+            </div>
             {isCredit && (
-              <div className="mt-3 space-y-3">
-                <div className="text-sm flex justify-between p-2 rounded bg-warning/10 border border-warning/30">
-                  <span>المتبقي كآجل:</span>
-                  <b className="text-warning">{formatEGP(creditRemaining)}</b>
+              <div className="mt-4 space-y-4">
+                <div className="text-sm flex justify-between items-center p-3 rounded-lg bg-warning/10 border border-warning/30">
+                  <span className="font-medium">المتبقي كآجل:</span>
+                  <b className="text-warning text-base">{formatEGP(creditRemaining)}</b>
                 </div>
                 {creditRemaining > 0 && (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => setScheduleType("open")} className={`px-2 py-1.5 text-sm rounded border ${scheduleType === "open" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>مفتوح</button>
-                      <button type="button" onClick={() => setScheduleType("scheduled")} className={`px-2 py-1.5 text-sm rounded border ${scheduleType === "scheduled" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>أقساط محددة</button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant={scheduleType === "open" ? "default" : "outline"}
+                        onClick={() => setScheduleType("open")}
+                        className="w-full h-11 text-base font-semibold"
+                      >
+                        مفتوح
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={scheduleType === "scheduled" ? "default" : "outline"}
+                        onClick={() => setScheduleType("scheduled")}
+                        className="w-full h-11 text-base font-semibold"
+                      >
+                        أقساط محددة
+                      </Button>
                     </div>
                     {scheduleType === "scheduled" && (
                       <InstallmentScheduler remaining={creditRemaining} value={installments} onChange={setInstallments} />
@@ -1577,6 +1599,7 @@ export default function NewSale() {
               </div>
             )}
           </div>
+
 
 
           {/* Live discount bar */}
