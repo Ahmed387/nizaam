@@ -1113,33 +1113,114 @@ export default function NewSale() {
               <Input placeholder="ابحث بالاسم / الموديل / المورد" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} className="pr-10" />
             </div>
             {catalogSearch && (
-              <div className="mt-3 space-y-1 max-h-72 overflow-y-auto">
-                {filteredCatalog.map((c: any) => (
-                  <div key={c.id} className="p-3 rounded-lg border border-border hover:bg-surface-2 transition">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 text-right">
-                        <div className="font-semibold">{c.product_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
-                        </div>
-                      </div>
-                      <div className="text-left text-sm shrink-0">
-                        <div>💰 <span className="text-primary font-bold">{formatEGP(c.display_price)}</span></div>
-                      </div>
-                      <Button size="sm" variant="outline" className="shrink-0 gap-1" onClick={() => setPreOrderItem(c)}>
-                        <BookmarkPlus className="w-3 h-3" /> حجز
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {filteredCatalog.length === 0 && <div className="text-center py-4 text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>}
+              <div className="mt-2 text-xs text-muted-foreground">
+                عرض {filteredCatalog.length} نتيجة في اللوحة الرئيسية ←
               </div>
             )}
           </div>
         </aside>
 
-        {/* Center: عناصر الفاتورة */}
+        {/* Center: نتائج البحث + عناصر الفاتورة */}
         <main className="lg:col-span-6 space-y-4">
+          {/* Search results panel — hero when searching */}
+          {search && (
+            <div className="card-elevated overflow-hidden">
+              <div className="p-4 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <div className="font-bold flex items-center gap-2"><Search className="w-4 h-4 text-primary" /> نتائج البحث</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">"{search}" — {filtered.length} منتج</div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setSearch("")}>مسح البحث</Button>
+              </div>
+              {filtered.length === 0 ? (
+                <div className="p-10 text-center text-muted-foreground text-sm">لا توجد منتجات مطابقة</div>
+              ) : (
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto">
+                  {filtered.map((p) => {
+                    const avail = availability[p.id] ?? Number(p.quantity || 0);
+                    const stock = Number(p.quantity || 0);
+                    const reserved = Math.max(0, stock - avail);
+                    const minLevel = Number((p as any).min_stock_level ?? p.low_stock_alert ?? 5);
+                    const stockTone = avail <= 0 ? "bg-destructive/10 text-destructive border-destructive/30" : avail <= minLevel ? "bg-warning/10 text-warning border-warning/30" : "bg-success/10 text-success border-success/30";
+                    const stockLabel = avail <= 0 ? "غير متاح" : avail < 3 ? "كمية محدودة" : avail <= minLevel ? "منخفض" : "متاح";
+                    const profit = Number(p.selling_price) - Number(p.cost_price);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => addItem(p)}
+                        disabled={avail <= 0}
+                        className="text-right p-4 rounded-xl border-2 border-border bg-surface-1 hover:border-primary hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-none flex flex-col gap-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm line-clamp-2">{p.name}</div>
+                            <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{p.sku}</div>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold shrink-0 ${stockTone}`}>{stockLabel}</span>
+                        </div>
+
+                        <div className="flex items-end justify-between mt-1 pt-2 border-t border-dashed border-border">
+                          <div>
+                            {Number(p.old_price) > 0 && Number(p.old_price) !== Number(p.selling_price) && (
+                              <div className="text-[10px] text-muted-foreground line-through">{formatEGP(p.old_price)}</div>
+                            )}
+                            <div className="text-lg font-extrabold text-success leading-tight">{formatEGP(p.selling_price)}</div>
+                          </div>
+                          <div className="text-left text-[10px] space-y-0.5">
+                            <div className="text-muted-foreground">المتاح: <span className="font-bold text-foreground">{avail}</span></div>
+                            {reserved > 0 && <div className="text-muted-foreground">محجوز: {reserved}</div>}
+                          </div>
+                        </div>
+
+                        {showCost && Number(p.cost_price) > 0 && (
+                          <div className="flex justify-between text-[10px] text-muted-foreground bg-muted/40 rounded-md px-2 py-1">
+                            <span>شراء: {formatEGP(p.cost_price)}</span>
+                            <span className="text-primary font-bold">ربح: {formatEGP(profit)}</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Catalog / pre-order results panel */}
+          {catalogSearch && (
+            <div className="card-elevated overflow-hidden">
+              <div className="p-4 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <div className="font-bold flex items-center gap-2"><BookmarkPlus className="w-4 h-4 text-primary" /> نتائج قائمة الأسعار (للحجز)</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">"{catalogSearch}" — {filteredCatalog.length} صنف</div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setCatalogSearch("")}>مسح البحث</Button>
+              </div>
+              {filteredCatalog.length === 0 ? (
+                <div className="p-10 text-center text-muted-foreground text-sm">لا توجد نتائج في القائمة</div>
+              ) : (
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto">
+                  {filteredCatalog.map((c: any) => (
+                    <div key={c.id} className="p-4 rounded-xl border-2 border-border bg-surface-1 hover:border-primary/50 transition-all flex flex-col gap-2">
+                      <div>
+                        <div className="font-bold text-sm line-clamp-2">{c.product_name}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex items-end justify-between mt-1 pt-2 border-t border-dashed border-border">
+                        <div className="text-lg font-extrabold text-primary leading-tight">{formatEGP(c.display_price)}</div>
+                        <Button size="sm" className="gap-1 btn-gradient" onClick={() => setPreOrderItem(c)}>
+                          <BookmarkPlus className="w-3 h-3" /> حجز
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Items */}
           <div className="card-elevated overflow-hidden">
             <div className="p-4 border-b border-border font-bold flex items-center justify-between">
