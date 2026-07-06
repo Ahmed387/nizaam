@@ -56,8 +56,9 @@ export default function Inventory() {
   const [editForm, setEditForm] = useState({
     name: "", sku: "", quantity: "0",
     cost_price: "", selling_price: "", market_price: "",
-    qty_notes: "", price_reason: "",
+    qty_notes: "", price_reason: "", image: "",
   });
+  const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete / Archive flow
@@ -114,7 +115,21 @@ export default function Inventory() {
       market_price: String(r.market_price ?? ""),
       qty_notes: "",
       price_reason: "",
+      image: String(r.image ?? ""),
     });
+  };
+
+  const uploadEditImage = async (file: File) => {
+    setEditUploading(true);
+    try {
+      const url = await uploadProductImage(file, branchId!);
+      setEditForm((f) => ({ ...f, image: url }));
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setEditUploading(false);
+    }
   };
 
   const saveEditAll = async () => {
@@ -134,8 +149,9 @@ export default function Inventory() {
     const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
     const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
     const priceChanged = costChanged || sellChanged || marketChanged;
+    const imageChanged = (editForm.image || "") !== (editAll.image || "");
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged) {
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged) {
       setEditAll(null);
       return;
     }
@@ -145,11 +161,12 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU
-    if (nameChanged || skuChanged) {
+    // 1) Name / SKU / Image
+    if (nameChanged || skuChanged || imageChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
+      if (imageChanged) patch.image = editForm.image || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
@@ -932,6 +949,27 @@ export default function Inventory() {
                       <Label className="text-xs font-semibold mb-1.5 block">كود الصنف (SKU) <span className="text-destructive">*</span></Label>
                       <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="font-mono" placeholder="SKU-100029" />
                     </div>
+                  </div>
+                  <div className="px-4 pb-4">
+                    <Label className="text-xs font-semibold mb-1.5 block">صورة المنتج</Label>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {editForm.image ? (
+                        <img src={editForm.image} alt="" className="w-20 h-20 rounded-md object-cover border" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center text-muted-foreground text-[10px] text-center px-1">لا توجد صورة</div>
+                      )}
+                      <label className={`inline-flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer hover:bg-muted ${editUploading ? "opacity-60 pointer-events-none" : ""}`}>
+                        {editUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        <span className="text-sm">{editForm.image ? "تغيير الصورة" : "رفع صورة"}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadEditImage(e.target.files[0])} />
+                      </label>
+                      {editForm.image && (
+                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setEditForm({ ...editForm, image: "" })}>
+                          <Trash2 className="w-4 h-4 ml-1" /> حذف الصورة
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">يتم ضغط الصورة تلقائيًا (بحد أقصى 1200px، جودة 85%).</p>
                   </div>
                 </section>
 

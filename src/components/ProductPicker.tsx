@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronsUpDown, Plus, Check, Loader2, PackageSearch } from "lucide-react";
+import { ChevronsUpDown, Plus, Check, Loader2, PackageSearch, Upload, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 
 export interface ProductRow {
@@ -188,11 +189,26 @@ function NewProductDialog({
   const [cost, setCost] = useState(0);
   const [sell, setSell] = useState(0);
   const [low, setLow] = useState(5);
+  const [image, setImage] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setName(""); setSku(genSku()); setCost(0); setSell(0); setLow(5); }
+    if (open) { setName(""); setSku(genSku()); setCost(0); setSell(0); setLow(5); setImage(""); }
   }, [open]);
+
+  const uploadImg = async (file: File) => {
+    setUploading(true);
+    try {
+      const url = await uploadProductImage(file, branchId);
+      setImage(url);
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = async () => {
     if (!name.trim()) return toast.error("اكتب اسم الصنف");
@@ -208,6 +224,7 @@ function NewProductDialog({
         market_price: sell || cost,
         quantity: 0,
         low_stock_alert: low,
+        image: image || null,
       })
       .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id")
       .single();
@@ -243,6 +260,27 @@ function NewProductDialog({
           <div>
             <Label className="text-xs">تنبيه عند انخفاض المخزون</Label>
             <Input type="number" min={0} value={low} onChange={(e) => setLow(Number(e.target.value))} className="mt-1.5" />
+          </div>
+          <div>
+            <Label className="text-xs">صورة المنتج (اختياري)</Label>
+            <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+              {image ? (
+                <img src={image} alt="" className="w-16 h-16 rounded-md object-cover border" />
+              ) : (
+                <div className="w-16 h-16 rounded-md border border-dashed flex items-center justify-center text-[10px] text-muted-foreground">لا توجد</div>
+              )}
+              <label className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-md cursor-pointer text-xs hover:bg-muted ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {image ? "تغيير" : "رفع"}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImg(e.target.files[0])} />
+              </label>
+              {image && (
+                <Button type="button" variant="ghost" size="sm" className="h-8 text-destructive hover:bg-destructive/10" onClick={() => setImage("")}>
+                  <Trash2 className="w-3.5 h-3.5 ml-1" /> حذف
+                </Button>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">يتم ضغط الصورة تلقائيًا.</p>
           </div>
           <div className="text-[11px] text-muted-foreground bg-muted/50 rounded p-2">
             سيتم إضافة الصنف بكمية 0، وتقدر تعدلها بعد كده.
