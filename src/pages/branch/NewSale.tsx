@@ -971,23 +971,24 @@ export default function NewSale() {
               </div>
             </div>
             <div className="p-3 space-y-2">
-              <div>
-                <Label className="mb-1 block">العميل</Label>
-                <div className="flex gap-2">
-                  <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                    <option value="">— اختر عميل (اختياري) —</option>
-                    {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-                  </select>
-                  <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
-                    <UserPlus className="w-4 h-4" />
-                  </Button>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div>
+                  <Label className="mb-1 block">العميل</Label>
+                  <div className="flex gap-2">
+                    <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                      <option value="">— اختر عميل (اختياري) —</option>
+                      {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
+                    </select>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                      <UserPlus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-start">
-                <div className="w-full md:w-1/2">
+                <div>
                   <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
                 </div>
               </div>
+
             {customerId && (() => {
               const b = balanceLabel(customerBalance);
               const isCustomer = customerType === "customer" || customerType === "both";
