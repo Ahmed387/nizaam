@@ -1064,6 +1064,7 @@ export default function NewSale() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </aside>
 
