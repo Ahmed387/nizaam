@@ -78,7 +78,7 @@ export default function NewSale() {
 
 
   const [busy, setBusy] = useState(false);
-  const [scannerMode, setScannerMode] = useState(true);
+  const [scannerMode, setScannerMode] = useState(false);
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const [scanBuffer, setScanBuffer] = useState("");
   const [preOrderItem, setPreOrderItem] = useState<any | null>(null);
