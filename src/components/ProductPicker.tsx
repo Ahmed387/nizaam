@@ -189,11 +189,26 @@ function NewProductDialog({
   const [cost, setCost] = useState(0);
   const [sell, setSell] = useState(0);
   const [low, setLow] = useState(5);
+  const [image, setImage] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setName(""); setSku(genSku()); setCost(0); setSell(0); setLow(5); }
+    if (open) { setName(""); setSku(genSku()); setCost(0); setSell(0); setLow(5); setImage(""); }
   }, [open]);
+
+  const uploadImg = async (file: File) => {
+    setUploading(true);
+    try {
+      const url = await uploadProductImage(file, branchId);
+      setImage(url);
+      toast.success("تم رفع الصورة");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = async () => {
     if (!name.trim()) return toast.error("اكتب اسم الصنف");
@@ -209,6 +224,7 @@ function NewProductDialog({
         market_price: sell || cost,
         quantity: 0,
         low_stock_alert: low,
+        image: image || null,
       })
       .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id")
       .single();
