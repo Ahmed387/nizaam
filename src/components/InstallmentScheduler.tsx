@@ -49,20 +49,21 @@ export function InstallmentScheduler({ remaining, value, onChange }: Props) {
   const diff = Math.round((remaining - total) * 100) / 100;
 
   return (
-    <div className="space-y-3 p-3 rounded-lg border bg-muted/20">
+    <div className="space-y-4 p-4 rounded-lg border bg-muted/20">
       <div className="grid sm:grid-cols-3 gap-3 items-end">
         <div>
-          <Label>عدد الأقساط</Label>
-          <Input type="number" min={1} max={24} value={count} onChange={(e) => setCount(Number(e.target.value))} className="mt-1.5" />
+          <Label className="text-sm font-semibold">عدد الأقساط</Label>
+          <Input type="number" min={1} max={24} value={count} onChange={(e) => setCount(Number(e.target.value))} className="mt-1.5 h-11 text-base" />
         </div>
         <div>
-          <Label>أول قسط في</Label>
-          <Input type="date" value={firstDate} onChange={(e) => setFirstDate(e.target.value)} className="mt-1.5" />
+          <Label className="text-sm font-semibold">أول قسط في</Label>
+          <Input type="date" value={firstDate} onChange={(e) => setFirstDate(e.target.value)} className="mt-1.5 h-11 text-base" />
         </div>
-        <Button type="button" variant="secondary" onClick={autoCalc} className="gap-2">
-          <Calculator className="w-4 h-4" /> احسب تلقائياً
+        <Button type="button" variant="default" onClick={autoCalc} className="gap-2 h-11 text-base font-semibold">
+          <Calculator className="w-5 h-5" /> احسب تلقائياً
         </Button>
       </div>
+
 
       {value.length > 0 && (
         <div className="space-y-1.5">
