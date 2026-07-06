@@ -1079,13 +1079,9 @@ export default function NewSale() {
             )}
             </div>
           </div>
-        </aside>
-
-        {/* Unified add-product card with tabs */}
-        {(() => null)()}
-        <div style={{display:'contents'}}>
 
           {/* Unified add-product card with tabs */}
+
           <div className="card-elevated p-4">
             <Tabs defaultValue="stock" className="w-full">
               <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
