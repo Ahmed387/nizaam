@@ -1218,7 +1218,7 @@ export default function NewSale() {
                         {(c.product_name || "?").trim().charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-bold text-base leading-snug line-clamp-2">{c.product_name}</div>
+                        <div className="font-bold text-base leading-snug line-clamp-3">{c.product_name}</div>
                         <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
                           {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
                         </div>
