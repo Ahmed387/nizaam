@@ -947,7 +947,7 @@ export default function NewSale() {
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
         {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
-        <aside className="lg:col-span-3 space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
+        <aside className="lg:col-span-3 space-y-3 lg:sticky lg:top-4 lg:pl-1">
           {/* Customer */}
           <div className="card-elevated overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
