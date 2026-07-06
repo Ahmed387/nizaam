@@ -14,7 +14,7 @@ import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
-import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PreOrderDialog } from "@/components/PreOrderDialog";
@@ -949,7 +949,17 @@ export default function NewSale() {
         {/* Right rail: بيانات العميل + إضافة منتج + كتالوج الأسعار (sticky) */}
         <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-1">
           {/* Customer */}
-          <div className="card-elevated p-4">
+          <div className="card-elevated overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                <UserIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="font-bold text-sm">بيانات العميل</div>
+                <div className="text-[11px] text-muted-foreground">اختر عميل أو أضف جديد</div>
+              </div>
+            </div>
+            <div className="p-4">
             <div className="grid md:grid-cols-3 gap-3 mb-3">
               <div className="md:col-span-2">
                 <Label className="mb-1.5 block">العميل</Label>
@@ -1054,6 +1064,7 @@ export default function NewSale() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </aside>
 
@@ -1239,12 +1250,22 @@ export default function NewSale() {
 
           {/* Items */}
           <div className="card-elevated overflow-hidden">
-            <div className="p-4 border-b border-border font-bold flex items-center justify-between">
-              <span>عناصر الفاتورة ({items.length})</span>
-              {items.length > 0 && <span className="text-xs text-muted-foreground font-normal">إجمالي الكمية: {items.reduce((s,i)=>s+Number(i.quantity||0),0)}</span>}
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-gradient-to-l from-primary/5 to-transparent">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                  <ShoppingCart className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm">عناصر الفاتورة</div>
+                  <div className="text-[11px] text-muted-foreground">{items.length} صنف{items.length > 0 && ` — إجمالي الكمية: ${items.reduce((s,i)=>s+Number(i.quantity||0),0)}`}</div>
+                </div>
+              </div>
             </div>
             {items.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">ابحث عن منتج لإضافته</div>
+              <div className="p-10 text-center text-muted-foreground">
+                <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                <div className="text-sm">ابحث عن منتج لإضافته للفاتورة</div>
+              </div>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
@@ -1269,12 +1290,19 @@ export default function NewSale() {
                     return (
                       <tr key={k} className={`border-t border-border ${isLoss ? "bg-destructive/5" : ""}`}>
                         <td className="p-2 font-medium">
-                          <div className="flex items-center gap-2">
-                            {isLoss && <span title="بيع بخسارة" className="inline-block w-3 h-3 rounded-full bg-destructive shrink-0" />}
-                            {isProfit && <span title="بيع بمكسب" className="inline-block w-3 h-3 rounded-full bg-success shrink-0" />}
-                            <span>{i.product_name}</span>
+                          <div className="flex items-start gap-2">
+                            <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold border border-primary/20">
+                              {(i.product_name || "?").trim().charAt(0)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
+                                {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0" />}
+                                <span className="line-clamp-2">{i.product_name}</span>
+                              </div>
+                              {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
+                            </div>
                           </div>
-                          {showCost && <div className="text-xs text-muted-foreground mt-1">شراء: {formatEGP(i.cost_price)}</div>}
                           {(() => {
                             const r = reservations[i.product_id];
                             if (!r) return null;
@@ -1295,7 +1323,15 @@ export default function NewSale() {
                           })()}
                         </td>
                         <td className="p-2 text-center">
-                          <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-20 mx-auto text-center" />
+                          <div className="inline-flex items-center rounded-lg border border-border overflow-hidden bg-background">
+                            <button type="button" onClick={() => updateQty(k, Math.max(1, Number(i.quantity || 0) - 1))} className="px-2 py-1.5 hover:bg-muted transition-colors" title="نقصان">
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="w-14 h-8 text-center border-0 rounded-none focus-visible:ring-0" />
+                            <button type="button" onClick={() => updateQty(k, Number(i.quantity || 0) + 1)} className="px-2 py-1.5 hover:bg-muted transition-colors" title="زيادة">
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
