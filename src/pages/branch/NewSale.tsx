@@ -959,20 +959,27 @@ export default function NewSale() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-12 gap-6 items-start">
-        {/* Center: بيانات العميل + إضافة منتج + النتائج + عناصر الفاتورة */}
-        <main className="lg:col-span-9 space-y-4">
-          {/* Customer (compact horizontal) */}
-          <div className="card-elevated overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-gradient-to-l from-primary/5 to-transparent">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                <UserIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="font-bold text-sm">بيانات العميل</div>
-                <div className="text-[11px] text-muted-foreground">اختر عميل أو أضف جديد</div>
-              </div>
+      <div className="space-y-4">
+        {/* ============ SECTION 1: بيانات العميل ============ */}
+        <div className="card-elevated overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleSection("customer")}
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+              <UserIcon className="w-5 h-5" />
             </div>
+            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+              بيانات العميل والفاتورة
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+              {openSections.customer ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </div>
+          </button>
+          {openSections.customer && (
+          <div>
+
             <div className="p-3 space-y-2">
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
