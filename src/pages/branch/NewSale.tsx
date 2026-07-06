@@ -1826,8 +1826,11 @@ export default function NewSale() {
             </Button>
           </div>
 
-        </aside>
+          </div>
+          )}
+        </div>
       </div>
+
 
 
       <PreOrderDialog
