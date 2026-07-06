@@ -1568,7 +1568,7 @@ export default function NewSale() {
             )}
 
             <Button
-              className="w-full mt-4 h-12 btn-gradient text-base"
+              className="w-full mt-4 h-14 btn-gradient text-base font-extrabold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-transform"
               disabled={busy || !items.length || hasLoss || !paymentsValid || (overLimit && isCashierOnly)}
               onClick={submit}
             >
