@@ -972,7 +972,7 @@ export default function NewSale() {
                   </Button>
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-start">
                 <div className="w-full md:w-1/2">
                   <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
                 </div>
