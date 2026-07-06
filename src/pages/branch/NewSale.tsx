@@ -1212,15 +1212,20 @@ export default function NewSale() {
               ) : (
                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto">
                   {filteredCatalog.map((c: any) => (
-                    <div key={c.id} className="p-4 rounded-xl border-2 border-border bg-surface-1 hover:border-primary/50 transition-all flex flex-col gap-2">
-                      <div>
-                        <div className="font-bold text-sm line-clamp-2">{c.product_name}</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
+                    <div key={c.id} className="rounded-xl border-2 border-border bg-surface-1 hover:border-primary/50 hover:shadow-lg transition-all flex flex-col overflow-hidden">
+                      <div className="flex items-start gap-3 p-3 bg-gradient-to-l from-primary/5 to-transparent">
+                        <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
+                          {(c.product_name || "?").trim().charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm leading-snug line-clamp-2">{c.product_name}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                            {c.supplier_name}{c.model_code ? ` · ${c.model_code}` : ""}{c.category ? ` · ${c.category}` : ""}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-end justify-between mt-1 pt-2 border-t border-dashed border-border">
-                        <div className="text-lg font-extrabold text-primary leading-tight">{formatEGP(c.display_price)}</div>
+                      <div className="flex items-center justify-between px-3 py-3 border-t border-dashed border-border">
+                        <div className="text-xl font-extrabold text-primary leading-tight">{formatEGP(c.display_price)}</div>
                         <Button size="sm" className="gap-1 btn-gradient" onClick={() => setPreOrderItem(c)}>
                           <BookmarkPlus className="w-3 h-3" /> حجز
                         </Button>
