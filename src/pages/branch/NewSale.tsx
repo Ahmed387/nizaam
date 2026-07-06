@@ -1250,12 +1250,22 @@ export default function NewSale() {
 
           {/* Items */}
           <div className="card-elevated overflow-hidden">
-            <div className="p-4 border-b border-border font-bold flex items-center justify-between">
-              <span>عناصر الفاتورة ({items.length})</span>
-              {items.length > 0 && <span className="text-xs text-muted-foreground font-normal">إجمالي الكمية: {items.reduce((s,i)=>s+Number(i.quantity||0),0)}</span>}
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-gradient-to-l from-primary/5 to-transparent">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                  <ShoppingCart className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm">عناصر الفاتورة</div>
+                  <div className="text-[11px] text-muted-foreground">{items.length} صنف{items.length > 0 && ` — إجمالي الكمية: ${items.reduce((s,i)=>s+Number(i.quantity||0),0)}`}</div>
+                </div>
+              </div>
             </div>
             {items.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">ابحث عن منتج لإضافته</div>
+              <div className="p-10 text-center text-muted-foreground">
+                <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                <div className="text-sm">ابحث عن منتج لإضافته للفاتورة</div>
+              </div>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
