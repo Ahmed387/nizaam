@@ -166,6 +166,7 @@ export default function Inventory() {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
+      if (imageChanged) patch.image = editForm.image || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
