@@ -1298,13 +1298,14 @@ export default function NewSale() {
                               {(i.product_name || "?").trim().charAt(0)}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
-                                {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0" />}
-                                <span className="line-clamp-2">{i.product_name}</span>
+                              <div className="flex items-start gap-2">
+                                {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0 mt-1.5" />}
+                                {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0 mt-1.5" />}
+                                <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
                               </div>
                               {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
                             </div>
+
                           </div>
                           {(() => {
                             const r = reservations[i.product_id];
