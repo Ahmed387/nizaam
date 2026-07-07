@@ -16,7 +16,8 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { toast } from "sonner";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
+import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIcon, Package, CreditCard } from "lucide-react";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 
 interface Line {
@@ -59,6 +60,8 @@ export default function NewPurchaseReturn() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
+  const [openSections, setOpenSections] = useState({ supplier: false, products: false, payment: false, summary: false });
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
 
   // Refund
@@ -319,11 +322,16 @@ export default function NewPurchaseReturn() {
     <BranchLayout>
       <PageHeader title="مرتجع شراء جديد" subtitle="إرجاع بضاعة إلى المورد" />
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          {/* Supplier + shipment link */}
-          <div className="card-elevated p-4 space-y-3">
-            <div className="grid md:grid-cols-2 gap-4">
+      <div className="space-y-4">
+        {/* 1) Supplier + shipment link */}
+        <CollapsibleSection
+          title="بيانات المورد والفاتورة"
+          icon={<UserIcon className="w-5 h-5" />}
+          open={openSections.supplier}
+          onToggle={() => toggleSection("supplier")}
+        >
+          <div className="p-5 space-y-3">
+            <div className="grid md:grid-cols-3 gap-4">
               <div>
                 <Label>المورد *</Label>
                 <div className="mt-1.5 h-10 px-3 rounded-md border bg-muted/30 flex items-center text-sm">
@@ -340,11 +348,11 @@ export default function NewPurchaseReturn() {
                   </div>
                 )}
               </div>
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
-                </div>
-                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2">
+              <div>
+                <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
+              </div>
+              <div className="flex items-end">
+                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full">
                   <FileText className="w-4 h-4" /> {shipment ? "تغيير الفاتورة" : "اختيار فاتورة شراء"}
                 </Button>
               </div>
@@ -355,10 +363,16 @@ export default function NewPurchaseReturn() {
               </div>
             )}
           </div>
+        </CollapsibleSection>
 
-          {/* Lines (locked to shipment) */}
-          <div className="card-elevated p-4">
-            <Label className="mb-3 block">المنتجات المُرتجعة</Label>
+        {/* 2) Products */}
+        <CollapsibleSection
+          title="المنتجات المُرتجعة"
+          icon={<Package className="w-5 h-5" />}
+          open={openSections.products}
+          onToggle={() => toggleSection("products")}
+        >
+          <div className="p-5">
             {!shipment ? (
               <div className="text-center text-sm text-muted-foreground py-8">اختر فاتورة لعرض المنتجات</div>
             ) : lines.length === 0 ? (
@@ -399,9 +413,16 @@ export default function NewPurchaseReturn() {
               </div>
             )}
           </div>
+        </CollapsibleSection>
 
-          {/* Reason + notes */}
-          <div className="card-elevated p-4 space-y-3">
+        {/* 3) Refund + reason + notes */}
+        <CollapsibleSection
+          title="طريقة الاسترداد والسبب"
+          icon={<CreditCard className="w-5 h-5" />}
+          open={openSections.payment}
+          onToggle={() => toggleSection("payment")}
+        >
+          <div className="p-5 space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>السبب *</Label>
@@ -418,75 +439,79 @@ export default function NewPurchaseReturn() {
                 <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
               </div>
             </div>
-          </div>
 
-          {/* Refund mode */}
-          <div className="card-elevated p-4 space-y-3">
-            <Label>طريقة الاسترداد *</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {([
-                { v: "cash" as RefundMode, lbl: "💵 استلام نقدي" },
-                { v: "transfer" as RefundMode, lbl: "📱 تحويل" },
-                { v: "balance" as RefundMode, lbl: "📒 على حساب المورد" },
-                { v: "mixed" as RefundMode, lbl: "⚖️ مختلط" },
-              ]).map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => setRefundMode(o.v)}
-                  className={`text-sm px-3 py-2 rounded-md border ${refundMode === o.v ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
-                >
-                  {o.lbl}
-                </button>
-              ))}
+            <div className="space-y-3">
+              <Label>طريقة الاسترداد *</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {([
+                  { v: "cash" as RefundMode, lbl: "💵 استلام نقدي" },
+                  { v: "transfer" as RefundMode, lbl: "📱 تحويل" },
+                  { v: "balance" as RefundMode, lbl: "📒 على حساب المورد" },
+                  { v: "mixed" as RefundMode, lbl: "⚖️ مختلط" },
+                ]).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    onClick={() => setRefundMode(o.v)}
+                    className={`text-sm px-3 py-2 rounded-md border ${refundMode === o.v ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
+                  >
+                    {o.lbl}
+                  </button>
+                ))}
+              </div>
+
+              {(refundMode === "transfer" || (refundMode === "mixed" && transferPart > 0)) && (
+                <div className="grid md:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/30 border">
+                  <div>
+                    <Label className="text-xs">طريقة التحويل</Label>
+                    <Select value={transferMethod} onValueChange={setTransferMethod}>
+                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                      <SelectContent>{methodOptions.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">رقم العملية *</Label>
+                    <Input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} className="mt-1.5" placeholder="رقم التحويل" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">{methodAccountLabel(transferMethod)}</Label>
+                    <Input dir="ltr" className="text-right mt-1.5" value={refundAccount} onChange={(e) => setRefundAccount(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {refundMode === "mixed" && (
+                <div className="grid md:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/30 border">
+                  <div>
+                    <Label className="text-xs">المبلغ النقدي</Label>
+                    <Input type="number" step="0.01" value={cashPart} onChange={(e) => setCashPart(Number(e.target.value))} className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">المبلغ المُحوَّل</Label>
+                    <Input type="number" step="0.01" value={transferPart} onChange={(e) => setTransferPart(Number(e.target.value))} className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">على حساب المورد</Label>
+                    <Input type="number" step="0.01" value={balancePart} onChange={(e) => setBalancePart(Number(e.target.value))} className="mt-1.5" />
+                  </div>
+                  <div className={`md:col-span-3 text-xs ${mixedValid ? "text-success" : "text-destructive"} flex items-center gap-1`}>
+                    {!mixedValid && <AlertTriangle className="w-3 h-3" />}
+                    المجموع: {formatEGP(mixedSum)} / المطلوب: {formatEGP(total)}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {(refundMode === "transfer" || (refundMode === "mixed" && transferPart > 0)) && (
-              <div className="grid md:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/30 border">
-                <div>
-                  <Label className="text-xs">طريقة التحويل</Label>
-                  <Select value={transferMethod} onValueChange={setTransferMethod}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>{methodOptions.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">رقم العملية *</Label>
-                  <Input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} className="mt-1.5" placeholder="رقم التحويل" />
-                </div>
-                <div>
-                  <Label className="text-xs">{methodAccountLabel(transferMethod)}</Label>
-                  <Input dir="ltr" className="text-right mt-1.5" value={refundAccount} onChange={(e) => setRefundAccount(e.target.value)} />
-                </div>
-              </div>
-            )}
-
-            {refundMode === "mixed" && (
-              <div className="grid md:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/30 border">
-                <div>
-                  <Label className="text-xs">المبلغ النقدي</Label>
-                  <Input type="number" step="0.01" value={cashPart} onChange={(e) => setCashPart(Number(e.target.value))} className="mt-1.5" />
-                </div>
-                <div>
-                  <Label className="text-xs">المبلغ المُحوَّل</Label>
-                  <Input type="number" step="0.01" value={transferPart} onChange={(e) => setTransferPart(Number(e.target.value))} className="mt-1.5" />
-                </div>
-                <div>
-                  <Label className="text-xs">على حساب المورد</Label>
-                  <Input type="number" step="0.01" value={balancePart} onChange={(e) => setBalancePart(Number(e.target.value))} className="mt-1.5" />
-                </div>
-                <div className={`md:col-span-3 text-xs ${mixedValid ? "text-success" : "text-destructive"} flex items-center gap-1`}>
-                  {!mixedValid && <AlertTriangle className="w-3 h-3" />}
-                  المجموع: {formatEGP(mixedSum)} / المطلوب: {formatEGP(total)}
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        </CollapsibleSection>
 
-        {/* Sticky summary */}
-        <aside className="lg:sticky lg:top-4 self-start">
-          <div className="card-elevated p-4 space-y-3">
+        {/* 4) Summary + save */}
+        <CollapsibleSection
+          title="الملخص والحفظ"
+          icon={<FileText className="w-5 h-5" />}
+          open={openSections.summary}
+          onToggle={() => toggleSection("summary")}
+        >
+          <div className="p-5 space-y-3">
             <div className="font-bold text-lg">ملخص المرتجع</div>
             <div className="flex justify-between text-sm"><span>عدد الأصناف</span><Badge variant="secondary">{lines.filter((l) => l.quantity > 0).length}</Badge></div>
             <div className="flex justify-between text-sm"><span>إجمالي الكمية</span><Badge variant="secondary">{lines.reduce((s, l) => s + l.quantity, 0)}</Badge></div>
@@ -500,17 +525,20 @@ export default function NewPurchaseReturn() {
                 <span>رصيد المورد هيتعدل من {formatEGP(supplier.balance ?? 0)} إلى {formatEGP(Number(supplier.balance ?? 0) - total)}</span>
               </div>
             )}
-            <Button onClick={() => submit(false)} disabled={busy || total === 0 || !shipment} className="w-full gap-2" size="lg">
-              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-              حفظ مرتجع الشراء
-            </Button>
-            <Button onClick={() => submit(true)} disabled={busy || total === 0 || !shipment} variant="outline" className="w-full gap-2">
-              <Save className="w-4 h-4" /> حفظ كمسودة
-            </Button>
+            <div className="grid md:grid-cols-2 gap-2">
+              <Button onClick={() => submit(false)} disabled={busy || total === 0 || !shipment} className="w-full gap-2" size="lg">
+                {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+                حفظ مرتجع الشراء
+              </Button>
+              <Button onClick={() => submit(true)} disabled={busy || total === 0 || !shipment} variant="outline" className="w-full gap-2" size="lg">
+                <Save className="w-4 h-4" /> حفظ كمسودة
+              </Button>
+            </div>
             <p className="text-[11px] text-muted-foreground text-center">Ctrl+S للحفظ — Esc للإلغاء</p>
           </div>
-        </aside>
+        </CollapsibleSection>
       </div>
+
 
       {/* Shipment picker */}
       <Dialog open={pickOpen} onOpenChange={setPickOpen}>
