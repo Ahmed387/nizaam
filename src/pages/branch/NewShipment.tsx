@@ -750,7 +750,10 @@ export default function NewShipment() {
             {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
           </Button>
         </div>
+        </div>
+      </CollapsibleSection>
       </div>
+
 
       <Dialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
         <DialogContent>
