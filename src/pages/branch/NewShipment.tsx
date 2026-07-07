@@ -425,42 +425,46 @@ export default function NewShipment() {
         subtitle={isEdit ? (isAdmin ? "تعديل مباشر" : "سيُرسل التعديل للمدير للموافقة") : "استلام بضاعة من مورد"}
       />
 
+      <div className="space-y-4">
       {/* 1) Supplier */}
-      <div className="card-elevated p-5 mb-4">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-          <h3 className="font-bold text-base flex items-center gap-2">
-            <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">١</span>
-            بيانات المورد
-          </h3>
-          <Button type="button" size="sm" variant="outline" onClick={() => setSupplierDlg(true)} className="gap-1.5">
-            <UserPlus className="w-3.5 h-3.5" /> مورد جديد
-          </Button>
-        </div>
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">المورد *</Label>
-            <PartyCombobox type="supplier" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
+      <CollapsibleSection
+        title="بيانات المورد والفاتورة"
+        icon={<UserIcon className="w-5 h-5" />}
+        open={openSections.supplier}
+        onToggle={() => toggleSection("supplier")}
+      >
+        <div className="p-5">
+          <div className="flex items-center justify-end mb-4">
+            <Button type="button" size="sm" variant="outline" onClick={() => setSupplierDlg(true)} className="gap-1.5">
+              <UserPlus className="w-3.5 h-3.5" /> مورد جديد
+            </Button>
           </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">المورد *</Label>
+              <PartyCombobox type="supplier" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">تاريخ الوصول</Label>
+              <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ فاتورة الشراء" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">اسم المستلم</Label>
+              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" />
+            </div>
+          </div>
+          {suppliers.length === 0 && (
+            <button type="button" onClick={() => setSupplierDlg(true)}
+              className="mt-4 w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
+              <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
+            </button>
+          )}
+        </div>
+      </CollapsibleSection>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">تاريخ الوصول</Label>
-            <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ فاتورة الشراء" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">اسم المستلم</Label>
-            <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" />
-          </div>
-        </div>
-        {suppliers.length === 0 && (
-          <button type="button" onClick={() => setSupplierDlg(true)}
-            className="mt-4 w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
-            <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
-          </button>
-        )}
-      </div>
 
       {/* 2) Costs & notes */}
       <div className="card-elevated p-5 mb-4">
