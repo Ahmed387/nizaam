@@ -330,33 +330,38 @@ export default function NewPurchaseReturn() {
           open={openSections.supplier}
           onToggle={() => toggleSection("supplier")}
         >
-          <div className="p-5 space-y-3">
+          <div className="p-5 space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <Label>المورد *</Label>
-                <div className="mt-1.5 h-10 px-3 rounded-md border bg-muted/30 flex items-center text-sm">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" /> المورد *
+                </Label>
+                <div className="h-10 px-3 rounded-md border border-border bg-muted/40 flex items-center text-sm font-semibold">
                   {supplier?.name ?? "اختر الفاتورة لعرض المورد"}
                 </div>
-                {shipment && (
-                  <div className="text-xs text-muted-foreground mt-2 flex gap-3 flex-wrap">
-                    {supplier?.phone && <span dir="ltr">{supplier.phone}</span>}
-                    {supplier && (
-                      <span>الرصيد: <b className={Number(supplier.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(supplier.balance ?? 0)}</b></span>
-                    )}
-                    <span>فاتورة: <b>{shipment.arrival_date}</b></span>
-                    <span>الإجمالي: <b className="text-primary">{formatEGP(shipment.total_cost)}</b></span>
-                  </div>
-                )}
               </div>
-              <div>
+              <div className="space-y-2">
                 <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
               </div>
-              <div className="flex items-end">
-                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" /> فاتورة الشراء
+                </Label>
+                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
                   <FileText className="w-4 h-4" /> {shipment ? "تغيير الفاتورة" : "اختيار فاتورة شراء"}
                 </Button>
               </div>
             </div>
+            {shipment && (
+              <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
+                {supplier?.phone && <span dir="ltr" className="font-mono">{supplier.phone}</span>}
+                {supplier && (
+                  <span>الرصيد: <b className={Number(supplier.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(supplier.balance ?? 0)}</b></span>
+                )}
+                <span>فاتورة: <b className="font-mono text-primary">{shipment.arrival_date}</b></span>
+                <span>الإجمالي: <b className="text-primary">{formatEGP(shipment.total_cost)}</b></span>
+              </div>
+            )}
             {shipment && (
               <div className="text-xs text-success flex items-center gap-1">
                 <Link2 className="w-3 h-3" /> مرتبط بفاتورة شراء — المنتجات والأسعار اتملت تلقائياً
