@@ -314,33 +314,38 @@ export default function NewSaleReturn() {
           open={openSections.customer}
           onToggle={() => toggleSection("customer")}
         >
-          <div className="p-5 space-y-3">
+          <div className="p-5 space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <Label>العميل *</Label>
-                <div className="mt-1.5 h-10 px-3 rounded-md border bg-muted/30 flex items-center text-sm">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" /> العميل *
+                </Label>
+                <div className="h-10 px-3 rounded-md border border-border bg-muted/40 flex items-center text-sm font-semibold">
                   {customer?.name ?? (invoice ? "نقدي" : "اختر الفاتورة لعرض العميل")}
                 </div>
-                {invoice && (
-                  <div className="text-xs text-muted-foreground mt-2 flex gap-3 flex-wrap">
-                    {customer?.phone && <span dir="ltr">{customer.phone}</span>}
-                    {customer && (
-                      <span>الرصيد: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(customer.balance ?? 0)}</b></span>
-                    )}
-                    <span>فاتورة: <b className="font-mono">{invoice.invoice_number}</b></span>
-                    <span>الإجمالي: <b className="text-primary">{formatEGP(invoice.total)}</b></span>
-                  </div>
-                )}
               </div>
-              <div>
+              <div className="space-y-2">
                 <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
               </div>
-              <div className="flex items-end">
-                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" /> الفاتورة الأصلية
+                </Label>
+                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
                   <FileText className="w-4 h-4" /> {invoice ? "تغيير الفاتورة" : "اختيار من فاتورة بيع"}
                 </Button>
               </div>
             </div>
+            {invoice && (
+              <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
+                {customer?.phone && <span dir="ltr" className="font-mono">{customer.phone}</span>}
+                {customer && (
+                  <span>الرصيد: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(customer.balance ?? 0)}</b></span>
+                )}
+                <span>فاتورة: <b className="font-mono text-primary">{invoice.invoice_number}</b></span>
+                <span>الإجمالي: <b className="text-primary">{formatEGP(invoice.total)}</b></span>
+              </div>
+            )}
             {invoice && (
               <div className="text-xs text-success flex items-center gap-1">
                 <Link2 className="w-3 h-3" /> مرتبط بفاتورة بيع — المنتجات والأسعار اتملت تلقائياً

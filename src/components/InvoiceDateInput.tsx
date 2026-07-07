@@ -20,8 +20,9 @@ export function InvoiceDateInput({ value, onChange, label = "تاريخ الفا
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs flex items-center gap-1.5">
+    <div className="space-y-2">
+      <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
         <CalendarIcon className="w-3.5 h-3.5 text-primary" />
         {label}
         {!canBackdate && <Lock className="w-3 h-3 text-muted-foreground" />}
@@ -32,7 +33,7 @@ export function InvoiceDateInput({ value, onChange, label = "تاريخ الفا
         max={today}
         onChange={(e) => onChange(e.target.value)}
         disabled={!canBackdate}
-        className="h-9"
+        className="h-10"
         title={canBackdate ? "اختر تاريخ الفاتورة" : "تعديل التاريخ متاح لصاحب الشركة فقط"}
       />
     </div>
