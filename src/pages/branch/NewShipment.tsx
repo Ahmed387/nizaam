@@ -466,121 +466,124 @@ export default function NewShipment() {
       </CollapsibleSection>
 
 
-      {/* 2) Costs & notes */}
-      <div className="card-elevated p-5 mb-4">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-          <h3 className="font-bold text-base flex items-center gap-2">
-            <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٢</span>
-            مصاريف إضافية
-          </h3>
-          <button
-            type="button"
-            onClick={() => setShowExtrasBreakdown((v) => !v)}
-            className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
-          >
-            {showExtrasBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            {showExtrasBreakdown ? "إخفاء التفصيل" : "تفصيل المصاريف"}
-          </button>
-        </div>
+      {/* 2) Extras / admin costs */}
+      <CollapsibleSection
+        title="المصاريف الإدارية والإضافية"
+        icon={<Wallet className="w-5 h-5" />}
+        open={openSections.extras}
+        onToggle={() => toggleSection("extras")}
+      >
+        <div className="p-5">
+          <div className="flex items-center justify-end mb-4">
+            <button
+              type="button"
+              onClick={() => setShowExtrasBreakdown((v) => !v)}
+              className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+            >
+              {showExtrasBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showExtrasBreakdown ? "إخفاء التفصيل" : "تفصيل المصاريف"}
+            </button>
+          </div>
 
-        {/* Default compact view: total shipping + admin + grand extras */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">إجمالي مصاريف الشحن (ج.م)</Label>
-            {showExtrasBreakdown ? (
+          {/* Default compact view: total shipping + admin + grand extras */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">إجمالي مصاريف الشحن (ج.م)</Label>
+              {showExtrasBreakdown ? (
+                <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+                  {formatEGP(totalExtras)}
+                </div>
+              ) : (
+                <>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={shipping}
+                    onChange={(e) => { setShipping(Number(e.target.value)); setCustoms(0); setOtherCost(0); }}
+                    placeholder="0"
+                  />
+                  <p className="text-[10px] text-muted-foreground">شامل الشحن والجمارك والمصاريف الأخرى</p>
+                </>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
+              <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">الإجمالي الإضافي</Label>
               <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
-                {formatEGP(totalExtras)}
+                {formatEGP(totalExtras + Number(admin || 0))}
               </div>
-            ) : (
-              <>
-                <Input
-                  type="number"
-                  min={0}
-                  value={shipping}
-                  onChange={(e) => { setShipping(Number(e.target.value)); setCustoms(0); setOtherCost(0); }}
-                  placeholder="0"
-                />
-                <p className="text-[10px] text-muted-foreground">شامل الشحن والجمارك والمصاريف الأخرى</p>
-              </>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
-            <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">الإجمالي الإضافي</Label>
-            <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
-              {formatEGP(totalExtras + Number(admin || 0))}
             </div>
           </div>
-        </div>
 
-        {/* Breakdown (collapsible) */}
-        {showExtrasBreakdown && (
-          <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
-              <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
+          {/* Breakdown (collapsible) */}
+          {showExtrasBreakdown && (
+            <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
+                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
+                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
+                <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
+              </div>
+              <div className="space-y-1.5 md:col-span-3">
+                <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
+                <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
-              <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
-              <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
-            </div>
-            <div className="space-y-1.5 md:col-span-3">
-              <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
-              <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
-            </div>
+          )}
+
+          {/* Notes — own row */}
+          <div className="mt-4 space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
           </div>
-        )}
 
-        {/* Notes — own row */}
-        <div className="mt-4 space-y-1.5">
-          <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
-          <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
-        </div>
-
-
-        {/* Live distribution preview */}
-        {lines.length > 0 && totalExtras > 0 && (
-          <div className="mt-5 border border-border rounded-lg overflow-hidden">
-            <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between">
-              <span>توزيع المصاريف على المنتجات (تلقائي بالنسبة لقيمة كل صنف)</span>
-              <span className="text-muted-foreground">إجمالي للتوزيع: {formatEGP(totalExtras)}</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-surface-2/60">
-                  <tr>
-                    <th className="px-3 py-2 text-right">المنتج</th>
-                    <th className="px-3 py-2 text-right">الكمية</th>
-                    <th className="px-3 py-2 text-right">سعر الشراء/الوحدة</th>
-                    <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
-                    <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
-                    <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {distribution.map((d, i) => (
-                    <tr key={i} className="border-t border-border">
-                      <td className="px-3 py-2">{d.line.product_name || "—"}</td>
-                      <td className="px-3 py-2">{d.line.quantity}</td>
-                      <td className="px-3 py-2">{formatEGP(d.baseUnit)}</td>
-                      <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
-                      <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
-                      <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
+          {/* Live distribution preview */}
+          {lines.length > 0 && totalExtras > 0 && (
+            <div className="mt-5 border border-border rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between">
+                <span>توزيع المصاريف على المنتجات (تلقائي بالنسبة لقيمة كل صنف)</span>
+                <span className="text-muted-foreground">إجمالي للتوزيع: {formatEGP(totalExtras)}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-2/60">
+                    <tr>
+                      <th className="px-3 py-2 text-right">المنتج</th>
+                      <th className="px-3 py-2 text-right">الكمية</th>
+                      <th className="px-3 py-2 text-right">سعر الشراء/الوحدة</th>
+                      <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
+                      <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
+                      <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {distribution.map((d, i) => (
+                      <tr key={i} className="border-t border-border">
+                        <td className="px-3 py-2">{d.line.product_name || "—"}</td>
+                        <td className="px-3 py-2">{d.line.quantity}</td>
+                        <td className="px-3 py-2">{formatEGP(d.baseUnit)}</td>
+                        <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
+                        <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
+                        <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </CollapsibleSection>
+
 
 
 
