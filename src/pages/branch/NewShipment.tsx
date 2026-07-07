@@ -587,13 +587,14 @@ export default function NewShipment() {
 
 
 
-      <div className="card-elevated overflow-hidden mb-4">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold text-base flex items-center gap-2">
-            <span className="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary items-center justify-center text-sm">٣</span>
-            المنتجات
-            {lines.length > 0 && <span className="text-xs text-muted-foreground font-normal">({lines.length})</span>}
-          </h3>
+      {/* 3) Products */}
+      <CollapsibleSection
+        title={`المنتجات${lines.length > 0 ? ` (${lines.length})` : ""}`}
+        icon={<Package className="w-5 h-5" />}
+        open={openSections.products}
+        onToggle={() => toggleSection("products")}
+      >
+        <div className="flex items-center justify-end p-4 border-b border-border">
           <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
         </div>
 
@@ -688,20 +689,26 @@ export default function NewShipment() {
             })}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
 
       {/* 4) Payment plan for supplier — only in create mode */}
       {!isEdit && (
-        <div className="card-elevated p-4 mb-4">
-          <h3 className="font-bold mb-3">٤. طريقة الدفع للمورد</h3>
-          <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
-        </div>
+        <CollapsibleSection
+          title="طريقة الدفع للمورد"
+          icon={<CreditCard className="w-5 h-5" />}
+          open={openSections.payment}
+          onToggle={() => toggleSection("payment")}
+        >
+          <div className="p-5">
+            <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
+          </div>
+        </CollapsibleSection>
       )}
 
       {/* Edit reason (manager only) */}
       {isEdit && isManager && !isAdmin && (
-        <div className="card-elevated p-4 mb-4">
+        <div className="card-elevated p-4">
           <Label className="text-sm font-bold">سبب التعديل *</Label>
           <Textarea
             rows={2}
@@ -714,10 +721,16 @@ export default function NewShipment() {
       )}
 
       {/* 5) Summary + save */}
-      <div className="card-elevated p-4 mb-4">
-        <h3 className="font-bold mb-3">{isEdit ? "الملخص والحفظ" : "٥. الملخص والحفظ"}</h3>
+      <CollapsibleSection
+        title="الملخص والحفظ"
+        icon={<FileText className="w-5 h-5" />}
+        open={openSections.summary}
+        onToggle={() => toggleSection("summary")}
+      >
+        <div className="p-5">
         <div className="grid md:grid-cols-2 gap-4 items-end">
           <div className="space-y-2 text-sm">
+
             <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
             {itemsDiscount > 0 && (
               <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
