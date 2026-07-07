@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { Loader2, Link2, Printer, AlertTriangle, Save, FileText } from "lucide-react";
+import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIcon, Package, CreditCard } from "lucide-react";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 
