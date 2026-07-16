@@ -67,6 +67,7 @@ import PriceAuditLog from "./pages/admin/PriceAuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
 import NewSale from "./pages/branch/NewSale";
+import EditSaleInvoice from "./pages/branch/EditSaleInvoice";
 import PreOrders from "./pages/branch/PreOrders";
 import SalesHistory from "./pages/branch/SalesHistory";
 import InvoiceView from "./pages/branch/InvoiceView";
