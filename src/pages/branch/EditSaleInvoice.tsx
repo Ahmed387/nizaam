@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle, CreditCard, Receipt, CalendarClock, Lock, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +50,9 @@ export default function EditSaleInvoice() {
   const [products, setProducts] = useState<any[]>([]);
   const [openSuggestIdx, setOpenSuggestIdx] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [paymentPlan, setPaymentPlan] = useState<any>(null);
+  const [installments, setInstallments] = useState<any[]>([]);
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
 
@@ -57,7 +60,7 @@ export default function EditSaleInvoice() {
     if (!invoiceId || !branchId) return;
     (async () => {
       setLoading(true);
-      const [{ data: inv }, { data: its }, { data: c }, { data: p }] = await Promise.all([
+      const [{ data: inv }, { data: its }, { data: c }, { data: p }, { data: pays }, { data: plan }] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", invoiceId).maybeSingle(),
         supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId),
         supabase.from("contacts").select("id, name").eq("branch_id", branchId).order("name"),
@@ -66,12 +69,30 @@ export default function EditSaleInvoice() {
           .select("id, name, sku, quantity, cost_price, selling_price, market_price")
           .eq("branch_id", branchId)
           .order("name"),
+        supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at"),
+        supabase
+          .from("payment_plans")
+          .select("*")
+          .eq("reference_type", "invoice")
+          .eq("reference_id", invoiceId)
+          .maybeSingle(),
       ]);
 
       setInvoice(inv);
       setCustomerId(inv?.contact_id ?? null);
       setCustomers(c ?? []);
       setProducts(p ?? []);
+      setPayments(pays ?? []);
+      setPaymentPlan(plan ?? null);
+
+      if (plan?.id) {
+        const { data: ins } = await supabase
+          .from("payment_installments")
+          .select("*")
+          .eq("payment_plan_id", plan.id)
+          .order("installment_number");
+        setInstallments(ins ?? []);
+      }
 
       const loadedItems: Item[] = (its ?? []).map((it: any) => ({
         id: it.id,
@@ -428,11 +449,157 @@ export default function EditSaleInvoice() {
           </div>
         </div>
 
+        {/* Payment methods — READ ONLY */}
+        <div className="rounded-xl border-2 border-muted-foreground/20 bg-surface-1 p-4 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <Label className="text-base font-bold text-primary flex items-center gap-2">
+              <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                3
+              </span>
+              <CreditCard className="w-4 h-4" />
+              طرق الدفع والأقساط
+              <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Lock className="w-3 h-3" /> عرض فقط
+              </span>
+            </Label>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-xs"
+                onClick={() => nav(`/branch/${branchId}/receipt-vouchers`)}
+              >
+                <Receipt className="w-3.5 h-3.5" /> تعديل الدفعات
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </Button>
+              {paymentPlan && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-xs"
+                  onClick={() => nav(`/branch/${branchId}/sales/${invoiceId}`)}
+                >
+                  <CalendarClock className="w-3.5 h-3.5" /> إدارة الأقساط
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2 leading-relaxed">
+            💡 المدفوعات وخطة الأقساط ما بتتعدلش من هنا للحفاظ على سلامة سندات القبض والخزنة. لتعديل دفعة أو إعادة جدولة الأقساط، استخدم الأزرار في الأعلى.
+          </div>
+
+          {payments.length === 0 && !paymentPlan ? (
+            <div className="text-center text-sm text-muted-foreground py-3 border border-dashed border-border rounded-lg">
+              لا توجد دفعات مسجلة على هذه الفاتورة
+            </div>
+          ) : (
+            <>
+              {payments.length > 0 && (
+                <div>
+                  <div className="text-xs font-bold mb-1.5 text-muted-foreground">الدفعات المسجلة ({payments.length})</div>
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-surface-2">
+                        <tr className="font-bold">
+                          <th className="p-2 text-right">التاريخ</th>
+                          <th className="p-2 text-right">الطريقة</th>
+                          <th className="p-2 text-center">المبلغ</th>
+                          <th className="p-2 text-right">مرجع</th>
+                          <th className="p-2 text-right">استلم</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((pay) => (
+                          <tr key={pay.id} className="border-t border-border">
+                            <td className="p-2 tabular-nums" dir="ltr">
+                              {new Date(pay.created_at).toLocaleDateString("ar-EG")}
+                            </td>
+                            <td className="p-2 font-semibold">{pay.payment_method ?? "—"}</td>
+                            <td className="p-2 text-center font-bold tabular-nums text-success" dir="ltr">
+                              {formatEGP(Number(pay.amount ?? 0))}
+                            </td>
+                            <td className="p-2 text-muted-foreground">{pay.reference_number ?? "—"}</td>
+                            <td className="p-2">{pay.received_by_name ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {paymentPlan && (
+                <div>
+                  <div className="text-xs font-bold mb-1.5 text-muted-foreground flex items-center gap-2">
+                    <CalendarClock className="w-3.5 h-3.5" />
+                    خطة الأقساط ({installments.length} قسط)
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
+                    <div className="bg-muted/40 rounded p-2">
+                      <div className="text-muted-foreground">الإجمالي</div>
+                      <div className="font-bold tabular-nums" dir="ltr">{formatEGP(Number(paymentPlan.total_amount ?? 0))}</div>
+                    </div>
+                    <div className="bg-success/10 rounded p-2">
+                      <div className="text-muted-foreground">المدفوع</div>
+                      <div className="font-bold text-success tabular-nums" dir="ltr">{formatEGP(Number(paymentPlan.paid_amount ?? 0))}</div>
+                    </div>
+                    <div className="bg-warning/10 rounded p-2">
+                      <div className="text-muted-foreground">المتبقي</div>
+                      <div className="font-bold text-warning tabular-nums" dir="ltr">{formatEGP(Number(paymentPlan.remaining_amount ?? 0))}</div>
+                    </div>
+                  </div>
+                  {installments.length > 0 && (
+                    <div className="overflow-x-auto rounded-lg border border-border">
+                      <table className="w-full text-xs">
+                        <thead className="bg-surface-2">
+                          <tr className="font-bold">
+                            <th className="p-2 text-center w-12">#</th>
+                            <th className="p-2 text-right">تاريخ الاستحقاق</th>
+                            <th className="p-2 text-center">المبلغ</th>
+                            <th className="p-2 text-center">المدفوع</th>
+                            <th className="p-2 text-center">الحالة</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {installments.map((ins) => (
+                            <tr key={ins.id} className="border-t border-border">
+                              <td className="p-2 text-center font-bold">{ins.installment_number}</td>
+                              <td className="p-2 tabular-nums" dir="ltr">
+                                {ins.due_date ? new Date(ins.due_date).toLocaleDateString("ar-EG") : "—"}
+                              </td>
+                              <td className="p-2 text-center tabular-nums" dir="ltr">{formatEGP(Number(ins.amount ?? 0))}</td>
+                              <td className="p-2 text-center tabular-nums text-success" dir="ltr">{formatEGP(Number(ins.paid_amount ?? 0))}</td>
+                              <td className="p-2 text-center">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  ins.status === "paid" ? "bg-success/20 text-success" :
+                                  ins.status === "overdue" ? "bg-destructive/20 text-destructive" :
+                                  ins.status === "partial" ? "bg-warning/20 text-warning" :
+                                  "bg-muted text-muted-foreground"
+                                }`}>
+                                  {ins.status === "paid" ? "مدفوع" :
+                                   ins.status === "overdue" ? "متأخر" :
+                                   ins.status === "partial" ? "جزئي" : "معلق"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Summary section */}
         <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
           <Label className="text-base font-bold text-primary flex items-center gap-2 mb-2">
             <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-              3
+              4
             </span>
             الملخص
           </Label>
