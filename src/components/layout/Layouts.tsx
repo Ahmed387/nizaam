@@ -58,7 +58,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const nav = isAdmin ? adminNav : hasRole("supervisor") ? supervisorNav : [];
   return (
     <AppShell
-      title={tenant?.name ?? "Nexa Store"}
+      title={tenant?.name ?? "Nizam"}
       subtitle={isAdmin ? "لوحة التحكم العامة" : "ملاحظ — الحضور والانصراف"}
       nav={nav}
     >

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* NexaStore Design System — Light & Dark */
+/* Nizam Design System — Light & Dark */
 @layer base {
   :root {
     --background: 210 40% 98%;
