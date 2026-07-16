@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle, CreditCard, Receipt, CalendarClock, Lock, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
