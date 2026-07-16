@@ -441,13 +441,7 @@ export default function InvoiceView() {
         </DialogContent>
       </Dialog>
 
-      <EditInvoiceDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        invoice={inv}
-        branchId={id!}
-        onSaved={() => location.reload()}
-      />
+      {/* Edit moved to full page: /branch/:id/sales/:invoiceId/edit */}
 
       {(() => {
         const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
