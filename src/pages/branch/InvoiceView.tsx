@@ -121,7 +121,7 @@ export default function InvoiceView() {
         actions={
           <div className="flex gap-2 no-print flex-wrap">
             {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء الفاتورة</Button>}
-            {canEdit && <Button variant="outline" onClick={() => setEditOpen(true)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
+            {canEdit && <Button variant="outline" onClick={() => nav(`/branch/${id}/sales/${invoiceId}/edit`)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
             {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي للفاتورة</Button>}
             <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF للفاتورة</Button>
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
@@ -441,13 +441,7 @@ export default function InvoiceView() {
         </DialogContent>
       </Dialog>
 
-      <EditInvoiceDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        invoice={inv}
-        branchId={id!}
-        onSaved={() => location.reload()}
-      />
+      {/* Edit moved to full page: /branch/:id/sales/:invoiceId/edit */}
 
       {(() => {
         const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);

@@ -67,6 +67,7 @@ import PriceAuditLog from "./pages/admin/PriceAuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
 import NewSale from "./pages/branch/NewSale";
+import EditSaleInvoice from "./pages/branch/EditSaleInvoice";
 import PreOrders from "./pages/branch/PreOrders";
 import SalesHistory from "./pages/branch/SalesHistory";
 import InvoiceView from "./pages/branch/InvoiceView";
@@ -215,6 +216,7 @@ const App = () => (
             <Route path="/branch/:id/sales/new" element={<ProtectedRoute perm="sales.create"><NewSale /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/returns" element={<RedirectReturnsToInvoices />} />
             
+            <Route path="/branch/:id/sales/:invoiceId/edit" element={<ProtectedRoute perm="sales.create"><EditSaleInvoice /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/:invoiceId" element={<ProtectedRoute perm="sales.view"><InvoiceView /></ProtectedRoute>} />
             <Route path="/branch/:id/pre-orders" element={<ProtectedRoute perm="preorders.view"><PreOrders /></ProtectedRoute>} />
             <Route path="/branch/:id/shipments" element={<ProtectedRoute perm="shipments.view"><Shipments /></ProtectedRoute>} />
