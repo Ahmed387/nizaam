@@ -60,7 +60,7 @@ export default function EditSaleInvoice() {
     if (!invoiceId || !branchId) return;
     (async () => {
       setLoading(true);
-      const [{ data: inv }, { data: its }, { data: c }, { data: p }] = await Promise.all([
+      const [{ data: inv }, { data: its }, { data: c }, { data: p }, { data: pays }, { data: plan }] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", invoiceId).maybeSingle(),
         supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId),
         supabase.from("contacts").select("id, name").eq("branch_id", branchId).order("name"),
@@ -69,12 +69,30 @@ export default function EditSaleInvoice() {
           .select("id, name, sku, quantity, cost_price, selling_price, market_price")
           .eq("branch_id", branchId)
           .order("name"),
+        supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at"),
+        supabase
+          .from("payment_plans")
+          .select("*")
+          .eq("reference_type", "invoice")
+          .eq("reference_id", invoiceId)
+          .maybeSingle(),
       ]);
 
       setInvoice(inv);
       setCustomerId(inv?.contact_id ?? null);
       setCustomers(c ?? []);
       setProducts(p ?? []);
+      setPayments(pays ?? []);
+      setPaymentPlan(plan ?? null);
+
+      if (plan?.id) {
+        const { data: ins } = await supabase
+          .from("payment_installments")
+          .select("*")
+          .eq("payment_plan_id", plan.id)
+          .order("installment_number");
+        setInstallments(ins ?? []);
+      }
 
       const loadedItems: Item[] = (its ?? []).map((it: any) => ({
         id: it.id,
