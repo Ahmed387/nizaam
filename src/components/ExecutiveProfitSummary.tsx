@@ -107,25 +107,25 @@ export function ExecutiveProfitSummary() {
         </div>
 
         {/* Middle: Formula breakdown */}
-        <div className="flex-1 w-full">
+        <div className="flex-1 w-full lg:-mr-4">
           <div className="grid grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border relative overflow-hidden">
-              <p className="text-muted-foreground text-[11px] mb-1 font-medium">إجمالي المبيعات</p>
-              <p className="text-base lg:text-lg font-bold text-foreground truncate" title={formatEGP(sales)}>
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/25 relative overflow-hidden">
+              <p className="text-foreground/70 text-xs mb-1.5 font-semibold">إجمالي المبيعات</p>
+              <p className="text-lg lg:text-2xl font-extrabold text-primary tabular-nums truncate" dir="ltr" title={formatEGP(sales)}>
                 {formatEGP(sales)}
               </p>
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-primary/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border relative overflow-hidden">
-              <p className="text-muted-foreground text-[11px] mb-1 font-medium">التكلفة (COGS)</p>
-              <p className="text-base lg:text-lg font-bold text-warning truncate" title={formatEGP(cost)}>
+            <div className="p-4 rounded-xl bg-warning/5 border border-warning/30 relative overflow-hidden">
+              <p className="text-foreground/70 text-xs mb-1.5 font-semibold">التكلفة (COGS)</p>
+              <p className="text-lg lg:text-2xl font-extrabold text-warning tabular-nums truncate" dir="ltr" title={formatEGP(cost)}>
                 {formatEGP(cost)}
               </p>
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-warning/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border relative overflow-hidden">
-              <p className="text-muted-foreground text-[11px] mb-1 font-medium">المصروفات التشغيلية</p>
-              <p className="text-base lg:text-lg font-bold text-destructive truncate" title={formatEGP(expenses)}>
+            <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/25 relative overflow-hidden">
+              <p className="text-foreground/70 text-xs mb-1.5 font-semibold">المصروفات التشغيلية</p>
+              <p className="text-lg lg:text-2xl font-extrabold text-destructive tabular-nums truncate" dir="ltr" title={formatEGP(expenses)}>
                 {formatEGP(expenses)}
               </p>
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-destructive/10 rounded-tr-full -ml-3 -mb-3" />
