@@ -30,7 +30,7 @@ export default function Landing() {
             <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
               <Store className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg gradient-text">Nexa Store</span>
+            <span className="font-bold text-lg gradient-text">Nizam</span>
           </div>
           <div className="flex items-center gap-2">
             <Link to="/login"><Button variant="ghost">دخول</Button></Link>
@@ -96,7 +96,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border/40 py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Nexa Store — جميع الحقوق محفوظة
+          © {new Date().getFullYear()} Nizam — جميع الحقوق محفوظة
         </div>
       </footer>
     </div>
