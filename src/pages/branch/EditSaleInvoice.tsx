@@ -408,6 +408,7 @@ export default function EditSaleInvoice() {
   };
 
   const showDiffToast = (diff: string[]) => {
+    toast.custom(
       (t) => (
         <div
           dir="rtl"
