@@ -105,14 +105,19 @@ export default function EditSaleInvoice() {
       setVatRate(Number(inv?.vat_rate ?? 0));
       setDiscountAmount(Number(inv?.discount_amount ?? 0));
 
+      let loadedTx: any[] = [];
+      let loadedIns: any[] = [];
       if (plan?.id) {
         const [{ data: ins }, { data: tx }] = await Promise.all([
           supabase.from("payment_installments").select("*").eq("payment_plan_id", plan.id).order("installment_number"),
           supabase.from("payment_transactions").select("*").eq("payment_plan_id", plan.id).order("created_at"),
         ]);
-        setInstallments(ins ?? []);
-        setPlanTxs(tx ?? []);
+        loadedIns = ins ?? [];
+        loadedTx = tx ?? [];
+        setInstallments(loadedIns);
+        setPlanTxs(loadedTx);
       }
+      initialPaymentsRef.current = snapshotPayments(pays ?? [], loadedTx);
 
       const loadedItems: Item[] = (its ?? []).map((it: any) => ({
         id: it.id,
