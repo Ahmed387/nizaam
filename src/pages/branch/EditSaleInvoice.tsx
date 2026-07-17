@@ -58,6 +58,9 @@ export default function EditSaleInvoice() {
   const [installments, setInstallments] = useState<any[]>([]);
   const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
   const [vatRate, setVatRate] = useState<number>(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
 
