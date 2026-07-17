@@ -60,12 +60,12 @@ export function InvoicePaymentsPanel({
               .eq("payment_plan_id", paymentPlanId)
               .order("created_at")
           : Promise.resolve({ data: [] } as any),
-        supabase.from("invoices").select("total_amount").eq("id", invoiceId).maybeSingle(),
+        supabase.from("invoices").select("total").eq("id", invoiceId).maybeSingle(),
       ]);
       setInitialPayments(ip ?? []);
       setPlan(planRes?.data ?? null);
       setTxs(txRes?.data ?? []);
-      setInvoiceTotal(Number(invRes?.data?.total_amount ?? 0));
+      setInvoiceTotal(Number(invRes?.data?.total ?? 0));
     } finally {
       setLoading(false);
     }
