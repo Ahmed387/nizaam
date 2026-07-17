@@ -438,7 +438,7 @@ function AddInvoicePaymentDialog({
   invoiceId: string;
   onSuccess: () => void;
 }) {
-  const [method, setMethod] = useState<PaymentMethodValue>({ method: "cash" });
+  const [method, setMethod] = useState<PaymentMethodValue>({ method: "cash", fee_amount: 0, total_with_fee: 0 });
   const [amount, setAmount] = useState<string>("");
   const [reference, setReference] = useState("");
   const [saving, setSaving] = useState(false);
