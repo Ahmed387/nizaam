@@ -396,36 +396,38 @@ export default function EditSaleInvoice() {
         />
 
         {/* Customer section */}
-        <div className="rounded-xl border-2 border-primary/20 bg-surface-1 p-4 space-y-3">
-          <Label className="text-base font-bold text-primary flex items-center gap-2">
-            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-              1
-            </span>
-            العميل
-          </Label>
-          <select
-            className="w-full h-11 rounded-md border-2 border-input bg-background px-3 text-sm font-semibold focus:border-primary focus:outline-none"
-            value={customerId ?? ""}
-            onChange={(e) => setCustomerId(e.target.value || null)}
-          >
-            <option value="">عميل نقدي</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CollapsibleSection
+          title="1. العميل"
+          icon={<User className="w-5 h-5" />}
+          open={openSections.customer}
+          onToggle={() => toggleSection("customer")}
+        >
+          <div className="p-4 space-y-3">
+            <select
+              className="w-full h-11 rounded-md border-2 border-input bg-background px-3 text-sm font-semibold focus:border-primary focus:outline-none"
+              value={customerId ?? ""}
+              onChange={(e) => setCustomerId(e.target.value || null)}
+            >
+              <option value="">عميل نقدي</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CollapsibleSection>
 
         {/* Items section */}
-        <div className="rounded-xl border-2 border-primary/20 bg-surface-1 p-4 space-y-3">
+        <CollapsibleSection
+          title="2. بنود الفاتورة"
+          icon={<Package className="w-5 h-5" />}
+          open={openSections.items}
+          onToggle={() => toggleSection("items")}
+        >
+        <div className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-base font-bold text-primary flex items-center gap-2">
-              <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                2
-              </span>
-              بنود الفاتورة
-            </Label>
+            <div className="text-sm font-bold text-muted-foreground">{items.length} بند</div>
             <Button size="sm" variant="outline" onClick={addBlankItem} className="gap-1 border-primary/40 text-primary hover:bg-primary/10 font-bold">
               <Plus className="w-4 h-4" /> إضافة بند
             </Button>
