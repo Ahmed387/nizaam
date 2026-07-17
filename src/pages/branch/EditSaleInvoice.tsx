@@ -553,6 +553,7 @@ export default function EditSaleInvoice() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
               <Lock className="w-3 h-3" /> عرض فقط — استخدم زرار التعديل
+            </span>
             <div className="flex gap-2">
               <Button
                 size="sm"
