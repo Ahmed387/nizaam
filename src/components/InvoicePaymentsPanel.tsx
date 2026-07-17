@@ -417,6 +417,8 @@ export function InvoicePaymentsPanel({
         open={addInvoicePayOpen}
         onOpenChange={setAddInvoicePayOpen}
         invoiceId={invoiceId}
+        maxAllowed={invoiceTotal > 0 ? Math.max(invoiceTotal - totalActive, 0) : undefined}
+        invoiceTotal={invoiceTotal}
         onSuccess={() => {
           onChanged?.();
           load();
@@ -427,6 +429,12 @@ export function InvoicePaymentsPanel({
         open={!!editTarget}
         onOpenChange={(o) => !o && setEditTarget(null)}
         target={editTarget}
+        maxAllowed={
+          invoiceTotal > 0 && editTarget
+            ? Math.max(invoiceTotal - totalActive + Number(editTarget.row.amount || 0), 0)
+            : undefined
+        }
+        invoiceTotal={invoiceTotal}
         onSuccess={() => {
           setEditTarget(null);
           onChanged?.();
