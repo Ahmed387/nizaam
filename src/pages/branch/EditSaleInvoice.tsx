@@ -663,6 +663,52 @@ export default function EditSaleInvoice() {
               </span>
             </div>
           )}
+
+          {/* VAT / Tax editor */}
+          <div className="pt-2 mt-2 border-t border-primary/20 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="font-semibold text-sm">ضريبة القيمة المضافة (VAT):</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={Number(vatRate) === 0 ? "default" : "outline"}
+                  onClick={() => setVatRate(0)}
+                  className="h-8 text-xs font-bold"
+                >
+                  بدون
+                </Button>
+                <Button
+                  size="sm"
+                  variant={Number(vatRate) === 14 ? "default" : "outline"}
+                  onClick={() => setVatRate(14)}
+                  className="h-8 text-xs font-bold"
+                >
+                  14%
+                </Button>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={vatRate}
+                    onChange={(e) => setVatRate(Math.max(0, Number(e.target.value) || 0))}
+                    className="h-8 w-20 text-center font-bold"
+                  />
+                  <span className="text-xs font-bold">%</span>
+                </div>
+              </div>
+            </div>
+            {vatAmount > 0 && (
+              <div className="flex justify-between text-sm text-primary">
+                <span className="font-semibold">قيمة الضريبة ({vatRate}%):</span>
+                <span className="font-bold tabular-nums" dir="ltr">
+                  + {formatEGP(vatAmount)}
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-between text-xl pt-2 mt-2 border-t-2 border-primary/30">
             <span className="font-extrabold">الإجمالي النهائي:</span>
             <span className="text-primary font-extrabold tabular-nums" dir="ltr">
