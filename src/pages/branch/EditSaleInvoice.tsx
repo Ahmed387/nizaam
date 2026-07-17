@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { InvoicePaymentsDialog } from "@/components/InvoicePaymentsDialog";
 
 type Item = {
   id?: string;
