@@ -271,10 +271,15 @@ export default function EditSaleInvoice() {
       changes.push(`🧾 نسبة الضريبة: ${snap.vatRate || 0}% → ${vatRate || 0}%`);
     }
 
+    // Invoice discount diff
+    if (Math.abs(Number(snap.discountAmount || 0) - invDiscount) > 0.01) {
+      changes.push(`🏷️ خصم الفاتورة: ${formatEGP(snap.discountAmount || 0)} → ${formatEGP(invDiscount)}`);
+    }
+
     // Totals diff
     const oldSubtotal = snap.items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
     const oldLineDisc = snap.items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-    const oldNet = Math.max(oldSubtotal - oldLineDisc - invDiscount, 0);
+    const oldNet = Math.max(oldSubtotal - oldLineDisc - Number(snap.discountAmount || 0), 0);
     const oldVat = Math.round(oldNet * (Number(snap.vatRate) || 0)) / 100;
     const oldTotal = oldNet + oldVat;
     if (Math.abs(oldTotal - total) > 0.01) {
