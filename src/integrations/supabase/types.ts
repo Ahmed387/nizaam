@@ -1202,9 +1202,14 @@ export type Database = {
           payment_method: string
           received_by_name: string | null
           reference_number: string | null
+          reverses_payment_id: string | null
           tenant_id: string | null
           transfer_from_account: string | null
           transfer_to_account: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          voided_by_payment_id: string | null
         }
         Insert: {
           amount: number
@@ -1217,9 +1222,14 @@ export type Database = {
           payment_method: string
           received_by_name?: string | null
           reference_number?: string | null
+          reverses_payment_id?: string | null
           tenant_id?: string | null
           transfer_from_account?: string | null
           transfer_to_account?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          voided_by_payment_id?: string | null
         }
         Update: {
           amount?: number
@@ -1232,11 +1242,31 @@ export type Database = {
           payment_method?: string
           received_by_name?: string | null
           reference_number?: string | null
+          reverses_payment_id?: string | null
           tenant_id?: string | null
           transfer_from_account?: string | null
           transfer_to_account?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          voided_by_payment_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_reverses_payment_id_fkey"
+            columns: ["reverses_payment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_voided_by_payment_id_fkey"
+            columns: ["voided_by_payment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
@@ -3748,6 +3778,20 @@ export type Database = {
         Args: { p_transfer_id: string }
         Returns: undefined
       }
+      add_invoice_payment: {
+        Args: {
+          p_amount: number
+          p_fee_amount?: number
+          p_fee_on_customer?: boolean
+          p_invoice_id: string
+          p_payment_method: string
+          p_received_by_name?: string
+          p_reference_number?: string
+          p_transfer_from_account?: string
+          p_transfer_to_account?: string
+        }
+        Returns: string
+      }
       admin_reset_branch_data: {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
@@ -4234,6 +4278,10 @@ export type Database = {
       verify_employee_password: {
         Args: { _employee_id: string; _password: string }
         Returns: boolean
+      }
+      void_invoice_payment: {
+        Args: { p_payment_id: string; p_reason?: string }
+        Returns: string
       }
       void_payment_transaction: {
         Args: { p_reason?: string; p_tx_id: string }
