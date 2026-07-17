@@ -685,15 +685,16 @@ export default function EditSaleInvoice() {
             </>
           )}
         </div>
+        </CollapsibleSection>
 
         {/* Summary section */}
-        <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
-          <Label className="text-base font-bold text-primary flex items-center gap-2 mb-2">
-            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-              4
-            </span>
-            الملخص
-          </Label>
+        <CollapsibleSection
+          title="4. الملخص والإجمالي"
+          icon={<Calculator className="w-5 h-5" />}
+          open={openSections.summary}
+          onToggle={() => toggleSection("summary")}
+        >
+        <div className="p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="font-semibold">الإجمالي قبل الخصم:</span>
             <span className="font-bold tabular-nums" dir="ltr">
