@@ -152,16 +152,31 @@ export default function EditSaleInvoice() {
     setPayments(pays ?? []);
     setPaymentPlan(plan ?? null);
     if (plan?.id) {
-      const { data: ins } = await supabase
-        .from("payment_installments")
-        .select("*")
-        .eq("payment_plan_id", plan.id)
-        .order("installment_number");
+      const [{ data: ins }, { data: tx }] = await Promise.all([
+        supabase.from("payment_installments").select("*").eq("payment_plan_id", plan.id).order("installment_number"),
+        supabase.from("payment_transactions").select("*").eq("payment_plan_id", plan.id).order("created_at"),
+      ]);
       setInstallments(ins ?? []);
+      setPlanTxs(tx ?? []);
     } else {
       setInstallments([]);
+      setPlanTxs([]);
     }
   };
+
+  // Realtime: keep summary paid/remaining in sync with any payment edits
+  useEffect(() => {
+    if (!invoiceId) return;
+    const ch = supabase
+      .channel(`edit-inv-sum-${invoiceId}-${Date.now()}`)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "invoice_payments", filter: `invoice_id=eq.${invoiceId}` }, () => reloadPayments());
+    if (paymentPlan?.id) {
+      ch.on("postgres_changes" as any, { event: "*", schema: "public", table: "payment_transactions", filter: `payment_plan_id=eq.${paymentPlan.id}` }, () => reloadPayments());
+      ch.on("postgres_changes" as any, { event: "*", schema: "public", table: "payment_plans", filter: `id=eq.${paymentPlan.id}` }, () => reloadPayments());
+    }
+    ch.subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [invoiceId, paymentPlan?.id]);
 
   const updateItem = (idx: number, patch: Partial<Item>) =>
     setItems((arr) => arr.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
