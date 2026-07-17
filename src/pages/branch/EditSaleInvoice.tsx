@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle, CreditCard, Receipt, CalendarClock, Lock, ExternalLink } from "lucide-react";
+import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle, CreditCard, Receipt, CalendarClock, Lock, ExternalLink, User, Package, Calculator } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { InvoicePaymentsDialog } from "@/components/InvoicePaymentsDialog";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 
 type Item = {
   id?: string;
