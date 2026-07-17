@@ -256,10 +256,17 @@ export default function EditSaleInvoice() {
       if (parts.length) changes.push(`✏️ ${newIt.product_name}: ${parts.join(" • ")}`);
     });
 
+    // VAT diff
+    if (Number(snap.vatRate || 0) !== Number(vatRate || 0)) {
+      changes.push(`🧾 نسبة الضريبة: ${snap.vatRate || 0}% → ${vatRate || 0}%`);
+    }
+
     // Totals diff
     const oldSubtotal = snap.items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
     const oldLineDisc = snap.items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-    const oldTotal = Math.max(oldSubtotal - oldLineDisc - invDiscount, 0);
+    const oldNet = Math.max(oldSubtotal - oldLineDisc - invDiscount, 0);
+    const oldVat = Math.round(oldNet * (Number(snap.vatRate) || 0)) / 100;
+    const oldTotal = oldNet + oldVat;
     if (Math.abs(oldTotal - total) > 0.01) {
       changes.push(`💰 الإجمالي: ${formatEGP(oldTotal)} → ${formatEGP(total)}`);
     }
