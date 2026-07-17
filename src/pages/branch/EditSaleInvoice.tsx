@@ -703,8 +703,6 @@ export default function EditSaleInvoice() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </BranchLayout>
-  );
 
       <InvoicePaymentsDialog
         open={paymentsDialogOpen}
