@@ -23,7 +23,7 @@ interface Props {
   onChanged?: () => void;
 }
 
-type VoidTarget =
+type EditTarget =
   | { kind: "tx"; row: any }
   | { kind: "invpay"; row: any }
   | null;
@@ -43,9 +43,9 @@ export function InvoicePaymentsDialog({
   const [plan, setPlan] = useState<any>(null);
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [addInvoicePayOpen, setAddInvoicePayOpen] = useState(false);
-  const [voidTarget, setVoidTarget] = useState<VoidTarget>(null);
-  const [voidReason, setVoidReason] = useState("");
-  const [voiding, setVoiding] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [tab, setTab] = useState("payments");
 
   const load = useCallback(async () => {
     setLoading(true);
