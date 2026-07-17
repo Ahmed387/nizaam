@@ -124,6 +124,31 @@ export default function EditSaleInvoice() {
     })();
   }, [invoiceId, branchId]);
 
+  const reloadPayments = async () => {
+    if (!invoiceId) return;
+    const [{ data: pays }, { data: plan }] = await Promise.all([
+      supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at"),
+      supabase
+        .from("payment_plans")
+        .select("*")
+        .eq("reference_type", "invoice")
+        .eq("reference_id", invoiceId)
+        .maybeSingle(),
+    ]);
+    setPayments(pays ?? []);
+    setPaymentPlan(plan ?? null);
+    if (plan?.id) {
+      const { data: ins } = await supabase
+        .from("payment_installments")
+        .select("*")
+        .eq("payment_plan_id", plan.id)
+        .order("installment_number");
+      setInstallments(ins ?? []);
+    } else {
+      setInstallments([]);
+    }
+  };
+
   const updateItem = (idx: number, patch: Partial<Item>) =>
     setItems((arr) => arr.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const removeItem = (idx: number) => setItems((arr) => arr.filter((_, i) => i !== idx));
