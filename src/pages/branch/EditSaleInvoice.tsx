@@ -67,6 +67,12 @@ export default function EditSaleInvoice() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
+  type PaySnap = { id: string; amount: number; method: string; kind: "initial" | "plan"; voided: boolean };
+  const initialPaymentsRef = useRef<PaySnap[] | null>(null);
+  const snapshotPayments = (pays: any[], txs: any[]): PaySnap[] => [
+    ...pays.map((p: any) => ({ id: p.id, amount: Number(p.amount || 0), method: p.method || p.payment_method || "", kind: "initial" as const, voided: !!p.voided_at || !!p.reverses_payment_id })),
+    ...txs.map((t: any) => ({ id: t.id, amount: Number(t.amount || 0), method: t.method || t.payment_method || "", kind: "plan" as const, voided: !!t.voided_at || !!t.reverses_tx_id })),
+  ];
 
   useEffect(() => {
     if (!invoiceId || !branchId) return;
@@ -99,14 +105,19 @@ export default function EditSaleInvoice() {
       setVatRate(Number(inv?.vat_rate ?? 0));
       setDiscountAmount(Number(inv?.discount_amount ?? 0));
 
+      let loadedTx: any[] = [];
+      let loadedIns: any[] = [];
       if (plan?.id) {
         const [{ data: ins }, { data: tx }] = await Promise.all([
           supabase.from("payment_installments").select("*").eq("payment_plan_id", plan.id).order("installment_number"),
           supabase.from("payment_transactions").select("*").eq("payment_plan_id", plan.id).order("created_at"),
         ]);
-        setInstallments(ins ?? []);
-        setPlanTxs(tx ?? []);
+        loadedIns = ins ?? [];
+        loadedTx = tx ?? [];
+        setInstallments(loadedIns);
+        setPlanTxs(loadedTx);
       }
+      initialPaymentsRef.current = snapshotPayments(pays ?? [], loadedTx);
 
       const loadedItems: Item[] = (its ?? []).map((it: any) => ({
         id: it.id,
@@ -313,7 +324,51 @@ export default function EditSaleInvoice() {
       changes.push(`💰 الإجمالي: ${formatEGP(oldTotal)} → ${formatEGP(total)}`);
     }
 
+    // Payments diff (against initial snapshot at load)
+    const oldPays = initialPaymentsRef.current ?? [];
+    const curPays = snapshotPayments(payments, planTxs);
+    const oldMap = new Map(oldPays.map((p) => [p.id, p]));
+    const curMap = new Map(curPays.map((p) => [p.id, p]));
+    const methodLabel = (m: string) => ({ cash: "نقدي", credit: "آجل", bank: "تحويل بنكي", instapay: "إنستاباي" } as any)[m] || m || "-";
+    curMap.forEach((cp, id) => {
+      const op = oldMap.get(id);
+      if (!op) {
+        if (!cp.voided) changes.push(`💳 إضافة دفعة: ${formatEGP(cp.amount)} (${methodLabel(cp.method)})`);
+        return;
+      }
+      if (op.voided !== cp.voided) {
+        changes.push(cp.voided ? `🚫 إلغاء دفعة: ${formatEGP(op.amount)} (${methodLabel(op.method)})` : `♻️ إعادة تفعيل دفعة: ${formatEGP(cp.amount)}`);
+      } else if (!cp.voided) {
+        if (Math.abs(op.amount - cp.amount) > 0.01) changes.push(`💳 تعديل مبلغ دفعة: ${formatEGP(op.amount)} → ${formatEGP(cp.amount)}`);
+        if (op.method !== cp.method) changes.push(`💳 تعديل طريقة دفع: ${methodLabel(op.method)} → ${methodLabel(cp.method)}`);
+      }
+    });
+    oldMap.forEach((op, id) => {
+      if (!curMap.has(id)) {
+        changes.push(`🗑️ حذف دفعة: ${formatEGP(op.amount)} (${methodLabel(op.method)})`);
+      }
+    });
+
     return changes;
+  };
+
+  const hasInvoiceLevelChanges = (): boolean => {
+    const snap = initialSnapshotRef.current;
+    if (!snap) return false;
+    if ((snap.customerId ?? null) !== (customerId ?? null)) return true;
+    if (Number(snap.vatRate || 0) !== Number(vatRate || 0)) return true;
+    if (Math.abs(Number(snap.discountAmount || 0) - invDiscount) > 0.01) return true;
+    if (snap.items.length !== items.length) return true;
+    for (let i = 0; i < items.length; i++) {
+      const a = snap.items[i], b = items[i];
+      if (!a) return true;
+      if ((a.product_id ?? null) !== (b.product_id ?? null)) return true;
+      if (Number(a.quantity) !== Number(b.quantity)) return true;
+      if (Number(a.selling_price) !== Number(b.selling_price)) return true;
+      if (Number(a.line_discount) !== Number(b.line_discount)) return true;
+      if (a.product_name !== b.product_name) return true;
+    }
+    return false;
   };
 
   const save = async () => {
@@ -325,6 +380,14 @@ export default function EditSaleInvoice() {
     const diff = buildDiff();
     if (diff.length === 0) {
       toast.info("لم يتم تعديل أي بيانات");
+      return;
+    }
+    // If only payments changed, they were already persisted in real-time — skip edit_invoice RPC
+    if (!hasInvoiceLevelChanges()) {
+      showDiffToast(diff);
+      // Refresh baseline so subsequent saves don't re-report the same payment changes
+      initialPaymentsRef.current = snapshotPayments(payments, planTxs);
+      setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
       return;
     }
     setSaving(true);
@@ -340,7 +403,11 @@ export default function EditSaleInvoice() {
       toast.error(error.message);
       return;
     }
+    showDiffToast(diff);
+    setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
+  };
 
+  const showDiffToast = (diff: string[]) => {
     toast.custom(
       (t) => (
         <div
@@ -383,9 +450,6 @@ export default function EditSaleInvoice() {
       ),
       { duration: 12000 }
     );
-
-    // Navigate back to invoice view
-    setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
   };
 
   if (loading) {
