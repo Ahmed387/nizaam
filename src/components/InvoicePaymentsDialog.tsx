@@ -6,19 +6,12 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Plus, Undo2, Loader2, ShieldCheck, Info, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Loader2, ShieldCheck, Info, RefreshCw, History as HistoryIcon } from "lucide-react";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { EditPaymentDialog } from "./EditPaymentDialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
+
 
 interface Props {
   open: boolean;
@@ -30,7 +23,7 @@ interface Props {
   onChanged?: () => void;
 }
 
-type VoidTarget =
+type EditTarget =
   | { kind: "tx"; row: any }
   | { kind: "invpay"; row: any }
   | null;
@@ -50,9 +43,9 @@ export function InvoicePaymentsDialog({
   const [plan, setPlan] = useState<any>(null);
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [addInvoicePayOpen, setAddInvoicePayOpen] = useState(false);
-  const [voidTarget, setVoidTarget] = useState<VoidTarget>(null);
-  const [voidReason, setVoidReason] = useState("");
-  const [voiding, setVoiding] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [tab, setTab] = useState("payments");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,33 +104,27 @@ export function InvoicePaymentsDialog({
     };
   }, [open, invoiceId, paymentPlanId, load]);
 
-  const confirmVoid = async () => {
-    if (!voidTarget) return;
-    setVoiding(true);
-    try {
-      if (voidTarget.kind === "tx") {
-        const { error } = await supabase.rpc("void_payment_transaction" as any, {
-          p_tx_id: voidTarget.row.id,
-          p_reason: voidReason || null,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.rpc("void_invoice_payment" as any, {
-          p_payment_id: voidTarget.row.id,
-          p_reason: voidReason || null,
-        });
-        if (error) throw error;
-      }
-      toast.success("تم إلغاء الدفعة، الحسابات اتصححت تلقائياً");
-      setVoidTarget(null);
-      setVoidReason("");
-      onChanged?.();
-    } catch (e: any) {
-      toast.error(e.message ?? "فشل إلغاء الدفعة");
-    } finally {
-      setVoiding(false);
+  const loadHistory = useCallback(async () => {
+    const ids: string[] = [
+      ...initialPayments.map((p) => p.id),
+      ...txs.map((t) => t.id),
+    ];
+    if (ids.length === 0) {
+      setHistory([]);
+      return;
     }
-  };
+    const { data } = await supabase
+      .from("audit_log")
+      .select("*")
+      .eq("action", "payment_edited")
+      .in("entity_id", ids)
+      .order("created_at", { ascending: false });
+    setHistory(data ?? []);
+  }, [initialPayments, txs]);
+
+  useEffect(() => {
+    if (tab === "history") loadHistory();
+  }, [tab, loadHistory]);
 
   const activeTxs = txs.filter((t) => !t.voided_at && !t.reverses_tx_id);
   const voidedTxs = txs.filter((t) => t.voided_at || t.reverses_tx_id);
@@ -162,13 +149,19 @@ export function InvoicePaymentsDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
+            <TabsList className="grid grid-cols-2 mb-3">
+              <TabsTrigger value="payments" className="gap-1"><ShieldCheck className="w-4 h-4" /> الدفعات</TabsTrigger>
+              <TabsTrigger value="history" className="gap-1"><HistoryIcon className="w-4 h-4" /> سجل التعديلات</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="payments" className="space-y-4 mt-0">
             {/* Info banner */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs flex gap-2 leading-relaxed">
               <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
-                <b>إلغاء الدفعة</b> بيسجل قيد عكسي بنفس المبلغ في الخزنة (ورصيد العميل والخطة لو موجودة) تلقائياً — بدون أي حسابات يدوية.
-                الدفعة الأصلية والعكسية بيفضلوا في السجل للتدقيق. تقدر تلغي أي دفعة نقدي، آجل، أو تحويل بنكي.
+                <b>تعديل الدفعة</b> بيحدّث الرقم أو طريقة الدفع مباشرة في الصف نفسه، والخزنة ورصيد العميل والخطة بيتحدثوا تلقائياً بالفرق.
+                كل تعديل بيتسجل في <b>سجل التعديلات</b> بالقيمة القديمة والجديدة وسبب التعديل.
               </div>
             </div>
 
@@ -244,10 +237,10 @@ export function InvoicePaymentsDialog({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-7 gap-1 text-destructive hover:bg-destructive/10"
-                                  onClick={() => setVoidTarget({ kind: "invpay", row: p })}
+                                  className="h-7 gap-1 text-primary hover:bg-primary/10"
+                                  onClick={() => setEditTarget({ kind: "invpay", row: p })}
                                 >
-                                  <Undo2 className="w-3.5 h-3.5" /> إلغاء
+                                  <Pencil className="w-3.5 h-3.5" /> تعديل
                                 </Button>
                               )}
                             </td>
@@ -320,10 +313,10 @@ export function InvoicePaymentsDialog({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 gap-1 text-destructive hover:bg-destructive/10"
-                                    onClick={() => setVoidTarget({ kind: "tx", row: t })}
+                                    className="h-7 gap-1 text-primary hover:bg-primary/10"
+                                    onClick={() => setEditTarget({ kind: "tx", row: t })}
                                   >
-                                    <Undo2 className="w-3.5 h-3.5" /> إلغاء
+                                    <Pencil className="w-3.5 h-3.5" /> تعديل
                                   </Button>
                                 )}
                               </td>
@@ -353,7 +346,62 @@ export function InvoicePaymentsDialog({
               <span className="font-bold">إجمالي المدفوعات النشطة:</span>
               <span className="text-xl font-extrabold text-primary tabular-nums" dir="ltr">{formatEGP(totalActive)}</span>
             </div>
-          </div>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-2 mt-0">
+              {history.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-8 border border-dashed border-border rounded-lg">
+                  لا توجد تعديلات مسجلة على دفعات هذه الفاتورة
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((h) => {
+                    const d = h.details || {};
+                    const oldV = d.old || {};
+                    const newV = d.new || {};
+                    const diffs: Array<[string, any, any]> = [];
+                    const push = (label: string, a: any, b: any) => {
+                      if ((a ?? "") !== (b ?? "") && !(a == null && b == null)) diffs.push([label, a, b]);
+                    };
+                    push("المبلغ", oldV.amount, newV.amount);
+                    push("الطريقة", oldV.payment_method, newV.payment_method);
+                    push("رقم مرجعي", oldV.reference_number, newV.reference_number);
+                    push("الحساب المحوّل إليه", oldV.transfer_to_account, newV.transfer_to_account);
+                    push("الحساب المحوّل منه", oldV.transfer_from_account, newV.transfer_from_account);
+                    push("العمولة", oldV.fee_amount, newV.fee_amount);
+                    push("المستلم", oldV.received_by_name, newV.received_by_name);
+                    return (
+                      <div key={h.id} className="border border-border rounded-lg p-3 space-y-2 bg-surface-1">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span dir="ltr" className="tabular-nums">{new Date(h.created_at).toLocaleString("ar-EG")}</span>
+                          <span className="font-semibold">{h.user_name || "—"}</span>
+                        </div>
+                        {diffs.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">لا يوجد تغييرات ملحوظة</div>
+                        ) : (
+                          <div className="space-y-1">
+                            {diffs.map(([label, a, b], i) => (
+                              <div key={i} className="text-xs flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-primary">{label}:</span>
+                                <span className="line-through text-muted-foreground tabular-nums">{String(a ?? "—")}</span>
+                                <span>←</span>
+                                <span className="font-bold text-success tabular-nums">{String(b ?? "—")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {d.reason && (
+                          <div className="text-xs bg-warning/10 rounded p-2">
+                            <b>السبب:</b> {d.reason}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button>
@@ -388,40 +436,17 @@ export function InvoicePaymentsDialog({
         }}
       />
 
-      {/* Void confirmation */}
-      <AlertDialog open={!!voidTarget} onOpenChange={(o) => !o && setVoidTarget(null)}>
-        <AlertDialogContent dir="rtl" className="text-right">
-          <AlertDialogHeader>
-            <AlertDialogTitle>تأكيد إلغاء الدفعة</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
-                <div>
-                  هيتسجل قيد عكسي بمبلغ{" "}
-                  <b className="text-warning tabular-nums" dir="ltr">
-                    {voidTarget ? formatEGP(Number(voidTarget.row.amount || 0)) : ""}
-                  </b>
-                  . الخزنة {voidTarget?.kind === "tx" ? "ورصيد العميل والخطة" : ""} هيتصححوا تلقائياً.
-                </div>
-                <div>
-                  <Label className="text-xs">سبب الإلغاء (اختياري)</Label>
-                  <Input
-                    value={voidReason}
-                    onChange={(e) => setVoidReason(e.target.value)}
-                    placeholder="مثال: طريقة الدفع كانت غلط، اتحولت instapay بدل نقدي..."
-                    className="mt-1 h-9"
-                  />
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={voiding}>رجوع</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmVoid} disabled={voiding} className="gap-1 bg-destructive hover:bg-destructive/90">
-              {voiding && <Loader2 className="w-4 h-4 animate-spin" />} تأكيد الإلغاء
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Edit payment */}
+      <EditPaymentDialog
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        target={editTarget}
+        onSuccess={() => {
+          setEditTarget(null);
+          onChanged?.();
+          load();
+        }}
+      />
     </>
   );
 }
