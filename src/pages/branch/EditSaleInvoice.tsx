@@ -324,11 +324,90 @@ export default function EditSaleInvoice() {
       changes.push(`💰 الإجمالي: ${formatEGP(oldTotal)} → ${formatEGP(total)}`);
     }
 
+    // Payments diff (against initial snapshot at load)
+    const oldPays = initialPaymentsRef.current ?? [];
+    const curPays = snapshotPayments(payments, planTxs);
+    const oldMap = new Map(oldPays.map((p) => [p.id, p]));
+    const curMap = new Map(curPays.map((p) => [p.id, p]));
+    const methodLabel = (m: string) => ({ cash: "نقدي", credit: "آجل", bank: "تحويل بنكي", instapay: "إنستاباي" } as any)[m] || m || "-";
+    curMap.forEach((cp, id) => {
+      const op = oldMap.get(id);
+      if (!op) {
+        if (!cp.voided) changes.push(`💳 إضافة دفعة: ${formatEGP(cp.amount)} (${methodLabel(cp.method)})`);
+        return;
+      }
+      if (op.voided !== cp.voided) {
+        changes.push(cp.voided ? `🚫 إلغاء دفعة: ${formatEGP(op.amount)} (${methodLabel(op.method)})` : `♻️ إعادة تفعيل دفعة: ${formatEGP(cp.amount)}`);
+      } else if (!cp.voided) {
+        if (Math.abs(op.amount - cp.amount) > 0.01) changes.push(`💳 تعديل مبلغ دفعة: ${formatEGP(op.amount)} → ${formatEGP(cp.amount)}`);
+        if (op.method !== cp.method) changes.push(`💳 تعديل طريقة دفع: ${methodLabel(op.method)} → ${methodLabel(cp.method)}`);
+      }
+    });
+    oldMap.forEach((op, id) => {
+      if (!curMap.has(id)) {
+        changes.push(`🗑️ حذف دفعة: ${formatEGP(op.amount)} (${methodLabel(op.method)})`);
+      }
+    });
+
     return changes;
+  };
+
+  const hasInvoiceLevelChanges = (): boolean => {
+    const snap = initialSnapshotRef.current;
+    if (!snap) return false;
+    if ((snap.customerId ?? null) !== (customerId ?? null)) return true;
+    if (Number(snap.vatRate || 0) !== Number(vatRate || 0)) return true;
+    if (Math.abs(Number(snap.discountAmount || 0) - invDiscount) > 0.01) return true;
+    if (snap.items.length !== items.length) return true;
+    for (let i = 0; i < items.length; i++) {
+      const a = snap.items[i], b = items[i];
+      if (!a) return true;
+      if ((a.product_id ?? null) !== (b.product_id ?? null)) return true;
+      if (Number(a.quantity) !== Number(b.quantity)) return true;
+      if (Number(a.selling_price) !== Number(b.selling_price)) return true;
+      if (Number(a.line_discount) !== Number(b.line_discount)) return true;
+      if (a.product_name !== b.product_name) return true;
+    }
+    return false;
   };
 
   const save = async () => {
     const clean = items.filter((it) => it.product_name.trim() && it.quantity > 0);
+    if (clean.length === 0) {
+      toast.error("لازم يكون فيه منتج واحد على الأقل");
+      return;
+    }
+    const diff = buildDiff();
+    if (diff.length === 0) {
+      toast.info("لم يتم تعديل أي بيانات");
+      return;
+    }
+    // If only payments changed, they were already persisted in real-time — skip edit_invoice RPC
+    if (!hasInvoiceLevelChanges()) {
+      showDiffToast(diff);
+      // Refresh baseline so subsequent saves don't re-report the same payment changes
+      initialPaymentsRef.current = snapshotPayments(payments, planTxs);
+      setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.rpc("edit_invoice" as any, {
+      _invoice_id: invoiceId,
+      _customer_id: customerId,
+      _items: clean as any,
+      _vat_rate: Number(vatRate) || 0,
+      _discount_amount: invDiscount,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    showDiffToast(diff);
+    setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
+  };
+
+  const showDiffToast = (diff: string[]) => {
     if (clean.length === 0) {
       toast.error("لازم يكون فيه منتج واحد على الأقل");
       return;
