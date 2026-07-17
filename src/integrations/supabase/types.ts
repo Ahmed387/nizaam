@@ -3993,6 +3993,35 @@ export type Database = {
             }
             Returns: undefined
           }
+      edit_invoice_payment: {
+        Args: {
+          p_amount: number
+          p_fee_amount?: number
+          p_fee_on_customer?: boolean
+          p_payment_id: string
+          p_payment_method: string
+          p_reason?: string
+          p_received_by_name?: string
+          p_reference_number?: string
+          p_transfer_from_account?: string
+          p_transfer_to_account?: string
+        }
+        Returns: string
+      }
+      edit_payment_transaction: {
+        Args: {
+          p_amount: number
+          p_fee_amount?: number
+          p_payment_method: string
+          p_reason?: string
+          p_received_by_name?: string
+          p_reference_number?: string
+          p_transfer_from_account?: string
+          p_transfer_to_account?: string
+          p_tx_id: string
+        }
+        Returns: string
+      }
       edit_shipment: {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
