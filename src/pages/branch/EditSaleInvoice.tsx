@@ -202,8 +202,12 @@ export default function EditSaleInvoice() {
 
   const subtotal = items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
   const lineDiscounts = items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-  const invDiscount = Number(invoice?.discount_amount ?? 0);
-  const netAfterDiscount = Math.max(subtotal - lineDiscounts - invDiscount, 0);
+  const afterLineDiscounts = Math.max(subtotal - lineDiscounts, 0);
+  const invDiscount =
+    discountType === "percent"
+      ? Math.round(afterLineDiscounts * (Number(discountPercent) || 0)) / 100
+      : Math.min(Math.max(Number(discountAmount) || 0, 0), afterLineDiscounts);
+  const netAfterDiscount = Math.max(afterLineDiscounts - invDiscount, 0);
   const vatAmount = Math.round(netAfterDiscount * (Number(vatRate) || 0)) / 100;
   const total = netAfterDiscount + vatAmount;
 
