@@ -36,6 +36,7 @@ type Snapshot = {
   customerId: string | null;
   customerName: string;
   vatRate: number;
+  discountAmount: number;
   items: Array<{ product_id: string | null; product_name: string; quantity: number; selling_price: number; line_discount: number }>;
 };
 
@@ -57,6 +58,9 @@ export default function EditSaleInvoice() {
   const [installments, setInstallments] = useState<any[]>([]);
   const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
   const [vatRate, setVatRate] = useState<number>(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
 
@@ -89,6 +93,7 @@ export default function EditSaleInvoice() {
       setPayments(pays ?? []);
       setPaymentPlan(plan ?? null);
       setVatRate(Number(inv?.vat_rate ?? 0));
+      setDiscountAmount(Number(inv?.discount_amount ?? 0));
 
       if (plan?.id) {
         const { data: ins } = await supabase
@@ -116,6 +121,7 @@ export default function EditSaleInvoice() {
         customerId: inv?.contact_id ?? null,
         customerName: custName,
         vatRate: Number(inv?.vat_rate ?? 0),
+        discountAmount: Number(inv?.discount_amount ?? 0),
         items: loadedItems.map((it) => ({
           product_id: it.product_id,
           product_name: it.product_name,
@@ -196,8 +202,12 @@ export default function EditSaleInvoice() {
 
   const subtotal = items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
   const lineDiscounts = items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-  const invDiscount = Number(invoice?.discount_amount ?? 0);
-  const netAfterDiscount = Math.max(subtotal - lineDiscounts - invDiscount, 0);
+  const afterLineDiscounts = Math.max(subtotal - lineDiscounts, 0);
+  const invDiscount =
+    discountType === "percent"
+      ? Math.round(afterLineDiscounts * (Number(discountPercent) || 0)) / 100
+      : Math.min(Math.max(Number(discountAmount) || 0, 0), afterLineDiscounts);
+  const netAfterDiscount = Math.max(afterLineDiscounts - invDiscount, 0);
   const vatAmount = Math.round(netAfterDiscount * (Number(vatRate) || 0)) / 100;
   const total = netAfterDiscount + vatAmount;
 
@@ -261,10 +271,15 @@ export default function EditSaleInvoice() {
       changes.push(`🧾 نسبة الضريبة: ${snap.vatRate || 0}% → ${vatRate || 0}%`);
     }
 
+    // Invoice discount diff
+    if (Math.abs(Number(snap.discountAmount || 0) - invDiscount) > 0.01) {
+      changes.push(`🏷️ خصم الفاتورة: ${formatEGP(snap.discountAmount || 0)} → ${formatEGP(invDiscount)}`);
+    }
+
     // Totals diff
     const oldSubtotal = snap.items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
     const oldLineDisc = snap.items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-    const oldNet = Math.max(oldSubtotal - oldLineDisc - invDiscount, 0);
+    const oldNet = Math.max(oldSubtotal - oldLineDisc - Number(snap.discountAmount || 0), 0);
     const oldVat = Math.round(oldNet * (Number(snap.vatRate) || 0)) / 100;
     const oldTotal = oldNet + oldVat;
     if (Math.abs(oldTotal - total) > 0.01) {
@@ -291,6 +306,7 @@ export default function EditSaleInvoice() {
       _customer_id: customerId,
       _items: clean as any,
       _vat_rate: Number(vatRate) || 0,
+      _discount_amount: invDiscount,
     });
     setSaving(false);
     if (error) {
@@ -685,14 +701,64 @@ export default function EditSaleInvoice() {
               - {formatEGP(lineDiscounts)}
             </span>
           </div>
-          {invDiscount > 0 && (
-            <div className="flex justify-between text-sm text-destructive">
-              <span className="font-semibold">خصم الفاتورة (محفوظ):</span>
-              <span className="font-bold tabular-nums" dir="ltr">
-                - {formatEGP(invDiscount)}
-              </span>
+
+          {/* Invoice-level discount editor */}
+          <div className="pt-2 mt-2 border-t border-primary/20 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="font-semibold text-sm">خصم الفاتورة:</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={discountType === "amount" ? "default" : "outline"}
+                  onClick={() => setDiscountType("amount")}
+                  className="h-8 text-xs font-bold"
+                >
+                  ج.م
+                </Button>
+                <Button
+                  size="sm"
+                  variant={discountType === "percent" ? "default" : "outline"}
+                  onClick={() => setDiscountType("percent")}
+                  className="h-8 text-xs font-bold"
+                >
+                  %
+                </Button>
+                {discountType === "amount" ? (
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(Math.max(0, Number(e.target.value) || 0))}
+                    className="h-8 w-28 text-center font-bold"
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      className="h-8 w-20 text-center font-bold"
+                      placeholder="0"
+                    />
+                    <span className="text-xs font-bold">%</span>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+            {invDiscount > 0 && (
+              <div className="flex justify-between text-sm text-destructive">
+                <span className="font-semibold">قيمة الخصم:</span>
+                <span className="font-bold tabular-nums" dir="ltr">
+                  - {formatEGP(invDiscount)}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* VAT / Tax editor */}
           <div className="pt-2 mt-2 border-t border-primary/20 space-y-2">
