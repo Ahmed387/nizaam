@@ -6,19 +6,12 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Plus, Undo2, Loader2, ShieldCheck, Info, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Loader2, ShieldCheck, Info, RefreshCw, History as HistoryIcon } from "lucide-react";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { EditPaymentDialog } from "./EditPaymentDialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
+import { formatEGP as _fmt } from "@/lib/format";
 
 interface Props {
   open: boolean;
