@@ -346,7 +346,62 @@ export function InvoicePaymentsDialog({
               <span className="font-bold">إجمالي المدفوعات النشطة:</span>
               <span className="text-xl font-extrabold text-primary tabular-nums" dir="ltr">{formatEGP(totalActive)}</span>
             </div>
-          </div>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-2 mt-0">
+              {history.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-8 border border-dashed border-border rounded-lg">
+                  لا توجد تعديلات مسجلة على دفعات هذه الفاتورة
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((h) => {
+                    const d = h.details || {};
+                    const oldV = d.old || {};
+                    const newV = d.new || {};
+                    const diffs: Array<[string, any, any]> = [];
+                    const push = (label: string, a: any, b: any) => {
+                      if ((a ?? "") !== (b ?? "") && !(a == null && b == null)) diffs.push([label, a, b]);
+                    };
+                    push("المبلغ", oldV.amount, newV.amount);
+                    push("الطريقة", oldV.payment_method, newV.payment_method);
+                    push("رقم مرجعي", oldV.reference_number, newV.reference_number);
+                    push("الحساب المحوّل إليه", oldV.transfer_to_account, newV.transfer_to_account);
+                    push("الحساب المحوّل منه", oldV.transfer_from_account, newV.transfer_from_account);
+                    push("العمولة", oldV.fee_amount, newV.fee_amount);
+                    push("المستلم", oldV.received_by_name, newV.received_by_name);
+                    return (
+                      <div key={h.id} className="border border-border rounded-lg p-3 space-y-2 bg-surface-1">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span dir="ltr" className="tabular-nums">{new Date(h.created_at).toLocaleString("ar-EG")}</span>
+                          <span className="font-semibold">{h.user_name || "—"}</span>
+                        </div>
+                        {diffs.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">لا يوجد تغييرات ملحوظة</div>
+                        ) : (
+                          <div className="space-y-1">
+                            {diffs.map(([label, a, b], i) => (
+                              <div key={i} className="text-xs flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-primary">{label}:</span>
+                                <span className="line-through text-muted-foreground tabular-nums">{String(a ?? "—")}</span>
+                                <span>←</span>
+                                <span className="font-bold text-success tabular-nums">{String(b ?? "—")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {d.reason && (
+                          <div className="text-xs bg-warning/10 rounded p-2">
+                            <b>السبب:</b> {d.reason}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button>
