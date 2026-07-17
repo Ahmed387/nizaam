@@ -197,7 +197,9 @@ export default function EditSaleInvoice() {
   const subtotal = items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
   const lineDiscounts = items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
   const invDiscount = Number(invoice?.discount_amount ?? 0);
-  const total = Math.max(subtotal - lineDiscounts - invDiscount, 0);
+  const netAfterDiscount = Math.max(subtotal - lineDiscounts - invDiscount, 0);
+  const vatAmount = Math.round(netAfterDiscount * (Number(vatRate) || 0)) / 100;
+  const total = netAfterDiscount + vatAmount;
 
   const buildDiff = (): string[] => {
     const snap = initialSnapshotRef.current;
