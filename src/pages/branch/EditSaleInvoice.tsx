@@ -298,18 +298,48 @@ export default function EditSaleInvoice() {
       return;
     }
 
-    toast.success(`تم تعديل الفاتورة ${invoice?.invoice_number ?? ""} — ${diff.length} تغيير`, {
-      description: (
-        <div className="text-xs space-y-1 mt-1 max-h-64 overflow-y-auto" dir="rtl">
-          {diff.map((line, i) => (
-            <div key={i} className="border-r-2 border-primary/40 pr-2">
-              {line}
+    toast.custom(
+      (t) => (
+        <div
+          dir="rtl"
+          className="w-[380px] max-w-[92vw] rounded-xl border-2 border-primary/40 bg-background shadow-2xl overflow-hidden"
+        >
+          <div className="flex items-center justify-between gap-2 px-4 py-3 bg-primary text-primary-foreground">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-primary-foreground/20 text-sm font-extrabold shrink-0">
+                ✓
+              </span>
+              <div className="min-w-0">
+                <div className="font-extrabold text-sm truncate">
+                  تم تعديل الفاتورة {invoice?.invoice_number ?? ""}
+                </div>
+                <div className="text-[11px] opacity-90 font-semibold">
+                  {diff.length} تغيير محفوظ
+                </div>
+              </div>
             </div>
-          ))}
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="text-primary-foreground/80 hover:text-primary-foreground text-lg font-bold px-1"
+              aria-label="إغلاق"
+            >
+              ×
+            </button>
+          </div>
+          <div className="max-h-64 overflow-y-auto p-3 space-y-1.5 text-xs">
+            {diff.map((line, i) => (
+              <div
+                key={i}
+                className="border-r-4 border-primary/50 bg-muted/40 rounded pr-2 pl-2 py-1.5 font-semibold leading-relaxed"
+              >
+                {line}
+              </div>
+            ))}
+          </div>
         </div>
-      ) as any,
-      duration: 12000,
-    });
+      ),
+      { duration: 12000 }
+    );
 
     // Navigate back to invoice view
     setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
