@@ -343,11 +343,41 @@ export function InvoicePaymentsPanel({
         </div>
       )}
 
-      {/* Totals */}
-      <div className="bg-primary/5 border-2 border-primary/20 rounded-lg p-3 flex justify-between items-center">
-        <span className="font-bold">إجمالي المدفوعات النشطة:</span>
-        <span className="text-xl font-extrabold text-primary tabular-nums" dir="ltr">{formatEGP(totalActive)}</span>
-      </div>
+      {/* Live totals — يتحدثوا تلقائياً مع أي تعديل */}
+      {(() => {
+        const remaining = Math.max(0, invoiceTotal - totalActive);
+        const overpaid = totalActive - invoiceTotal > 0.01;
+        const pct = invoiceTotal > 0 ? Math.min(100, (totalActive / invoiceTotal) * 100) : 0;
+        return (
+          <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-4 space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-background/80 rounded-lg p-3 text-center border border-border">
+                <div className="text-[11px] text-muted-foreground mb-1">إجمالي الفاتورة</div>
+                <div className="font-extrabold tabular-nums text-base" dir="ltr">{formatEGP(invoiceTotal)}</div>
+              </div>
+              <div className="bg-success/10 rounded-lg p-3 text-center border border-success/30">
+                <div className="text-[11px] text-muted-foreground mb-1">المدفوع (نشط)</div>
+                <div className="font-extrabold tabular-nums text-base text-success" dir="ltr">{formatEGP(totalActive)}</div>
+              </div>
+              <div className={`rounded-lg p-3 text-center border ${overpaid ? "bg-destructive/10 border-destructive/40" : "bg-warning/10 border-warning/30"}`}>
+                <div className="text-[11px] text-muted-foreground mb-1">{overpaid ? "زيادة عن الإجمالي" : "المتبقي"}</div>
+                <div className={`font-extrabold tabular-nums text-base ${overpaid ? "text-destructive" : "text-warning"}`} dir="ltr">
+                  {formatEGP(overpaid ? totalActive - invoiceTotal : remaining)}
+                </div>
+              </div>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ${overpaid ? "bg-destructive" : "bg-success"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="text-[11px] text-center text-muted-foreground tabular-nums">
+              {pct.toFixed(1)}% مدفوع
+            </div>
+          </div>
+        );
+      })()}
 
       {/* History section (inline instead of tab) */}
       <div className="pt-3 border-t-2 border-dashed border-border">
