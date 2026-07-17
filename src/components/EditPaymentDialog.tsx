@@ -52,6 +52,14 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
       toast.error("ادخل مبلغ صحيح");
       return;
     }
+    if (typeof maxAllowed === "number" && amt > maxAllowed + 0.001) {
+      toast.error(
+        `المبلغ الجديد أكبر من المسموح به على الفاتورة (${maxAllowed.toFixed(2)} ج.م${
+          invoiceTotal ? ` من إجمالي ${invoiceTotal.toFixed(2)}` : ""
+        })`
+      );
+      return;
+    }
     if (!reason.trim()) {
       toast.error("سبب التعديل مطلوب");
       return;
