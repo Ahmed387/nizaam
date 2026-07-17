@@ -114,7 +114,8 @@
 
   * { @apply border-border; }
 
-  html { font-family: 'Cairo', system-ui, sans-serif; }
+  html { font-family: 'Cairo', system-ui, sans-serif; font-size: 17px; }
+  @media (min-width: 1280px) { html { font-size: 18px; } }
 
   body {
     @apply bg-background text-foreground;
