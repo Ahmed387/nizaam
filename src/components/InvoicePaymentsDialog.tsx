@@ -445,7 +445,7 @@ function AddInvoicePaymentDialog({
 
   useEffect(() => {
     if (open) {
-      setMethod({ method: "cash" });
+      setMethod({ method: "cash", fee_amount: 0, total_with_fee: 0 });
       setAmount("");
       setReference("");
     }
