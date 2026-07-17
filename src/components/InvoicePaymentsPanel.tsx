@@ -450,11 +450,15 @@ function AddInvoicePaymentDialog({
   open,
   onOpenChange,
   invoiceId,
+  maxAllowed,
+  invoiceTotal,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   invoiceId: string;
+  maxAllowed?: number;
+  invoiceTotal?: number;
   onSuccess: () => void;
 }) {
   const [method, setMethod] = useState<PaymentMethodValue>({ method: "cash", fee_amount: 0, total_with_fee: 0 });
