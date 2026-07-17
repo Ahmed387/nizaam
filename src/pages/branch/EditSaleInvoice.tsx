@@ -408,30 +408,6 @@ export default function EditSaleInvoice() {
   };
 
   const showDiffToast = (diff: string[]) => {
-    if (clean.length === 0) {
-      toast.error("لازم يكون فيه منتج واحد على الأقل");
-      return;
-    }
-    const diff = buildDiff();
-    if (diff.length === 0) {
-      toast.info("لم يتم تعديل أي بيانات");
-      return;
-    }
-    setSaving(true);
-    const { error } = await supabase.rpc("edit_invoice" as any, {
-      _invoice_id: invoiceId,
-      _customer_id: customerId,
-      _items: clean as any,
-      _vat_rate: Number(vatRate) || 0,
-      _discount_amount: invDiscount,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.custom(
       (t) => (
         <div
           dir="rtl"
