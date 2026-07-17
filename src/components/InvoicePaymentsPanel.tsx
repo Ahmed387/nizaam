@@ -39,6 +39,7 @@ export function InvoicePaymentsPanel({
   const [initialPayments, setInitialPayments] = useState<any[]>([]);
   const [txs, setTxs] = useState<any[]>([]);
   const [plan, setPlan] = useState<any>(null);
+  const [invoiceTotal, setInvoiceTotal] = useState<number>(0);
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [addInvoicePayOpen, setAddInvoicePayOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
