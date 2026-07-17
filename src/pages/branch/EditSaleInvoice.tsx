@@ -818,6 +818,7 @@ export default function EditSaleInvoice() {
             </span>
           </div>
         </div>
+        </CollapsibleSection>
 
         <div className="text-xs text-foreground bg-warning/10 border-2 border-warning/40 rounded-lg p-3 flex gap-2 font-semibold leading-relaxed">
           <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
