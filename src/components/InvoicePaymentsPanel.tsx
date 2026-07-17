@@ -48,7 +48,7 @@ export function InvoicePaymentsPanel({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: ip }, planRes, txRes] = await Promise.all([
+      const [{ data: ip }, planRes, txRes, invRes] = await Promise.all([
         supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at"),
         paymentPlanId
           ? supabase.from("payment_plans").select("*").eq("id", paymentPlanId).maybeSingle()
@@ -60,10 +60,12 @@ export function InvoicePaymentsPanel({
               .eq("payment_plan_id", paymentPlanId)
               .order("created_at")
           : Promise.resolve({ data: [] } as any),
+        supabase.from("invoices").select("total_amount").eq("id", invoiceId).maybeSingle(),
       ]);
       setInitialPayments(ip ?? []);
       setPlan(planRes?.data ?? null);
       setTxs(txRes?.data ?? []);
+      setInvoiceTotal(Number(invRes?.data?.total_amount ?? 0));
     } finally {
       setLoading(false);
     }
