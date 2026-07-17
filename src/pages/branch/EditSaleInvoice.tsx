@@ -88,6 +88,7 @@ export default function EditSaleInvoice() {
       setProducts(p ?? []);
       setPayments(pays ?? []);
       setPaymentPlan(plan ?? null);
+      setVatRate(Number(inv?.vat_rate ?? 0));
 
       if (plan?.id) {
         const { data: ins } = await supabase
