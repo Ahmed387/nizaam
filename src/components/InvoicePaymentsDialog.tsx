@@ -490,7 +490,7 @@ function AddInvoicePaymentDialog({
         <div className="space-y-3">
           <div>
             <Label className="text-xs mb-1 block">طريقة الدفع</Label>
-            <PaymentMethodPicker value={method} onChange={setMethod} />
+            <PaymentMethodPicker amount={Number(amount) || 0} value={method} onChange={setMethod} showReceivedBy />
           </div>
           <div>
             <Label className="text-xs mb-1 block">المبلغ</Label>
