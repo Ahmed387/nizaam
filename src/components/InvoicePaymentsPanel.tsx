@@ -84,6 +84,11 @@ export function InvoicePaymentsPanel({
         { event: "*", schema: "public", table: "invoice_payments", filter: `invoice_id=eq.${invoiceId}` },
         () => load()
       );
+    channel.on(
+      "postgres_changes" as any,
+      { event: "*", schema: "public", table: "invoices", filter: `id=eq.${invoiceId}` },
+      () => load()
+    );
     if (paymentPlanId) {
       channel
         .on(
@@ -102,6 +107,12 @@ export function InvoicePaymentsPanel({
       supabase.removeChannel(channel);
     };
   }, [invoiceId, paymentPlanId, load]);
+
+  // Notify parent whenever totals change in realtime
+  useEffect(() => {
+    onChanged?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPayments, txs, invoiceTotal]);
 
   const loadHistory = useCallback(async () => {
     const ids: string[] = [
