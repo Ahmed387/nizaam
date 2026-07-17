@@ -231,10 +231,10 @@ export function InvoicePaymentsDialog({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-7 gap-1 text-destructive hover:bg-destructive/10"
-                                  onClick={() => setVoidTarget({ kind: "invpay", row: p })}
+                                  className="h-7 gap-1 text-primary hover:bg-primary/10"
+                                  onClick={() => setEditTarget({ kind: "invpay", row: p })}
                                 >
-                                  <Undo2 className="w-3.5 h-3.5" /> إلغاء
+                                  <Pencil className="w-3.5 h-3.5" /> تعديل
                                 </Button>
                               )}
                             </td>
@@ -307,10 +307,10 @@ export function InvoicePaymentsDialog({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 gap-1 text-destructive hover:bg-destructive/10"
-                                    onClick={() => setVoidTarget({ kind: "tx", row: t })}
+                                    className="h-7 gap-1 text-primary hover:bg-primary/10"
+                                    onClick={() => setEditTarget({ kind: "tx", row: t })}
                                   >
-                                    <Undo2 className="w-3.5 h-3.5" /> إلغاء
+                                    <Pencil className="w-3.5 h-3.5" /> تعديل
                                   </Button>
                                 )}
                               </td>
@@ -375,40 +375,17 @@ export function InvoicePaymentsDialog({
         }}
       />
 
-      {/* Void confirmation */}
-      <AlertDialog open={!!voidTarget} onOpenChange={(o) => !o && setVoidTarget(null)}>
-        <AlertDialogContent dir="rtl" className="text-right">
-          <AlertDialogHeader>
-            <AlertDialogTitle>تأكيد إلغاء الدفعة</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
-                <div>
-                  هيتسجل قيد عكسي بمبلغ{" "}
-                  <b className="text-warning tabular-nums" dir="ltr">
-                    {voidTarget ? formatEGP(Number(voidTarget.row.amount || 0)) : ""}
-                  </b>
-                  . الخزنة {voidTarget?.kind === "tx" ? "ورصيد العميل والخطة" : ""} هيتصححوا تلقائياً.
-                </div>
-                <div>
-                  <Label className="text-xs">سبب الإلغاء (اختياري)</Label>
-                  <Input
-                    value={voidReason}
-                    onChange={(e) => setVoidReason(e.target.value)}
-                    placeholder="مثال: طريقة الدفع كانت غلط، اتحولت instapay بدل نقدي..."
-                    className="mt-1 h-9"
-                  />
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={voiding}>رجوع</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmVoid} disabled={voiding} className="gap-1 bg-destructive hover:bg-destructive/90">
-              {voiding && <Loader2 className="w-4 h-4 animate-spin" />} تأكيد الإلغاء
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Edit payment */}
+      <EditPaymentDialog
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        target={editTarget}
+        onSuccess={() => {
+          setEditTarget(null);
+          onChanged?.();
+          load();
+        }}
+      />
     </>
   );
 }
