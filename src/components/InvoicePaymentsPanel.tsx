@@ -480,6 +480,14 @@ function AddInvoicePaymentDialog({
       toast.error("ادخل مبلغ صحيح");
       return;
     }
+    if (typeof maxAllowed === "number" && amt > maxAllowed + 0.001) {
+      toast.error(
+        `المبلغ أكبر من المتبقي على الفاتورة (${maxAllowed.toFixed(2)} ج.م${
+          invoiceTotal ? ` من إجمالي ${invoiceTotal.toFixed(2)}` : ""
+        })`
+      );
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase.rpc("add_invoice_payment" as any, {
