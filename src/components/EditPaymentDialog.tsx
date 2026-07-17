@@ -13,6 +13,8 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   target: { kind: "invpay" | "tx"; row: any } | null;
+  maxAllowed?: number;
+  invoiceTotal?: number;
   onSuccess: () => void;
 }
 
