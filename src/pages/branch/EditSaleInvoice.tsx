@@ -754,12 +754,35 @@ export default function EditSaleInvoice() {
             )}
           </div>
 
-          <div className="flex justify-between text-xl pt-2 mt-2 border-t-2 border-primary/30">
-            <span className="font-extrabold">الإجمالي النهائي:</span>
-            <span className="text-primary font-extrabold tabular-nums" dir="ltr">
-              {formatEGP(total)}
-            </span>
-          </div>
+          {(() => {
+            const originalTotal = Number(invoice?.total ?? 0);
+            const diff = total - originalTotal;
+            const changed = Math.abs(diff) > 0.01;
+            return (
+              <div className="pt-2 mt-2 border-t-2 border-primary/30 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold text-muted-foreground">الإجمالي المحفوظ حالياً:</span>
+                  <span className="font-bold tabular-nums text-muted-foreground" dir="ltr">
+                    {formatEGP(originalTotal)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xl items-center">
+                  <span className="font-extrabold">الإجمالي بعد التعديل:</span>
+                  <span className="text-primary font-extrabold tabular-nums" dir="ltr">
+                    {formatEGP(total)}
+                  </span>
+                </div>
+                {changed && (
+                  <div className={`flex justify-between text-sm rounded-md px-2 py-1.5 ${diff > 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                    <span className="font-bold">{diff > 0 ? "زيادة" : "نقص"} عن المحفوظ:</span>
+                    <span className="font-extrabold tabular-nums" dir="ltr">
+                      {diff > 0 ? "+ " : "- "}{formatEGP(Math.abs(diff))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Live paid & remaining — يتحدثوا real-time مع أي تعديل في الدفعات */}
           <div className="grid grid-cols-2 gap-2 pt-2">
