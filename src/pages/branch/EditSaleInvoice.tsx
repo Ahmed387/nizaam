@@ -230,6 +230,14 @@ export default function EditSaleInvoice() {
   const vatAmount = Math.round(netAfterDiscount * (Number(vatRate) || 0)) / 100;
   const total = netAfterDiscount + vatAmount;
 
+  // Live paid & remaining (based on active payments/tx)
+  const activeInitial = payments.filter((p: any) => !p.voided_at && !p.reverses_payment_id);
+  const activeTx = planTxs.filter((t: any) => !t.voided_at && !t.reverses_tx_id);
+  const paidTotal =
+    activeInitial.reduce((s, p) => s + Number(p.amount || 0), 0) +
+    activeTx.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const remaining = total - paidTotal;
+
   const buildDiff = (): string[] => {
     const snap = initialSnapshotRef.current;
     if (!snap) return [];
