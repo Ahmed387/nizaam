@@ -100,12 +100,12 @@ export default function EditSaleInvoice() {
       setDiscountAmount(Number(inv?.discount_amount ?? 0));
 
       if (plan?.id) {
-        const { data: ins } = await supabase
-          .from("payment_installments")
-          .select("*")
-          .eq("payment_plan_id", plan.id)
-          .order("installment_number");
+        const [{ data: ins }, { data: tx }] = await Promise.all([
+          supabase.from("payment_installments").select("*").eq("payment_plan_id", plan.id).order("installment_number"),
+          supabase.from("payment_transactions").select("*").eq("payment_plan_id", plan.id).order("created_at"),
+        ]);
         setInstallments(ins ?? []);
+        setPlanTxs(tx ?? []);
       }
 
       const loadedItems: Item[] = (its ?? []).map((it: any) => ({
