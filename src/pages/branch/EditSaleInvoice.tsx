@@ -67,6 +67,12 @@ export default function EditSaleInvoice() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
+  type PaySnap = { id: string; amount: number; method: string; kind: "initial" | "plan"; voided: boolean };
+  const initialPaymentsRef = useRef<PaySnap[] | null>(null);
+  const snapshotPayments = (pays: any[], txs: any[]): PaySnap[] => [
+    ...pays.map((p: any) => ({ id: p.id, amount: Number(p.amount || 0), method: p.method || p.payment_method || "", kind: "initial" as const, voided: !!p.voided_at || !!p.reverses_payment_id })),
+    ...txs.map((t: any) => ({ id: t.id, amount: Number(t.amount || 0), method: t.method || t.payment_method || "", kind: "plan" as const, voided: !!t.voided_at || !!t.reverses_tx_id })),
+  ];
 
   useEffect(() => {
     if (!invoiceId || !branchId) return;
