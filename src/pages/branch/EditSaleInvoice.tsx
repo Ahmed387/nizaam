@@ -57,6 +57,7 @@ export default function EditSaleInvoice() {
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
+  const [planTxs, setPlanTxs] = useState<any[]>([]);
   
   const [vatRate, setVatRate] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
