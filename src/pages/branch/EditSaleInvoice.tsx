@@ -701,14 +701,64 @@ export default function EditSaleInvoice() {
               - {formatEGP(lineDiscounts)}
             </span>
           </div>
-          {invDiscount > 0 && (
-            <div className="flex justify-between text-sm text-destructive">
-              <span className="font-semibold">خصم الفاتورة (محفوظ):</span>
-              <span className="font-bold tabular-nums" dir="ltr">
-                - {formatEGP(invDiscount)}
-              </span>
+
+          {/* Invoice-level discount editor */}
+          <div className="pt-2 mt-2 border-t border-primary/20 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="font-semibold text-sm">خصم الفاتورة:</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={discountType === "amount" ? "default" : "outline"}
+                  onClick={() => setDiscountType("amount")}
+                  className="h-8 text-xs font-bold"
+                >
+                  ج.م
+                </Button>
+                <Button
+                  size="sm"
+                  variant={discountType === "percent" ? "default" : "outline"}
+                  onClick={() => setDiscountType("percent")}
+                  className="h-8 text-xs font-bold"
+                >
+                  %
+                </Button>
+                {discountType === "amount" ? (
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(Math.max(0, Number(e.target.value) || 0))}
+                    className="h-8 w-28 text-center font-bold"
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      className="h-8 w-20 text-center font-bold"
+                      placeholder="0"
+                    />
+                    <span className="text-xs font-bold">%</span>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+            {invDiscount > 0 && (
+              <div className="flex justify-between text-sm text-destructive">
+                <span className="font-semibold">قيمة الخصم:</span>
+                <span className="font-bold tabular-nums" dir="ltr">
+                  - {formatEGP(invDiscount)}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* VAT / Tax editor */}
           <div className="pt-2 mt-2 border-t border-primary/20 space-y-2">
