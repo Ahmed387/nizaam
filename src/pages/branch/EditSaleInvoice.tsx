@@ -786,15 +786,6 @@ export default function EditSaleInvoice() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <InvoicePaymentsDialog
-        open={paymentsDialogOpen}
-        onOpenChange={setPaymentsDialogOpen}
-        invoiceId={invoiceId!}
-        branchId={branchId!}
-        paymentPlanId={paymentPlan?.id ?? null}
-        invoiceNumber={invoice?.invoice_number}
-        onChanged={reloadPayments}
-      />
     </BranchLayout>
   );
 }
