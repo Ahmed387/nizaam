@@ -306,6 +306,7 @@ export default function EditSaleInvoice() {
       _customer_id: customerId,
       _items: clean as any,
       _vat_rate: Number(vatRate) || 0,
+      _discount_amount: invDiscount,
     });
     setSaving(false);
     if (error) {
