@@ -104,33 +104,27 @@ export function InvoicePaymentsDialog({
     };
   }, [open, invoiceId, paymentPlanId, load]);
 
-  const confirmVoid = async () => {
-    if (!voidTarget) return;
-    setVoiding(true);
-    try {
-      if (voidTarget.kind === "tx") {
-        const { error } = await supabase.rpc("void_payment_transaction" as any, {
-          p_tx_id: voidTarget.row.id,
-          p_reason: voidReason || null,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.rpc("void_invoice_payment" as any, {
-          p_payment_id: voidTarget.row.id,
-          p_reason: voidReason || null,
-        });
-        if (error) throw error;
-      }
-      toast.success("تم إلغاء الدفعة، الحسابات اتصححت تلقائياً");
-      setVoidTarget(null);
-      setVoidReason("");
-      onChanged?.();
-    } catch (e: any) {
-      toast.error(e.message ?? "فشل إلغاء الدفعة");
-    } finally {
-      setVoiding(false);
+  const loadHistory = useCallback(async () => {
+    const ids: string[] = [
+      ...initialPayments.map((p) => p.id),
+      ...txs.map((t) => t.id),
+    ];
+    if (ids.length === 0) {
+      setHistory([]);
+      return;
     }
-  };
+    const { data } = await supabase
+      .from("audit_log")
+      .select("*")
+      .eq("action", "payment_edited")
+      .in("entity_id", ids)
+      .order("created_at", { ascending: false });
+    setHistory(data ?? []);
+  }, [initialPayments, txs]);
+
+  useEffect(() => {
+    if (tab === "history") loadHistory();
+  }, [tab, loadHistory]);
 
   const activeTxs = txs.filter((t) => !t.voided_at && !t.reverses_tx_id);
   const voidedTxs = txs.filter((t) => t.voided_at || t.reverses_tx_id);
