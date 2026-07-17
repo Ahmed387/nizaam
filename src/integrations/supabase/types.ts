@@ -1546,11 +1546,16 @@ export type Database = {
           payment_plan_id: string | null
           received_by_name: string | null
           reference_number: string | null
+          reverses_tx_id: string | null
           tenant_id: string | null
           total_with_fee: number
           transfer_from_account: string | null
           transfer_to_account: string | null
           treasury_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          voided_by_tx_id: string | null
         }
         Insert: {
           amount: number
@@ -1568,11 +1573,16 @@ export type Database = {
           payment_plan_id?: string | null
           received_by_name?: string | null
           reference_number?: string | null
+          reverses_tx_id?: string | null
           tenant_id?: string | null
           total_with_fee: number
           transfer_from_account?: string | null
           transfer_to_account?: string | null
           treasury_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          voided_by_tx_id?: string | null
         }
         Update: {
           amount?: number
@@ -1590,11 +1600,16 @@ export type Database = {
           payment_plan_id?: string | null
           received_by_name?: string | null
           reference_number?: string | null
+          reverses_tx_id?: string | null
           tenant_id?: string | null
           total_with_fee?: number
           transfer_from_account?: string | null
           transfer_to_account?: string | null
           treasury_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          voided_by_tx_id?: string | null
         }
         Relationships: [
           {
@@ -1616,6 +1631,20 @@ export type Database = {
             columns: ["payment_plan_id"]
             isOneToOne: false
             referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_reverses_tx_id_fkey"
+            columns: ["reverses_tx_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_voided_by_tx_id_fkey"
+            columns: ["voided_by_tx_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -4205,6 +4234,10 @@ export type Database = {
       verify_employee_password: {
         Args: { _employee_id: string; _password: string }
         Returns: boolean
+      }
+      void_payment_transaction: {
+        Args: { p_reason?: string; p_tx_id: string }
+        Returns: string
       }
     }
     Enums: {

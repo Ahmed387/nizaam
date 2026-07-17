@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { InvoicePaymentsDialog } from "@/components/InvoicePaymentsDialog";
 
 type Item = {
   id?: string;
@@ -53,6 +54,7 @@ export default function EditSaleInvoice() {
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
+  const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
 
@@ -121,6 +123,31 @@ export default function EditSaleInvoice() {
       setLoading(false);
     })();
   }, [invoiceId, branchId]);
+
+  const reloadPayments = async () => {
+    if (!invoiceId) return;
+    const [{ data: pays }, { data: plan }] = await Promise.all([
+      supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at"),
+      supabase
+        .from("payment_plans")
+        .select("*")
+        .eq("reference_type", "invoice")
+        .eq("reference_id", invoiceId)
+        .maybeSingle(),
+    ]);
+    setPayments(pays ?? []);
+    setPaymentPlan(plan ?? null);
+    if (plan?.id) {
+      const { data: ins } = await supabase
+        .from("payment_installments")
+        .select("*")
+        .eq("payment_plan_id", plan.id)
+        .order("installment_number");
+      setInstallments(ins ?? []);
+    } else {
+      setInstallments([]);
+    }
+  };
 
   const updateItem = (idx: number, patch: Partial<Item>) =>
     setItems((arr) => arr.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
@@ -467,10 +494,9 @@ export default function EditSaleInvoice() {
                 size="sm"
                 variant="outline"
                 className="gap-1 text-xs"
-                onClick={() => nav(`/branch/${branchId}/receipt-vouchers`)}
+                onClick={() => setPaymentsDialogOpen(true)}
               >
                 <Receipt className="w-3.5 h-3.5" /> تعديل الدفعات
-                <ExternalLink className="w-3 h-3 opacity-60" />
               </Button>
               {paymentPlan && (
                 <Button
@@ -487,7 +513,7 @@ export default function EditSaleInvoice() {
           </div>
 
           <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2 leading-relaxed">
-            💡 المدفوعات وخطة الأقساط ما بتتعدلش من هنا للحفاظ على سلامة سندات القبض والخزنة. لتعديل دفعة أو إعادة جدولة الأقساط، استخدم الأزرار في الأعلى.
+            💡 اضغط "تعديل الدفعات" لفتح شاشة إدارة دفعات الفاتورة (إضافة/إلغاء) من غير ما تخرج من صفحة التعديل.
           </div>
 
           {payments.length === 0 && !paymentPlan ? (
@@ -677,6 +703,16 @@ export default function EditSaleInvoice() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <InvoicePaymentsDialog
+        open={paymentsDialogOpen}
+        onOpenChange={setPaymentsDialogOpen}
+        invoiceId={invoiceId!}
+        branchId={branchId!}
+        paymentPlanId={paymentPlan?.id ?? null}
+        invoiceNumber={invoice?.invoice_number}
+        onChanged={reloadPayments}
+      />
     </BranchLayout>
   );
 }
