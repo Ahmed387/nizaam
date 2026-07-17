@@ -13,10 +13,12 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   target: { kind: "invpay" | "tx"; row: any } | null;
+  maxAllowed?: number;
+  invoiceTotal?: number;
   onSuccess: () => void;
 }
 
-export function EditPaymentDialog({ open, onOpenChange, target, onSuccess }: Props) {
+export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invoiceTotal, onSuccess }: Props) {
   const [method, setMethod] = useState<PaymentMethodValue>({ method: "cash", fee_amount: 0, total_with_fee: 0 });
   const [amount, setAmount] = useState<string>("");
   const [reference, setReference] = useState("");
@@ -48,6 +50,14 @@ export function EditPaymentDialog({ open, onOpenChange, target, onSuccess }: Pro
     const amt = Number(amount);
     if (!amt || amt <= 0) {
       toast.error("ادخل مبلغ صحيح");
+      return;
+    }
+    if (typeof maxAllowed === "number" && amt > maxAllowed + 0.001) {
+      toast.error(
+        `المبلغ الجديد أكبر من المسموح به على الفاتورة (${maxAllowed.toFixed(2)} ج.م${
+          invoiceTotal ? ` من إجمالي ${invoiceTotal.toFixed(2)}` : ""
+        })`
+      );
       return;
     }
     if (!reason.trim()) {

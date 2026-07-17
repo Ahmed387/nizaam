@@ -39,6 +39,7 @@ export function InvoicePaymentsPanel({
   const [initialPayments, setInitialPayments] = useState<any[]>([]);
   const [txs, setTxs] = useState<any[]>([]);
   const [plan, setPlan] = useState<any>(null);
+  const [invoiceTotal, setInvoiceTotal] = useState<number>(0);
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [addInvoicePayOpen, setAddInvoicePayOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
@@ -47,7 +48,7 @@ export function InvoicePaymentsPanel({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: ip }, planRes, txRes] = await Promise.all([
+      const [{ data: ip }, planRes, txRes, invRes] = await Promise.all([
         supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at"),
         paymentPlanId
           ? supabase.from("payment_plans").select("*").eq("id", paymentPlanId).maybeSingle()
@@ -59,10 +60,12 @@ export function InvoicePaymentsPanel({
               .eq("payment_plan_id", paymentPlanId)
               .order("created_at")
           : Promise.resolve({ data: [] } as any),
+        supabase.from("invoices").select("total").eq("id", invoiceId).maybeSingle(),
       ]);
       setInitialPayments(ip ?? []);
       setPlan(planRes?.data ?? null);
       setTxs(txRes?.data ?? []);
+      setInvoiceTotal(Number(invRes?.data?.total ?? 0));
     } finally {
       setLoading(false);
     }
@@ -414,6 +417,8 @@ export function InvoicePaymentsPanel({
         open={addInvoicePayOpen}
         onOpenChange={setAddInvoicePayOpen}
         invoiceId={invoiceId}
+        maxAllowed={invoiceTotal > 0 ? Math.max(invoiceTotal - totalActive, 0) : undefined}
+        invoiceTotal={invoiceTotal}
         onSuccess={() => {
           onChanged?.();
           load();
@@ -424,6 +429,12 @@ export function InvoicePaymentsPanel({
         open={!!editTarget}
         onOpenChange={(o) => !o && setEditTarget(null)}
         target={editTarget}
+        maxAllowed={
+          invoiceTotal > 0 && editTarget
+            ? Math.max(invoiceTotal - totalActive + Number(editTarget.row.amount || 0), 0)
+            : undefined
+        }
+        invoiceTotal={invoiceTotal}
         onSuccess={() => {
           setEditTarget(null);
           onChanged?.();
@@ -439,11 +450,15 @@ function AddInvoicePaymentDialog({
   open,
   onOpenChange,
   invoiceId,
+  maxAllowed,
+  invoiceTotal,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   invoiceId: string;
+  maxAllowed?: number;
+  invoiceTotal?: number;
   onSuccess: () => void;
 }) {
   const [method, setMethod] = useState<PaymentMethodValue>({ method: "cash", fee_amount: 0, total_with_fee: 0 });
@@ -463,6 +478,14 @@ function AddInvoicePaymentDialog({
     const amt = Number(amount);
     if (!amt || amt <= 0) {
       toast.error("ادخل مبلغ صحيح");
+      return;
+    }
+    if (typeof maxAllowed === "number" && amt > maxAllowed + 0.001) {
+      toast.error(
+        `المبلغ أكبر من المتبقي على الفاتورة (${maxAllowed.toFixed(2)} ج.م${
+          invoiceTotal ? ` من إجمالي ${invoiceTotal.toFixed(2)}` : ""
+        })`
+      );
       return;
     }
     setSaving(true);
