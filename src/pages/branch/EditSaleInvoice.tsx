@@ -469,10 +469,9 @@ export default function EditSaleInvoice() {
                 size="sm"
                 variant="outline"
                 className="gap-1 text-xs"
-                onClick={() => nav(`/branch/${branchId}/receipt-vouchers`)}
+                onClick={() => setPaymentsDialogOpen(true)}
               >
                 <Receipt className="w-3.5 h-3.5" /> تعديل الدفعات
-                <ExternalLink className="w-3 h-3 opacity-60" />
               </Button>
               {paymentPlan && (
                 <Button
@@ -489,7 +488,7 @@ export default function EditSaleInvoice() {
           </div>
 
           <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2 leading-relaxed">
-            💡 المدفوعات وخطة الأقساط ما بتتعدلش من هنا للحفاظ على سلامة سندات القبض والخزنة. لتعديل دفعة أو إعادة جدولة الأقساط، استخدم الأزرار في الأعلى.
+            💡 اضغط "تعديل الدفعات" لفتح شاشة إدارة دفعات الفاتورة (إضافة/إلغاء) من غير ما تخرج من صفحة التعديل.
           </div>
 
           {payments.length === 0 && !paymentPlan ? (
