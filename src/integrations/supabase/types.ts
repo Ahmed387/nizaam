@@ -3983,6 +3983,16 @@ export type Database = {
             }
             Returns: undefined
           }
+        | {
+            Args: {
+              _customer_id: string
+              _discount_amount?: number
+              _invoice_id: string
+              _items: Json
+              _vat_rate?: number
+            }
+            Returns: undefined
+          }
       edit_shipment: {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
