@@ -36,6 +36,7 @@ type Snapshot = {
   customerId: string | null;
   customerName: string;
   vatRate: number;
+  discountAmount: number;
   items: Array<{ product_id: string | null; product_name: string; quantity: number; selling_price: number; line_discount: number }>;
 };
 
