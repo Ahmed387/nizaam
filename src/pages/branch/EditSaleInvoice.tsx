@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle, CreditCard, Receipt, CalendarClock, Lock, ExternalLink } from "lucide-react";
+import { Trash2, Plus, ArrowRight, Loader2, AlertTriangle, CreditCard, Receipt, CalendarClock, Lock, ExternalLink, User, Package, Calculator } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { InvoicePaymentsDialog } from "@/components/InvoicePaymentsDialog";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 
 type Item = {
   id?: string;
@@ -61,6 +62,8 @@ export default function EditSaleInvoice() {
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [openSections, setOpenSections] = useState({ customer: false, items: false, payments: false, summary: false });
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
 
@@ -393,36 +396,38 @@ export default function EditSaleInvoice() {
         />
 
         {/* Customer section */}
-        <div className="rounded-xl border-2 border-primary/20 bg-surface-1 p-4 space-y-3">
-          <Label className="text-base font-bold text-primary flex items-center gap-2">
-            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-              1
-            </span>
-            العميل
-          </Label>
-          <select
-            className="w-full h-11 rounded-md border-2 border-input bg-background px-3 text-sm font-semibold focus:border-primary focus:outline-none"
-            value={customerId ?? ""}
-            onChange={(e) => setCustomerId(e.target.value || null)}
-          >
-            <option value="">عميل نقدي</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CollapsibleSection
+          title="1. العميل"
+          icon={<User className="w-5 h-5" />}
+          open={openSections.customer}
+          onToggle={() => toggleSection("customer")}
+        >
+          <div className="p-4 space-y-3">
+            <select
+              className="w-full h-11 rounded-md border-2 border-input bg-background px-3 text-sm font-semibold focus:border-primary focus:outline-none"
+              value={customerId ?? ""}
+              onChange={(e) => setCustomerId(e.target.value || null)}
+            >
+              <option value="">عميل نقدي</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CollapsibleSection>
 
         {/* Items section */}
-        <div className="rounded-xl border-2 border-primary/20 bg-surface-1 p-4 space-y-3">
+        <CollapsibleSection
+          title="2. بنود الفاتورة"
+          icon={<Package className="w-5 h-5" />}
+          open={openSections.items}
+          onToggle={() => toggleSection("items")}
+        >
+        <div className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-base font-bold text-primary flex items-center gap-2">
-              <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                2
-              </span>
-              بنود الفاتورة
-            </Label>
+            <div className="text-sm font-bold text-muted-foreground">{items.length} بند</div>
             <Button size="sm" variant="outline" onClick={addBlankItem} className="gap-1 border-primary/40 text-primary hover:bg-primary/10 font-bold">
               <Plus className="w-4 h-4" /> إضافة بند
             </Button>
@@ -535,20 +540,20 @@ export default function EditSaleInvoice() {
             </table>
           </div>
         </div>
+        </CollapsibleSection>
 
         {/* Payment methods — READ ONLY */}
-        <div className="rounded-xl border-2 border-muted-foreground/20 bg-surface-1 p-4 space-y-3">
+        <CollapsibleSection
+          title="3. طرق الدفع والأقساط"
+          icon={<CreditCard className="w-5 h-5" />}
+          open={openSections.payments}
+          onToggle={() => toggleSection("payments")}
+        >
+        <div className="p-4 space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <Label className="text-base font-bold text-primary flex items-center gap-2">
-              <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                3
-              </span>
-              <CreditCard className="w-4 h-4" />
-              طرق الدفع والأقساط
-              <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Lock className="w-3 h-3" /> عرض فقط
-              </span>
-            </Label>
+            <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Lock className="w-3 h-3" /> عرض فقط — استخدم زرار التعديل
+            </span>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -680,15 +685,16 @@ export default function EditSaleInvoice() {
             </>
           )}
         </div>
+        </CollapsibleSection>
 
         {/* Summary section */}
-        <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
-          <Label className="text-base font-bold text-primary flex items-center gap-2 mb-2">
-            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-              4
-            </span>
-            الملخص
-          </Label>
+        <CollapsibleSection
+          title="4. الملخص والإجمالي"
+          icon={<Calculator className="w-5 h-5" />}
+          open={openSections.summary}
+          onToggle={() => toggleSection("summary")}
+        >
+        <div className="p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="font-semibold">الإجمالي قبل الخصم:</span>
             <span className="font-bold tabular-nums" dir="ltr">
@@ -812,6 +818,7 @@ export default function EditSaleInvoice() {
             </span>
           </div>
         </div>
+        </CollapsibleSection>
 
         <div className="text-xs text-foreground bg-warning/10 border-2 border-warning/40 rounded-lg p-3 flex gap-2 font-semibold leading-relaxed">
           <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
