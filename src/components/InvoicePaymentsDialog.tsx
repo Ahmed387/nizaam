@@ -11,7 +11,7 @@ import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
-import { formatEGP as _fmt } from "@/lib/format";
+
 
 interface Props {
   open: boolean;
