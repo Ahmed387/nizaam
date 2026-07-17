@@ -18,7 +18,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function EditPaymentDialog({ open, onOpenChange, target, onSuccess }: Props) {
+export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invoiceTotal, onSuccess }: Props) {
   const [method, setMethod] = useState<PaymentMethodValue>({ method: "cash", fee_amount: 0, total_with_fee: 0 });
   const [amount, setAmount] = useState<string>("");
   const [reference, setReference] = useState("");
