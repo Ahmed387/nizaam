@@ -760,6 +760,30 @@ export default function EditSaleInvoice() {
               {formatEGP(total)}
             </span>
           </div>
+
+          {/* Live paid & remaining — يتحدثوا real-time مع أي تعديل في الدفعات */}
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="bg-success/10 border border-success/30 rounded-lg p-2.5 text-center">
+              <div className="text-[11px] text-muted-foreground mb-1">المدفوع</div>
+              <div className="font-extrabold text-success tabular-nums text-base" dir="ltr">{formatEGP(paidTotal)}</div>
+            </div>
+            <div className={`rounded-lg p-2.5 text-center border ${remaining < -0.01 ? "bg-destructive/10 border-destructive/40" : remaining > 0.01 ? "bg-warning/10 border-warning/30" : "bg-muted/40 border-border"}`}>
+              <div className="text-[11px] text-muted-foreground mb-1">
+                {remaining < -0.01 ? "فائض" : remaining > 0.01 ? "المتبقي" : "مُسدَّد بالكامل"}
+              </div>
+              <div className={`font-extrabold tabular-nums text-base ${remaining < -0.01 ? "text-destructive" : remaining > 0.01 ? "text-warning" : "text-success"}`} dir="ltr">
+                {formatEGP(Math.abs(remaining))}
+              </div>
+            </div>
+          </div>
+          {total > 0 && (
+            <div className="h-2 bg-muted rounded-full overflow-hidden mt-1">
+              <div
+                className={`h-full transition-all duration-500 ${paidTotal > total + 0.01 ? "bg-destructive" : "bg-success"}`}
+                style={{ width: `${Math.min(100, (paidTotal / total) * 100)}%` }}
+              />
+            </div>
+          )}
         </div>
         </CollapsibleSection>
 
