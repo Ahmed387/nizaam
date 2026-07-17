@@ -3969,10 +3969,20 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: string
       }
-      edit_invoice: {
-        Args: { _customer_id: string; _invoice_id: string; _items: Json }
-        Returns: undefined
-      }
+      edit_invoice:
+        | {
+            Args: { _customer_id: string; _invoice_id: string; _items: Json }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _customer_id: string
+              _invoice_id: string
+              _items: Json
+              _vat_rate?: number
+            }
+            Returns: undefined
+          }
       edit_shipment: {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json

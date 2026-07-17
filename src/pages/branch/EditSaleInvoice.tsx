@@ -35,6 +35,7 @@ type Item = {
 type Snapshot = {
   customerId: string | null;
   customerName: string;
+  vatRate: number;
   items: Array<{ product_id: string | null; product_name: string; quantity: number; selling_price: number; line_discount: number }>;
 };
 
@@ -55,6 +56,7 @@ export default function EditSaleInvoice() {
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
   const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
+  const [vatRate, setVatRate] = useState<number>(0);
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
 
@@ -86,6 +88,7 @@ export default function EditSaleInvoice() {
       setProducts(p ?? []);
       setPayments(pays ?? []);
       setPaymentPlan(plan ?? null);
+      setVatRate(Number(inv?.vat_rate ?? 0));
 
       if (plan?.id) {
         const { data: ins } = await supabase
@@ -112,6 +115,7 @@ export default function EditSaleInvoice() {
       initialSnapshotRef.current = {
         customerId: inv?.contact_id ?? null,
         customerName: custName,
+        vatRate: Number(inv?.vat_rate ?? 0),
         items: loadedItems.map((it) => ({
           product_id: it.product_id,
           product_name: it.product_name,
@@ -193,7 +197,9 @@ export default function EditSaleInvoice() {
   const subtotal = items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
   const lineDiscounts = items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
   const invDiscount = Number(invoice?.discount_amount ?? 0);
-  const total = Math.max(subtotal - lineDiscounts - invDiscount, 0);
+  const netAfterDiscount = Math.max(subtotal - lineDiscounts - invDiscount, 0);
+  const vatAmount = Math.round(netAfterDiscount * (Number(vatRate) || 0)) / 100;
+  const total = netAfterDiscount + vatAmount;
 
   const buildDiff = (): string[] => {
     const snap = initialSnapshotRef.current;
@@ -250,10 +256,17 @@ export default function EditSaleInvoice() {
       if (parts.length) changes.push(`✏️ ${newIt.product_name}: ${parts.join(" • ")}`);
     });
 
+    // VAT diff
+    if (Number(snap.vatRate || 0) !== Number(vatRate || 0)) {
+      changes.push(`🧾 نسبة الضريبة: ${snap.vatRate || 0}% → ${vatRate || 0}%`);
+    }
+
     // Totals diff
     const oldSubtotal = snap.items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
     const oldLineDisc = snap.items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-    const oldTotal = Math.max(oldSubtotal - oldLineDisc - invDiscount, 0);
+    const oldNet = Math.max(oldSubtotal - oldLineDisc - invDiscount, 0);
+    const oldVat = Math.round(oldNet * (Number(snap.vatRate) || 0)) / 100;
+    const oldTotal = oldNet + oldVat;
     if (Math.abs(oldTotal - total) > 0.01) {
       changes.push(`💰 الإجمالي: ${formatEGP(oldTotal)} → ${formatEGP(total)}`);
     }
@@ -277,6 +290,7 @@ export default function EditSaleInvoice() {
       _invoice_id: invoiceId,
       _customer_id: customerId,
       _items: clean as any,
+      _vat_rate: Number(vatRate) || 0,
     });
     setSaving(false);
     if (error) {
@@ -649,6 +663,52 @@ export default function EditSaleInvoice() {
               </span>
             </div>
           )}
+
+          {/* VAT / Tax editor */}
+          <div className="pt-2 mt-2 border-t border-primary/20 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="font-semibold text-sm">ضريبة القيمة المضافة (VAT):</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={Number(vatRate) === 0 ? "default" : "outline"}
+                  onClick={() => setVatRate(0)}
+                  className="h-8 text-xs font-bold"
+                >
+                  بدون
+                </Button>
+                <Button
+                  size="sm"
+                  variant={Number(vatRate) === 14 ? "default" : "outline"}
+                  onClick={() => setVatRate(14)}
+                  className="h-8 text-xs font-bold"
+                >
+                  14%
+                </Button>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={vatRate}
+                    onChange={(e) => setVatRate(Math.max(0, Number(e.target.value) || 0))}
+                    className="h-8 w-20 text-center font-bold"
+                  />
+                  <span className="text-xs font-bold">%</span>
+                </div>
+              </div>
+            </div>
+            {vatAmount > 0 && (
+              <div className="flex justify-between text-sm text-primary">
+                <span className="font-semibold">قيمة الضريبة ({vatRate}%):</span>
+                <span className="font-bold tabular-nums" dir="ltr">
+                  + {formatEGP(vatAmount)}
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-between text-xl pt-2 mt-2 border-t-2 border-primary/30">
             <span className="font-extrabold">الإجمالي النهائي:</span>
             <span className="text-primary font-extrabold tabular-nums" dir="ltr">
