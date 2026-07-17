@@ -549,140 +549,59 @@ export default function EditSaleInvoice() {
           open={openSections.payments}
           onToggle={() => toggleSection("payments")}
         >
-        <div className="p-4 space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Lock className="w-3 h-3" /> عرض فقط — استخدم زرار التعديل
-            </span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1 text-xs"
-                onClick={() => setPaymentsDialogOpen(true)}
-              >
-                <Receipt className="w-3.5 h-3.5" /> تعديل الدفعات
-              </Button>
-              {paymentPlan && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1 text-xs"
-                  onClick={() => nav(`/branch/${branchId}/sales/${invoiceId}`)}
-                >
-                  <CalendarClock className="w-3.5 h-3.5" /> إدارة الأقساط
-                  <ExternalLink className="w-3 h-3 opacity-60" />
-                </Button>
-              )}
+        <div className="p-4 space-y-4">
+          <InvoicePaymentsPanel
+            invoiceId={invoiceId!}
+            branchId={branchId!}
+            paymentPlanId={paymentPlan?.id ?? null}
+            invoiceNumber={invoice?.invoice_number}
+            onChanged={reloadPayments}
+          />
+
+          {paymentPlan && installments.length > 0 && (
+            <div className="pt-3 border-t-2 border-dashed border-border">
+              <div className="text-sm font-bold mb-2 text-muted-foreground flex items-center gap-2">
+                <CalendarClock className="w-4 h-4" />
+                جدول الأقساط ({installments.length} قسط)
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-2">
+                    <tr className="font-bold">
+                      <th className="p-2 text-center w-12">#</th>
+                      <th className="p-2 text-right">تاريخ الاستحقاق</th>
+                      <th className="p-2 text-center">المبلغ</th>
+                      <th className="p-2 text-center">المدفوع</th>
+                      <th className="p-2 text-center">الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {installments.map((ins) => (
+                      <tr key={ins.id} className="border-t border-border">
+                        <td className="p-2 text-center font-bold">{ins.installment_number}</td>
+                        <td className="p-2 tabular-nums" dir="ltr">
+                          {ins.due_date ? new Date(ins.due_date).toLocaleDateString("ar-EG") : "—"}
+                        </td>
+                        <td className="p-2 text-center tabular-nums" dir="ltr">{formatEGP(Number(ins.amount ?? 0))}</td>
+                        <td className="p-2 text-center tabular-nums text-success" dir="ltr">{formatEGP(Number(ins.paid_amount ?? 0))}</td>
+                        <td className="p-2 text-center">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            ins.status === "paid" ? "bg-success/20 text-success" :
+                            ins.status === "overdue" ? "bg-destructive/20 text-destructive" :
+                            ins.status === "partial" ? "bg-warning/20 text-warning" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
+                            {ins.status === "paid" ? "مدفوع" :
+                             ins.status === "overdue" ? "متأخر" :
+                             ins.status === "partial" ? "جزئي" : "معلق"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-
-          <div className="text-[11px] text-muted-foreground bg-muted/40 rounded p-2 leading-relaxed">
-            💡 اضغط "تعديل الدفعات" لفتح شاشة إدارة دفعات الفاتورة (إضافة/إلغاء) من غير ما تخرج من صفحة التعديل.
-          </div>
-
-          {payments.length === 0 && !paymentPlan ? (
-            <div className="text-center text-sm text-muted-foreground py-3 border border-dashed border-border rounded-lg">
-              لا توجد دفعات مسجلة على هذه الفاتورة
-            </div>
-          ) : (
-            <>
-              {payments.length > 0 && (
-                <div>
-                  <div className="text-xs font-bold mb-1.5 text-muted-foreground">الدفعات المسجلة ({payments.length})</div>
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-xs">
-                      <thead className="bg-surface-2">
-                        <tr className="font-bold">
-                          <th className="p-2 text-right">التاريخ</th>
-                          <th className="p-2 text-right">الطريقة</th>
-                          <th className="p-2 text-center">المبلغ</th>
-                          <th className="p-2 text-right">مرجع</th>
-                          <th className="p-2 text-right">استلم</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {payments.map((pay) => (
-                          <tr key={pay.id} className="border-t border-border">
-                            <td className="p-2 tabular-nums" dir="ltr">
-                              {new Date(pay.created_at).toLocaleDateString("ar-EG")}
-                            </td>
-                            <td className="p-2 font-semibold">{pay.payment_method ?? "—"}</td>
-                            <td className="p-2 text-center font-bold tabular-nums text-success" dir="ltr">
-                              {formatEGP(Number(pay.amount ?? 0))}
-                            </td>
-                            <td className="p-2 text-muted-foreground">{pay.reference_number ?? "—"}</td>
-                            <td className="p-2">{pay.received_by_name ?? "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {paymentPlan && (
-                <div>
-                  <div className="text-xs font-bold mb-1.5 text-muted-foreground flex items-center gap-2">
-                    <CalendarClock className="w-3.5 h-3.5" />
-                    خطة الأقساط ({installments.length} قسط)
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
-                    <div className="bg-muted/40 rounded p-2">
-                      <div className="text-muted-foreground">الإجمالي</div>
-                      <div className="font-bold tabular-nums" dir="ltr">{formatEGP(Number(paymentPlan.total_amount ?? 0))}</div>
-                    </div>
-                    <div className="bg-success/10 rounded p-2">
-                      <div className="text-muted-foreground">المدفوع</div>
-                      <div className="font-bold text-success tabular-nums" dir="ltr">{formatEGP(Number(paymentPlan.paid_amount ?? 0))}</div>
-                    </div>
-                    <div className="bg-warning/10 rounded p-2">
-                      <div className="text-muted-foreground">المتبقي</div>
-                      <div className="font-bold text-warning tabular-nums" dir="ltr">{formatEGP(Number(paymentPlan.remaining_amount ?? 0))}</div>
-                    </div>
-                  </div>
-                  {installments.length > 0 && (
-                    <div className="overflow-x-auto rounded-lg border border-border">
-                      <table className="w-full text-xs">
-                        <thead className="bg-surface-2">
-                          <tr className="font-bold">
-                            <th className="p-2 text-center w-12">#</th>
-                            <th className="p-2 text-right">تاريخ الاستحقاق</th>
-                            <th className="p-2 text-center">المبلغ</th>
-                            <th className="p-2 text-center">المدفوع</th>
-                            <th className="p-2 text-center">الحالة</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {installments.map((ins) => (
-                            <tr key={ins.id} className="border-t border-border">
-                              <td className="p-2 text-center font-bold">{ins.installment_number}</td>
-                              <td className="p-2 tabular-nums" dir="ltr">
-                                {ins.due_date ? new Date(ins.due_date).toLocaleDateString("ar-EG") : "—"}
-                              </td>
-                              <td className="p-2 text-center tabular-nums" dir="ltr">{formatEGP(Number(ins.amount ?? 0))}</td>
-                              <td className="p-2 text-center tabular-nums text-success" dir="ltr">{formatEGP(Number(ins.paid_amount ?? 0))}</td>
-                              <td className="p-2 text-center">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  ins.status === "paid" ? "bg-success/20 text-success" :
-                                  ins.status === "overdue" ? "bg-destructive/20 text-destructive" :
-                                  ins.status === "partial" ? "bg-warning/20 text-warning" :
-                                  "bg-muted text-muted-foreground"
-                                }`}>
-                                  {ins.status === "paid" ? "مدفوع" :
-                                   ins.status === "overdue" ? "متأخر" :
-                                   ins.status === "partial" ? "جزئي" : "معلق"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
           )}
         </div>
         </CollapsibleSection>
