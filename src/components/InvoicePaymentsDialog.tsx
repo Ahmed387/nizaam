@@ -149,13 +149,19 @@ export function InvoicePaymentsDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
+            <TabsList className="grid grid-cols-2 mb-3">
+              <TabsTrigger value="payments" className="gap-1"><ShieldCheck className="w-4 h-4" /> الدفعات</TabsTrigger>
+              <TabsTrigger value="history" className="gap-1"><HistoryIcon className="w-4 h-4" /> سجل التعديلات</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="payments" className="space-y-4 mt-0">
             {/* Info banner */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs flex gap-2 leading-relaxed">
               <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
-                <b>إلغاء الدفعة</b> بيسجل قيد عكسي بنفس المبلغ في الخزنة (ورصيد العميل والخطة لو موجودة) تلقائياً — بدون أي حسابات يدوية.
-                الدفعة الأصلية والعكسية بيفضلوا في السجل للتدقيق. تقدر تلغي أي دفعة نقدي، آجل، أو تحويل بنكي.
+                <b>تعديل الدفعة</b> بيحدّث الرقم أو طريقة الدفع مباشرة في الصف نفسه، والخزنة ورصيد العميل والخطة بيتحدثوا تلقائياً بالفرق.
+                كل تعديل بيتسجل في <b>سجل التعديلات</b> بالقيمة القديمة والجديدة وسبب التعديل.
               </div>
             </div>
 
