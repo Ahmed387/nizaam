@@ -449,9 +449,6 @@ export default function EditSaleInvoice() {
       ),
       { duration: 12000 }
     );
-
-    // Navigate back to invoice view
-    setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
   };
 
   if (loading) {
