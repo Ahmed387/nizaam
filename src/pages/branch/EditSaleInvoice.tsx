@@ -408,7 +408,7 @@ export default function EditSaleInvoice() {
       const res = await applyStagedPayments(stagedOps, invoiceId!);
       if (res.ok !== true) {
         setSaving(false);
-        toast.error(`فشل حفظ الدفعات: ${res.message}`);
+        toast.error(`فشل حفظ الدفعات: ${(res as { message: string }).message}`);
         return;
       }
       setStagedOps([]);
