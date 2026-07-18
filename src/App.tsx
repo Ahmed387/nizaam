@@ -32,11 +32,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
-import { useGlobalPaidToast } from "@/hooks/useGlobalPaidToast";
+import { PaidCelebration } from "@/components/PaidCelebration";
 
 function PresenceTracker() {
   usePresenceHeartbeat();
-  useGlobalPaidToast();
   return null;
 }
 
@@ -144,6 +143,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
           <PresenceTracker />
+          <PaidCelebration />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
