@@ -516,9 +516,75 @@ export function InvoicePaymentsPanel({
           load();
         }}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleting) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <AlertDialogContent dir="rtl" className="text-right">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5" /> حذف الدفعة
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-sm">
+              <div>
+                هيتم عمل <b>قيد عكسي</b> يرجّع مبلغ الدفعة من الخزنة ويلغي أي عمولات مرتبطة بيها،
+                ورصيد العميل والخطة هيتحدثوا تلقائياً — من غير ما تتأثر أي حسابات تانية.
+              </div>
+              {deleteTarget && (
+                <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-1 font-semibold">
+                  <div className="flex justify-between"><span>المبلغ:</span><span className="tabular-nums text-success" dir="ltr">{formatEGP(Number(deleteTarget.row.amount || 0))}</span></div>
+                  <div className="flex justify-between"><span>الطريقة:</span><span>{deleteTarget.row.payment_method}</span></div>
+                  {deleteTarget.row.reference_number && (
+                    <div className="flex justify-between"><span>مرجع:</span><span>{deleteTarget.row.reference_number}</span></div>
+                  )}
+                </div>
+              )}
+              <div>
+                <Label className="text-xs mb-1 block">سبب الحذف (اختياري)</Label>
+                <Textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="مثلاً: تسجيل خطأ، ارتداد التحويل..."
+                  className="min-h-[70px] text-sm"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteTarget) return;
+                setDeleting(true);
+                try {
+                  const rpcName = deleteTarget.kind === "invpay" ? "void_invoice_payment" : "void_payment_transaction";
+                  const params: any = deleteTarget.kind === "invpay"
+                    ? { p_payment_id: deleteTarget.row.id, p_reason: deleteReason || null }
+                    : { p_tx_id: deleteTarget.row.id, p_reason: deleteReason || null };
+                  const { error } = await supabase.rpc(rpcName as any, params);
+                  if (error) throw error;
+                  toast.success("تم حذف الدفعة وتم عكس أثرها على الخزنة");
+                  setDeleteTarget(null);
+                  setDeleteReason("");
+                  onChanged?.();
+                  load();
+                } catch (err: any) {
+                  toast.error(err.message ?? "فشل حذف الدفعة");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1"
+            >
+              {deleting && <Loader2 className="w-4 h-4 animate-spin" />} تأكيد الحذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 /* -------- Add invoice payment (any method) -------- */
 function AddInvoicePaymentDialog({
