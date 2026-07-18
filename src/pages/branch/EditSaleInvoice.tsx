@@ -275,13 +275,13 @@ export default function EditSaleInvoice() {
     // Removed
     oldByKey.forEach((oldIt, key) => {
       if (!newByKey.has(key)) {
-        changes.push(`❌ حذف البند: ${oldIt.product_name} (كمية ${oldIt.quantity})`);
+        changes.push(`❌ تم حذف البند: ${oldIt.product_name} (كان بكمية ${oldIt.quantity})`);
       }
     });
     // Added
     newByKey.forEach((newIt, key) => {
       if (!oldByKey.has(key)) {
-        changes.push(`➕ إضافة بند: ${newIt.product_name} (كمية ${newIt.quantity} @ ${formatEGP(newIt.selling_price)})`);
+        changes.push(`➕ تمت إضافة بند جديد: ${newIt.product_name} (كمية ${newIt.quantity} بسعر ${formatEGP(newIt.selling_price)})`);
       }
     });
     // Modified
@@ -290,28 +290,28 @@ export default function EditSaleInvoice() {
       if (!oldIt) return;
       const parts: string[] = [];
       if (Number(oldIt.quantity) !== Number(newIt.quantity)) {
-        parts.push(`الكمية: ${oldIt.quantity} → ${newIt.quantity}`);
+        parts.push(`الكمية: من ${oldIt.quantity} إلى ${newIt.quantity}`);
       }
       if (Number(oldIt.selling_price) !== Number(newIt.selling_price)) {
-        parts.push(`سعر البيع: ${formatEGP(oldIt.selling_price)} → ${formatEGP(newIt.selling_price)}`);
+        parts.push(`سعر البيع: من ${formatEGP(oldIt.selling_price)} إلى ${formatEGP(newIt.selling_price)}`);
       }
       if (Number(oldIt.line_discount) !== Number(newIt.line_discount)) {
-        parts.push(`خصم البند: ${formatEGP(oldIt.line_discount)} → ${formatEGP(newIt.line_discount)}`);
+        parts.push(`خصم البند: من ${formatEGP(oldIt.line_discount)} إلى ${formatEGP(newIt.line_discount)}`);
       }
       if (oldIt.product_name !== newIt.product_name && !newIt.product_id) {
-        parts.push(`الاسم: «${oldIt.product_name}» → «${newIt.product_name}»`);
+        parts.push(`الاسم: من «${oldIt.product_name}» إلى «${newIt.product_name}»`);
       }
-      if (parts.length) changes.push(`✏️ ${newIt.product_name}: ${parts.join(" • ")}`);
+      if (parts.length) changes.push(`✏️ تعديل بند «${newIt.product_name}» — ${parts.join(" • ")}`);
     });
 
     // VAT diff
     if (Number(snap.vatRate || 0) !== Number(vatRate || 0)) {
-      changes.push(`🧾 نسبة الضريبة: ${snap.vatRate || 0}% → ${vatRate || 0}%`);
+      changes.push(`🧾 نسبة الضريبة: من ${snap.vatRate || 0}% إلى ${vatRate || 0}%`);
     }
 
     // Invoice discount diff
     if (Math.abs(Number(snap.discountAmount || 0) - invDiscount) > 0.01) {
-      changes.push(`🏷️ خصم الفاتورة: ${formatEGP(snap.discountAmount || 0)} → ${formatEGP(invDiscount)}`);
+      changes.push(`🏷️ خصم الفاتورة: من ${formatEGP(snap.discountAmount || 0)} إلى ${formatEGP(invDiscount)}`);
     }
 
     // Totals diff
@@ -321,7 +321,9 @@ export default function EditSaleInvoice() {
     const oldVat = Math.round(oldNet * (Number(snap.vatRate) || 0)) / 100;
     const oldTotal = oldNet + oldVat;
     if (Math.abs(oldTotal - total) > 0.01) {
-      changes.push(`💰 الإجمالي: ${formatEGP(oldTotal)} → ${formatEGP(total)}`);
+      const delta = total - oldTotal;
+      const deltaLabel = delta > 0 ? `بزيادة ${formatEGP(Math.abs(delta))}` : `بنقص ${formatEGP(Math.abs(delta))}`;
+      changes.push(`💰 إجمالي الفاتورة: من ${formatEGP(oldTotal)} إلى ${formatEGP(total)} (${deltaLabel})`);
     }
 
     // Payments diff (against initial snapshot at load)
@@ -333,19 +335,21 @@ export default function EditSaleInvoice() {
     curMap.forEach((cp, id) => {
       const op = oldMap.get(id);
       if (!op) {
-        if (!cp.voided) changes.push(`💳 إضافة دفعة: ${formatEGP(cp.amount)} (${methodLabel(cp.method)})`);
+        if (!cp.voided) changes.push(`💳 تمت إضافة دفعة جديدة بمبلغ ${formatEGP(cp.amount)} (${methodLabel(cp.method)})`);
         return;
       }
       if (op.voided !== cp.voided) {
-        changes.push(cp.voided ? `🚫 إلغاء دفعة: ${formatEGP(op.amount)} (${methodLabel(op.method)})` : `♻️ إعادة تفعيل دفعة: ${formatEGP(cp.amount)}`);
+        changes.push(cp.voided
+          ? `🚫 تم إلغاء دفعة بمبلغ ${formatEGP(op.amount)} (${methodLabel(op.method)})`
+          : `♻️ تم إعادة تفعيل دفعة بمبلغ ${formatEGP(cp.amount)}`);
       } else if (!cp.voided) {
-        if (Math.abs(op.amount - cp.amount) > 0.01) changes.push(`💳 تعديل مبلغ دفعة: ${formatEGP(op.amount)} → ${formatEGP(cp.amount)}`);
-        if (op.method !== cp.method) changes.push(`💳 تعديل طريقة دفع: ${methodLabel(op.method)} → ${methodLabel(cp.method)}`);
+        if (Math.abs(op.amount - cp.amount) > 0.01) changes.push(`💳 تعديل مبلغ الدفعة: من ${formatEGP(op.amount)} إلى ${formatEGP(cp.amount)}`);
+        if (op.method !== cp.method) changes.push(`💳 تعديل طريقة الدفع: من ${methodLabel(op.method)} إلى ${methodLabel(cp.method)}`);
       }
     });
     oldMap.forEach((op, id) => {
       if (!curMap.has(id)) {
-        changes.push(`🗑️ حذف دفعة: ${formatEGP(op.amount)} (${methodLabel(op.method)})`);
+        changes.push(`🗑️ تم حذف دفعة بمبلغ ${formatEGP(op.amount)} (${methodLabel(op.method)})`);
       }
     });
 
