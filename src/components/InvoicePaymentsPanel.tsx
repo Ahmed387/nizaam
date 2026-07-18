@@ -218,7 +218,7 @@ export function InvoicePaymentsPanel({
                   <th className="p-2 text-center">المبلغ</th>
                   <th className="p-2 text-right">مرجع</th>
                   <th className="p-2 text-right">استلم</th>
-                  <th className="p-2 text-center w-24">إجراء</th>
+                  <th className="p-2 text-center w-40">إجراء</th>
                 </tr>
               </thead>
               <tbody>
@@ -303,7 +303,7 @@ export function InvoicePaymentsPanel({
                     <th className="p-2 text-center">المبلغ</th>
                     <th className="p-2 text-right">مرجع</th>
                     <th className="p-2 text-right">استلم</th>
-                    <th className="p-2 text-center w-24">إجراء</th>
+                    <th className="p-2 text-center w-40">إجراء</th>
                   </tr>
                 </thead>
                 <tbody>
