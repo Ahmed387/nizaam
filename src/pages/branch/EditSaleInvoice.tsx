@@ -67,6 +67,8 @@ export default function EditSaleInvoice() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
+  const initialTotalRef = useRef<number>(0);
+  const initialPaidRef = useRef<number>(0);
   type PaySnap = { id: string; amount: number; method: string; kind: "initial" | "plan"; voided: boolean };
   const initialPaymentsRef = useRef<PaySnap[] | null>(null);
   const snapshotPayments = (pays: any[], txs: any[]): PaySnap[] => [
