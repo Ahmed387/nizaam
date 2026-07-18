@@ -1,15 +1,21 @@
 import { useEffect, useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
-import { Plus, Pencil, Loader2, Info, RefreshCw, History as HistoryIcon, ShieldCheck } from "lucide-react";
+import { Plus, Pencil, Loader2, Info, RefreshCw, History as HistoryIcon, ShieldCheck, Trash2 } from "lucide-react";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
+
 
 interface Props {
   invoiceId: string;
@@ -43,7 +49,11 @@ export function InvoicePaymentsPanel({
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [addInvoicePayOpen, setAddInvoicePayOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EditTarget>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -238,16 +248,27 @@ export function InvoicePaymentsPanel({
                       <td className="p-2">{p.received_by_name ?? "—"}</td>
                       <td className="p-2 text-center">
                         {!isVoided && !isReversal && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 gap-1 text-primary hover:bg-primary/10"
-                            onClick={() => setEditTarget({ kind: "invpay", row: p })}
-                          >
-                            <Pencil className="w-3.5 h-3.5" /> تعديل
-                          </Button>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 gap-1 text-primary hover:bg-primary/10"
+                              onClick={() => setEditTarget({ kind: "invpay", row: p })}
+                            >
+                              <Pencil className="w-3.5 h-3.5" /> تعديل
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 gap-1 text-destructive hover:bg-destructive/10"
+                              onClick={() => { setDeleteReason(""); setDeleteTarget({ kind: "invpay", row: p }); }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> حذف
+                            </Button>
+                          </div>
                         )}
                       </td>
+
                     </tr>
                   );
                 })}
@@ -314,16 +335,27 @@ export function InvoicePaymentsPanel({
                         <td className="p-2">{t.received_by_name ?? "—"}</td>
                         <td className="p-2 text-center">
                           {!isVoided && !isReversal && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 gap-1 text-primary hover:bg-primary/10"
-                              onClick={() => setEditTarget({ kind: "tx", row: t })}
-                            >
-                              <Pencil className="w-3.5 h-3.5" /> تعديل
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-primary hover:bg-primary/10"
+                                onClick={() => setEditTarget({ kind: "tx", row: t })}
+                              >
+                                <Pencil className="w-3.5 h-3.5" /> تعديل
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-destructive hover:bg-destructive/10"
+                                onClick={() => { setDeleteReason(""); setDeleteTarget({ kind: "tx", row: t }); }}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> حذف
+                              </Button>
+                            </div>
                           )}
                         </td>
+
                       </tr>
                     );
                   })}
@@ -484,9 +516,75 @@ export function InvoicePaymentsPanel({
           load();
         }}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleting) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <AlertDialogContent dir="rtl" className="text-right">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5" /> حذف الدفعة
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-sm">
+              <div>
+                هيتم عمل <b>قيد عكسي</b> يرجّع مبلغ الدفعة من الخزنة ويلغي أي عمولات مرتبطة بيها،
+                ورصيد العميل والخطة هيتحدثوا تلقائياً — من غير ما تتأثر أي حسابات تانية.
+              </div>
+              {deleteTarget && (
+                <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-1 font-semibold">
+                  <div className="flex justify-between"><span>المبلغ:</span><span className="tabular-nums text-success" dir="ltr">{formatEGP(Number(deleteTarget.row.amount || 0))}</span></div>
+                  <div className="flex justify-between"><span>الطريقة:</span><span>{deleteTarget.row.payment_method}</span></div>
+                  {deleteTarget.row.reference_number && (
+                    <div className="flex justify-between"><span>مرجع:</span><span>{deleteTarget.row.reference_number}</span></div>
+                  )}
+                </div>
+              )}
+              <div>
+                <Label className="text-xs mb-1 block">سبب الحذف (اختياري)</Label>
+                <Textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="مثلاً: تسجيل خطأ، ارتداد التحويل..."
+                  className="min-h-[70px] text-sm"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteTarget) return;
+                setDeleting(true);
+                try {
+                  const rpcName = deleteTarget.kind === "invpay" ? "void_invoice_payment" : "void_payment_transaction";
+                  const params: any = deleteTarget.kind === "invpay"
+                    ? { p_payment_id: deleteTarget.row.id, p_reason: deleteReason || null }
+                    : { p_tx_id: deleteTarget.row.id, p_reason: deleteReason || null };
+                  const { error } = await supabase.rpc(rpcName as any, params);
+                  if (error) throw error;
+                  toast.success("تم حذف الدفعة وتم عكس أثرها على الخزنة");
+                  setDeleteTarget(null);
+                  setDeleteReason("");
+                  onChanged?.();
+                  load();
+                } catch (err: any) {
+                  toast.error(err.message ?? "فشل حذف الدفعة");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1"
+            >
+              {deleting && <Loader2 className="w-4 h-4 animate-spin" />} تأكيد الحذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 /* -------- Add invoice payment (any method) -------- */
 function AddInvoicePaymentDialog({
