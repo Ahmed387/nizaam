@@ -49,7 +49,11 @@ export function InvoicePaymentsPanel({
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [addInvoicePayOpen, setAddInvoicePayOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EditTarget>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+
 
   const load = useCallback(async () => {
     setLoading(true);
