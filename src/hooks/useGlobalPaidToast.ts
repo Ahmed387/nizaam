@@ -80,9 +80,16 @@ export function useGlobalPaidToast() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_transactions" },
-        (payload: any) => {
+        async (payload: any) => {
           const row = payload.new ?? payload.old;
-          if (row?.invoice_id) check(row.invoice_id);
+          const planId = row?.payment_plan_id;
+          if (!planId) return;
+          const { data: plan } = await supabase
+            .from("payment_plans")
+            .select("reference_type, reference_id")
+            .eq("id", planId)
+            .maybeSingle();
+          if (plan?.reference_type === "invoice" && plan?.reference_id) check(plan.reference_id);
         }
       )
       .on(
