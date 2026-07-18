@@ -18,6 +18,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { computePayState, PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
@@ -129,7 +130,30 @@ export default function InvoiceView() {
         }
       />
 
-      <div className="print-area max-w-3xl mx-auto card-elevated p-8 bg-card">
+      <div className="print-area max-w-3xl mx-auto card-elevated p-8 bg-card relative overflow-hidden">
+        {/* Payment status ribbon — real-time */}
+        {inv.status === "active" && (() => {
+          const total = Number(inv.total ?? 0);
+          const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+          const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
+          const state = computePayState(total, paidNow);
+          const barColor =
+            state === "paid" ? "bg-success" : state === "partial" ? "bg-warning" : "bg-muted-foreground/30";
+          return (
+            <>
+              <div className={`absolute top-0 right-0 bottom-0 w-2 ${barColor} no-print`} aria-hidden />
+              <div className="flex items-center justify-between gap-2 mb-4 no-print">
+                <PaymentStatusBadge state={state} total={total} paid={paidNow} />
+                {state !== "paid" && total > 0 && (
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    متبقي: <span className="text-warning font-extrabold tabular-nums" dir="ltr">{formatEGP(Math.max(total - paidNow, 0))}</span>
+                  </span>
+                )}
+              </div>
+            </>
+          );
+        })()}
         {/* Header: Seller info */}
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-border">
           <div className="text-right">
