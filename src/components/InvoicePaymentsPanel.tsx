@@ -153,9 +153,11 @@ export function InvoicePaymentsPanel({
           <ShieldCheck className="w-4 h-4 text-primary" />
           دفعات الفاتورة {invoiceNumber ? `#${invoiceNumber}` : ""}
         </div>
-        <Button size="sm" variant="ghost" onClick={load} disabled={loading} className="h-8 gap-1">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> تحديث
-        </Button>
+        {loading && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> تحديث تلقائي…
+          </div>
+        )}
       </div>
 
       {/* Info banner */}
