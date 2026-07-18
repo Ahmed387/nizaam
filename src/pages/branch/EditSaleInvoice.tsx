@@ -941,7 +941,20 @@ export default function EditSaleInvoice() {
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => nav(`/branch/${branchId}/sales/${invoiceId}`)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (
+                stagedOps.length > 0 &&
+                !window.confirm(
+                  `عندك ${stagedOps.length} تعديل معلّق على الدفعات لسه ما اتحفظش. لو خرجت هيتم إلغاؤهم بالكامل. تأكيد الخروج؟`
+                )
+              )
+                return;
+              nav(`/branch/${branchId}/sales/${invoiceId}`);
+            }}
+            disabled={saving}
+          >
             إلغاء
           </Button>
           <Button onClick={() => setConfirmOpen(true)} disabled={saving} className="font-bold min-w-[160px]">
