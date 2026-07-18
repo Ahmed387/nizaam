@@ -335,16 +335,27 @@ export function InvoicePaymentsPanel({
                         <td className="p-2">{t.received_by_name ?? "—"}</td>
                         <td className="p-2 text-center">
                           {!isVoided && !isReversal && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 gap-1 text-primary hover:bg-primary/10"
-                              onClick={() => setEditTarget({ kind: "tx", row: t })}
-                            >
-                              <Pencil className="w-3.5 h-3.5" /> تعديل
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-primary hover:bg-primary/10"
+                                onClick={() => setEditTarget({ kind: "tx", row: t })}
+                              >
+                                <Pencil className="w-3.5 h-3.5" /> تعديل
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-destructive hover:bg-destructive/10"
+                                onClick={() => { setDeleteReason(""); setDeleteTarget({ kind: "tx", row: t }); }}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> حذف
+                              </Button>
+                            </div>
                           )}
                         </td>
+
                       </tr>
                     );
                   })}
