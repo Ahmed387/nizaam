@@ -143,6 +143,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
           <PresenceTracker />
+          <PaidCelebration />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
