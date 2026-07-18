@@ -143,14 +143,17 @@ export default function InvoiceView() {
           return (
             <>
               <div className={`absolute top-0 right-0 bottom-0 w-2 ${barColor} no-print`} aria-hidden />
-              <div className="flex items-center justify-between gap-2 mb-4 no-print">
-                <PaymentStatusBadge state={state} total={total} paid={paidNow} />
+              <div className="flex items-center justify-center gap-3 mb-4 no-print">
+                <div className="scale-125 origin-center">
+                  <PaymentStatusBadge state={state} total={total} paid={paidNow} />
+                </div>
                 {state !== "paid" && total > 0 && (
-                  <span className="text-xs text-muted-foreground font-semibold">
+                  <span className="text-sm text-muted-foreground font-semibold">
                     متبقي: <span className="text-warning font-extrabold tabular-nums" dir="ltr">{formatEGP(Math.max(total - paidNow, 0))}</span>
                   </span>
                 )}
               </div>
+
             </>
           );
         })()}
