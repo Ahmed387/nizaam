@@ -394,44 +394,55 @@ export default function EditSaleInvoice() {
       return;
     }
     const diff = buildDiff();
-    if (diff.length === 0) {
+    // Include staged payment ops as changes
+    const stagedLabels = stagedOps.map((op) => stagedOpLabel(op));
+    const fullDiff = [...diff, ...stagedLabels];
+    if (fullDiff.length === 0) {
       toast.info("لم يتم تعديل أي بيانات");
       return;
     }
-    const willBeFullyPaid = isFullyPaidTransition();
-    // If only payments changed, they were already persisted in real-time — skip edit_invoice RPC
-    if (!hasInvoiceLevelChanges()) {
-      showDiffToast(diff, willBeFullyPaid);
-      // Refresh baseline so subsequent saves don't re-report the same payment changes
-      initialPaymentsRef.current = snapshotPayments(payments, planTxs);
-      initialPaidRef.current = paidTotal;
-      initialTotalRef.current = total;
-      setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
-      return;
-    }
+
     setSaving(true);
-    const { error } = await supabase.rpc("edit_invoice" as any, {
-      _invoice_id: invoiceId,
-      _customer_id: customerId,
-      _items: clean as any,
-      _vat_rate: Number(vatRate) || 0,
-      _discount_amount: invDiscount,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    // 1) Apply staged payment ops FIRST (each RPC is transactional + logged)
+    if (stagedOps.length > 0) {
+      const res = await applyStagedPayments(stagedOps, invoiceId!);
+      if (!res.ok) {
+        setSaving(false);
+        toast.error(`فشل حفظ الدفعات: ${res.message}`);
+        return;
+      }
+      setStagedOps([]);
     }
-    showDiffToast(diff, willBeFullyPaid);
+
+    // 2) Apply invoice-level edit only if needed
+    if (hasInvoiceLevelChanges()) {
+      const { error } = await supabase.rpc("edit_invoice" as any, {
+        _invoice_id: invoiceId,
+        _customer_id: customerId,
+        _items: clean as any,
+        _vat_rate: Number(vatRate) || 0,
+        _discount_amount: invDiscount,
+      });
+      if (error) {
+        setSaving(false);
+        toast.error(error.message);
+        return;
+      }
+    }
+    setSaving(false);
+
+    const willBeFullyPaid = isFullyPaidTransition();
+    showDiffToast(fullDiff, willBeFullyPaid);
     setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
   };
 
 
   const isFullyPaidTransition = () => {
     const wasFullyPaid = initialPaidRef.current >= initialTotalRef.current - 0.01 && initialTotalRef.current > 0;
-    const isFullyPaidNow = paidTotal >= total - 0.01 && total > 0;
+    const isFullyPaidNow = paidPreview >= total - 0.01 && total > 0;
     return !wasFullyPaid && isFullyPaidNow;
   };
+
 
   const showDiffToast = (diff: string[], fullyPaid: boolean) => {
     const accent = fullyPaid ? "success" : "primary";
