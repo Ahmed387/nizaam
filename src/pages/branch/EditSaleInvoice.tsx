@@ -397,8 +397,11 @@ export default function EditSaleInvoice() {
     // If only payments changed, they were already persisted in real-time — skip edit_invoice RPC
     if (!hasInvoiceLevelChanges()) {
       showDiffToast(diff);
+      maybeShowFullyPaidToast();
       // Refresh baseline so subsequent saves don't re-report the same payment changes
       initialPaymentsRef.current = snapshotPayments(payments, planTxs);
+      initialPaidRef.current = paidTotal;
+      initialTotalRef.current = total;
       setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
       return;
     }
@@ -416,7 +419,35 @@ export default function EditSaleInvoice() {
       return;
     }
     showDiffToast(diff);
+    maybeShowFullyPaidToast();
     setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
+  };
+
+  const maybeShowFullyPaidToast = () => {
+    const wasFullyPaid = initialPaidRef.current >= initialTotalRef.current - 0.01 && initialTotalRef.current > 0;
+    const isFullyPaidNow = paidTotal >= total - 0.01 && total > 0;
+    if (!wasFullyPaid && isFullyPaidNow) {
+      toast.custom(
+        (t) => (
+          <div
+            dir="rtl"
+            className="w-[360px] max-w-[92vw] rounded-xl border-2 border-success/50 bg-background shadow-2xl overflow-hidden"
+          >
+            <div className="flex items-center gap-3 px-4 py-3 bg-success text-success-foreground">
+              <span className="text-2xl">🎉</span>
+              <div className="min-w-0">
+                <div className="font-extrabold text-sm">تم سداد الفاتورة بالكامل</div>
+                <div className="text-[11px] opacity-90 font-semibold">
+                  فاتورة {invoice?.invoice_number} — إجمالي {formatEGP(total)}
+                </div>
+              </div>
+              <button onClick={() => toast.dismiss(t)} className="mr-auto text-success-foreground/80 text-lg font-bold px-1" aria-label="إغلاق">×</button>
+            </div>
+          </div>
+        ),
+        { duration: 8000 }
+      );
+    }
   };
 
   const showDiffToast = (diff: string[]) => {
