@@ -394,10 +394,10 @@ export default function EditSaleInvoice() {
       toast.info("لم يتم تعديل أي بيانات");
       return;
     }
+    const willBeFullyPaid = isFullyPaidTransition();
     // If only payments changed, they were already persisted in real-time — skip edit_invoice RPC
     if (!hasInvoiceLevelChanges()) {
-      showDiffToast(diff);
-      maybeShowFullyPaidToast();
+      showDiffToast(diff, willBeFullyPaid);
       // Refresh baseline so subsequent saves don't re-report the same payment changes
       initialPaymentsRef.current = snapshotPayments(payments, planTxs);
       initialPaidRef.current = paidTotal;
@@ -418,10 +418,10 @@ export default function EditSaleInvoice() {
       toast.error(error.message);
       return;
     }
-    showDiffToast(diff);
-    maybeShowFullyPaidToast();
+    showDiffToast(diff, willBeFullyPaid);
     setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
   };
+
 
   const maybeShowFullyPaidToast = () => {
     const wasFullyPaid = initialPaidRef.current >= initialTotalRef.current - 0.01 && initialTotalRef.current > 0;
