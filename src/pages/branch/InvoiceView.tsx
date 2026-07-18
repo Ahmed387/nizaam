@@ -140,20 +140,39 @@ export default function InvoiceView() {
           const state = computePayState(total, paidNow);
           const barColor =
             state === "paid" ? "bg-success" : state === "partial" ? "bg-warning" : "bg-muted-foreground/30";
+          const remaining = Math.max(total - paidNow, 0);
+          const stateStyles =
+            state === "paid"
+              ? "bg-success/10 border-success/40 text-success"
+              : state === "partial"
+              ? "bg-warning/10 border-warning/40 text-warning"
+              : "bg-muted border-border text-muted-foreground";
+          const StateIcon = state === "paid" ? CheckCircle2 : state === "partial" ? Clock : CircleDashed;
+          const stateLabel = state === "paid" ? "مدفوعة بالكامل" : state === "partial" ? "دفع جزئي" : "غير مدفوعة";
           return (
             <>
               <div className={`absolute top-0 right-0 bottom-0 w-2 ${barColor} no-print`} aria-hidden />
-              <div className="flex items-center justify-center gap-3 mb-4 no-print">
-                <div className="scale-125 origin-center">
-                  <PaymentStatusBadge state={state} total={total} paid={paidNow} />
+              <div className={`no-print mb-5 rounded-2xl border-2 ${stateStyles} px-4 py-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2`}>
+                <div className="flex items-center gap-2">
+                  <StateIcon className="w-5 h-5" />
+                  <span className="text-base font-extrabold">{stateLabel}</span>
                 </div>
-                {state !== "paid" && total > 0 && (
-                  <span className="text-sm text-muted-foreground font-semibold">
-                    متبقي: <span className="text-warning font-extrabold tabular-nums" dir="ltr">{formatEGP(Math.max(total - paidNow, 0))}</span>
-                  </span>
+                {state !== "unpaid" && total > 0 && (
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-muted-foreground">
+                      المدفوع: <span className="text-success font-extrabold tabular-nums" dir="ltr">{formatEGP(paidNow)}</span>
+                    </span>
+                    {state !== "paid" && (
+                      <span className="text-muted-foreground">
+                        المتبقي: <span className="text-warning font-extrabold tabular-nums" dir="ltr">{formatEGP(remaining)}</span>
+                      </span>
+                    )}
+                    <span className="text-muted-foreground">
+                      الإجمالي: <span className="text-foreground font-extrabold tabular-nums" dir="ltr">{formatEGP(total)}</span>
+                    </span>
+                  </div>
                 )}
               </div>
-
             </>
           );
         })()}
