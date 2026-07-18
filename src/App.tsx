@@ -32,9 +32,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
+import { useGlobalPaidToast } from "@/hooks/useGlobalPaidToast";
 
 function PresenceTracker() {
   usePresenceHeartbeat();
+  useGlobalPaidToast();
   return null;
 }
 
