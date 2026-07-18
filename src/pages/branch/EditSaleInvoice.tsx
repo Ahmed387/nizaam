@@ -59,6 +59,7 @@ export default function EditSaleInvoice() {
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
   const [planTxs, setPlanTxs] = useState<any[]>([]);
+  const [stagedOps, setStagedOps] = useState<StagedOp[]>([]);
   
   const [vatRate, setVatRate] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -679,12 +680,13 @@ export default function EditSaleInvoice() {
           onToggle={() => toggleSection("payments")}
         >
         <div className="p-4 space-y-4">
-          <InvoicePaymentsPanel
+          <StagedPaymentsPanel
             invoiceId={invoiceId!}
-            branchId={branchId!}
-            paymentPlanId={paymentPlan?.id ?? null}
             invoiceNumber={invoice?.invoice_number}
-            onChanged={reloadPayments}
+            invoiceTotal={total}
+            paymentPlanId={paymentPlan?.id ?? null}
+            stagedOps={stagedOps}
+            setStagedOps={setStagedOps}
           />
 
           {paymentPlan && installments.length > 0 && (
