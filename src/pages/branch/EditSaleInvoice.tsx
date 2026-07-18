@@ -257,7 +257,9 @@ export default function EditSaleInvoice() {
   const paidTotal =
     activeInitial.reduce((s, p) => s + Number(p.amount || 0), 0) +
     activeTx.reduce((s, t) => s + Number(t.amount || 0), 0);
-  const remaining = total - paidTotal;
+  // Preview values include not-yet-committed staged payment ops
+  const paidPreview = paidTotal + stagedPaidDelta(stagedOps);
+  const remaining = total - paidPreview;
 
   const buildDiff = (): string[] => {
     const snap = initialSnapshotRef.current;
