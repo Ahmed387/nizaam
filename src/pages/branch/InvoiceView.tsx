@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime, balanceLabel } from "@/lib/format";
 import { toast } from "sonner";
-import { Printer, X, FileDown, Trash2, Pencil, Wallet } from "lucide-react";
+import { Printer, X, FileDown, Trash2, Pencil, Wallet, CheckCircle2, Clock, CircleDashed } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
