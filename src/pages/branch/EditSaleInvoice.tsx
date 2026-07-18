@@ -406,7 +406,7 @@ export default function EditSaleInvoice() {
     // 1) Apply staged payment ops FIRST (each RPC is transactional + logged)
     if (stagedOps.length > 0) {
       const res = await applyStagedPayments(stagedOps, invoiceId!);
-      if (!res.ok) {
+      if (res.ok !== true) {
         setSaving(false);
         toast.error(`فشل حفظ الدفعات: ${res.message}`);
         return;
