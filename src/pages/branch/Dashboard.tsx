@@ -365,19 +365,37 @@ export default function BranchDashboard() {
       {/* Top products & customers */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> أكثر المنتجات مبيعاً اليوم</h3>
+          <h3 className="font-bold mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> أكثر المنتجات مبيعاً اليوم</h3>
           {topProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">لا توجد بيانات</div>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={topProducts} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-3">
+              {(() => {
+                const max = Math.max(...topProducts.map((p: any) => Number(p.revenue) || 0), 1);
+                const medals = ["bg-warning/15 text-warning border-warning/40", "bg-muted text-foreground border-border", "bg-orange-500/15 text-orange-600 border-orange-500/40"];
+                return topProducts.map((p: any, i: number) => {
+                  const pct = (Number(p.revenue) / max) * 100;
+                  const medal = medals[i] ?? "bg-primary/10 text-primary border-primary/30";
+                  return (
+                    <div key={p.name + i} className="group">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-7 h-7 rounded-full border font-extrabold text-xs flex items-center justify-center shrink-0 ${medal}`}>{i + 1}</div>
+                          <span className="font-semibold text-sm truncate" title={p.name}>{p.name}</span>
+                        </div>
+                        <span className="font-extrabold text-sm tabular-nums text-success shrink-0" dir="ltr">{formatEGP(Number(p.revenue))}</span>
+                      </div>
+                      <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-l from-primary to-primary/60 transition-all group-hover:from-primary group-hover:to-primary"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           )}
         </div>
 
