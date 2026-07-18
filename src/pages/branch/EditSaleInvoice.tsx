@@ -19,8 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { InvoicePaymentsPanel } from "@/components/InvoicePaymentsPanel";
+import { StagedPaymentsPanel } from "@/components/StagedPaymentsPanel";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
 
 type Item = {
   id?: string;
