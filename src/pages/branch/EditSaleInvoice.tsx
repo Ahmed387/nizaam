@@ -120,6 +120,12 @@ export default function EditSaleInvoice() {
         setPlanTxs(loadedTx);
       }
       initialPaymentsRef.current = snapshotPayments(pays ?? [], loadedTx);
+      const initialPaidFromInv = (pays ?? [])
+        .filter((p: any) => !p.voided_at && !p.reverses_payment_id)
+        .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+      const initialPaidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+      initialPaidRef.current = Math.max(initialPaidFromInv, initialPaidFromPlan);
+      initialTotalRef.current = Number(inv?.total ?? 0);
 
       const loadedItems: Item[] = (its ?? []).map((it: any) => ({
         id: it.id,
