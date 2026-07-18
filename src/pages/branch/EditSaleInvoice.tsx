@@ -19,8 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { InvoicePaymentsPanel } from "@/components/InvoicePaymentsPanel";
+import { StagedPaymentsPanel } from "@/components/StagedPaymentsPanel";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
 
 type Item = {
   id?: string;
@@ -58,6 +59,7 @@ export default function EditSaleInvoice() {
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
   const [planTxs, setPlanTxs] = useState<any[]>([]);
+  const [stagedOps, setStagedOps] = useState<StagedOp[]>([]);
   
   const [vatRate, setVatRate] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -255,7 +257,9 @@ export default function EditSaleInvoice() {
   const paidTotal =
     activeInitial.reduce((s, p) => s + Number(p.amount || 0), 0) +
     activeTx.reduce((s, t) => s + Number(t.amount || 0), 0);
-  const remaining = total - paidTotal;
+  // Preview values include not-yet-committed staged payment ops
+  const paidPreview = paidTotal + stagedPaidDelta(stagedOps);
+  const remaining = total - paidPreview;
 
   const buildDiff = (): string[] => {
     const snap = initialSnapshotRef.current;
@@ -390,44 +394,55 @@ export default function EditSaleInvoice() {
       return;
     }
     const diff = buildDiff();
-    if (diff.length === 0) {
+    // Include staged payment ops as changes
+    const stagedLabels = stagedOps.map((op) => stagedOpLabel(op));
+    const fullDiff = [...diff, ...stagedLabels];
+    if (fullDiff.length === 0) {
       toast.info("لم يتم تعديل أي بيانات");
       return;
     }
-    const willBeFullyPaid = isFullyPaidTransition();
-    // If only payments changed, they were already persisted in real-time — skip edit_invoice RPC
-    if (!hasInvoiceLevelChanges()) {
-      showDiffToast(diff, willBeFullyPaid);
-      // Refresh baseline so subsequent saves don't re-report the same payment changes
-      initialPaymentsRef.current = snapshotPayments(payments, planTxs);
-      initialPaidRef.current = paidTotal;
-      initialTotalRef.current = total;
-      setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
-      return;
-    }
+
     setSaving(true);
-    const { error } = await supabase.rpc("edit_invoice" as any, {
-      _invoice_id: invoiceId,
-      _customer_id: customerId,
-      _items: clean as any,
-      _vat_rate: Number(vatRate) || 0,
-      _discount_amount: invDiscount,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    // 1) Apply staged payment ops FIRST (each RPC is transactional + logged)
+    if (stagedOps.length > 0) {
+      const res = await applyStagedPayments(stagedOps, invoiceId!);
+      if (res.ok !== true) {
+        setSaving(false);
+        toast.error(`فشل حفظ الدفعات: ${(res as { message: string }).message}`);
+        return;
+      }
+      setStagedOps([]);
     }
-    showDiffToast(diff, willBeFullyPaid);
+
+    // 2) Apply invoice-level edit only if needed
+    if (hasInvoiceLevelChanges()) {
+      const { error } = await supabase.rpc("edit_invoice" as any, {
+        _invoice_id: invoiceId,
+        _customer_id: customerId,
+        _items: clean as any,
+        _vat_rate: Number(vatRate) || 0,
+        _discount_amount: invDiscount,
+      });
+      if (error) {
+        setSaving(false);
+        toast.error(error.message);
+        return;
+      }
+    }
+    setSaving(false);
+
+    const willBeFullyPaid = isFullyPaidTransition();
+    showDiffToast(fullDiff, willBeFullyPaid);
     setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
   };
 
 
   const isFullyPaidTransition = () => {
     const wasFullyPaid = initialPaidRef.current >= initialTotalRef.current - 0.01 && initialTotalRef.current > 0;
-    const isFullyPaidNow = paidTotal >= total - 0.01 && total > 0;
+    const isFullyPaidNow = paidPreview >= total - 0.01 && total > 0;
     return !wasFullyPaid && isFullyPaidNow;
   };
+
 
   const showDiffToast = (diff: string[], fullyPaid: boolean) => {
     const accent = fullyPaid ? "success" : "primary";
@@ -678,12 +693,13 @@ export default function EditSaleInvoice() {
           onToggle={() => toggleSection("payments")}
         >
         <div className="p-4 space-y-4">
-          <InvoicePaymentsPanel
+          <StagedPaymentsPanel
             invoiceId={invoiceId!}
-            branchId={branchId!}
-            paymentPlanId={paymentPlan?.id ?? null}
             invoiceNumber={invoice?.invoice_number}
-            onChanged={reloadPayments}
+            invoiceTotal={total}
+            paymentPlanId={paymentPlan?.id ?? null}
+            stagedOps={stagedOps}
+            setStagedOps={setStagedOps}
           />
 
           {paymentPlan && installments.length > 0 && (
@@ -891,8 +907,10 @@ export default function EditSaleInvoice() {
           {/* Live paid & remaining — يتحدثوا real-time مع أي تعديل في الدفعات */}
           <div className="grid grid-cols-2 gap-2 pt-2">
             <div className="bg-success/10 border border-success/30 rounded-lg p-2.5 text-center">
-              <div className="text-[11px] text-muted-foreground mb-1">المدفوع</div>
-              <div className="font-extrabold text-success tabular-nums text-base" dir="ltr">{formatEGP(paidTotal)}</div>
+              <div className="text-[11px] text-muted-foreground mb-1">
+                المدفوع {stagedOps.length > 0 && <span className="text-warning">(بعد التعديلات المعلقة)</span>}
+              </div>
+              <div className="font-extrabold text-success tabular-nums text-base" dir="ltr">{formatEGP(paidPreview)}</div>
             </div>
             <div className={`rounded-lg p-2.5 text-center border ${remaining < -0.01 ? "bg-destructive/10 border-destructive/40" : remaining > 0.01 ? "bg-warning/10 border-warning/30" : "bg-muted/40 border-border"}`}>
               <div className="text-[11px] text-muted-foreground mb-1">
@@ -906,8 +924,8 @@ export default function EditSaleInvoice() {
           {total > 0 && (
             <div className="h-2 bg-muted rounded-full overflow-hidden mt-1">
               <div
-                className={`h-full transition-all duration-500 ${paidTotal > total + 0.01 ? "bg-destructive" : "bg-success"}`}
-                style={{ width: `${Math.min(100, (paidTotal / total) * 100)}%` }}
+                className={`h-full transition-all duration-500 ${paidPreview > total + 0.01 ? "bg-destructive" : "bg-success"}`}
+                style={{ width: `${Math.min(100, (paidPreview / total) * 100)}%` }}
               />
             </div>
           )}
@@ -923,7 +941,20 @@ export default function EditSaleInvoice() {
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => nav(`/branch/${branchId}/sales/${invoiceId}`)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (
+                stagedOps.length > 0 &&
+                !window.confirm(
+                  `عندك ${stagedOps.length} تعديل معلّق على الدفعات لسه ما اتحفظش. لو خرجت هيتم إلغاؤهم بالكامل. تأكيد الخروج؟`
+                )
+              )
+                return;
+              nav(`/branch/${branchId}/sales/${invoiceId}`);
+            }}
+            disabled={saving}
+          >
             إلغاء
           </Button>
           <Button onClick={() => setConfirmOpen(true)} disabled={saving} className="font-bold min-w-[160px]">
