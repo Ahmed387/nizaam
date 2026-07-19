@@ -169,98 +169,106 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
             </div>
           )}
 
-          {/* Splits */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-bold">طرق الدفع ({value.splits.length})</Label>
-              <div className={`text-xs font-bold ${Math.abs(remainingToSplit) < 0.01 ? "text-success" : "text-warning"}`}>
-                {Math.abs(remainingToSplit) < 0.01
-                  ? "✓ مطابق"
-                  : remainingToSplit > 0
-                    ? `متبقي: ${formatEGP(remainingToSplit)}`
-                    : `زيادة: ${formatEGP(-remainingToSplit)}`}
+          {/* Splits — hidden until user enters paidNow or adds a method */}
+          {(value.splits.length > 0 || targetPaid > 0) && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold">طرق الدفع ({value.splits.length})</Label>
+                {(value.splits.length > 0 && targetPaid > 0) && (
+                  <div className={`text-xs font-bold ${Math.abs(remainingToSplit) < 0.01 ? "text-success" : "text-warning"}`}>
+                    {Math.abs(remainingToSplit) < 0.01
+                      ? "✓ مطابق"
+                      : remainingToSplit > 0
+                        ? `متبقي: ${formatEGP(remainingToSplit)}`
+                        : `زيادة: ${formatEGP(-remainingToSplit)}`}
+                  </div>
+                )}
               </div>
-            </div>
 
-            {value.splits.map((sp, idx) => {
-              const requiresRef = methodRequiresReference(sp.method);
-              return (
-                <div key={sp.id} className="card-elevated p-3 space-y-2 bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">#{idx + 1}</div>
-                    {value.splits.length > 1 && (
+              {value.splits.map((sp, idx) => {
+                const requiresRef = methodRequiresReference(sp.method);
+                return (
+                  <div key={sp.id} className="card-elevated p-3 space-y-2 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold">#{idx + 1}</div>
                       <Button size="sm" variant="ghost" onClick={() => removeSplit(sp.id)} className="text-destructive h-7 w-7 p-0">
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">المبلغ</Label>
-                      <Input
-                        type="number" min={0} step="0.01" value={sp.amount}
-                        onChange={(e) => updateSplit(sp.id, { amount: Number(e.target.value) })}
-                        className="mt-1 h-9"
-                      />
                     </div>
-                    <div>
-                      <Label className="text-xs">الطريقة</Label>
-                      <Select value={sp.method} onValueChange={(v) => updateSplit(sp.id, { method: v as PaymentMethod })}>
-                        <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {enabledOpts.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {requiresRef && (
-                    <div className="space-y-2">
+                    <div className="grid sm:grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-xs">رقم العملية *</Label>
+                        <Label className="text-xs">المبلغ</Label>
                         <Input
-                          value={sp.reference_number ?? ""}
-                          onChange={(e) => updateSplit(sp.id, { reference_number: e.target.value })}
-                          className="mt-1 h-9" placeholder="مرجع التحويل"
+                          type="number" min={0} step="0.01" value={sp.amount}
+                          onChange={(e) => updateSplit(sp.id, { amount: Number(e.target.value) })}
+                          className="mt-1 h-9"
                         />
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">{methodSenderLabel(sp.method)}</Label>
-                          <Input
-                            dir="ltr" className="text-right mt-1 h-9"
-                            value={sp.transfer_from_account ?? ""}
-                            onChange={(e) => updateSplit(sp.id, { transfer_from_account: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">{methodReceiverLabel(sp.method)}</Label>
-                          <Input
-                            dir="ltr" className="text-right mt-1 h-9"
-                            value={sp.transfer_to_account ?? ""}
-                            onChange={(e) => updateSplit(sp.id, { transfer_to_account: e.target.value })}
-                          />
-                        </div>
+                      <div>
+                        <Label className="text-xs">الطريقة</Label>
+                        <Select value={sp.method} onValueChange={(v) => updateSplit(sp.id, { method: v as PaymentMethod })}>
+                          <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {enabledOpts.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  )}
 
-                  {sp.fee_amount > 0 && (
-                    <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs flex justify-between">
-                      <span>عمولة: {formatEGP(sp.fee_amount)}</span>
-                      <span className="font-bold">إجمالي: {formatEGP(sp.amount + (value.feeOnCustomer ? sp.fee_amount : 0))}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    {requiresRef && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-xs">رقم العملية *</Label>
+                          <Input
+                            value={sp.reference_number ?? ""}
+                            onChange={(e) => updateSplit(sp.id, { reference_number: e.target.value })}
+                            className="mt-1 h-9" placeholder="مرجع التحويل"
+                          />
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">{methodSenderLabel(sp.method)}</Label>
+                            <Input
+                              dir="ltr" className="text-right mt-1 h-9"
+                              value={sp.transfer_from_account ?? ""}
+                              onChange={(e) => updateSplit(sp.id, { transfer_from_account: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">{methodReceiverLabel(sp.method)}</Label>
+                            <Input
+                              dir="ltr" className="text-right mt-1 h-9"
+                              value={sp.transfer_to_account ?? ""}
+                              onChange={(e) => updateSplit(sp.id, { transfer_to_account: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
+                    {sp.fee_amount > 0 && (
+                      <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs flex justify-between">
+                        <span>عمولة: {formatEGP(sp.fee_amount)}</span>
+                        <span className="font-bold">إجمالي: {formatEGP(sp.amount + (value.feeOnCustomer ? sp.fee_amount : 0))}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <Button variant="outline" size="sm" onClick={addSplit} className="w-full">
+                <Plus className="w-4 h-4 ml-1" /> إضافة طريقة دفع أخرى
+              </Button>
+            </div>
+          )}
+
+          {value.splits.length === 0 && value.mode === "partial" && (
             <Button variant="outline" size="sm" onClick={addSplit} className="w-full">
-              <Plus className="w-4 h-4 ml-1" /> إضافة طريقة دفع أخرى
+              <Plus className="w-4 h-4 ml-1" /> إضافة طريقة دفع
             </Button>
-          </div>
+          )}
 
           {showFeeBearerToggle && value.splits.some((s) => s.fee_amount > 0) && (
             <div className="flex items-center justify-between p-2 border rounded">
