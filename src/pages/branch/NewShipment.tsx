@@ -752,6 +752,25 @@ export default function NewShipment() {
               <span>الإجمالي</span>
               <b className="text-primary">{formatEGP(grandTotal)}</b>
             </div>
+            {(() => {
+              const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
+              const paidNow = plan.mode === "credit" ? 0 : Number(plan.paidNow || 0);
+              const effectivePaid = plan.mode === "full" ? grandTotal : Math.max(paidNow, splitsSum);
+              const remaining = Math.max(0, grandTotal - effectivePaid);
+              const over = effectivePaid > grandTotal + 0.01;
+              const status = remaining < 0.01 ? "مدفوعة بالكامل" : effectivePaid > 0 ? "دفع جزئي" : "غير مدفوعة";
+              const statusColor = remaining < 0.01 ? "text-success" : effectivePaid > 0 ? "text-warning" : "text-muted-foreground";
+              return (
+                <div className="mt-2 space-y-1 border-t border-dashed border-border pt-2">
+                  <div className="flex justify-between"><span className="text-muted-foreground">المدفوع الآن</span><b className="text-success">{formatEGP(effectivePaid)}</b></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">المتبقي</span><b className={remaining > 0 ? "text-warning" : "text-success"}>{formatEGP(remaining)}</b></div>
+                  {over && (
+                    <div className="flex justify-between text-destructive"><span>زيادة عن الإجمالي</span><b>{formatEGP(effectivePaid - grandTotal)}</b></div>
+                  )}
+                  <div className="flex justify-between"><span className="text-muted-foreground">الحالة</span><b className={statusColor}>{status}</b></div>
+                </div>
+              );
+            })()}
           </div>
           <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
