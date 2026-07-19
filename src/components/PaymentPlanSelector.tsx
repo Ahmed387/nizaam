@@ -146,7 +146,13 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
             <button
               key={opt.v}
               type="button"
-              onClick={() => onChange({ ...value, mode: opt.v })}
+              onClick={() => {
+                if (opt.v === "partial" && value.mode !== "partial") {
+                  onChange({ ...value, mode: opt.v, paidNow: 0, splits: [] });
+                } else {
+                  onChange({ ...value, mode: opt.v });
+                }
+              }}
               className={`px-3 py-2 rounded border text-sm ${value.mode === opt.v ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
             >
               {opt.l}
