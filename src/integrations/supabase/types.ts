@@ -4109,6 +4109,7 @@ export type Database = {
       voucher_categories: {
         Row: {
           created_at: string
+          gl_account_code: string | null
           id: string
           is_active: boolean
           is_deductible_from_profit: boolean
@@ -4121,6 +4122,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          gl_account_code?: string | null
           id?: string
           is_active?: boolean
           is_deductible_from_profit?: boolean
@@ -4133,6 +4135,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          gl_account_code?: string | null
           id?: string
           is_active?: boolean
           is_deductible_from_profit?: boolean
@@ -4777,6 +4780,17 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: number
       }
+      post_journal: {
+        Args: {
+          p_description: string
+          p_entry_date: string
+          p_lines: Json
+          p_source_id: string
+          p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       process_sale:
         | {
             Args: {
@@ -4940,6 +4954,15 @@ export type Database = {
         Returns: undefined
       }
       restore_product: { Args: { _product_id: string }; Returns: undefined }
+      reverse_journal_for_source: {
+        Args: {
+          p_reason: string
+          p_source_id: string
+          p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
       seed_default_chart_of_accounts: {
         Args: { p_tenant_id: string }

@@ -142,6 +142,11 @@ import PartnerDashboard from "./pages/partner/Dashboard";
 import PartnerLedger from "./pages/partner/Ledger";
 import PartnerAdvancesView from "./pages/partner/Advances";
 import PartnerProfilePage from "./pages/partner/Profile";
+import ChartOfAccounts from "./pages/admin/ChartOfAccounts";
+import JournalEntriesPage from "./pages/admin/JournalEntries";
+import JournalEntryDetail from "./pages/admin/JournalEntryDetail";
+import GeneralLedger from "./pages/admin/GeneralLedger";
+import TrialBalance from "./pages/admin/TrialBalance";
 
 const queryClient = new QueryClient();
 
@@ -216,6 +221,13 @@ const App = () => (
             <Route path="/admin/financial-position/transactions" element={<ProtectedRoute adminOnly><PartnerTransactions /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advances" element={<ProtectedRoute adminOnly><PartnerAdvances /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute adminOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+
+            {/* Accounting — General Ledger */}
+            <Route path="/admin/accounting/chart" element={<ProtectedRoute adminOnly><ChartOfAccounts /></ProtectedRoute>} />
+            <Route path="/admin/accounting/journal" element={<ProtectedRoute adminOnly><JournalEntriesPage /></ProtectedRoute>} />
+            <Route path="/admin/accounting/journal/:id" element={<ProtectedRoute adminOnly><JournalEntryDetail /></ProtectedRoute>} />
+            <Route path="/admin/accounting/ledger" element={<ProtectedRoute adminOnly><GeneralLedger /></ProtectedRoute>} />
+            <Route path="/admin/accounting/trial-balance" element={<ProtectedRoute adminOnly><TrialBalance /></ProtectedRoute>} />
 
             {/* Partner portal */}
             <Route path="/partner/dashboard" element={<ProtectedRoute roles={["partner"]}><PartnerDashboard /></ProtectedRoute>} />
