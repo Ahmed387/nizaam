@@ -88,6 +88,7 @@ export default function FinancialPosition() {
             <Button asChild variant="outline"><Link to="/admin/accounting/cash-flow"><Activity className="w-4 h-4 ml-2 text-primary" />التدفقات النقدية</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/aging"><Clock className="w-4 h-4 ml-2 text-warning" />تقرير الأعمار</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/bank-reconciliation"><Landmark className="w-4 h-4 ml-2 text-primary" />المطابقة البنكية</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/fiscal-closing"><Lock className="w-4 h-4 ml-2 text-warning" />الإقفال وتوزيع الأرباح</Link></Button>
           </CardContent>
         </Card>
       </div>
