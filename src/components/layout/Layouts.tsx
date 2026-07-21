@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, tenantId, isAdmin, isSuperAdmin, hasRole } = useAuth();
+  const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
 
