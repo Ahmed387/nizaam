@@ -931,6 +931,47 @@ export type Database = {
           },
         ]
       }
+      depreciation_entries: {
+        Row: {
+          amount: number
+          asset_id: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          period_month: string
+          posted_at: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month: string
+          posted_at?: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month?: string
+          posted_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "depreciation_entries_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_approval_requests: {
         Row: {
           admin_note: string | null
@@ -1286,6 +1327,118 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "journal_entries"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_assets: {
+        Row: {
+          accum_depreciation_account_id: string | null
+          acquisition_date: string
+          asset_account_id: string | null
+          category: string | null
+          code: string
+          cost: number
+          created_at: string
+          depreciation_expense_account_id: string | null
+          depreciation_method: string
+          disposal_amount: number | null
+          disposal_date: string | null
+          disposal_journal_entry_id: string | null
+          id: string
+          name: string
+          notes: string | null
+          salvage_value: number
+          status: string
+          tenant_id: string
+          updated_at: string
+          useful_life_months: number
+        }
+        Insert: {
+          accum_depreciation_account_id?: string | null
+          acquisition_date: string
+          asset_account_id?: string | null
+          category?: string | null
+          code: string
+          cost: number
+          created_at?: string
+          depreciation_expense_account_id?: string | null
+          depreciation_method?: string
+          disposal_amount?: number | null
+          disposal_date?: string | null
+          disposal_journal_entry_id?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          salvage_value?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          useful_life_months: number
+        }
+        Update: {
+          accum_depreciation_account_id?: string | null
+          acquisition_date?: string
+          asset_account_id?: string | null
+          category?: string | null
+          code?: string
+          cost?: number
+          created_at?: string
+          depreciation_expense_account_id?: string | null
+          depreciation_method?: string
+          disposal_amount?: number | null
+          disposal_date?: string | null
+          disposal_journal_entry_id?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          salvage_value?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          useful_life_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_assets_accum_depreciation_account_id_fkey"
+            columns: ["accum_depreciation_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_accum_depreciation_account_id_fkey"
+            columns: ["accum_depreciation_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_asset_account_id_fkey"
+            columns: ["asset_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_asset_account_id_fkey"
+            columns: ["asset_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_depreciation_expense_account_id_fkey"
+            columns: ["depreciation_expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_depreciation_expense_account_id_fkey"
+            columns: ["depreciation_expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
           },
         ]
       }
@@ -5036,6 +5189,14 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: string
       }
+      dispose_fixed_asset: {
+        Args: {
+          _asset_id: string
+          _disposal_amount: number
+          _disposal_date: string
+        }
+        Returns: string
+      }
       distribute_profits: {
         Args: {
           p_distribution_date?: string
@@ -5238,6 +5399,14 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      post_monthly_depreciation: {
+        Args: { _period_month: string; _tenant_id: string }
+        Returns: {
+          amount: number
+          asset_id: string
+          journal_entry_id: string
+        }[]
       }
       process_sale:
         | {
