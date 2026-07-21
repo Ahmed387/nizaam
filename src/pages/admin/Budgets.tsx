@@ -109,7 +109,7 @@ export default function Budgets() {
 
   return (
     <AdminLayout>
-      <PageHeader title="الموازنة التقديرية" description="خطط الإيرادات والمصروفات وقارنها بالفعلي" icon={Target} />
+      <PageHeader title="الموازنة التقديرية" subtitle="خطط الإيرادات والمصروفات وقارنها بالفعلي" />
 
       <Card>
         <CardHeader>
