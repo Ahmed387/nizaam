@@ -58,7 +58,7 @@ export function ProductPicker({
     setLoading(true);
     const { data } = await supabase
       .from("products")
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color")
       .eq("branch_id", branchId)
       .is("archived_at", null)
       .order("name");
@@ -228,7 +228,7 @@ function NewProductDialog({
         low_stock_alert: low,
         image: image || null,
       })
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color")
       .single();
     setBusy(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
