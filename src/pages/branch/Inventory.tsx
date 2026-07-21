@@ -121,6 +121,9 @@ export default function Inventory() {
       price_reason: "",
       image: String(r.image ?? ""),
       color: String(r.color ?? ""),
+      product_type: String(r.product_type ?? ""),
+      capacity: String(r.capacity ?? ""),
+      size: String(r.size ?? ""),
     });
   };
 
