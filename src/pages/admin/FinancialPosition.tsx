@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart } from "lucide-react";
+import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock } from "lucide-react";
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
@@ -81,10 +81,12 @@ export default function FinancialPosition() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>القوائم المالية</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <CardHeader><CardTitle>القوائم المالية والتحليل</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <Button asChild variant="outline"><Link to="/admin/accounting/balance-sheet"><PieChart className="w-4 h-4 ml-2 text-primary" />الميزانية العمومية</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/income-statement"><LineChart className="w-4 h-4 ml-2 text-primary" />قائمة الدخل</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/cash-flow"><Activity className="w-4 h-4 ml-2 text-primary" />التدفقات النقدية</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/aging"><Clock className="w-4 h-4 ml-2 text-warning" />تقرير الأعمار</Link></Button>
           </CardContent>
         </Card>
       </div>
