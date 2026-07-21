@@ -288,7 +288,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
           value={treasuryBalance}
           icon={<Wallet className="w-4 h-4" />}
           accent={treasuryBalance >= 0 ? "success" : "destructive"}
-          link="/admin/treasury"
+          link="/admin/finance"
         />
         <CashCard
           label="علينا للموردين"
