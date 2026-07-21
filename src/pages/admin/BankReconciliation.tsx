@@ -38,7 +38,7 @@ export default function BankReconciliation() {
   const load = async () => {
     const [a, c, s] = await Promise.all([
       supabase.from("bank_accounts" as any).select("*").order("created_at", { ascending: false }),
-      supabase.from("chart_of_accounts" as any).select("id,code,name").order("code"),
+      supabase.from("chart_of_accounts" as any).select("id,code,name,name_ar").order("code"),
       supabase.from("bank_statements" as any).select("*").order("statement_date", { ascending: false }).limit(50),
     ]);
     setAccounts((a.data as any) ?? []);
