@@ -11,6 +11,7 @@ import { Printer, FileDown, ArrowRightLeft, Loader2 } from "lucide-react";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
+import { ColorChip } from "@/components/ColorPicker";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "مسودة",
