@@ -183,6 +183,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                     <th className="p-2 text-right">الصورة</th>
                     <th className="p-2 text-right">اسم المنتج</th>
                     <th className="p-2 text-right">SKU</th>
+                    <th className="p-2 text-right">اللون</th>
                     <th className="p-2 text-right">الفرع</th>
                     <th className="p-2 text-center">الكمية</th>
                     <th className="p-2 text-right">سعر التكلفة</th>
