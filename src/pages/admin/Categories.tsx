@@ -43,7 +43,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
     const ids = [c.id, ...childIds];
     const { data } = await supabase
       .from("products")
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert,color")
       .in("category_id", ids)
       .is("archived_at", null)
       .order("name");
