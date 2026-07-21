@@ -129,7 +129,10 @@ export function ProductPicker({
                         {value === p.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                         <div className="min-w-0">
                           <div className="font-medium truncate">{p.name}</div>
-                          <div className="text-[11px] text-muted-foreground font-mono">{p.sku}</div>
+                          <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1.5">
+                            <span>{p.sku}</span>
+                            {p.color && <ColorChip name={p.color} />}
+                          </div>
                         </div>
                       </div>
                       <span
