@@ -63,9 +63,11 @@ export default function ExecutiveInsights({ embedded }: Props) {
       .gte("created_at", fromIso).lte("created_at", toIso);
     let pQ = supabase.from("products").select("id, name, sku, branch_id, quantity, archived_at").eq("tenant_id", tenantId).is("archived_at", null);
     let eQ = supabase.from("vouchers")
-      .select("amount, branch_id, voucher_categories(name, system_key)")
+      .select("amount, branch_id, voucher_categories!inner(name, system_key, is_deductible_from_profit)")
       .eq("tenant_id", tenantId).eq("type", "payment").eq("status", "active")
+      .eq("voucher_categories.is_deductible_from_profit", true)
       .gte("voucher_date", from).lte("voucher_date", to);
+
     let poQ = supabase.from("pre_orders")
       .select("id, product_name, quantity, expected_price, status, branch_id, created_at")
       .eq("tenant_id", tenantId)
