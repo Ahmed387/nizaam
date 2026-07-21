@@ -1,0 +1,258 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { AdminLayout } from "@/components/layout/Layouts";
+import { PageHeader } from "@/components/layout/AppShell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { CalendarClock, Lock, PieChart, Plus, ExternalLink } from "lucide-react";
+
+const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
+
+type Period = { id: string; name: string; period_start: string; period_end: string; status: string; net_profit: number | null; closed_at: string | null; closing_entry_id: string | null };
+type Partner = { id: string; name: string; capital_share: number; is_active: boolean };
+type Distribution = { id: string; distribution_date: string; total_amount: number; status: string; journal_entry_id: string | null; fiscal_period_id: string | null; notes: string | null };
+
+export default function FiscalClosing() {
+  const { tenantId } = useAuth();
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [distributions, setDistributions] = useState<Distribution[]>([]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const [openPeriod, setOpenPeriod] = useState(false);
+  const [openDist, setOpenDist] = useState(false);
+  const y = new Date().getFullYear();
+  const [pForm, setPForm] = useState({ name: `السنة المالية ${y}`, period_start: `${y}-01-01`, period_end: `${y}-12-31` });
+  const [dForm, setDForm] = useState({ fiscal_period_id: "", total_amount: "", distribution_date: today, notes: "" });
+
+  const load = async () => {
+    if (!tenantId) return;
+    const [p, e, d] = await Promise.all([
+      supabase.from("fiscal_periods" as any).select("*").eq("tenant_id", tenantId).order("period_end", { ascending: false }),
+      supabase.from("equity_partners" as any).select("id,name,capital_share,is_active").eq("tenant_id", tenantId).eq("is_active", true),
+      supabase.from("profit_distributions" as any).select("*").eq("tenant_id", tenantId).order("distribution_date", { ascending: false }).limit(50),
+    ]);
+    setPeriods((p.data as any) ?? []);
+    setPartners((e.data as any) ?? []);
+    setDistributions((d.data as any) ?? []);
+  };
+  useEffect(() => { load(); }, [tenantId]);
+
+  const totalShare = partners.reduce((s, p) => s + Number(p.capital_share || 0), 0);
+  const previewAmount = Number(dForm.total_amount) || 0;
+
+  const createPeriod = async () => {
+    if (!tenantId) return;
+    if (!pForm.name.trim()) { toast.error("أدخل اسم الفترة"); return; }
+    const { error } = await supabase.from("fiscal_periods" as any).insert({
+      tenant_id: tenantId, name: pForm.name.trim(),
+      period_start: pForm.period_start, period_end: pForm.period_end,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم إنشاء الفترة");
+    setOpenPeriod(false); load();
+  };
+
+  const closePeriod = async (id: string, name: string) => {
+    if (!confirm(`تأكيد إقفال الفترة "${name}"؟ سيتم إنشاء قيد الإقفال وترحيل صافي الربح للأرباح المحتجزة.`)) return;
+    const { data, error } = await supabase.rpc("close_fiscal_period" as any, { p_period_id: id }) as any;
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم الإقفال — صافي الربح: ${fmt(Number(data?.net_profit || 0))} ج.م`);
+    load();
+  };
+
+  const doDistribute = async () => {
+    if (!tenantId) return;
+    const amt = Number(dForm.total_amount);
+    if (!amt || amt <= 0) { toast.error("أدخل مبلغ التوزيع"); return; }
+    if (partners.length === 0) { toast.error("لا يوجد شركاء نشطين"); return; }
+    const { error } = await supabase.rpc("distribute_profits" as any, {
+      p_tenant_id: tenantId,
+      p_fiscal_period_id: dForm.fiscal_period_id || null,
+      p_total_amount: amt,
+      p_distribution_date: dForm.distribution_date,
+      p_notes: dForm.notes || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم توزيع الأرباح");
+    setOpenDist(false);
+    setDForm({ fiscal_period_id: "", total_amount: "", distribution_date: today, notes: "" });
+    load();
+  };
+
+  return (
+    <AdminLayout>
+      <div dir="rtl" className="text-right space-y-6">
+        <PageHeader title="الإغلاق المحاسبي وتوزيع الأرباح" subtitle="إقفال الفترات المالية وتوزيع صافي الأرباح على الشركاء" />
+
+        {/* Fiscal Periods */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><CalendarClock className="w-5 h-5 text-primary" />الفترات المحاسبية</CardTitle>
+            <Dialog open={openPeriod} onOpenChange={setOpenPeriod}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 ml-1" />فترة جديدة</Button></DialogTrigger>
+              <DialogContent dir="rtl">
+                <DialogHeader><DialogTitle>إنشاء فترة محاسبية</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div><Label>الاسم</Label><Input value={pForm.name} onChange={e => setPForm({ ...pForm, name: e.target.value })} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>من</Label><Input type="date" value={pForm.period_start} onChange={e => setPForm({ ...pForm, period_start: e.target.value })} /></div>
+                    <div><Label>إلى</Label><Input type="date" value={pForm.period_end} onChange={e => setPForm({ ...pForm, period_end: e.target.value })} /></div>
+                  </div>
+                </div>
+                <DialogFooter><Button onClick={createPeriod}>حفظ</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            {periods.length === 0 ? <div className="text-muted-foreground text-center py-8">لا توجد فترات</div> : (
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-right">الاسم</TableHead>
+                  <TableHead className="text-right">الفترة</TableHead>
+                  <TableHead className="text-right">الحالة</TableHead>
+                  <TableHead className="text-right">صافي الربح</TableHead>
+                  <TableHead className="text-right">قيد الإقفال</TableHead>
+                  <TableHead></TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {periods.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell>{p.period_start} → {p.period_end}</TableCell>
+                      <TableCell>
+                        <Badge variant={p.status === "closed" ? "default" : "outline"}>
+                          {p.status === "closed" ? "مغلقة" : "مفتوحة"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={Number(p.net_profit || 0) >= 0 ? "text-success" : "text-destructive"}>
+                        {p.net_profit != null ? fmt(Number(p.net_profit)) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {p.closing_entry_id ? (
+                          <Link className="text-primary hover:underline inline-flex items-center gap-1" to={`/admin/accounting/journal/${p.closing_entry_id}`}>
+                            <ExternalLink className="w-3 h-3" />عرض
+                          </Link>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {p.status !== "closed" && (
+                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name)}>
+                            <Lock className="w-4 h-4 ml-1" />إقفال
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Profit Distribution */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><PieChart className="w-5 h-5 text-primary" />توزيع الأرباح</CardTitle>
+            <Dialog open={openDist} onOpenChange={setOpenDist}>
+              <DialogTrigger asChild><Button size="sm" disabled={partners.length === 0}><Plus className="w-4 h-4 ml-1" />توزيع جديد</Button></DialogTrigger>
+              <DialogContent dir="rtl" className="max-w-lg">
+                <DialogHeader><DialogTitle>توزيع أرباح على الشركاء</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>الفترة المحاسبية (اختياري)</Label>
+                    <Select value={dForm.fiscal_period_id || "none"} onValueChange={v => setDForm({ ...dForm, fiscal_period_id: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">بدون ربط بفترة</SelectItem>
+                        {periods.filter(p => p.status === "closed").map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name} (ربح: {fmt(Number(p.net_profit || 0))})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>المبلغ الإجمالي *</Label><Input type="number" value={dForm.total_amount} onChange={e => setDForm({ ...dForm, total_amount: e.target.value })} /></div>
+                    <div><Label>تاريخ التوزيع</Label><Input type="date" value={dForm.distribution_date} onChange={e => setDForm({ ...dForm, distribution_date: e.target.value })} /></div>
+                  </div>
+                  <div><Label>ملاحظات</Label><Textarea rows={2} value={dForm.notes} onChange={e => setDForm({ ...dForm, notes: e.target.value })} /></div>
+
+                  {/* Preview */}
+                  <div className="border rounded-lg p-3 bg-muted/30">
+                    <div className="font-semibold mb-2 text-sm">معاينة التوزيع</div>
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead className="text-right">الشريك</TableHead>
+                        <TableHead className="text-right">النسبة</TableHead>
+                        <TableHead className="text-right">النصيب</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {partners.map(p => {
+                          const pct = totalShare > 0 ? (Number(p.capital_share) / totalShare) * 100 : 0;
+                          const amt = previewAmount * pct / 100;
+                          return (
+                            <TableRow key={p.id}>
+                              <TableCell>{p.name}</TableCell>
+                              <TableCell>{pct.toFixed(2)}%</TableCell>
+                              <TableCell className="font-medium">{fmt(amt)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+                <DialogFooter><Button onClick={doDistribute}>تنفيذ التوزيع</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            {distributions.length === 0 ? <div className="text-muted-foreground text-center py-8">لا توجد توزيعات</div> : (
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-right">التاريخ</TableHead>
+                  <TableHead className="text-right">الفترة</TableHead>
+                  <TableHead className="text-right">المبلغ</TableHead>
+                  <TableHead className="text-right">الحالة</TableHead>
+                  <TableHead className="text-right">القيد</TableHead>
+                  <TableHead className="text-right">ملاحظات</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {distributions.map(d => {
+                    const per = periods.find(p => p.id === d.fiscal_period_id);
+                    return (
+                      <TableRow key={d.id}>
+                        <TableCell>{d.distribution_date}</TableCell>
+                        <TableCell>{per?.name || "—"}</TableCell>
+                        <TableCell className="font-medium">{fmt(d.total_amount)}</TableCell>
+                        <TableCell><Badge variant={d.status === "posted" ? "default" : "outline"}>{d.status === "posted" ? "مرحّل" : d.status}</Badge></TableCell>
+                        <TableCell>
+                          {d.journal_entry_id ? (
+                            <Link className="text-primary hover:underline inline-flex items-center gap-1" to={`/admin/accounting/journal/${d.journal_entry_id}`}>
+                              <ExternalLink className="w-3 h-3" />عرض
+                            </Link>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">{d.notes || "—"}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AdminLayout>
+  );
+}
