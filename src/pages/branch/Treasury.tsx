@@ -57,6 +57,7 @@ export default function Treasury() {
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
   const [viewVoucher, setViewVoucher] = useState<any | null>(null);
+  const [editVoucher, setEditVoucher] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
