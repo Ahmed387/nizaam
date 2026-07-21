@@ -324,8 +324,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                       <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
                     ) : currentItems.map((item) => (
                       <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="text-right font-medium">{item.product_name}</TableCell>
-                        <TableCell className="text-right text-sm text-muted-foreground font-mono">{item.model_code ?? "—"}</TableCell>
+                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="font-medium">{item.product_name}</TableCell>
+                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground font-mono">{item.model_code ?? "—"}</TableCell>
                         <TableCell className="text-center tabular-nums">{formatEGP(item.cost_price)}</TableCell>
                         <TableCell className="text-center tabular-nums text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
                         <TableCell className="text-center">
@@ -441,8 +441,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                           {d.status === "changed" && <Badge className="bg-amber-600">تغير</Badge>}
                           {d.status === "same" && <Badge variant="secondary">ثابت</Badge>}
                         </TableCell>
-                        <TableCell>{d.parsed.product_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
+                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }}>{d.parsed.product_name}</TableCell>
+                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
                         <TableCell>{d.existing ? formatEGP(d.existing.cost_price) : "—"}</TableCell>
                         <TableCell>
                           <Input
