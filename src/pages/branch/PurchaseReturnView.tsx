@@ -9,6 +9,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer } from "lucide-react";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { ColorChip } from "@/components/ColorPicker";
 
 export default function PurchaseReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
