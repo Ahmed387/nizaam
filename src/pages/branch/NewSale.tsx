@@ -28,6 +28,7 @@ import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, Pay
 import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
+import { ColorChip } from "@/components/ColorPicker";
 
 
 
@@ -41,6 +42,7 @@ interface Item {
   line_discount: number; // EGP — source of truth
   discount_mode: "amount" | "percent"; // UI only
   discount_input: number; // last typed value in current mode
+  color?: string | null;
 }
 // Payment methods are loaded dynamically from the database (built-ins + admin custom).
 const feeKeyFor = (m: string) => (m === "cash" ? null : m);
@@ -451,6 +453,7 @@ export default function NewSale() {
         line_discount: 0,
         discount_mode: "amount",
         discount_input: 0,
+        color: (p as any).color ?? null,
       }]);
     }
     setSearch("");
@@ -1225,7 +1228,10 @@ export default function NewSale() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-base leading-snug line-clamp-3 group-hover:text-primary transition-colors">{p.name}</div>
-                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{p.sku}</div>
+                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate flex items-center gap-1.5">
+                            <span className="truncate">{p.sku}</span>
+                            {p.color && <ColorChip name={p.color} />}
+                          </div>
                           {showCost && Number(p.cost_price) > 0 && (
                             <div className="text-[10px] text-muted-foreground mt-1">
                               شراء: {formatEGP(p.cost_price)} · ربح: <span className="text-primary font-bold">{formatEGP(profit)}</span>
@@ -1346,6 +1352,7 @@ export default function NewSale() {
                                 {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0 mt-1.5" />}
                                 {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0 mt-1.5" />}
                                 <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
+                                {i.color && <ColorChip name={i.color} />}
                               </div>
                               {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
                             </div>

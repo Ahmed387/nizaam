@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, FolderTree, Folder, Trash2, Pencil, Loader2, Package, Search } from "lucide-react";
 import { formatEGP } from "@/lib/format";
+import { ColorChip } from "@/components/ColorPicker";
 
 export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const [cats, setCats] = useState<any[]>([]);
@@ -43,7 +44,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
     const ids = [c.id, ...childIds];
     const { data } = await supabase
       .from("products")
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert,color")
       .in("category_id", ids)
       .is("archived_at", null)
       .order("name");
@@ -183,6 +184,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                     <th className="p-2 text-right">الصورة</th>
                     <th className="p-2 text-right">اسم المنتج</th>
                     <th className="p-2 text-right">SKU</th>
+                    <th className="p-2 text-right">اللون</th>
                     <th className="p-2 text-right">الفرع</th>
                     <th className="p-2 text-center">الكمية</th>
                     <th className="p-2 text-right">سعر التكلفة</th>
@@ -214,6 +216,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                           </td>
                           <td className="p-2 font-semibold">{p.name}</td>
                           <td className="p-2 text-muted-foreground font-mono text-xs">{p.sku}</td>
+                          <td className="p-2"><ColorChip name={p.color} /></td>
                           <td className="p-2 text-xs">{branch?.name ?? "—"}</td>
                           <td className="p-2 text-center tabular-nums font-bold">{p.quantity}</td>
                           <td className="p-2 tabular-nums">{formatEGP(p.cost_price)}</td>

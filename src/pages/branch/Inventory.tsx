@@ -20,6 +20,7 @@ import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardLis
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { ColorPicker, ColorChip } from "@/components/ColorPicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -48,7 +49,7 @@ export default function Inventory() {
   const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
-    low_stock_alert: "5", quantity: "0", image: "",
+    low_stock_alert: "5", quantity: "0", image: "", color: "",
   });
   const [uploading, setUploading] = useState(false);
   const [historyFor, setHistoryFor] = useState<any>(null);
@@ -56,7 +57,7 @@ export default function Inventory() {
   const [editForm, setEditForm] = useState({
     name: "", sku: "", quantity: "0",
     cost_price: "", selling_price: "", market_price: "",
-    qty_notes: "", price_reason: "", image: "",
+    qty_notes: "", price_reason: "", image: "", color: "",
   });
   const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -116,6 +117,7 @@ export default function Inventory() {
       qty_notes: "",
       price_reason: "",
       image: String(r.image ?? ""),
+      color: String(r.color ?? ""),
     });
   };
 
@@ -150,8 +152,9 @@ export default function Inventory() {
     const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
     const priceChanged = costChanged || sellChanged || marketChanged;
     const imageChanged = (editForm.image || "") !== (editAll.image || "");
+    const colorChanged = (editForm.color || "") !== (editAll.color || "");
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged) {
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !colorChanged) {
       setEditAll(null);
       return;
     }
@@ -161,12 +164,13 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU / Image
-    if (nameChanged || skuChanged || imageChanged) {
+    // 1) Name / SKU / Image / Color
+    if (nameChanged || skuChanged || imageChanged || colorChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
       if (imageChanged) patch.image = editForm.image || null;
+      if (colorChanged) patch.color = editForm.color || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
@@ -463,10 +467,14 @@ export default function Inventory() {
         low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
         quantity: qty,
         image: form.image || null,
+        color: form.color || null,
       },
     });
     if (error) return toast.error(error.message);
     const newId = (data as any)?.product_id;
+    if (newId && form.color) {
+      await supabase.from("products").update({ color: form.color } as any).eq("id", newId);
+    }
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
       toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول شحنة شراء.");
@@ -474,7 +482,7 @@ export default function Inventory() {
     toast.success("تمت إضافة المنتج");
 
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "" });
     load();
   };
 
@@ -661,7 +669,10 @@ export default function Inventory() {
                           </div>
                         </td>
                         <td className="px-3 py-3 align-middle text-muted-foreground truncate" title={r.categories?.name ?? ""}>
-                          {r.categories?.name ?? "—"}
+                          <div className="flex flex-col gap-1">
+                            <span>{r.categories?.name ?? "—"}</span>
+                            {r.color && <ColorChip name={r.color} />}
+                          </div>
                         </td>
                         <td className="px-3 py-3 align-middle text-center">
                           <div className="font-bold">{r.quantity}</div>
@@ -746,11 +757,12 @@ export default function Inventory() {
                           </div>
                           <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs items-center">
                           <span>الكمية: <span className="font-bold">{r.quantity}</span></span>
                           <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
                           <span className="text-success">بيع: {formatEGP(r.selling_price)}</span>
                           <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
+                          {r.color && <ColorChip name={r.color} />}
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
@@ -837,10 +849,12 @@ export default function Inventory() {
             <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>اللون</Label><div className="mt-1.5"><ColorPicker value={form.color} onChange={(v) => setForm({ ...form, color: v ?? "" })} /></div></div>
+            
             
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" }); setOpen(false); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "" }); setOpen(false); }}>إلغاء</Button>
             <Button className="btn-gradient" onClick={submit}>إضافة</Button>
           </DialogFooter>
         </DialogContent>
@@ -1040,6 +1054,10 @@ export default function Inventory() {
                         <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
                       </div>
                     )}
+                    <div>
+                      <Label className="text-xs font-semibold mb-1.5 block">اللون</Label>
+                      <ColorPicker value={editForm.color} onChange={(v) => setEditForm({ ...editForm, color: v ?? "" })} />
+                    </div>
                   </div>
                 </section>
               </div>
