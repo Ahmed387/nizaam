@@ -153,6 +153,7 @@ import CashFlowStatement from "./pages/admin/CashFlowStatement";
 import AgingReport from "./pages/admin/AgingReport";
 import BankReconciliation from "./pages/admin/BankReconciliation";
 import BankReconciliationDetail from "./pages/admin/BankReconciliationDetail";
+import FiscalClosing from "./pages/admin/FiscalClosing";
 
 const queryClient = new QueryClient();
 
