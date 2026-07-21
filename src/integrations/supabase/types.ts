@@ -798,6 +798,65 @@ export type Database = {
           },
         ]
       }
+      equity_partners: {
+        Row: {
+          capital_share: number
+          created_at: string
+          current_balance: number
+          id: string
+          initial_capital: number
+          is_active: boolean
+          name: string
+          operating_share: number
+          partner_type: string
+          tenant_id: string
+          total_contributions: number
+          total_drawings: number
+          total_profit_share: number
+          updated_at: string
+        }
+        Insert: {
+          capital_share?: number
+          created_at?: string
+          current_balance?: number
+          id?: string
+          initial_capital?: number
+          is_active?: boolean
+          name: string
+          operating_share?: number
+          partner_type: string
+          tenant_id: string
+          total_contributions?: number
+          total_drawings?: number
+          total_profit_share?: number
+          updated_at?: string
+        }
+        Update: {
+          capital_share?: number
+          created_at?: string
+          current_balance?: number
+          id?: string
+          initial_capital?: number
+          is_active?: boolean
+          name?: string
+          operating_share?: number
+          partner_type?: string
+          tenant_id?: string
+          total_contributions?: number
+          total_drawings?: number
+          total_profit_share?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equity_partners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -1430,6 +1489,210 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      partner_share_history: {
+        Row: {
+          capital_share: number
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          operating_share: number
+          partner_id: string
+          tenant_id: string
+        }
+        Insert: {
+          capital_share?: number
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          operating_share?: number
+          partner_id: string
+          tenant_id: string
+        }
+        Update: {
+          capital_share?: number
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          operating_share?: number
+          partner_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_share_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_share_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "equity_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_share_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_void: boolean
+          month_year: string | null
+          partner_id: string
+          related_treasury_id: string | null
+          related_voucher_id: string | null
+          tenant_id: string
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_void?: boolean
+          month_year?: string | null
+          partner_id: string
+          related_treasury_id?: string | null
+          related_voucher_id?: string | null
+          tenant_id: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_void?: boolean
+          month_year?: string | null
+          partner_id?: string
+          related_treasury_id?: string | null
+          related_voucher_id?: string | null
+          tenant_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_transactions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "equity_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_transactions_related_treasury_id_fkey"
+            columns: ["related_treasury_id"]
+            isOneToOne: false
+            referencedRelation: "treasury"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_transactions_related_voucher_id_fkey"
+            columns: ["related_voucher_id"]
+            isOneToOne: false
+            referencedRelation: "vouchers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          partner_id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          partner_id: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          partner_id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_users_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_users_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "equity_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_users_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_installments: {
         Row: {
@@ -4085,6 +4348,7 @@ export type Database = {
         }[]
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_partner_owner: { Args: { _partner_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       map_treasury_to_category_key: {
         Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
@@ -4176,6 +4440,18 @@ export type Database = {
           p_reference_number: string
           p_transfer_from_account?: string
           p_transfer_to_account: string
+        }
+        Returns: string
+      }
+      record_partner_transaction: {
+        Args: {
+          _amount: number
+          _description?: string
+          _month_year?: string
+          _partner_id: string
+          _transaction_type: string
+          _treasury_id?: string
+          _voucher_id?: string
         }
         Returns: string
       }
@@ -4358,6 +4634,7 @@ export type Database = {
         | "supervisor"
         | "worker"
         | "driver"
+        | "partner"
       approval_action: "delete" | "update"
       approval_status: "pending" | "approved" | "rejected"
       invoice_status: "active" | "cancelled"
@@ -4517,6 +4794,7 @@ export const Constants = {
         "supervisor",
         "worker",
         "driver",
+        "partner",
       ],
       approval_action: ["delete", "update"],
       approval_status: ["pending", "approved", "rejected"],
