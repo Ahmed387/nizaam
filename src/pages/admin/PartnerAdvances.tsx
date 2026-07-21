@@ -94,7 +94,7 @@ export default function PartnerAdvances() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <PageHeader title="سلف الشركاء" subtitle="إدارة سلف الشركاء وأقساط السداد" />
           <div className="flex gap-2">
-            <Button variant="outline" asChild><Link to="/admin/financial-position">← الذمة المالية</Link></Button>
+            <Button variant="outline" asChild><Link to="/admin/financial-position">← الذمة المالية للشركاء</Link></Button>
             <Button onClick={() => setOpen(true)}><PlusCircle className="w-4 h-4 ml-2" />سلفة جديدة</Button>
           </div>
         </div>
