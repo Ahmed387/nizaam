@@ -1050,6 +1050,10 @@ export default function Inventory() {
                         <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
                       </div>
                     )}
+                    <div>
+                      <Label className="text-xs font-semibold mb-1.5 block">اللون</Label>
+                      <ColorPicker value={editForm.color} onChange={(v) => setEditForm({ ...editForm, color: v ?? "" })} />
+                    </div>
                   </div>
                 </section>
               </div>
