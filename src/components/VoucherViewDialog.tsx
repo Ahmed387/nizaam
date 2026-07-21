@@ -102,7 +102,16 @@ export function VoucherViewDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-6 pb-6">
+        <DialogFooter className="px-6 pb-6 gap-2">
+          {canEdit && voucher.status === "active" && onEdit && (
+            <Button
+              variant="default"
+              onClick={() => onEdit(voucher)}
+              className="gap-2"
+            >
+              <Pencil className="w-4 h-4" /> تعديل السند
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button>
         </DialogFooter>
       </DialogContent>
