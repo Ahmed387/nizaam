@@ -301,11 +301,16 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           </div>
           <div className="flex-1">
             <DialogHeader className="space-y-0.5">
-              <DialogTitle className="text-lg font-bold">
-                {isReceipt ? "سند قبض جديد" : "سند صرف جديد"}
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                {isEdit && <Pencil className="w-4 h-4" />}
+                {isEdit
+                  ? (isReceipt ? `تعديل سند قبض ${editingVoucher?.voucher_number ?? ""}` : `تعديل سند صرف ${editingVoucher?.voucher_number ?? ""}`)
+                  : (isReceipt ? "سند قبض جديد" : "سند صرف جديد")}
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                {isReceipt ? "تسجيل مبلغ مستلم في خزينة الفرع" : "تسجيل مبلغ مصروف من خزينة الفرع"}
+                {isEdit
+                  ? "سيتم إلغاء السند الأصلي وإصدار سند جديد بالبيانات المعدلة (يتم عكس الأثر المحاسبي تلقائياً)"
+                  : (isReceipt ? "تسجيل مبلغ مستلم في خزينة الفرع" : "تسجيل مبلغ مصروف من خزينة الفرع")}
               </p>
             </DialogHeader>
           </div>
