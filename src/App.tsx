@@ -147,6 +147,8 @@ import JournalEntriesPage from "./pages/admin/JournalEntries";
 import JournalEntryDetail from "./pages/admin/JournalEntryDetail";
 import GeneralLedger from "./pages/admin/GeneralLedger";
 import TrialBalance from "./pages/admin/TrialBalance";
+import BalanceSheet from "./pages/admin/BalanceSheet";
+import IncomeStatement from "./pages/admin/IncomeStatement";
 
 const queryClient = new QueryClient();
 
@@ -228,6 +230,8 @@ const App = () => (
             <Route path="/admin/accounting/journal/:id" element={<ProtectedRoute adminOnly><JournalEntryDetail /></ProtectedRoute>} />
             <Route path="/admin/accounting/ledger" element={<ProtectedRoute adminOnly><GeneralLedger /></ProtectedRoute>} />
             <Route path="/admin/accounting/trial-balance" element={<ProtectedRoute adminOnly><TrialBalance /></ProtectedRoute>} />
+            <Route path="/admin/accounting/balance-sheet" element={<ProtectedRoute adminOnly><BalanceSheet /></ProtectedRoute>} />
+            <Route path="/admin/accounting/income-statement" element={<ProtectedRoute adminOnly><IncomeStatement /></ProtectedRoute>} />
 
             {/* Partner portal */}
             <Route path="/partner/dashboard" element={<ProtectedRoute roles={["partner"]}><PartnerDashboard /></ProtectedRoute>} />
