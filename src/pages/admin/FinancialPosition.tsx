@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale } from "lucide-react";
+import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart } from "lucide-react";
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
@@ -77,6 +77,14 @@ export default function FinancialPosition() {
             <Button asChild variant="outline"><Link to="/admin/accounting/journal"><ScrollText className="w-4 h-4 ml-2 text-primary" />القيود اليومية</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/ledger"><FileText className="w-4 h-4 ml-2 text-primary" />دفتر الأستاذ</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/trial-balance"><Scale className="w-4 h-4 ml-2 text-primary" />ميزان المراجعة</Link></Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>القوائم المالية</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Button asChild variant="outline"><Link to="/admin/accounting/balance-sheet"><PieChart className="w-4 h-4 ml-2 text-primary" />الميزانية العمومية</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/income-statement"><LineChart className="w-4 h-4 ml-2 text-primary" />قائمة الدخل</Link></Button>
           </CardContent>
         </Card>
       </div>
