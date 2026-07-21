@@ -16,7 +16,7 @@ export default function FinanceHub() {
           <div className="flex justify-start">
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="vouchers">السندات المالية</TabsTrigger>
-              <TabsTrigger value="receivables">الذمم المالية</TabsTrigger>
+              <TabsTrigger value="receivables">ذمم العملاء والموردين</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="vouchers" className="mt-4"><AllVouchers embedded /></TabsContent>
