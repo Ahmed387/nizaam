@@ -73,7 +73,7 @@ export default function BankReconciliation() {
       period_end: stmtForm.period_end,
       opening_balance: Number(stmtForm.opening_balance) || 0,
       closing_balance: Number(stmtForm.closing_balance) || 0,
-    }).select().single();
+    }).select().single() as { data: any; error: any };
     if (error) { toast.error(error.message); return; }
     toast.success("تم إنشاء الكشف");
     setOpenStmt(false);
