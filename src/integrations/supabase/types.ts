@@ -1553,6 +1553,7 @@ export type Database = {
           branch_id: string
           cashier_id: string | null
           cashier_name: string | null
+          color: string | null
           created_at: string
           expires_at: string
           id: string
@@ -1567,6 +1568,7 @@ export type Database = {
           branch_id: string
           cashier_id?: string | null
           cashier_name?: string | null
+          color?: string | null
           created_at?: string
           expires_at?: string
           id?: string
@@ -1581,6 +1583,7 @@ export type Database = {
           branch_id?: string
           cashier_id?: string | null
           cashier_name?: string | null
+          color?: string | null
           created_at?: string
           expires_at?: string
           id?: string
@@ -1611,6 +1614,7 @@ export type Database = {
       inventory_session_items: {
         Row: {
           actual_quantity: number | null
+          color: string | null
           created_at: string
           difference: number | null
           id: string
@@ -1626,6 +1630,7 @@ export type Database = {
         }
         Insert: {
           actual_quantity?: number | null
+          color?: string | null
           created_at?: string
           difference?: number | null
           id?: string
@@ -1641,6 +1646,7 @@ export type Database = {
         }
         Update: {
           actual_quantity?: number | null
+          color?: string | null
           created_at?: string
           difference?: number | null
           id?: string
@@ -2887,6 +2893,7 @@ export type Database = {
       pre_orders: {
         Row: {
           branch_id: string
+          color: string | null
           contact_id: string | null
           created_at: string
           created_by: string
@@ -2910,6 +2917,7 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          color?: string | null
           contact_id?: string | null
           created_at?: string
           created_by: string
@@ -2933,6 +2941,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          color?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string
@@ -3581,6 +3590,7 @@ export type Database = {
       }
       quote_items: {
         Row: {
+          color: string | null
           id: string
           product_id: string | null
           product_name: string
@@ -3590,6 +3600,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          color?: string | null
           id?: string
           product_id?: string | null
           product_name: string
@@ -3599,6 +3610,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          color?: string | null
           id?: string
           product_id?: string | null
           product_name?: string
@@ -4148,6 +4160,7 @@ export type Database = {
         Row: {
           actual_quantity: number
           adjustment_id: string
+          color: string | null
           difference: number
           id: string
           product_id: string
@@ -4158,6 +4171,7 @@ export type Database = {
         Insert: {
           actual_quantity: number
           adjustment_id: string
+          color?: string | null
           difference: number
           id?: string
           product_id: string
@@ -4168,6 +4182,7 @@ export type Database = {
         Update: {
           actual_quantity?: number
           adjustment_id?: string
+          color?: string | null
           difference?: number
           id?: string
           product_id?: string
@@ -4242,6 +4257,7 @@ export type Database = {
       }
       stock_transfers: {
         Row: {
+          color: string | null
           confirmed_by: string | null
           cost_price_at_transfer: number | null
           created_at: string
@@ -4259,6 +4275,7 @@ export type Database = {
           transferred_by: string
         }
         Insert: {
+          color?: string | null
           confirmed_by?: string | null
           cost_price_at_transfer?: number | null
           created_at?: string
@@ -4276,6 +4293,7 @@ export type Database = {
           transferred_by: string
         }
         Update: {
+          color?: string | null
           confirmed_by?: string | null
           cost_price_at_transfer?: number | null
           created_at?: string
