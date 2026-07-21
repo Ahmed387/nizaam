@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift } from "lucide-react";
+import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins } from "lucide-react";
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
@@ -61,8 +61,9 @@ export default function FinancialPosition() {
 
         <Card>
           <CardHeader><CardTitle>الإجراءات السريعة</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <Button asChild variant="default"><Link to="/admin/financial-position/partners"><PlusCircle className="w-4 h-4 ml-2" />إدارة الشركاء</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/financial-position/advances"><HandCoins className="w-4 h-4 ml-2 text-warning" />سلف الشركاء</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/financial-position/transactions?type=contribution"><ArrowUpCircle className="w-4 h-4 ml-2 text-success" />تسجيل مساهمة</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/financial-position/transactions?type=drawing"><ArrowDownCircle className="w-4 h-4 ml-2 text-destructive" />تسجيل مسحوبة</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/financial-position/transactions?type=profit_share"><Gift className="w-4 h-4 ml-2 text-primary" />توزيع أرباح</Link></Button>
