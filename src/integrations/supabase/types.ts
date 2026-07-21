@@ -1175,6 +1175,62 @@ export type Database = {
           },
         ]
       }
+      fiscal_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closing_entry_id: string | null
+          created_at: string
+          id: string
+          name: string
+          net_profit: number | null
+          notes: string | null
+          period_end: string
+          period_start: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_entry_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          net_profit?: number | null
+          notes?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_entry_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          net_profit?: number | null
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_periods_closing_entry_id_fkey"
+            columns: ["closing_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_adjustments: {
         Row: {
           adjustment_amount: number
@@ -2976,6 +3032,115 @@ export type Database = {
           },
         ]
       }
+      profit_distribution_lines: {
+        Row: {
+          amount: number
+          created_at: string
+          distribution_id: string
+          id: string
+          partner_id: string
+          partner_transaction_id: string | null
+          share_percentage: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          distribution_id: string
+          id?: string
+          partner_id: string
+          partner_transaction_id?: string | null
+          share_percentage: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          distribution_id?: string
+          id?: string
+          partner_id?: string
+          partner_transaction_id?: string | null
+          share_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profit_distribution_lines_distribution_id_fkey"
+            columns: ["distribution_id"]
+            isOneToOne: false
+            referencedRelation: "profit_distributions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profit_distribution_lines_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "equity_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profit_distribution_lines_partner_transaction_id_fkey"
+            columns: ["partner_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "partner_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profit_distributions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          distribution_date: string
+          fiscal_period_id: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          status: string
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          distribution_date?: string
+          fiscal_period_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          tenant_id: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          distribution_date?: string
+          fiscal_period_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profit_distributions_fiscal_period_id_fkey"
+            columns: ["fiscal_period_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profit_distributions_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_return_items: {
         Row: {
           id: string
@@ -4671,6 +4836,7 @@ export type Database = {
         Args: { p_reason: string; p_voucher_id: string }
         Returns: undefined
       }
+      close_fiscal_period: { Args: { p_period_id: string }; Returns: Json }
       complete_pre_order_sale: {
         Args: { p_payment_method?: string; p_pre_order_id: string }
         Returns: string
@@ -4811,6 +4977,16 @@ export type Database = {
       disburse_pending_advance: {
         Args: { p_request_id: string }
         Returns: string
+      }
+      distribute_profits: {
+        Args: {
+          p_distribution_date?: string
+          p_fiscal_period_id: string
+          p_notes?: string
+          p_tenant_id: string
+          p_total_amount: number
+        }
+        Returns: Json
       }
       edit_invoice:
         | {
