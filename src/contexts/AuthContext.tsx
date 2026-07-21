@@ -24,6 +24,7 @@ interface AuthCtx {
   loading: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isOwner: boolean;
   hasRole: (r: AppRole) => boolean;
   can: (key: string) => boolean;
   signOut: () => Promise<void>;
