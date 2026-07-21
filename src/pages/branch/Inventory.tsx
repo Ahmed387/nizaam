@@ -478,8 +478,13 @@ export default function Inventory() {
     });
     if (error) return toast.error(error.message);
     const newId = (data as any)?.product_id;
-    if (newId && form.color) {
-      await supabase.from("products").update({ color: form.color } as any).eq("id", newId);
+    if (newId) {
+      const patch: any = {};
+      if (form.color) patch.color = form.color;
+      if (form.product_type) patch.product_type = form.product_type;
+      if (form.capacity) patch.capacity = form.capacity;
+      if (form.size) patch.size = form.size;
+      if (Object.keys(patch).length) await supabase.from("products").update(patch as any).eq("id", newId);
     }
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
@@ -488,7 +493,7 @@ export default function Inventory() {
     toast.success("تمت إضافة المنتج");
 
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "" });
     load();
   };
 
