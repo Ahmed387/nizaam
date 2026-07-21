@@ -151,8 +151,9 @@ export default function Inventory() {
     const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
     const priceChanged = costChanged || sellChanged || marketChanged;
     const imageChanged = (editForm.image || "") !== (editAll.image || "");
+    const colorChanged = (editForm.color || "") !== (editAll.color || "");
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged) {
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !colorChanged) {
       setEditAll(null);
       return;
     }
@@ -162,12 +163,13 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU / Image
-    if (nameChanged || skuChanged || imageChanged) {
+    // 1) Name / SKU / Image / Color
+    if (nameChanged || skuChanged || imageChanged || colorChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
       if (imageChanged) patch.image = editForm.image || null;
+      if (colorChanged) patch.color = editForm.color || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
