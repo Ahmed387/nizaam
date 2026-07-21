@@ -669,7 +669,10 @@ export default function Inventory() {
                           </div>
                         </td>
                         <td className="px-3 py-3 align-middle text-muted-foreground truncate" title={r.categories?.name ?? ""}>
-                          {r.categories?.name ?? "—"}
+                          <div className="flex flex-col gap-1">
+                            <span>{r.categories?.name ?? "—"}</span>
+                            {r.color && <ColorChip name={r.color} />}
+                          </div>
                         </td>
                         <td className="px-3 py-3 align-middle text-center">
                           <div className="font-bold">{r.quantity}</div>
