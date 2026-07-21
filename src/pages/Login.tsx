@@ -24,16 +24,17 @@ export default function Login() {
   const [empJob, setEmpJob] = useState("");
   const [empPassword, setEmpPassword] = useState("");
 
-  const { user, isAdmin, isSuperAdmin, branches, loading } = useAuth();
+  const { user, isAdmin, isSuperAdmin, branches, loading, hasRole } = useAuth();
   const nav = useNavigate();
 
   useEffect(() => {
     if (!loading && user) {
       if (isSuperAdmin) nav("/super/dashboard", { replace: true });
       else if (isAdmin) nav("/admin/dashboard", { replace: true });
+      else if (hasRole("partner")) nav("/partner/dashboard", { replace: true });
       else if (branches[0]) nav(`/branch/${branches[0].id}/dashboard`, { replace: true });
     }
-  }, [user, isAdmin, isSuperAdmin, branches, loading, nav]);
+  }, [user, isAdmin, isSuperAdmin, branches, loading, hasRole, nav]);
 
   const submitAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
