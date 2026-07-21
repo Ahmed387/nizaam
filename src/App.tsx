@@ -151,6 +151,8 @@ import BalanceSheet from "./pages/admin/BalanceSheet";
 import IncomeStatement from "./pages/admin/IncomeStatement";
 import CashFlowStatement from "./pages/admin/CashFlowStatement";
 import AgingReport from "./pages/admin/AgingReport";
+import BankReconciliation from "./pages/admin/BankReconciliation";
+import BankReconciliationDetail from "./pages/admin/BankReconciliationDetail";
 
 const queryClient = new QueryClient();
 
@@ -236,6 +238,8 @@ const App = () => (
             <Route path="/admin/accounting/income-statement" element={<ProtectedRoute adminOnly><IncomeStatement /></ProtectedRoute>} />
             <Route path="/admin/accounting/cash-flow" element={<ProtectedRoute adminOnly><CashFlowStatement /></ProtectedRoute>} />
             <Route path="/admin/accounting/aging" element={<ProtectedRoute adminOnly><AgingReport /></ProtectedRoute>} />
+            <Route path="/admin/accounting/bank-reconciliation" element={<ProtectedRoute adminOnly><BankReconciliation /></ProtectedRoute>} />
+            <Route path="/admin/accounting/bank-reconciliation/:id" element={<ProtectedRoute adminOnly><BankReconciliationDetail /></ProtectedRoute>} />
 
             {/* Partner portal */}
             <Route path="/partner/dashboard" element={<ProtectedRoute roles={["partner"]}><PartnerDashboard /></ProtectedRoute>} />
