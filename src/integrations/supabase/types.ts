@@ -654,6 +654,64 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by: string | null
+          fiscal_period_id: string
+          id: string
+          notes: string | null
+          planned_amount: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by?: string | null
+          fiscal_period_id: string
+          id?: string
+          notes?: string | null
+          planned_amount?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by?: string | null
+          fiscal_period_id?: string
+          id?: string
+          notes?: string | null
+          planned_amount?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "budgets_fiscal_period_id_fkey"
+            columns: ["fiscal_period_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -5074,6 +5132,23 @@ export type Database = {
           total_balance: number
           vodafone_balance: number
         }[]
+      }
+      get_budget_variance: {
+        Args: { _fiscal_period_id: string }
+        Returns: {
+          account_code: string
+          account_id: string
+          account_name: string
+          account_type: string
+          actual_amount: number
+          planned_amount: number
+          variance: number
+          variance_pct: number
+        }[]
+      }
+      get_financial_kpis: {
+        Args: { _end_date: string; _start_date: string }
+        Returns: Json
       }
       get_product_references_count: {
         Args: { _product_id: string }

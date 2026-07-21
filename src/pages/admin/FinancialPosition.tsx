@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock } from "lucide-react";
+import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3 } from "lucide-react";
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
@@ -89,6 +89,8 @@ export default function FinancialPosition() {
             <Button asChild variant="outline"><Link to="/admin/accounting/aging"><Clock className="w-4 h-4 ml-2 text-warning" />تقرير الأعمار</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/bank-reconciliation"><Landmark className="w-4 h-4 ml-2 text-primary" />المطابقة البنكية</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/fiscal-closing"><Lock className="w-4 h-4 ml-2 text-warning" />الإقفال وتوزيع الأرباح</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/budgets"><Target className="w-4 h-4 ml-2 text-primary" />الموازنة التقديرية</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/kpis"><BarChart3 className="w-4 h-4 ml-2 text-primary" />مؤشرات الأداء KPIs</Link></Button>
           </CardContent>
         </Card>
       </div>
