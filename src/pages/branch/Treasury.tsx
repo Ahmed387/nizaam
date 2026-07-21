@@ -459,7 +459,19 @@ export default function Treasury() {
         open={!!viewVoucher}
         onOpenChange={(o) => !o && setViewVoucher(null)}
         categoryName={viewVoucher?._category_name}
+        onEdit={(v) => { setViewVoucher(null); setEditVoucher(v); }}
       />
+
+      {editVoucher && (
+        <VoucherDialog
+          open={!!editVoucher}
+          onOpenChange={(o) => !o && setEditVoucher(null)}
+          branchId={editVoucher.branch_id}
+          type={editVoucher.type}
+          editingVoucher={editVoucher}
+          onSuccess={load}
+        />
+      )}
     </BranchLayout>
   );
 }
