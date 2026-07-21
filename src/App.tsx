@@ -149,6 +149,8 @@ import GeneralLedger from "./pages/admin/GeneralLedger";
 import TrialBalance from "./pages/admin/TrialBalance";
 import BalanceSheet from "./pages/admin/BalanceSheet";
 import IncomeStatement from "./pages/admin/IncomeStatement";
+import CashFlowStatement from "./pages/admin/CashFlowStatement";
+import AgingReport from "./pages/admin/AgingReport";
 
 const queryClient = new QueryClient();
 
