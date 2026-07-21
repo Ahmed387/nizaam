@@ -111,11 +111,13 @@ export function VoucherCategoriesTab() {
                   {r.is_system && <Badge variant="outline" className="text-xs">نظام</Badge>}
                   {!r.is_active && <Badge variant="secondary" className="text-xs">معطّل</Badge>}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <DeductibleControl c={r} type={type} />
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">مفعّل</span>
                     <Switch checked={r.is_active} onCheckedChange={(v) => toggleActive(r, v)} />
                   </div>
+
                   <Button size="sm" variant="outline" onClick={() => { setName(""); setDialog({ open: true, mode: "child", parent: r, type }); }} className="gap-1">
                     <Plus className="w-3.5 h-3.5" /> فرعي
                   </Button>
