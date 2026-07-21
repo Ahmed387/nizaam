@@ -435,6 +435,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         open={!!viewTarget}
         onOpenChange={(o) => !o && setViewTarget(null)}
         categoryName={viewTarget ? catMap[viewTarget.category_id] : undefined}
+        onEdit={(v) => { setViewTarget(null); setEditTarget(v); }}
       />
     </div>
   );
