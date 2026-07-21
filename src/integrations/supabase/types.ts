@@ -1490,6 +1490,172 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_advance_installments: {
+        Row: {
+          advance_id: string
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          paid_amount: number
+          paid_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          advance_id: string
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          paid_amount?: number
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          advance_id?: string
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          paid_amount?: number
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_advance_installments_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "partner_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_advance_payments: {
+        Row: {
+          advance_id: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          installment_id: string | null
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          reference_id: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          advance_id: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          installment_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          advance_id?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          installment_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_advance_payments_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "partner_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_advance_payments_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_advance_installments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_advances: {
+        Row: {
+          advance_date: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          installments_count: number
+          monthly_deduction: number | null
+          notes: string | null
+          partner_id: string
+          reason: string | null
+          remaining_amount: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          advance_date?: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          installments_count?: number
+          monthly_deduction?: number | null
+          notes?: string | null
+          partner_id: string
+          reason?: string | null
+          remaining_amount: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          advance_date?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          installments_count?: number
+          monthly_deduction?: number | null
+          notes?: string | null
+          partner_id?: string
+          reason?: string | null
+          remaining_amount?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_advances_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "equity_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_share_history: {
         Row: {
           capital_share: number
@@ -4173,6 +4339,19 @@ export type Database = {
             }
             Returns: string
           }
+      create_partner_advance: {
+        Args: {
+          _advance_date: string
+          _amount: number
+          _custom_installments?: Json
+          _first_due_date: string
+          _installments_count: number
+          _notes?: string
+          _partner_id: string
+          _reason?: string
+        }
+        Returns: string
+      }
       create_pre_order:
         | {
             Args: {
@@ -4355,6 +4534,10 @@ export type Database = {
         Returns: string
       }
       mark_overdue_installments: { Args: never; Returns: number }
+      mark_partner_advance_installments_overdue: {
+        Args: never
+        Returns: number
+      }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_pre_order_number: { Args: never; Returns: string }
@@ -4440,6 +4623,18 @@ export type Database = {
           p_reference_number: string
           p_transfer_from_account?: string
           p_transfer_to_account: string
+        }
+        Returns: string
+      }
+      record_partner_advance_payment: {
+        Args: {
+          _advance_id: string
+          _amount: number
+          _notes?: string
+          _payment_date?: string
+          _payment_method?: string
+          _reference_id?: string
+          _reference_type?: string
         }
         Returns: string
       }
