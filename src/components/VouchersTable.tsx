@@ -43,6 +43,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [deleteTarget, setDeleteTarget] = useState<Voucher | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
+  const [editTarget, setEditTarget] = useState<Voucher | null>(null);
   const [filters, setFilters] = useState({
     from: "",
     to: "",
