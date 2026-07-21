@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
+import { ColorChip } from "@/components/ColorPicker";
 
 export interface ProductRow {
   id: string;
@@ -21,6 +22,7 @@ export interface ProductRow {
   selling_price: number;
   image: string | null;
   branch_id: string;
+  color?: string | null;
 }
 
 /**
