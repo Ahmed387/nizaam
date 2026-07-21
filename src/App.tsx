@@ -136,8 +136,11 @@ import FinancialPosition from "./pages/admin/FinancialPosition";
 import PartnersList from "./pages/admin/PartnersList";
 import AdminPartnerProfile from "./pages/admin/PartnerProfile";
 import PartnerTransactions from "./pages/admin/PartnerTransactions";
+import PartnerAdvances from "./pages/admin/PartnerAdvances";
+import PartnerAdvanceDetail from "./pages/admin/PartnerAdvanceDetail";
 import PartnerDashboard from "./pages/partner/Dashboard";
 import PartnerLedger from "./pages/partner/Ledger";
+import PartnerAdvancesView from "./pages/partner/Advances";
 import PartnerProfilePage from "./pages/partner/Profile";
 
 const queryClient = new QueryClient();
@@ -211,10 +214,13 @@ const App = () => (
             <Route path="/admin/financial-position/partners" element={<ProtectedRoute adminOnly><PartnersList /></ProtectedRoute>} />
             <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute adminOnly><AdminPartnerProfile /></ProtectedRoute>} />
             <Route path="/admin/financial-position/transactions" element={<ProtectedRoute adminOnly><PartnerTransactions /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/advances" element={<ProtectedRoute adminOnly><PartnerAdvances /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute adminOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
 
             {/* Partner portal */}
             <Route path="/partner/dashboard" element={<ProtectedRoute roles={["partner"]}><PartnerDashboard /></ProtectedRoute>} />
             <Route path="/partner/ledger" element={<ProtectedRoute roles={["partner"]}><PartnerLedger /></ProtectedRoute>} />
+            <Route path="/partner/advances" element={<ProtectedRoute roles={["partner"]}><PartnerAdvancesView /></ProtectedRoute>} />
             <Route path="/partner/profile" element={<ProtectedRoute roles={["partner"]}><PartnerProfilePage /></ProtectedRoute>} />
 
 
