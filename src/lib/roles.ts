@@ -10,7 +10,8 @@ export type AppRole =
   | "viewer"
   | "supervisor"
   | "worker"
-  | "driver";
+  | "driver"
+  | "partner";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "مالك المنصة",
@@ -23,6 +24,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   supervisor: "ملاحظ (متابعة الحضور والانصراف فقط)",
   worker: "عامل",
   driver: "سواق",
+  partner: "شريك",
 };
 
 /** Roles whose users only access their own profile (worker/driver). */

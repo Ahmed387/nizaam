@@ -132,6 +132,13 @@ import SuperDashboard from "./pages/super/Dashboard";
 import SuperTenants from "./pages/super/Tenants";
 import SuperUsers from "./pages/super/AllUsers";
 import AttachmentsHub from "./pages/AttachmentsHub";
+import FinancialPosition from "./pages/admin/FinancialPosition";
+import PartnersList from "./pages/admin/PartnersList";
+import AdminPartnerProfile from "./pages/admin/PartnerProfile";
+import PartnerTransactions from "./pages/admin/PartnerTransactions";
+import PartnerDashboard from "./pages/partner/Dashboard";
+import PartnerLedger from "./pages/partner/Ledger";
+import PartnerProfilePage from "./pages/partner/Profile";
 
 const queryClient = new QueryClient();
 
@@ -198,6 +205,18 @@ const App = () => (
             <Route path="/admin/price-audit" element={<ProtectedRoute adminOnly><PriceAuditLog /></ProtectedRoute>} />
             <Route path="/admin/vouchers" element={<Navigate to="/admin/finance?tab=vouchers" replace />} />
             <Route path="/admin/receivables" element={<Navigate to="/admin/finance?tab=receivables" replace />} />
+
+            {/* Financial Position (Partners) */}
+            <Route path="/admin/financial-position" element={<ProtectedRoute adminOnly><FinancialPosition /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partners" element={<ProtectedRoute adminOnly><PartnersList /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute adminOnly><AdminPartnerProfile /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/transactions" element={<ProtectedRoute adminOnly><PartnerTransactions /></ProtectedRoute>} />
+
+            {/* Partner portal */}
+            <Route path="/partner/dashboard" element={<ProtectedRoute roles={["partner"]}><PartnerDashboard /></ProtectedRoute>} />
+            <Route path="/partner/ledger" element={<ProtectedRoute roles={["partner"]}><PartnerLedger /></ProtectedRoute>} />
+            <Route path="/partner/profile" element={<ProtectedRoute roles={["partner"]}><PartnerProfilePage /></ProtectedRoute>} />
+
 
 
             {/* Branch */}
