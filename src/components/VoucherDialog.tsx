@@ -10,12 +10,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
 import { validateTransferPayment } from "@/lib/paymentMethods";
-import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType } from "@/lib/vouchers";
+import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ATT_BUCKET = "record-attachments";
@@ -27,7 +27,21 @@ interface Props {
   branchId: string;
   type: VoucherType;
   onSuccess?: () => void;
+  /** When provided, dialog runs in edit mode and calls edit_voucher RPC */
+  editingVoucher?: Voucher | null;
 }
+
+const FIELD_LABELS_AR: Record<string, string> = {
+  amount: "المبلغ",
+  voucher_date: "التاريخ",
+  category: "التصنيف",
+  payment_method: "طريقة الدفع",
+  party: "الجهة",
+  description: "الوصف",
+  reference_number: "رقم المرجع",
+  transferred_to: "التحويل إلى",
+  fee_amount: "العمولة",
+};
 
 interface PartyOption { id: string; name: string; }
 
