@@ -858,6 +858,30 @@ export type Database = {
           },
         ]
       }
+      colors: {
+        Row: {
+          created_at: string
+          hex: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          hex?: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          hex?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           address: string | null
@@ -1703,6 +1727,7 @@ export type Database = {
         Row: {
           batch_id: string | null
           batches_consumed: Json | null
+          color: string | null
           cost_price: number
           discount_approval_note: string | null
           discount_approved_by: string | null
@@ -1730,6 +1755,7 @@ export type Database = {
         Insert: {
           batch_id?: string | null
           batches_consumed?: Json | null
+          color?: string | null
           cost_price?: number
           discount_approval_note?: string | null
           discount_approved_by?: string | null
@@ -1757,6 +1783,7 @@ export type Database = {
         Update: {
           batch_id?: string | null
           batches_consumed?: Json | null
+          color?: string | null
           cost_price?: number
           discount_approval_note?: string | null
           discount_approved_by?: string | null
@@ -3180,6 +3207,7 @@ export type Database = {
           archived_by: string | null
           branch_id: string
           category_id: string | null
+          color: string | null
           cost_price: number
           created_at: string
           id: string
@@ -3201,6 +3229,7 @@ export type Database = {
           archived_by?: string | null
           branch_id: string
           category_id?: string | null
+          color?: string | null
           cost_price?: number
           created_at?: string
           id?: string
@@ -3222,6 +3251,7 @@ export type Database = {
           archived_by?: string | null
           branch_id?: string
           category_id?: string | null
+          color?: string | null
           cost_price?: number
           created_at?: string
           id?: string
@@ -3408,6 +3438,7 @@ export type Database = {
       }
       purchase_return_items: {
         Row: {
+          color: string | null
           id: string
           product_id: string
           product_name: string
@@ -3417,6 +3448,7 @@ export type Database = {
           unit_cost: number
         }
         Insert: {
+          color?: string | null
           id?: string
           product_id: string
           product_name: string
@@ -3426,6 +3458,7 @@ export type Database = {
           unit_cost: number
         }
         Update: {
+          color?: string | null
           id?: string
           product_id?: string
           product_name?: string
@@ -3666,6 +3699,7 @@ export type Database = {
       }
       return_items: {
         Row: {
+          color: string | null
           id: string
           product_id: string | null
           quantity: number
@@ -3674,6 +3708,7 @@ export type Database = {
           tenant_id: string | null
         }
         Insert: {
+          color?: string | null
           id?: string
           product_id?: string | null
           quantity: number
@@ -3682,6 +3717,7 @@ export type Database = {
           tenant_id?: string | null
         }
         Update: {
+          color?: string | null
           id?: string
           product_id?: string | null
           quantity?: number
@@ -3950,6 +3986,7 @@ export type Database = {
       shipment_items: {
         Row: {
           base_unit_price: number
+          color: string | null
           cost_price: number
           discount_amount: number
           discount_percent: number
@@ -3965,6 +4002,7 @@ export type Database = {
         }
         Insert: {
           base_unit_price?: number
+          color?: string | null
           cost_price: number
           discount_amount?: number
           discount_percent?: number
@@ -3980,6 +4018,7 @@ export type Database = {
         }
         Update: {
           base_unit_price?: number
+          color?: string | null
           cost_price?: number
           discount_amount?: number
           discount_percent?: number
