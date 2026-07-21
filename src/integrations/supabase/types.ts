@@ -759,6 +759,27 @@ export type Database = {
           },
         ]
       }
+      capacities: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -1554,6 +1575,7 @@ export type Database = {
       inventory_reservations: {
         Row: {
           branch_id: string
+          capacity: string | null
           cashier_id: string | null
           cashier_name: string | null
           color: string | null
@@ -1562,13 +1584,16 @@ export type Database = {
           id: string
           invoice_draft_id: string
           product_id: string
+          product_type: string | null
           released_at: string | null
           reserved_quantity: number
+          size: string | null
           status: string
           tenant_id: string | null
         }
         Insert: {
           branch_id: string
+          capacity?: string | null
           cashier_id?: string | null
           cashier_name?: string | null
           color?: string | null
@@ -1577,13 +1602,16 @@ export type Database = {
           id?: string
           invoice_draft_id: string
           product_id: string
+          product_type?: string | null
           released_at?: string | null
           reserved_quantity?: number
+          size?: string | null
           status?: string
           tenant_id?: string | null
         }
         Update: {
           branch_id?: string
+          capacity?: string | null
           cashier_id?: string | null
           cashier_name?: string | null
           color?: string | null
@@ -1592,8 +1620,10 @@ export type Database = {
           id?: string
           invoice_draft_id?: string
           product_id?: string
+          product_type?: string | null
           released_at?: string | null
           reserved_quantity?: number
+          size?: string | null
           status?: string
           tenant_id?: string | null
         }
@@ -1617,6 +1647,7 @@ export type Database = {
       inventory_session_items: {
         Row: {
           actual_quantity: number | null
+          capacity: string | null
           color: string | null
           created_at: string
           difference: number | null
@@ -1625,14 +1656,17 @@ export type Database = {
           product_code: string
           product_id: string
           product_name: string
+          product_type: string | null
           reason: string | null
           session_id: string
+          size: string | null
           system_quantity: number
           unit: string | null
           updated_at: string
         }
         Insert: {
           actual_quantity?: number | null
+          capacity?: string | null
           color?: string | null
           created_at?: string
           difference?: number | null
@@ -1641,14 +1675,17 @@ export type Database = {
           product_code: string
           product_id: string
           product_name: string
+          product_type?: string | null
           reason?: string | null
           session_id: string
+          size?: string | null
           system_quantity: number
           unit?: string | null
           updated_at?: string
         }
         Update: {
           actual_quantity?: number | null
+          capacity?: string | null
           color?: string | null
           created_at?: string
           difference?: number | null
@@ -1657,8 +1694,10 @@ export type Database = {
           product_code?: string
           product_id?: string
           product_name?: string
+          product_type?: string | null
           reason?: string | null
           session_id?: string
+          size?: string | null
           system_quantity?: number
           unit?: string | null
           updated_at?: string
@@ -1736,6 +1775,7 @@ export type Database = {
         Row: {
           batch_id: string | null
           batches_consumed: Json | null
+          capacity: string | null
           color: string | null
           cost_price: number
           discount_approval_note: string | null
@@ -1754,9 +1794,11 @@ export type Database = {
           price_list_item_id: string | null
           product_id: string | null
           product_name: string
+          product_type: string | null
           quantity: number
           returned_quantity: number
           selling_price: number
+          size: string | null
           tenant_id: string | null
           total: number
           unit_cost_at_sale: number
@@ -1764,6 +1806,7 @@ export type Database = {
         Insert: {
           batch_id?: string | null
           batches_consumed?: Json | null
+          capacity?: string | null
           color?: string | null
           cost_price?: number
           discount_approval_note?: string | null
@@ -1782,9 +1825,11 @@ export type Database = {
           price_list_item_id?: string | null
           product_id?: string | null
           product_name: string
+          product_type?: string | null
           quantity: number
           returned_quantity?: number
           selling_price?: number
+          size?: string | null
           tenant_id?: string | null
           total?: number
           unit_cost_at_sale?: number
@@ -1792,6 +1837,7 @@ export type Database = {
         Update: {
           batch_id?: string | null
           batches_consumed?: Json | null
+          capacity?: string | null
           color?: string | null
           cost_price?: number
           discount_approval_note?: string | null
@@ -1810,9 +1856,11 @@ export type Database = {
           price_list_item_id?: string | null
           product_id?: string | null
           product_name?: string
+          product_type?: string | null
           quantity?: number
           returned_quantity?: number
           selling_price?: number
+          size?: string | null
           tenant_id?: string | null
           total?: number
           unit_cost_at_sale?: number
@@ -2896,6 +2944,7 @@ export type Database = {
       pre_orders: {
         Row: {
           branch_id: string
+          capacity: string | null
           color: string | null
           contact_id: string | null
           created_at: string
@@ -2913,13 +2962,16 @@ export type Database = {
           order_number: string
           price_list_item_id: string | null
           product_name: string
+          product_type: string | null
           quantity: number
+          size: string | null
           status: Database["public"]["Enums"]["pre_order_status"]
           tenant_id: string
           updated_at: string
         }
         Insert: {
           branch_id: string
+          capacity?: string | null
           color?: string | null
           contact_id?: string | null
           created_at?: string
@@ -2937,13 +2989,16 @@ export type Database = {
           order_number?: string
           price_list_item_id?: string | null
           product_name: string
+          product_type?: string | null
           quantity: number
+          size?: string | null
           status?: Database["public"]["Enums"]["pre_order_status"]
           tenant_id: string
           updated_at?: string
         }
         Update: {
           branch_id?: string
+          capacity?: string | null
           color?: string | null
           contact_id?: string | null
           created_at?: string
@@ -2961,7 +3016,9 @@ export type Database = {
           order_number?: string
           price_list_item_id?: string | null
           product_name?: string
+          product_type?: string | null
           quantity?: number
+          size?: string | null
           status?: Database["public"]["Enums"]["pre_order_status"]
           tenant_id?: string
           updated_at?: string
@@ -3213,11 +3270,33 @@ export type Database = {
           },
         ]
       }
+      product_types: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           archived_at: string | null
           archived_by: string | null
           branch_id: string
+          capacity: string | null
           category_id: string | null
           color: string | null
           cost_price: number
@@ -3231,8 +3310,10 @@ export type Database = {
           min_stock_level: number
           name: string
           old_price: number
+          product_type: string | null
           quantity: number
           selling_price: number
+          size: string | null
           sku: string
           tenant_id: string | null
         }
@@ -3240,6 +3321,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           branch_id: string
+          capacity?: string | null
           category_id?: string | null
           color?: string | null
           cost_price?: number
@@ -3253,8 +3335,10 @@ export type Database = {
           min_stock_level?: number
           name: string
           old_price?: number
+          product_type?: string | null
           quantity?: number
           selling_price?: number
+          size?: string | null
           sku: string
           tenant_id?: string | null
         }
@@ -3262,6 +3346,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           branch_id?: string
+          capacity?: string | null
           category_id?: string | null
           color?: string | null
           cost_price?: number
@@ -3275,8 +3360,10 @@ export type Database = {
           min_stock_level?: number
           name?: string
           old_price?: number
+          product_type?: string | null
           quantity?: number
           selling_price?: number
+          size?: string | null
           sku?: string
           tenant_id?: string | null
         }
@@ -3450,32 +3537,41 @@ export type Database = {
       }
       purchase_return_items: {
         Row: {
+          capacity: string | null
           color: string | null
           id: string
           product_id: string
           product_name: string
+          product_type: string | null
           purchase_return_id: string
           quantity: number
+          size: string | null
           total: number
           unit_cost: number
         }
         Insert: {
+          capacity?: string | null
           color?: string | null
           id?: string
           product_id: string
           product_name: string
+          product_type?: string | null
           purchase_return_id: string
           quantity: number
+          size?: string | null
           total: number
           unit_cost: number
         }
         Update: {
+          capacity?: string | null
           color?: string | null
           id?: string
           product_id?: string
           product_name?: string
+          product_type?: string | null
           purchase_return_id?: string
           quantity?: number
+          size?: string | null
           total?: number
           unit_cost?: number
         }
@@ -3593,32 +3689,41 @@ export type Database = {
       }
       quote_items: {
         Row: {
+          capacity: string | null
           color: string | null
           id: string
           product_id: string | null
           product_name: string
+          product_type: string | null
           quantity: number
           quote_id: string
+          size: string | null
           total: number
           unit_price: number
         }
         Insert: {
+          capacity?: string | null
           color?: string | null
           id?: string
           product_id?: string | null
           product_name: string
+          product_type?: string | null
           quantity: number
           quote_id: string
+          size?: string | null
           total: number
           unit_price: number
         }
         Update: {
+          capacity?: string | null
           color?: string | null
           id?: string
           product_id?: string | null
           product_name?: string
+          product_type?: string | null
           quantity?: number
           quote_id?: string
+          size?: string | null
           total?: number
           unit_price?: number
         }
@@ -3714,30 +3819,39 @@ export type Database = {
       }
       return_items: {
         Row: {
+          capacity: string | null
           color: string | null
           id: string
           product_id: string | null
+          product_type: string | null
           quantity: number
           refund: number
           return_id: string
+          size: string | null
           tenant_id: string | null
         }
         Insert: {
+          capacity?: string | null
           color?: string | null
           id?: string
           product_id?: string | null
+          product_type?: string | null
           quantity: number
           refund: number
           return_id: string
+          size?: string | null
           tenant_id?: string | null
         }
         Update: {
+          capacity?: string | null
           color?: string | null
           id?: string
           product_id?: string | null
+          product_type?: string | null
           quantity?: number
           refund?: number
           return_id?: string
+          size?: string | null
           tenant_id?: string | null
         }
         Relationships: [
@@ -4001,6 +4115,7 @@ export type Database = {
       shipment_items: {
         Row: {
           base_unit_price: number
+          capacity: string | null
           color: string | null
           cost_price: number
           discount_amount: number
@@ -4008,15 +4123,18 @@ export type Database = {
           id: string
           product_id: string | null
           product_name: string
+          product_type: string | null
           quantity: number
           shipment_id: string
           shipping_cost_per_unit: number
+          size: string | null
           tenant_id: string | null
           total: number
           true_unit_cost: number
         }
         Insert: {
           base_unit_price?: number
+          capacity?: string | null
           color?: string | null
           cost_price: number
           discount_amount?: number
@@ -4024,15 +4142,18 @@ export type Database = {
           id?: string
           product_id?: string | null
           product_name: string
+          product_type?: string | null
           quantity: number
           shipment_id: string
           shipping_cost_per_unit?: number
+          size?: string | null
           tenant_id?: string | null
           total: number
           true_unit_cost?: number
         }
         Update: {
           base_unit_price?: number
+          capacity?: string | null
           color?: string | null
           cost_price?: number
           discount_amount?: number
@@ -4040,9 +4161,11 @@ export type Database = {
           id?: string
           product_id?: string | null
           product_name?: string
+          product_type?: string | null
           quantity?: number
           shipment_id?: string
           shipping_cost_per_unit?: number
+          size?: string | null
           tenant_id?: string | null
           total?: number
           true_unit_cost?: number
@@ -4159,37 +4282,67 @@ export type Database = {
           },
         ]
       }
+      sizes: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       stock_adjustment_items: {
         Row: {
           actual_quantity: number
           adjustment_id: string
+          capacity: string | null
           color: string | null
           difference: number
           id: string
           product_id: string
           product_name: string
+          product_type: string | null
+          size: string | null
           system_quantity: number
           unit_cost: number
         }
         Insert: {
           actual_quantity: number
           adjustment_id: string
+          capacity?: string | null
           color?: string | null
           difference: number
           id?: string
           product_id: string
           product_name: string
+          product_type?: string | null
+          size?: string | null
           system_quantity: number
           unit_cost?: number
         }
         Update: {
           actual_quantity?: number
           adjustment_id?: string
+          capacity?: string | null
           color?: string | null
           difference?: number
           id?: string
           product_id?: string
           product_name?: string
+          product_type?: string | null
+          size?: string | null
           system_quantity?: number
           unit_cost?: number
         }
@@ -4260,6 +4413,7 @@ export type Database = {
       }
       stock_transfers: {
         Row: {
+          capacity: string | null
           color: string | null
           confirmed_by: string | null
           cost_price_at_transfer: number | null
@@ -4268,9 +4422,11 @@ export type Database = {
           group_id: string | null
           id: string
           product_id: string
+          product_type: string | null
           quantity: number
           reason: string | null
           received_quantity: number | null
+          size: string | null
           status: Database["public"]["Enums"]["transfer_status"]
           tenant_id: string | null
           to_branch_id: string
@@ -4278,6 +4434,7 @@ export type Database = {
           transferred_by: string
         }
         Insert: {
+          capacity?: string | null
           color?: string | null
           confirmed_by?: string | null
           cost_price_at_transfer?: number | null
@@ -4286,9 +4443,11 @@ export type Database = {
           group_id?: string | null
           id?: string
           product_id: string
+          product_type?: string | null
           quantity: number
           reason?: string | null
           received_quantity?: number | null
+          size?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
           to_branch_id: string
@@ -4296,6 +4455,7 @@ export type Database = {
           transferred_by: string
         }
         Update: {
+          capacity?: string | null
           color?: string | null
           confirmed_by?: string | null
           cost_price_at_transfer?: number | null
@@ -4304,9 +4464,11 @@ export type Database = {
           group_id?: string | null
           id?: string
           product_id?: string
+          product_type?: string | null
           quantity?: number
           reason?: string | null
           received_quantity?: number | null
+          size?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
           to_branch_id?: string

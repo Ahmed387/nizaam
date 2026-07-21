@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ColorPicker, ColorChip } from "@/components/ColorPicker";
+import { AttributePicker } from "@/components/AttributePicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -50,6 +51,7 @@ export default function Inventory() {
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
     low_stock_alert: "5", quantity: "0", image: "", color: "",
+    product_type: "", capacity: "", size: "",
   });
   const [uploading, setUploading] = useState(false);
   const [historyFor, setHistoryFor] = useState<any>(null);
@@ -58,6 +60,7 @@ export default function Inventory() {
     name: "", sku: "", quantity: "0",
     cost_price: "", selling_price: "", market_price: "",
     qty_notes: "", price_reason: "", image: "", color: "",
+    product_type: "", capacity: "", size: "",
   });
   const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -118,6 +121,9 @@ export default function Inventory() {
       price_reason: "",
       image: String(r.image ?? ""),
       color: String(r.color ?? ""),
+      product_type: String(r.product_type ?? ""),
+      capacity: String(r.capacity ?? ""),
+      size: String(r.size ?? ""),
     });
   };
 
@@ -153,8 +159,12 @@ export default function Inventory() {
     const priceChanged = costChanged || sellChanged || marketChanged;
     const imageChanged = (editForm.image || "") !== (editAll.image || "");
     const colorChanged = (editForm.color || "") !== (editAll.color || "");
+    const typeChanged = (editForm.product_type || "") !== (editAll.product_type || "");
+    const capChanged = (editForm.capacity || "") !== (editAll.capacity || "");
+    const sizeChanged = (editForm.size || "") !== (editAll.size || "");
+    const attrsChanged = colorChanged || typeChanged || capChanged || sizeChanged;
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !colorChanged) {
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !attrsChanged) {
       setEditAll(null);
       return;
     }
@@ -164,13 +174,16 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU / Image / Color
-    if (nameChanged || skuChanged || imageChanged || colorChanged) {
+    // 1) Name / SKU / Image / Attributes
+    if (nameChanged || skuChanged || imageChanged || attrsChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
       if (imageChanged) patch.image = editForm.image || null;
       if (colorChanged) patch.color = editForm.color || null;
+      if (typeChanged) patch.product_type = editForm.product_type || null;
+      if (capChanged) patch.capacity = editForm.capacity || null;
+      if (sizeChanged) patch.size = editForm.size || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
@@ -472,8 +485,13 @@ export default function Inventory() {
     });
     if (error) return toast.error(error.message);
     const newId = (data as any)?.product_id;
-    if (newId && form.color) {
-      await supabase.from("products").update({ color: form.color } as any).eq("id", newId);
+    if (newId) {
+      const patch: any = {};
+      if (form.color) patch.color = form.color;
+      if (form.product_type) patch.product_type = form.product_type;
+      if (form.capacity) patch.capacity = form.capacity;
+      if (form.size) patch.size = form.size;
+      if (Object.keys(patch).length) await supabase.from("products").update(patch as any).eq("id", newId);
     }
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
@@ -482,7 +500,7 @@ export default function Inventory() {
     toast.success("تمت إضافة المنتج");
 
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "" });
     load();
   };
 
@@ -850,11 +868,12 @@ export default function Inventory() {
             <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
             <div><Label>اللون</Label><div className="mt-1.5"><ColorPicker value={form.color} onChange={(v) => setForm({ ...form, color: v ?? "" })} /></div></div>
-            
-            
+            <div><Label>النوع</Label><div className="mt-1.5"><AttributePicker table="product_types" value={form.product_type} onChange={(v) => setForm({ ...form, product_type: v ?? "" })} placeholder="اختر النوع" /></div></div>
+            <div><Label>السعة</Label><div className="mt-1.5"><AttributePicker table="capacities" value={form.capacity} onChange={(v) => setForm({ ...form, capacity: v ?? "" })} placeholder="اختر السعة" /></div></div>
+            <div><Label>المقاس / الحجم</Label><div className="mt-1.5"><AttributePicker table="sizes" value={form.size} onChange={(v) => setForm({ ...form, size: v ?? "" })} placeholder="اختر المقاس" /></div></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "" }); setOpen(false); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "" }); setOpen(false); }}>إلغاء</Button>
             <Button className="btn-gradient" onClick={submit}>إضافة</Button>
           </DialogFooter>
         </DialogContent>
@@ -1054,9 +1073,23 @@ export default function Inventory() {
                         <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
                       </div>
                     )}
-                    <div>
-                      <Label className="text-xs font-semibold mb-1.5 block">اللون</Label>
-                      <ColorPicker value={editForm.color} onChange={(v) => setEditForm({ ...editForm, color: v ?? "" })} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">اللون</Label>
+                        <ColorPicker value={editForm.color} onChange={(v) => setEditForm({ ...editForm, color: v ?? "" })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">النوع</Label>
+                        <AttributePicker table="product_types" value={editForm.product_type} onChange={(v) => setEditForm({ ...editForm, product_type: v ?? "" })} placeholder="اختر النوع" />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">السعة</Label>
+                        <AttributePicker table="capacities" value={editForm.capacity} onChange={(v) => setEditForm({ ...editForm, capacity: v ?? "" })} placeholder="اختر السعة" />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">المقاس / الحجم</Label>
+                        <AttributePicker table="sizes" value={editForm.size} onChange={(v) => setEditForm({ ...editForm, size: v ?? "" })} placeholder="اختر المقاس" />
+                      </div>
                     </div>
                   </div>
                 </section>
