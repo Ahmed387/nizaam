@@ -20,6 +20,7 @@ import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardLis
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { ColorPicker, ColorChip } from "@/components/ColorPicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
