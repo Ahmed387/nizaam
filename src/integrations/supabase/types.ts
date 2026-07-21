@@ -5327,6 +5327,44 @@ export type Database = {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
       }
+      edit_voucher:
+        | {
+            Args: {
+              p_amount: number
+              p_category_id: string
+              p_description?: string
+              p_edit_reason?: string
+              p_fee_amount?: number
+              p_party_id?: string
+              p_party_name?: string
+              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+              p_payment_method: string
+              p_reference_number?: string
+              p_transferred_to?: string
+              p_voucher_date: string
+              p_voucher_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_category_id: string
+              p_description?: string
+              p_edit_reason?: string
+              p_fee_amount?: number
+              p_party_id?: string
+              p_party_name?: string
+              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+              p_payment_method: string
+              p_reference_number?: string
+              p_transferred_from?: string
+              p_transferred_to?: string
+              p_voucher_date: string
+              p_voucher_id: string
+            }
+            Returns: Json
+          }
       expire_old_reservations: { Args: never; Returns: number }
       generate_alerts: {
         Args: never

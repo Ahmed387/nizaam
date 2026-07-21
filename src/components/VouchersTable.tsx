@@ -43,6 +43,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [deleteTarget, setDeleteTarget] = useState<Voucher | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
+  const [editTarget, setEditTarget] = useState<Voucher | null>(null);
   const [filters, setFilters] = useState({
     from: "",
     to: "",
@@ -367,6 +368,18 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         />
       )}
 
+      {/* Edit dialog - works for any voucher type */}
+      {editTarget && (
+        <VoucherDialog
+          open={!!editTarget}
+          onOpenChange={(o) => !o && setEditTarget(null)}
+          branchId={editTarget.branch_id}
+          type={editTarget.type}
+          editingVoucher={editTarget}
+          onSuccess={load}
+        />
+      )}
+
       <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>إلغاء السند {cancelTarget?.voucher_number}</DialogTitle></DialogHeader>
@@ -422,6 +435,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         open={!!viewTarget}
         onOpenChange={(o) => !o && setViewTarget(null)}
         categoryName={viewTarget ? catMap[viewTarget.category_id] : undefined}
+        onEdit={(v) => { setViewTarget(null); setEditTarget(v); }}
       />
     </div>
   );

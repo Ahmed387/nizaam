@@ -7,7 +7,7 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { RecordAttachments } from "./RecordAttachments";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Calendar, Wallet, Tag, CreditCard, User2, CheckCircle2, XCircle, FileText, Paperclip, Hash,
+  Calendar, Wallet, Tag, CreditCard, User2, CheckCircle2, XCircle, FileText, Paperclip, Hash, Pencil,
 } from "lucide-react";
 import { ReactNode } from "react";
 
@@ -16,11 +16,13 @@ export function VoucherViewDialog({
   open,
   onOpenChange,
   categoryName,
+  onEdit,
 }: {
   voucher: Voucher | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   categoryName?: string;
+  onEdit?: (voucher: Voucher) => void;
 }) {
   const { isAdmin, hasRole } = useAuth();
   const canEdit = isAdmin || hasRole("branch_manager") || hasRole("accountant") || hasRole("cashier");
@@ -100,7 +102,16 @@ export function VoucherViewDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-6 pb-6">
+        <DialogFooter className="px-6 pb-6 gap-2">
+          {canEdit && voucher.status === "active" && onEdit && (
+            <Button
+              variant="default"
+              onClick={() => onEdit(voucher)}
+              className="gap-2"
+            >
+              <Pencil className="w-4 h-4" /> تعديل السند
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button>
         </DialogFooter>
       </DialogContent>

@@ -10,12 +10,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
 import { validateTransferPayment } from "@/lib/paymentMethods";
-import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType } from "@/lib/vouchers";
+import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ATT_BUCKET = "record-attachments";
@@ -27,14 +27,30 @@ interface Props {
   branchId: string;
   type: VoucherType;
   onSuccess?: () => void;
+  /** When provided, dialog runs in edit mode and calls edit_voucher RPC */
+  editingVoucher?: Voucher | null;
 }
+
+const FIELD_LABELS_AR: Record<string, string> = {
+  amount: "المبلغ",
+  voucher_date: "التاريخ",
+  category: "التصنيف",
+  payment_method: "طريقة الدفع",
+  party: "الجهة",
+  description: "الوصف",
+  reference_number: "رقم المرجع",
+  transferred_to: "التحويل إلى",
+  fee_amount: "العمولة",
+};
 
 interface PartyOption { id: string; name: string; }
 
-export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }: Props) {
+export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher }: Props) {
   const { user } = useAuth();
+  const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
+  const [editReason, setEditReason] = useState("");
   const [form, setForm] = useState({
     category_id: "",
     amount: "",
@@ -54,20 +70,39 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
   useEffect(() => {
     if (!open) return;
     fetchVoucherCategories(type, true).then(setCats).catch((e) => toast.error(e.message));
-    setForm({
-      category_id: "",
-      amount: "",
-      party_type: "",
-      party_id: "",
-      party_name: "",
-      description: "",
-      voucher_date: new Date().toISOString().slice(0, 10),
-    });
-    setPm(emptyPaymentValue());
+    if (editingVoucher) {
+      setForm({
+        category_id: editingVoucher.category_id,
+        amount: String(editingVoucher.amount ?? ""),
+        party_type: (editingVoucher.party_type ?? "") as any,
+        party_id: editingVoucher.party_id ?? "",
+        party_name: editingVoucher.party_name ?? "",
+        description: editingVoucher.description ?? "",
+        voucher_date: editingVoucher.voucher_date,
+      });
+      const initPm = emptyPaymentValue(editingVoucher.payment_method as any);
+      initPm.reference_number = editingVoucher.reference_number ?? undefined;
+      initPm.transfer_to_account = editingVoucher.transferred_to ?? undefined;
+      initPm.transfer_from_account = (editingVoucher as any).transferred_from ?? undefined;
+      initPm.fee_amount = Number(editingVoucher.fee_amount ?? 0);
+      setPm(initPm);
+    } else {
+      setForm({
+        category_id: "",
+        amount: "",
+        party_type: "",
+        party_id: "",
+        party_name: "",
+        description: "",
+        voucher_date: new Date().toISOString().slice(0, 10),
+      });
+      setPm(emptyPaymentValue());
+    }
     setPartyOptions([]);
     setPartyBalance(null);
     setAttachFiles([]);
-  }, [open, type]);
+    setEditReason("");
+  }, [open, type, editingVoucher]);
 
   // System categories produced automatically by other flows — hide from manual dialog
   const AUTO_KEYS = new Set([
@@ -134,33 +169,74 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
   }, [form.party_id, form.party_type]);
 
 
+  const formatDiffValue = (v: any) => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (typeof v === "number") return formatEGP(v);
+    return String(v);
+  };
+
   const submit = async () => {
     const amt = Number(form.amount);
     if (!form.category_id) return toast.error("اختر التصنيف");
     if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
     const vErr = validateTransferPayment(pm);
     if (vErr) return toast.error(vErr);
+    if (isEdit && !editReason.trim()) return toast.error("سبب التعديل مطلوب");
     setBusy(true);
     try {
-      const { data: newId, error } = await supabase.rpc("create_manual_voucher" as any, {
-        p_branch_id: branchId,
-        p_type: type,
-        p_category_id: form.category_id,
-        p_amount: amt,
-        p_payment_method: pm.method,
-        p_reference_number: pm.reference_number ?? null,
-        p_transferred_to: pm.transfer_to_account ?? null,
-        p_transferred_from: pm.transfer_from_account ?? null,
-        p_fee_amount: pm.fee_amount ?? 0,
-        p_party_type: form.party_type || null,
-        p_party_id: form.party_id || null,
-        p_party_name: form.party_name.trim() || null,
-        p_description: form.description.trim() || null,
-        p_voucher_date: form.voucher_date,
-      });
-      if (error) throw error;
-      // Upload any pending attachments
-      const voucherId = newId as unknown as string | null;
+      let voucherId: string | null = null;
+
+      if (isEdit && editingVoucher) {
+        const { data: res, error } = await supabase.rpc("edit_voucher" as any, {
+          p_voucher_id: editingVoucher.id,
+          p_category_id: form.category_id,
+          p_amount: amt,
+          p_payment_method: pm.method,
+          p_voucher_date: form.voucher_date,
+          p_party_type: form.party_type || null,
+          p_party_id: form.party_id || null,
+          p_party_name: form.party_name.trim() || null,
+          p_description: form.description.trim() || null,
+          p_reference_number: pm.reference_number ?? null,
+          p_transferred_to: pm.transfer_to_account ?? null,
+          p_fee_amount: pm.fee_amount ?? 0,
+          p_edit_reason: editReason.trim(),
+        });
+        if (error) throw error;
+        const result = res as any;
+        voucherId = result?.new_voucher_id ?? null;
+        const changes = (result?.changes ?? {}) as Record<string, { old: any; new: any }>;
+        const changeCount = Object.keys(changes).length;
+        const lines = Object.entries(changes).map(
+          ([k, v]) => `• ${FIELD_LABELS_AR[k] ?? k}: ${formatDiffValue(v.old)} ← ${formatDiffValue(v.new)}`
+        );
+        toast.success(
+          `تم تعديل السند (${changeCount} حقل)`,
+          { description: lines.join("\n"), duration: 8000 }
+        );
+      } else {
+        const { data: newId, error } = await supabase.rpc("create_manual_voucher" as any, {
+          p_branch_id: branchId,
+          p_type: type,
+          p_category_id: form.category_id,
+          p_amount: amt,
+          p_payment_method: pm.method,
+          p_reference_number: pm.reference_number ?? null,
+          p_transferred_to: pm.transfer_to_account ?? null,
+          p_transferred_from: pm.transfer_from_account ?? null,
+          p_fee_amount: pm.fee_amount ?? 0,
+          p_party_type: form.party_type || null,
+          p_party_id: form.party_id || null,
+          p_party_name: form.party_name.trim() || null,
+          p_description: form.description.trim() || null,
+          p_voucher_date: form.voucher_date,
+        });
+        if (error) throw error;
+        voucherId = newId as unknown as string | null;
+        toast.success(type === "receipt" ? "تم حفظ سند القبض" : "تم حفظ سند الصرف");
+      }
+
+      // Upload any pending attachments (create + edit both support adding new attachments)
       if (voucherId && attachFiles.length > 0) {
         const { compressImage } = await import("@/lib/compressImage");
         let okCount = 0;
@@ -197,15 +273,16 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
         }
         if (okCount > 0) toast.success(`تم رفع ${okCount} مرفق`);
       }
-      toast.success(type === "receipt" ? "تم حفظ سند القبض" : "تم حفظ سند الصرف");
+
       onOpenChange(false);
       onSuccess?.();
     } catch (e: any) {
-      toast.error(e.message ?? "فشل الحفظ");
+      toast.error(e.message ?? (isEdit ? "فشل التعديل" : "فشل الحفظ"));
     } finally {
       setBusy(false);
     }
   };
+
 
   const selectedParty = partyOptions.find((p) => p.id === form.party_id);
 
@@ -224,11 +301,16 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
           </div>
           <div className="flex-1">
             <DialogHeader className="space-y-0.5">
-              <DialogTitle className="text-lg font-bold">
-                {isReceipt ? "سند قبض جديد" : "سند صرف جديد"}
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                {isEdit && <Pencil className="w-4 h-4" />}
+                {isEdit
+                  ? (isReceipt ? `تعديل سند قبض ${editingVoucher?.voucher_number ?? ""}` : `تعديل سند صرف ${editingVoucher?.voucher_number ?? ""}`)
+                  : (isReceipt ? "سند قبض جديد" : "سند صرف جديد")}
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                {isReceipt ? "تسجيل مبلغ مستلم في خزينة الفرع" : "تسجيل مبلغ مصروف من خزينة الفرع"}
+                {isEdit
+                  ? "سيتم إلغاء السند الأصلي وإصدار سند جديد بالبيانات المعدلة (يتم عكس الأثر المحاسبي تلقائياً)"
+                  : (isReceipt ? "تسجيل مبلغ مستلم في خزينة الفرع" : "تسجيل مبلغ مصروف من خزينة الفرع")}
               </p>
             </DialogHeader>
           </div>
@@ -429,12 +511,31 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
               </div>
             )}
           </section>
+
+          {/* Edit reason - only shown in edit mode */}
+          {isEdit && (
+            <section className="rounded-lg border-2 border-warning/40 bg-warning/5 p-4 space-y-2">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Pencil className="w-4 h-4 text-warning" /> سبب التعديل *
+              </h3>
+              <Textarea
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                rows={2}
+                placeholder="اذكر سبب التعديل — سيُسجَّل في سجل التدقيق ويرافق السند الجديد"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                ⚠️ عند الحفظ: يُلغى السند الأصلي ({editingVoucher?.voucher_number}) ويُصدَر سند جديد. الأثر المحاسبي والقيود تُحدَّث تلقائياً.
+              </p>
+            </section>
+          )}
         </div>
 
         <DialogFooter className="px-6 py-4 border-t bg-muted/20">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>إلغاء</Button>
           <Button onClick={submit} disabled={busy} className="gap-2 min-w-32">
-            {busy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ السند
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isEdit ? "حفظ التعديلات" : "حفظ السند"}
           </Button>
         </DialogFooter>
       </DialogContent>

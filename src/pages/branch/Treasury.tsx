@@ -22,6 +22,7 @@ import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, 
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
+import { VoucherDialog } from "@/components/VoucherDialog";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface WalletBalances {
@@ -57,6 +58,7 @@ export default function Treasury() {
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
   const [viewVoucher, setViewVoucher] = useState<any | null>(null);
+  const [editVoucher, setEditVoucher] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -458,7 +460,19 @@ export default function Treasury() {
         open={!!viewVoucher}
         onOpenChange={(o) => !o && setViewVoucher(null)}
         categoryName={viewVoucher?._category_name}
+        onEdit={(v) => { setViewVoucher(null); setEditVoucher(v); }}
       />
+
+      {editVoucher && (
+        <VoucherDialog
+          open={!!editVoucher}
+          onOpenChange={(o) => !o && setEditVoucher(null)}
+          branchId={editVoucher.branch_id}
+          type={editVoucher.type}
+          editingVoucher={editVoucher}
+          onSuccess={load}
+        />
+      )}
     </BranchLayout>
   );
 }
