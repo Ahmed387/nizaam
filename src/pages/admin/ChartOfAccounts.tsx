@@ -64,7 +64,7 @@ export default function ChartOfAccounts() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="دليل الحسابات" subtitle="إدارة الحسابات المحاسبية" icon={<BookOpen />} />
+        <PageHeader title="دليل الحسابات" subtitle="إدارة الحسابات المحاسبية" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
