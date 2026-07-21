@@ -453,6 +453,7 @@ export default function NewSale() {
         line_discount: 0,
         discount_mode: "amount",
         discount_input: 0,
+        color: (p as any).color ?? null,
       }]);
     }
     setSearch("");
