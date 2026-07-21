@@ -1352,6 +1352,7 @@ export default function NewSale() {
                                 {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0 mt-1.5" />}
                                 {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0 mt-1.5" />}
                                 <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
+                                {i.color && <ColorChip name={i.color} />}
                               </div>
                               {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
                             </div>
