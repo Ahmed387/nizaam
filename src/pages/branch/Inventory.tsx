@@ -48,7 +48,7 @@ export default function Inventory() {
   const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
-    low_stock_alert: "5", quantity: "0", image: "",
+    low_stock_alert: "5", quantity: "0", image: "", color: "",
   });
   const [uploading, setUploading] = useState(false);
   const [historyFor, setHistoryFor] = useState<any>(null);
@@ -56,7 +56,7 @@ export default function Inventory() {
   const [editForm, setEditForm] = useState({
     name: "", sku: "", quantity: "0",
     cost_price: "", selling_price: "", market_price: "",
-    qty_notes: "", price_reason: "", image: "",
+    qty_notes: "", price_reason: "", image: "", color: "",
   });
   const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
