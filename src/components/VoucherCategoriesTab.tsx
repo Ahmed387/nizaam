@@ -62,6 +62,36 @@ export function VoucherCategoriesTab() {
     load();
   };
 
+  const toggleDeductible = async (c: VoucherCategory, next: boolean) => {
+    if (c.is_system) return toast.error("لا يمكن تعديل تصنيف نظامي");
+    const { error } = await supabase.from("voucher_categories" as any).update({ is_deductible_from_profit: next } as any).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success(next ? "سيتم خصم هذا التصنيف من الربح" : "لن يتم خصم هذا التصنيف من الربح");
+    load();
+  };
+
+  const DeductibleControl = ({ c, type }: { c: VoucherCategory; type: VoucherType }) => {
+    if (type !== "payment") return null;
+    const val = c.is_deductible_from_profit ?? true;
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">يُخصم من الربح</span>
+              <Switch checked={val} disabled={c.is_system} onCheckedChange={(v) => toggleDeductible(c, v)} />
+              {c.is_system && <Lock className="w-3 h-3 text-muted-foreground" />}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs max-w-[260px]">التصنيفات المفعّلة تُخصم من صافي الربح في التقارير. التصنيفات النظامية غير قابلة للتعديل.</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
+
   const renderType = (type: VoucherType) => {
     const roots = cats.filter((c) => c.type === type && !c.parent_id);
     return (
