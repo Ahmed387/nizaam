@@ -464,6 +464,7 @@ export default function Inventory() {
         low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
         quantity: qty,
         image: form.image || null,
+        color: form.color || null,
       },
     });
     if (error) return toast.error(error.message);
