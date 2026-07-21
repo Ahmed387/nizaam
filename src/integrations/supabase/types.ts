@@ -571,6 +571,50 @@ export type Database = {
           },
         ]
       }
+      branch_capital_allocations: {
+        Row: {
+          allocation_date: string
+          amount: number
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_date?: string
+          amount: number
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_date?: string
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_capital_allocations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_users: {
         Row: {
           branch_id: string
@@ -1969,6 +2013,7 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          branch_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -1985,6 +2030,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -2001,6 +2047,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -2017,6 +2064,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "journal_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "journal_entries_reversed_by_fkey"
             columns: ["reversed_by"]
@@ -5002,6 +5056,15 @@ export type Database = {
         }
         Returns: Json
       }
+      allocate_capital_to_branch: {
+        Args: {
+          _allocation_date?: string
+          _amount: number
+          _branch_id: string
+          _notes?: string
+        }
+        Returns: string
+      }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
@@ -5282,6 +5345,10 @@ export type Database = {
           p_period_end: string
           p_period_start: string
         }
+        Returns: Json
+      }
+      get_branch_financial_position: {
+        Args: { _branch_id: string; _from?: string; _to?: string }
         Returns: Json
       }
       get_branch_wallet_balances: {
