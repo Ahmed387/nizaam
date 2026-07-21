@@ -165,7 +165,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
           <div className="relative mb-3">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="بحث بالاسم أو SKU..."
+              placeholder="بحث بالاسم، SKU، اللون، الفرع، السعر..."
               value={viewSearch}
               onChange={(e) => setViewSearch(e.target.value)}
               className="pr-9"
@@ -195,9 +195,25 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                 <tbody>
                   {viewProducts
                     .filter((p) => {
-                      const q = viewSearch.trim().toLowerCase();
-                      if (!q) return true;
-                      return (p.name || "").toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q);
+                      const raw = viewSearch.trim();
+                      if (!raw) return true;
+                      const normalize = (s: string) =>
+                        (s || "")
+                          .toString()
+                          .toLowerCase()
+                          .normalize("NFKD")
+                          .replace(/[\u064B-\u0652\u0670]/g, "")
+                          .replace(/[إأآا]/g, "ا")
+                          .replace(/ى/g, "ي")
+                          .replace(/ة/g, "ه");
+                      const branch = branches.find((b) => b.id === p.branch_id);
+                      const haystack = normalize(
+                        [p.name, p.sku, p.color, branch?.name, p.cost_price, p.selling_price, p.quantity]
+                          .filter((x) => x !== null && x !== undefined)
+                          .join(" ")
+                      );
+                      const tokens = normalize(raw).split(/\s+/).filter(Boolean);
+                      return tokens.every((t) => haystack.includes(t));
                     })
                     .map((p) => {
                       const branch = branches.find((b) => b.id === p.branch_id);
