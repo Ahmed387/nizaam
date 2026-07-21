@@ -46,6 +46,9 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
 
   const load = async () => {
     setLoading(true);
+    try {
+      await supabase.rpc("mark_overdue_installments" as any);
+    } catch {}
     const [{ data: pp }, { data: pi }, { data: br }] = await Promise.all([
       supabase.from("payment_plans").select("*").neq("status", "completed").order("created_at", { ascending: false }),
       supabase.from("payment_installments").select("*").in("status", ["pending", "overdue", "partial"]),
@@ -58,18 +61,12 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     setBranches(map);
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 60000);
+    return () => clearInterval(id);
+  }, []);
   useRealtimeRefresh(["payment_plans", "payment_installments", "invoice_payments", "invoices"], load);
-
-  const runOverdueCheck = async () => {
-    setRefreshing(true);
-    try {
-      await supabase.rpc("mark_overdue_installments" as any);
-      await load();
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const filtered = useMemo(() => {
     return plans.filter((p) => {
