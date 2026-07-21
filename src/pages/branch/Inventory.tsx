@@ -116,6 +116,7 @@ export default function Inventory() {
       qty_notes: "",
       price_reason: "",
       image: String(r.image ?? ""),
+      color: String(r.color ?? ""),
     });
   };
 
