@@ -157,6 +157,7 @@ import FiscalClosing from "./pages/admin/FiscalClosing";
 import Budgets from "./pages/admin/Budgets";
 import KpiDashboard from "./pages/admin/KpiDashboard";
 import FixedAssets from "./pages/admin/FixedAssets";
+import BranchCapital from "./pages/admin/BranchCapital";
 
 const queryClient = new QueryClient();
 
@@ -248,6 +249,7 @@ const App = () => (
             <Route path="/admin/accounting/budgets" element={<ProtectedRoute adminOnly><Budgets /></ProtectedRoute>} />
             <Route path="/admin/accounting/kpis" element={<ProtectedRoute adminOnly><KpiDashboard /></ProtectedRoute>} />
             <Route path="/admin/accounting/fixed-assets" element={<ProtectedRoute adminOnly><FixedAssets /></ProtectedRoute>} />
+            <Route path="/admin/accounting/branch-capital" element={<ProtectedRoute adminOnly><BranchCapital /></ProtectedRoute>} />
 
 
             {/* Partner portal */}
