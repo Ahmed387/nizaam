@@ -13,8 +13,8 @@ import OwnerCockpit from "./OwnerCockpit";
 
 export default function ReportsHub() {
   const [params, setParams] = useSearchParams();
-  const { isAdmin, hasRole } = useAuth();
-  const canSeeProfit = isAdmin || hasRole("accountant") || hasRole("branch_manager");
+  const { isOwner } = useAuth();
+  const canSeeProfit = isOwner;
   const tab = params.get("tab") ?? "owner";
   return (
     <AdminLayout>
