@@ -441,8 +441,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                           {d.status === "changed" && <Badge className="bg-amber-600">تغير</Badge>}
                           {d.status === "same" && <Badge variant="secondary">ثابت</Badge>}
                         </TableCell>
-                        <TableCell>{d.parsed.product_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
+                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }}>{d.parsed.product_name}</TableCell>
+                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
                         <TableCell>{d.existing ? formatEGP(d.existing.cost_price) : "—"}</TableCell>
                         <TableCell>
                           <Input
