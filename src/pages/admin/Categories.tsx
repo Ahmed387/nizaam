@@ -13,16 +13,42 @@ import { Plus, FolderTree, Folder, Trash2, Pencil } from "lucide-react";
 
 export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const [cats, setCats] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", parent_id: "" });
+  const [viewCat, setViewCat] = useState<any>(null);
+  const [viewProducts, setViewProducts] = useState<any[]>([]);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [viewSearch, setViewSearch] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("categories").select("*").order("name");
-    setCats(data ?? []);
+    const [{ data: c }, { data: b }] = await Promise.all([
+      supabase.from("categories").select("*").order("name"),
+      supabase.from("branches").select("id,name").order("name"),
+    ]);
+    setCats(c ?? []);
+    setBranches(b ?? []);
   };
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["categories", "products"], load);
+
+  const openView = async (c: any) => {
+    setViewCat(c);
+    setViewSearch("");
+    setViewLoading(true);
+    // include children category ids so parent shows all descendants
+    const childIds = cats.filter((x) => x.parent_id === c.id).map((x) => x.id);
+    const ids = [c.id, ...childIds];
+    const { data } = await supabase
+      .from("products")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert")
+      .in("category_id", ids)
+      .is("archived_at", null)
+      .order("name");
+    setViewProducts(data ?? []);
+    setViewLoading(false);
+  };
 
   const openNew = () => { setEditing(null); setForm({ name: "", parent_id: "" }); setOpen(true); };
   const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, parent_id: c.parent_id ?? "" }); setOpen(true); };
