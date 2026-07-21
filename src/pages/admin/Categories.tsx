@@ -178,86 +178,76 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
           ) : viewProducts.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">لا توجد منتجات في هذا التصنيف</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-surface-2 border-b-2 border-border">
-                  <tr>
-                    <th className="p-2 text-right">الصورة</th>
-                    <th className="p-2 text-right">اسم المنتج</th>
-                    <th className="p-2 text-right">SKU</th>
-                    <th className="p-2 text-right">اللون</th>
-                    <th className="p-2 text-right">النوع</th>
-                    <th className="p-2 text-right">السعة</th>
-                    <th className="p-2 text-right">المقاس</th>
-                    <th className="p-2 text-right">الفرع</th>
-                    <th className="p-2 text-center">الكمية</th>
-                    <th className="p-2 text-right">سعر التكلفة</th>
-                    <th className="p-2 text-right">سعر البيع</th>
-                    <th className="p-2 text-center">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewProducts
-                    .filter((p) => {
-                      const raw = viewSearch.trim();
-                      if (!raw) return true;
-                      const normalize = (s: string) =>
-                        (s || "")
-                          .toString()
-                          .toLowerCase()
-                          .normalize("NFKD")
-                          .replace(/[\u064B-\u0652\u0670]/g, "")
-                          .replace(/[إأآا]/g, "ا")
-                          .replace(/ى/g, "ي")
-                          .replace(/ة/g, "ه");
-                      const branch = branches.find((b) => b.id === p.branch_id);
-                      const haystack = normalize(
-                        [p.name, p.sku, p.color, p.product_type, p.capacity, p.size, branch?.name, p.cost_price, p.selling_price, p.quantity]
-                          .filter((x) => x !== null && x !== undefined)
-                          .join(" ")
-                      );
-                      const tokens = normalize(raw).split(/\s+/).filter(Boolean);
-                      return tokens.every((t) => haystack.includes(t));
-                    })
-                    .map((p) => {
-                      const branch = branches.find((b) => b.id === p.branch_id);
-                      const low = (p.quantity || 0) <= (p.low_stock_alert || 0);
-                      const out = (p.quantity || 0) === 0;
-                      return (
-                        <tr key={p.id} className="border-b border-border/40 hover:bg-primary/5">
-                          <td className="p-2">
-                            {p.image ? (
-                              <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded" />
-                            ) : (
-                              <div className="w-10 h-10 rounded bg-surface-2 flex items-center justify-center">
-                                <Package className="w-4 h-4 text-muted-foreground" />
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-2 font-semibold">{p.name}</td>
-                          <td className="p-2 text-muted-foreground font-mono text-xs">{p.sku}</td>
-                          <td className="p-2"><ColorChip name={p.color} /></td>
-                          <td className="p-2"><AttributeChip label="نوع" value={p.product_type} tone="primary" /></td>
-                          <td className="p-2"><AttributeChip label="سعة" value={p.capacity} tone="success" /></td>
-                          <td className="p-2"><AttributeChip label="مقاس" value={p.size} tone="warning" /></td>
-                          <td className="p-2 text-xs">{branch?.name ?? "—"}</td>
-                          <td className="p-2 text-center tabular-nums font-bold">{p.quantity}</td>
-                          <td className="p-2 tabular-nums">{formatEGP(p.cost_price)}</td>
-                          <td className="p-2 tabular-nums">{formatEGP(p.selling_price)}</td>
-                          <td className="p-2 text-center">
-                            {out ? (
-                              <span className="text-xs px-2 py-1 rounded bg-destructive/15 text-destructive font-semibold">نفذ</span>
-                            ) : low ? (
-                              <span className="text-xs px-2 py-1 rounded bg-amber-500/15 text-amber-600 font-semibold">منخفض</span>
-                            ) : (
-                              <span className="text-xs px-2 py-1 rounded bg-emerald-500/15 text-emerald-600 font-semibold">متوفر</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {viewProducts
+                .filter((p) => {
+                  const raw = viewSearch.trim();
+                  if (!raw) return true;
+                  const normalize = (s: string) =>
+                    (s || "")
+                      .toString()
+                      .toLowerCase()
+                      .normalize("NFKD")
+                      .replace(/[\u064B-\u0652\u0670]/g, "")
+                      .replace(/[إأآا]/g, "ا")
+                      .replace(/ى/g, "ي")
+                      .replace(/ة/g, "ه");
+                  const branch = branches.find((b) => b.id === p.branch_id);
+                  const haystack = normalize(
+                    [p.name, p.sku, p.color, p.product_type, p.capacity, p.size, branch?.name, p.cost_price, p.selling_price, p.quantity]
+                      .filter((x) => x !== null && x !== undefined)
+                      .join(" ")
+                  );
+                  const tokens = normalize(raw).split(/\s+/).filter(Boolean);
+                  return tokens.every((t) => haystack.includes(t));
+                })
+                .map((p) => {
+                  const branch = branches.find((b) => b.id === p.branch_id);
+                  const low = (p.quantity || 0) <= (p.low_stock_alert || 0);
+                  const out = (p.quantity || 0) === 0;
+                  return (
+                    <div key={p.id} className="rounded-lg border border-border bg-card hover:border-primary/40 hover:shadow-sm transition p-3 flex gap-3">
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded-md shrink-0" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-md bg-surface-2 flex items-center justify-center shrink-0">
+                          <Package className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-sm leading-snug break-words" dir="auto" style={{ unicodeBidi: "plaintext" as any }}>{p.name}</div>
+                            <div className="text-[11px] font-mono text-muted-foreground mt-0.5">{p.sku}</div>
+                          </div>
+                          {out ? (
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded bg-destructive/15 text-destructive font-semibold">نفذ</span>
+                          ) : low ? (
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 font-semibold">منخفض</span>
+                          ) : (
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 font-semibold">متوفر</span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-1">
+                          {p.color && <ColorChip name={p.color} />}
+                          <AttributeChip label="نوع" value={p.product_type} tone="primary" />
+                          <AttributeChip label="سعة" value={p.capacity} tone="success" />
+                          <AttributeChip label="مقاس" value={p.size} tone="warning" />
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
+                          <span className="text-muted-foreground truncate">{branch?.name ?? "—"}</span>
+                          <div className="flex items-center gap-3 tabular-nums">
+                            <span className="text-muted-foreground">تكلفة: <span className="text-foreground">{formatEGP(p.cost_price)}</span></span>
+                            <span className="text-muted-foreground">بيع: <span className="font-semibold text-primary">{formatEGP(p.selling_price)}</span></span>
+                            <span className="font-bold">×{p.quantity}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </DialogContent>
