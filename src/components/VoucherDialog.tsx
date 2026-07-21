@@ -45,10 +45,12 @@ const FIELD_LABELS_AR: Record<string, string> = {
 
 interface PartyOption { id: string; name: string; }
 
-export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }: Props) {
+export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher }: Props) {
   const { user } = useAuth();
+  const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
+  const [editReason, setEditReason] = useState("");
   const [form, setForm] = useState({
     category_id: "",
     amount: "",
@@ -68,20 +70,39 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess }:
   useEffect(() => {
     if (!open) return;
     fetchVoucherCategories(type, true).then(setCats).catch((e) => toast.error(e.message));
-    setForm({
-      category_id: "",
-      amount: "",
-      party_type: "",
-      party_id: "",
-      party_name: "",
-      description: "",
-      voucher_date: new Date().toISOString().slice(0, 10),
-    });
-    setPm(emptyPaymentValue());
+    if (editingVoucher) {
+      setForm({
+        category_id: editingVoucher.category_id,
+        amount: String(editingVoucher.amount ?? ""),
+        party_type: (editingVoucher.party_type ?? "") as any,
+        party_id: editingVoucher.party_id ?? "",
+        party_name: editingVoucher.party_name ?? "",
+        description: editingVoucher.description ?? "",
+        voucher_date: editingVoucher.voucher_date,
+      });
+      const initPm = emptyPaymentValue(editingVoucher.payment_method as any);
+      initPm.reference_number = editingVoucher.reference_number ?? undefined;
+      initPm.transfer_to_account = editingVoucher.transferred_to ?? undefined;
+      initPm.transfer_from_account = (editingVoucher as any).transferred_from ?? undefined;
+      initPm.fee_amount = Number(editingVoucher.fee_amount ?? 0);
+      setPm(initPm);
+    } else {
+      setForm({
+        category_id: "",
+        amount: "",
+        party_type: "",
+        party_id: "",
+        party_name: "",
+        description: "",
+        voucher_date: new Date().toISOString().slice(0, 10),
+      });
+      setPm(emptyPaymentValue());
+    }
     setPartyOptions([]);
     setPartyBalance(null);
     setAttachFiles([]);
-  }, [open, type]);
+    setEditReason("");
+  }, [open, type, editingVoucher]);
 
   // System categories produced automatically by other flows — hide from manual dialog
   const AUTO_KEYS = new Set([
