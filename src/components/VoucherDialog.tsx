@@ -169,33 +169,74 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   }, [form.party_id, form.party_type]);
 
 
+  const formatDiffValue = (v: any) => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (typeof v === "number") return formatEGP(v);
+    return String(v);
+  };
+
   const submit = async () => {
     const amt = Number(form.amount);
     if (!form.category_id) return toast.error("اختر التصنيف");
     if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
     const vErr = validateTransferPayment(pm);
     if (vErr) return toast.error(vErr);
+    if (isEdit && !editReason.trim()) return toast.error("سبب التعديل مطلوب");
     setBusy(true);
     try {
-      const { data: newId, error } = await supabase.rpc("create_manual_voucher" as any, {
-        p_branch_id: branchId,
-        p_type: type,
-        p_category_id: form.category_id,
-        p_amount: amt,
-        p_payment_method: pm.method,
-        p_reference_number: pm.reference_number ?? null,
-        p_transferred_to: pm.transfer_to_account ?? null,
-        p_transferred_from: pm.transfer_from_account ?? null,
-        p_fee_amount: pm.fee_amount ?? 0,
-        p_party_type: form.party_type || null,
-        p_party_id: form.party_id || null,
-        p_party_name: form.party_name.trim() || null,
-        p_description: form.description.trim() || null,
-        p_voucher_date: form.voucher_date,
-      });
-      if (error) throw error;
-      // Upload any pending attachments
-      const voucherId = newId as unknown as string | null;
+      let voucherId: string | null = null;
+
+      if (isEdit && editingVoucher) {
+        const { data: res, error } = await supabase.rpc("edit_voucher" as any, {
+          p_voucher_id: editingVoucher.id,
+          p_category_id: form.category_id,
+          p_amount: amt,
+          p_payment_method: pm.method,
+          p_voucher_date: form.voucher_date,
+          p_party_type: form.party_type || null,
+          p_party_id: form.party_id || null,
+          p_party_name: form.party_name.trim() || null,
+          p_description: form.description.trim() || null,
+          p_reference_number: pm.reference_number ?? null,
+          p_transferred_to: pm.transfer_to_account ?? null,
+          p_fee_amount: pm.fee_amount ?? 0,
+          p_edit_reason: editReason.trim(),
+        });
+        if (error) throw error;
+        const result = res as any;
+        voucherId = result?.new_voucher_id ?? null;
+        const changes = (result?.changes ?? {}) as Record<string, { old: any; new: any }>;
+        const changeCount = Object.keys(changes).length;
+        const lines = Object.entries(changes).map(
+          ([k, v]) => `• ${FIELD_LABELS_AR[k] ?? k}: ${formatDiffValue(v.old)} ← ${formatDiffValue(v.new)}`
+        );
+        toast.success(
+          `تم تعديل السند (${changeCount} حقل)`,
+          { description: lines.join("\n"), duration: 8000 }
+        );
+      } else {
+        const { data: newId, error } = await supabase.rpc("create_manual_voucher" as any, {
+          p_branch_id: branchId,
+          p_type: type,
+          p_category_id: form.category_id,
+          p_amount: amt,
+          p_payment_method: pm.method,
+          p_reference_number: pm.reference_number ?? null,
+          p_transferred_to: pm.transfer_to_account ?? null,
+          p_transferred_from: pm.transfer_from_account ?? null,
+          p_fee_amount: pm.fee_amount ?? 0,
+          p_party_type: form.party_type || null,
+          p_party_id: form.party_id || null,
+          p_party_name: form.party_name.trim() || null,
+          p_description: form.description.trim() || null,
+          p_voucher_date: form.voucher_date,
+        });
+        if (error) throw error;
+        voucherId = newId as unknown as string | null;
+        toast.success(type === "receipt" ? "تم حفظ سند القبض" : "تم حفظ سند الصرف");
+      }
+
+      // Upload any pending attachments (create + edit both support adding new attachments)
       if (voucherId && attachFiles.length > 0) {
         const { compressImage } = await import("@/lib/compressImage");
         let okCount = 0;
@@ -232,15 +273,16 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
         }
         if (okCount > 0) toast.success(`تم رفع ${okCount} مرفق`);
       }
-      toast.success(type === "receipt" ? "تم حفظ سند القبض" : "تم حفظ سند الصرف");
+
       onOpenChange(false);
       onSuccess?.();
     } catch (e: any) {
-      toast.error(e.message ?? "فشل الحفظ");
+      toast.error(e.message ?? (isEdit ? "فشل التعديل" : "فشل الحفظ"));
     } finally {
       setBusy(false);
     }
   };
+
 
   const selectedParty = partyOptions.find((p) => p.id === form.party_id);
 
