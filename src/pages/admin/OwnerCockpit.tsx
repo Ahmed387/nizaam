@@ -159,11 +159,13 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
         .gte("created_at", trendFrom.toISOString()),
       supabase
         .from("vouchers")
-        .select("voucher_date, amount")
+        .select("voucher_date, amount, voucher_categories!inner(is_deductible_from_profit)")
         .eq("tenant_id", tenantId)
         .eq("type", "payment")
         .eq("status", "active")
+        .eq("voucher_categories.is_deductible_from_profit", true)
         .gte("voucher_date", trendFrom.toISOString().slice(0, 10)),
+
     ]);
 
     const byDay: Record<string, { revenue: number; cost: number; expenses: number }> = {};
