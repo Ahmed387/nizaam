@@ -10,7 +10,8 @@ export type AppRole =
   | "viewer"
   | "supervisor"
   | "worker"
-  | "driver";
+  | "driver"
+  | "partner";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "مالك المنصة",
