@@ -247,6 +247,7 @@ const App = () => (
             <Route path="/admin/accounting/fiscal-closing" element={<ProtectedRoute adminOnly><FiscalClosing /></ProtectedRoute>} />
             <Route path="/admin/accounting/budgets" element={<ProtectedRoute adminOnly><Budgets /></ProtectedRoute>} />
             <Route path="/admin/accounting/kpis" element={<ProtectedRoute adminOnly><KpiDashboard /></ProtectedRoute>} />
+            <Route path="/admin/accounting/fixed-assets" element={<ProtectedRoute adminOnly><FixedAssets /></ProtectedRoute>} />
 
 
             {/* Partner portal */}
