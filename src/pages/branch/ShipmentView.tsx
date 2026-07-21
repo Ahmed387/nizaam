@@ -335,7 +335,7 @@ export default function ShipmentView() {
                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">صورة</div>
                       )}
                       <div>
-                        <div className="font-medium">{it.product_name}</div>
+                        <div className="font-medium flex items-center gap-1.5">{it.product_name}{it.color && <ColorChip name={it.color} />}</div>
                         {it.products?.name && it.products.name !== it.product_name && (
                           <div className="text-xs text-muted-foreground">{it.products.name}</div>
                         )}
