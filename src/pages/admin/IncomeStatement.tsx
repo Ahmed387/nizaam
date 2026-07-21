@@ -39,13 +39,16 @@ export default function IncomeStatement() {
     if (!tenantId) return;
     setLoading(true);
     supabase.from("journal_entry_lines" as any)
-      .select("debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance,tenant_id),journal_entries!inner(entry_date,status,tenant_id)")
+      .select("debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
       .eq("journal_entries.tenant_id", tenantId)
       .eq("journal_entries.status", "posted")
       .gte("journal_entries.entry_date", from)
       .lte("journal_entries.entry_date", to)
-      .in("chart_of_accounts.account_type", ["revenue", "expense"])
-      .then(({ data }) => { setLines((data ?? []) as any); setLoading(false); });
+      .then(({ data }) => {
+        const all = (data ?? []) as any[];
+        setLines(all.filter(l => l.chart_of_accounts && ["revenue", "expense"].includes(l.chart_of_accounts.account_type)));
+        setLoading(false);
+      });
   }, [tenantId, from, to]);
 
   const { revenues, expenses } = useMemo(() => {
