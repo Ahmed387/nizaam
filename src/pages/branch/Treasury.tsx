@@ -22,6 +22,7 @@ import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, 
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
+import { VoucherDialog } from "@/components/VoucherDialog";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface WalletBalances {
