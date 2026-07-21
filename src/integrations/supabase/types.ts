@@ -395,6 +395,7 @@ export type Database = {
           notes: string | null
           opening_balance: number
           opening_date: string
+          tenant_id: string
           updated_at: string
         }
         Insert: {
@@ -409,6 +410,7 @@ export type Database = {
           notes?: string | null
           opening_balance?: number
           opening_date?: string
+          tenant_id: string
           updated_at?: string
         }
         Update: {
@@ -423,6 +425,7 @@ export type Database = {
           notes?: string | null
           opening_balance?: number
           opening_date?: string
+          tenant_id?: string
           updated_at?: string
         }
         Relationships: [
