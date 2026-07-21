@@ -151,6 +151,8 @@ import BalanceSheet from "./pages/admin/BalanceSheet";
 import IncomeStatement from "./pages/admin/IncomeStatement";
 import CashFlowStatement from "./pages/admin/CashFlowStatement";
 import AgingReport from "./pages/admin/AgingReport";
+import BankReconciliation from "./pages/admin/BankReconciliation";
+import BankReconciliationDetail from "./pages/admin/BankReconciliationDetail";
 
 const queryClient = new QueryClient();
 
