@@ -156,6 +156,7 @@ import BankReconciliationDetail from "./pages/admin/BankReconciliationDetail";
 import FiscalClosing from "./pages/admin/FiscalClosing";
 import Budgets from "./pages/admin/Budgets";
 import KpiDashboard from "./pages/admin/KpiDashboard";
+import FixedAssets from "./pages/admin/FixedAssets";
 
 const queryClient = new QueryClient();
 
