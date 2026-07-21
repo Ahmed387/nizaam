@@ -226,12 +226,13 @@ const App = () => (
             <Route path="/admin/receivables" element={<Navigate to="/admin/finance?tab=receivables" replace />} />
 
             {/* Financial Position (Partners) */}
-            <Route path="/admin/financial-position" element={<ProtectedRoute superAdminOnly><FinancialPosition /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/partners" element={<ProtectedRoute superAdminOnly><PartnersList /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute superAdminOnly><AdminPartnerProfile /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/transactions" element={<ProtectedRoute superAdminOnly><PartnerTransactions /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/advances" element={<ProtectedRoute superAdminOnly><PartnerAdvances /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute superAdminOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+            <Route path="/admin/financial-position" element={<ProtectedRoute ownerOnly><FinancialPosition /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partners" element={<ProtectedRoute ownerOnly><PartnersList /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute ownerOnly><AdminPartnerProfile /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/transactions" element={<ProtectedRoute ownerOnly><PartnerTransactions /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/advances" element={<ProtectedRoute ownerOnly><PartnerAdvances /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+
 
 
             {/* Accounting — General Ledger */}

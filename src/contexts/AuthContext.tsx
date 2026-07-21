@@ -24,6 +24,7 @@ interface AuthCtx {
   loading: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isOwner: boolean;
   hasRole: (r: AppRole) => boolean;
   can: (key: string) => boolean;
   signOut: () => Promise<void>;
@@ -131,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isAdmin: roles.includes("admin") || roles.includes("super_admin"),
     isSuperAdmin: roles.includes("super_admin"),
+    isOwner: (user?.email ?? "").toLowerCase() === "an.ayoub98@gmail.com",
     hasRole: (r) => roles.includes(r),
     can: (key) => checkPermission(roles, permsByRole, key),
     signOut: async () => {

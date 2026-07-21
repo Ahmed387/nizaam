@@ -9,16 +9,18 @@ export function ProtectedRoute({
   roles,
   adminOnly,
   superAdminOnly,
+  ownerOnly,
   perm,
 }: {
   children: ReactNode;
   roles?: AppRole[];
   adminOnly?: boolean;
   superAdminOnly?: boolean;
+  ownerOnly?: boolean;
   /** Optional permission key (e.g. "sales.view"). When provided, takes precedence over `roles`. */
   perm?: string;
 }) {
-  const { user, loading, isAdmin, isSuperAdmin, hasRole, tenant, signOut, can } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isOwner, hasRole, tenant, signOut, can } = useAuth();
   const loc = useLocation();
 
   if (loading) {
@@ -36,6 +38,7 @@ export function ProtectedRoute({
     return <Navigate to={`/suspended?slug=${tenant.slug}`} replace />;
   }
 
+  if (ownerOnly && !isOwner) return <Navigate to="/" replace />;
   if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   if (perm && !can(perm)) return <Navigate to="/" replace />;

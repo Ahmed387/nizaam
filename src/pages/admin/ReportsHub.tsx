@@ -13,9 +13,9 @@ import OwnerCockpit from "./OwnerCockpit";
 
 export default function ReportsHub() {
   const [params, setParams] = useSearchParams();
-  const { isAdmin, hasRole } = useAuth();
-  const canSeeProfit = isAdmin || hasRole("accountant") || hasRole("branch_manager");
-  const tab = params.get("tab") ?? "owner";
+  const { isOwner } = useAuth();
+  const canSeeProfit = isOwner;
+  const tab = params.get("tab") ?? (canSeeProfit ? "owner" : "central");
   return (
     <AdminLayout>
       <PageHeader title="التقارير" subtitle="👑 ملخص لحظي • 🏢 عمليات يومية • 📊 ربحية محاسبية • 🎯 أعلى/أقل للقرار • ⏰ أتمتة — كل تبويب فريد بدون تكرار" />
