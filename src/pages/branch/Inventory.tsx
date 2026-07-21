@@ -469,6 +469,9 @@ export default function Inventory() {
     });
     if (error) return toast.error(error.message);
     const newId = (data as any)?.product_id;
+    if (newId && form.color) {
+      await supabase.from("products").update({ color: form.color } as any).eq("id", newId);
+    }
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
       toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول شحنة شراء.");
