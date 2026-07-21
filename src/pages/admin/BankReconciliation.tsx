@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Landmark, Plus, ArrowLeftRight, FileSpreadsheet } from "lucide-react";
 
 type BankAccount = { id: string; name: string; bank_name: string | null; account_number: string | null; currency: string; gl_account_id: string | null; opening_balance: number; is_active: boolean };
-type COA = { id: string; account_code: string; account_name: string };
+type COA = { id: string; code: string; name: string; name_ar: string | null };
 type Statement = { id: string; bank_account_id: string; statement_date: string; period_start: string; period_end: string; opening_balance: number; closing_balance: number; status: string };
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
