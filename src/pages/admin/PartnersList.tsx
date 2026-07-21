@@ -62,7 +62,7 @@ export default function PartnersList() {
     setLoading(true);
     const { data } = await supabase.from("equity_partners" as any)
       .select("*").eq("tenant_id", tenantId).order("created_at");
-    const list = (data ?? []) as Partner[];
+    const list = (data ?? []) as unknown as Partner[];
     setRows(list);
 
     // fetch usernames via partner_users -> profiles
