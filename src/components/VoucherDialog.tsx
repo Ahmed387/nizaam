@@ -511,12 +511,31 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
               </div>
             )}
           </section>
+
+          {/* Edit reason - only shown in edit mode */}
+          {isEdit && (
+            <section className="rounded-lg border-2 border-warning/40 bg-warning/5 p-4 space-y-2">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Pencil className="w-4 h-4 text-warning" /> سبب التعديل *
+              </h3>
+              <Textarea
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                rows={2}
+                placeholder="اذكر سبب التعديل — سيُسجَّل في سجل التدقيق ويرافق السند الجديد"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                ⚠️ عند الحفظ: يُلغى السند الأصلي ({editingVoucher?.voucher_number}) ويُصدَر سند جديد. الأثر المحاسبي والقيود تُحدَّث تلقائياً.
+              </p>
+            </section>
+          )}
         </div>
 
         <DialogFooter className="px-6 py-4 border-t bg-muted/20">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>إلغاء</Button>
           <Button onClick={submit} disabled={busy} className="gap-2 min-w-32">
-            {busy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ السند
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isEdit ? "حفظ التعديلات" : "حفظ السند"}
           </Button>
         </DialogFooter>
       </DialogContent>
