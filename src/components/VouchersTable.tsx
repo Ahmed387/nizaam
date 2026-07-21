@@ -368,6 +368,18 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
         />
       )}
 
+      {/* Edit dialog - works for any voucher type */}
+      {editTarget && (
+        <VoucherDialog
+          open={!!editTarget}
+          onOpenChange={(o) => !o && setEditTarget(null)}
+          branchId={editTarget.branch_id}
+          type={editTarget.type}
+          editingVoucher={editTarget}
+          onSuccess={load}
+        />
+      )}
+
       <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>إلغاء السند {cancelTarget?.voucher_number}</DialogTitle></DialogHeader>
