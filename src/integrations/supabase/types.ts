@@ -504,6 +504,69 @@ export type Database = {
           },
         ]
       }
+      chart_of_accounts: {
+        Row: {
+          account_type: Database["public"]["Enums"]["account_type"]
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          name_ar: string | null
+          normal_balance: Database["public"]["Enums"]["normal_balance"]
+          parent_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_type: Database["public"]["Enums"]["account_type"]
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          name_ar?: string | null
+          normal_balance: Database["public"]["Enums"]["normal_balance"]
+          parent_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_type?: Database["public"]["Enums"]["account_type"]
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          name_ar?: string | null
+          normal_balance?: Database["public"]["Enums"]["normal_balance"]
+          parent_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           address: string | null
@@ -1444,6 +1507,123 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          entry_date: string
+          entry_number: string
+          id: string
+          reversed_by: string | null
+          source_id: string | null
+          source_type: string | null
+          status: string
+          tenant_id: string
+          total_credit: number
+          total_debit: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_number: string
+          id?: string
+          reversed_by?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          tenant_id: string
+          total_credit?: number
+          total_debit?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_number?: string
+          id?: string
+          reversed_by?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          tenant_id?: string
+          total_credit?: number
+          total_debit?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_reversed_by_fkey"
+            columns: ["reversed_by"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entry_lines: {
+        Row: {
+          account_id: string
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          entry_id: string
+          id: string
+          line_order: number
+          tenant_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          entry_id: string
+          id?: string
+          line_order?: number
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          entry_id?: string
+          id?: string
+          line_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entry_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "journal_entry_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -4146,6 +4326,21 @@ export type Database = {
           },
         ]
       }
+      v_account_balances: {
+        Row: {
+          account_id: string | null
+          account_type: Database["public"]["Enums"]["account_type"] | null
+          balance: number | null
+          code: string | null
+          name: string | null
+          name_ar: string | null
+          normal_balance: Database["public"]["Enums"]["normal_balance"] | null
+          tenant_id: string | null
+          total_credit: number | null
+          total_debit: number | null
+        }
+        Relationships: []
+      }
       voucher_treasury_balances: {
         Row: {
           balance: number | null
@@ -4299,6 +4494,17 @@ export type Database = {
       }
       create_inventory_session: {
         Args: { p_branch_id: string; p_notes?: string }
+        Returns: string
+      }
+      create_journal_entry: {
+        Args: {
+          p_description: string
+          p_entry_date: string
+          p_lines: Json
+          p_source_id: string
+          p_source_type: string
+          p_tenant_id: string
+        }
         Returns: string
       }
       create_manual_voucher:
@@ -4735,6 +4941,10 @@ export type Database = {
       }
       restore_product: { Args: { _product_id: string }; Returns: undefined }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
+      seed_default_chart_of_accounts: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
@@ -4812,6 +5022,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
       advance_request_status:
         | "pending_branch_manager"
         | "pending_admin"
@@ -4833,6 +5044,7 @@ export type Database = {
       approval_action: "delete" | "update"
       approval_status: "pending" | "approved" | "rejected"
       invoice_status: "active" | "cancelled"
+      normal_balance: "debit" | "credit"
       pre_order_status: "pending" | "received" | "completed" | "cancelled"
       pre_order_tx_type:
         | "deposit_received"
@@ -4971,6 +5183,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_type: ["asset", "liability", "equity", "revenue", "expense"],
       advance_request_status: [
         "pending_branch_manager",
         "pending_admin",
@@ -4994,6 +5207,7 @@ export const Constants = {
       approval_action: ["delete", "update"],
       approval_status: ["pending", "approved", "rejected"],
       invoice_status: ["active", "cancelled"],
+      normal_balance: ["debit", "credit"],
       pre_order_status: ["pending", "received", "completed", "cancelled"],
       pre_order_tx_type: [
         "deposit_received",
