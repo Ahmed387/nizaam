@@ -845,6 +845,8 @@ export default function Inventory() {
             <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>اللون</Label><div className="mt-1.5"><ColorPicker value={form.color} onChange={(v) => setForm({ ...form, color: v ?? "" })} /></div></div>
+            
             
           </div>
           <DialogFooter>
