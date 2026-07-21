@@ -12,6 +12,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 import { ColorChip } from "@/components/ColorPicker";
+import { AttributeChip } from "@/components/AttributePicker";
 
 export interface ProductRow {
   id: string;
