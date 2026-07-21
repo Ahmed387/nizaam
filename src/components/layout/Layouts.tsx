@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, tenantId, isAdmin, hasRole } = useAuth();
+  const { tenant, tenantId, isAdmin, isSuperAdmin, hasRole } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
 
@@ -45,7 +45,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
-    { to: "/admin/financial-position", label: "الذمة المالية (الشركاء)", icon: <HandCoins className="w-4 h-4" /> },
+    ...(isSuperAdmin ? [{ to: "/admin/financial-position", label: "الذمة المالية (الشركاء)", icon: <HandCoins className="w-4 h-4" /> }] : []),
     { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
     ...(isAdmin ? [{ to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined }] : []),
     { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },

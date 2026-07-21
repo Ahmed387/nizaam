@@ -226,12 +226,13 @@ const App = () => (
             <Route path="/admin/receivables" element={<Navigate to="/admin/finance?tab=receivables" replace />} />
 
             {/* Financial Position (Partners) */}
-            <Route path="/admin/financial-position" element={<ProtectedRoute adminOnly><FinancialPosition /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/partners" element={<ProtectedRoute adminOnly><PartnersList /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute adminOnly><AdminPartnerProfile /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/transactions" element={<ProtectedRoute adminOnly><PartnerTransactions /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/advances" element={<ProtectedRoute adminOnly><PartnerAdvances /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute adminOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+            <Route path="/admin/financial-position" element={<ProtectedRoute superAdminOnly><FinancialPosition /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partners" element={<ProtectedRoute superAdminOnly><PartnersList /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute superAdminOnly><AdminPartnerProfile /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/transactions" element={<ProtectedRoute superAdminOnly><PartnerTransactions /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/advances" element={<ProtectedRoute superAdminOnly><PartnerAdvances /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute superAdminOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+
 
             {/* Accounting — General Ledger */}
             <Route path="/admin/accounting/chart" element={<ProtectedRoute adminOnly><ChartOfAccounts /></ProtectedRoute>} />
