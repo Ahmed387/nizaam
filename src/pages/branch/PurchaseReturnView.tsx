@@ -9,6 +9,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer } from "lucide-react";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { ColorChip } from "@/components/ColorPicker";
 
 export default function PurchaseReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
@@ -106,7 +107,7 @@ export default function PurchaseReturnView() {
             {items.map((it, idx) => (
               <tr key={it.id} className="border-b border-border">
                 <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                <td className="p-2 font-medium">{it.product_name}</td>
+                <td className="p-2 font-medium"><span className="inline-flex items-center gap-1.5">{it.product_name}{(it as any).color && <ColorChip name={(it as any).color} />}</span></td>
                 <td className="p-2 text-muted-foreground">{(it as any).products?.sku ?? "—"}</td>
                 <td className="text-center p-2">{it.quantity}</td>
                 <td className="text-center p-2">{formatEGP(it.unit_cost)}</td>

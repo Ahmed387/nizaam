@@ -18,6 +18,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { ColorChip } from "@/components/ColorPicker";
 import { computePayState, PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 
 export default function InvoiceView() {
@@ -230,7 +231,7 @@ export default function InvoiceView() {
             {items.map((it, idx) => (
               <tr key={it.id} className="border-b border-border">
                 <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                <td className="p-2 font-medium">{it.product_name}</td>
+                <td className="p-2 font-medium"><span className="inline-flex items-center gap-1.5">{it.product_name}{it.color && <ColorChip name={it.color} />}</span></td>
                 <td className="text-center p-2">{it.quantity}</td>
                 <td className="text-center p-2">{formatEGP(it.selling_price)}</td>
                 <td className="text-center p-2 text-destructive">{Number(it.line_discount) > 0 ? `- ${formatEGP(it.line_discount)}` : "—"}</td>
