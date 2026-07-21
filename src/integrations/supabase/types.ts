@@ -382,6 +382,195 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          currency: string
+          gl_account_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          opening_balance: number
+          opening_date: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          gl_account_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          opening_balance?: number
+          opening_date?: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          gl_account_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          opening_balance?: number
+          opening_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_gl_account_id_fkey"
+            columns: ["gl_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_gl_account_id_fkey"
+            columns: ["gl_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+        ]
+      }
+      bank_statement_lines: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          id: string
+          is_matched: boolean
+          matched_at: string | null
+          matched_by: string | null
+          matched_journal_line_id: string | null
+          notes: string | null
+          reference: string | null
+          statement_id: string
+          txn_date: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          is_matched?: boolean
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_journal_line_id?: string | null
+          notes?: string | null
+          reference?: string | null
+          statement_id: string
+          txn_date: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          is_matched?: boolean
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_journal_line_id?: string | null
+          notes?: string | null
+          reference?: string | null
+          statement_id?: string
+          txn_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_lines_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_journal_line_id_fkey"
+            columns: ["matched_journal_line_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          bank_account_id: string
+          closing_balance: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          opening_balance: number
+          period_end: string
+          period_start: string
+          statement_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id: string
+          closing_balance?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          period_end: string
+          period_start: string
+          statement_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string
+          closing_balance?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          period_end?: string
+          period_start?: string
+          statement_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_users: {
         Row: {
           branch_id: string
@@ -4691,6 +4880,14 @@ export type Database = {
       get_available_quantity: {
         Args: { p_branch_id: string; p_product_id: string }
         Returns: number
+      }
+      get_bank_reconciliation_summary: {
+        Args: {
+          p_bank_account_id: string
+          p_period_end: string
+          p_period_start: string
+        }
+        Returns: Json
       }
       get_branch_wallet_balances: {
         Args: { p_branch_id: string }
