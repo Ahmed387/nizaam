@@ -28,6 +28,7 @@ import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, Pay
 import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
+import { ColorChip } from "@/components/ColorPicker";
 
 
 
