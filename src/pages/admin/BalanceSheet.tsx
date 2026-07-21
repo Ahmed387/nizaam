@@ -37,7 +37,7 @@ export default function BalanceSheet() {
     if (!tenantId) return;
     setLoading(true);
     supabase.from("journal_entry_lines" as any)
-      .select("debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance,tenant_id),journal_entries!inner(entry_date,status,tenant_id)")
+      .select("debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
       .eq("journal_entries.tenant_id", tenantId)
       .eq("journal_entries.status", "posted")
       .lte("journal_entries.entry_date", asOf)
