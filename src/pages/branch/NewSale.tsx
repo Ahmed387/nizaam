@@ -1226,7 +1226,10 @@ export default function NewSale() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-base leading-snug line-clamp-3 group-hover:text-primary transition-colors">{p.name}</div>
-                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{p.sku}</div>
+                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate flex items-center gap-1.5">
+                            <span className="truncate">{p.sku}</span>
+                            {p.color && <ColorChip name={p.color} />}
+                          </div>
                           {showCost && Number(p.cost_price) > 0 && (
                             <div className="text-[10px] text-muted-foreground mt-1">
                               شراء: {formatEGP(p.cost_price)} · ربح: <span className="text-primary font-bold">{formatEGP(profit)}</span>
