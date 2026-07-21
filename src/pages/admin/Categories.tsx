@@ -91,12 +91,12 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
         {tree.length === 0 && <div className="text-muted-foreground text-center py-8">لا توجد تصنيفات بعد</div>}
         {tree.map((c) => (
           <div key={c.id}>
-            <div className="flex items-center justify-between p-2 rounded hover:bg-surface-2 group">
+            <div className="flex items-center justify-between p-2 rounded hover:bg-surface-2 group cursor-pointer" onClick={() => openView(c)}>
               <div className="flex items-center gap-2">
                 <FolderTree className="w-4 h-4 text-primary" />
                 <span className="font-semibold">{c.name}</span>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                   <Pencil className="w-4 h-4" />
                 </Button>
@@ -106,12 +106,12 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
               </div>
             </div>
             {cats.filter((x) => x.parent_id === c.id).map((child) => (
-              <div key={child.id} className="flex items-center justify-between p-2 mr-8 rounded hover:bg-surface-2 group">
+              <div key={child.id} className="flex items-center justify-between p-2 mr-8 rounded hover:bg-surface-2 group cursor-pointer" onClick={() => openView(child)}>
                 <div className="flex items-center gap-2">
                   <Folder className="w-4 h-4 text-muted-foreground" />
                   <span>{child.name}</span>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                   <Button size="sm" variant="ghost" onClick={() => openEdit(child)}>
                     <Pencil className="w-4 h-4" />
                   </Button>
