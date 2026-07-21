@@ -159,8 +159,12 @@ export default function Inventory() {
     const priceChanged = costChanged || sellChanged || marketChanged;
     const imageChanged = (editForm.image || "") !== (editAll.image || "");
     const colorChanged = (editForm.color || "") !== (editAll.color || "");
+    const typeChanged = (editForm.product_type || "") !== (editAll.product_type || "");
+    const capChanged = (editForm.capacity || "") !== (editAll.capacity || "");
+    const sizeChanged = (editForm.size || "") !== (editAll.size || "");
+    const attrsChanged = colorChanged || typeChanged || capChanged || sizeChanged;
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !colorChanged) {
+    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !attrsChanged) {
       setEditAll(null);
       return;
     }
@@ -170,13 +174,16 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU / Image / Color
-    if (nameChanged || skuChanged || imageChanged || colorChanged) {
+    // 1) Name / SKU / Image / Attributes
+    if (nameChanged || skuChanged || imageChanged || attrsChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
       if (imageChanged) patch.image = editForm.image || null;
       if (colorChanged) patch.color = editForm.color || null;
+      if (typeChanged) patch.product_type = editForm.product_type || null;
+      if (capChanged) patch.capacity = editForm.capacity || null;
+      if (sizeChanged) patch.size = editForm.size || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
