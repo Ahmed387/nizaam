@@ -215,6 +215,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                           </td>
                           <td className="p-2 font-semibold">{p.name}</td>
                           <td className="p-2 text-muted-foreground font-mono text-xs">{p.sku}</td>
+                          <td className="p-2"><ColorChip name={p.color} /></td>
                           <td className="p-2 text-xs">{branch?.name ?? "—"}</td>
                           <td className="p-2 text-center tabular-nums font-bold">{p.quantity}</td>
                           <td className="p-2 tabular-nums">{formatEGP(p.cost_price)}</td>
