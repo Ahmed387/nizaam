@@ -144,20 +144,23 @@ export async function fetchProfitWindow(params: {
     .lte("created_at", prevToIso);
   let expQ = supabase
     .from("vouchers")
-    .select("amount, branch_id")
+    .select("amount, branch_id, voucher_categories!inner(is_deductible_from_profit)")
     .eq("tenant_id", tenantId)
     .eq("type", "payment")
     .eq("status", "active")
+    .eq("voucher_categories.is_deductible_from_profit", true)
     .gte("voucher_date", fromDate)
     .lte("voucher_date", toDate);
   let prevExpQ = supabase
     .from("vouchers")
-    .select("amount")
+    .select("amount, voucher_categories!inner(is_deductible_from_profit)")
     .eq("tenant_id", tenantId)
     .eq("type", "payment")
     .eq("status", "active")
+    .eq("voucher_categories.is_deductible_from_profit", true)
     .gte("voucher_date", prevFromDate)
     .lte("voucher_date", prevToDate);
+
   if (branchId) {
     curQ = curQ.eq("branch_id", branchId);
     prevQ = prevQ.eq("branch_id", branchId);

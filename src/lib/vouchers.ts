@@ -14,7 +14,9 @@ export interface VoucherCategory {
   is_active: boolean;
   parent_id: string | null;
   system_key: string | null;
+  is_deductible_from_profit?: boolean;
 }
+
 
 export interface Voucher {
   id: string;

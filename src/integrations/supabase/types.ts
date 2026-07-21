@@ -3502,6 +3502,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_deductible_from_profit: boolean
           is_system: boolean
           name: string
           parent_id: string | null
@@ -3513,6 +3514,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_deductible_from_profit?: boolean
           is_system?: boolean
           name: string
           parent_id?: string | null
@@ -3524,6 +3526,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_deductible_from_profit?: boolean
           is_system?: boolean
           name?: string
           parent_id?: string | null

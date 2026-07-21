@@ -41,8 +41,11 @@ async function loadStats(p: Period, branchId: string): Promise<Stats> {
     .select("total, status, branch_id, invoice_items(quantity, unit_cost_at_sale, cost_price)")
     .gte("created_at", fromIso).lte("created_at", toIso);
   let expQ = supabase
-    .from("vouchers").select("amount, branch_id").eq("type", "payment").eq("status", "active")
+    .from("vouchers").select("amount, branch_id, voucher_categories!inner(is_deductible_from_profit)")
+    .eq("type", "payment").eq("status", "active")
+    .eq("voucher_categories.is_deductible_from_profit", true)
     .gte("voucher_date", p.from).lte("voucher_date", p.to);
+
   let trQ = supabase
     .from("vouchers").select("type, amount, branch_id").eq("status", "active")
     .gte("voucher_date", p.from).lte("voucher_date", p.to);
