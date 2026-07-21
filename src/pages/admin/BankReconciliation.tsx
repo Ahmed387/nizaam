@@ -38,7 +38,7 @@ export default function BankReconciliation() {
   const load = async () => {
     const [a, c, s] = await Promise.all([
       supabase.from("bank_accounts" as any).select("*").order("created_at", { ascending: false }),
-      supabase.from("chart_of_accounts" as any).select("id,account_code,account_name").order("account_code"),
+      supabase.from("chart_of_accounts" as any).select("id,code,name").order("code"),
       supabase.from("bank_statements" as any).select("*").order("statement_date", { ascending: false }).limit(50),
     ]);
     setAccounts((a.data as any) ?? []);
@@ -111,7 +111,7 @@ export default function BankReconciliation() {
                     <Select value={acctForm.gl_account_id} onValueChange={v => setAcctForm({ ...acctForm, gl_account_id: v })}>
                       <SelectTrigger><SelectValue placeholder="اختر حساب من الدليل" /></SelectTrigger>
                       <SelectContent>
-                        {coa.map(a => <SelectItem key={a.id} value={a.id}>{a.account_code} — {a.account_name}</SelectItem>)}
+                        {coa.map(a => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -143,7 +143,7 @@ export default function BankReconciliation() {
                         <TableCell>{a.account_number || "—"}</TableCell>
                         <TableCell>{a.currency}</TableCell>
                         <TableCell>{fmt(a.opening_balance)}</TableCell>
-                        <TableCell>{gl ? `${gl.account_code} — ${gl.account_name}` : <Badge variant="outline">غير مرتبط</Badge>}</TableCell>
+                        <TableCell>{gl ? `${gl.code} — ${gl.name}` : <Badge variant="outline">غير مرتبط</Badge>}</TableCell>
                       </TableRow>
                     );
                   })}
