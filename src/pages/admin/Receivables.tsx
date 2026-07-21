@@ -178,7 +178,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     <ConditionalLayout variant="admin" embedded={embedded}>
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
-          <h1 className="text-2xl font-bold">الذمم المالية</h1>
+          <h1 className="text-2xl font-bold">ذمم العملاء والموردين</h1>
           <Button variant="outline" size="sm" onClick={runOverdueCheck} disabled={refreshing}>
             <RefreshCw className={`w-4 h-4 ml-1 ${refreshing ? "animate-spin" : ""}`} />
             تحديث المتأخرات
