@@ -24,6 +24,9 @@ export interface ProductRow {
   image: string | null;
   branch_id: string;
   color?: string | null;
+  product_type?: string | null;
+  capacity?: string | null;
+  size?: string | null;
 }
 
 /**
@@ -59,7 +62,7 @@ export function ProductPicker({
     setLoading(true);
     const { data } = await supabase
       .from("products")
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size")
       .eq("branch_id", branchId)
       .is("archived_at", null)
       .order("name");
@@ -130,9 +133,12 @@ export function ProductPicker({
                         {value === p.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                         <div className="min-w-0">
                           <div className="font-medium truncate">{p.name}</div>
-                          <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1.5">
+                          <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1.5 flex-wrap">
                             <span>{p.sku}</span>
                             {p.color && <ColorChip name={p.color} />}
+                            <AttributeChip label="النوع" value={p.product_type} tone="primary" />
+                            <AttributeChip label="السعة" value={p.capacity} tone="success" />
+                            <AttributeChip label="المقاس" value={p.size} tone="warning" />
                           </div>
                         </div>
                       </div>
@@ -232,7 +238,7 @@ function NewProductDialog({
         low_stock_alert: low,
         image: image || null,
       })
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size")
       .single();
     setBusy(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
