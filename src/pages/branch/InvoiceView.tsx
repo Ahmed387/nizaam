@@ -18,6 +18,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { ColorChip } from "@/components/ColorPicker";
 import { computePayState, PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 
 export default function InvoiceView() {
