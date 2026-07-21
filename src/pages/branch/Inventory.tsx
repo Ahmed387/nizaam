@@ -757,11 +757,12 @@ export default function Inventory() {
                           </div>
                           <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs items-center">
                           <span>الكمية: <span className="font-bold">{r.quantity}</span></span>
                           <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
                           <span className="text-success">بيع: {formatEGP(r.selling_price)}</span>
                           <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
+                          {r.color && <ColorChip name={r.color} />}
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
