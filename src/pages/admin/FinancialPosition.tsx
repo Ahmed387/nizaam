@@ -91,6 +91,7 @@ export default function FinancialPosition() {
             <Button asChild variant="outline"><Link to="/admin/accounting/fiscal-closing"><Lock className="w-4 h-4 ml-2 text-warning" />الإقفال وتوزيع الأرباح</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/budgets"><Target className="w-4 h-4 ml-2 text-primary" />الموازنة التقديرية</Link></Button>
             <Button asChild variant="outline"><Link to="/admin/accounting/kpis"><BarChart3 className="w-4 h-4 ml-2 text-primary" />مؤشرات الأداء KPIs</Link></Button>
+            <Button asChild variant="outline"><Link to="/admin/accounting/fixed-assets"><Package className="w-4 h-4 ml-2 text-primary" />الأصول الثابتة والإهلاك</Link></Button>
           </CardContent>
         </Card>
       </div>
