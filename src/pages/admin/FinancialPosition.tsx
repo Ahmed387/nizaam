@@ -33,7 +33,7 @@ export default function FinancialPosition() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الذمة المالية" subtitle="إدارة الشركاء والمساهمات والأرباح" />
+        <PageHeader title="الذمة المالية للشركاء" subtitle="حقوق الملكية ورأس المال وأرباح الشركاء" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
