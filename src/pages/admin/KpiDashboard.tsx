@@ -23,7 +23,7 @@ type KPI = {
   expenses: number; net_profit: number; net_margin_pct: number;
   total_assets: number; total_liabilities: number; total_equity: number;
   cash_balance: number; accounts_receivable: number; accounts_payable: number; inventory_value: number;
-  current_ratio: number | null; debt_to_equity: number | null;
+  current_ratio: number | null; quick_ratio: number | null; debt_to_equity: number | null;
   roa_pct: number; roe_pct: number;
   inventory_turnover: number | null; break_even_revenue: number | null;
 };
