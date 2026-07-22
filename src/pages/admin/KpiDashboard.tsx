@@ -155,9 +155,52 @@ export default function KpiDashboard() {
         <Card><CardContent className="py-8 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>
       ) : (
         <div className="space-y-6">
-          {/* Profitability */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" />الربحية</h3>
+          {/* Health Alerts */}
+          {(() => {
+            const alerts = buildAlerts(kpi);
+            if (alerts.length === 0) {
+              return (
+                <Card className="border-success/40 bg-success/5">
+                  <CardContent className="py-4 flex items-center gap-3">
+                    <ShieldCheck className="w-6 h-6 text-success" />
+                    <div>
+                      <div className="font-semibold text-success">لا توجد تنبيهات — المؤشرات ضمن النطاق الصحي</div>
+                      <div className="text-xs text-muted-foreground">راجع الأرقام بانتظام لأي تغيّرات جوهرية.</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return (
+              <Card className="border-destructive/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertOctagon className="w-5 h-5" />
+                    تنبيهات المخاطر ({alerts.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {alerts.map((al, i) => {
+                    const isDanger = al.level === "danger";
+                    return (
+                      <div key={i} className={`rounded-lg border p-3 flex gap-3 ${isDanger ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"}`}>
+                        {isDanger
+                          ? <AlertOctagon className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                          : <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />}
+                        <div className="space-y-1 flex-1">
+                          <div className={`font-bold text-sm ${isDanger ? "text-destructive" : "text-warning"}`}>{al.title}</div>
+                          <div className="text-xs text-muted-foreground">{al.detail}</div>
+                          <div className="text-xs"><span className="font-semibold">التوصية:</span> {al.advice}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <KpiCard icon={DollarSign} label="الإيرادات" value={fmt(kpi.revenue)} tone="primary" />
               <KpiCard icon={Package} label="تكلفة البضاعة" value={fmt(kpi.cogs)} />
