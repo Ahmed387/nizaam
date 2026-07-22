@@ -91,6 +91,7 @@ export default function PartnersList() {
     if (!tenantId) return;
     const ch = supabase.channel(`partners-${tenantId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "equity_partners", filter: `tenant_id=eq.${tenantId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "partner_transactions", filter: `tenant_id=eq.${tenantId}` }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [tenantId]);
