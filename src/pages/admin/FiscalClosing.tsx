@@ -93,7 +93,14 @@ export default function FiscalClosing() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الإغلاق المحاسبي وتوزيع الأرباح" subtitle="إقفال الفترات المالية وتوزيع صافي الأرباح على الشركاء" />
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <PageHeader title="الإغلاق المحاسبي وتوزيع الأرباح" subtitle="إقفال الفترات المالية وتوزيع صافي الأرباح على الشركاء" />
+          <Button asChild variant="default">
+            <Link to="/admin/accounting/flexible-distribution">
+              <PieChart className="w-4 h-4 ml-1" />توزيع أرباح مرن (بدون إقفال)
+            </Link>
+          </Button>
+        </div>
 
         {/* Fiscal Periods */}
         <Card>
