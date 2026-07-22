@@ -168,21 +168,48 @@ export default function PartnersList() {
 
   const strength = passwordStrength(form.password);
 
-  const typeLabel = (t: string) => t === "capital" ? "رأس مال" : t === "operating" ? "تشغيل" : "الاثنين";
+  const typeLabel = (t: string) => t === "capital" ? "رأس مال" : t === "operating" ? "تشغيل" : "رأس مال وتشغيل";
   const typeColor = (t: string) => t === "capital" ? "bg-primary/10 text-primary border-primary/20"
     : t === "operating" ? "bg-warning/10 text-warning border-warning/20"
     : "bg-accent/20 text-accent-foreground border-accent/30";
   const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("");
+  const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
+
+  const totalCapital = rows.reduce((s, p) => s + Number(p.initial_capital || 0), 0);
+  const totalBalance = rows.reduce((s, p) => s + Number(p.current_balance || 0), 0);
+  const activeCount = rows.filter(p => p.is_active).length;
 
   return (
     <AdminLayout>
-      <div dir="rtl" className="text-right space-y-4 sm:space-y-6">
+      <div dir="rtl" className="text-right space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />
-          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto">
+          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
             <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
           </Button>
         </div>
+
+        {/* Summary strip */}
+        {!loading && rows.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="border-primary/20"><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">عدد الشركاء</div>
+              <div className="text-2xl font-bold mt-1">{rows.length}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">النشطون</div>
+              <div className="text-2xl font-bold mt-1 text-success">{activeCount}</div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">إجمالي رأس المال</div>
+              <div className="text-2xl font-bold mt-1 font-mono">{fmt(totalCapital)}</div>
+            </CardContent></Card>
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"><CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">إجمالي الأرصدة الحالية</div>
+              <div className="text-2xl font-bold mt-1 text-primary font-mono">{fmt(totalBalance)}</div>
+            </CardContent></Card>
+          </div>
+        )}
 
         {loading && (
           <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
@@ -192,125 +219,88 @@ export default function PartnersList() {
           <Card><CardContent className="p-10 text-center text-muted-foreground">لا يوجد شركاء</CardContent></Card>
         )}
 
-        {/* Mobile / tablet: card grid */}
+        {/* Unified card grid — all sizes */}
         {!loading && rows.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:hidden gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {rows.map(p => (
-              <Card key={p.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+              <Card key={p.id} className="overflow-hidden group hover:shadow-lg hover:border-primary/30 transition-all duration-200">
+                {/* Header band */}
+                <div className={`h-1.5 ${p.partner_type === "capital" ? "bg-primary" : p.partner_type === "operating" ? "bg-warning" : "bg-gradient-to-l from-primary to-warning"}`} />
+                <CardContent className="p-5 space-y-4">
+                  {/* Identity row */}
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center text-lg font-bold shrink-0 shadow-md">
                         {initials(p.name)}
                       </div>
                       <div className="min-w-0">
-                        <Link to={`/admin/financial-position/partner/${p.id}`} className="font-semibold hover:underline block truncate">{p.name}</Link>
-                        <Badge variant="outline" className={`mt-1 text-[10px] ${typeColor(p.partner_type)}`}>{typeLabel(p.partner_type)}</Badge>
+                        <Link to={`/admin/financial-position/partner/${p.id}`}
+                          className="font-bold text-lg hover:text-primary transition-colors block truncate">
+                          {p.name}
+                        </Link>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge variant="outline" className={`text-[11px] ${typeColor(p.partner_type)}`}>{typeLabel(p.partner_type)}</Badge>
+                          {p.is_active
+                            ? <Badge className="bg-success/15 text-success border-0 text-[11px]">● نشط</Badge>
+                            : <Badge variant="secondary" className="text-[11px]">معطل</Badge>}
+                        </div>
                       </div>
                     </div>
-                    {p.is_active
-                      ? <Badge className="bg-success/15 text-success border-0 shrink-0">نشط</Badge>
-                      : <Badge variant="secondary" className="shrink-0">معطل</Badge>}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-md bg-muted/40 p-2">
-                      <div className="text-muted-foreground">حصة رأس المال</div>
-                      <div className="font-semibold text-sm">{(Number(p.capital_share) * 100).toFixed(2)}%</div>
-                    </div>
-                    <div className="rounded-md bg-muted/40 p-2">
-                      <div className="text-muted-foreground">حصة التشغيل</div>
-                      <div className="font-semibold text-sm">{(Number(p.operating_share) * 100).toFixed(2)}%</div>
-                    </div>
-                    <div className="rounded-md bg-muted/40 p-2">
-                      <div className="text-muted-foreground">رأس المال</div>
-                      <div className="font-semibold text-sm">{Number(p.initial_capital).toLocaleString()}</div>
-                    </div>
-                    <div className="rounded-md bg-primary/5 border border-primary/10 p-2">
-                      <div className="text-muted-foreground">الرصيد الحالي</div>
-                      <div className="font-bold text-sm text-primary">{Number(p.current_balance).toLocaleString()}</div>
+                  {/* Current balance — hero */}
+                  <div className="rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border border-primary/20 p-4">
+                    <div className="text-xs text-muted-foreground mb-1">الرصيد الحالي</div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-primary font-mono">{fmt(p.current_balance)}</span>
+                      <span className="text-sm text-muted-foreground">ج.م</span>
                     </div>
                   </div>
 
-                  <div className="text-xs text-muted-foreground">
-                    <span className="opacity-70">اسم المستخدم: </span>
-                    <span className="font-mono">{userNames[p.id] ?? "-"}</span>
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-muted/40 p-3 text-center">
+                      <div className="text-[11px] text-muted-foreground">حصة رأس المال</div>
+                      <div className="font-bold text-base mt-0.5">{(Number(p.capital_share) * 100).toFixed(1)}%</div>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 p-3 text-center">
+                      <div className="text-[11px] text-muted-foreground">حصة التشغيل</div>
+                      <div className="font-bold text-base mt-0.5">{(Number(p.operating_share) * 100).toFixed(1)}%</div>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 p-3 text-center">
+                      <div className="text-[11px] text-muted-foreground">رأس المال</div>
+                      <div className="font-bold text-base mt-0.5 font-mono">{fmt(p.initial_capital)}</div>
+                    </div>
                   </div>
 
+                  {/* Username */}
+                  <div className="flex items-center justify-between text-xs pt-1 border-t">
+                    <span className="text-muted-foreground">اسم المستخدم</span>
+                    <span className="font-mono font-semibold">{userNames[p.id] ?? "-"}</span>
+                  </div>
+
+                  {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="flex-1 min-w-[110px]" asChild>
+                    <Button size="sm" variant="default" className="flex-1 min-w-[120px]" asChild>
                       <Link to={`/admin/financial-position/partner/${p.id}`}>
-                        <User className="w-3.5 h-3.5 ml-1" />كشف حسابي
+                        <User className="w-4 h-4 ml-1.5" />كشف الحساب
                       </Link>
                     </Button>
-                    <Button size="sm" variant="outline" className="flex-1 min-w-[90px]" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
-                      <FileText className="w-3.5 h-3.5 ml-1" />PDF
+                    <Button size="sm" variant="outline" className="flex-1 min-w-[100px]"
+                      onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
+                      <FileText className="w-4 h-4 ml-1.5" />تحميل PDF
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
-                      <KeyRound className="w-3.5 h-3.5" />
+                      <KeyRound className="w-4 h-4" />
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}>
-                      <Power className="w-3.5 h-3.5" />
+                      <Power className={`w-4 h-4 ${p.is_active ? "text-success" : "text-muted-foreground"}`} />
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        )}
-
-        {/* Desktop: table */}
-        {!loading && rows.length > 0 && (
-          <Card className="hidden xl:block">
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40">
-                  <tr className="text-right">
-                    <th className="p-3 font-semibold">الاسم</th>
-                    <th className="p-3 font-semibold">النوع</th>
-                    <th className="p-3 font-semibold">حصة رأس المال</th>
-                    <th className="p-3 font-semibold">حصة التشغيل</th>
-                    <th className="p-3 font-semibold">رأس المال</th>
-                    <th className="p-3 font-semibold">الرصيد الحالي</th>
-                    <th className="p-3 font-semibold">اسم المستخدم</th>
-                    <th className="p-3 font-semibold">الحالة</th>
-                    <th className="p-3 font-semibold">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(p => (
-                    <tr key={p.id} className="border-t hover:bg-muted/20 transition-colors">
-                      <td className="p-3 font-semibold">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                            {initials(p.name)}
-                          </div>
-                          <Link className="hover:underline" to={`/admin/financial-position/partner/${p.id}`}>{p.name}</Link>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <Badge variant="outline" className={typeColor(p.partner_type)}>{typeLabel(p.partner_type)}</Badge>
-                      </td>
-                      <td className="p-3 font-mono">{(Number(p.capital_share) * 100).toFixed(2)}%</td>
-                      <td className="p-3 font-mono">{(Number(p.operating_share) * 100).toFixed(2)}%</td>
-                      <td className="p-3 font-mono">{Number(p.initial_capital).toLocaleString()}</td>
-                      <td className="p-3 font-mono font-semibold text-primary">{Number(p.current_balance).toLocaleString()}</td>
-                      <td className="p-3 font-mono text-xs">{userNames[p.id] ?? "-"}</td>
-                      <td className="p-3">{p.is_active ? <Badge className="bg-success/15 text-success border-0">نشط</Badge> : <Badge variant="secondary">معطل</Badge>}</td>
-                      <td className="p-3">
-                        <div className="flex flex-wrap gap-1">
-                          <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}><User className="w-3 h-3 ml-1" />كشف حسابي</Link></Button>
-                          <Button size="sm" variant="outline" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })} title="تحميل كشف حساب PDF"><FileText className="w-3 h-3 ml-1" />PDF</Button>
-                          <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="كلمة المرور"><KeyRound className="w-3 h-3" /></Button>
-                          <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}><Power className="w-3 h-3" /></Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
         )}
       </div>
 
