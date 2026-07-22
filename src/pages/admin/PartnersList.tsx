@@ -237,9 +237,14 @@ export default function PartnersList() {
                     <span className="font-mono">{userNames[p.id] ?? "-"}</span>
                   </div>
 
-                  <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="flex-1" asChild>
-                      <Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant="outline" className="flex-1 min-w-[110px]" asChild>
+                      <Link to={`/admin/financial-position/partner/${p.id}`}>
+                        <User className="w-3.5 h-3.5 ml-1" />كشف حسابي
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 min-w-[90px]" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
+                      <FileText className="w-3.5 h-3.5 ml-1" />PDF
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
                       <KeyRound className="w-3.5 h-3.5" />
