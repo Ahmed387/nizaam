@@ -271,6 +271,51 @@ export default function SystemHealth() {
           </CardContent>
         </Card>
 
+        {/* Partner net profit share */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" />8. نسب الشركاء وحصتهم من صافي الربح</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-right">
+                  <th className="p-2">الشريك</th>
+                  <th className="p-2">التينانت</th>
+                  <th className="p-2">نسبة رأس المال</th>
+                  <th className="p-2">نسبة التشغيل</th>
+                  <th className="p-2">صافي ربح التينانت</th>
+                  <th className="p-2">حصة الشريك من صافي الربح</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partnerNets.length === 0 && (
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">لا يوجد شركاء نشطون</td></tr>
+                )}
+                {partnerNets.map((p) => {
+                  const tenantNet = netByTenant[p.tenant_id] ?? 0;
+                  return (
+                    <tr key={p.id} className="border-t">
+                      <td className="p-2 font-medium">{p.name}</td>
+                      <td className="p-2 font-mono text-xs text-muted-foreground">{p.tenant_id?.slice(0, 8)}…</td>
+                      <td className="p-2 font-mono">{p.capital_pct.toFixed(2)}%</td>
+                      <td className="p-2 font-mono">{p.operating_pct.toFixed(2)}%</td>
+                      <td className={`p-2 font-mono ${tenantNet < 0 ? "text-destructive" : ""}`}>{fmt(tenantNet)}</td>
+                      <td className={`p-2 font-mono font-bold ${p.net_share < 0 ? "text-destructive" : "text-success"}`}>
+                        {fmt(p.net_share)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="p-3 text-xs text-muted-foreground border-t bg-muted/20">
+              حصة الشريك = صافي ربح التينانت × نسبة التشغيل. صافي الربح = الإيرادات − التكلفة − المصروفات القابلة للخصم (من كل الفترات).
+            </div>
+          </CardContent>
+        </Card>
+
+
         {data?.generated_at && (
           <div className="text-xs text-muted-foreground text-left">Generated: {new Date(data.generated_at).toLocaleString("en-EG")}</div>
         )}
