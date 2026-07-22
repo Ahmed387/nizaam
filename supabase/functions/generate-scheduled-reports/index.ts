@@ -64,6 +64,9 @@ Deno.serve(async (req) => {
 
     let q = admin.from("tenants").select("id, name, is_active, is_suspended");
     if (onlyTenant) q = q.eq("id", onlyTenant);
+    const allowedTenants = (globalThis as any).__allowedTenants as string[] | undefined;
+    if (!isCron && !onlyTenant && allowedTenants) q = q.in("id", allowedTenants);
+    (globalThis as any).__allowedTenants = undefined;
     const { data: tenants, error: terr } = await q;
     if (terr) throw terr;
 
