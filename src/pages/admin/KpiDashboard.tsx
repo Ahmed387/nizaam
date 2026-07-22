@@ -11,8 +11,65 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Activity, DollarSign, PiggyBank, Scale, Percent, TrendingUp,
-  Wallet, Package, Receipt, RefreshCw, Target, Landmark
+  Wallet, Package, Receipt, RefreshCw, Target, Landmark,
+  AlertTriangle, AlertOctagon, ShieldCheck
 } from "lucide-react";
+
+type Alert = { level: "danger" | "warning"; title: string; detail: string; advice: string };
+
+function buildAlerts(k: KPI): Alert[] {
+  const a: Alert[] = [];
+  // Liquidity — Current Ratio
+  if (k.current_ratio != null) {
+    if (k.current_ratio < 1)
+      a.push({ level: "danger", title: `النسبة الجارية ${k.current_ratio.toFixed(2)} — خطر سيولة`,
+        detail: "الأصول المتداولة أقل من الخصوم المتداولة — الشركة قد لا تستطيع سداد التزاماتها قصيرة الأجل.",
+        advice: "قلّل المشتريات الآجلة، حصّل الذمم بسرعة، أو ضخ سيولة جديدة." });
+    else if (k.current_ratio < 1.5)
+      a.push({ level: "warning", title: `النسبة الجارية ${k.current_ratio.toFixed(2)} — منخفضة`,
+        detail: "أقل من المعدل الآمن (1.5–2).", advice: "راقب التدفق النقدي عن قرب." });
+  }
+  // Quick Ratio
+  if (k.quick_ratio != null) {
+    if (k.quick_ratio < 0.5)
+      a.push({ level: "danger", title: `النسبة السريعة ${k.quick_ratio.toFixed(2)} — خطر شديد`,
+        detail: "بدون بيع المخزون، السيولة لا تغطي حتى نصف الالتزامات قصيرة الأجل.",
+        advice: "توقف عن أي مصروفات غير ضرورية وسرّع تحصيل العملاء فورًا." });
+    else if (k.quick_ratio < 1)
+      a.push({ level: "warning", title: `النسبة السريعة ${k.quick_ratio.toFixed(2)} — أقل من 1`,
+        detail: "الاعتماد على المخزون لسداد الالتزامات.", advice: "خطط لتقليل المخزون الراكد." });
+  }
+  // Debt to Equity
+  if (k.debt_to_equity != null) {
+    if (k.debt_to_equity > 3)
+      a.push({ level: "danger", title: `الرافعة المالية ${k.debt_to_equity.toFixed(2)} — مديونية خطرة`,
+        detail: "الخصوم أضعاف حقوق الملكية بشكل مبالغ — مخاطر إفلاس مرتفعة.",
+        advice: "أوقف الاستدانة الجديدة وابدأ خطة سداد أو ضخ رأس مال." });
+    else if (k.debt_to_equity > 2)
+      a.push({ level: "warning", title: `الرافعة المالية ${k.debt_to_equity.toFixed(2)} — عالية`,
+        detail: "الاعتماد على الديون مرتفع.", advice: "قلّل الاعتماد على التمويل الخارجي." });
+  }
+  // Profitability
+  if (k.net_profit < 0)
+    a.push({ level: "danger", title: `صافي خسارة ${Math.abs(k.net_profit).toLocaleString("en-EG")}`,
+      detail: "المصروفات تجاوزت الأرباح خلال الفترة.", advice: "راجع بنود المصروفات وهامش الربح." });
+  else if (k.net_margin_pct != null && k.net_margin_pct < 5 && k.revenue > 0)
+    a.push({ level: "warning", title: `هامش صافي الربح ${k.net_margin_pct.toFixed(2)}% — منخفض`,
+      detail: "هامش أقل من 5% يعتبر ضعيف لمعظم القطاعات.", advice: "راجع الأسعار أو قلل التكاليف." });
+
+  if (k.gross_profit < 0)
+    a.push({ level: "danger", title: "مجمل الربح سالب",
+      detail: "تكلفة البضاعة أعلى من الإيرادات — بتبيع بخسارة!",
+      advice: "راجع أسعار البيع والتكلفة فورًا." });
+
+  // Cash
+  if (k.cash_balance < 0)
+    a.push({ level: "danger", title: "الرصيد النقدي سالب",
+      detail: "الخزينة تعرض عجزًا — احتمال خطأ في التسجيل أو سحب زائد.",
+      advice: "افحص حركات الخزينة وسجّل السلف/الديون بشكل صحيح." });
+
+  return a;
+}
 
 const fmt = (n: number | null | undefined) => n == null ? "—" : Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 const pct = (n: number | null | undefined) => n == null ? "—" : `${Number(n).toFixed(2)}%`;
@@ -98,6 +155,51 @@ export default function KpiDashboard() {
         <Card><CardContent className="py-8 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>
       ) : (
         <div className="space-y-6">
+          {/* Health Alerts */}
+          {(() => {
+            const alerts = buildAlerts(kpi);
+            if (alerts.length === 0) {
+              return (
+                <Card className="border-success/40 bg-success/5">
+                  <CardContent className="py-4 flex items-center gap-3">
+                    <ShieldCheck className="w-6 h-6 text-success" />
+                    <div>
+                      <div className="font-semibold text-success">لا توجد تنبيهات — المؤشرات ضمن النطاق الصحي</div>
+                      <div className="text-xs text-muted-foreground">راجع الأرقام بانتظام لأي تغيّرات جوهرية.</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return (
+              <Card className="border-destructive/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertOctagon className="w-5 h-5" />
+                    تنبيهات المخاطر ({alerts.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {alerts.map((al, i) => {
+                    const isDanger = al.level === "danger";
+                    return (
+                      <div key={i} className={`rounded-lg border p-3 flex gap-3 ${isDanger ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"}`}>
+                        {isDanger
+                          ? <AlertOctagon className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                          : <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />}
+                        <div className="space-y-1 flex-1">
+                          <div className={`font-bold text-sm ${isDanger ? "text-destructive" : "text-warning"}`}>{al.title}</div>
+                          <div className="text-xs text-muted-foreground">{al.detail}</div>
+                          <div className="text-xs"><span className="font-semibold">التوصية:</span> {al.advice}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           {/* Profitability */}
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" />الربحية</h3>
