@@ -3,6 +3,7 @@
 // 2) Send only text to Gemini flash-lite (5-10x faster than vision)
 // 3) Fallback to vision mode only if text extraction yields too little
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
