@@ -167,56 +167,144 @@ export default function PartnersList() {
 
   const strength = passwordStrength(form.password);
 
+  const typeLabel = (t: string) => t === "capital" ? "رأس مال" : t === "operating" ? "تشغيل" : "الاثنين";
+  const typeColor = (t: string) => t === "capital" ? "bg-primary/10 text-primary border-primary/20"
+    : t === "operating" ? "bg-warning/10 text-warning border-warning/20"
+    : "bg-accent/20 text-accent-foreground border-accent/30";
+  const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("");
+
   return (
     <AdminLayout>
-      <div dir="rtl" className="text-right space-y-4">
-        <div className="flex items-center justify-between">
+      <div dir="rtl" className="text-right space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />
-          <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-2" />إضافة شريك جديد</Button>
+          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto">
+            <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
+          </Button>
         </div>
 
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40">
-                <tr className="text-right">
-                  <th className="p-3">الاسم</th>
-                  <th className="p-3">النوع</th>
-                  <th className="p-3">حصة رأس المال</th>
-                  <th className="p-3">حصة التشغيل</th>
-                  <th className="p-3">رأس المال</th>
-                  <th className="p-3">الرصيد الحالي</th>
-                  <th className="p-3">اسم المستخدم</th>
-                  <th className="p-3">الحالة</th>
-                  <th className="p-3">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && <tr><td colSpan={9} className="p-6 text-center"><Loader2 className="w-5 h-5 animate-spin inline" /></td></tr>}
-                {!loading && rows.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">لا يوجد شركاء</td></tr>}
-                {rows.map(p => (
-                  <tr key={p.id} className="border-t">
-                    <td className="p-3 font-semibold"><Link className="hover:underline" to={`/admin/financial-position/partner/${p.id}`}>{p.name}</Link></td>
-                    <td className="p-3">{p.partner_type === "capital" ? "رأس مال" : p.partner_type === "operating" ? "تشغيل" : "الاثنين"}</td>
-                    <td className="p-3">{(Number(p.capital_share) * 100).toFixed(2)}%</td>
-                    <td className="p-3">{(Number(p.operating_share) * 100).toFixed(2)}%</td>
-                    <td className="p-3">{Number(p.initial_capital).toLocaleString()}</td>
-                    <td className="p-3 font-semibold">{Number(p.current_balance).toLocaleString()}</td>
-                    <td className="p-3 font-mono text-xs">{userNames[p.id] ?? "-"}</td>
-                    <td className="p-3">{p.is_active ? <Badge className="bg-success/15 text-success">نشط</Badge> : <Badge variant="secondary">معطل</Badge>}</td>
-                    <td className="p-3">
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link></Button>
-                        <Button size="sm" variant="outline" onClick={() => setResetPartner(p)}><KeyRound className="w-3 h-3" /></Button>
-                        <Button size="sm" variant="outline" onClick={() => toggleActive(p)}><Power className="w-3 h-3" /></Button>
+        {loading && (
+          <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        )}
+
+        {!loading && rows.length === 0 && (
+          <Card><CardContent className="p-10 text-center text-muted-foreground">لا يوجد شركاء</CardContent></Card>
+        )}
+
+        {/* Mobile / tablet: card grid */}
+        {!loading && rows.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:hidden gap-3">
+            {rows.map(p => (
+              <Card key={p.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                        {initials(p.name)}
                       </div>
-                    </td>
+                      <div className="min-w-0">
+                        <Link to={`/admin/financial-position/partner/${p.id}`} className="font-semibold hover:underline block truncate">{p.name}</Link>
+                        <Badge variant="outline" className={`mt-1 text-[10px] ${typeColor(p.partner_type)}`}>{typeLabel(p.partner_type)}</Badge>
+                      </div>
+                    </div>
+                    {p.is_active
+                      ? <Badge className="bg-success/15 text-success border-0 shrink-0">نشط</Badge>
+                      : <Badge variant="secondary" className="shrink-0">معطل</Badge>}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <div className="text-muted-foreground">حصة رأس المال</div>
+                      <div className="font-semibold text-sm">{(Number(p.capital_share) * 100).toFixed(2)}%</div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <div className="text-muted-foreground">حصة التشغيل</div>
+                      <div className="font-semibold text-sm">{(Number(p.operating_share) * 100).toFixed(2)}%</div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <div className="text-muted-foreground">رأس المال</div>
+                      <div className="font-semibold text-sm">{Number(p.initial_capital).toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-md bg-primary/5 border border-primary/10 p-2">
+                      <div className="text-muted-foreground">الرصيد الحالي</div>
+                      <div className="font-bold text-sm text-primary">{Number(p.current_balance).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    <span className="opacity-70">اسم المستخدم: </span>
+                    <span className="font-mono">{userNames[p.id] ?? "-"}</span>
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" variant="outline" className="flex-1" asChild>
+                      <Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
+                      <KeyRound className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}>
+                      <Power className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Desktop: table */}
+        {!loading && rows.length > 0 && (
+          <Card className="hidden xl:block">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40">
+                  <tr className="text-right">
+                    <th className="p-3 font-semibold">الاسم</th>
+                    <th className="p-3 font-semibold">النوع</th>
+                    <th className="p-3 font-semibold">حصة رأس المال</th>
+                    <th className="p-3 font-semibold">حصة التشغيل</th>
+                    <th className="p-3 font-semibold">رأس المال</th>
+                    <th className="p-3 font-semibold">الرصيد الحالي</th>
+                    <th className="p-3 font-semibold">اسم المستخدم</th>
+                    <th className="p-3 font-semibold">الحالة</th>
+                    <th className="p-3 font-semibold">إجراءات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                </thead>
+                <tbody>
+                  {rows.map(p => (
+                    <tr key={p.id} className="border-t hover:bg-muted/20 transition-colors">
+                      <td className="p-3 font-semibold">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                            {initials(p.name)}
+                          </div>
+                          <Link className="hover:underline" to={`/admin/financial-position/partner/${p.id}`}>{p.name}</Link>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className={typeColor(p.partner_type)}>{typeLabel(p.partner_type)}</Badge>
+                      </td>
+                      <td className="p-3 font-mono">{(Number(p.capital_share) * 100).toFixed(2)}%</td>
+                      <td className="p-3 font-mono">{(Number(p.operating_share) * 100).toFixed(2)}%</td>
+                      <td className="p-3 font-mono">{Number(p.initial_capital).toLocaleString()}</td>
+                      <td className="p-3 font-mono font-semibold text-primary">{Number(p.current_balance).toLocaleString()}</td>
+                      <td className="p-3 font-mono text-xs">{userNames[p.id] ?? "-"}</td>
+                      <td className="p-3">{p.is_active ? <Badge className="bg-success/15 text-success border-0">نشط</Badge> : <Badge variant="secondary">معطل</Badge>}</td>
+                      <td className="p-3">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link></Button>
+                          <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="كلمة المرور"><KeyRound className="w-3 h-3" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}><Power className="w-3 h-3" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Add partner dialog */}
