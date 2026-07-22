@@ -15,6 +15,7 @@ import {
   BookmarkPlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Truck,
 } from "lucide-react";
 import { ExecutiveProfitSummary } from "@/components/ExecutiveProfitSummary";
+import { KpiHealthAlert } from "@/components/KpiHealthAlert";
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -98,6 +99,8 @@ export default function AdminDashboard() {
           </Button>
         }
       />
+
+      <KpiHealthAlert />
 
       <ExecutiveProfitSummary />
 
