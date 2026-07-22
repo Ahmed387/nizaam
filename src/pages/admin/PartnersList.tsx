@@ -39,6 +39,13 @@ export default function PartnersList() {
   const [rows, setRows] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(false);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [partnerCashBranchId, setPartnerCashBranchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("branches").select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle()
+      .then(({ data }) => setPartnerCashBranchId((data as any)?.id ?? null));
+  }, [tenantId]);
 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("data");
@@ -184,9 +191,18 @@ export default function PartnersList() {
       <div dir="rtl" className="text-right space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />
-          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
-            <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {partnerCashBranchId && (
+              <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
+                <Link to={`/branch/${partnerCashBranchId}/treasury`}>
+                  <FileText className="w-4 h-4 ml-2" />خزينة الشركاء المركزية
+                </Link>
+              </Button>
+            )}
+            <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
+              <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
+            </Button>
+          </div>
         </div>
 
         {/* Summary strip */}
