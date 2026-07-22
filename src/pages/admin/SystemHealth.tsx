@@ -81,11 +81,13 @@ export default function SystemHealth() {
   const orphans = data?.orphans ?? {};
   const tenants = (data?.tenants ?? []) as any[];
   const profits = (data?.partner_profit_snapshot ?? []) as any[];
+  const cashRec = (data?.cash_reconciliation ?? []) as any[];
 
   const issues = [
     ...shares.filter(s => !s.ok).map(s => `نسب الشركاء لتينانت ${s.tenant_id?.slice(0,8)} ليست 100% (رأس المال: ${s.capital_pct}%، التشغيل: ${s.operating_pct}%)`),
     ...tb.filter(t => !t.ok).map(t => `ميزان المراجعة غير متزن — فرق: ${t.diff}`),
     ...pb.filter(p => !p.ok).map(p => `رصيد الشريك ${p.name} في الجدول (${fmt(p.stored_balance)}) ≠ المحسوب من الحركات (${fmt(p.computed_from_tx)})`),
+    ...cashRec.filter(c => !c.ok).map(c => `🚨 فرق نقدي: الخزينة الفعلية (${fmt(c.physical_cash)}) ≠ الأستاذ العام حساب 1100 (${fmt(c.gl_cash)}) — فرق: ${fmt(c.diff)}`),
     ...(Number(orphans.orphan_invoice_items||0) > 0 ? [`عناصر فواتير يتيمة: ${orphans.orphan_invoice_items}`] : []),
     ...(Number(orphans.orphan_journal_lines||0) > 0 ? [`قيود يومية يتيمة: ${orphans.orphan_journal_lines}`] : []),
     ...(Number(orphans.orphan_payments||0) > 0 ? [`دفعات يتيمة: ${orphans.orphan_payments}`] : []),
