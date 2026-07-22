@@ -1,0 +1,224 @@
+
+UPDATE public.equity_partners SET name = 'أحمد ناصر'
+WHERE id = '06ced07b-dd90-4bbb-98af-c3b5dee72c3b' AND name = 'TEST-أحمد';
+
+DO $$
+DECLARE
+  v_user_id uuid;
+  v_partner_id uuid := '06ced07b-dd90-4bbb-98af-c3b5dee72c3b';
+  v_tenant_id uuid := '5316fbfe-b862-4c91-b48b-1d81c8aa5a71';
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = 'an.ayoub98@gmail.com' LIMIT 1;
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO public.profiles (id, tenant_id, name, username)
+    VALUES (v_user_id, v_tenant_id, 'أحمد ناصر', 'an.ayoub98')
+    ON CONFLICT (id) DO UPDATE SET tenant_id = COALESCE(public.profiles.tenant_id, EXCLUDED.tenant_id);
+    INSERT INTO public.user_roles (user_id, role) VALUES (v_user_id, 'partner')
+    ON CONFLICT DO NOTHING;
+    INSERT INTO public.partner_users (tenant_id, user_id, partner_id, is_active)
+    VALUES (v_tenant_id, v_user_id, v_partner_id, true)
+    ON CONFLICT (partner_id, tenant_id) DO UPDATE SET user_id = EXCLUDED.user_id, is_active = true;
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.distribute_profits(
+  p_tenant_id uuid, p_fiscal_period_id uuid, p_total_amount numeric,
+  p_distribution_date date DEFAULT CURRENT_DATE, p_notes text DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_dist_id UUID; v_entry_id UUID; v_entry_number TEXT;
+  v_retained UUID; v_payable UUID; v_advance_asset UUID;
+  v_total_share NUMERIC := 0; v_line_order INT := 0;
+  v_ptx_id UUID; v_month_year TEXT;
+  v_gross NUMERIC; v_offset NUMERIC; v_net_payable NUMERIC;
+  v_adv_remaining NUMERIC;
+  r RECORD; a RECORD;
+BEGIN
+  IF p_total_amount <= 0 THEN RAISE EXCEPTION 'المبلغ يجب أن يكون أكبر من صفر'; END IF;
+  SELECT COALESCE(SUM(capital_share),0) INTO v_total_share
+  FROM public.equity_partners WHERE tenant_id=p_tenant_id AND is_active=true;
+  IF v_total_share <= 0 THEN RAISE EXCEPTION 'لا يوجد شركاء نشطين'; END IF;
+
+  SELECT id INTO v_retained FROM public.chart_of_accounts WHERE tenant_id=p_tenant_id AND code='3800' LIMIT 1;
+  SELECT id INTO v_payable  FROM public.chart_of_accounts WHERE tenant_id=p_tenant_id AND code='3850' LIMIT 1;
+  SELECT id INTO v_advance_asset FROM public.chart_of_accounts WHERE tenant_id=p_tenant_id AND code='1400' LIMIT 1;
+  IF v_retained IS NULL OR v_payable IS NULL THEN RAISE EXCEPTION 'حسابات التوزيع (3800/3850) غير موجودة'; END IF;
+
+  v_month_year := to_char(p_distribution_date,'YYYY-MM');
+
+  INSERT INTO public.profit_distributions (tenant_id, fiscal_period_id, distribution_date, total_amount, status, notes, created_by)
+  VALUES (p_tenant_id, p_fiscal_period_id, p_distribution_date, p_total_amount, 'posted', p_notes, auth.uid())
+  RETURNING id INTO v_dist_id;
+
+  v_entry_number := 'DIST-'||to_char(p_distribution_date,'YYYYMMDD')||'-'||substring(v_dist_id::text,1,4);
+  INSERT INTO public.journal_entries (tenant_id, entry_number, entry_date, description, source_type, source_id, status, total_debit, total_credit, created_by)
+  VALUES (p_tenant_id, v_entry_number, p_distribution_date, 'توزيع أرباح على الشركاء', 'profit_distribution', v_dist_id, 'posted', p_total_amount, p_total_amount, auth.uid())
+  RETURNING id INTO v_entry_id;
+
+  INSERT INTO public.journal_entry_lines (tenant_id, entry_id, account_id, debit, credit, description, line_order)
+  VALUES (p_tenant_id, v_entry_id, v_retained, p_total_amount, 0, 'توزيع أرباح', 1);
+  v_line_order := 1;
+
+  FOR r IN
+    SELECT id, name, capital_share FROM public.equity_partners
+    WHERE tenant_id=p_tenant_id AND is_active=true
+  LOOP
+    v_gross := round((p_total_amount * r.capital_share / v_total_share)::numeric, 2);
+    v_offset := 0;
+    FOR a IN
+      SELECT id, remaining_amount FROM public.partner_advances
+      WHERE partner_id=r.id AND status IN ('active','partially_paid') AND remaining_amount > 0
+      ORDER BY advance_date ASC, created_at ASC
+    LOOP
+      EXIT WHEN v_offset >= v_gross;
+      v_adv_remaining := LEAST(a.remaining_amount, v_gross - v_offset);
+      IF v_adv_remaining > 0 THEN
+        INSERT INTO public.partner_advance_payments (tenant_id, advance_id, partner_id, payment_date, amount, notes, created_by)
+        VALUES (p_tenant_id, a.id, r.id, p_distribution_date, v_adv_remaining, 'خصم من توزيع الأرباح', auth.uid());
+        UPDATE public.partner_advances
+        SET remaining_amount = remaining_amount - v_adv_remaining,
+            status = CASE WHEN remaining_amount - v_adv_remaining <= 0 THEN 'fully_paid'
+                          ELSE 'partially_paid' END
+        WHERE id = a.id;
+        v_offset := v_offset + v_adv_remaining;
+      END IF;
+    END LOOP;
+    v_net_payable := v_gross - v_offset;
+
+    INSERT INTO public.partner_transactions (tenant_id, partner_id, transaction_type, amount, description, month_year, created_by)
+    VALUES (p_tenant_id, r.id, 'profit_share', v_gross,
+            'نصيب من التوزيع'||CASE WHEN v_offset > 0 THEN ' (خصم سلفة: '||v_offset||')' ELSE '' END,
+            v_month_year, auth.uid())
+    RETURNING id INTO v_ptx_id;
+
+    UPDATE public.equity_partners
+    SET total_profit_share = COALESCE(total_profit_share,0) + v_gross,
+        current_balance    = COALESCE(current_balance,0) + v_net_payable
+    WHERE id = r.id;
+
+    INSERT INTO public.profit_distribution_lines (distribution_id, partner_id, share_percentage, amount, partner_transaction_id)
+    VALUES (v_dist_id, r.id, (r.capital_share/v_total_share)*100, v_gross, v_ptx_id);
+
+    IF v_offset > 0 AND v_advance_asset IS NOT NULL THEN
+      v_line_order := v_line_order + 1;
+      INSERT INTO public.journal_entry_lines (tenant_id, entry_id, account_id, debit, credit, description, line_order)
+      VALUES (p_tenant_id, v_entry_id, v_advance_asset, 0, v_offset, 'تسوية سلفة الشريك '||r.name, v_line_order);
+    END IF;
+    IF v_net_payable > 0 THEN
+      v_line_order := v_line_order + 1;
+      INSERT INTO public.journal_entry_lines (tenant_id, entry_id, account_id, debit, credit, description, line_order)
+      VALUES (p_tenant_id, v_entry_id, v_payable, 0, v_net_payable, 'مستحق للشريك '||r.name, v_line_order);
+    END IF;
+  END LOOP;
+
+  UPDATE public.profit_distributions SET journal_entry_id = v_entry_id WHERE id = v_dist_id;
+  RETURN jsonb_build_object('distribution_id', v_dist_id, 'journal_entry_id', v_entry_id, 'total_amount', p_total_amount);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.compute_net_profit_for_period(
+  p_tenant_id uuid, p_from date, p_to date
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_revenue numeric := 0; v_expense numeric := 0;
+BEGIN
+  SELECT COALESCE(SUM(jel.credit - jel.debit),0) INTO v_revenue
+  FROM public.journal_entry_lines jel
+  JOIN public.journal_entries je ON je.id = jel.entry_id
+  JOIN public.chart_of_accounts coa ON coa.id = jel.account_id
+  WHERE je.tenant_id = p_tenant_id AND je.status='posted'
+    AND je.entry_date BETWEEN p_from AND p_to AND coa.account_type='revenue';
+
+  SELECT COALESCE(SUM(jel.debit - jel.credit),0) INTO v_expense
+  FROM public.journal_entry_lines jel
+  JOIN public.journal_entries je ON je.id = jel.entry_id
+  JOIN public.chart_of_accounts coa ON coa.id = jel.account_id
+  WHERE je.tenant_id = p_tenant_id AND je.status='posted'
+    AND je.entry_date BETWEEN p_from AND p_to AND coa.account_type='expense';
+
+  RETURN jsonb_build_object('revenue', v_revenue, 'expense', v_expense,
+    'net_profit', v_revenue - v_expense, 'from', p_from, 'to', p_to);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.preview_flexible_distribution(
+  p_tenant_id uuid, p_from date, p_to date, p_amount numeric DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_np jsonb; v_total_amount numeric; v_total_share numeric;
+  v_partners jsonb := '[]'::jsonb; v_gross numeric; v_offset numeric;
+  r RECORD; v_adv numeric;
+BEGIN
+  v_np := public.compute_net_profit_for_period(p_tenant_id, p_from, p_to);
+  v_total_amount := COALESCE(p_amount, (v_np->>'net_profit')::numeric);
+  IF v_total_amount <= 0 THEN
+    RETURN jsonb_build_object('net_profit', v_np, 'distributable', v_total_amount, 'partners', '[]'::jsonb);
+  END IF;
+
+  SELECT COALESCE(SUM(capital_share),0) INTO v_total_share
+  FROM public.equity_partners WHERE tenant_id=p_tenant_id AND is_active=true;
+
+  FOR r IN
+    SELECT id, name, capital_share FROM public.equity_partners
+    WHERE tenant_id=p_tenant_id AND is_active=true ORDER BY name
+  LOOP
+    v_gross := round((v_total_amount * r.capital_share / NULLIF(v_total_share,0))::numeric, 2);
+    SELECT COALESCE(SUM(remaining_amount),0) INTO v_adv
+    FROM public.partner_advances
+    WHERE partner_id=r.id AND status IN ('active','partially_paid');
+    v_offset := LEAST(v_adv, v_gross);
+    v_partners := v_partners || jsonb_build_array(jsonb_build_object(
+      'partner_id', r.id, 'name', r.name,
+      'share_pct', round(((r.capital_share/NULLIF(v_total_share,0))*100)::numeric, 2),
+      'gross', v_gross, 'advance_offset', v_offset, 'net_payable', v_gross - v_offset,
+      'outstanding_advances', v_adv
+    ));
+  END LOOP;
+
+  RETURN jsonb_build_object('net_profit', v_np, 'distributable', v_total_amount, 'partners', v_partners);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.partner_withdraw_from_distribution(
+  p_tenant_id uuid, p_partner_id uuid, p_amount numeric,
+  p_date date DEFAULT CURRENT_DATE, p_notes text DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_partner RECORD; v_balance numeric;
+  v_cash UUID; v_payable UUID; v_entry_id UUID; v_entry_number TEXT;
+  v_ptx_id UUID;
+BEGIN
+  IF p_amount <= 0 THEN RAISE EXCEPTION 'المبلغ يجب أن يكون أكبر من صفر'; END IF;
+  SELECT * INTO v_partner FROM public.equity_partners
+  WHERE id=p_partner_id AND tenant_id=p_tenant_id AND is_active=true;
+  IF v_partner IS NULL THEN RAISE EXCEPTION 'الشريك غير موجود أو غير نشط'; END IF;
+
+  v_balance := COALESCE(v_partner.current_balance, 0);
+  IF v_balance < p_amount THEN
+    RAISE EXCEPTION 'الرصيد المتاح للسحب % أقل من المبلغ المطلوب %', v_balance, p_amount;
+  END IF;
+
+  SELECT id INTO v_cash FROM public.chart_of_accounts WHERE tenant_id=p_tenant_id AND code='1100' LIMIT 1;
+  SELECT id INTO v_payable FROM public.chart_of_accounts WHERE tenant_id=p_tenant_id AND code='3850' LIMIT 1;
+  IF v_cash IS NULL OR v_payable IS NULL THEN RAISE EXCEPTION 'الحسابات (1100/3850) غير موجودة'; END IF;
+
+  INSERT INTO public.partner_transactions (tenant_id, partner_id, transaction_type, amount, description, month_year, created_by)
+  VALUES (p_tenant_id, p_partner_id, 'drawing', p_amount,
+          COALESCE(p_notes, 'سحب من رصيد توزيع الأرباح'),
+          to_char(p_date,'YYYY-MM'), auth.uid())
+  RETURNING id INTO v_ptx_id;
+
+  v_entry_number := 'PW-'||to_char(p_date,'YYYYMMDD')||'-'||substring(gen_random_uuid()::text,1,4);
+  INSERT INTO public.journal_entries (tenant_id, entry_number, entry_date, description, source_type, source_id, status, total_debit, total_credit, created_by)
+  VALUES (p_tenant_id, v_entry_number, p_date,
+          'سحب من رصيد التوزيع — '||v_partner.name,
+          'partner_withdrawal', v_ptx_id, 'posted', p_amount, p_amount, auth.uid())
+  RETURNING id INTO v_entry_id;
+
+  INSERT INTO public.journal_entry_lines (tenant_id, entry_id, account_id, debit, credit, description, line_order)
+  VALUES (p_tenant_id, v_entry_id, v_payable, p_amount, 0, 'سحب رصيد '||v_partner.name, 1),
+         (p_tenant_id, v_entry_id, v_cash,    0, p_amount, 'صرف نقدي للشريك '||v_partner.name, 2);
+
+  RETURN jsonb_build_object(
+    'partner_transaction_id', v_ptx_id,
+    'journal_entry_id', v_entry_id,
+    'amount', p_amount,
+    'remaining_balance', v_balance - p_amount
+  );
+END $$;

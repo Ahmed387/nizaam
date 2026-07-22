@@ -5338,6 +5338,10 @@ export type Database = {
         Args: { p_payment_method?: string; p_pre_order_id: string }
         Returns: string
       }
+      compute_net_profit_for_period: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: Json
+      }
       confirm_transfer_group: { Args: { p_group: string }; Returns: number }
       consume_product_batches: {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
@@ -5702,6 +5706,16 @@ export type Database = {
         Args: { p_received: number; p_transfer_id: string }
         Returns: Json
       }
+      partner_withdraw_from_distribution: {
+        Args: {
+          p_amount: number
+          p_date?: string
+          p_notes?: string
+          p_partner_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       payment_plans_summary: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -5736,6 +5750,15 @@ export type Database = {
           asset_id: string
           journal_entry_id: string
         }[]
+      }
+      preview_flexible_distribution: {
+        Args: {
+          p_amount?: number
+          p_from: string
+          p_tenant_id: string
+          p_to: string
+        }
+        Returns: Json
       }
       process_sale:
         | {

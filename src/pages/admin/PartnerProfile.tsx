@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, Wallet } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,9 @@ export default function PartnerProfile() {
   const [loading, setLoading] = useState(true);
   const [openTx, setOpenTx] = useState(false);
   const [tx, setTx] = useState({ type: "contribution", amount: "", description: "", month_year: new Date().toISOString().slice(0, 7) });
+  const [openWd, setOpenWd] = useState(false);
+  const [wd, setWd] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
+  const [wdLoading, setWdLoading] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -86,6 +90,27 @@ export default function PartnerProfile() {
     load();
   };
 
+  const submitWithdraw = async () => {
+    const amt = Number(wd.amount);
+    if (!amt || amt <= 0) return toast.error("المبلغ غير صحيح");
+    if (amt > Number(partner.current_balance || 0)) return toast.error("المبلغ أكبر من الرصيد المتاح");
+    setWdLoading(true);
+    const { error } = await supabase.rpc("partner_withdraw_from_distribution" as any, {
+      p_tenant_id: partner.tenant_id,
+      p_partner_id: id,
+      p_amount: amt,
+      p_date: wd.date,
+      p_notes: wd.notes || null,
+    });
+    setWdLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم السحب — اتخصم من الخزينة وقيد اليومية اتسجّل");
+    setOpenWd(false);
+    setWd({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
+    load();
+  };
+
+
   if (loading) return <AdminLayout><div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div></AdminLayout>;
   if (!partner) return <AdminLayout><div className="p-8 text-center">الشريك غير موجود</div></AdminLayout>;
 
@@ -98,6 +123,9 @@ export default function PartnerProfile() {
           <PageHeader title={partner.name} subtitle="ملف الشريك" />
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link to="/admin/financial-position/partners">← العودة</Link></Button>
+            <Button variant="outline" onClick={() => setOpenWd(true)} disabled={Number(partner.current_balance || 0) <= 0}>
+              <Wallet className="w-4 h-4 ml-2" />سحب من الرصيد
+            </Button>
             <Button onClick={() => setOpenTx(true)}><PlusCircle className="w-4 h-4 ml-2" />تسجيل حركة</Button>
           </div>
         </div>
@@ -193,6 +221,37 @@ export default function PartnerProfile() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenTx(false)}>إلغاء</Button>
             <Button onClick={submitTx}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openWd} onOpenChange={setOpenWd}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>سحب من رصيد الأرباح</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="border rounded-lg p-3 bg-primary/5">
+              <div className="text-xs text-muted-foreground">الرصيد المتاح للسحب</div>
+              <div className="text-2xl font-bold text-primary">{fmt(Number(partner.current_balance || 0))} ج.م</div>
+            </div>
+            <div><Label>المبلغ (ج.م) *</Label>
+              <Input type="number" value={wd.amount} onChange={e => setWd({ ...wd, amount: e.target.value })} />
+            </div>
+            <div><Label>تاريخ السحب</Label>
+              <Input type="date" value={wd.date} onChange={e => setWd({ ...wd, date: e.target.value })} />
+            </div>
+            <div><Label>ملاحظات</Label>
+              <Textarea rows={2} value={wd.notes} onChange={e => setWd({ ...wd, notes: e.target.value })} placeholder="سحب رصيد أرباح" />
+            </div>
+            <div className="text-xs text-muted-foreground border-r-2 border-primary/40 pr-3">
+              القيد المحاسبي: مدين مستحقات التوزيع (3850) / دائن الخزينة (1100)
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenWd(false)}>إلغاء</Button>
+            <Button onClick={submitWithdraw} disabled={wdLoading}>
+              {wdLoading && <Loader2 className="w-4 h-4 animate-spin ml-1" />}
+              تنفيذ السحب
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
