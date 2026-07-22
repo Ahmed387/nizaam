@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildKpiAlerts, KpiAlert, KpiSnapshot } from "@/lib/kpiAlerts";
 import { notifyMany, getTenantAdmins } from "@/lib/notifications";
-import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft } from "lucide-react";
+import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft, Siren } from "lucide-react";
 
 const POLL_MS = 60_000;
 
