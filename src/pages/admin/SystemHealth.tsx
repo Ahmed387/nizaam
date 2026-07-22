@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, RefreshCcw, AlertTriangle, TrendingUp } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, RefreshCcw, AlertTriangle, TrendingUp, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { fetchProfitWindow } from "@/lib/profitEngine";
