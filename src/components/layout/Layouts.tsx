@@ -13,6 +13,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
+  const [mainTreasuryId, setMainTreasuryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("branches").select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle()
+      .then(({ data }) => setMainTreasuryId((data as any)?.id ?? null));
+  }, [tenantId]);
 
   const loadPending = async () => {
     if (!tenantId || !isAdmin) return;
