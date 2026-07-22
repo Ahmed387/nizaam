@@ -112,6 +112,7 @@ import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
+import MainTreasury from "./pages/admin/MainTreasury";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
