@@ -298,8 +298,9 @@ export default function PartnersList() {
                       <td className="p-3 font-mono text-xs">{userNames[p.id] ?? "-"}</td>
                       <td className="p-3">{p.is_active ? <Badge className="bg-success/15 text-success border-0">نشط</Badge> : <Badge variant="secondary">معطل</Badge>}</td>
                       <td className="p-3">
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link></Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}><User className="w-3 h-3 ml-1" />كشف حسابي</Link></Button>
+                          <Button size="sm" variant="outline" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })} title="تحميل كشف حساب PDF"><FileText className="w-3 h-3 ml-1" />PDF</Button>
                           <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="كلمة المرور"><KeyRound className="w-3 h-3" /></Button>
                           <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}><Power className="w-3 h-3" /></Button>
                         </div>
