@@ -24,6 +24,7 @@ export default function PartnerProfile() {
   const { id } = useParams();
   const [partner, setPartner] = useState<any>(null);
   const [txs, setTxs] = useState<any[]>([]);
+  const [advances, setAdvances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openTx, setOpenTx] = useState(false);
   const [tx, setTx] = useState({ type: "contribution", amount: "", description: "", month_year: new Date().toISOString().slice(0, 7) });
@@ -31,15 +32,18 @@ export default function PartnerProfile() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    const [{ data: p }, { data: t }] = await Promise.all([
+    const [{ data: p }, { data: t }, { data: adv }] = await Promise.all([
       supabase.from("equity_partners" as any).select("*").eq("id", id).maybeSingle(),
       supabase.from("partner_transactions" as any).select("*").eq("partner_id", id).order("created_at", { ascending: false }),
+      supabase.from("partner_advances" as any).select("*").eq("partner_id", id).in("status", ["active", "partially_paid"]),
     ]);
     setPartner(p);
     setTxs((t ?? []) as any[]);
+    setAdvances((adv ?? []) as any[]);
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
+
 
   useEffect(() => {
     if (!id) return;
