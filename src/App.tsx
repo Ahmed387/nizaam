@@ -138,6 +138,7 @@ import AdminPartnerProfile from "./pages/admin/PartnerProfile";
 import PartnerTransactions from "./pages/admin/PartnerTransactions";
 import PartnerAdvances from "./pages/admin/PartnerAdvances";
 import PartnerAdvanceDetail from "./pages/admin/PartnerAdvanceDetail";
+import SystemHealth from "./pages/admin/SystemHealth";
 import PartnerDashboard from "./pages/partner/Dashboard";
 import PartnerLedger from "./pages/partner/Ledger";
 import PartnerAdvancesView from "./pages/partner/Advances";
