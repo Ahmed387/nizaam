@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildKpiAlerts, KpiAlert, KpiSnapshot } from "@/lib/kpiAlerts";
 import { notifyMany, getTenantAdmins } from "@/lib/notifications";
-import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft } from "lucide-react";
+import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft, Siren } from "lucide-react";
 
 const POLL_MS = 60_000;
 
@@ -99,11 +99,30 @@ export function KpiHealthAlert() {
       </div>
 
       <div className="relative flex items-start gap-3">
-        <div className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center animate-pulse ${
-          hasDanger ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
-        }`}>
-          {hasDanger ? <AlertOctagon className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-        </div>
+        {hasDanger ? (
+          <div className="relative shrink-0 w-14 h-14 flex items-center justify-center">
+            {/* Rotating red beacon cone behind the siren */}
+            <div
+              className="absolute inset-0 rounded-full animate-spin"
+              style={{
+                animationDuration: "1.6s",
+                background:
+                  "conic-gradient(from 0deg, hsl(var(--destructive)/0.85) 0deg, hsl(var(--destructive)/0.1) 60deg, transparent 120deg, transparent 240deg, hsl(var(--destructive)/0.1) 300deg, hsl(var(--destructive)/0.85) 360deg)",
+                filter: "blur(2px)",
+              }}
+            />
+            {/* Pulsing red halo */}
+            <div className="absolute inset-0 rounded-full bg-destructive/30 animate-ping" />
+            {/* Siren body */}
+            <div className="relative w-11 h-11 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-[0_0_18px_hsl(var(--destructive)/0.7)]">
+              <Siren className="w-6 h-6" />
+            </div>
+          </div>
+        ) : (
+          <div className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center animate-pulse bg-warning/15 text-warning">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+        )}
 
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
