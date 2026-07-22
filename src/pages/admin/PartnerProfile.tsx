@@ -24,6 +24,7 @@ export default function PartnerProfile() {
   const { id } = useParams();
   const [partner, setPartner] = useState<any>(null);
   const [txs, setTxs] = useState<any[]>([]);
+  const [advances, setAdvances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openTx, setOpenTx] = useState(false);
   const [tx, setTx] = useState({ type: "contribution", amount: "", description: "", month_year: new Date().toISOString().slice(0, 7) });
@@ -31,15 +32,18 @@ export default function PartnerProfile() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    const [{ data: p }, { data: t }] = await Promise.all([
+    const [{ data: p }, { data: t }, { data: adv }] = await Promise.all([
       supabase.from("equity_partners" as any).select("*").eq("id", id).maybeSingle(),
       supabase.from("partner_transactions" as any).select("*").eq("partner_id", id).order("created_at", { ascending: false }),
+      supabase.from("partner_advances" as any).select("*").eq("partner_id", id).in("status", ["active", "partially_paid"]),
     ]);
     setPartner(p);
     setTxs((t ?? []) as any[]);
+    setAdvances((adv ?? []) as any[]);
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
+
 
   useEffect(() => {
     if (!id) return;
@@ -98,12 +102,31 @@ export default function PartnerProfile() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
-        </div>
+        {(() => {
+          const outstanding = advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0);
+          const net = Number(partner.current_balance || 0) - outstanding;
+          return (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
+                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
+                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
+                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
+                <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(outstanding)}</div></CardContent></Card>
+              </div>
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="py-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-muted-foreground">صافي الذمة المالية (الرصيد − السلف القائمة)</div>
+                    <div className="text-xs text-muted-foreground mt-1">رأس المال + الأرباح − المسحوبات − السلف</div>
+                  </div>
+                  <div className={`text-3xl font-bold ${net >= 0 ? "text-success" : "text-destructive"}`}>{fmt(net)} ج</div>
+                </CardContent>
+              </Card>
+            </>
+          );
+        })()}
+
 
         <Card>
           <CardHeader><CardTitle>بيانات الشريك</CardTitle></CardHeader>
