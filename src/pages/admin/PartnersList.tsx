@@ -39,6 +39,13 @@ export default function PartnersList() {
   const [rows, setRows] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(false);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [partnerCashBranchId, setPartnerCashBranchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("branches").select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle()
+      .then(({ data }) => setPartnerCashBranchId((data as any)?.id ?? null));
+  }, [tenantId]);
 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("data");
