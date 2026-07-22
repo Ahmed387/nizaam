@@ -28,14 +28,60 @@ Deno.serve(async (req) => {
 
     // Optional: backup a single tenant if specified, else all active tenants
     let tenantIds: string[] = [];
+    let requestedTenant: string | undefined;
     try {
       const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-      if (body?.tenant_id) tenantIds = [body.tenant_id];
+      if (body?.tenant_id) requestedTenant = body.tenant_id;
     } catch {}
 
-    if (!tenantIds.length) {
-      const { data: tenants } = await admin.from("tenants").select("id").eq("is_suspended", false);
-      tenantIds = (tenants ?? []).map((t: any) => t.id);
+    // Authorization: allow CRON_SECRET header for automated invocation, otherwise require admin
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const providedCron = req.headers.get("x-cron-secret");
+    const isCron = !!cronSecret && providedCron === cronSecret;
+
+    if (!isCron) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const authClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: userData, error: userErr } = await authClient.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Restrict to tenants where the caller is an admin
+      const { data: adminRoles } = await admin.from("user_roles")
+        .select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
+      const adminTenantIds = (adminRoles ?? []).map((r: any) => r.tenant_id).filter(Boolean);
+      if (adminTenantIds.length === 0) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (requestedTenant) {
+        if (!adminTenantIds.includes(requestedTenant)) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        tenantIds = [requestedTenant];
+      } else {
+        tenantIds = adminTenantIds;
+      }
+    } else {
+      if (requestedTenant) tenantIds = [requestedTenant];
+      if (!tenantIds.length) {
+        const { data: tenants } = await admin.from("tenants").select("id").eq("is_suspended", false);
+        tenantIds = (tenants ?? []).map((t: any) => t.id);
+      }
     }
 
     const results: any[] = [];

@@ -17,11 +17,56 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const onlyTenant = url.searchParams.get("tenant_id");
 
+    // Authorization: allow CRON_SECRET header for automated invocation, otherwise require admin user
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const providedCron = req.headers.get("x-cron-secret");
+    const isCron = !!cronSecret && providedCron === cronSecret;
+
+    if (!isCron) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const authClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: userData, error: userErr } = await authClient.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Must be admin; if tenant_id specified, must be admin of that tenant
+      let roleQuery = admin.from("user_roles").select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
+      if (onlyTenant) roleQuery = roleQuery.eq("tenant_id", onlyTenant);
+      const { data: roles } = await roleQuery.limit(1);
+      if (!roles || roles.length === 0) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // If no tenant_id specified, restrict to tenants where the user is admin
+      if (!onlyTenant) {
+        const { data: adminTenants } = await admin.from("user_roles")
+          .select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
+        const allowed = (adminTenants ?? []).map((r: any) => r.tenant_id);
+        // Stash on url object for downstream filtering
+        (globalThis as any).__allowedTenants = allowed;
+      }
+    }
+
     const periodEnd = new Date();
     const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     let q = admin.from("tenants").select("id, name, is_active, is_suspended");
     if (onlyTenant) q = q.eq("id", onlyTenant);
+    const allowedTenants = (globalThis as any).__allowedTenants as string[] | undefined;
+    if (!isCron && !onlyTenant && allowedTenants) q = q.in("id", allowedTenants);
+    (globalThis as any).__allowedTenants = undefined;
     const { data: tenants, error: terr } = await q;
     if (terr) throw terr;
 

@@ -3,6 +3,7 @@
 // 2) Send only text to Gemini flash-lite (5-10x faster than vision)
 // 3) Fallback to vision mode only if text extraction yields too little
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -91,6 +92,17 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // Require authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Unauthorized" }, 401);
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+
     const { pdfBase64, supplierName } = await req.json();
     if (!pdfBase64) return json({ error: "pdfBase64 required" }, 400);
 
