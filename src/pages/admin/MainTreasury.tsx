@@ -91,7 +91,7 @@ export default function MainTreasury() {
     <AdminLayout>
       <PageHeader
         title="الخزنة الرئيسية"
-        subtitle="إجمالي الوارد والصادر من كل فروع الشركة — مصدر واحد للحقيقة"
+        subtitle="تجميع الوارد والصادر من الفروع الـ 3 — للعرض فقط (لا تُسجَّل فيها حركات)"
       />
 
       {/* Filters */}
