@@ -100,6 +100,8 @@ export default function AdminDashboard() {
         }
       />
 
+      <KpiHealthAlert />
+
       <ExecutiveProfitSummary />
 
       {/* Operational KPIs — TODAY only */}
