@@ -4,11 +4,13 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, RefreshCcw, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, RefreshCcw, AlertTriangle, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { fetchProfitWindow } from "@/lib/profitEngine";
 
 type Health = any;
+type PartnerNet = { id: string; name: string; tenant_id: string; capital_pct: number; operating_pct: number; net_share: number };
 
 const fmt = (n: any) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -24,10 +26,48 @@ export default function SystemHealth() {
   const [data, setData] = useState<Health | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [netByTenant, setNetByTenant] = useState<Record<string, number>>({});
+  const [partnerNets, setPartnerNets] = useState<PartnerNet[]>([]);
+
+  const loadPartnerNet = async () => {
+    // All-time range
+    const from = new Date("2020-01-01");
+    const to = new Date();
+    const prevFrom = new Date("2019-01-01");
+    const prevTo = new Date("2019-12-31");
+    const { data: partners } = await supabase
+      .from("equity_partners")
+      .select("id, name, tenant_id, capital_share, operating_share, is_active")
+      .eq("is_active", true);
+    const tenantIds = Array.from(new Set((partners ?? []).map((p: any) => p.tenant_id)));
+    const nets: Record<string, number> = {};
+    await Promise.all(
+      tenantIds.map(async (tid) => {
+        try {
+          const w = await fetchProfitWindow({ tenantId: tid, range: { from, to, prevFrom, prevTo } as any });
+          nets[tid] = w.totals.net;
+        } catch { nets[tid] = 0; }
+      })
+    );
+    setNetByTenant(nets);
+    setPartnerNets(
+      (partners ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        tenant_id: p.tenant_id,
+        capital_pct: Number(p.capital_share) * 100,
+        operating_pct: Number(p.operating_share) * 100,
+        net_share: (nets[p.tenant_id] ?? 0) * Number(p.operating_share),
+      }))
+    );
+  };
 
   const load = async () => {
     setLoading(true); setErr(null);
-    const { data, error } = await supabase.rpc("system_health_check" as any);
+    const [{ data, error }] = await Promise.all([
+      supabase.rpc("system_health_check" as any),
+      loadPartnerNet(),
+    ]);
     if (error) { setErr(error.message); toast({ title: "فشل الفحص", description: error.message, variant: "destructive" }); }
     else setData(data);
     setLoading(false);
@@ -230,6 +270,51 @@ export default function SystemHealth() {
             </table>
           </CardContent>
         </Card>
+
+        {/* Partner net profit share */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" />8. نسب الشركاء وحصتهم من صافي الربح</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-right">
+                  <th className="p-2">الشريك</th>
+                  <th className="p-2">التينانت</th>
+                  <th className="p-2">نسبة رأس المال</th>
+                  <th className="p-2">نسبة التشغيل</th>
+                  <th className="p-2">صافي ربح التينانت</th>
+                  <th className="p-2">حصة الشريك من صافي الربح</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partnerNets.length === 0 && (
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">لا يوجد شركاء نشطون</td></tr>
+                )}
+                {partnerNets.map((p) => {
+                  const tenantNet = netByTenant[p.tenant_id] ?? 0;
+                  return (
+                    <tr key={p.id} className="border-t">
+                      <td className="p-2 font-medium">{p.name}</td>
+                      <td className="p-2 font-mono text-xs text-muted-foreground">{p.tenant_id?.slice(0, 8)}…</td>
+                      <td className="p-2 font-mono">{p.capital_pct.toFixed(2)}%</td>
+                      <td className="p-2 font-mono">{p.operating_pct.toFixed(2)}%</td>
+                      <td className={`p-2 font-mono ${tenantNet < 0 ? "text-destructive" : ""}`}>{fmt(tenantNet)}</td>
+                      <td className={`p-2 font-mono font-bold ${p.net_share < 0 ? "text-destructive" : "text-success"}`}>
+                        {fmt(p.net_share)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="p-3 text-xs text-muted-foreground border-t bg-muted/20">
+              حصة الشريك = صافي ربح التينانت × نسبة التشغيل. صافي الربح = الإيرادات − التكلفة − المصروفات القابلة للخصم (من كل الفترات).
+            </div>
+          </CardContent>
+        </Card>
+
 
         {data?.generated_at && (
           <div className="text-xs text-muted-foreground text-left">Generated: {new Date(data.generated_at).toLocaleString("en-EG")}</div>
