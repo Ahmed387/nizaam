@@ -200,7 +200,9 @@ export default function KpiDashboard() {
             );
           })()}
 
-
+          {/* Profitability */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" />الربحية</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <KpiCard icon={DollarSign} label="الإيرادات" value={fmt(kpi.revenue)} tone="primary" />
               <KpiCard icon={Package} label="تكلفة البضاعة" value={fmt(kpi.cogs)} />
