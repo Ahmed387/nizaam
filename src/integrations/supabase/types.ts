@@ -5312,6 +5312,7 @@ export type Database = {
         Returns: undefined
       }
       archive_product: { Args: { _product_id: string }; Returns: undefined }
+      backfill_missing_journals: { Args: never; Returns: Json }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number
