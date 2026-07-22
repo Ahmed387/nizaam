@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User } from "lucide-react";
+import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 
 type Partner = {
   id: string; name: string; partner_type: string;
