@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Wallet, PieChart, TrendingUp, ArrowUpCircle, ArrowDownCircle, Gift, BookOpen } from "lucide-react";
+import { Wallet, PieChart, TrendingUp, ArrowUpCircle, ArrowDownCircle, Gift, BookOpen, FileText } from "lucide-react";
+import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 
 export default function PartnerDashboard() {
   const { user, profile } = useAuth();
