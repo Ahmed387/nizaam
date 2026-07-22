@@ -113,13 +113,13 @@ Deno.serve(async (req) => {
       await admin.from('profiles').upsert({
         id: userId, name: partner_name, username, tenant_id, is_active: true,
       });
-      // equity_partners
+      // equity_partners — do NOT seed balance/totals; trigger on partner_transactions is the source of truth
       const { data: partner, error: partErr } = await admin.from('equity_partners').insert({
         tenant_id, name: partner_name, partner_type,
         capital_share: capShare, operating_share: opShare,
         initial_capital: Number(initial_capital) || 0,
-        current_balance: Number(initial_capital) || 0,
-        total_contributions: Number(initial_capital) || 0,
+        current_balance: 0,
+        total_contributions: 0,
       }).select('*').single();
       if (partErr) throw partErr;
 
@@ -136,10 +136,8 @@ Deno.serve(async (req) => {
         effective_from: new Date().toISOString().slice(0, 10),
         changed_by: callerId, change_reason: 'Initial share on partner creation',
       });
-      // initial capital as contribution transaction (if > 0)
+      // initial capital as contribution transaction — trigger will set balances correctly
       if (Number(initial_capital) > 0) {
-        // Balance already seeded on equity_partners insert; log without re-updating balance
-        // Insert then reset current_balance to avoid double-counting via trigger.
         await admin.from('partner_transactions').insert({
           tenant_id, partner_id: partner.id, transaction_type: 'contribution',
           amount: Number(initial_capital),
@@ -147,11 +145,6 @@ Deno.serve(async (req) => {
           created_by: callerId,
           month_year: new Date().toISOString().slice(0, 7),
         });
-        // Fix double-count: trigger added again, so set totals back to initial
-        await admin.from('equity_partners').update({
-          current_balance: Number(initial_capital),
-          total_contributions: Number(initial_capital),
-        }).eq('id', partner.id);
       }
 
       return new Response(JSON.stringify({
