@@ -61,7 +61,7 @@ export default function SystemHealth() {
         <PageHeader
           title="فحص السيستم (System Health)"
           subtitle="حالة قاعدة البيانات والمنطق المحاسبي ونظام الشركاء — لحظياً"
-          right={
+          actions={
             <Button size="sm" onClick={load} disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RefreshCcw className="w-4 h-4 ml-2" />}
               إعادة الفحص
