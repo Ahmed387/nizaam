@@ -181,6 +181,49 @@ export default function SystemHealth() {
           </CardContent>
         </Card>
 
+        {/* Cash Reconciliation — CRITICAL */}
+        <Card className={cashRec.some(c => !c.ok) ? "border-destructive border-2 shadow-lg shadow-destructive/20" : "border-success/40"}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className={`w-5 h-5 ${cashRec.some(c => !c.ok) ? "text-destructive animate-pulse" : "text-success"}`} />
+              مطابقة النقدية — الأستاذ العام (1100) مع الخزينة الفعلية
+            </CardTitle>
+            {cashRec.length > 0 && (
+              <StatusPill ok={cashRec.every(c => c.ok)} label={cashRec.every(c => c.ok) ? "متطابق ✓" : "فرق موجود!"} />
+            )}
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-right">
+                  <th className="p-2">التينانت</th>
+                  <th className="p-2">GL Cash (1100)</th>
+                  <th className="p-2">الخزينة الفعلية</th>
+                  <th className="p-2">الفرق</th>
+                  <th className="p-2">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashRec.map((c, i) => (
+                  <tr key={i} className={`border-t ${!c.ok ? "bg-destructive/5" : ""}`}>
+                    <td className="p-2 font-mono text-xs">{c.tenant_id?.slice(0, 8)}…</td>
+                    <td className="p-2 font-mono">{fmt(c.gl_cash)}</td>
+                    <td className="p-2 font-mono">{fmt(c.physical_cash)}</td>
+                    <td className={`p-2 font-mono font-bold ${!c.ok ? "text-destructive" : "text-success"}`}>{fmt(c.diff)}</td>
+                    <td className="p-2"><StatusPill ok={c.ok} /></td>
+                  </tr>
+                ))}
+                {cashRec.length === 0 && (
+                  <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">لا توجد بيانات نقدية</td></tr>
+                )}
+              </tbody>
+            </table>
+            <div className="p-3 text-xs text-muted-foreground border-t bg-muted/20">
+              الصيغة: <span className="font-mono">GL Cash = مجموع (مدين − دائن) لحساب 1100</span> — <span className="font-mono">الخزينة الفعلية = مجموع (income − expense) في جدول treasury</span>. الفرق المسموح: أقل من 1 EGP.
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Partner balances */}
         <Card>
           <CardHeader><CardTitle>3. تطابق أرصدة الشركاء مع الحركات</CardTitle></CardHeader>
