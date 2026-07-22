@@ -11,8 +11,65 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Activity, DollarSign, PiggyBank, Scale, Percent, TrendingUp,
-  Wallet, Package, Receipt, RefreshCw, Target, Landmark
+  Wallet, Package, Receipt, RefreshCw, Target, Landmark,
+  AlertTriangle, AlertOctagon, ShieldCheck
 } from "lucide-react";
+
+type Alert = { level: "danger" | "warning"; title: string; detail: string; advice: string };
+
+function buildAlerts(k: KPI): Alert[] {
+  const a: Alert[] = [];
+  // Liquidity — Current Ratio
+  if (k.current_ratio != null) {
+    if (k.current_ratio < 1)
+      a.push({ level: "danger", title: `النسبة الجارية ${k.current_ratio.toFixed(2)} — خطر سيولة`,
+        detail: "الأصول المتداولة أقل من الخصوم المتداولة — الشركة قد لا تستطيع سداد التزاماتها قصيرة الأجل.",
+        advice: "قلّل المشتريات الآجلة، حصّل الذمم بسرعة، أو ضخ سيولة جديدة." });
+    else if (k.current_ratio < 1.5)
+      a.push({ level: "warning", title: `النسبة الجارية ${k.current_ratio.toFixed(2)} — منخفضة`,
+        detail: "أقل من المعدل الآمن (1.5–2).", advice: "راقب التدفق النقدي عن قرب." });
+  }
+  // Quick Ratio
+  if (k.quick_ratio != null) {
+    if (k.quick_ratio < 0.5)
+      a.push({ level: "danger", title: `النسبة السريعة ${k.quick_ratio.toFixed(2)} — خطر شديد`,
+        detail: "بدون بيع المخزون، السيولة لا تغطي حتى نصف الالتزامات قصيرة الأجل.",
+        advice: "توقف عن أي مصروفات غير ضرورية وسرّع تحصيل العملاء فورًا." });
+    else if (k.quick_ratio < 1)
+      a.push({ level: "warning", title: `النسبة السريعة ${k.quick_ratio.toFixed(2)} — أقل من 1`,
+        detail: "الاعتماد على المخزون لسداد الالتزامات.", advice: "خطط لتقليل المخزون الراكد." });
+  }
+  // Debt to Equity
+  if (k.debt_to_equity != null) {
+    if (k.debt_to_equity > 3)
+      a.push({ level: "danger", title: `الرافعة المالية ${k.debt_to_equity.toFixed(2)} — مديونية خطرة`,
+        detail: "الخصوم أضعاف حقوق الملكية بشكل مبالغ — مخاطر إفلاس مرتفعة.",
+        advice: "أوقف الاستدانة الجديدة وابدأ خطة سداد أو ضخ رأس مال." });
+    else if (k.debt_to_equity > 2)
+      a.push({ level: "warning", title: `الرافعة المالية ${k.debt_to_equity.toFixed(2)} — عالية`,
+        detail: "الاعتماد على الديون مرتفع.", advice: "قلّل الاعتماد على التمويل الخارجي." });
+  }
+  // Profitability
+  if (k.net_profit < 0)
+    a.push({ level: "danger", title: `صافي خسارة ${Math.abs(k.net_profit).toLocaleString("en-EG")}`,
+      detail: "المصروفات تجاوزت الأرباح خلال الفترة.", advice: "راجع بنود المصروفات وهامش الربح." });
+  else if (k.net_margin_pct != null && k.net_margin_pct < 5 && k.revenue > 0)
+    a.push({ level: "warning", title: `هامش صافي الربح ${k.net_margin_pct.toFixed(2)}% — منخفض`,
+      detail: "هامش أقل من 5% يعتبر ضعيف لمعظم القطاعات.", advice: "راجع الأسعار أو قلل التكاليف." });
+
+  if (k.gross_profit < 0)
+    a.push({ level: "danger", title: "مجمل الربح سالب",
+      detail: "تكلفة البضاعة أعلى من الإيرادات — بتبيع بخسارة!",
+      advice: "راجع أسعار البيع والتكلفة فورًا." });
+
+  // Cash
+  if (k.cash_balance < 0)
+    a.push({ level: "danger", title: "الرصيد النقدي سالب",
+      detail: "الخزينة تعرض عجزًا — احتمال خطأ في التسجيل أو سحب زائد.",
+      advice: "افحص حركات الخزينة وسجّل السلف/الديون بشكل صحيح." });
+
+  return a;
+}
 
 const fmt = (n: number | null | undefined) => n == null ? "—" : Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 const pct = (n: number | null | undefined) => n == null ? "—" : `${Number(n).toFixed(2)}%`;
