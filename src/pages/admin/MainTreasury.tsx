@@ -15,7 +15,7 @@ import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp } from "lucid
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
-  id: string; branch_id: string; type: "in" | "out"; category: string;
+  id: string; branch_id: string; type: "income" | "expense"; category: string;
   amount: number; description: string | null; payment_method: string; created_at: string;
 };
 
@@ -69,7 +69,7 @@ export default function MainTreasury() {
     let cin = 0, cout = 0;
     for (const r of filtered) {
       const amt = Number(r.amount);
-      if (r.type === "in") cin += amt; else cout += amt;
+      if (r.type === "income") cin += amt; else cout += amt;
     }
     return { cin, cout, net: cin - cout };
   }, [filtered]);
@@ -82,7 +82,7 @@ export default function MainTreasury() {
       const entry = map.get(r.branch_id);
       if (!entry) continue;
       const amt = Number(r.amount);
-      if (r.type === "in") entry.cin += amt; else entry.cout += amt;
+      if (r.type === "income") entry.cin += amt; else entry.cout += amt;
     }
     return Array.from(map.values());
   }, [rows, branches]);
@@ -178,15 +178,15 @@ export default function MainTreasury() {
             { key: "created_at", header: "التاريخ", render: (r: TxRow) => formatDate(r.created_at) },
             { key: "branch", header: "الفرع", render: (r: TxRow) => branches.find(b => b.id === r.branch_id)?.name ?? "—" },
             { key: "type", header: "النوع", render: (r: TxRow) => (
-              <span className={r.type === "in" ? "text-success font-bold" : "text-destructive font-bold"}>
-                {r.type === "in" ? "وارد ↓" : "صادر ↑"}
+              <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
+                {r.type === "income" ? "وارد ↓" : "صادر ↑"}
               </span>
             )},
             { key: "category", header: "التصنيف" },
             { key: "payment_method", header: "طريقة الدفع" },
             { key: "description", header: "الوصف", render: (r: TxRow) => r.description ?? "—" },
             { key: "amount", header: "المبلغ", render: (r: TxRow) => (
-              <b className={r.type === "in" ? "text-success" : "text-destructive"}>{formatEGP(Number(r.amount))}</b>
+              <b className={r.type === "income" ? "text-success" : "text-destructive"}>{formatEGP(Number(r.amount))}</b>
             )},
           ]}
         />
