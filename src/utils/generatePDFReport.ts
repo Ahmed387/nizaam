@@ -1672,3 +1672,197 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
     if (t2 !== undefined) toast.dismiss(t2);
   }
 }
+
+// ============================================================================
+// =====================  PARTNER STATEMENT REPORT  ===========================
+// ============================================================================
+
+const TX_LABEL: Record<string, string> = {
+  contribution: "مساهمة رأس مال",
+  drawing: "سحب من الرصيد",
+  profit_share: "توزيع أرباح",
+  capital_adjustment: "تسوية رأس المال",
+};
+
+export type PartnerStatementInput = {
+  partner: {
+    id: string;
+    name: string;
+    partner_type: string;
+    capital_share: number;
+    operating_share: number;
+    initial_capital: number;
+    current_balance: number;
+    total_contributions?: number;
+    total_drawings?: number;
+    total_profit_share?: number;
+  };
+  transactions: Array<{
+    id: string;
+    transaction_type: string;
+    amount: number;
+    description?: string | null;
+    month_year?: string | null;
+    created_at: string;
+  }>;
+  openingBalance: number;
+  filters: { from?: string; to?: string };
+  branchName: string;
+  userName: string;
+  lastProfit?: {
+    date: string;
+    amount: number;
+    monthsCount: number;
+    periodLabel?: string | null;
+  } | null;
+};
+
+export async function generatePartnerStatementReport(input: PartnerStatementInput): Promise<void> {
+  const t1 = toast.loading("📄 جاري إنشاء كشف الحساب...");
+  try {
+    const sorted = [...input.transactions].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    let running = Number(input.openingBalance) || 0;
+    let totalIn = 0, totalOut = 0;
+    const rows = sorted.map((t) => {
+      const amt = Number(t.amount) || 0;
+      const isOut = t.transaction_type === "drawing";
+      const debit = isOut ? amt : 0;   // مدين = خصم من الرصيد (سحب)
+      const credit = isOut ? 0 : amt;  // دائن = زيادة الرصيد
+      running += credit - debit;
+      if (isOut) totalOut += amt; else totalIn += amt;
+      return { t, debit, credit, running };
+    });
+    const closing = running;
+
+    const header = headerHtml({
+      title: "كشف حساب شريك",
+      branchName: input.branchName,
+      userName: input.userName,
+      fromDate: input.filters.from,
+      toDate: input.filters.to,
+    });
+
+    const typeLabel = input.partner.partner_type === "capital" ? "شريك رأس مال"
+      : input.partner.partner_type === "operating" ? "شريك تشغيل" : "شريك رأس مال وتشغيل";
+
+    // Partner identity card
+    const identity = `
+      <div style="border:1px solid ${C.border};border-radius:10px;background:${C.softBg};padding:16px 20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">اسم الشريك:</span><span style="color:${C.ink};font-size:16px;font-weight:800;">${input.partner.name}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">النوع:</span><span style="color:${C.accent};font-size:13px;font-weight:700;">${typeLabel}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">حصة رأس المال:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${(Number(input.partner.capital_share) * 100).toFixed(2)}%</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">حصة التشغيل:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${(Number(input.partner.operating_share) * 100).toFixed(2)}%</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">رأس المال المبدئي:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${fmtEGP(input.partner.initial_capital)}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">الرصيد الحالي:</span><span style="color:${C.accent};font-size:14px;font-weight:800;">${fmtEGP(input.partner.current_balance)}</span></div>
+      </div>
+    `;
+
+    // KPI summary
+    const summary = sectionTitle("ملخّص الكشف") + kpiCardsHtml([
+      { label: "الرصيد الافتتاحي", value: fmtEGP(input.openingBalance) },
+      { label: "إجمالي الوارد (مساهمات + أرباح)", value: fmtEGP(totalIn), color: C.good },
+      { label: "إجمالي المسحوب", value: fmtEGP(totalOut), color: C.bad },
+      { label: "عدد الحركات", value: fmtNum(rows.length) },
+      { label: "صافي الحركة", value: fmtEGP(totalIn - totalOut), color: (totalIn - totalOut) >= 0 ? C.good : C.bad },
+      { label: "الرصيد الختامي", value: fmtEGP(closing), highlight: true, color: C.accent },
+    ]);
+
+    // Last profit info
+    const lastProfitHtml = input.lastProfit ? `
+      <div style="border:1px solid ${C.accent};background:${C.accentSoft};border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:14px;font-weight:800;color:${C.ink};">آخر توزيع أرباح</div>
+          <div style="font-size:16px;font-weight:800;color:${C.accent};">${fmtEGP(input.lastProfit.amount)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 24px;margin-top:10px;">
+          <div style="font-size:12px;color:${C.muted};">التاريخ: <span style="color:${C.ink};font-weight:700;">${fmtDate(input.lastProfit.date)}</span></div>
+          <div style="font-size:12px;color:${C.muted};">عدد الأشهر: <span style="color:${C.ink};font-weight:700;">${input.lastProfit.monthsCount} شهر</span></div>
+          ${input.lastProfit.periodLabel ? `<div style="font-size:12px;color:${C.muted};">الفترة: <span style="color:${C.ink};font-weight:700;">${input.lastProfit.periodLabel}</span></div>` : ""}
+        </div>
+      </div>
+    ` : "";
+
+    // Movements table (chunk into groups of ~22 rows per page-safe section)
+    const buildTable = (chunk: typeof rows) => {
+      const trs = chunk.map(({ t, debit, credit, running }) => `
+        <tr>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtDate(t.created_at)}</td>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};">${TX_LABEL[t.transaction_type] ?? t.transaction_type}</td>
+          <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${t.description || "-"}${t.month_year ? ` <span style="color:${C.muted};">(${t.month_year})</span>` : ""}</td>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${debit > 0 ? C.bad : C.muted};font-weight:${debit > 0 ? 700 : 400};white-space:nowrap;">${debit > 0 ? fmtNum(debit) : "-"}</td>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${credit > 0 ? C.good : C.muted};font-weight:${credit > 0 ? 700 : 400};white-space:nowrap;">${credit > 0 ? fmtNum(credit) : "-"}</td>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.ink};font-weight:700;white-space:nowrap;">${fmtNum(running)}</td>
+        </tr>
+      `).join("");
+      return `
+        <table style="width:100%;border-collapse:collapse;border:1px solid ${C.border};border-radius:8px;overflow:hidden;background:#fff;">
+          <thead>
+            <tr style="background:${C.ink};">
+              <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:80px;">التاريخ</th>
+              <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:110px;">النوع</th>
+              <th style="padding:11px 8px;text-align:right;color:#fff;font-size:11px;font-weight:700;">الوصف</th>
+              <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:90px;">مدين</th>
+              <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:90px;">دائن</th>
+              <th style="padding:11px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;width:100px;">الرصيد الجاري</th>
+            </tr>
+          </thead>
+          <tbody>${trs || `<tr><td colspan="6" style="padding:16px;text-align:center;color:${C.muted};font-size:11px;">لا توجد حركات في الفترة المحددة</td></tr>`}</tbody>
+        </table>
+      `;
+    };
+
+    // Opening + Closing bookend rows shown as separate emphasis boxes
+    const openingRow = `
+      <div style="border:1px solid ${C.border};border-right:4px solid ${C.muted};border-radius:8px;padding:10px 14px;margin-bottom:10px;background:#fff;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;color:${C.muted};">الرصيد الافتتاحي ${input.filters.from ? `في ${fmtDate(input.filters.from)}` : ""}</div>
+        <div style="font-size:14px;color:${C.ink};font-weight:800;">${fmtEGP(input.openingBalance)}</div>
+      </div>
+    `;
+    const closingRow = `
+      <div style="border:1px solid ${C.accent};border-right:4px solid ${C.accent};border-radius:8px;padding:12px 14px;margin-top:10px;background:${C.accentSoft};display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:13px;color:${C.ink};font-weight:800;">الرصيد الختامي ${input.filters.to ? `في ${fmtDate(input.filters.to)}` : "الحالي"}</div>
+        <div style="font-size:16px;color:${C.accent};font-weight:800;">${fmtEGP(closing)}</div>
+      </div>
+    `;
+
+    // Split rows into pages of 22 to keep each section on a page
+    const CHUNK = 22;
+    const chunks: typeof rows[] = [];
+    for (let i = 0; i < rows.length; i += CHUNK) chunks.push(rows.slice(i, i + CHUNK));
+    if (chunks.length === 0) chunks.push([]);
+
+    const tableSections = chunks.map((c, i) => `
+      <div data-pdf-section="tx-chunk-${i}" style="margin-bottom:12px;">
+        ${i === 0 ? sectionTitle("تفاصيل الحركات") + openingRow : ""}
+        ${buildTable(c)}
+        ${i === chunks.length - 1 ? closingRow : ""}
+      </div>
+    `).join("");
+
+    const sectionsHtml = [
+      `<div data-pdf-section="header">${header}</div>`,
+      `<div data-pdf-section="identity">${identity}</div>`,
+      `<div data-pdf-section="summary">${summary}</div>`,
+      input.lastProfit ? `<div data-pdf-section="last-profit">${lastProfitHtml}</div>` : "",
+      tableSections,
+    ].join("");
+
+    const fromStr = input.filters.from || "الكل";
+    const toStr = input.filters.to || "الكل";
+    await renderSectionsToPdf({
+      sectionsHtml,
+      branchName: input.branchName,
+      fileName: `كشف-حساب-${input.partner.name}-${fromStr}-${toStr}.pdf`,
+    });
+    toast.success("✅ تم إنشاء كشف الحساب");
+  } catch (e: any) {
+    console.error("[generatePartnerStatementReport]", e);
+    toast.error(`❌ حدث خطأ: ${e?.message ?? "غير معروف"}`);
+  } finally {
+    toast.dismiss(t1);
+  }
+}
+
