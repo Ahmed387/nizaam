@@ -128,6 +128,7 @@ export default function KpiDashboard() {
               <KpiCard icon={Receipt} label="موردون (دائنون)" value={fmt(kpi.accounts_payable)} tone="warning" />
               <KpiCard icon={Package} label="قيمة المخزون" value={fmt(kpi.inventory_value)} />
               <KpiCard icon={Scale} label="النسبة الجارية" value={ratio(kpi.current_ratio)} tone={kpi.current_ratio && kpi.current_ratio >= 1 ? "success" : "warning"} hint="الأصول المتداولة ÷ الخصوم المتداولة" />
+              <KpiCard icon={Activity} label="النسبة السريعة" value={ratio(kpi.quick_ratio)} tone={kpi.quick_ratio && kpi.quick_ratio >= 1 ? "success" : "warning"} hint="(الأصول المتداولة − المخزون) ÷ الخصوم المتداولة" />
             </div>
           </div>
 
