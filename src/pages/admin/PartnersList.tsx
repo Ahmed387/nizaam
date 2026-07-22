@@ -195,7 +195,7 @@ export default function PartnersList() {
             {partnerCashBranchId && (
               <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
                 <Link to={`/branch/${partnerCashBranchId}/treasury`}>
-                  <FileText className="w-4 h-4 ml-2" />خزينة الشركاء المركزية
+                  <FileText className="w-4 h-4 ml-2" />الخزنة الرئيسية
                 </Link>
               </Button>
             )}
