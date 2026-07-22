@@ -112,6 +112,7 @@ import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import FinanceHub from "./pages/admin/FinanceHub";
+import MainTreasury from "./pages/admin/MainTreasury";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
@@ -212,6 +213,7 @@ const App = () => (
             <Route path="/admin/catalog" element={<ProtectedRoute adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute adminOnly><ReportsHub /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute adminOnly><FinanceHub /></ProtectedRoute>} />
+            <Route path="/admin/main-treasury" element={<ProtectedRoute adminOnly><MainTreasury /></ProtectedRoute>} />
             <Route path="/admin/financial-dashboard" element={<ProtectedRoute adminOnly><FinancialDashboard /></ProtectedRoute>} />
             <Route path="/admin/report-comparison" element={<ProtectedRoute adminOnly><ReportComparison /></ProtectedRoute>} />
 

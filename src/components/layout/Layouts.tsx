@@ -51,7 +51,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/contacts", label: "جهات التواصل (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
     { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
-    ...(isAdmin && mainTreasuryId ? [{ to: `/branch/${mainTreasuryId}/treasury`, label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" /> }] : []),
+    ...(isAdmin ? [{ to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" /> }] : []),
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
     ...(isOwner ? [{ to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" /> }] : []),
     ...(isOwner ? [{ to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
