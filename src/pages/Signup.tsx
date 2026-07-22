@@ -86,6 +86,7 @@ export default function Signup() {
         <meta property="og:url" content="https://nizaam.lovable.app/signup" />
         <meta property="og:description" content="أنشئ حساب شركتك على Nizam وابدأ إدارة فروعك في دقيقة." />
       </Helmet>
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl gradient-primary" />
         <div className="absolute bottom-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl bg-secondary/40" />
       </div>
