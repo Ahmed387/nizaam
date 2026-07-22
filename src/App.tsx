@@ -138,6 +138,7 @@ import AdminPartnerProfile from "./pages/admin/PartnerProfile";
 import PartnerTransactions from "./pages/admin/PartnerTransactions";
 import PartnerAdvances from "./pages/admin/PartnerAdvances";
 import PartnerAdvanceDetail from "./pages/admin/PartnerAdvanceDetail";
+import SystemHealth from "./pages/admin/SystemHealth";
 import PartnerDashboard from "./pages/partner/Dashboard";
 import PartnerLedger from "./pages/partner/Ledger";
 import PartnerAdvancesView from "./pages/partner/Advances";
@@ -232,6 +233,8 @@ const App = () => (
             <Route path="/admin/financial-position/transactions" element={<ProtectedRoute ownerOnly><PartnerTransactions /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advances" element={<ProtectedRoute ownerOnly><PartnerAdvances /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+            <Route path="/admin/system-health" element={<ProtectedRoute ownerOnly><SystemHealth /></ProtectedRoute>} />
+
 
 
 

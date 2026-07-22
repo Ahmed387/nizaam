@@ -5913,6 +5913,7 @@ export type Database = {
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
+      system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
         Args: {
