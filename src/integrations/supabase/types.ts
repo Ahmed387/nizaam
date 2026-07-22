@@ -5717,6 +5717,7 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: number
       }
+      post_invoice_cogs: { Args: { p_invoice_id: string }; Returns: undefined }
       post_journal: {
         Args: {
           p_description: string
