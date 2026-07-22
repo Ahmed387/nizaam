@@ -57,9 +57,18 @@ export default function PartnerDashboard() {
             </div>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <CardTitle>آخر الحركات</CardTitle>
-                <Button asChild size="sm" variant="outline"><Link to="/partner/ledger"><BookOpen className="w-4 h-4 ml-2" />كشف الحساب الكامل</Link></Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => downloadPartnerStatementPdf({ partnerId: partner.id, branchName: "الشركة", userName: profile?.name ?? partner.name })}
+                  >
+                    <FileText className="w-4 h-4 ml-2" />تحميل كشف حساب PDF
+                  </Button>
+                  <Button asChild size="sm" variant="outline"><Link to="/partner/ledger"><BookOpen className="w-4 h-4 ml-2" />كشف الحساب الكامل</Link></Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
                 <table className="w-full text-sm">
