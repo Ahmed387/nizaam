@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,14 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
+      <Helmet>
+        <title>ابدأ الآن | Nizam</title>
+        <meta name="description" content="أنشئ حساب شركتك على Nizam في أقل من دقيقة وابدأ إدارة المبيعات والمخزون والخزنة والموظفين لكل فروعك بسهولة." />
+        <link rel="canonical" href="https://nizaam.lovable.app/signup" />
+        <meta property="og:title" content="ابدأ الآن | Nizam" />
+        <meta property="og:url" content="https://nizaam.lovable.app/signup" />
+        <meta property="og:description" content="أنشئ حساب شركتك على Nizam وابدأ إدارة فروعك في دقيقة." />
+      </Helmet>
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl gradient-primary" />
         <div className="absolute bottom-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl bg-secondary/40" />

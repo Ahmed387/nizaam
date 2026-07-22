@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,14 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+      <Helmet>
+        <title>تسجيل الدخول | Nizam</title>
+        <meta name="description" content="ادخل إلى حساب Nizam لإدارة المتاجر متعددة الفروع: مبيعات، مخزون، خزنة، موظفين وتقارير في مكان واحد." />
+        <link rel="canonical" href="https://nizaam.lovable.app/login" />
+        <meta property="og:title" content="تسجيل الدخول | Nizam" />
+        <meta property="og:url" content="https://nizaam.lovable.app/login" />
+        <meta property="og:description" content="ادخل إلى حساب Nizam لإدارة المتاجر متعددة الفروع." />
+      </Helmet>
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl gradient-primary" />
         <div className="absolute bottom-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl bg-secondary/40" />
