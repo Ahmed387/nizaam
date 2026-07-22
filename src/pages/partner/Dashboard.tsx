@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Wallet, PieChart, TrendingUp, ArrowUpCircle, ArrowDownCircle, Gift, BookOpen } from "lucide-react";
+import { Wallet, PieChart, TrendingUp, ArrowUpCircle, ArrowDownCircle, Gift, BookOpen, FileText } from "lucide-react";
+import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 
 export default function PartnerDashboard() {
   const { user, profile } = useAuth();
@@ -56,9 +57,18 @@ export default function PartnerDashboard() {
             </div>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <CardTitle>آخر الحركات</CardTitle>
-                <Button asChild size="sm" variant="outline"><Link to="/partner/ledger"><BookOpen className="w-4 h-4 ml-2" />كشف الحساب الكامل</Link></Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => downloadPartnerStatementPdf({ partnerId: partner.id, branchName: "الشركة", userName: profile?.name ?? partner.name })}
+                  >
+                    <FileText className="w-4 h-4 ml-2" />تحميل كشف حساب PDF
+                  </Button>
+                  <Button asChild size="sm" variant="outline"><Link to="/partner/ledger"><BookOpen className="w-4 h-4 ml-2" />كشف الحساب الكامل</Link></Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
                 <table className="w-full text-sm">

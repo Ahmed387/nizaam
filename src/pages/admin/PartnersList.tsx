@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User } from "lucide-react";
+import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 
 type Partner = {
   id: string; name: string; partner_type: string;
@@ -34,7 +35,7 @@ function passwordStrength(pw: string): { level: "ضعيفة" | "متوسطة" | 
 }
 
 export default function PartnersList() {
-  const { tenantId } = useAuth();
+  const { tenantId, profile } = useAuth();
   const [rows, setRows] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(false);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
@@ -236,9 +237,14 @@ export default function PartnersList() {
                     <span className="font-mono">{userNames[p.id] ?? "-"}</span>
                   </div>
 
-                  <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="flex-1" asChild>
-                      <Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant="outline" className="flex-1 min-w-[110px]" asChild>
+                      <Link to={`/admin/financial-position/partner/${p.id}`}>
+                        <User className="w-3.5 h-3.5 ml-1" />كشف حسابي
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 min-w-[90px]" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
+                      <FileText className="w-3.5 h-3.5 ml-1" />PDF
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
                       <KeyRound className="w-3.5 h-3.5" />
@@ -292,8 +298,9 @@ export default function PartnersList() {
                       <td className="p-3 font-mono text-xs">{userNames[p.id] ?? "-"}</td>
                       <td className="p-3">{p.is_active ? <Badge className="bg-success/15 text-success border-0">نشط</Badge> : <Badge variant="secondary">معطل</Badge>}</td>
                       <td className="p-3">
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}>عرض</Link></Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" asChild><Link to={`/admin/financial-position/partner/${p.id}`}><User className="w-3 h-3 ml-1" />كشف حسابي</Link></Button>
+                          <Button size="sm" variant="outline" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })} title="تحميل كشف حساب PDF"><FileText className="w-3 h-3 ml-1" />PDF</Button>
                           <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="كلمة المرور"><KeyRound className="w-3 h-3" /></Button>
                           <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}><Power className="w-3 h-3" /></Button>
                         </div>
