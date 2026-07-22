@@ -26,10 +26,48 @@ export default function SystemHealth() {
   const [data, setData] = useState<Health | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [netByTenant, setNetByTenant] = useState<Record<string, number>>({});
+  const [partnerNets, setPartnerNets] = useState<PartnerNet[]>([]);
+
+  const loadPartnerNet = async () => {
+    // All-time range
+    const from = new Date("2020-01-01");
+    const to = new Date();
+    const prevFrom = new Date("2019-01-01");
+    const prevTo = new Date("2019-12-31");
+    const { data: partners } = await supabase
+      .from("equity_partners")
+      .select("id, name, tenant_id, capital_share, operating_share, is_active")
+      .eq("is_active", true);
+    const tenantIds = Array.from(new Set((partners ?? []).map((p: any) => p.tenant_id)));
+    const nets: Record<string, number> = {};
+    await Promise.all(
+      tenantIds.map(async (tid) => {
+        try {
+          const w = await fetchProfitWindow({ tenantId: tid, range: { from, to, prevFrom, prevTo } as any });
+          nets[tid] = w.totals.net;
+        } catch { nets[tid] = 0; }
+      })
+    );
+    setNetByTenant(nets);
+    setPartnerNets(
+      (partners ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        tenant_id: p.tenant_id,
+        capital_pct: Number(p.capital_share) * 100,
+        operating_pct: Number(p.operating_share) * 100,
+        net_share: (nets[p.tenant_id] ?? 0) * Number(p.operating_share),
+      }))
+    );
+  };
 
   const load = async () => {
     setLoading(true); setErr(null);
-    const { data, error } = await supabase.rpc("system_health_check" as any);
+    const [{ data, error }] = await Promise.all([
+      supabase.rpc("system_health_check" as any),
+      loadPartnerNet(),
+    ]);
     if (error) { setErr(error.message); toast({ title: "فشل الفحص", description: error.message, variant: "destructive" }); }
     else setData(data);
     setLoading(false);
