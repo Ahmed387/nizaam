@@ -49,6 +49,8 @@ export default function FlexibleDistribution() {
   const [loading, setLoading] = useState(false);
   const [distributing, setDistributing] = useState(false);
   const [partnersBalances, setPartnersBalances] = useState<{ id: string; name: string; current_balance: number }[]>([]);
+  const [recent, setRecent] = useState<any[]>([]);
+  const [reversing, setReversing] = useState<string | null>(null);
 
   const loadBalances = async () => {
     if (!tenantId) return;
@@ -60,9 +62,37 @@ export default function FlexibleDistribution() {
       .order("name");
     setPartnersBalances((data as any) ?? []);
   };
+  const loadRecent = async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("profit_distributions")
+      .select("id,distribution_date,total_amount,status,notes,created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setRecent((data as any) ?? []);
+  };
   useEffect(() => {
     loadBalances();
+    loadRecent();
   }, [tenantId]);
+
+  const doReverse = async (id: string) => {
+    const reason = window.prompt("سبب عكس التوزيع؟", "تصحيح");
+    if (reason === null) return;
+    if (!confirm("سيتم عكس القيد المحاسبي، إرجاع أرصدة الشركاء، وإلغاء خصم السلف. متأكد؟")) return;
+    setReversing(id);
+    const { error } = await supabase.rpc("reverse_profit_distribution" as any, {
+      p_tenant_id: tenantId,
+      p_distribution_id: id,
+      p_reason: reason || "Reversal",
+    });
+    setReversing(null);
+    if (error) return toast.error(error.message);
+    toast.success("تم عكس التوزيع بنجاح");
+    loadBalances();
+    loadRecent();
+  };
 
   const computePreview = async () => {
     if (!tenantId) return;
