@@ -74,9 +74,9 @@ export default function SetupWizard() {
   const goNext = () => {
     const err = canNext();
     if (err) { toast.error(err); return; }
-    setStep((s) => Math.min(5, (s + 1) as Step));
+    setStep((s) => Math.min(5, s + 1) as Step);
   };
-  const goBack = () => setStep((s) => Math.max(1, (s - 1) as Step));
+  const goBack = () => setStep((s) => Math.max(1, s - 1) as Step);
 
   const submit = async () => {
     const err = canNext();
