@@ -19,14 +19,11 @@ export default function PartnerDashboard() {
     const { data: link } = await supabase.from("partner_users" as any)
       .select("partner_id").eq("user_id", user.id).maybeSingle();
     if (!link) return;
-    const pid = (link as any).partner_id;
-    const [{ data: p }, { data: bal }, { data: t }] = await Promise.all([
-      supabase.from("equity_partners" as any).select("*").eq("id", pid).maybeSingle(),
-      supabase.from("v_partner_balances" as any).select("*").eq("partner_id", pid).maybeSingle(),
-      supabase.from("partner_transactions" as any).select("*").eq("partner_id", pid).order("created_at", { ascending: false }).limit(5),
+    const [{ data: p }, { data: t }] = await Promise.all([
+      supabase.from("equity_partners" as any).select("*").eq("id", (link as any).partner_id).maybeSingle(),
+      supabase.from("partner_transactions" as any).select("*").eq("partner_id", (link as any).partner_id).order("created_at", { ascending: false }).limit(5),
     ]);
-    setPartner(p ? { ...(p as any), ...((bal as any) ?? {}) } : null);
-    setTxs((t ?? []) as any[]);
+    setPartner(p); setTxs((t ?? []) as any[]);
   };
   useEffect(() => { load(); }, [user?.id]);
 

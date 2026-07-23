@@ -15,7 +15,6 @@ export interface NavItem {
   icon: ReactNode;
   badge?: number;
   newTab?: boolean;
-  section?: string;
 }
 
 export function AppShell({
@@ -80,14 +79,7 @@ export function AppShell({
       </div>
 
       <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "p-2" : "p-3"} space-y-1`}>
-        {nav.map((item, idx) => {
-          const prevSection = idx > 0 ? nav[idx - 1].section : undefined;
-          const showSection = !isCollapsed && item.section && item.section !== prevSection;
-          const sectionHeader = showSection ? (
-            <div key={`sec-${item.section}-${idx}`} className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-              {item.section}
-            </div>
-          ) : null;
+        {nav.map((item) => {
           const active = loc.pathname === item.to || loc.pathname.startsWith(item.to + "/");
           const linkClass = `flex items-center gap-3 ${isCollapsed ? "justify-center px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors ${
             active ? "bg-primary text-primary-foreground shadow-sm" : "text-sidebar-foreground hover:bg-sidebar-accent"
@@ -139,12 +131,7 @@ export function AppShell({
               </Tooltip>
             );
           }
-          return (
-            <div key={item.to}>
-              {sectionHeader}
-              {link}
-            </div>
-          );
+          return link;
         })}
       </nav>
 

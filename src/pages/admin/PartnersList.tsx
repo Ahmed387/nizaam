@@ -68,15 +68,12 @@ export default function PartnersList() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [{ data }, { data: balances }] = await Promise.all([
-      supabase.from("equity_partners" as any).select("*").eq("tenant_id", tenantId).order("created_at"),
-      supabase.from("v_partner_balances" as any).select("*").eq("tenant_id", tenantId),
-    ]);
-    const balMap = new Map<string, any>();
-    (balances ?? []).forEach((b: any) => balMap.set(b.partner_id, b));
-    const list = ((data ?? []) as any[]).map((p: any) => ({ ...p, ...(balMap.get(p.id) ?? {}) })) as unknown as Partner[];
+    const { data } = await supabase.from("equity_partners" as any)
+      .select("*").eq("tenant_id", tenantId).order("created_at");
+    const list = (data ?? []) as unknown as Partner[];
     setRows(list);
 
+    // fetch usernames via partner_users -> profiles
     if (list.length) {
       const { data: links } = await supabase.from("partner_users" as any)
         .select("partner_id, user_id, profiles(username)")

@@ -14,20 +14,16 @@ export default function FinancialPosition() {
 
   const load = async () => {
     if (!tenantId) return;
-    const [{ data: partners }, { data: balances }] = await Promise.all([
-      supabase.from("equity_partners" as any)
-        .select("id, initial_capital, is_active")
-        .eq("tenant_id", tenantId).eq("is_active", true),
-      supabase.from("v_partner_balances" as any)
-        .select("partner_id, current_balance").eq("tenant_id", tenantId),
-    ]);
-    const rows = (partners ?? []) as any[];
-    const balMap = new Map<string, number>();
-    (balances ?? []).forEach((b: any) => balMap.set(b.partner_id, Number(b.current_balance) || 0));
+    const { data } = await supabase
+      .from("equity_partners" as any)
+      .select("initial_capital, current_balance, is_active")
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true);
+    const rows = (data ?? []) as any[];
     setStats({
       count: rows.length,
       capital: rows.reduce((s, r) => s + Number(r.initial_capital || 0), 0),
-      balance: rows.reduce((s, r) => s + (balMap.get(r.id) ?? 0), 0),
+      balance: rows.reduce((s, r) => s + Number(r.current_balance || 0), 0),
     });
   };
   useEffect(() => { load(); }, [tenantId]);

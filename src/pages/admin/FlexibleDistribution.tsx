@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Calculator, PieChart, TrendingUp, Wallet, Loader2, Undo2, History } from "lucide-react";
+import { Calculator, PieChart, TrendingUp, Wallet, Loader2 } from "lucide-react";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -49,52 +49,20 @@ export default function FlexibleDistribution() {
   const [loading, setLoading] = useState(false);
   const [distributing, setDistributing] = useState(false);
   const [partnersBalances, setPartnersBalances] = useState<{ id: string; name: string; current_balance: number }[]>([]);
-  const [recent, setRecent] = useState<any[]>([]);
-  const [reversing, setReversing] = useState<string | null>(null);
 
   const loadBalances = async () => {
     if (!tenantId) return;
-    const [{ data: partners }, { data: balances }] = await Promise.all([
-      supabase.from("equity_partners").select("id,name").eq("tenant_id", tenantId).eq("is_active", true).order("name"),
-      supabase.from("v_partner_balances" as any).select("partner_id,current_balance").eq("tenant_id", tenantId),
-    ]);
-    const balMap = new Map<string, number>();
-    (balances ?? []).forEach((b: any) => balMap.set(b.partner_id, Number(b.current_balance) || 0));
-    setPartnersBalances(((partners ?? []) as any[]).map((p: any) => ({
-      id: p.id, name: p.name, current_balance: balMap.get(p.id) ?? 0,
-    })));
-  };
-  const loadRecent = async () => {
-    if (!tenantId) return;
     const { data } = await supabase
-      .from("profit_distributions")
-      .select("id,distribution_date,total_amount,status,notes,created_at")
+      .from("equity_partners")
+      .select("id,name,current_balance")
       .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setRecent((data as any) ?? []);
+      .eq("is_active", true)
+      .order("name");
+    setPartnersBalances((data as any) ?? []);
   };
   useEffect(() => {
     loadBalances();
-    loadRecent();
   }, [tenantId]);
-
-  const doReverse = async (id: string) => {
-    const reason = window.prompt("سبب عكس التوزيع؟", "تصحيح");
-    if (reason === null) return;
-    if (!confirm("سيتم عكس القيد المحاسبي، إرجاع أرصدة الشركاء، وإلغاء خصم السلف. متأكد؟")) return;
-    setReversing(id);
-    const { error } = await supabase.rpc("reverse_profit_distribution" as any, {
-      p_tenant_id: tenantId,
-      p_distribution_id: id,
-      p_reason: reason || "Reversal",
-    });
-    setReversing(null);
-    if (error) return toast.error(error.message);
-    toast.success("تم عكس التوزيع بنجاح");
-    loadBalances();
-    loadRecent();
-  };
 
   const computePreview = async () => {
     if (!tenantId) return;
@@ -144,7 +112,6 @@ export default function FlexibleDistribution() {
     setNotes("");
     setCustomAmount("");
     loadBalances();
-    loadRecent();
   };
 
   return (
@@ -331,63 +298,6 @@ export default function FlexibleDistribution() {
             </CardContent>
           </Card>
         )}
-
-        {/* Recent Distributions with Undo */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="w-5 h-5 text-primary" />
-              آخر التوزيعات — عكس التوزيع (Undo)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recent.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-4 text-center">لا توجد توزيعات بعد.</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right">التاريخ</TableHead>
-                    <TableHead className="text-right">المبلغ</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">ملاحظات</TableHead>
-                    <TableHead className="text-right">إجراء</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell>{d.distribution_date}</TableCell>
-                      <TableCell className="font-bold">{fmt(d.total_amount)} ج.م</TableCell>
-                      <TableCell>
-                        <Badge variant={d.status === "reversed" ? "destructive" : "default"}>
-                          {d.status === "reversed" ? "معكوس" : d.status === "completed" ? "مكتمل" : d.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[240px] truncate">{d.notes ?? "—"}</TableCell>
-                      <TableCell>
-                        {d.status !== "reversed" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => doReverse(d.id)}
-                            disabled={reversing === d.id}
-                            className="text-destructive hover:bg-destructive/10 gap-1"
-                          >
-                            {reversing === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />}
-                            عكس
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </AdminLayout>
   );

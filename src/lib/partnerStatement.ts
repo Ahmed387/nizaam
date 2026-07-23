@@ -10,13 +10,13 @@ export async function downloadPartnerStatementPdf(opts: {
 }) {
   const { partnerId, from, to } = opts;
 
-  // Partner + view-derived balances
-  const [{ data: partnerRow, error: pErr }, { data: balRow }] = await Promise.all([
-    supabase.from("equity_partners" as any).select("*").eq("id", partnerId).maybeSingle(),
-    supabase.from("v_partner_balances" as any).select("*").eq("partner_id", partnerId).maybeSingle(),
-  ]);
-  if (pErr || !partnerRow) throw new Error("تعذّر تحميل بيانات الشريك");
-  const partner = { ...(partnerRow as any), ...((balRow as any) ?? {}) };
+  // Partner
+  const { data: partner, error: pErr } = await supabase
+    .from("equity_partners" as any)
+    .select("*")
+    .eq("id", partnerId)
+    .maybeSingle();
+  if (pErr || !partner) throw new Error("تعذّر تحميل بيانات الشريك");
 
   // Opening balance = sum of all txs strictly before "from" (drawings negative)
   let opening = 0;
