@@ -199,7 +199,7 @@ export default function FiscalClosing() {
                       </TableCell>
                       <TableCell>
                         {p.status !== "closed" && (
-                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name)}>
+                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name, p.period_end)}>
                             <Lock className="w-4 h-4 ml-1" />إقفال
                           </Button>
                         )}
