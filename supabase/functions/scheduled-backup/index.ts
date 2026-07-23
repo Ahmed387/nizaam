@@ -136,6 +136,44 @@ Deno.serve(async (req) => {
         storage_path: storagePath,
       });
 
+      // Notify all admins of this tenant with a signed download link (7 days)
+      try {
+        const { data: adminRoles } = await admin
+          .from("user_roles")
+          .select("user_id")
+          .eq("tenant_id", tenantId)
+          .eq("role", "admin");
+        const adminIds = Array.from(new Set((adminRoles ?? []).map((r: any) => r.user_id)));
+
+        let downloadUrl: string | null = null;
+        if (status === "success") {
+          const { data: signed } = await admin.storage
+            .from("system-backups")
+            .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+          downloadUrl = signed?.signedUrl ?? null;
+        }
+
+        const totalRows = Object.values(counts).reduce((s: number, n: any) => s + Number(n || 0), 0);
+        const sizeKB = (bytes.byteLength / 1024).toFixed(1);
+
+        if (adminIds.length) {
+          const rows = adminIds.map((uid) => ({
+            user_id: uid,
+            tenant_id: tenantId,
+            title: status === "success" ? "✅ نسخة احتياطية جديدة جاهزة" : "❌ فشل النسخ الاحتياطي",
+            body: status === "success"
+              ? `تم إنشاء نسخة احتياطية بنجاح — ${totalRows.toLocaleString("en-US")} سجل • ${sizeKB} KB\nالملف: ${filename}${downloadUrl ? `\n\nرابط التنزيل (صالح لمدة 7 أيام):\n${downloadUrl}` : ""}`
+              : `فشل إنشاء النسخة الاحتياطية: ${errMsg ?? "خطأ غير معروف"}`,
+            type: "general",
+            link: "/admin/settings?tab=backup",
+            related_entity: "system_backups",
+          }));
+          await admin.from("notifications").insert(rows);
+        }
+      } catch (e) {
+        console.warn("Failed to notify admins:", e);
+      }
+
       // Retention: keep last 12 backups per tenant — delete older
       const { data: oldOnes } = await admin
         .from("system_backups")

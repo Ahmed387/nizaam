@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CalendarClock, Lock, PieChart, Plus, ExternalLink } from "lucide-react";
+import { CalendarClock, Lock, PieChart, Plus, ExternalLink, Save } from "lucide-react";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -22,11 +22,15 @@ type Period = { id: string; name: string; period_start: string; period_end: stri
 type Partner = { id: string; name: string; capital_share: number; is_active: boolean };
 type Distribution = { id: string; distribution_date: string; total_amount: number; status: string; journal_entry_id: string | null; fiscal_period_id: string | null; notes: string | null };
 
+const DEFAULT_CLOSE_MMDD = "12-31";
+
 export default function FiscalClosing() {
   const { tenantId } = useAuth();
   const [periods, setPeriods] = useState<Period[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [distributions, setDistributions] = useState<Distribution[]>([]);
+  const [closeMMDD, setCloseMMDD] = useState<string>(DEFAULT_CLOSE_MMDD);
+  const [savingSetting, setSavingSetting] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
   const [openPeriod, setOpenPeriod] = useState(false);
@@ -35,21 +39,45 @@ export default function FiscalClosing() {
   const [pForm, setPForm] = useState({ name: `السنة المالية ${y}`, period_start: `${y}-01-01`, period_end: `${y}-12-31` });
   const [dForm, setDForm] = useState({ fiscal_period_id: "", total_amount: "", distribution_date: today, notes: "" });
 
+  const settingKey = tenantId ? `fiscal_close_date_${tenantId}` : "";
+
   const load = async () => {
     if (!tenantId) return;
-    const [p, e, d] = await Promise.all([
+    const [p, e, d, s] = await Promise.all([
       supabase.from("fiscal_periods" as any).select("*").eq("tenant_id", tenantId).order("period_end", { ascending: false }),
       supabase.from("equity_partners" as any).select("id,name,capital_share,is_active").eq("tenant_id", tenantId).eq("is_active", true),
       supabase.from("profit_distributions" as any).select("*").eq("tenant_id", tenantId).order("distribution_date", { ascending: false }).limit(50),
+      supabase.from("settings" as any).select("value").eq("key", settingKey).maybeSingle(),
     ]);
     setPeriods((p.data as any) ?? []);
     setPartners((e.data as any) ?? []);
     setDistributions((d.data as any) ?? []);
+    const savedMMDD = (s.data as any)?.value?.mmdd;
+    if (savedMMDD && /^\d{2}-\d{2}$/.test(savedMMDD)) {
+      setCloseMMDD(savedMMDD);
+      setPForm(f => ({ ...f, period_end: `${y}-${savedMMDD}` }));
+    }
   };
   useEffect(() => { load(); }, [tenantId]);
 
   const totalShare = partners.reduce((s, p) => s + Number(p.capital_share || 0), 0);
   const previewAmount = Number(dForm.total_amount) || 0;
+
+  const saveCloseDate = async () => {
+    if (!tenantId) return;
+    if (!/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(closeMMDD)) {
+      toast.error("صيغة غير صحيحة — استخدم MM-DD (مثلاً 01-07)");
+      return;
+    }
+    setSavingSetting(true);
+    const { error } = await supabase.from("settings" as any).upsert({
+      key: settingKey, value: { mmdd: closeMMDD } as any, tenant_id: tenantId,
+    } as any, { onConflict: "key" });
+    setSavingSetting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ تاريخ الإقفال الافتراضي");
+    setPForm(f => ({ ...f, period_end: `${y}-${closeMMDD}` }));
+  };
 
   const createPeriod = async () => {
     if (!tenantId) return;
@@ -63,11 +91,28 @@ export default function FiscalClosing() {
     setOpenPeriod(false); load();
   };
 
-  const closePeriod = async (id: string, name: string) => {
-    if (!confirm(`تأكيد إقفال الفترة "${name}"؟ سيتم إنشاء قيد الإقفال وترحيل صافي الربح للأرباح المحتجزة.`)) return;
+  const closePeriod = async (id: string, name: string, periodEnd: string) => {
+    if (!confirm(`تأكيد إقفال الفترة "${name}"؟ سيتم إنشاء قيد الإقفال وترحيل صافي الربح للأرباح المحتجزة. الفترة الجديدة ستبدأ تلقائياً من 1 يناير للسنة الجاية.`)) return;
     const { data, error } = await supabase.rpc("close_fiscal_period" as any, { p_period_id: id }) as any;
     if (error) { toast.error(error.message); return; }
     toast.success(`تم الإقفال — صافي الربح: ${fmt(Number(data?.net_profit || 0))} ج.م`);
+
+    // Auto-create next fiscal period: starts Jan 1 of next year, ends on saved close date
+    try {
+      const closedYear = new Date(periodEnd).getFullYear();
+      const nextYear = closedYear + 1;
+      const nextStart = `${nextYear}-01-01`;
+      const nextEnd = `${nextYear}-${closeMMDD}`;
+      const nextName = `السنة المالية ${nextYear}`;
+      const { data: existing } = await supabase.from("fiscal_periods" as any)
+        .select("id").eq("tenant_id", tenantId).eq("period_start", nextStart).maybeSingle();
+      if (!existing) {
+        const { error: insErr } = await supabase.from("fiscal_periods" as any).insert({
+          tenant_id: tenantId, name: nextName, period_start: nextStart, period_end: nextEnd,
+        });
+        if (!insErr) toast.success(`تم فتح ${nextName} تلقائياً (${nextStart} → ${nextEnd})`);
+      }
+    } catch {}
     load();
   };
 
@@ -101,6 +146,37 @@ export default function FiscalClosing() {
             </Link>
           </Button>
         </div>
+
+        {/* Fiscal Close Date Setting */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarClock className="w-5 h-5 text-primary" />
+              تاريخ الإقفال السنوي الافتراضي
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <Label className="text-xs">MM-DD (مثال: 01-07 = 7 يناير)</Label>
+                <Input
+                  value={closeMMDD}
+                  onChange={e => setCloseMMDD(e.target.value)}
+                  placeholder="12-31"
+                  className="ltr text-center font-mono"
+                />
+              </div>
+              <Button onClick={saveCloseDate} disabled={savingSetting} className="gap-1">
+                <Save className="w-4 h-4" /> حفظ
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              الفترة الجديدة تبدأ دائماً من <b>1 يناير</b> من السنة الجاية بعد أي إقفال — حتى لو الإقفال بعد نهاية السنة (لتغطية الأقساط المتبقية).
+            </p>
+          </CardContent>
+        </Card>
+
+
 
         {/* Fiscal Periods */}
         <Card>
@@ -154,7 +230,7 @@ export default function FiscalClosing() {
                       </TableCell>
                       <TableCell>
                         {p.status !== "closed" && (
-                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name)}>
+                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name, p.period_end)}>
                             <Lock className="w-4 h-4 ml-1" />إقفال
                           </Button>
                         )}
