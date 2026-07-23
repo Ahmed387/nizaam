@@ -329,6 +329,63 @@ export default function FlexibleDistribution() {
             </CardContent>
           </Card>
         )}
+
+        {/* Recent Distributions with Undo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              آخر التوزيعات — عكس التوزيع (Undo)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recent.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-4 text-center">لا توجد توزيعات بعد.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">التاريخ</TableHead>
+                    <TableHead className="text-right">المبلغ</TableHead>
+                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">ملاحظات</TableHead>
+                    <TableHead className="text-right">إجراء</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recent.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell>{d.distribution_date}</TableCell>
+                      <TableCell className="font-bold">{fmt(d.total_amount)} ج.م</TableCell>
+                      <TableCell>
+                        <Badge variant={d.status === "reversed" ? "destructive" : "default"}>
+                          {d.status === "reversed" ? "معكوس" : d.status === "completed" ? "مكتمل" : d.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[240px] truncate">{d.notes ?? "—"}</TableCell>
+                      <TableCell>
+                        {d.status !== "reversed" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => doReverse(d.id)}
+                            disabled={reversing === d.id}
+                            className="text-destructive hover:bg-destructive/10 gap-1"
+                          >
+                            {reversing === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />}
+                            عكس
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
