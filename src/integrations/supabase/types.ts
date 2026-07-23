@@ -1245,7 +1245,6 @@ export type Database = {
         Row: {
           capital_share: number
           created_at: string
-          current_balance: number
           id: string
           initial_capital: number
           is_active: boolean
@@ -1253,15 +1252,11 @@ export type Database = {
           operating_share: number
           partner_type: string
           tenant_id: string
-          total_contributions: number
-          total_drawings: number
-          total_profit_share: number
           updated_at: string
         }
         Insert: {
           capital_share?: number
           created_at?: string
-          current_balance?: number
           id?: string
           initial_capital?: number
           is_active?: boolean
@@ -1269,15 +1264,11 @@ export type Database = {
           operating_share?: number
           partner_type: string
           tenant_id: string
-          total_contributions?: number
-          total_drawings?: number
-          total_profit_share?: number
           updated_at?: string
         }
         Update: {
           capital_share?: number
           created_at?: string
-          current_balance?: number
           id?: string
           initial_capital?: number
           is_active?: boolean
@@ -1285,9 +1276,6 @@ export type Database = {
           operating_share?: number
           partner_type?: string
           tenant_id?: string
-          total_contributions?: number
-          total_drawings?: number
-          total_profit_share?: number
           updated_at?: string
         }
         Relationships: [
@@ -5849,14 +5837,6 @@ export type Database = {
           }
       recalc_contact_balance: {
         Args: { _contact_id: string }
-        Returns: undefined
-      }
-      recompute_all_partner_balances: {
-        Args: { p_tenant_id: string }
-        Returns: number
-      }
-      recompute_partner_balance: {
-        Args: { p_partner_id: string }
         Returns: undefined
       }
       record_contact_payment: {
