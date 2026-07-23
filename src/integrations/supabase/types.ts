@@ -5932,6 +5932,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      reverse_profit_distribution: {
+        Args: {
+          p_distribution_id: string
+          p_reason?: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
       seed_default_chart_of_accounts: {
         Args: { p_tenant_id: string }
