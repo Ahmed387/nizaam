@@ -36,12 +36,13 @@ export default function PartnerProfile() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    const [{ data: p }, { data: t }, { data: adv }] = await Promise.all([
+    const [{ data: p }, { data: bal }, { data: t }, { data: adv }] = await Promise.all([
       supabase.from("equity_partners" as any).select("*").eq("id", id).maybeSingle(),
+      supabase.from("v_partner_balances" as any).select("*").eq("partner_id", id).maybeSingle(),
       supabase.from("partner_transactions" as any).select("*").eq("partner_id", id).order("created_at", { ascending: false }),
       supabase.from("partner_advances" as any).select("*").eq("partner_id", id).in("status", ["active", "partially_paid"]),
     ]);
-    setPartner(p);
+    setPartner(p ? { ...(p as any), ...((bal as any) ?? {}) } : null);
     setTxs((t ?? []) as any[]);
     setAdvances((adv ?? []) as any[]);
     setLoading(false);
