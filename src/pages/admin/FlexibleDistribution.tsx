@@ -142,6 +142,7 @@ export default function FlexibleDistribution() {
     setNotes("");
     setCustomAmount("");
     loadBalances();
+    loadRecent();
   };
 
   return (
