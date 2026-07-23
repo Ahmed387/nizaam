@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Calculator, PieChart, TrendingUp, Wallet, Loader2 } from "lucide-react";
+import { Calculator, PieChart, TrendingUp, Wallet, Loader2, Undo2, History } from "lucide-react";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
