@@ -139,7 +139,12 @@ export function AppShell({
               </Tooltip>
             );
           }
-          return link;
+          return (
+            <div key={item.to}>
+              {sectionHeader}
+              {link}
+            </div>
+          );
         })}
       </nav>
 
