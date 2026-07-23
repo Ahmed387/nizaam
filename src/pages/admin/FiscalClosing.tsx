@@ -147,6 +147,37 @@ export default function FiscalClosing() {
           </Button>
         </div>
 
+        {/* Fiscal Close Date Setting */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarClock className="w-5 h-5 text-primary" />
+              تاريخ الإقفال السنوي الافتراضي
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <Label className="text-xs">MM-DD (مثال: 01-07 = 7 يناير)</Label>
+                <Input
+                  value={closeMMDD}
+                  onChange={e => setCloseMMDD(e.target.value)}
+                  placeholder="12-31"
+                  className="ltr text-center font-mono"
+                />
+              </div>
+              <Button onClick={saveCloseDate} disabled={savingSetting} className="gap-1">
+                <Save className="w-4 h-4" /> حفظ
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              الفترة الجديدة تبدأ دائماً من <b>1 يناير</b> من السنة الجاية بعد أي إقفال — حتى لو الإقفال بعد نهاية السنة (لتغطية الأقساط المتبقية).
+            </p>
+          </CardContent>
+        </Card>
+
+
+
         {/* Fiscal Periods */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
