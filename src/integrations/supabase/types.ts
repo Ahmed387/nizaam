@@ -2428,6 +2428,13 @@ export type Database = {
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "partner_advances_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
+          },
         ]
       }
       partner_share_history: {
@@ -2481,6 +2488,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_share_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "partner_share_history_tenant_id_fkey"
@@ -2550,6 +2564,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "partner_transactions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
+          },
+          {
             foreignKeyName: "partner_transactions_related_treasury_id_fkey"
             columns: ["related_treasury_id"]
             isOneToOne: false
@@ -2617,6 +2638,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_users_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "partner_users_tenant_id_fkey"
@@ -3468,6 +3496,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profit_distribution_lines_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "profit_distribution_lines_partner_transaction_id_fkey"
@@ -5185,6 +5220,25 @@ export type Database = {
         }
         Relationships: []
       }
+      v_partner_balances: {
+        Row: {
+          current_balance: number | null
+          partner_id: string | null
+          tenant_id: string | null
+          total_contributions: number | null
+          total_drawings: number | null
+          total_profit_share: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equity_partners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voucher_treasury_balances: {
         Row: {
           balance: number | null
@@ -5795,6 +5849,14 @@ export type Database = {
           }
       recalc_contact_balance: {
         Args: { _contact_id: string }
+        Returns: undefined
+      }
+      recompute_all_partner_balances: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
+      recompute_partner_balance: {
+        Args: { p_partner_id: string }
         Returns: undefined
       }
       record_contact_payment: {
