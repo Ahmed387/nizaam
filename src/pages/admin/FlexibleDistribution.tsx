@@ -54,13 +54,15 @@ export default function FlexibleDistribution() {
 
   const loadBalances = async () => {
     if (!tenantId) return;
-    const { data } = await supabase
-      .from("equity_partners")
-      .select("id,name,current_balance")
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .order("name");
-    setPartnersBalances((data as any) ?? []);
+    const [{ data: partners }, { data: balances }] = await Promise.all([
+      supabase.from("equity_partners").select("id,name").eq("tenant_id", tenantId).eq("is_active", true).order("name"),
+      supabase.from("v_partner_balances" as any).select("partner_id,current_balance").eq("tenant_id", tenantId),
+    ]);
+    const balMap = new Map<string, number>();
+    (balances ?? []).forEach((b: any) => balMap.set(b.partner_id, Number(b.current_balance) || 0));
+    setPartnersBalances(((partners ?? []) as any[]).map((p: any) => ({
+      id: p.id, name: p.name, current_balance: balMap.get(p.id) ?? 0,
+    })));
   };
   const loadRecent = async () => {
     if (!tenantId) return;
