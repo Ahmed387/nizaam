@@ -1,0 +1,1 @@
+ALTER VIEW public.v_partner_balances SET (security_invoker = true);
