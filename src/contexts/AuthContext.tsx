@@ -11,6 +11,7 @@ interface Tenant {
   primary_color: string | null;
   is_suspended?: boolean;
   suspension_reason?: string | null;
+  owner_user_id?: string | null;
 }
 
 interface AuthCtx {
