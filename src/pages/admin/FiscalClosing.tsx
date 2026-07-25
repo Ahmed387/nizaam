@@ -264,11 +264,27 @@ export default function FiscalClosing() {
                         ) : "—"}
                       </TableCell>
                       <TableCell>
-                        {p.status !== "closed" && (
-                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name, p.period_end)}>
-                            <Lock className="w-4 h-4 ml-1" />إقفال
-                          </Button>
-                        )}
+                        {p.status === "closed" ? (
+                          <Badge variant="default">مقفولة</Badge>
+                        ) : (() => {
+                          const chk = canCloseNow(p);
+                          const disabled = !isOwner || !chk.ok;
+                          const tip = !isOwner
+                            ? "فقط صاحب الشركة يمكنه الإقفال"
+                            : chk.ok ? "" : chk.reason || "";
+                          const btn = (
+                            <Button size="sm" variant="outline" disabled={disabled}
+                              onClick={() => openCloseDialog(p)}>
+                              <Lock className="w-4 h-4 ml-1" />إقفال
+                            </Button>
+                          );
+                          return tip ? (
+                            <TooltipProvider><Tooltip>
+                              <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
+                              <TooltipContent>{tip}</TooltipContent>
+                            </Tooltip></TooltipProvider>
+                          ) : btn;
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}
