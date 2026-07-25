@@ -27,7 +27,7 @@ type Distribution = { id: string; distribution_date: string; total_amount: numbe
 const DEFAULT_CLOSE_MMDD = "12-31";
 
 export default function FiscalClosing() {
-  const { tenantId } = useAuth();
+  const { tenantId, isOwner } = useAuth();
   const [periods, setPeriods] = useState<Period[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [distributions, setDistributions] = useState<Distribution[]>([]);
@@ -37,6 +37,10 @@ export default function FiscalClosing() {
   const today = new Date().toISOString().slice(0, 10);
   const [openPeriod, setOpenPeriod] = useState(false);
   const [openDist, setOpenDist] = useState(false);
+  const [closeTarget, setCloseTarget] = useState<Period | null>(null);
+  const [closeReason, setCloseReason] = useState("");
+  const [closeConfirmText, setCloseConfirmText] = useState("");
+  const [closeBusy, setCloseBusy] = useState(false);
   const y = new Date().getFullYear();
   const [pForm, setPForm] = useState({ name: `السنة المالية ${y}`, period_start: `${y}-01-01`, period_end: `${y}-12-31` });
   const [dForm, setDForm] = useState({ fiscal_period_id: "", total_amount: "", distribution_date: today, notes: "" });
