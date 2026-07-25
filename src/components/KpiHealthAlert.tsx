@@ -38,7 +38,7 @@ export function KpiHealthAlert() {
               title: `⚠️ تنبيه مالي: ${dangerCount} مؤشر خطر`,
               body: next.filter(a => a.level === "danger").slice(0, 3).map(a => a.title).join(" — "),
               type: "general",
-              link: "/admin/kpi-dashboard",
+              link: "/admin/accounting/kpis",
             });
           }
         }
@@ -132,7 +132,7 @@ export function KpiHealthAlert() {
                 : `⚠️ ${warnings.length} تحذير مالي`}
             </div>
             <Link
-              to="/admin/kpi-dashboard"
+              to="/admin/accounting/kpis"
               className={`text-xs font-semibold inline-flex items-center gap-1 rounded-lg px-3 py-1.5 transition-colors ${
                 hasDanger
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"

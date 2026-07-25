@@ -1245,7 +1245,6 @@ export type Database = {
         Row: {
           capital_share: number
           created_at: string
-          current_balance: number
           id: string
           initial_capital: number
           is_active: boolean
@@ -1253,15 +1252,11 @@ export type Database = {
           operating_share: number
           partner_type: string
           tenant_id: string
-          total_contributions: number
-          total_drawings: number
-          total_profit_share: number
           updated_at: string
         }
         Insert: {
           capital_share?: number
           created_at?: string
-          current_balance?: number
           id?: string
           initial_capital?: number
           is_active?: boolean
@@ -1269,15 +1264,11 @@ export type Database = {
           operating_share?: number
           partner_type: string
           tenant_id: string
-          total_contributions?: number
-          total_drawings?: number
-          total_profit_share?: number
           updated_at?: string
         }
         Update: {
           capital_share?: number
           created_at?: string
-          current_balance?: number
           id?: string
           initial_capital?: number
           is_active?: boolean
@@ -1285,9 +1276,6 @@ export type Database = {
           operating_share?: number
           partner_type?: string
           tenant_id?: string
-          total_contributions?: number
-          total_drawings?: number
-          total_profit_share?: number
           updated_at?: string
         }
         Relationships: [
@@ -2428,6 +2416,13 @@ export type Database = {
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "partner_advances_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
+          },
         ]
       }
       partner_share_history: {
@@ -2481,6 +2476,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_share_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "partner_share_history_tenant_id_fkey"
@@ -2550,6 +2552,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "partner_transactions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
+          },
+          {
             foreignKeyName: "partner_transactions_related_treasury_id_fkey"
             columns: ["related_treasury_id"]
             isOneToOne: false
@@ -2617,6 +2626,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_users_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "partner_users_tenant_id_fkey"
@@ -3468,6 +3484,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equity_partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profit_distribution_lines_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_balances"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "profit_distribution_lines_partner_transaction_id_fkey"
@@ -5185,6 +5208,25 @@ export type Database = {
         }
         Relationships: []
       }
+      v_partner_balances: {
+        Row: {
+          current_balance: number | null
+          partner_id: string | null
+          tenant_id: string | null
+          total_contributions: number | null
+          total_drawings: number | null
+          total_profit_share: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equity_partners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voucher_treasury_balances: {
         Row: {
           balance: number | null
@@ -5928,6 +5970,14 @@ export type Database = {
           p_reason: string
           p_source_id: string
           p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      reverse_profit_distribution: {
+        Args: {
+          p_distribution_id: string
+          p_reason?: string
           p_tenant_id: string
         }
         Returns: undefined
