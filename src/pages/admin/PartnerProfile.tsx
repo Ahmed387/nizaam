@@ -90,10 +90,27 @@ export default function PartnerProfile() {
     load();
   };
 
+  const outstandingAdvances = useMemo(
+    () => advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0),
+    [advances]
+  );
+  const netAvailable = Number(partner?.current_balance || 0) - outstandingAdvances;
+
+  const openWithdraw = () => {
+    if (netAvailable <= 0) {
+      toast.error(`لا يوجد صافي متاح — الرصيد ${Number(partner?.current_balance || 0)} والسلف القائمة ${outstandingAdvances}`);
+      return;
+    }
+    setWd({ amount: String(netAvailable), date: new Date().toISOString().slice(0, 10), notes: "" });
+    setOpenWd(true);
+  };
+
   const submitWithdraw = async () => {
     const amt = Number(wd.amount);
     if (!amt || amt <= 0) return toast.error("المبلغ غير صحيح");
-    if (amt > Number(partner.current_balance || 0)) return toast.error("المبلغ أكبر من الرصيد المتاح");
+    if (amt > netAvailable) {
+      return toast.error(`المبلغ ${amt} أكبر من الصافي المتاح ${netAvailable.toFixed(2)} (الرصيد − السلف القائمة)`);
+    }
     setWdLoading(true);
     const { error } = await supabase.rpc("partner_withdraw_from_distribution" as any, {
       p_tenant_id: partner.tenant_id,
