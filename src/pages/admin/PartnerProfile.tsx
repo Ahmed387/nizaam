@@ -140,37 +140,29 @@ export default function PartnerProfile() {
           <PageHeader title={partner.name} subtitle="ملف الشريك" />
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link to="/admin/financial-position/partners">← العودة</Link></Button>
-            <Button variant="outline" onClick={() => setOpenWd(true)} disabled={Number(partner.current_balance || 0) <= 0}>
+            <Button variant="outline" onClick={openWithdraw} disabled={netAvailable <= 0}>
               <Wallet className="w-4 h-4 ml-2" />سحب من الرصيد
             </Button>
             <Button onClick={() => setOpenTx(true)}><PlusCircle className="w-4 h-4 ml-2" />تسجيل حركة</Button>
           </div>
         </div>
 
-        {(() => {
-          const outstanding = advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0);
-          const net = Number(partner.current_balance || 0) - outstanding;
-          return (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
-                <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(outstanding)}</div></CardContent></Card>
-              </div>
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-muted-foreground">صافي الذمة المالية (الرصيد − السلف القائمة)</div>
-                    <div className="text-xs text-muted-foreground mt-1">رأس المال + الأرباح − المسحوبات − السلف</div>
-                  </div>
-                  <div className={`text-3xl font-bold ${net >= 0 ? "text-success" : "text-destructive"}`}>{fmt(net)} ج</div>
-                </CardContent>
-              </Card>
-            </>
-          );
-        })()}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
+          <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(outstandingAdvances)}</div></CardContent></Card>
+        </div>
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <div className="text-sm text-muted-foreground">الصافي المتاح للسحب (الرصيد − السلف القائمة)</div>
+              <div className="text-xs text-muted-foreground mt-1">رأس المال + الأرباح − المسحوبات − السلف</div>
+            </div>
+            <div className={`text-3xl font-bold ${netAvailable >= 0 ? "text-success" : "text-destructive"}`}>{fmt(netAvailable)} ج</div>
+          </CardContent>
+        </Card>
 
 
         <Card>
