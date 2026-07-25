@@ -345,29 +345,54 @@ export default function FiscalClosing() {
                   </div>
                   <div><Label>ملاحظات</Label><Textarea rows={2} value={dForm.notes} onChange={e => setDForm({ ...dForm, notes: e.target.value })} /></div>
 
-                  {/* Preview */}
+                  {/* Preview — server-side via preview_flexible_distribution (matches actual distribute_profits exactly) */}
                   <div className="border rounded-lg p-3 bg-muted/30">
-                    <div className="font-semibold mb-2 text-sm">معاينة التوزيع</div>
-                    <Table>
-                      <TableHeader><TableRow>
-                        <TableHead className="text-right">الشريك</TableHead>
-                        <TableHead className="text-right">النسبة</TableHead>
-                        <TableHead className="text-right">النصيب</TableHead>
-                      </TableRow></TableHeader>
-                      <TableBody>
-                        {partners.map(p => {
-                          const pct = totalShare > 0 ? (Number(p.capital_share) / totalShare) * 100 : 0;
-                          const amt = previewAmount * pct / 100;
-                          return (
-                            <TableRow key={p.id}>
-                              <TableCell>{p.name}</TableCell>
-                              <TableCell>{pct.toFixed(2)}%</TableCell>
-                              <TableCell className="font-medium">{fmt(amt)}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-semibold text-sm">معاينة التوزيع (من قاعدة البيانات)</div>
+                      {previewLoading && <span className="text-xs text-muted-foreground">جاري الحساب...</span>}
+                    </div>
+                    {(() => {
+                      const rows = (preview?.partners as any[]) || [];
+                      const sumPct = rows.reduce((s, r) => s + Number(r.share_pct || 0), 0);
+                      const sumNet = rows.reduce((s, r) => s + Number(r.net_payable || 0), 0);
+                      const sumOffset = rows.reduce((s, r) => s + Number(r.advance_offset || 0), 0);
+                      const sharesValid = rows.length === 0 || Math.abs(sumPct - 100) < 0.5;
+                      return (
+                        <>
+                          <Table>
+                            <TableHeader><TableRow>
+                              <TableHead className="text-right">الشريك</TableHead>
+                              <TableHead className="text-right">النسبة</TableHead>
+                              <TableHead className="text-right">النصيب</TableHead>
+                              <TableHead className="text-right">خصم سلف</TableHead>
+                              <TableHead className="text-right">صافي مستحق</TableHead>
+                            </TableRow></TableHeader>
+                            <TableBody>
+                              {rows.length === 0 ? (
+                                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">أدخل مبلغ للمعاينة</TableCell></TableRow>
+                              ) : rows.map((r: any) => (
+                                <TableRow key={r.partner_id}>
+                                  <TableCell>{r.name}</TableCell>
+                                  <TableCell>{Number(r.share_pct).toFixed(2)}%</TableCell>
+                                  <TableCell className="font-medium">{fmt(Number(r.gross))}</TableCell>
+                                  <TableCell className="text-warning">{Number(r.advance_offset) > 0 ? fmt(Number(r.advance_offset)) : "—"}</TableCell>
+                                  <TableCell className="font-semibold text-success">{fmt(Number(r.net_payable))}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          {rows.length > 0 && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                              <Badge variant={sharesValid ? "default" : "destructive"}>
+                                مجموع النسب: {sumPct.toFixed(2)}% {sharesValid ? "✓" : "⚠️ لا يساوي 100%"}
+                              </Badge>
+                              <Badge variant="outline">إجمالي خصم السلف: {fmt(sumOffset)}</Badge>
+                              <Badge variant="outline">إجمالي الصافي المستحق: {fmt(sumNet)}</Badge>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 <DialogFooter><Button onClick={doDistribute}>تنفيذ التوزيع</Button></DialogFooter>
