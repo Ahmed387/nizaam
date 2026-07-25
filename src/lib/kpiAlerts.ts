@@ -16,61 +16,78 @@ export type KpiAlert = {
   advice: string;
 };
 
+const egp = (n: number) => Math.abs(n).toLocaleString("en-EG", { maximumFractionDigits: 0 });
+
 export function buildKpiAlerts(k: KpiSnapshot): KpiAlert[] {
   const a: KpiAlert[] = [];
+
+  // 🔴 السيولة الجارية
   if (k.current_ratio != null) {
     if (k.current_ratio < 1)
       a.push({ key: "current_ratio_danger", level: "danger",
-        title: `النسبة الجارية ${k.current_ratio.toFixed(2)} — خطر سيولة`,
-        detail: "الأصول المتداولة أقل من الخصوم المتداولة — الشركة قد لا تستطيع سداد التزاماتها قصيرة الأجل.",
-        advice: "قلّل المشتريات الآجلة، حصّل الذمم بسرعة، أو ضخ سيولة جديدة." });
+        title: `⚠️ فلوسك مش هتكفي! (النسبة الجارية = ${k.current_ratio.toFixed(2)})`,
+        detail: `يعني إيه؟ عندك التزامات لازم تدفعها قريب، والفلوس والبضاعة اللي معاك مش هيكفوا. كل 1 جنيه عليك، معاك بس ${k.current_ratio.toFixed(2)} جنيه.`,
+        advice: "اعمل إيه؟ حصّل من العملاء بسرعة، أجّل أي شراء جديد بالآجل، أو اضخ فلوس من عندك دلوقتي." });
     else if (k.current_ratio < 1.5)
       a.push({ key: "current_ratio_warn", level: "warning",
-        title: `النسبة الجارية ${k.current_ratio.toFixed(2)} — منخفضة`,
-        detail: "أقل من المعدل الآمن (1.5–2).", advice: "راقب التدفق النقدي عن قرب." });
+        title: `🟡 السيولة عندك ضعيفة (${k.current_ratio.toFixed(2)})`,
+        detail: "يعني إيه؟ لسه تقدر تدفع اللي عليك، بس الهامش ضيق. الطبيعي يكون بين 1.5 و 2.",
+        advice: "اعمل إيه؟ خلي عينك على الخزينة يوم بيوم، ومتزودش المصاريف دلوقتي." });
   }
+
+  // 🔴 السيولة السريعة
   if (k.quick_ratio != null) {
     if (k.quick_ratio < 0.5)
       a.push({ key: "quick_ratio_danger", level: "danger",
-        title: `النسبة السريعة ${k.quick_ratio.toFixed(2)} — خطر شديد`,
-        detail: "بدون بيع المخزون، السيولة لا تغطي حتى نصف الالتزامات قصيرة الأجل.",
-        advice: "أوقف المصروفات غير الضرورية وسرّع تحصيل العملاء فورًا." });
+        title: `🚨 لو مبعتش البضاعة مش هتقدر تدفع! (السريعة = ${k.quick_ratio.toFixed(2)})`,
+        detail: "يعني إيه؟ من غير ما تصفّي المخزون، الكاش اللي معاك مش هيغطي حتى نص اللي عليك.",
+        advice: "اعمل إيه؟ اقفل أي مصروف مش ضروري النهارده، وكلم العملاء يدفعوا فورًا." });
     else if (k.quick_ratio < 1)
       a.push({ key: "quick_ratio_warn", level: "warning",
-        title: `النسبة السريعة ${k.quick_ratio.toFixed(2)} — أقل من 1`,
-        detail: "الاعتماد على المخزون لسداد الالتزامات.", advice: "خطط لتقليل المخزون الراكد." });
+        title: `🟡 معتمد على البضاعة عشان تدفع (السريعة = ${k.quick_ratio.toFixed(2)})`,
+        detail: "يعني إيه؟ لو البضاعة وقفت أو ما اتباعتش، هتقع في مشكلة سيولة.",
+        advice: "اعمل إيه؟ صرّف المخزون الراكد، وقلل الكميات اللي قاعدة من غير حركة." });
   }
+
+  // 🔴 المديونية
   if (k.debt_to_equity != null) {
     if (k.debt_to_equity > 3)
       a.push({ key: "de_danger", level: "danger",
-        title: `الرافعة المالية ${k.debt_to_equity.toFixed(2)} — مديونية خطرة`,
-        detail: "الخصوم أضعاف حقوق الملكية — مخاطر مرتفعة.",
-        advice: "أوقف الاستدانة وابدأ خطة سداد أو ضخ رأس مال." });
+        title: `🚨 غرقان في الديون! (الرافعة = ${k.debt_to_equity.toFixed(2)})`,
+        detail: `يعني إيه؟ كل 1 جنيه من فلوسك، عليك ${k.debt_to_equity.toFixed(2)} جنيه ديون. الشركة شبه مرهونة.`,
+        advice: "اعمل إيه؟ بلاش أي استدانة جديدة خالص، وابدأ خطة سداد، أو ضخ رأسمال من الشركاء." });
     else if (k.debt_to_equity > 2)
       a.push({ key: "de_warn", level: "warning",
-        title: `الرافعة المالية ${k.debt_to_equity.toFixed(2)} — عالية`,
-        detail: "الاعتماد على الديون مرتفع.", advice: "قلّل الاعتماد على التمويل الخارجي." });
+        title: `🟡 الديون بقت كتير (الرافعة = ${k.debt_to_equity.toFixed(2)})`,
+        detail: "يعني إيه؟ الاعتماد على القروض والآجل بقى عالي أكتر من اللازم.",
+        advice: "اعمل إيه؟ حاول تسدد جزء من اللي عليك قبل ما تشتري كميات جديدة بالآجل." });
   }
+
+  // 🔴 الخسائر
   if (k.net_profit < 0)
     a.push({ key: "net_loss", level: "danger",
-      title: `صافي خسارة ${Math.abs(k.net_profit).toLocaleString("en-EG")}`,
-      detail: "المصروفات تجاوزت الأرباح خلال الفترة.", advice: "راجع بنود المصروفات وهامش الربح." });
+      title: `🚨 الشركة خسرانة ${egp(k.net_profit)} جنيه`,
+      detail: "يعني إيه؟ المصاريف اللي طلعت أكتر من اللي كسبته من البيع.",
+      advice: "اعمل إيه؟ افتح كشف المصروفات وشوف بتصرف فين، وراجع سعر البيع مقابل التكلفة." });
   else if (k.net_margin_pct != null && k.net_margin_pct < 5 && k.revenue > 0)
     a.push({ key: "net_margin_low", level: "warning",
-      title: `هامش صافي الربح ${k.net_margin_pct.toFixed(2)}% — منخفض`,
-      detail: "هامش أقل من 5% يعتبر ضعيف.", advice: "راجع الأسعار أو قلل التكاليف." });
+      title: `🟡 مكسبك ضعيف — ${k.net_margin_pct.toFixed(1)}% بس من المبيعات`,
+      detail: "يعني إيه؟ كل 100 جنيه بتبيعهم، بيرجعلك أقل من 5 جنيه صافي. ده هامش خطر.",
+      advice: "اعمل إيه؟ زوّد الأسعار شوية أو قلل المصاريف الثابتة." });
 
+  // 🔴 مجمل الربح سالب
   if (k.gross_profit < 0)
     a.push({ key: "gross_loss", level: "danger",
-      title: "مجمل الربح سالب",
-      detail: "تكلفة البضاعة أعلى من الإيرادات — بتبيع بخسارة!",
-      advice: "راجع أسعار البيع والتكلفة فورًا." });
+      title: "🚨 انت بتبيع بخسارة!",
+      detail: "يعني إيه؟ تكلفة البضاعة اللي بتبيعها أعلى من سعر بيعها. كل عملية بيع بتخسرك فلوس.",
+      advice: "اعمل إيه؟ وقّف البيع دلوقتي وراجع سعر التكلفة والأسعار." });
 
+  // 🔴 الخزينة سالبة
   if (k.cash_balance < 0)
     a.push({ key: "cash_neg", level: "danger",
-      title: "الرصيد النقدي سالب",
-      detail: "الخزينة تعرض عجزًا — احتمال خطأ في التسجيل أو سحب زائد.",
-      advice: "افحص حركات الخزينة." });
+      title: `🚨 الخزينة عاجزة بـ ${egp(k.cash_balance)} جنيه`,
+      detail: "يعني إيه؟ الخزينة بتقولك رصيد بالسالب — ده مستحيل واقعيًا، يبقى فيه حركة اتسجلت غلط أو سحب من غير رصيد.",
+      advice: "اعمل إيه؟ ادخل على حركات الخزينة وراجع آخر العمليات." });
 
   return a;
 }
