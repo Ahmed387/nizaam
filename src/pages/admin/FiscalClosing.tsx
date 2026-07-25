@@ -97,13 +97,45 @@ export default function FiscalClosing() {
     setOpenPeriod(false); load();
   };
 
-  const closePeriod = async (id: string, name: string, periodEnd: string) => {
-    if (!confirm(`تأكيد إقفال الفترة "${name}"؟ سيتم إنشاء قيد الإقفال وترحيل صافي الربح للأرباح المحتجزة. الفترة الجديدة ستبدأ تلقائياً من 1 يناير للسنة الجاية.`)) return;
-    const { data, error } = await supabase.rpc("close_fiscal_period" as any, { p_period_id: id }) as any;
+  const daysAfterEnd = (endStr: string) => {
+    const end = new Date(endStr + "T00:00:00");
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    return Math.floor((now.getTime() - end.getTime()) / 86400000);
+  };
+  const isYearEnd = (p: Period) => {
+    // year-end = no later period exists
+    return !periods.some(o => o.tenant_id === (p as any).tenant_id ? false : false) &&
+      !periods.some(o => o.period_start > p.period_end);
+  };
+  const canCloseNow = (p: Period): { ok: boolean; reason?: string } => {
+    if (p.status === "closed") return { ok: false, reason: "مقفولة بالفعل" };
+    const d = daysAfterEnd(p.period_end);
+    if (d < 0) return { ok: false, reason: `الفترة لسه شغالة — تنتهي ${p.period_end}` };
+    if (d > 14 && !isYearEnd(p)) return { ok: false, reason: "انتهت فترة الإقفال (14 يوم) — تواصل مع الدعم" };
+    return { ok: true };
+  };
+
+  const openCloseDialog = (p: Period) => {
+    if (!isOwner) { toast.error("غير مصرح — فقط صاحب الشركة يمكنه الإقفال"); return; }
+    const chk = canCloseNow(p);
+    if (!chk.ok) { toast.error(chk.reason || "لا يمكن الإقفال الآن"); return; }
+    setCloseReason(""); setCloseConfirmText(""); setCloseTarget(p);
+  };
+
+  const confirmClose = async () => {
+    if (!closeTarget) return;
+    if (closeReason.trim().length < 5) { toast.error("اكتب سبب الإقفال (5 أحرف على الأقل)"); return; }
+    if (closeConfirmText.trim() !== "أؤكد") { toast.error('اكتب "أؤكد" للمتابعة'); return; }
+    setCloseBusy(true);
+    const { data, error } = await supabase.rpc("close_fiscal_period" as any, {
+      p_period_id: closeTarget.id, p_reason: closeReason.trim(),
+    }) as any;
+    setCloseBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`تم الإقفال — صافي الربح: ${fmt(Number(data?.net_profit || 0))} ج.م`);
 
-    // Auto-create next fiscal period: starts Jan 1 of next year, ends on saved close date
+    const periodEnd = closeTarget.period_end;
+    setCloseTarget(null);
     try {
       const closedYear = new Date(periodEnd).getFullYear();
       const nextYear = closedYear + 1;
@@ -121,6 +153,7 @@ export default function FiscalClosing() {
     } catch {}
     load();
   };
+
 
   const doDistribute = async () => {
     if (!tenantId) return;
