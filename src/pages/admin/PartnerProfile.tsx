@@ -271,7 +271,7 @@ export default function PartnerProfile() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenWd(false)}>إلغاء</Button>
-            <Button onClick={submitWithdraw} disabled={wdLoading}>
+            <Button onClick={submitWithdraw} disabled={wdLoading || Number(wd.amount) <= 0 || Number(wd.amount) > netAvailable}>
               {wdLoading && <Loader2 className="w-4 h-4 animate-spin ml-1" />}
               تنفيذ السحب
             </Button>
