@@ -5690,6 +5690,7 @@ export type Database = {
         Args: { _end_date: string; _start_date: string }
         Returns: Json
       }
+      get_partner_net_balance: { Args: { p_partner_id: string }; Returns: Json }
       get_product_references_count: {
         Args: { _product_id: string }
         Returns: Json

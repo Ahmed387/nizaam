@@ -90,10 +90,27 @@ export default function PartnerProfile() {
     load();
   };
 
+  const outstandingAdvances = useMemo(
+    () => advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0),
+    [advances]
+  );
+  const netAvailable = Number(partner?.current_balance || 0) - outstandingAdvances;
+
+  const openWithdraw = () => {
+    if (netAvailable <= 0) {
+      toast.error(`لا يوجد صافي متاح — الرصيد ${Number(partner?.current_balance || 0)} والسلف القائمة ${outstandingAdvances}`);
+      return;
+    }
+    setWd({ amount: String(netAvailable), date: new Date().toISOString().slice(0, 10), notes: "" });
+    setOpenWd(true);
+  };
+
   const submitWithdraw = async () => {
     const amt = Number(wd.amount);
     if (!amt || amt <= 0) return toast.error("المبلغ غير صحيح");
-    if (amt > Number(partner.current_balance || 0)) return toast.error("المبلغ أكبر من الرصيد المتاح");
+    if (amt > netAvailable) {
+      return toast.error(`المبلغ ${amt} أكبر من الصافي المتاح ${netAvailable.toFixed(2)} (الرصيد − السلف القائمة)`);
+    }
     setWdLoading(true);
     const { error } = await supabase.rpc("partner_withdraw_from_distribution" as any, {
       p_tenant_id: partner.tenant_id,
@@ -123,37 +140,29 @@ export default function PartnerProfile() {
           <PageHeader title={partner.name} subtitle="ملف الشريك" />
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link to="/admin/financial-position/partners">← العودة</Link></Button>
-            <Button variant="outline" onClick={() => setOpenWd(true)} disabled={Number(partner.current_balance || 0) <= 0}>
+            <Button variant="outline" onClick={openWithdraw} disabled={netAvailable <= 0}>
               <Wallet className="w-4 h-4 ml-2" />سحب من الرصيد
             </Button>
             <Button onClick={() => setOpenTx(true)}><PlusCircle className="w-4 h-4 ml-2" />تسجيل حركة</Button>
           </div>
         </div>
 
-        {(() => {
-          const outstanding = advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0);
-          const net = Number(partner.current_balance || 0) - outstanding;
-          return (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
-                <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
-                <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(outstanding)}</div></CardContent></Card>
-              </div>
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-muted-foreground">صافي الذمة المالية (الرصيد − السلف القائمة)</div>
-                    <div className="text-xs text-muted-foreground mt-1">رأس المال + الأرباح − المسحوبات − السلف</div>
-                  </div>
-                  <div className={`text-3xl font-bold ${net >= 0 ? "text-success" : "text-destructive"}`}>{fmt(net)} ج</div>
-                </CardContent>
-              </Card>
-            </>
-          );
-        })()}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
+          <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(outstandingAdvances)}</div></CardContent></Card>
+        </div>
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <div className="text-sm text-muted-foreground">الصافي المتاح للسحب (الرصيد − السلف القائمة)</div>
+              <div className="text-xs text-muted-foreground mt-1">رأس المال + الأرباح − المسحوبات − السلف</div>
+            </div>
+            <div className={`text-3xl font-bold ${netAvailable >= 0 ? "text-success" : "text-destructive"}`}>{fmt(netAvailable)} ج</div>
+          </CardContent>
+        </Card>
 
 
         <Card>
@@ -229,12 +238,26 @@ export default function PartnerProfile() {
         <DialogContent dir="rtl">
           <DialogHeader><DialogTitle>سحب من رصيد الأرباح</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="border rounded-lg p-3 bg-primary/5">
-              <div className="text-xs text-muted-foreground">الرصيد المتاح للسحب</div>
-              <div className="text-2xl font-bold text-primary">{fmt(Number(partner.current_balance || 0))} ج.م</div>
+            <div className="border rounded-lg p-3 bg-primary/5 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">الرصيد الحالي</span>
+                <span className="font-mono">{fmt(Number(partner.current_balance || 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">− سلف قائمة</span>
+                <span className="font-mono text-warning">{fmt(outstandingAdvances)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1">
+                <span className="font-semibold">الصافي المتاح للسحب</span>
+                <span className={`font-mono font-bold ${netAvailable >= 0 ? "text-success" : "text-destructive"}`}>{fmt(netAvailable)} ج.م</span>
+              </div>
             </div>
-            <div><Label>المبلغ (ج.م) *</Label>
-              <Input type="number" value={wd.amount} onChange={e => setWd({ ...wd, amount: e.target.value })} />
+            <div><Label>المبلغ (ج.م) * — أقصى: {fmt(netAvailable)}</Label>
+              <Input type="number" min={0} max={netAvailable} value={wd.amount}
+                onChange={e => setWd({ ...wd, amount: e.target.value })} />
+              {Number(wd.amount) > netAvailable && (
+                <div className="text-xs text-destructive mt-1">المبلغ أكبر من الصافي المتاح</div>
+              )}
             </div>
             <div><Label>تاريخ السحب</Label>
               <Input type="date" value={wd.date} onChange={e => setWd({ ...wd, date: e.target.value })} />
@@ -248,7 +271,7 @@ export default function PartnerProfile() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenWd(false)}>إلغاء</Button>
-            <Button onClick={submitWithdraw} disabled={wdLoading}>
+            <Button onClick={submitWithdraw} disabled={wdLoading || Number(wd.amount) <= 0 || Number(wd.amount) > netAvailable}>
               {wdLoading && <Loader2 className="w-4 h-4 animate-spin ml-1" />}
               تنفيذ السحب
             </Button>
