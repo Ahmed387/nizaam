@@ -22,6 +22,7 @@ import {
 import { StagedPaymentsPanel } from "@/components/StagedPaymentsPanel";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
+import { computeInvoiceTotals } from "@/lib/invoiceCalc";
 
 type Item = {
   id?: string;
@@ -240,16 +241,21 @@ export default function EditSaleInvoice() {
     return products.filter((p) => `${p.name} ${p.sku ?? ""}`.toLowerCase().includes(s)).slice(0, 8);
   };
 
-  const subtotal = items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
-  const lineDiscounts = items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-  const afterLineDiscounts = Math.max(subtotal - lineDiscounts, 0);
-  const invDiscount =
-    discountType === "percent"
-      ? Math.round(afterLineDiscounts * (Number(discountPercent) || 0)) / 100
-      : Math.min(Math.max(Number(discountAmount) || 0, 0), afterLineDiscounts);
-  const netAfterDiscount = Math.max(afterLineDiscounts - invDiscount, 0);
-  const vatAmount = Math.round(netAfterDiscount * (Number(vatRate) || 0)) / 100;
-  const total = netAfterDiscount + vatAmount;
+  // Unified totals via shared helper — see src/lib/invoiceCalc.ts
+  const _totals = computeInvoiceTotals(
+    items,
+    discountType === "percent" ? (Number(discountPercent) || 0) : (Number(discountAmount) || 0),
+    discountType,
+    Number(vatRate) || 0
+  );
+  const subtotal = _totals.grossSubtotal;
+  const lineDiscounts = _totals.lineDiscounts;
+  const afterLineDiscounts = _totals.subtotal;
+  const invDiscount = _totals.invoiceDiscount;
+  const netAfterDiscount = _totals.netAfterDiscount;
+  const vatAmount = _totals.taxAmount;
+  const total = _totals.total;
+
 
   // Live paid & remaining (based on active payments/tx)
   const activeInitial = payments.filter((p: any) => !p.voided_at && !p.reverses_payment_id);
