@@ -332,12 +332,15 @@ export default function EditSaleInvoice() {
       changes.push(`🏷️ خصم الفاتورة: من ${formatEGP(snap.discountAmount || 0)} إلى ${formatEGP(invDiscount)}`);
     }
 
-    // Totals diff
-    const oldSubtotal = snap.items.reduce((s, it) => s + it.selling_price * it.quantity, 0);
-    const oldLineDisc = snap.items.reduce((s, it) => s + Number(it.line_discount || 0), 0);
-    const oldNet = Math.max(oldSubtotal - oldLineDisc - Number(snap.discountAmount || 0), 0);
-    const oldVat = Math.round(oldNet * (Number(snap.vatRate) || 0)) / 100;
-    const oldTotal = oldNet + oldVat;
+    // Totals diff — use unified helper so snapshot math matches live math exactly
+    const oldTotals = computeInvoiceTotals(
+      snap.items,
+      Number(snap.discountAmount || 0),
+      "amount",
+      Number(snap.vatRate) || 0
+    );
+    const oldTotal = oldTotals.total;
+
     if (Math.abs(oldTotal - total) > 0.01) {
       const delta = total - oldTotal;
       const deltaLabel = delta > 0 ? `بزيادة ${formatEGP(Math.abs(delta))}` : `بنقص ${formatEGP(Math.abs(delta))}`;
