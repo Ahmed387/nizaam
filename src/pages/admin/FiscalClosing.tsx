@@ -102,11 +102,7 @@ export default function FiscalClosing() {
     const now = new Date(); now.setHours(0, 0, 0, 0);
     return Math.floor((now.getTime() - end.getTime()) / 86400000);
   };
-  const isYearEnd = (p: Period) => {
-    // year-end = no later period exists
-    return !periods.some(o => o.tenant_id === (p as any).tenant_id ? false : false) &&
-      !periods.some(o => o.period_start > p.period_end);
-  };
+  const isYearEnd = (p: Period) => !periods.some(o => o.period_start > p.period_end);
   const canCloseNow = (p: Period): { ok: boolean; reason?: string } => {
     if (p.status === "closed") return { ok: false, reason: "مقفولة بالفعل" };
     const d = daysAfterEnd(p.period_end);
