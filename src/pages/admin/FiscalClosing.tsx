@@ -71,6 +71,28 @@ export default function FiscalClosing() {
   const totalShare = partners.reduce((s, p) => s + Number(p.capital_share || 0), 0);
   const previewAmount = Number(dForm.total_amount) || 0;
 
+  // Fetch server-side preview whenever amount / period changes — matches actual distribute_profits logic
+  useEffect(() => {
+    if (!tenantId || !openDist) { setPreview(null); return; }
+    const per = periods.find(p => p.id === dForm.fiscal_period_id);
+    const from = per?.period_start || `${y}-01-01`;
+    const to = per?.period_end || `${y}-12-31`;
+    const amt = previewAmount > 0 ? previewAmount : null;
+    let cancelled = false;
+    setPreviewLoading(true);
+    const t = setTimeout(async () => {
+      const { data, error } = await supabase.rpc("preview_flexible_distribution" as any, {
+        p_tenant_id: tenantId, p_from: from, p_to: to, p_amount: amt,
+      }) as any;
+      if (cancelled) return;
+      setPreviewLoading(false);
+      if (error) { setPreview(null); return; }
+      setPreview(data);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [tenantId, openDist, dForm.fiscal_period_id, previewAmount, periods, y]);
+
+
   const saveCloseDate = async () => {
     if (!tenantId) return;
     if (!/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(closeMMDD)) {
