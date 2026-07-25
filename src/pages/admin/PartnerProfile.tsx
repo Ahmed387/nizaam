@@ -238,12 +238,26 @@ export default function PartnerProfile() {
         <DialogContent dir="rtl">
           <DialogHeader><DialogTitle>سحب من رصيد الأرباح</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="border rounded-lg p-3 bg-primary/5">
-              <div className="text-xs text-muted-foreground">الرصيد المتاح للسحب</div>
-              <div className="text-2xl font-bold text-primary">{fmt(Number(partner.current_balance || 0))} ج.م</div>
+            <div className="border rounded-lg p-3 bg-primary/5 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">الرصيد الحالي</span>
+                <span className="font-mono">{fmt(Number(partner.current_balance || 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">− سلف قائمة</span>
+                <span className="font-mono text-warning">{fmt(outstandingAdvances)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1">
+                <span className="font-semibold">الصافي المتاح للسحب</span>
+                <span className={`font-mono font-bold ${netAvailable >= 0 ? "text-success" : "text-destructive"}`}>{fmt(netAvailable)} ج.م</span>
+              </div>
             </div>
-            <div><Label>المبلغ (ج.م) *</Label>
-              <Input type="number" value={wd.amount} onChange={e => setWd({ ...wd, amount: e.target.value })} />
+            <div><Label>المبلغ (ج.م) * — أقصى: {fmt(netAvailable)}</Label>
+              <Input type="number" min={0} max={netAvailable} value={wd.amount}
+                onChange={e => setWd({ ...wd, amount: e.target.value })} />
+              {Number(wd.amount) > netAvailable && (
+                <div className="text-xs text-destructive mt-1">المبلغ أكبر من الصافي المتاح</div>
+              )}
             </div>
             <div><Label>تاريخ السحب</Label>
               <Input type="date" value={wd.date} onChange={e => setWd({ ...wd, date: e.target.value })} />
