@@ -44,6 +44,8 @@ export default function FiscalClosing() {
   const y = new Date().getFullYear();
   const [pForm, setPForm] = useState({ name: `السنة المالية ${y}`, period_start: `${y}-01-01`, period_end: `${y}-12-31` });
   const [dForm, setDForm] = useState({ fiscal_period_id: "", total_amount: "", distribution_date: today, notes: "" });
+  const [preview, setPreview] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const settingKey = tenantId ? `fiscal_close_date_${tenantId}` : "";
 
