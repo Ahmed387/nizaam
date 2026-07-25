@@ -4631,6 +4631,7 @@ export type Database = {
           max_products: number | null
           max_users: number | null
           name: string
+          owner_user_id: string | null
           plan: string
           primary_color: string | null
           slug: string
@@ -4649,6 +4650,7 @@ export type Database = {
           max_products?: number | null
           max_users?: number | null
           name: string
+          owner_user_id?: string | null
           plan?: string
           primary_color?: string | null
           slug: string
@@ -4667,6 +4669,7 @@ export type Database = {
           max_products?: number | null
           max_users?: number | null
           name?: string
+          owner_user_id?: string | null
           plan?: string
           primary_color?: string | null
           slug?: string
@@ -5375,7 +5378,9 @@ export type Database = {
         Args: { p_reason: string; p_voucher_id: string }
         Returns: undefined
       }
-      close_fiscal_period: { Args: { p_period_id: string }; Returns: Json }
+      close_fiscal_period:
+        | { Args: { p_period_id: string }; Returns: Json }
+        | { Args: { p_period_id: string; p_reason?: string }; Returns: Json }
       complete_pre_order_sale: {
         Args: { p_payment_method?: string; p_pre_order_id: string }
         Returns: string
@@ -5719,6 +5724,10 @@ export type Database = {
         }[]
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_owner: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_partner_owner: { Args: { _partner_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       map_treasury_to_category_key: {

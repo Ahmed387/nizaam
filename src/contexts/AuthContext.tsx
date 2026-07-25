@@ -11,6 +11,7 @@ interface Tenant {
   primary_color: string | null;
   is_suspended?: boolean;
   suspension_reason?: string | null;
+  owner_user_id?: string | null;
 }
 
 interface AuthCtx {
@@ -132,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isAdmin: roles.includes("admin") || roles.includes("super_admin"),
     isSuperAdmin: roles.includes("super_admin"),
-    isOwner: (user?.email ?? "").toLowerCase() === "an.ayoub98@gmail.com",
+    isOwner: !!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id,
     hasRole: (r) => roles.includes(r),
     can: (key) => checkPermission(roles, permsByRole, key),
     signOut: async () => {

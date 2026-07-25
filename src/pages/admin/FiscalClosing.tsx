@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CalendarClock, Lock, PieChart, Plus, ExternalLink, Save } from "lucide-react";
+import { CalendarClock, Lock, PieChart, Plus, ExternalLink, Save, ShieldAlert } from "lucide-react";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -25,7 +27,7 @@ type Distribution = { id: string; distribution_date: string; total_amount: numbe
 const DEFAULT_CLOSE_MMDD = "12-31";
 
 export default function FiscalClosing() {
-  const { tenantId } = useAuth();
+  const { tenantId, isOwner } = useAuth();
   const [periods, setPeriods] = useState<Period[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [distributions, setDistributions] = useState<Distribution[]>([]);
@@ -35,6 +37,10 @@ export default function FiscalClosing() {
   const today = new Date().toISOString().slice(0, 10);
   const [openPeriod, setOpenPeriod] = useState(false);
   const [openDist, setOpenDist] = useState(false);
+  const [closeTarget, setCloseTarget] = useState<Period | null>(null);
+  const [closeReason, setCloseReason] = useState("");
+  const [closeConfirmText, setCloseConfirmText] = useState("");
+  const [closeBusy, setCloseBusy] = useState(false);
   const y = new Date().getFullYear();
   const [pForm, setPForm] = useState({ name: `السنة المالية ${y}`, period_start: `${y}-01-01`, period_end: `${y}-12-31` });
   const [dForm, setDForm] = useState({ fiscal_period_id: "", total_amount: "", distribution_date: today, notes: "" });
@@ -91,13 +97,41 @@ export default function FiscalClosing() {
     setOpenPeriod(false); load();
   };
 
-  const closePeriod = async (id: string, name: string, periodEnd: string) => {
-    if (!confirm(`تأكيد إقفال الفترة "${name}"؟ سيتم إنشاء قيد الإقفال وترحيل صافي الربح للأرباح المحتجزة. الفترة الجديدة ستبدأ تلقائياً من 1 يناير للسنة الجاية.`)) return;
-    const { data, error } = await supabase.rpc("close_fiscal_period" as any, { p_period_id: id }) as any;
+  const daysAfterEnd = (endStr: string) => {
+    const end = new Date(endStr + "T00:00:00");
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    return Math.floor((now.getTime() - end.getTime()) / 86400000);
+  };
+  const isYearEnd = (p: Period) => !periods.some(o => o.period_start > p.period_end);
+  const canCloseNow = (p: Period): { ok: boolean; reason?: string } => {
+    if (p.status === "closed") return { ok: false, reason: "مقفولة بالفعل" };
+    const d = daysAfterEnd(p.period_end);
+    if (d < 0) return { ok: false, reason: `الفترة لسه شغالة — تنتهي ${p.period_end}` };
+    if (d > 14 && !isYearEnd(p)) return { ok: false, reason: "انتهت فترة الإقفال (14 يوم) — تواصل مع الدعم" };
+    return { ok: true };
+  };
+
+  const openCloseDialog = (p: Period) => {
+    if (!isOwner) { toast.error("غير مصرح — فقط صاحب الشركة يمكنه الإقفال"); return; }
+    const chk = canCloseNow(p);
+    if (!chk.ok) { toast.error(chk.reason || "لا يمكن الإقفال الآن"); return; }
+    setCloseReason(""); setCloseConfirmText(""); setCloseTarget(p);
+  };
+
+  const confirmClose = async () => {
+    if (!closeTarget) return;
+    if (closeReason.trim().length < 5) { toast.error("اكتب سبب الإقفال (5 أحرف على الأقل)"); return; }
+    if (closeConfirmText.trim() !== "أؤكد") { toast.error('اكتب "أؤكد" للمتابعة'); return; }
+    setCloseBusy(true);
+    const { data, error } = await supabase.rpc("close_fiscal_period" as any, {
+      p_period_id: closeTarget.id, p_reason: closeReason.trim(),
+    }) as any;
+    setCloseBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`تم الإقفال — صافي الربح: ${fmt(Number(data?.net_profit || 0))} ج.م`);
 
-    // Auto-create next fiscal period: starts Jan 1 of next year, ends on saved close date
+    const periodEnd = closeTarget.period_end;
+    setCloseTarget(null);
     try {
       const closedYear = new Date(periodEnd).getFullYear();
       const nextYear = closedYear + 1;
@@ -115,6 +149,7 @@ export default function FiscalClosing() {
     } catch {}
     load();
   };
+
 
   const doDistribute = async () => {
     if (!tenantId) return;
@@ -229,11 +264,27 @@ export default function FiscalClosing() {
                         ) : "—"}
                       </TableCell>
                       <TableCell>
-                        {p.status !== "closed" && (
-                          <Button size="sm" variant="outline" onClick={() => closePeriod(p.id, p.name, p.period_end)}>
-                            <Lock className="w-4 h-4 ml-1" />إقفال
-                          </Button>
-                        )}
+                        {p.status === "closed" ? (
+                          <Badge variant="default">مقفولة</Badge>
+                        ) : (() => {
+                          const chk = canCloseNow(p);
+                          const disabled = !isOwner || !chk.ok;
+                          const tip = !isOwner
+                            ? "فقط صاحب الشركة يمكنه الإقفال"
+                            : chk.ok ? "" : chk.reason || "";
+                          const btn = (
+                            <Button size="sm" variant="outline" disabled={disabled}
+                              onClick={() => openCloseDialog(p)}>
+                              <Lock className="w-4 h-4 ml-1" />إقفال
+                            </Button>
+                          );
+                          return tip ? (
+                            <TooltipProvider><Tooltip>
+                              <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
+                              <TooltipContent>{tip}</TooltipContent>
+                            </Tooltip></TooltipProvider>
+                          ) : btn;
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -335,6 +386,52 @@ export default function FiscalClosing() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!closeTarget} onOpenChange={(o) => { if (!o && !closeBusy) { setCloseTarget(null); setCloseReason(""); setCloseConfirmText(""); } }}>
+          <AlertDialogContent dir="rtl" className="max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" />
+                ⚠️ إقفال نهائي غير قابل للتراجع
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-right">
+                  <div>
+                    ستُقفل الفترة <b>{closeTarget?.name}</b> ({closeTarget?.period_start} → {closeTarget?.period_end}).
+                  </div>
+                  <ul className="list-disc pr-5 space-y-1 text-sm">
+                    <li>هيتم إنشاء <b>قيد إقفال تلقائي</b> يرحّل الإيرادات والمصروفات.</li>
+                    <li>هيتم <b>قفل الفترة</b> ومنع أي تعديل على قيودها.</li>
+                    <li>صافي الربح هيتحول لحساب <b>الأرباح المحتجزة (3800)</b>.</li>
+                    <li>الفترة الجديدة هتفتح تلقائياً من 1 يناير للسنة الجاية.</li>
+                    <li className="text-destructive font-semibold">لا يمكن التراجع بعد التنفيذ.</li>
+                  </ul>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-destructive">سبب الإقفال * (5 أحرف على الأقل)</Label>
+                <Textarea rows={2} value={closeReason} onChange={e => setCloseReason(e.target.value)}
+                  placeholder="مثال: إقفال نهاية السنة المالية 2026" />
+                <div className="text-xs text-muted-foreground mt-1">{closeReason.trim().length}/5</div>
+              </div>
+              <div>
+                <Label className="text-destructive">اكتب <b>أؤكد</b> للمتابعة</Label>
+                <Input value={closeConfirmText} onChange={e => setCloseConfirmText(e.target.value)} placeholder="أؤكد" />
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={closeBusy}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); confirmClose(); }}
+                disabled={closeBusy || closeReason.trim().length < 5 || closeConfirmText.trim() !== "أؤكد"}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {closeBusy ? "جاري الإقفال..." : "تأكيد الإقفال"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );

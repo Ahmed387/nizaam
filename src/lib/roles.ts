@@ -124,7 +124,7 @@ export async function fetchUserContext(userId: string) {
   if ((profile as any)?.tenant_id) {
     const { data: t } = await supabase
       .from("tenants")
-      .select("id, name, slug, logo_url, primary_color, is_suspended, suspension_reason")
+      .select("id, name, slug, logo_url, primary_color, is_suspended, suspension_reason, owner_user_id")
       .eq("id", (profile as any).tenant_id)
       .maybeSingle();
     tenant = (t as any) ?? null;
