@@ -386,6 +386,52 @@ export default function FiscalClosing() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!closeTarget} onOpenChange={(o) => { if (!o && !closeBusy) { setCloseTarget(null); setCloseReason(""); setCloseConfirmText(""); } }}>
+          <AlertDialogContent dir="rtl" className="max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" />
+                ⚠️ إقفال نهائي غير قابل للتراجع
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-right">
+                  <div>
+                    ستُقفل الفترة <b>{closeTarget?.name}</b> ({closeTarget?.period_start} → {closeTarget?.period_end}).
+                  </div>
+                  <ul className="list-disc pr-5 space-y-1 text-sm">
+                    <li>هيتم إنشاء <b>قيد إقفال تلقائي</b> يرحّل الإيرادات والمصروفات.</li>
+                    <li>هيتم <b>قفل الفترة</b> ومنع أي تعديل على قيودها.</li>
+                    <li>صافي الربح هيتحول لحساب <b>الأرباح المحتجزة (3800)</b>.</li>
+                    <li>الفترة الجديدة هتفتح تلقائياً من 1 يناير للسنة الجاية.</li>
+                    <li className="text-destructive font-semibold">لا يمكن التراجع بعد التنفيذ.</li>
+                  </ul>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-destructive">سبب الإقفال * (5 أحرف على الأقل)</Label>
+                <Textarea rows={2} value={closeReason} onChange={e => setCloseReason(e.target.value)}
+                  placeholder="مثال: إقفال نهاية السنة المالية 2026" />
+                <div className="text-xs text-muted-foreground mt-1">{closeReason.trim().length}/5</div>
+              </div>
+              <div>
+                <Label className="text-destructive">اكتب <b>أؤكد</b> للمتابعة</Label>
+                <Input value={closeConfirmText} onChange={e => setCloseConfirmText(e.target.value)} placeholder="أؤكد" />
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={closeBusy}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); confirmClose(); }}
+                disabled={closeBusy || closeReason.trim().length < 5 || closeConfirmText.trim() !== "أؤكد"}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {closeBusy ? "جاري الإقفال..." : "تأكيد الإقفال"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
