@@ -76,11 +76,23 @@ export default function KpiDashboard() {
     setKpi(data as any);
   };
 
-  useEffect(() => { load(); }, [tenantId]);
+  useEffect(() => { load(); }, [tenantId, start, end]);
+
+  // Realtime auto-refresh every 30s + on GL changes
+  useEffect(() => {
+    if (!tenantId) return;
+    const interval = setInterval(() => { load(); }, 30000);
+    const channel = supabase
+      .channel(`kpi-realtime-${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries", filter: `tenant_id=eq.${tenantId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_lines" }, () => load())
+      .subscribe();
+    return () => { clearInterval(interval); supabase.removeChannel(channel); };
+  }, [tenantId, start, end]);
 
   return (
     <AdminLayout>
-      <PageHeader title="مؤشرات الأداء المالي" subtitle="نظرة شاملة على الربحية والسيولة والكفاءة" />
+      <PageHeader title="مؤشرات الأداء المالي" subtitle="نظرة شاملة على الربحية والسيولة والكفاءة — تحديث تلقائي فوري" />
 
       <Card className="mb-4">
         <CardContent className="pt-4">
@@ -93,12 +105,14 @@ export default function KpiDashboard() {
               <Label>إلى تاريخ</Label>
               <Input type="date" value={end} onChange={e => setEnd(e.target.value)} />
             </div>
-            <Button onClick={load} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 ml-2 ${loading ? "animate-spin" : ""}`} />تحديث
-            </Button>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-primary" : ""}`} />
+              {loading ? "جاري التحديث..." : "تحديث تلقائي مفعّل"}
+            </div>
           </div>
         </CardContent>
       </Card>
+
 
       {!kpi ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">جاري التحميل...</CardContent></Card>
