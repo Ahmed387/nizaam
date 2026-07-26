@@ -5356,6 +5356,14 @@ export type Database = {
           overdue_amount: number | null
           tenant_id: string | null
           total_balance: number | null
+          total_invoiced: number | null
+          total_paid: number | null
+          total_purchase_returns: number | null
+          total_returned: number | null
+          total_shipments: number | null
+          total_supplier_paid: number | null
+          total_voucher_payments: number | null
+          total_voucher_receipts: number | null
           type: string | null
         }
         Relationships: [
