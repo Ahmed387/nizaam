@@ -19,6 +19,8 @@ interface Props {
   fallback?: string | null;
   /** Compact label variant (used inline in tables/views). */
   compact?: boolean;
+  /** When true, render as plain read-only text (no pencil, no popover). */
+  readOnly?: boolean;
   /** Called after successful save with the new ISO timestamp. */
   onSaved?: (newDate: string) => void;
 }
@@ -33,9 +35,9 @@ const toLocalInput = (iso: string) => {
 /**
  * Shows the invoice date + time. Only admin / super_admin can edit it (UI + DB-enforced).
  */
-export function EditableInvoiceDate({ table, recordId, value, fallback, compact, onSaved }: Props) {
+export function EditableInvoiceDate({ table, recordId, value, fallback, compact, readOnly, onSaved }: Props) {
   const { isAdmin } = useAuth();
-  const canEdit = isAdmin;
+  const canEdit = isAdmin && !readOnly;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const initial = toLocalInput(value ?? fallback ?? "");

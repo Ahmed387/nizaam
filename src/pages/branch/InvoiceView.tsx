@@ -189,7 +189,7 @@ export default function InvoiceView() {
             <div className="text-xs text-muted-foreground">رقم الفاتورة</div>
             <div className="font-mono font-extrabold text-primary text-lg">{inv.invoice_number}</div>
             <div className="text-xs text-muted-foreground mt-2">تاريخ الفاتورة</div>
-            <div className="text-sm font-bold"><EditableInvoiceDate table="invoices" recordId={inv.id} value={inv.invoice_date} fallback={inv.created_at} onSaved={(d) => setInv({ ...inv, invoice_date: d })} /></div>
+            <div className="text-sm font-bold"><EditableInvoiceDate table="invoices" recordId={inv.id} value={inv.invoice_date} fallback={inv.created_at} readOnly onSaved={(d) => setInv({ ...inv, invoice_date: d })} /></div>
             <div className="text-[10px] text-muted-foreground mt-1.5">تاريخ الإدخال: {formatDateTime(inv.created_at)}</div>
           </div>
         </div>

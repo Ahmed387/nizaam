@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StagedPaymentsPanel } from "@/components/StagedPaymentsPanel";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { InvoiceDateInput } from "@/components/InvoiceDateInput";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatDateTime } from "@/lib/format";
 import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
 
@@ -40,6 +43,7 @@ type Snapshot = {
   customerName: string;
   vatRate: number;
   discountAmount: number;
+  invoiceDate: string | null;
   items: Array<{ product_id: string | null; product_name: string; quantity: number; selling_price: number; line_discount: number }>;
 };
 
@@ -67,6 +71,8 @@ export default function EditSaleInvoice() {
   const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [openSections, setOpenSections] = useState({ customer: false, items: false, payments: false, summary: false });
+  const [invoiceDate, setInvoiceDate] = useState<string>("");
+  const { isAdmin } = useAuth();
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
@@ -109,6 +115,7 @@ export default function EditSaleInvoice() {
       setPaymentPlan(plan ?? null);
       setVatRate(Number(inv?.vat_rate ?? 0));
       setDiscountAmount(Number(inv?.discount_amount ?? 0));
+      setInvoiceDate(inv?.invoice_date ?? inv?.created_at ?? "");
 
       let loadedTx: any[] = [];
       let loadedIns: any[] = [];
@@ -148,6 +155,7 @@ export default function EditSaleInvoice() {
         customerName: custName,
         vatRate: Number(inv?.vat_rate ?? 0),
         discountAmount: Number(inv?.discount_amount ?? 0),
+        invoiceDate: inv?.invoice_date ?? inv?.created_at ?? null,
         items: loadedItems.map((it) => ({
           product_id: it.product_id,
           product_name: it.product_name,
@@ -332,6 +340,13 @@ export default function EditSaleInvoice() {
       changes.push(`🏷️ خصم الفاتورة: من ${formatEGP(snap.discountAmount || 0)} إلى ${formatEGP(invDiscount)}`);
     }
 
+    // Invoice date/time diff
+    const oldDateIso = snap.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
+    const newDateIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
+    if (oldDateIso !== newDateIso) {
+      changes.push(`🗓️ تاريخ ووقت الفاتورة: من ${formatDateTime(snap.invoiceDate)} إلى ${formatDateTime(invoiceDate)}`);
+    }
+
     // Totals diff — use unified helper so snapshot math matches live math exactly
     const oldTotals = computeInvoiceTotals(
       snap.items,
@@ -435,6 +450,22 @@ export default function EditSaleInvoice() {
       if (error) {
         setSaving(false);
         toast.error(error.message);
+        return;
+      }
+    }
+
+    // 3) Persist invoice date/time change (admin only, guarded by RLS/trigger on server)
+    const snap = initialSnapshotRef.current;
+    const oldIso = snap?.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
+    const newIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
+    if (oldIso !== newIso && newIso) {
+      const { error } = await supabase.from("invoices").update({ invoice_date: newIso }).eq("id", invoiceId!);
+      if (error) {
+        setSaving(false);
+        const msg = /owner|admin or super_admin|super_admin/i.test(error.message)
+          ? "تعديل تاريخ الفاتورة متاح لصاحب الشركة فقط"
+          : error.message;
+        toast.error(msg);
         return;
       }
     }
@@ -567,6 +598,10 @@ export default function EditSaleInvoice() {
                 </option>
               ))}
             </select>
+            <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
+            {!isAdmin && (
+              <p className="text-[11px] text-muted-foreground">تعديل تاريخ ووقت الفاتورة متاح لصاحب الشركة فقط.</p>
+            )}
           </div>
         </CollapsibleSection>
 
