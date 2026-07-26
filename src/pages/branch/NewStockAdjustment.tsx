@@ -1,21 +1,93 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { searchMatch } from "@/lib/search";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, HelpCircle } from "lucide-react";
+import { Plus, Trash2, Loader2, HelpCircle, Check, ChevronsUpDown, Package } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 interface Line {
   product_id: string; product_name: string;
   system_quantity: number; actual_quantity: number; unit_cost: number;
+}
+
+function ProductCombobox({
+  products, value, onSelect,
+}: { products: any[]; value: string; onSelect: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const selected = products.find((p) => p.id === value);
+  const filtered = useMemo(
+    () => (q ? products.filter((p) => searchMatch(q, p.name, p.barcode, p.sku, p.code)) : products).slice(0, 200),
+    [products, q],
+  );
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button" variant="outline" role="combobox"
+          className="w-full justify-between font-normal h-10"
+        >
+          {selected ? (
+            <span className="flex items-center gap-2 truncate">
+              {selected.image ? (
+                <img src={selected.image} alt="" className="w-6 h-6 rounded object-cover" />
+              ) : (
+                <Package className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="truncate">{selected.name}</span>
+              <span className="text-xs text-muted-foreground shrink-0">({selected.quantity})</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">اختر منتج…</span>
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="ابحث بالاسم أو الباركود..." value={q} onValueChange={setQ} />
+          <CommandList>
+            <CommandEmpty>لا توجد نتائج</CommandEmpty>
+            <CommandGroup>
+              {filtered.map((p) => (
+                <CommandItem key={p.id} value={p.id} onSelect={() => { onSelect(p.id); setOpen(false); setQ(""); }}>
+                  <Check className={cn("ml-2 h-4 w-4", value === p.id ? "opacity-100" : "opacity-0")} />
+                  {p.image ? (
+                    <img src={p.image} alt="" className="w-8 h-8 rounded object-cover ml-2" />
+                  ) : (
+                    <Package className="w-4 h-4 text-muted-foreground ml-2" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate font-medium">{p.name}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {p.barcode ? `باركود: ${p.barcode}` : p.sku ? `SKU: ${p.sku}` : ""}
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "text-xs font-bold shrink-0 px-2 py-0.5 rounded",
+                    Number(p.quantity) > 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
+                  )}>
+                    {p.quantity}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function NewStockAdjustment() {
@@ -31,7 +103,7 @@ export default function NewStockAdjustment() {
   useEffect(() => {
     if (!branchId) return;
     (async () => {
-      const { data } = await supabase.from("products").select("id, name, quantity, cost_price").eq("branch_id", branchId).order("name");
+      const { data } = await supabase.from("products").select("id, name, quantity, cost_price, barcode, sku, image").eq("branch_id", branchId).order("name");
       setProducts(data ?? []);
     })();
   }, [branchId]);
@@ -132,10 +204,7 @@ export default function NewStockAdjustment() {
               return (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
                   <div className="col-span-4">
-                    <Select value={l.product_id} onValueChange={(v) => onProduct(i, v)}>
-                      <SelectTrigger><SelectValue placeholder="منتج" /></SelectTrigger>
-                      <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <ProductCombobox products={products} value={l.product_id} onSelect={(v) => onProduct(i, v)} />
                   </div>
                   <div className="col-span-2">
                     <Label className="text-xs text-muted-foreground">بالنظام</Label>
