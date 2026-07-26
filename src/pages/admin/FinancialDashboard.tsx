@@ -74,10 +74,10 @@ export default function FinancialDashboard() {
     // Payables    = SUM(|balance| WHERE balance < 0 AND contact_type='supplier')
     let rec = 0, pay = 0;
     for (const c of (contactsRes.data ?? []) as any[]) {
-      const b = Number(c.balance ?? 0);
-      const t = String(c.contact_type ?? "").toLowerCase();
-      if (t === "customer" && b > 0) rec += b;
-      else if (t === "supplier" && b < 0) pay += -b;
+      const b = Number(c.total_balance ?? c.balance ?? 0);
+      const t = String(c.type ?? c.contact_type ?? "").toLowerCase();
+      if ((t === "customer" || t === "both") && b > 0) rec += b;
+      if ((t === "supplier" || t === "both") && b < 0) pay += -b;
     }
     setReceivables(rec);
     setPayables(pay);
