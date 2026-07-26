@@ -76,13 +76,14 @@ export default function MainTreasury() {
 
   // Per-branch rollup (uses filtered range, ignores branchFilter to always show all branches)
   const perBranch = useMemo(() => {
-    const map = new Map<string, { branch: BranchRow; cin: number; cout: number }>();
-    for (const b of branches) map.set(b.id, { branch: b, cin: 0, cout: 0 });
+    const map = new Map<string, { branch: BranchRow; cin: number; cout: number; lastAt: string | null }>();
+    for (const b of branches) map.set(b.id, { branch: b, cin: 0, cout: 0, lastAt: null });
     for (const r of rows) {
       const entry = map.get(r.branch_id);
       if (!entry) continue;
       const amt = Number(r.amount);
       if (r.type === "income") entry.cin += amt; else entry.cout += amt;
+      if (!entry.lastAt || r.created_at > entry.lastAt) entry.lastAt = r.created_at;
     }
     return Array.from(map.values());
   }, [rows, branches]);
