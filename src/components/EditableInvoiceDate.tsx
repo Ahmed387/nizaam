@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 
 type InvoiceTable = "invoices" | "shipments" | "returns" | "purchase_returns";
@@ -13,34 +13,43 @@ type InvoiceTable = "invoices" | "shipments" | "returns" | "purchase_returns";
 interface Props {
   table: InvoiceTable;
   recordId: string;
-  /** Current invoice_date value (YYYY-MM-DD or ISO). May be null/undefined for legacy rows. */
+  /** Current invoice_date value (ISO timestamp). May be null/undefined for legacy rows. */
   value?: string | null;
   /** Fallback (e.g. created_at) used only if value is missing. */
   fallback?: string | null;
   /** Compact label variant (used inline in tables/views). */
   compact?: boolean;
-  /** Called after successful save with the new YYYY-MM-DD string. */
+  /** Called after successful save with the new ISO timestamp. */
   onSaved?: (newDate: string) => void;
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 /**
- * Shows the invoice date. Only admin / super_admin can edit it (UI + DB-enforced).
+ * Shows the invoice date + time. Only admin / super_admin can edit it (UI + DB-enforced).
  */
 export function EditableInvoiceDate({ table, recordId, value, fallback, compact, onSaved }: Props) {
   const { isAdmin } = useAuth();
   const canEdit = isAdmin;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const initial = (value ?? fallback ?? "").slice(0, 10);
+  const initial = toLocalInput(value ?? fallback ?? "");
   const [draft, setDraft] = useState(initial);
 
   const display = value ?? fallback ?? null;
 
   const save = async () => {
-    if (!draft) return toast.error("اختر تاريخاً صالحاً");
+    if (!draft) return toast.error("اختر تاريخاً ووقتاً صالحاً");
     setBusy(true);
+    // datetime-local → treat as local time, send as ISO.
+    const isoValue = new Date(draft).toISOString();
     const { error } = await (supabase.from(table as any) as any)
-      .update({ invoice_date: draft })
+      .update({ invoice_date: isoValue })
       .eq("id", recordId);
     setBusy(false);
     if (error) {
@@ -49,15 +58,15 @@ export function EditableInvoiceDate({ table, recordId, value, fallback, compact,
         : error.message;
       return toast.error(msg);
     }
-    toast.success("تم تحديث تاريخ الفاتورة");
+    toast.success("تم تحديث تاريخ ووقت الفاتورة");
     setOpen(false);
-    onSaved?.(draft);
+    onSaved?.(isoValue);
   };
 
   const dateNode = (
     <span className="inline-flex items-center gap-1.5">
       <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
-      <span className={compact ? "" : "font-semibold"}>{display ? formatDate(display) : "—"}</span>
+      <span className={compact ? "" : "font-semibold"}>{display ? formatDateTime(display) : "—"}</span>
     </span>
   );
 
@@ -69,18 +78,18 @@ export function EditableInvoiceDate({ table, recordId, value, fallback, compact,
         <button
           type="button"
           className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
-          title="تعديل تاريخ الفاتورة (صاحب الشركة فقط)"
+          title="تعديل تاريخ ووقت الفاتورة (صاحب الشركة فقط)"
           onClick={(e) => e.stopPropagation()}
         >
           {dateNode}
           <Pencil className="w-3 h-3 opacity-60" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+      <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-2">
-          <div className="text-xs font-semibold">تعديل تاريخ الفاتورة</div>
+          <div className="text-xs font-semibold">تعديل تاريخ ووقت الفاتورة</div>
           <Input
-            type="date"
+            type="datetime-local"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             className="h-9"
