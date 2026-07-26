@@ -69,7 +69,8 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
         fetchProfitWindow({ tenantId, range: rangeForDates(todayStr, todayStr) }),
         fetchProfitWindow({ tenantId, range: rangeForDates(monthStart, todayStr) }),
         supabase.from("treasury" as any).select("type, amount").eq("status", "active"),
-        supabase.from("contacts").select("type, balance"),
+        // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+        supabase.from("v_contact_balances" as any).select("type, total_balance"),
         supabase
           .from("payment_installments")
           .select("amount, paid_amount, payment_plans!inner(entity_type)")
