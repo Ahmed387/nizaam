@@ -260,12 +260,16 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
               <div><b>قيمة الفاتورة:</b> {formatEGP(decision.group.invoice_value)}</div>
               <div><b>الخصم المطلوب:</b> {decision.group.max_pct.toFixed(1)}% (الحد {decision.group.allowed_pct}%)</div>
               <div className="mt-2 space-y-1 max-h-40 overflow-y-auto border rounded p-2 bg-muted/30">
-                {decision.group.reqs.map((r) => (
-                  <div key={r.id} className="flex justify-between text-xs">
-                    <span>{r.product_name} × {r.quantity}</span>
-                    <span>{formatEGP(r.requested_price)} ({Number(r.discount_percent).toFixed(1)}%)</span>
-                  </div>
-                ))}
+                {decision.group.reqs.map((r) => {
+                  const stock = stockMap[r.product_id ?? ""] ?? null;
+                  const short = stock !== null && stock < r.quantity;
+                  return (
+                    <div key={r.id} className={`flex justify-between text-xs ${short ? "text-destructive font-bold" : ""}`}>
+                      <span>{r.product_name} × {r.quantity} {stock !== null && <span className="text-[10px] text-muted-foreground">(المخزون: {stock})</span>}</span>
+                      <span>{formatEGP(r.requested_price)} ({Number(r.discount_percent).toFixed(1)}%)</span>
+                    </div>
+                  );
+                })}
               </div>
               <Label className="mt-3 block">{decision.type === "reject" ? "سبب الرفض (مطلوب)" : "ملاحظة (اختياري)"}</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={decision.type === "reject" ? "اكتب السبب الذي سيظهر للكاشير" : "ملاحظة"} />
