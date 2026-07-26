@@ -557,12 +557,12 @@ export default function NewShipment() {
           {showExtrasBreakdown && (
             <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
-                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م){lastShipping !== null && lastShipping > 0 && !isEdit ? ` — آخر مرة: ${lastShipping}` : ""}</Label>
+                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder={lastShipping ? String(lastShipping) : "0"} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
-                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م){lastCustoms !== null && lastCustoms > 0 && !isEdit ? ` — آخر مرة: ${lastCustoms}` : ""}</Label>
+                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder={lastCustoms ? String(lastCustoms) : "0"} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
