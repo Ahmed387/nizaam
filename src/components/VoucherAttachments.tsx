@@ -2,7 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Eye, Trash2, Paperclip, Loader2, FileText, Image as ImageIcon, Upload } from "lucide-react";
 
@@ -48,9 +57,15 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
     load();
     const ch = supabase
       .channel(`voucher-att-${voucherId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "voucher_attachments", filter: `voucher_id=eq.${voucherId}` }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "voucher_attachments", filter: `voucher_id=eq.${voucherId}` },
+        load,
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voucherId]);
 
@@ -96,7 +111,10 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
     setDelTarget(null);
     try {
       await supabase.storage.from(BUCKET).remove([a.file_path]);
-      const { error } = await supabase.from("voucher_attachments" as any).delete().eq("id", a.id);
+      const { error } = await supabase
+        .from("voucher_attachments" as any)
+        .delete()
+        .eq("id", a.id);
       if (error) throw error;
       toast.success("تم حذف المرفق");
       load();
@@ -109,7 +127,8 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
     <div className="space-y-2" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-bold">
-          <Paperclip className="w-4 h-4" /> المرفقات {rows.length > 0 && <span className="text-muted-foreground">({rows.length})</span>}
+          <Paperclip className="w-7 h-7" /> المرفقات{" "}
+          {rows.length > 0 && <span className="text-muted-foreground">({rows.length})</span>}
         </div>
         {canEdit && (
           <>
@@ -123,7 +142,13 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
                 if (f) upload(f);
               }}
             />
-            <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()} className="gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="gap-1"
+            >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               إضافة مرفق
             </Button>
@@ -144,19 +169,30 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
             return (
               <div key={a.id} className="flex items-center gap-2 p-2 rounded border border-border bg-surface-2 text-sm">
                 <div className="shrink-0 w-8 h-8 rounded bg-background flex items-center justify-center">
-                  {isImg ? <ImageIcon className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                  {isImg ? (
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-medium">{a.file_name}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    {a.file_size ? `${Math.round(a.file_size / 1024)} KB` : ""} · {new Date(a.uploaded_at).toLocaleString("ar-EG")}
+                    {a.file_size ? `${Math.round(a.file_size / 1024)} KB` : ""} ·{" "}
+                    {new Date(a.uploaded_at).toLocaleString("ar-EG")}
                   </div>
                 </div>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => view(a)} title="عرض">
                   <Eye className="w-4 h-4" />
                 </Button>
                 {canDelete(a) && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDelTarget(a)} title="حذف">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-destructive"
+                    onClick={() => setDelTarget(a)}
+                    title="حذف"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -174,7 +210,9 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+              حذف
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
