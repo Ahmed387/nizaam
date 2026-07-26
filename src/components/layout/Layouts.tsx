@@ -10,16 +10,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole } = useAuth();
+  const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole, user } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
   const [mainTreasuryId, setMainTreasuryId] = useState<string | null>(null);
+  const [hasPersonalExpAccess, setHasPersonalExpAccess] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
     supabase.from("branches").select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle()
       .then(({ data }) => setMainTreasuryId((data as any)?.id ?? null));
   }, [tenantId]);
+
+  useEffect(() => {
+    if (!user) { setHasPersonalExpAccess(false); return; }
+    const isPersonalOwner = (user.email || "").toLowerCase() === "an.ayoub98@gmail.com";
+    if (isPersonalOwner) { setHasPersonalExpAccess(true); return; }
+    supabase.from("owner_expenses_access" as any).select("id").eq("granted_user_id", user.id).limit(1)
+      .then(({ data }) => setHasPersonalExpAccess(!!(data && data.length)));
+  }, [user]);
 
   const loadPending = async () => {
     if (!tenantId || !isAdmin) return;
