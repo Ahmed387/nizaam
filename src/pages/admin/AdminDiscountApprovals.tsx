@@ -66,6 +66,23 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
   const [decision, setDecision] = useState<{ group: Group; type: "approve" | "reject" } | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
+
+  // Load current available stock per product for the open decision group.
+  useEffect(() => {
+    (async () => {
+      if (!decision) { setStockMap({}); return; }
+      const ids = Array.from(new Set(decision.group.reqs.map((r) => r.product_id).filter(Boolean))) as string[];
+      if (!ids.length) return;
+      const entries = await Promise.all(ids.map(async (pid) => {
+        const { data } = await supabase.rpc("get_available_quantity" as any, {
+          p_product_id: pid, p_branch_id: decision.group.branch_id,
+        });
+        return [pid, Number(data ?? 0)] as [string, number];
+      }));
+      setStockMap(Object.fromEntries(entries));
+    })();
+  }, [decision]);
 
   const load = async () => {
     setLoading(true);
