@@ -23,6 +23,7 @@ import { ViewersTab } from "@/components/ViewersTab";
 import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
+import { PersonalExpensesAccessTab } from "@/components/PersonalExpensesAccessTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -269,6 +270,7 @@ export default function Settings() {
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
             { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
+            ...((user?.email || "").toLowerCase() === "an.ayoub98@gmail.com" ? [{ v: "personal-exp", icon: Wallet, label: "المصاريف الشخصية" }] : []),
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
           ].map((it: any) => {
@@ -291,6 +293,10 @@ export default function Settings() {
 
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsTab />
+        </TabsContent>
+
+        <TabsContent value="personal-exp" className="mt-4">
+          <PersonalExpensesAccessTab />
         </TabsContent>
 
         <TabsContent value="discount" className="mt-4">
