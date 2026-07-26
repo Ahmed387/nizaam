@@ -35,9 +35,9 @@ const toLocalInput = (iso: string) => {
 /**
  * Shows the invoice date + time. Only admin / super_admin can edit it (UI + DB-enforced).
  */
-export function EditableInvoiceDate({ table, recordId, value, fallback, compact, onSaved }: Props) {
+export function EditableInvoiceDate({ table, recordId, value, fallback, compact, readOnly, onSaved }: Props) {
   const { isAdmin } = useAuth();
-  const canEdit = isAdmin;
+  const canEdit = isAdmin && !readOnly;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const initial = toLocalInput(value ?? fallback ?? "");
