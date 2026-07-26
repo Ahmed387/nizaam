@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StagedPaymentsPanel } from "@/components/StagedPaymentsPanel";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { InvoiceDateInput } from "@/components/InvoiceDateInput";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatDateTime } from "@/lib/format";
 import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
 
