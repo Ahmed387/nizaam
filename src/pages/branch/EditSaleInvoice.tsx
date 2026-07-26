@@ -71,6 +71,8 @@ export default function EditSaleInvoice() {
   const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [openSections, setOpenSections] = useState({ customer: false, items: false, payments: false, summary: false });
+  const [invoiceDate, setInvoiceDate] = useState<string>("");
+  const { isAdmin } = useAuth();
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
