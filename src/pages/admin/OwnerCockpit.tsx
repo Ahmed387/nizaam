@@ -116,7 +116,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
     const contacts = (contactsRes.data ?? []) as any[];
     let supDebt = 0, supCredit = 0, custRec = 0;
     for (const c of contacts) {
-      const bal = Number(c.balance || 0);
+      const bal = Number(c.total_balance ?? c.balance ?? 0);
       if (c.type === "supplier" || c.type === "both") {
         if (bal > 0) supDebt += bal; else supCredit += Math.abs(bal);
       }
