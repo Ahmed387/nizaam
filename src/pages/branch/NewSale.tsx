@@ -1008,8 +1008,8 @@ export default function NewSale() {
               <div className="text-xs text-muted-foreground">فاتورتك السابقة جاهزة للاستكمال — اضغط لاسترجاع الأصناف</div>
             </div>
           </div>
-          <Button onClick={loadDraftIntoForm} className="bg-success hover:bg-success/90 text-success-foreground">
-            استرجاع الفاتورة وإتمامها
+          <Button onClick={loadDraftIntoForm} disabled={restoringDraft} className="bg-success hover:bg-success/90 text-success-foreground">
+            {restoringDraft ? <><Loader2 className="w-4 h-4 ml-1 animate-spin" /> جاري التحقق من المخزون…</> : "استرجاع الفاتورة وإتمامها"}
           </Button>
         </div>
       )}
