@@ -335,36 +335,31 @@ export default function PersonalExpenses() {
         </div>
       </div>
 
-      {/* Summary strip */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">إجمالي (بعد الفلاتر)</div>
-              <div className="text-3xl font-extrabold mt-1 text-rose-700 dark:text-rose-200">{grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-base font-semibold opacity-70">ج.م</span></div>
+      {/* Grand total (respects active filters) */}
+      <div className="mb-6">
+        <Card className="p-6 bg-gradient-to-l from-rose-500/20 via-rose-500/10 to-transparent border-rose-400/40 animate-fade-in">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg">
+                <TrendingUp className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">
+                  الإجمالي {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? "(بعد الفلاتر)" : ""}
+                </div>
+                <div className="text-4xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
+                  {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
+                  <span className="text-lg font-semibold opacity-70 mr-1">ج.م</span>
+                </div>
+              </div>
             </div>
-            <TrendingUp className="w-10 h-10 text-rose-500/60" />
-          </div>
-        </Card>
-        <Card className="p-5 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-sky-700 dark:text-sky-300 font-semibold">عدد المصاريف</div>
-              <div className="text-3xl font-extrabold mt-1 text-sky-700 dark:text-sky-200">{filtered.length.toLocaleString("ar-EG")}</div>
+            <div className="text-xs text-muted-foreground">
+              {filtered.length.toLocaleString("ar-EG")} مصروف · {monthlyTotals.length} شهر
             </div>
-            <Receipt className="w-10 h-10 text-sky-500/60" />
-          </div>
-        </Card>
-        <Card className="p-5 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-400/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-emerald-700 dark:text-emerald-300 font-semibold">عدد الشهور النشطة</div>
-              <div className="text-3xl font-extrabold mt-1 text-emerald-700 dark:text-emerald-200">{monthlyTotals.length.toLocaleString("ar-EG")}</div>
-            </div>
-            <CalendarDays className="w-10 h-10 text-emerald-500/60" />
           </div>
         </Card>
       </div>
+
 
 
       {/* Actions + Filters */}
