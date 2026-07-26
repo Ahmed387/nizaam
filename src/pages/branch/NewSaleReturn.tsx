@@ -106,9 +106,14 @@ export default function NewSaleReturn() {
     setPickOpen(false);
     const { data: inv } = await supabase
       .from("invoices")
-      .select("id, invoice_number, total, created_at, contact_id, contacts:contact_id(id, name, phone, balance)")
+      .select("id, invoice_number, total, created_at, contact_id, contacts:contact_id(id, name, phone)")
       .eq("id", invId).maybeSingle();
     if (!inv) return toast.error("الفاتورة غير موجودة");
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+    if ((inv as any).contact_id && (inv as any).contacts) {
+      const { fetchContactBalance } = await import("@/lib/contactBalances");
+      (inv as any).contacts.balance = await fetchContactBalance((inv as any).contact_id);
+    }
     const { data: items } = await supabase
       .from("invoice_items").select("id, product_id, product_name, quantity, selling_price, line_discount, total")
       .eq("invoice_id", invId);
