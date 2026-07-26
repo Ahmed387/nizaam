@@ -28,7 +28,7 @@ function ProductCombobox({
   const [q, setQ] = useState("");
   const selected = products.find((p) => p.id === value);
   const filtered = useMemo(
-    () => (q ? products.filter((p) => searchMatch(q, p.name, p.barcode, p.sku, p.code)) : products).slice(0, 200),
+    () => (q ? products.filter((p) => searchMatch(q, p.name, p.sku)) : products).slice(0, 200),
     [products, q],
   );
   return (
