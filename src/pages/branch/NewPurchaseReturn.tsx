@@ -108,9 +108,14 @@ export default function NewPurchaseReturn() {
     setPickOpen(false);
     const { data: sh } = await supabase
       .from("shipments")
-      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone, balance), shipment_items(id, product_id, product_name, quantity, cost_price)")
+      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone), shipment_items(id, product_id, product_name, quantity, cost_price)")
       .eq("id", shipId).maybeSingle();
     if (!sh) return toast.error("الفاتورة غير موجودة");
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+    if ((sh as any).contact_id && (sh as any).contacts) {
+      const { fetchContactBalance } = await import("@/lib/contactBalances");
+      (sh as any).contacts.balance = await fetchContactBalance((sh as any).contact_id);
+    }
 
     // Already-returned per product on this shipment
     const { data: prevReturns } = await supabase
