@@ -139,6 +139,8 @@ export default function MainTreasury() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {perBranch.map(({ branch, cin, cout, lastAt }) => {
           const net = cin - cout;
+          const gl = glBalances[branch.id];
+          const glBal = Number(gl?.current_balance ?? 0);
           return (
             <Tooltip key={branch.id}>
               <TooltipTrigger asChild>
@@ -153,12 +155,14 @@ export default function MainTreasury() {
                     </div>
                     <Wallet className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="text-xs text-muted-foreground mb-1">صافي حركة الفترة</div>
-                  <div className={`text-2xl font-extrabold mb-1 ${net >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatEGP(net)}
+                  <div className="text-xs text-muted-foreground mb-1">الرصيد الحالى (دفتر الأستاذ)</div>
+                  <div className={`text-2xl font-extrabold mb-1 ${glBal >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatEGP(glBal)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    {lastAt ? `آخر تحديث: ${formatDate(lastAt)}` : "لا توجد حركات في الفترة"}
+                    صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b>
+                    {" · "}
+                    {lastAt ? `آخر تحديث: ${formatDate(lastAt)}` : "لا حركات فى الفترة"}
                   </div>
                   <div className="mt-2 pt-2 border-t flex justify-between text-xs">
                     <span className="text-success">وارد: <b>{formatEGP(cin)}</b></span>
@@ -168,11 +172,13 @@ export default function MainTreasury() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs space-y-1">
                 <div className="font-bold">{branch.name}</div>
-                <div>إجمالي الوارد: <b className="text-success">{formatEGP(cin)}</b></div>
-                <div>إجمالي الصادر: <b className="text-destructive">{formatEGP(cout)}</b></div>
-                <div>الصافي: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b></div>
+                <div>الرصيد الحالى (GL): <b className={glBal >= 0 ? "text-success" : "text-destructive"}>{formatEGP(glBal)}</b></div>
+                <div>إجمالي الوارد (الفترة): <b className="text-success">{formatEGP(cin)}</b></div>
+                <div>إجمالي الصادر (الفترة): <b className="text-destructive">{formatEGP(cout)}</b></div>
+                <div>صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b></div>
                 <div className="text-muted-foreground pt-1 border-t">{lastAt ? `آخر حركة: ${formatDate(lastAt)}` : "لا حركات"}</div>
               </TooltipContent>
+
             </Tooltip>
           );
         })}
