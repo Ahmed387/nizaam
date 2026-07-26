@@ -130,14 +130,17 @@ export default function NewSale() {
     setSettlementAmount(0);
     if (!customerId) { setCustomerCredit(0); setCustomerBalance(0); setCustomerType("customer"); return; }
     const load = async () => {
-      const { data } = await supabase.from("contacts").select("credit_balance, balance, type").eq("id", customerId).maybeSingle();
+      // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+      const { data } = await supabase.from("v_contact_balances" as any).select("credit_balance, total_balance, type").eq("contact_id", customerId).maybeSingle();
       setCustomerCredit(Number((data as any)?.credit_balance ?? 0));
-      setCustomerBalance(Number((data as any)?.balance ?? 0));
+      setCustomerBalance(Number((data as any)?.total_balance ?? 0));
       setCustomerType(String((data as any)?.type ?? "customer"));
     };
     load();
     const ch = supabase.channel(`contact-credit-${customerId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "contacts", filter: `id=eq.${customerId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contacts", filter: `id=eq.${customerId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `contact_id=eq.${customerId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payments" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [customerId]);
