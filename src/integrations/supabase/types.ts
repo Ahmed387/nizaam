@@ -5574,6 +5574,24 @@ export type Database = {
           },
         ]
       }
+      v_supplier_ledger: {
+        Row: {
+          amount: number | null
+          branch_id: string | null
+          branch_name: string | null
+          contact_id: string | null
+          direction: string | null
+          id: string | null
+          notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          received_by_name: string | null
+          reference_number: string | null
+          source: string | null
+          tenant_id: string | null
+        }
+        Relationships: []
+      }
       v_treasury_balances: {
         Row: {
           branch_id: string | null
