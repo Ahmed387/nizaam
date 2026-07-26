@@ -19,6 +19,8 @@ interface Props {
   fallback?: string | null;
   /** Compact label variant (used inline in tables/views). */
   compact?: boolean;
+  /** When true, render as plain read-only text (no pencil, no popover). */
+  readOnly?: boolean;
   /** Called after successful save with the new ISO timestamp. */
   onSaved?: (newDate: string) => void;
 }
