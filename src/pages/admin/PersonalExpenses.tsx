@@ -377,38 +377,39 @@ export default function PersonalExpenses() {
             <Button variant="outline" size="sm" onClick={clearFilters}><X className="w-4 h-4 ml-1" />مسح الفلاتر</Button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-          <div className="lg:col-span-2 relative">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="ابحث في الوصف / الملاحظات / التصنيف" value={q} onChange={e => setQ(e.target.value)} className="pr-9" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 items-end">
+          <div className="lg:col-span-2 flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">بحث</Label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input placeholder="ابحث في الوصف / الملاحظات / التصنيف" value={q} onChange={e => setQ(e.target.value)} className="pr-9 h-10" />
+            </div>
           </div>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">من تاريخ</Label>
-            <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+            <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="h-10" />
           </div>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
-            <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
+            <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="h-10" />
           </div>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">التصنيف</Label>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">كل التصنيفات</SelectItem>
                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">من مبلغ</Label>
-              <Input type="number" value={minAmount} onChange={e => setMinAmount(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">إلى مبلغ</Label>
-              <Input type="number" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">من مبلغ</Label>
+            <Input type="number" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="h-10" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">إلى مبلغ</Label>
+            <Input type="number" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} className="h-10" />
           </div>
         </div>
       </Card>
