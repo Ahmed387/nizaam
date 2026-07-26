@@ -10,7 +10,8 @@ export type RecordType =
   | "stock_transfer"
   | "treasury_transfer"
   | "inventory_adjustment"
-  | "quote";
+  | "quote"
+  | "personal_expense";
 
 /**
  * Returns a map of record_id → attachment count for the given record_type, filtered

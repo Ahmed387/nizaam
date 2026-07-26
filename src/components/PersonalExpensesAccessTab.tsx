@@ -34,13 +34,13 @@ export function PersonalExpensesAccessTab() {
     if (!user) return;
     setLoading(true);
     const [{ data: prof }, { data: gr }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name"),
+      supabase.from("profiles").select("id, name, username").eq("is_active", true),
       supabase.from("owner_expenses_access" as any).select("*").eq("owner_user_id", user.id),
     ]);
-    setUsers(((prof as any) || []).map((p: any) => ({ id: p.id, email: "", full_name: p.full_name })));
+    setUsers(((prof as any) || []).map((p: any) => ({ id: p.id, email: p.username || "", full_name: p.name })));
     setGrants(((gr as any) || []).map((g: any) => {
       const p = (prof as any || []).find((x: any) => x.id === g.granted_user_id);
-      return { ...g, full_name: p?.full_name };
+      return { ...g, full_name: p?.name, email: p?.username };
     }));
     setLoading(false);
   };
@@ -100,7 +100,9 @@ export function PersonalExpensesAccessTab() {
               <SelectContent>
                 {availableUsers.length === 0 && <div className="p-2 text-xs text-muted-foreground">لا يوجد مستخدمين متاحين</div>}
                 {availableUsers.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.full_name || u.id.slice(0, 8)}</SelectItem>
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name || "بدون اسم"}{u.email ? ` — ${u.email}` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -124,7 +126,8 @@ export function PersonalExpensesAccessTab() {
             {grants.map(g => (
               <div key={g.id} className="flex items-center gap-3 p-3">
                 <div className="flex-1">
-                  <div className="font-medium">{g.full_name || g.granted_user_id.slice(0, 8)}</div>
+                  <div className="font-medium">{g.full_name || "بدون اسم"}</div>
+                  {g.email && <div className="text-xs text-muted-foreground">{g.email}</div>}
                   <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                     <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> اطلاع</span>
                     {g.can_edit && <span className="text-primary font-semibold">+ تعديل</span>}

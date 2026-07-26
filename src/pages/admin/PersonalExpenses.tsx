@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, Filter, X } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, Filter, X, Sparkles, Receipt } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface Row {
   id: string;
@@ -176,6 +179,7 @@ export default function PersonalExpenses() {
   }, [filtered]);
 
   const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.amount), 0), [filtered]);
+  const attachmentCounts = useAttachmentCounts("personal_expense", filtered.map(r => r.id));
 
   const openAdd = () => {
     setEditing(null);
@@ -304,31 +308,64 @@ export default function PersonalExpenses() {
 
   return (
     <AdminLayout>
-      <PageHeader
-        title="المصاريف الشخصية"
-        subtitle="دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام"
-      />
+      {/* Hero header */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 p-6 bg-gradient-to-l from-primary/20 via-primary/10 to-transparent border border-primary/20">
+        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-emerald-500/20 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+              <Wallet className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold flex items-center gap-2">
+                المصاريف الشخصية
+                <Sparkles className="w-5 h-5 text-amber-500" />
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">
+                دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
+              </div>
+            </div>
+          </div>
+          {canEdit && (
+            <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-md">
+              <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Summary strip */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+        <Card className="p-5 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-muted-foreground">إجمالي (بعد الفلاتر)</div>
-              <div className="text-3xl font-extrabold mt-1">{grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-base font-semibold text-muted-foreground">ج.م</span></div>
+              <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">إجمالي (بعد الفلاتر)</div>
+              <div className="text-3xl font-extrabold mt-1 text-rose-700 dark:text-rose-200">{grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-base font-semibold opacity-70">ج.م</span></div>
             </div>
-            <TrendingUp className="w-10 h-10 text-primary/60" />
+            <TrendingUp className="w-10 h-10 text-rose-500/60" />
           </div>
         </Card>
-        <Card className="p-5">
-          <div className="text-sm text-muted-foreground">عدد المصاريف</div>
-          <div className="text-3xl font-extrabold mt-1">{filtered.length.toLocaleString("ar-EG")}</div>
+        <Card className="p-5 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-sky-700 dark:text-sky-300 font-semibold">عدد المصاريف</div>
+              <div className="text-3xl font-extrabold mt-1 text-sky-700 dark:text-sky-200">{filtered.length.toLocaleString("ar-EG")}</div>
+            </div>
+            <Receipt className="w-10 h-10 text-sky-500/60" />
+          </div>
         </Card>
-        <Card className="p-5">
-          <div className="text-sm text-muted-foreground">عدد الشهور النشطة</div>
-          <div className="text-3xl font-extrabold mt-1">{monthlyTotals.length.toLocaleString("ar-EG")}</div>
+        <Card className="p-5 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-400/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-emerald-700 dark:text-emerald-300 font-semibold">عدد الشهور النشطة</div>
+              <div className="text-3xl font-extrabold mt-1 text-emerald-700 dark:text-emerald-200">{monthlyTotals.length.toLocaleString("ar-EG")}</div>
+            </div>
+            <CalendarDays className="w-10 h-10 text-emerald-500/60" />
+          </div>
         </Card>
       </div>
+
 
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
@@ -338,9 +375,6 @@ export default function PersonalExpenses() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={clearFilters}><X className="w-4 h-4 ml-1" />مسح الفلاتر</Button>
-            {canEdit && (
-              <Button size="sm" onClick={openAdd} className="bg-primary"><Plus className="w-4 h-4 ml-1" />إضافة مصروف</Button>
-            )}
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
@@ -406,34 +440,52 @@ export default function PersonalExpenses() {
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead className="bg-gradient-to-l from-primary/10 to-primary/5">
               <tr className="text-right">
-                <th className="p-3 font-semibold">التاريخ والوقت</th>
-                <th className="p-3 font-semibold">الوصف</th>
-                <th className="p-3 font-semibold">التصنيف</th>
-                <th className="p-3 font-semibold">المبلغ</th>
-                <th className="p-3 font-semibold">ملاحظات</th>
-                {canEdit && <th className="p-3 font-semibold text-center">إجراءات</th>}
+                <th className="p-3 font-bold">التاريخ والوقت</th>
+                <th className="p-3 font-bold">الوصف</th>
+                <th className="p-3 font-bold">التصنيف</th>
+                <th className="p-3 font-bold">المبلغ</th>
+                <th className="p-3 font-bold">ملاحظات</th>
+                <th className="p-3 font-bold text-center">مرفقات</th>
+                {canEdit && <th className="p-3 font-bold text-center">إجراءات</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">لا توجد مصاريف</td></tr>
+                <tr><td colSpan={7} className="p-10 text-center">
+                  <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
+                    <Receipt className="w-10 h-10 opacity-40" />
+                    <div>لا توجد مصاريف مطابقة</div>
+                    {canEdit && <Button size="sm" variant="outline" onClick={openAdd}><Plus className="w-4 h-4 ml-1" />أضف أول مصروف</Button>}
+                  </div>
+                </td></tr>
               ) : filtered.map(r => (
-                <tr key={r.id} className="border-t hover:bg-muted/30">
-                  <td className="p-3 whitespace-nowrap">{fmtDT(r.expense_datetime)}</td>
-                  <td className="p-3 font-medium">{r.description}</td>
+                <tr key={r.id} className="border-t hover:bg-primary/5 transition-colors">
+                  <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
+                  <td className="p-3 font-semibold">{r.description}</td>
                   <td className="p-3">
-                    {r.category ? <Badge variant="secondary" className="gap-1"><Tag className="w-3 h-3" />{r.category}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
+                    {r.category
+                      ? <Badge className="gap-1 bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-primary/30 hover:from-primary/25"><Tag className="w-3 h-3" />{r.category}</Badge>
+                      : <span className="text-muted-foreground text-xs">—</span>}
                   </td>
-                  <td className="p-3 font-bold text-primary whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                  <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                  <td className="p-3 text-center">
+                    <AttachmentsDialogButton
+                      recordType="personal_expense"
+                      recordId={r.id}
+                      canEdit={canEdit}
+                      count={attachmentCounts[r.id] || 0}
+                      label={`مرفقات — ${r.description}`}
+                    />
+                  </td>
                   {canEdit && (
                     <td className="p-3 text-center whitespace-nowrap">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDelRow(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </td>
                   )}
                 </tr>
