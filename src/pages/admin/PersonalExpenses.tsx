@@ -483,9 +483,10 @@ export default function PersonalExpenses() {
                   <td className="p-3 font-semibold">{r.description}</td>
                   <td className="p-3">
                     {r.category
-                      ? <Badge className="gap-1 bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-primary/30 hover:from-primary/25"><Tag className="w-3 h-3" />{r.category}</Badge>
+                      ? <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shadow-sm ${categoryColor(r.category)}`}><Tag className="w-3 h-3" />{r.category}</span>
                       : <span className="text-muted-foreground text-xs">—</span>}
                   </td>
+
                   <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
                   <td className="p-3 text-center">
