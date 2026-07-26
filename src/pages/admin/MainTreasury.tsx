@@ -49,19 +49,29 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
-    const { data: tr } = await supabase
-      .from("treasury")
-      .select("id,branch_id,type,category,amount,description,payment_method,created_at")
-      .in("branch_id", branchList.map(b => b.id))
-      .gte("created_at", `${from}T00:00:00`)
-      .lte("created_at", `${to}T23:59:59`)
-      .order("created_at", { ascending: false });
+    const [{ data: tr }, { data: vb }] = await Promise.all([
+      supabase
+        .from("treasury")
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at")
+        .in("branch_id", branchList.map(b => b.id))
+        .gte("created_at", `${from}T00:00:00`)
+        .lte("created_at", `${to}T23:59:59`)
+        .order("created_at", { ascending: false }),
+      // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
+      supabase
+        .from("v_treasury_balances" as any)
+        .select("branch_id,current_balance,last_transaction_date")
+        .in("branch_id", branchList.map(b => b.id)),
+    ]);
     setRows((tr ?? []) as TxRow[]);
+    const map: Record<string, ViewBal> = {};
+    for (const r of ((vb ?? []) as any[])) map[r.branch_id] = r as ViewBal;
+    setGlBalances(map);
     setLoading(false);
   }, [tenantId, from, to]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["treasury", "branches"], load);
+  useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], load);
 
   const filtered = useMemo(
     () => branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter),
