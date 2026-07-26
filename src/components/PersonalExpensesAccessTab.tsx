@@ -126,7 +126,8 @@ export function PersonalExpensesAccessTab() {
             {grants.map(g => (
               <div key={g.id} className="flex items-center gap-3 p-3">
                 <div className="flex-1">
-                  <div className="font-medium">{g.full_name || g.granted_user_id.slice(0, 8)}</div>
+                  <div className="font-medium">{g.full_name || "بدون اسم"}</div>
+                  {g.email && <div className="text-xs text-muted-foreground">{g.email}</div>}
                   <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                     <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> اطلاع</span>
                     {g.can_edit && <span className="text-primary font-semibold">+ تعديل</span>}
