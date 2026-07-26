@@ -3,8 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Eye, Trash2, Paperclip, Loader2, FileText, Image as ImageIcon, Upload } from "lucide-react";
@@ -26,7 +32,8 @@ interface Attachment {
 
 const BUCKET = "record-attachments";
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB hard cap AFTER compression
-const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xls,.xlsx,.csv";
+const ACCEPT =
+  "image/jpeg,image/png,image/webp,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xls,.xlsx,.csv";
 
 interface Props {
   recordType: RecordType;
@@ -46,7 +53,9 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
   const canCreate = canEdit && (isAdmin || can?.("attachments.create"));
   const canDelete = isAdmin || can?.("attachments.delete");
   const canDeleteRow = (a: Attachment) =>
-    canEdit && canDelete && (a.uploaded_by === user?.id || isAdmin || hasRole("branch_manager") || hasRole("accountant"));
+    canEdit &&
+    canDelete &&
+    (a.uploaded_by === user?.id || isAdmin || hasRole("branch_manager") || hasRole("accountant"));
 
   const load = async () => {
     setLoading(true);
@@ -69,10 +78,12 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "attachments", filter: `record_id=eq.${recordId}` },
-        load
+        load,
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recordType, recordId]);
 
@@ -95,8 +106,7 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
       setPhase("upload");
       const safe = working.name.replace(/[^\w.\-]/g, "_");
       const path = `${recordType}/${recordId}/${Date.now()}_${safe}`;
-      const { error: upErr } = await supabase.storage
-        .from(BUCKET).upload(path, working, { contentType: working.type });
+      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, working, { contentType: working.type });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from("attachments" as any).insert({
         record_type: recordType,
@@ -133,7 +143,10 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
     setDelTarget(null);
     try {
       await supabase.storage.from(BUCKET).remove([a.file_path]);
-      const { error } = await supabase.from("attachments" as any).delete().eq("id", a.id);
+      const { error } = await supabase
+        .from("attachments" as any)
+        .delete()
+        .eq("id", a.id);
       if (error) throw error;
       toast.success("تم حذف المرفق");
     } catch (e: any) {
@@ -145,7 +158,7 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
     <div className="space-y-2" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-bold">
-          <Paperclip className="w-4 h-4" /> المرفقات
+          <Paperclip className="w-5 h-5" /> المرفقات
           {rows.length > 0 && <span className="text-muted-foreground">({rows.length})</span>}
         </div>
         {canCreate && (
@@ -155,11 +168,17 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
               type="file"
               accept={ACCEPT}
               className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) upload(f);
+              }}
             />
             <Button
-              size="sm" variant="outline" disabled={phase !== null}
-              onClick={() => fileRef.current?.click()} className="gap-1"
+              size="sm"
+              variant="outline"
+              disabled={phase !== null}
+              onClick={() => fileRef.current?.click()}
+              className="gap-1"
             >
               {phase ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {phase === "compress" ? "جاري الضغط..." : phase === "upload" ? "جاري الرفع..." : "إضافة مرفق"}
@@ -185,19 +204,30 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
             return (
               <div key={a.id} className="flex items-center gap-2 p-2 rounded border border-border bg-surface-2 text-sm">
                 <div className="shrink-0 w-8 h-8 rounded bg-background flex items-center justify-center">
-                  {isImg ? <ImageIcon className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                  {isImg ? (
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-medium">{a.file_name}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    {a.file_size ? `${Math.round(a.file_size / 1024)} KB` : ""} · {new Date(a.uploaded_at).toLocaleString("ar-EG")}
+                    {a.file_size ? `${Math.round(a.file_size / 1024)} KB` : ""} ·{" "}
+                    {new Date(a.uploaded_at).toLocaleString("ar-EG")}
                   </div>
                 </div>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => view(a)} title="عرض">
                   <Eye className="w-4 h-4" />
                 </Button>
                 {canDeleteRow(a) && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDelTarget(a)} title="حذف">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-destructive"
+                    onClick={() => setDelTarget(a)}
+                    title="حذف"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -215,7 +245,9 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+              حذف
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
