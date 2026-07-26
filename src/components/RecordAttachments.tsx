@@ -158,7 +158,7 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
     <div className="space-y-2" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-bold">
-          <Paperclip className="w-5 h-5" /> المرفقات
+          <Paperclip className="w-8 h-8" /> المرفقات
           {rows.length > 0 && <span className="text-muted-foreground">({rows.length})</span>}
         </div>
         {canCreate && (
