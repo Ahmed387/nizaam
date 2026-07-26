@@ -112,6 +112,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
         created_at: r.created_at,
         req_ids: [],
         reqs: [],
+        expired: false,
       };
       g.items_count += 1;
       g.invoice_value += itemValue;
