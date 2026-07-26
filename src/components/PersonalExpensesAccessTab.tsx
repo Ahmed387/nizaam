@@ -34,13 +34,13 @@ export function PersonalExpensesAccessTab() {
     if (!user) return;
     setLoading(true);
     const [{ data: prof }, { data: gr }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name"),
+      supabase.from("profiles").select("id, name, username").eq("is_active", true),
       supabase.from("owner_expenses_access" as any).select("*").eq("owner_user_id", user.id),
     ]);
-    setUsers(((prof as any) || []).map((p: any) => ({ id: p.id, email: "", full_name: p.full_name })));
+    setUsers(((prof as any) || []).map((p: any) => ({ id: p.id, email: p.username || "", full_name: p.name })));
     setGrants(((gr as any) || []).map((g: any) => {
       const p = (prof as any || []).find((x: any) => x.id === g.granted_user_id);
-      return { ...g, full_name: p?.full_name };
+      return { ...g, full_name: p?.name, email: p?.username };
     }));
     setLoading(false);
   };
