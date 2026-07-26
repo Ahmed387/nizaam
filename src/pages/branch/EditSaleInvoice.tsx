@@ -598,6 +598,10 @@ export default function EditSaleInvoice() {
                 </option>
               ))}
             </select>
+            <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
+            {!isAdmin && (
+              <p className="text-[11px] text-muted-foreground">تعديل تاريخ ووقت الفاتورة متاح لصاحب الشركة فقط.</p>
+            )}
           </div>
         </CollapsibleSection>
 
