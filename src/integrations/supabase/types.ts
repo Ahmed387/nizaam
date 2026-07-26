@@ -2252,6 +2252,75 @@ export type Database = {
         }
         Relationships: []
       }
+      owner_expenses_access: {
+        Row: {
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          granted_user_id: string
+          id: string
+          owner_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          granted_user_id: string
+          id?: string
+          owner_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          granted_user_id?: string
+          id?: string
+          owner_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      owner_personal_expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          created_by: string
+          description: string
+          expense_datetime: string
+          id: string
+          notes: string | null
+          owner_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          description: string
+          expense_datetime?: string
+          id?: string
+          notes?: string | null
+          owner_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          expense_datetime?: string
+          id?: string
+          notes?: string | null
+          owner_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       partner_advance_installments: {
         Row: {
           advance_id: string
@@ -5730,6 +5799,7 @@ export type Database = {
         Returns: boolean
       }
       is_partner_owner: { Args: { _partner_id: string }; Returns: boolean }
+      is_personal_owner: { Args: never; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       map_treasury_to_category_key: {
         Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
@@ -5783,6 +5853,7 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: number
       }
+      personal_access_level: { Args: { _owner: string }; Returns: string }
       post_invoice_cogs: { Args: { p_invoice_id: string }; Returns: undefined }
       post_journal: {
         Args: {
