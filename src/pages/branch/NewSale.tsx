@@ -1624,7 +1624,7 @@ export default function NewSale() {
                           <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>منه</b> *</Label>
                           <Input
                             dir="ltr" className="text-right"
-                            placeholder="حساب العميل المُرسِل"
+                            placeholder={customerLastFromAccount || "حساب العميل المُرسِل"}
                             value={p.transfer_from_account}
                             onChange={(e) => updatePayment(idx, { transfer_from_account: e.target.value })}
                           />
@@ -1633,7 +1633,7 @@ export default function NewSale() {
                           <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>إليه</b> *</Label>
                           <Input
                             dir="ltr" className="text-right"
-                            placeholder="حسابنا اللي وصل عليه"
+                            placeholder={defaultBankAccount || "حسابنا اللي وصل عليه"}
                             value={p.transfer_to_account}
                             onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })}
                           />
