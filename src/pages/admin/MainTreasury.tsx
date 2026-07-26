@@ -123,6 +123,7 @@ export default function MainTreasury() {
 
       {/* Per-branch rollup cards */}
       <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4" /> تفصيل الفروع</h3>
+      <TooltipProvider delayDuration={200}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {perBranch.map(({ branch, cin, cout, lastAt }) => {
           const net = cin - cout;
