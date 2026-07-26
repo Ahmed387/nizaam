@@ -221,21 +221,30 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
         { key: "allowed_pct", header: "الحد المسموح %", render: (g: Group) => `${Number(g.allowed_pct).toFixed(1)}%` },
         { key: "diff", header: "الفرق", render: (g: Group) => <span className="text-warning font-bold">+{g.diff.toFixed(1)}%</span> },
         { key: "status", header: "الحالة", render: (g: Group) => {
-          if (g.status === "pending") return <span className="px-2 py-1 rounded text-xs bg-warning/10 text-warning">معلّق</span>;
+          if (g.expired && g.status === "pending") return <span className="px-2 py-1 rounded text-xs bg-destructive/15 text-destructive font-bold">منتهي الصلاحية</span>;
+          if (g.status === "pending") {
+            const hoursLeft = Math.max(0, EXPIRY_HOURS - (Date.now() - new Date(g.created_at).getTime()) / 3600_000);
+            return <span className="px-2 py-1 rounded text-xs bg-warning/10 text-warning">معلّق · باقي {hoursLeft.toFixed(1)}س</span>;
+          }
           if (g.status === "approved") return <span className="px-2 py-1 rounded text-xs bg-success/10 text-success">موافق</span>;
           if (g.status === "rejected") return <span className="px-2 py-1 rounded text-xs bg-destructive/10 text-destructive">مرفوض</span>;
           return <span className="px-2 py-1 rounded text-xs bg-muted">مختلط</span>;
         }},
-        { key: "actions", header: "إجراء", render: (g: Group) => g.status === "pending" ? (
-          <div className="flex gap-1">
-            <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ group: g, type: "approve" }); setNote(""); }}>
-              <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> موافقة
-            </Button>
-            <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => { setDecision({ group: g, type: "reject" }); setNote(""); }}>
-              <XCircle className="w-3.5 h-3.5 ml-1" /> رفض
-            </Button>
-          </div>
-        ) : <span className="text-xs text-muted-foreground">{g.reqs[0]?.admin_note ?? "—"}</span> },
+        { key: "actions", header: "إجراء", render: (g: Group) => {
+          if (g.expired && g.status === "pending") {
+            return <span className="text-xs text-destructive font-semibold">انتهت صلاحية الحجز — سيُرفض تلقائياً</span>;
+          }
+          return g.status === "pending" ? (
+            <div className="flex gap-1">
+              <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ group: g, type: "approve" }); setNote(""); }}>
+                <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> موافقة
+              </Button>
+              <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => { setDecision({ group: g, type: "reject" }); setNote(""); }}>
+                <XCircle className="w-3.5 h-3.5 ml-1" /> رفض
+              </Button>
+            </div>
+          ) : <span className="text-xs text-muted-foreground">{g.reqs[0]?.admin_note ?? "—"}</span>;
+        }},
       ]} />
 
       <Dialog open={!!decision} onOpenChange={(o) => !o && setDecision(null)}>
