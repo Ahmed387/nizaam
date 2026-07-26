@@ -70,7 +70,11 @@ export default function Contacts() {
     // الموردين بدون فرع، العملاء عادة بفرع — هنعرض كل الجهات للفرع + الجهات اللي ملهاش فرع
     q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
     const { data } = await q;
-    setRows(data ?? []);
+    const list = (data ?? []) as any[];
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge live balances from v_contact_balances
+    const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
+    const balMap = await fetchContactBalanceMap(list.map((c) => c.id));
+    setRows(mergeBalancesById(list, balMap));
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId]);
