@@ -1,0 +1,2 @@
+ALTER TABLE public.attachments DROP CONSTRAINT attachments_record_type_check;
+ALTER TABLE public.attachments ADD CONSTRAINT attachments_record_type_check CHECK (record_type = ANY (ARRAY['voucher','invoice','shipment','sale_return','purchase_return','stock_transfer','inventory_adjustment','personal_expense']));
