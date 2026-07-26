@@ -307,31 +307,64 @@ export default function PersonalExpenses() {
 
   return (
     <AdminLayout>
-      <PageHeader
-        title="المصاريف الشخصية"
-        subtitle="دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام"
-      />
+      {/* Hero header */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 p-6 bg-gradient-to-l from-primary/20 via-primary/10 to-transparent border border-primary/20">
+        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-emerald-500/20 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+              <Wallet className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold flex items-center gap-2">
+                المصاريف الشخصية
+                <Sparkles className="w-5 h-5 text-amber-500" />
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">
+                دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
+              </div>
+            </div>
+          </div>
+          {canEdit && (
+            <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-md">
+              <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Summary strip */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+        <Card className="p-5 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-muted-foreground">إجمالي (بعد الفلاتر)</div>
-              <div className="text-3xl font-extrabold mt-1">{grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-base font-semibold text-muted-foreground">ج.م</span></div>
+              <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">إجمالي (بعد الفلاتر)</div>
+              <div className="text-3xl font-extrabold mt-1 text-rose-700 dark:text-rose-200">{grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-base font-semibold opacity-70">ج.م</span></div>
             </div>
-            <TrendingUp className="w-10 h-10 text-primary/60" />
+            <TrendingUp className="w-10 h-10 text-rose-500/60" />
           </div>
         </Card>
-        <Card className="p-5">
-          <div className="text-sm text-muted-foreground">عدد المصاريف</div>
-          <div className="text-3xl font-extrabold mt-1">{filtered.length.toLocaleString("ar-EG")}</div>
+        <Card className="p-5 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-sky-700 dark:text-sky-300 font-semibold">عدد المصاريف</div>
+              <div className="text-3xl font-extrabold mt-1 text-sky-700 dark:text-sky-200">{filtered.length.toLocaleString("ar-EG")}</div>
+            </div>
+            <Receipt className="w-10 h-10 text-sky-500/60" />
+          </div>
         </Card>
-        <Card className="p-5">
-          <div className="text-sm text-muted-foreground">عدد الشهور النشطة</div>
-          <div className="text-3xl font-extrabold mt-1">{monthlyTotals.length.toLocaleString("ar-EG")}</div>
+        <Card className="p-5 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-400/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-emerald-700 dark:text-emerald-300 font-semibold">عدد الشهور النشطة</div>
+              <div className="text-3xl font-extrabold mt-1 text-emerald-700 dark:text-emerald-200">{monthlyTotals.length.toLocaleString("ar-EG")}</div>
+            </div>
+            <CalendarDays className="w-10 h-10 text-emerald-500/60" />
+          </div>
         </Card>
       </div>
+
 
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
