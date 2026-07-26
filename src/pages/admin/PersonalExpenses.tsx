@@ -178,6 +178,7 @@ export default function PersonalExpenses() {
   }, [filtered]);
 
   const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.amount), 0), [filtered]);
+  const attachmentCounts = useAttachmentCounts("personal_expense", filtered.map(r => r.id));
 
   const openAdd = () => {
     setEditing(null);
