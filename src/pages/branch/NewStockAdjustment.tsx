@@ -71,7 +71,7 @@ function ProductCombobox({
                   <div className="flex-1 min-w-0">
                     <div className="truncate font-medium">{p.name}</div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {p.barcode ? `باركود: ${p.barcode}` : p.sku ? `SKU: ${p.sku}` : ""}
+                      {p.sku ? `SKU: ${p.sku}` : ""}
                     </div>
                   </div>
                   <span className={cn(
