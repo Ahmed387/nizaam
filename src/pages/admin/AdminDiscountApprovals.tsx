@@ -47,7 +47,12 @@ interface Group {
   created_at: string;
   req_ids: string[];
   reqs: Req[];
+  expired: boolean;
 }
+
+const EXPIRY_HOURS = 24;
+const isExpired = (createdAt: string) =>
+  Date.now() - new Date(createdAt).getTime() > EXPIRY_HOURS * 3600_000;
 
 export default function AdminDiscountApprovals({ embedded }: { embedded?: boolean } = {}) {
   const Wrapper: any = embedded ? Fragment : AdminLayout;
