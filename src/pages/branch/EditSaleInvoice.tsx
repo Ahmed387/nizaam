@@ -340,6 +340,13 @@ export default function EditSaleInvoice() {
       changes.push(`🏷️ خصم الفاتورة: من ${formatEGP(snap.discountAmount || 0)} إلى ${formatEGP(invDiscount)}`);
     }
 
+    // Invoice date/time diff
+    const oldDateIso = snap.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
+    const newDateIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
+    if (oldDateIso !== newDateIso) {
+      changes.push(`🗓️ تاريخ ووقت الفاتورة: من ${formatDateTime(snap.invoiceDate)} إلى ${formatDateTime(invoiceDate)}`);
+    }
+
     // Totals diff — use unified helper so snapshot math matches live math exactly
     const oldTotals = computeInvoiceTotals(
       snap.items,
