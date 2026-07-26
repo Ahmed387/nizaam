@@ -114,6 +114,29 @@ export default function NewShipment() {
   // realtime: keep products list fresh while editing the shipment
   useRealtimeRefresh(["products"], loadProducts);
 
+  // Prefill shipping/customs from supplier's last shipment (new mode only)
+  const [lastShipping, setLastShipping] = useState<number | null>(null);
+  const [lastCustoms, setLastCustoms] = useState<number | null>(null);
+  useEffect(() => {
+    if (isEdit || !supplierId) { setLastShipping(null); setLastCustoms(null); return; }
+    supabase.from("shipments")
+      .select("shipping_cost, customs_cost")
+      .eq("contact_id", supplierId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const s = Number((data as any).shipping_cost ?? 0);
+        const c = Number((data as any).customs_cost ?? 0);
+        setLastShipping(s);
+        setLastCustoms(c);
+        setShipping((cur) => cur === 0 && s > 0 ? s : cur);
+        setCustoms((cur) => cur === 0 && c > 0 ? c : cur);
+        if (s > 0 || c > 0) setShowExtrasBreakdown(true);
+      });
+  }, [supplierId, isEdit]);
+
   useEffect(() => {
     if (profile?.name && !receivedBy) setReceivedBy(profile.name);
   }, [profile]);
@@ -534,12 +557,12 @@ export default function NewShipment() {
           {showExtrasBreakdown && (
             <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م)</Label>
-                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder="0" />
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م){lastShipping !== null && lastShipping > 0 && !isEdit ? ` — آخر مرة: ${lastShipping}` : ""}</Label>
+                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder={lastShipping ? String(lastShipping) : "0"} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م)</Label>
-                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder="0" />
+                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م){lastCustoms !== null && lastCustoms > 0 && !isEdit ? ` — آخر مرة: ${lastCustoms}` : ""}</Label>
+                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder={lastCustoms ? String(lastCustoms) : "0"} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>

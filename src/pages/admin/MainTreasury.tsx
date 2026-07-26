@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate } from "@/lib/format";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
@@ -76,13 +77,14 @@ export default function MainTreasury() {
 
   // Per-branch rollup (uses filtered range, ignores branchFilter to always show all branches)
   const perBranch = useMemo(() => {
-    const map = new Map<string, { branch: BranchRow; cin: number; cout: number }>();
-    for (const b of branches) map.set(b.id, { branch: b, cin: 0, cout: 0 });
+    const map = new Map<string, { branch: BranchRow; cin: number; cout: number; lastAt: string | null }>();
+    for (const b of branches) map.set(b.id, { branch: b, cin: 0, cout: 0, lastAt: null });
     for (const r of rows) {
       const entry = map.get(r.branch_id);
       if (!entry) continue;
       const amt = Number(r.amount);
       if (r.type === "income") entry.cin += amt; else entry.cout += amt;
+      if (!entry.lastAt || r.created_at > entry.lastAt) entry.lastAt = r.created_at;
     }
     return Array.from(map.values());
   }, [rows, branches]);
@@ -121,40 +123,49 @@ export default function MainTreasury() {
 
       {/* Per-branch rollup cards */}
       <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4" /> تفصيل الفروع</h3>
+      <TooltipProvider delayDuration={200}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {perBranch.map(({ branch, cin, cout }) => {
+        {perBranch.map(({ branch, cin, cout, lastAt }) => {
           const net = cin - cout;
           return (
-            <Link
-              key={branch.id}
-              to={`/branch/${branch.id}/treasury`}
-              className="card-elevated p-4 hover:shadow-lg transition-shadow block"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="font-bold text-base">{branch.name}</div>
-                  <div className="text-xs text-muted-foreground">{branch.code}</div>
-                </div>
-                <Wallet className="w-5 h-5 text-primary" />
-              </div>
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">وارد:</span>
-                  <b className="text-success">{formatEGP(cin)}</b>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">صادر:</span>
-                  <b className="text-destructive">{formatEGP(cout)}</b>
-                </div>
-                <div className="flex justify-between pt-1.5 border-t">
-                  <span className="font-bold">الصافي:</span>
-                  <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b>
-                </div>
-              </div>
-            </Link>
+            <Tooltip key={branch.id}>
+              <TooltipTrigger asChild>
+                <Link
+                  to={`/branch/${branch.id}/treasury`}
+                  className="card-elevated p-4 hover:shadow-lg transition-shadow block"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-bold text-base">{branch.name}</div>
+                      <div className="text-xs text-muted-foreground">{branch.code}</div>
+                    </div>
+                    <Wallet className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-1">صافي حركة الفترة</div>
+                  <div className={`text-2xl font-extrabold mb-1 ${net >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatEGP(net)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {lastAt ? `آخر تحديث: ${formatDate(lastAt)}` : "لا توجد حركات في الفترة"}
+                  </div>
+                  <div className="mt-2 pt-2 border-t flex justify-between text-xs">
+                    <span className="text-success">وارد: <b>{formatEGP(cin)}</b></span>
+                    <span className="text-destructive">صادر: <b>{formatEGP(cout)}</b></span>
+                  </div>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs space-y-1">
+                <div className="font-bold">{branch.name}</div>
+                <div>إجمالي الوارد: <b className="text-success">{formatEGP(cin)}</b></div>
+                <div>إجمالي الصادر: <b className="text-destructive">{formatEGP(cout)}</b></div>
+                <div>الصافي: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b></div>
+                <div className="text-muted-foreground pt-1 border-t">{lastAt ? `آخر حركة: ${formatDate(lastAt)}` : "لا حركات"}</div>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
+      </TooltipProvider>
 
       {/* Movements table with filter */}
       <div className="card-elevated p-4">

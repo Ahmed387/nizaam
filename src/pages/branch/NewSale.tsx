@@ -171,6 +171,7 @@ export default function NewSale() {
   }, []);
 
 
+  const [defaultBankAccount, setDefaultBankAccount] = useState<string>("");
   useEffect(() => {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("name").then(({ data }) => setProducts(data ?? []));
@@ -182,7 +183,41 @@ export default function NewSale() {
       list.forEach((p: any) => { if (p.product_name) m[p.product_name] = Number(p.display_price); });
       setPricesMap(m);
     });
+    // Load branch default bank account (settings key scoped by branch)
+    supabase.from("settings" as any).select("value").eq("key", `branch_default_bank:${branchId}`).maybeSingle()
+      .then(({ data }) => setDefaultBankAccount(String((data as any)?.value?.account ?? "")));
   }, [branchId]);
+
+  // Load last transfer-from account used by the selected customer
+  const [customerLastFromAccount, setCustomerLastFromAccount] = useState<string>("");
+  useEffect(() => {
+    if (!customerId) { setCustomerLastFromAccount(""); return; }
+    supabase.from("payment_transactions" as any)
+      .select("transfer_from_account, created_at")
+      .eq("contact_id", customerId)
+      .not("transfer_from_account", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setCustomerLastFromAccount(String((data as any)?.transfer_from_account ?? "")));
+  }, [customerId]);
+
+  // Auto-prefill transfer_to_account for non-cash methods when empty
+  useEffect(() => {
+    if (!defaultBankAccount && !customerLastFromAccount) return;
+    setPayments((curr) => {
+      let dirty = false;
+      const next = curr.map((p) => {
+        if (p.payment_method === "cash") return p;
+        const patch: Partial<PaymentSplit> = {};
+        if (!p.transfer_to_account && defaultBankAccount) patch.transfer_to_account = defaultBankAccount;
+        if (!p.transfer_from_account && customerLastFromAccount) patch.transfer_from_account = customerLastFromAccount;
+        if (Object.keys(patch).length) { dirty = true; return { ...p, ...patch }; }
+        return p;
+      });
+      return dirty ? next : curr;
+    });
+  }, [defaultBankAccount, customerLastFromAccount, payments.length]);
 
   // ===== Prefill from quote conversion =====
   useEffect(() => {
@@ -1589,7 +1624,7 @@ export default function NewSale() {
                           <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>منه</b> *</Label>
                           <Input
                             dir="ltr" className="text-right"
-                            placeholder="حساب العميل المُرسِل"
+                            placeholder={customerLastFromAccount || "حساب العميل المُرسِل"}
                             value={p.transfer_from_account}
                             onChange={(e) => updatePayment(idx, { transfer_from_account: e.target.value })}
                           />
@@ -1598,7 +1633,7 @@ export default function NewSale() {
                           <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>إليه</b> *</Label>
                           <Input
                             dir="ltr" className="text-right"
-                            placeholder="حسابنا اللي وصل عليه"
+                            placeholder={defaultBankAccount || "حسابنا اللي وصل عليه"}
                             value={p.transfer_to_account}
                             onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })}
                           />
