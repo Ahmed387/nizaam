@@ -96,7 +96,11 @@ export default function AllSuppliers() {
       supabase.from("shipments").select("contact_id, branch_id, total_cost, branches(name)"),
       supabase.from("supplier_payments").select("contact_id, branch_id, amount, branches(name)"),
     ]);
-    setSuppliers((sups ?? []) as any);
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
+    const list = (sups ?? []) as any[];
+    const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
+    const balMap = await fetchContactBalanceMap(list.map((c) => c.id));
+    setSuppliers(mergeBalancesById(list, balMap) as any);
     setBranches(brs ?? []);
 
     // تجميع الشحنات لكل (مورد + فرع)
