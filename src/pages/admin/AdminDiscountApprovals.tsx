@@ -128,6 +128,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
     }
     for (const g of map.values()) {
       g.diff = Math.max(0, g.max_pct - g.allowed_pct);
+      g.expired = isExpired(g.created_at);
     }
     return Array.from(map.values()).sort((a, b) => b.created_at.localeCompare(a.created_at));
   }, [rows, branches, allowed]);
