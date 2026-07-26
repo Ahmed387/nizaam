@@ -75,7 +75,18 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
       loadDiscountPolicy(),
     ]);
     setBranches(br ?? []);
-    setRows((data ?? []) as any);
+    const allRows = (data ?? []) as any as Req[];
+    // Auto-reject any pending request older than 24h — reservation is no longer valid.
+    const expiredIds = allRows.filter((r) => r.status === "pending" && isExpired(r.created_at)).map((r) => r.id);
+    if (expiredIds.length > 0) {
+      await supabase.from("discount_approval_requests" as any).update({
+        status: "rejected",
+        decided_at: new Date().toISOString(),
+        admin_note: "انتهت صلاحية الحجز (24 ساعة) — الطلب مرفوض تلقائياً",
+      }).in("id", expiredIds);
+      allRows.forEach((r) => { if (expiredIds.includes(r.id)) { r.status = "rejected"; (r as any).admin_note = "انتهت صلاحية الحجز (24 ساعة) — الطلب مرفوض تلقائياً"; } });
+    }
+    setRows(allRows);
     const map: Record<string, number> = {};
     if (policy?.mode === "global") {
       (br ?? []).forEach((b: any) => { map[b.id] = policy.percent; });
