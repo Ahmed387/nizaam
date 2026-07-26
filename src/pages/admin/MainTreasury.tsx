@@ -19,6 +19,7 @@ type TxRow = {
   id: string; branch_id: string; type: "income" | "expense"; category: string;
   amount: number; description: string | null; payment_method: string; created_at: string;
 };
+type ViewBal = { branch_id: string; current_balance: number; last_transaction_date: string | null };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const daysAgoStr = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
@@ -27,6 +28,7 @@ export default function MainTreasury() {
   const { tenantId } = useAuth();
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [rows, setRows] = useState<TxRow[]>([]);
+  const [glBalances, setGlBalances] = useState<Record<string, ViewBal>>({});
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(daysAgoStr(30));
   const [to, setTo] = useState(todayStr());
@@ -47,19 +49,29 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
-    const { data: tr } = await supabase
-      .from("treasury")
-      .select("id,branch_id,type,category,amount,description,payment_method,created_at")
-      .in("branch_id", branchList.map(b => b.id))
-      .gte("created_at", `${from}T00:00:00`)
-      .lte("created_at", `${to}T23:59:59`)
-      .order("created_at", { ascending: false });
+    const [{ data: tr }, { data: vb }] = await Promise.all([
+      supabase
+        .from("treasury")
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at")
+        .in("branch_id", branchList.map(b => b.id))
+        .gte("created_at", `${from}T00:00:00`)
+        .lte("created_at", `${to}T23:59:59`)
+        .order("created_at", { ascending: false }),
+      // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
+      supabase
+        .from("v_treasury_balances" as any)
+        .select("branch_id,current_balance,last_transaction_date")
+        .in("branch_id", branchList.map(b => b.id)),
+    ]);
     setRows((tr ?? []) as TxRow[]);
+    const map: Record<string, ViewBal> = {};
+    for (const r of ((vb ?? []) as any[])) map[r.branch_id] = r as ViewBal;
+    setGlBalances(map);
     setLoading(false);
   }, [tenantId, from, to]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["treasury", "branches"], load);
+  useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], load);
 
   const filtered = useMemo(
     () => branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter),
@@ -127,6 +139,8 @@ export default function MainTreasury() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {perBranch.map(({ branch, cin, cout, lastAt }) => {
           const net = cin - cout;
+          const gl = glBalances[branch.id];
+          const glBal = Number(gl?.current_balance ?? 0);
           return (
             <Tooltip key={branch.id}>
               <TooltipTrigger asChild>
@@ -141,12 +155,14 @@ export default function MainTreasury() {
                     </div>
                     <Wallet className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="text-xs text-muted-foreground mb-1">صافي حركة الفترة</div>
-                  <div className={`text-2xl font-extrabold mb-1 ${net >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatEGP(net)}
+                  <div className="text-xs text-muted-foreground mb-1">الرصيد الحالى (دفتر الأستاذ)</div>
+                  <div className={`text-2xl font-extrabold mb-1 ${glBal >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatEGP(glBal)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    {lastAt ? `آخر تحديث: ${formatDate(lastAt)}` : "لا توجد حركات في الفترة"}
+                    صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b>
+                    {" · "}
+                    {lastAt ? `آخر تحديث: ${formatDate(lastAt)}` : "لا حركات فى الفترة"}
                   </div>
                   <div className="mt-2 pt-2 border-t flex justify-between text-xs">
                     <span className="text-success">وارد: <b>{formatEGP(cin)}</b></span>
@@ -156,11 +172,13 @@ export default function MainTreasury() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs space-y-1">
                 <div className="font-bold">{branch.name}</div>
-                <div>إجمالي الوارد: <b className="text-success">{formatEGP(cin)}</b></div>
-                <div>إجمالي الصادر: <b className="text-destructive">{formatEGP(cout)}</b></div>
-                <div>الصافي: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b></div>
+                <div>الرصيد الحالى (GL): <b className={glBal >= 0 ? "text-success" : "text-destructive"}>{formatEGP(glBal)}</b></div>
+                <div>إجمالي الوارد (الفترة): <b className="text-success">{formatEGP(cin)}</b></div>
+                <div>إجمالي الصادر (الفترة): <b className="text-destructive">{formatEGP(cout)}</b></div>
+                <div>صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b></div>
                 <div className="text-muted-foreground pt-1 border-t">{lastAt ? `آخر حركة: ${formatDate(lastAt)}` : "لا حركات"}</div>
               </TooltipContent>
+
             </Tooltip>
           );
         })}
