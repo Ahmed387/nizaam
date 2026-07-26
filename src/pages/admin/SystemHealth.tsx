@@ -100,6 +100,7 @@ export default function SystemHealth() {
     const channel = supabase
       .channel("system-health-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries" }, () => load(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entry_lines" }, () => load(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => load(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "treasury" }, () => load(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "partner_transactions" }, () => load(true))
