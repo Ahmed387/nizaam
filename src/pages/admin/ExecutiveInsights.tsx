@@ -56,7 +56,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
     const fromIso = new Date(from + "T00:00:00").toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
 
-    let cQ = supabase.from("contacts").select("id, name, type, balance, branch_id").eq("tenant_id", tenantId).in("type", ["supplier", "both"]);
+    let cQ = supabase.from("contacts").select("id, name, type, branch_id").eq("tenant_id", tenantId).in("type", ["supplier", "both"]);
     let iQ = supabase.from("invoices")
       .select("id, branch_id, is_migrated, invoice_items(product_id, product_name, quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
       .eq("tenant_id", tenantId).eq("status", "active")
