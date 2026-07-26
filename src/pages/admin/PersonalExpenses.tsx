@@ -439,34 +439,52 @@ export default function PersonalExpenses() {
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead className="bg-gradient-to-l from-primary/10 to-primary/5">
               <tr className="text-right">
-                <th className="p-3 font-semibold">التاريخ والوقت</th>
-                <th className="p-3 font-semibold">الوصف</th>
-                <th className="p-3 font-semibold">التصنيف</th>
-                <th className="p-3 font-semibold">المبلغ</th>
-                <th className="p-3 font-semibold">ملاحظات</th>
-                {canEdit && <th className="p-3 font-semibold text-center">إجراءات</th>}
+                <th className="p-3 font-bold">التاريخ والوقت</th>
+                <th className="p-3 font-bold">الوصف</th>
+                <th className="p-3 font-bold">التصنيف</th>
+                <th className="p-3 font-bold">المبلغ</th>
+                <th className="p-3 font-bold">ملاحظات</th>
+                <th className="p-3 font-bold text-center">مرفقات</th>
+                {canEdit && <th className="p-3 font-bold text-center">إجراءات</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">لا توجد مصاريف</td></tr>
+                <tr><td colSpan={7} className="p-10 text-center">
+                  <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
+                    <Receipt className="w-10 h-10 opacity-40" />
+                    <div>لا توجد مصاريف مطابقة</div>
+                    {canEdit && <Button size="sm" variant="outline" onClick={openAdd}><Plus className="w-4 h-4 ml-1" />أضف أول مصروف</Button>}
+                  </div>
+                </td></tr>
               ) : filtered.map(r => (
-                <tr key={r.id} className="border-t hover:bg-muted/30">
-                  <td className="p-3 whitespace-nowrap">{fmtDT(r.expense_datetime)}</td>
-                  <td className="p-3 font-medium">{r.description}</td>
+                <tr key={r.id} className="border-t hover:bg-primary/5 transition-colors">
+                  <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
+                  <td className="p-3 font-semibold">{r.description}</td>
                   <td className="p-3">
-                    {r.category ? <Badge variant="secondary" className="gap-1"><Tag className="w-3 h-3" />{r.category}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
+                    {r.category
+                      ? <Badge className="gap-1 bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-primary/30 hover:from-primary/25"><Tag className="w-3 h-3" />{r.category}</Badge>
+                      : <span className="text-muted-foreground text-xs">—</span>}
                   </td>
-                  <td className="p-3 font-bold text-primary whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                  <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                  <td className="p-3 text-center">
+                    <AttachmentsDialogButton
+                      recordType="personal_expense"
+                      recordId={r.id}
+                      canEdit={canEdit}
+                      count={attachmentCounts[r.id] || 0}
+                      label={`مرفقات — ${r.description}`}
+                    />
+                  </td>
                   {canEdit && (
                     <td className="p-3 text-center whitespace-nowrap">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDelRow(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </td>
                   )}
                 </tr>
