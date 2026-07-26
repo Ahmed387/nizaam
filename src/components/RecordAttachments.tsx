@@ -202,7 +202,7 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
           {rows.map((a) => {
             const isImg = (a.file_type ?? "").startsWith("image/");
             return (
-              <div key={a.id} className="flex items-center gap-2 p-2 rounded border border-border bg-surface-2 text-sm">
+              <div key={a.id} className="flex items-center gap-2 p-2 rounded border border-border bg-surface-2 text-sm overflow-hidden">
                 <div className="shrink-0 w-8 h-8 rounded bg-background flex items-center justify-center">
                   {isImg ? (
                     <ImageIcon className="w-4 h-4 text-primary" />
@@ -210,9 +210,9 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
                     <FileText className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate font-medium">{a.file_name}</div>
-                  <div className="text-[10px] text-muted-foreground">
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="truncate font-medium text-xs" title={a.file_name}>{a.file_name}</div>
+                  <div className="text-[10px] text-muted-foreground truncate">
                     {a.file_size ? `${Math.round(a.file_size / 1024)} KB` : ""} ·{" "}
                     {new Date(a.uploaded_at).toLocaleString("ar-EG")}
                   </div>
