@@ -82,7 +82,11 @@ export default function ExecutiveInsights({ embedded }: Props) {
     }
 
     const [c, i, p, e, po] = await Promise.all([cQ, iQ, pQ, eQ, poQ]);
-    setContacts(c.data ?? []);
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
+    const cList = (c.data ?? []) as any[];
+    const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
+    const cBalMap = await fetchContactBalanceMap(cList.map((x) => x.id));
+    setContacts(mergeBalancesById(cList, cBalMap));
     setInvoices(i.data ?? []);
     setAllProducts(p.data ?? []);
     setExpenses((e.data ?? []).filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key)));

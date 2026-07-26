@@ -49,13 +49,19 @@ export default function InvoiceView() {
       try {
         const { data: i, error: e1 } = await supabase
           .from("invoices")
-          .select("*, contacts:contact_id(name, phone, address, balance)")
+          .select("*, contacts:contact_id(name, phone, address)")
           .eq("id", invoiceId)
           .maybeSingle();
         if (e1) throw e1;
         if (!i) {
           setError("الفاتورة غير موجودة");
           return;
+        }
+        // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge live ledger balance
+        if ((i as any).contact_id) {
+          const { fetchContactBalance } = await import("@/lib/contactBalances");
+          const bal = await fetchContactBalance((i as any).contact_id);
+          if ((i as any).contacts) (i as any).contacts.balance = bal;
         }
         setInv(i);
         if (i.cashier_id) {
@@ -91,8 +97,16 @@ export default function InvoiceView() {
     if (!invoiceId) return;
     if (reloadKey === 0) return;
     (async () => {
-      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address, balance)").eq("id", invoiceId).maybeSingle();
-      if (i) setInv(i);
+      const { data: i } = await supabase.from("invoices").select("*, contacts:contact_id(name, phone, address)").eq("id", invoiceId).maybeSingle();
+      if (i) {
+        // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+        if ((i as any).contact_id) {
+          const { fetchContactBalance } = await import("@/lib/contactBalances");
+          const bal = await fetchContactBalance((i as any).contact_id);
+          if ((i as any).contacts) (i as any).contacts.balance = bal;
+        }
+        setInv(i);
+      }
       const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
       setPayments(pays ?? []);
       const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();

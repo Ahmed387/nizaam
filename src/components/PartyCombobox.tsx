@@ -48,9 +48,10 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
     (async () => {
       try {
         if (type === "supplier" || type === "customer") {
-          // مصدر موحّد لكلا الجهتين: contacts.balance
-          const { data } = await supabase.from("contacts").select("balance").eq("id", value).maybeSingle();
-          const amt = Number((data as any)?.balance ?? 0);
+          // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+          // مصدر موحّد لكلا الجهتين: v_contact_balances (يقرأ من GL مباشرة)
+          const { data } = await supabase.from("v_contact_balances" as any).select("total_balance").eq("contact_id", value).maybeSingle();
+          const amt = Number((data as any)?.total_balance ?? 0);
           setBal(balanceLabel(amt));
         } else {
           const { data } = await supabase.from("advances" as any).select("remaining_amount").eq("employee_id", value).in("status", ["approved", "active"]);

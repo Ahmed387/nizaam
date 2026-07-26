@@ -69,7 +69,8 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
         fetchProfitWindow({ tenantId, range: rangeForDates(todayStr, todayStr) }),
         fetchProfitWindow({ tenantId, range: rangeForDates(monthStart, todayStr) }),
         supabase.from("treasury" as any).select("type, amount").eq("status", "active"),
-        supabase.from("contacts").select("type, balance"),
+        // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+        supabase.from("v_contact_balances" as any).select("type, total_balance"),
         supabase
           .from("payment_installments")
           .select("amount, paid_amount, payment_plans!inner(entity_type)")
@@ -115,7 +116,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
     const contacts = (contactsRes.data ?? []) as any[];
     let supDebt = 0, supCredit = 0, custRec = 0;
     for (const c of contacts) {
-      const bal = Number(c.balance || 0);
+      const bal = Number(c.total_balance ?? c.balance ?? 0);
       if (c.type === "supplier" || c.type === "both") {
         if (bal > 0) supDebt += bal; else supCredit += Math.abs(bal);
       }

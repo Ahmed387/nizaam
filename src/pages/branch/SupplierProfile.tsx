@@ -107,7 +107,10 @@ export default function SupplierProfile() {
         .eq("direction", "in")
         .order("created_at", { ascending: false }),
     ]);
-    setSupplier(s);
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — override with live ledger balance
+    const { fetchContactBalance } = await import("@/lib/contactBalances");
+    const liveBal = await fetchContactBalance(supplierId!);
+    setSupplier(s ? { ...s, balance: liveBal } : s);
     setShipments(ships ?? []);
     setInvoices(invs ?? []);
     setCustPayments(custPays ?? []);

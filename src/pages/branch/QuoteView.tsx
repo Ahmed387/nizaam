@@ -38,11 +38,17 @@ export default function QuoteView() {
       try {
         const { data: q, error: e1 } = await supabase
           .from("quotes" as any)
-          .select("*, contacts:contact_id(name, phone, address, balance)")
+          .select("*, contacts:contact_id(name, phone, address)")
           .eq("id", quoteId!)
           .maybeSingle();
         if (e1) throw e1;
         if (!q) { setError("عرض السعر غير موجود"); return; }
+        // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+        if ((q as any).contact_id) {
+          const { fetchContactBalance } = await import("@/lib/contactBalances");
+          const bal = await fetchContactBalance((q as any).contact_id);
+          if ((q as any).contacts) (q as any).contacts.balance = bal;
+        }
         setQuote(q);
         const { data: its } = await supabase.from("quote_items" as any).select("*").eq("quote_id", quoteId!);
         setItems(its ?? []);
