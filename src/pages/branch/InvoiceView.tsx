@@ -124,12 +124,38 @@ export default function InvoiceView() {
     <BranchLayout>
       <PageHeader title={`فاتورة ${inv.invoice_number}`}
         actions={
-          <div className="flex gap-2 no-print flex-wrap">
-            {canCancel && <Button variant="outline" onClick={() => setCancelOpen(true)}><X className="w-4 h-4 ml-1" /> إلغاء الفاتورة</Button>}
+          <div className="flex gap-2 no-print flex-wrap items-center">
             {canEdit && <Button variant="outline" onClick={() => nav(`/branch/${id}/sales/${invoiceId}/edit`)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
-            {canDelete && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف نهائي للفاتورة</Button>}
-            <Button variant="outline" onClick={printThermalInvoice}><FileDown className="w-4 h-4 ml-1" /> تحميل PDF للفاتورة</Button>
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
+            {canCancel && (
+              <Button
+                variant="outline"
+                onClick={() => setCancelOpen(true)}
+                className="border-warning text-warning hover:bg-warning/10"
+              >
+                <X className="w-4 h-4 ml-1" /> إلغاء الفاتورة
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={printThermalInvoice} title="تحميل PDF"><FileDown className="w-4 h-4" /></Button>
+            {canDelete && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" title="خيارات إضافية"><MoreVertical className="w-4 h-4" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 gap-2"
+                    onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
+                  >
+                    <Trash2 className="w-4 h-4" /> حذف نهائي للفاتورة
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
+                    الحذف بيرجّع البضاعة ويشيل الفلوس
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         }
       />
