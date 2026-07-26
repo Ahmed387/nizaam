@@ -59,6 +59,25 @@ function monthLabel(key: string) {
   return d.toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
 }
 
+const CATEGORY_PALETTES = [
+  "bg-rose-500 text-white border-rose-600",
+  "bg-amber-500 text-white border-amber-600",
+  "bg-emerald-500 text-white border-emerald-600",
+  "bg-sky-500 text-white border-sky-600",
+  "bg-violet-500 text-white border-violet-600",
+  "bg-teal-500 text-white border-teal-600",
+  "bg-fuchsia-500 text-white border-fuchsia-600",
+  "bg-orange-500 text-white border-orange-600",
+  "bg-indigo-500 text-white border-indigo-600",
+  "bg-lime-600 text-white border-lime-700",
+];
+function categoryColor(cat: string) {
+  let h = 0;
+  for (let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
+  return CATEGORY_PALETTES[h % CATEGORY_PALETTES.length];
+}
+
+
 export default function PersonalExpenses() {
   const { user } = useAuth();
   const [ownerId, setOwnerId] = useState<string | null>(null);
@@ -335,36 +354,31 @@ export default function PersonalExpenses() {
         </div>
       </div>
 
-      {/* Summary strip */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">إجمالي (بعد الفلاتر)</div>
-              <div className="text-3xl font-extrabold mt-1 text-rose-700 dark:text-rose-200">{grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-base font-semibold opacity-70">ج.م</span></div>
+      {/* Grand total (respects active filters) */}
+      <div className="mb-6">
+        <Card className="p-6 bg-gradient-to-l from-rose-500/20 via-rose-500/10 to-transparent border-rose-400/40 animate-fade-in">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg">
+                <TrendingUp className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">
+                  الإجمالي {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? "(بعد الفلاتر)" : ""}
+                </div>
+                <div className="text-4xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
+                  {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
+                  <span className="text-lg font-semibold opacity-70 mr-1">ج.م</span>
+                </div>
+              </div>
             </div>
-            <TrendingUp className="w-10 h-10 text-rose-500/60" />
-          </div>
-        </Card>
-        <Card className="p-5 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-sky-700 dark:text-sky-300 font-semibold">عدد المصاريف</div>
-              <div className="text-3xl font-extrabold mt-1 text-sky-700 dark:text-sky-200">{filtered.length.toLocaleString("ar-EG")}</div>
+            <div className="text-xs text-muted-foreground">
+              {filtered.length.toLocaleString("ar-EG")} مصروف · {monthlyTotals.length} شهر
             </div>
-            <Receipt className="w-10 h-10 text-sky-500/60" />
-          </div>
-        </Card>
-        <Card className="p-5 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-400/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-emerald-700 dark:text-emerald-300 font-semibold">عدد الشهور النشطة</div>
-              <div className="text-3xl font-extrabold mt-1 text-emerald-700 dark:text-emerald-200">{monthlyTotals.length.toLocaleString("ar-EG")}</div>
-            </div>
-            <CalendarDays className="w-10 h-10 text-emerald-500/60" />
           </div>
         </Card>
       </div>
+
 
 
       {/* Actions + Filters */}
@@ -469,9 +483,10 @@ export default function PersonalExpenses() {
                   <td className="p-3 font-semibold">{r.description}</td>
                   <td className="p-3">
                     {r.category
-                      ? <Badge className="gap-1 bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-primary/30 hover:from-primary/25"><Tag className="w-3 h-3" />{r.category}</Badge>
+                      ? <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shadow-sm ${categoryColor(r.category)}`}><Tag className="w-3 h-3" />{r.category}</span>
                       : <span className="text-muted-foreground text-xs">—</span>}
                   </td>
+
                   <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
                   <td className="p-3 text-center">
@@ -498,58 +513,127 @@ export default function PersonalExpenses() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مصروف" : "إضافة مصروف جديد"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
+        <DialogContent className="max-w-xl p-0 overflow-hidden gap-0" dir="rtl">
+          {/* Colorful header */}
+          <div className="relative p-5 bg-gradient-to-l from-primary/25 via-primary/10 to-emerald-500/15 border-b">
+            <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full bg-primary/20 blur-2xl" />
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-emerald-500/20 blur-2xl" />
+            <DialogHeader className="relative">
+              <DialogTitle className="flex items-center gap-3 text-xl">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md ${editing ? "bg-gradient-to-br from-sky-500 to-sky-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
+                  {editing ? <Pencil className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
+                </div>
+                <div>
+                  <div>{editing ? "تعديل مصروف" : "إضافة مصروف جديد"}</div>
+                  <div className="text-xs font-normal text-muted-foreground mt-0.5">مصاريف شخصية — منفصلة عن حسابات النظام</div>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+
+          <div className="p-5 space-y-4 animate-fade-in">
+            {/* Amount + Date */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>المبلغ (ج.م) *</Label>
-                <Input type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+              <div className="rounded-xl p-3 bg-rose-500/5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
+                <Label className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1">
+                  <Wallet className="w-3.5 h-3.5" /> المبلغ (ج.م) *
+                </Label>
+                <Input
+                  type="number" step="0.01" inputMode="decimal"
+                  value={form.amount}
+                  onChange={e => setForm({ ...form, amount: e.target.value })}
+                  className="mt-1.5 h-11 text-lg font-bold border-rose-300/50 focus-visible:ring-rose-400 bg-background"
+                  placeholder="0.00"
+                />
               </div>
-              <div>
-                <Label>التاريخ والوقت *</Label>
-                <Input type="datetime-local" value={form.expense_datetime} onChange={e => setForm({ ...form, expense_datetime: e.target.value })} />
+              <div className="rounded-xl p-3 bg-sky-500/5 border border-sky-400/30 hover:border-sky-400/60 transition-colors">
+                <Label className="text-xs font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1">
+                  <CalendarDays className="w-3.5 h-3.5" /> التاريخ والوقت *
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={form.expense_datetime}
+                  onChange={e => setForm({ ...form, expense_datetime: e.target.value })}
+                  className="mt-1.5 h-11 border-sky-300/50 focus-visible:ring-sky-400 bg-background"
+                />
               </div>
             </div>
-            <div>
-              <Label>الوصف *</Label>
-              <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="مثال: عشاء عائلة" />
+
+            {/* Description */}
+            <div className="rounded-xl p-3 bg-primary/5 border border-primary/25 hover:border-primary/50 transition-colors">
+              <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                <Receipt className="w-3.5 h-3.5" /> الوصف *
+              </Label>
+              <Input
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="مثال: عشاء عائلة"
+                className="mt-1.5 h-11 border-primary/30 focus-visible:ring-primary bg-background"
+              />
             </div>
-            <div>
-              <Label>التصنيف</Label>
+
+            {/* Category */}
+            <div className="rounded-xl p-3 bg-violet-500/5 border border-violet-400/30 hover:border-violet-400/60 transition-colors">
+              <Label className="text-xs font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5" /> التصنيف
+              </Label>
               <Input
                 list="ope-categories"
                 value={form.category}
                 onChange={e => setForm({ ...form, category: e.target.value })}
                 placeholder="اكتب تصنيف جديد أو اختر من السابق"
+                className="mt-1.5 h-11 border-violet-300/50 focus-visible:ring-violet-400 bg-background"
               />
               <datalist id="ope-categories">
                 {allCategories.map(c => <option key={c} value={c} />)}
               </datalist>
               {allCategories.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {allCategories.slice(0, 12).map(c => (
-                    <button key={c} type="button" onClick={() => setForm({ ...form, category: c })}
-                      className="text-xs px-2 py-1 rounded-full bg-muted hover:bg-primary/10 border">
-                      {c}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {allCategories.slice(0, 12).map(c => {
+                    const active = form.category === c;
+                    return (
+                      <button
+                        key={c} type="button"
+                        onClick={() => setForm({ ...form, category: c })}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-bold transition-all hover-scale ${
+                          active ? categoryColor(c) + " shadow" : "bg-background hover:bg-muted border-border text-foreground"
+                        }`}
+                      >
+                        <Tag className="w-3 h-3 inline ml-1" />{c}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-            <div>
-              <Label>ملاحظات</Label>
-              <Textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+
+            {/* Notes */}
+            <div className="rounded-xl p-3 bg-amber-500/5 border border-amber-400/30 hover:border-amber-400/60 transition-colors">
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">ملاحظات</Label>
+              <Textarea
+                rows={2}
+                value={form.notes}
+                onChange={e => setForm({ ...form, notes: e.target.value })}
+                className="mt-1.5 border-amber-300/50 focus-visible:ring-amber-400 bg-background resize-none"
+                placeholder="أي تفاصيل إضافية..."
+              />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
-            <Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
+
+          <DialogFooter className="p-4 bg-muted/30 border-t gap-2">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-w-[100px]">
+              <X className="w-4 h-4 ml-1" /> إلغاء
+            </Button>
+            <Button
+              onClick={save} disabled={saving}
+              className={`min-w-[140px] shadow-md ${editing ? "bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700" : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"} text-white`}
+            >
+              {saving ? "جاري الحفظ..." : (editing ? <><Pencil className="w-4 h-4 ml-1" />حفظ التعديل</> : <><Plus className="w-4 h-4 ml-1" />إضافة</>)}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Delete confirm */}
       <AlertDialog open={!!delRow} onOpenChange={o => !o && setDelRow(null)}>
