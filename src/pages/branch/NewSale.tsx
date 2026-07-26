@@ -910,21 +910,27 @@ export default function NewSale() {
       }
 
       // Apply settlement against what we owe this contact (مقاصة)
-      // ملاحظة: payment_method='settlement' بيتحسب تلقائياً في recalc_contact_balance
-      // عبر trigger trg_balance_invoice_payments — ومش بنكتب في payment_transactions
-      // عشان CHECK constraint بيمنع طرق دفع غير cash/bank/instapay/vodafone.
+      // بيتوجّه من خلال record_contact_payment عشان يظهر في تقرير المعاملات (payment_transactions)
+      // ومش بيحرّك الخزنة — الـ RPC بيتخطى treasury لما payment_method='settlement'
       if (effectiveSettlement > 0 && custId) {
         try {
-          const { error: ipErr } = await supabase.from("invoice_payments").insert({
-            invoice_id: invId as string,
-            tenant_id: (profile as any)?.tenant_id ?? null,
-            branch_id: branchId!,
-            payment_method: "settlement",
-            amount: effectiveSettlement,
-            received_by_name: profile?.name ?? "مقاصة",
-          } as any);
-          if (ipErr) throw ipErr;
-          try { await supabase.rpc("recalc_contact_balance" as any, { _contact_id: custId }); } catch {}
+          const { error: rpcErr } = await supabase.rpc("record_contact_payment" as any, {
+            p_contact_id: custId,
+            p_branch_id: branchId!,
+            p_direction: "in",
+            p_amount: effectiveSettlement,
+            p_payment_method: "settlement",
+            p_reference_number: null,
+            p_transfer_to_account: null,
+            p_received_by_name: profile?.name ?? "مقاصة",
+            p_fee_amount: 0,
+            p_fee_type: null,
+            p_fee_on_customer: false,
+            p_notes: "مقاصة على فاتورة " + (invId as string),
+            p_transfer_from_account: null,
+            p_invoice_id: invId as string,
+          });
+          if (rpcErr) throw rpcErr;
         } catch (e: any) {
           toast.error("الفاتورة اتسجلت لكن المقاصة فشلت: " + e.message);
         }

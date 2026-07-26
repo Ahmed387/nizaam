@@ -236,11 +236,19 @@ export function InvoicePaymentsPanel({
                           <span className="text-[10px] font-bold bg-warning/20 text-warning px-2 py-0.5 rounded-full">قيد عكسي</span>
                         ) : isVoided ? (
                           <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">ملغية</span>
+                        ) : p.payment_method === "settlement" ? (
+                          <span className="text-[10px] font-bold bg-primary/15 text-primary px-2 py-0.5 rounded-full">مقاصة</span>
+                        ) : p.payment_method === "credit_balance" ? (
+                          <span className="text-[10px] font-bold bg-info/15 text-info px-2 py-0.5 rounded-full">رصيد سابق</span>
                         ) : (
                           <span className="text-[10px] font-bold bg-success/20 text-success px-2 py-0.5 rounded-full">دفعة أولية</span>
                         )}
                       </td>
-                      <td className="p-2 font-semibold">{p.payment_method}</td>
+                      <td className="p-2 font-semibold">
+                        {p.payment_method === "settlement" ? "مقاصة"
+                          : p.payment_method === "credit_balance" ? "رصيد سابق"
+                          : p.payment_method}
+                      </td>
                       <td className={`p-2 text-center font-bold tabular-nums ${isReversal ? "text-warning" : "text-success"}`} dir="ltr">
                         {isReversal ? "- " : ""}{formatEGP(Number(p.amount || 0))}
                       </td>

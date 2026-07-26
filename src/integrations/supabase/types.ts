@@ -2860,6 +2860,7 @@ export type Database = {
           fee_type: string | null
           id: string
           installment_id: string | null
+          invoice_id: string | null
           payment_method: string
           payment_plan_id: string | null
           received_by_name: string | null
@@ -2887,6 +2888,7 @@ export type Database = {
           fee_type?: string | null
           id?: string
           installment_id?: string | null
+          invoice_id?: string | null
           payment_method: string
           payment_plan_id?: string | null
           received_by_name?: string | null
@@ -2914,6 +2916,7 @@ export type Database = {
           fee_type?: string | null
           id?: string
           installment_id?: string | null
+          invoice_id?: string | null
           payment_method?: string
           payment_plan_id?: string | null
           received_by_name?: string | null
@@ -2942,6 +2945,13 @@ export type Database = {
             columns: ["installment_id"]
             isOneToOne: false
             referencedRelation: "payment_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
           {
@@ -5920,24 +5930,44 @@ export type Database = {
         Args: { _contact_id: string }
         Returns: undefined
       }
-      record_contact_payment: {
-        Args: {
-          p_amount: number
-          p_branch_id: string
-          p_contact_id: string
-          p_direction: string
-          p_fee_amount: number
-          p_fee_on_customer: boolean
-          p_fee_type: string
-          p_notes?: string
-          p_payment_method: string
-          p_received_by_name: string
-          p_reference_number: string
-          p_transfer_from_account?: string
-          p_transfer_to_account: string
-        }
-        Returns: string
-      }
+      record_contact_payment:
+        | {
+            Args: {
+              p_amount: number
+              p_branch_id: string
+              p_contact_id: string
+              p_direction: string
+              p_fee_amount: number
+              p_fee_on_customer: boolean
+              p_fee_type: string
+              p_notes?: string
+              p_payment_method: string
+              p_received_by_name: string
+              p_reference_number: string
+              p_transfer_from_account?: string
+              p_transfer_to_account: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_branch_id: string
+              p_contact_id: string
+              p_direction: string
+              p_fee_amount: number
+              p_fee_on_customer: boolean
+              p_fee_type: string
+              p_invoice_id?: string
+              p_notes?: string
+              p_payment_method: string
+              p_received_by_name: string
+              p_reference_number: string
+              p_transfer_from_account?: string
+              p_transfer_to_account: string
+            }
+            Returns: string
+          }
       record_partner_advance_payment: {
         Args: {
           _advance_id: string
@@ -6127,6 +6157,10 @@ export type Database = {
           _selling_price?: number
         }
         Returns: undefined
+      }
+      upsert_inventory_counts: {
+        Args: { _items: Json; _session_id: string }
+        Returns: number
       }
       user_in_branch: {
         Args: { _branch_id: string; _user_id: string }
