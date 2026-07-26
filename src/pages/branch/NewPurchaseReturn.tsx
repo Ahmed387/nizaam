@@ -86,11 +86,16 @@ export default function NewPurchaseReturn() {
     if (!branchId) return;
     const { data } = await supabase
       .from("shipments")
-      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone, balance)")
+      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone)")
       .eq("branch_id", branchId)
       .order("arrival_date", { ascending: false })
       .limit(300);
-    setShipments(data ?? []);
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+    const list = (data ?? []) as any[];
+    const { fetchContactBalanceMap } = await import("@/lib/contactBalances");
+    const balMap = await fetchContactBalanceMap(list.map((r) => r.contact_id));
+    list.forEach((r) => { if (r.contacts && r.contact_id) r.contacts.balance = balMap[r.contact_id] ?? 0; });
+    setShipments(list);
   }, [branchId]);
 
   useEffect(() => {
