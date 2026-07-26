@@ -114,6 +114,29 @@ export default function NewShipment() {
   // realtime: keep products list fresh while editing the shipment
   useRealtimeRefresh(["products"], loadProducts);
 
+  // Prefill shipping/customs from supplier's last shipment (new mode only)
+  const [lastShipping, setLastShipping] = useState<number | null>(null);
+  const [lastCustoms, setLastCustoms] = useState<number | null>(null);
+  useEffect(() => {
+    if (isEdit || !supplierId) { setLastShipping(null); setLastCustoms(null); return; }
+    supabase.from("shipments")
+      .select("shipping_cost, customs_cost")
+      .eq("contact_id", supplierId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const s = Number((data as any).shipping_cost ?? 0);
+        const c = Number((data as any).customs_cost ?? 0);
+        setLastShipping(s);
+        setLastCustoms(c);
+        setShipping((cur) => cur === 0 && s > 0 ? s : cur);
+        setCustoms((cur) => cur === 0 && c > 0 ? c : cur);
+        if (s > 0 || c > 0) setShowExtrasBreakdown(true);
+      });
+  }, [supplierId, isEdit]);
+
   useEffect(() => {
     if (profile?.name && !receivedBy) setReceivedBy(profile.name);
   }, [profile]);
