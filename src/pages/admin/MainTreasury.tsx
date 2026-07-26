@@ -165,6 +165,7 @@ export default function MainTreasury() {
           );
         })}
       </div>
+      </TooltipProvider>
 
       {/* Movements table with filter */}
       <div className="card-elevated p-4">
