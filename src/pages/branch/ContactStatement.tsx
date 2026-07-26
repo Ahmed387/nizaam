@@ -39,7 +39,10 @@ export default function ContactStatement() {
   const load = async () => {
     setLoading(true);
     const { data: c } = await supabase.from("contacts").select("*").eq("id", contactId).maybeSingle();
-    setContact(c);
+    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — override with canonical view balance
+    const { fetchContactBalance } = await import("@/lib/contactBalances");
+    const liveBal = await fetchContactBalance(contactId);
+    setContact(c ? { ...c, balance: liveBal } : c);
 
     const list: Row[] = [];
     const cType = c?.type as string;
