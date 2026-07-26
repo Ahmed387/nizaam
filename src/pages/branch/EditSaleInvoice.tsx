@@ -115,6 +115,7 @@ export default function EditSaleInvoice() {
       setPaymentPlan(plan ?? null);
       setVatRate(Number(inv?.vat_rate ?? 0));
       setDiscountAmount(Number(inv?.discount_amount ?? 0));
+      setInvoiceDate(inv?.invoice_date ?? inv?.created_at ?? "");
 
       let loadedTx: any[] = [];
       let loadedIns: any[] = [];
