@@ -498,20 +498,72 @@ export default function InvoiceView() {
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="text-destructive">حذف الفاتورة نهائياً</DialogTitle></DialogHeader>
-          <div className="space-y-2 text-sm">
-            <p className="font-semibold">هتمسح الفاتورة <span className="font-mono text-primary">{inv.invoice_number}</span> نهائياً من النظام.</p>
-            <ul className="list-disc pr-5 space-y-1 text-muted-foreground">
-              <li>كل البضاعة هترجع للمخزن تلقائياً</li>
-              <li>أي فلوس اتقبضت هتتشال من الخزنة</li>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> حذف الفاتورة نهائياً
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border-2 border-destructive/40 bg-destructive/5 p-3 space-y-2">
+              <p className="font-bold text-destructive">
+                ⚠️ سيتم إرجاع البضاعة للمخزن وخصم المبلغ من الخزنة
+              </p>
+              <p>
+                هتمسح الفاتورة{" "}
+                <span className="font-mono text-primary font-bold">{inv.invoice_number}</span>{" "}
+                نهائياً من النظام.
+              </p>
+            </div>
+
+            {(() => {
+              const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+              const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
+              const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
+              const itemsCount = items.reduce((s, it) => s + Number(it.quantity ?? 0), 0);
+              return (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg border border-border bg-surface-2 p-2.5">
+                    <div className="text-muted-foreground mb-1">📦 هيرجع للمخزن</div>
+                    <div className="font-extrabold text-base">{itemsCount} قطعة</div>
+                    <div className="text-muted-foreground">({items.length} صنف)</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface-2 p-2.5">
+                    <div className="text-muted-foreground mb-1">💰 هيتشال من الخزنة</div>
+                    <div className="font-extrabold text-base text-destructive tabular-nums" dir="ltr">
+                      {formatEGP(paidNow)}
+                    </div>
+                    <div className="text-muted-foreground">من إجمالي {formatEGP(Number(inv.total ?? 0))}</div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <ul className="list-disc pr-5 space-y-1 text-muted-foreground text-xs">
               <li>الأقساط والمدفوعات المرتبطة بالفاتورة هتتمسح</li>
               <li><b className="text-destructive">العملية دي مش بترجع — استخدمها بحذر</b></li>
             </ul>
+
+            <div className="pt-1">
+              <label className="text-xs font-semibold block mb-1.5">
+                للتأكيد، اكتب <span className="font-mono bg-muted px-1.5 py-0.5 rounded">أؤكد</span> في الخانة:
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="أؤكد"
+                className="text-center font-bold"
+                autoFocus
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>تراجع</Button>
-            <Button variant="destructive" onClick={hardDelete} disabled={deleting}>
-              {deleting ? "جاري الحذف..." : "أوافق — احذف نهائياً"}
+            <Button
+              variant="destructive"
+              onClick={hardDelete}
+              disabled={deleting || deleteConfirmText.trim() !== "أؤكد"}
+            >
+              {deleting ? "جاري الحذف..." : "احذف نهائياً"}
             </Button>
           </DialogFooter>
         </DialogContent>
