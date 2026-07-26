@@ -77,7 +77,7 @@ export default function SupplierProfile() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: s }, { data: ships }, { data: oldPays }, { data: newPays }, { data: invs }, { data: custPays }] = await Promise.all([
+    const [{ data: s }, { data: ships }, { data: ledger }, { data: invs }] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", supplierId!).maybeSingle(),
       supabase
         .from("shipments")
@@ -85,26 +85,14 @@ export default function SupplierProfile() {
         .eq("contact_id", supplierId!)
         .order("arrival_date", { ascending: false }),
       supabase
-        .from("supplier_payments" as any)
-        .select("*, branches(name), profiles:paid_by(name)")
-        .eq("contact_id", supplierId!)
-        .order("paid_at", { ascending: false }),
-      supabase
-        .from("payment_transactions")
+        .from("v_supplier_ledger" as any)
         .select("*")
         .eq("contact_id", supplierId!)
-        .eq("direction", "out")
-        .order("created_at", { ascending: false }),
+        .order("paid_at", { ascending: false }),
       supabase
         .from("invoices")
         .select("*, branches(name)")
         .eq("contact_id", supplierId!)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("payment_transactions")
-        .select("*")
-        .eq("contact_id", supplierId!)
-        .eq("direction", "in")
         .order("created_at", { ascending: false }),
     ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — override with live ledger balance
@@ -113,23 +101,22 @@ export default function SupplierProfile() {
     setSupplier(s ? { ...s, balance: liveBal } : s);
     setShipments(ships ?? []);
     setInvoices(invs ?? []);
-    setCustPayments(custPays ?? []);
-    // ندمج الجديد مع القديم وننسق الحقول
-    const merged = [
-      ...((newPays as any[]) ?? []).map((p) => ({
-        id: p.id,
-        paid_at: p.created_at,
-        amount: Number(p.amount),
-        branches: p.branches,
-        profiles: { name: p.received_by_name },
-        notes: `${p.payment_method}${p.reference_number ? " #" + p.reference_number : ""}`,
-        _new: true,
-      })),
-      ...((oldPays as any[]) ?? []),
-    ].sort((a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime());
-    setPayments(merged);
+    // Split unified ledger by direction (server-side view handles merging)
+    const rows = ((ledger as any[]) ?? []).map((r) => ({
+      id: r.id,
+      paid_at: r.paid_at,
+      amount: Number(r.amount),
+      branches: r.branch_name ? { name: r.branch_name } : null,
+      profiles: { name: r.received_by_name },
+      notes: r.notes ?? (r.payment_method ? `${r.payment_method}${r.reference_number ? " #" + r.reference_number : ""}` : ""),
+      direction: r.direction,
+      _new: r.source === "payment_transaction",
+    }));
+    setPayments(rows.filter((r) => r.direction === "out"));
+    setCustPayments(rows.filter((r) => r.direction === "in"));
     setLoading(false);
   };
+
   useEffect(() => {
     load();
   }, [supplierId]);
