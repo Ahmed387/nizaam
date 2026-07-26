@@ -155,6 +155,7 @@ export default function EditSaleInvoice() {
         customerName: custName,
         vatRate: Number(inv?.vat_rate ?? 0),
         discountAmount: Number(inv?.discount_amount ?? 0),
+        invoiceDate: inv?.invoice_date ?? inv?.created_at ?? null,
         items: loadedItems.map((it) => ({
           product_id: it.product_id,
           product_name: it.product_name,
