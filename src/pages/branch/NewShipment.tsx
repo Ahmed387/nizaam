@@ -130,7 +130,11 @@ export default function NewShipment() {
       if (!s) { toast.error("الشحنة غير موجودة"); return; }
       setSupplierId(s.contact_id ?? "");
       setArrival((s.arrival_date ?? "").slice(0, 10));
-      if ((s as any).invoice_date) setInvoiceDate(((s as any).invoice_date as string).slice(0, 10));
+      if ((s as any).invoice_date) {
+        const d = new Date((s as any).invoice_date as string);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setInvoiceDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      }
       setReceivedBy(s.received_by ?? "");
       setShipping(Number(s.shipping_cost ?? 0));
       setCustoms(Number((s as any).customs_cost ?? 0));
