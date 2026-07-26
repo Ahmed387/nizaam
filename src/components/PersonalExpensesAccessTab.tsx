@@ -100,7 +100,9 @@ export function PersonalExpensesAccessTab() {
               <SelectContent>
                 {availableUsers.length === 0 && <div className="p-2 text-xs text-muted-foreground">لا يوجد مستخدمين متاحين</div>}
                 {availableUsers.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.full_name || u.id.slice(0, 8)}</SelectItem>
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name || "بدون اسم"}{u.email ? ` — ${u.email}` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
