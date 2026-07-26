@@ -39,7 +39,8 @@ export default function FinancialDashboard() {
     const [vAll, vRange, contactsRes, instUp, instOv, inv90] = await Promise.all([
       supabase.from("vouchers").select("type, amount").eq("status", "active"),
       supabase.from("vouchers").select("type, amount, voucher_date").eq("status", "active").gte("voucher_date", last30),
-      supabase.from("contacts").select("contact_type, balance"),
+      // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+      supabase.from("v_contact_balances" as any).select("type, total_balance"),
       supabase
         .from("payment_installments")
         .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
