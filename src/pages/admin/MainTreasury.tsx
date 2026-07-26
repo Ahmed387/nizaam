@@ -28,6 +28,7 @@ export default function MainTreasury() {
   const { tenantId } = useAuth();
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [rows, setRows] = useState<TxRow[]>([]);
+  const [glBalances, setGlBalances] = useState<Record<string, ViewBal>>({});
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(daysAgoStr(30));
   const [to, setTo] = useState(todayStr());
