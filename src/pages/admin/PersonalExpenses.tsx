@@ -374,9 +374,6 @@ export default function PersonalExpenses() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={clearFilters}><X className="w-4 h-4 ml-1" />مسح الفلاتر</Button>
-            {canEdit && (
-              <Button size="sm" onClick={openAdd} className="bg-primary"><Plus className="w-4 h-4 ml-1" />إضافة مصروف</Button>
-            )}
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
