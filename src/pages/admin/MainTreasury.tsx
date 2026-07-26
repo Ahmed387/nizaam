@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate } from "@/lib/format";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
