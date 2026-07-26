@@ -90,9 +90,10 @@ export function MultiMethodPaymentDialog({
     if (!open || mode.kind !== "contact") return;
     let cancelled = false;
     const refresh = async () => {
-      const { data } = await supabase.from("contacts").select("balance").eq("id", mode.contactId).maybeSingle();
+      // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+      const { data } = await supabase.from("v_contact_balances" as any).select("total_balance").eq("contact_id", mode.contactId).maybeSingle();
       if (cancelled || !data) return;
-      const bal = Number(data.balance || 0);
+      const bal = Number((data as any).total_balance || 0);
       // Convention: +balance = credit at supplier (they owe us), -balance = we owe them
       setSupplierCredit(bal > 0 ? bal : 0);
       setLiveOwed(bal < 0 ? Math.abs(bal) : 0);
