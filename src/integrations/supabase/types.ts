@@ -909,7 +909,6 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
-          balance: number
           branch_id: string | null
           contact_person: string | null
           created_at: string
@@ -925,7 +924,6 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          balance?: number
           branch_id?: string | null
           contact_person?: string | null
           created_at?: string
@@ -941,7 +939,6 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          balance?: number
           branch_id?: string | null
           contact_person?: string | null
           created_at?: string
@@ -5356,6 +5353,14 @@ export type Database = {
           overdue_amount: number | null
           tenant_id: string | null
           total_balance: number | null
+          total_invoiced: number | null
+          total_paid: number | null
+          total_purchase_returns: number | null
+          total_returned: number | null
+          total_shipments: number | null
+          total_supplier_paid: number | null
+          total_voucher_payments: number | null
+          total_voucher_receipts: number | null
           type: string | null
         }
         Relationships: [
@@ -6004,10 +6009,6 @@ export type Database = {
             }
             Returns: string
           }
-      recalc_contact_balance: {
-        Args: { _contact_id: string }
-        Returns: undefined
-      }
       record_contact_payment:
         | {
             Args: {
