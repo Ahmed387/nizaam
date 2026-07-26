@@ -13,9 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, Filter, X } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, Filter, X, Sparkles, Receipt } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface Row {
   id: string;
