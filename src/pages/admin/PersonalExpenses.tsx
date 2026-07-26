@@ -307,7 +307,6 @@ export default function PersonalExpenses() {
       <PageHeader
         title="المصاريف الشخصية"
         subtitle="دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام"
-        icon={<Wallet className="w-6 h-6" />}
       />
 
       {/* Summary strip */}
