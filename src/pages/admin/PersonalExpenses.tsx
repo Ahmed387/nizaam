@@ -59,6 +59,25 @@ function monthLabel(key: string) {
   return d.toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
 }
 
+const CATEGORY_PALETTES = [
+  "bg-rose-500 text-white border-rose-600",
+  "bg-amber-500 text-white border-amber-600",
+  "bg-emerald-500 text-white border-emerald-600",
+  "bg-sky-500 text-white border-sky-600",
+  "bg-violet-500 text-white border-violet-600",
+  "bg-teal-500 text-white border-teal-600",
+  "bg-fuchsia-500 text-white border-fuchsia-600",
+  "bg-orange-500 text-white border-orange-600",
+  "bg-indigo-500 text-white border-indigo-600",
+  "bg-lime-600 text-white border-lime-700",
+];
+function categoryColor(cat: string) {
+  let h = 0;
+  for (let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
+  return CATEGORY_PALETTES[h % CATEGORY_PALETTES.length];
+}
+
+
 export default function PersonalExpenses() {
   const { user } = useAuth();
   const [ownerId, setOwnerId] = useState<string | null>(null);
