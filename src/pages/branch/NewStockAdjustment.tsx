@@ -103,7 +103,7 @@ export default function NewStockAdjustment() {
   useEffect(() => {
     if (!branchId) return;
     (async () => {
-      const { data } = await supabase.from("products").select("id, name, quantity, cost_price, barcode, sku, image").eq("branch_id", branchId).order("name");
+      const { data } = await supabase.from("products").select("id, name, quantity, cost_price, sku, image").eq("branch_id", branchId).order("name");
       setProducts(data ?? []);
     })();
   }, [branchId]);
