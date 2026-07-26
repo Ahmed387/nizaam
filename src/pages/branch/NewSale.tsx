@@ -317,16 +317,60 @@ export default function NewSale() {
     // eslint-disable-next-line
   }, [user?.id, branchId]);
 
-  const loadDraftIntoForm = () => {
-    if (!resumeDraft) return;
+  const [restoringDraft, setRestoringDraft] = useState(false);
+  const loadDraftIntoForm = async () => {
+    if (!resumeDraft || !branchId) return;
     const p = resumeDraft.payload;
-    setItems(p.items ?? []);
-    setCustomerId(p.customerId ?? "");
-    setPayments(p.payments ?? []);
-    setCreditMode(!!p.creditMode);
-    setScheduleType(p.scheduleType ?? "open");
-    setInstallments(p.installments ?? []);
-    toast.success("تم استرجاع الفاتورة — اضغط حفظ لإتمامها");
+    const draftItems: Item[] = p.items ?? [];
+    if (draftItems.length === 0) return;
+    setRestoringDraft(true);
+    try {
+      // Re-check availability by attempting to (re)reserve every line under the SAME draft id.
+      // reserveStock is atomic on the DB side and renews expires_at when successful.
+      draftIdRef.current = resumeDraft.draftId;
+      const shortages: { name: string; requested: number; available: number }[] = [];
+      for (const it of draftItems) {
+        const r = await reserveStock({
+          productId: it.product_id,
+          branchId,
+          draftId: resumeDraft.draftId,
+          quantity: it.quantity,
+          cashierName: user?.email ?? null,
+        });
+        if (!r.ok) {
+          shortages.push({
+            name: it.product_name,
+            requested: it.quantity,
+            available: Number(r.available_for_me ?? r.available ?? 0),
+          });
+        }
+      }
+      if (shortages.length > 0) {
+        const lines = shortages
+          .map((s) => `• ${s.name}: المخزون المتاح ${s.available} بدل ${s.requested}`)
+          .join("\n");
+        toast.error(`الكميات تغيرت منذ إنشاء الطلب — عدّل الفاتورة قبل الاستكمال:\n${lines}`, {
+          duration: 12000,
+        });
+        // Load items but flag shortages by clamping — cashier must review before saving
+        const clamped = draftItems.map((it) => {
+          const sh = shortages.find((s) => s.name === it.product_name);
+          if (!sh) return it;
+          return { ...it, quantity: Math.max(0, sh.available) };
+        });
+        setItems(clamped);
+      } else {
+        setItems(draftItems);
+        toast.success("تم استرجاع الفاتورة وتجديد الحجز لـ 24 ساعة");
+      }
+      setCustomerId(p.customerId ?? "");
+      setPayments(p.payments ?? []);
+      setCreditMode(!!p.creditMode);
+      setScheduleType(p.scheduleType ?? "open");
+      setInstallments(p.installments ?? []);
+    } finally {
+      setRestoringDraft(false);
+    }
   };
 
 
@@ -964,8 +1008,8 @@ export default function NewSale() {
               <div className="text-xs text-muted-foreground">فاتورتك السابقة جاهزة للاستكمال — اضغط لاسترجاع الأصناف</div>
             </div>
           </div>
-          <Button onClick={loadDraftIntoForm} className="bg-success hover:bg-success/90 text-success-foreground">
-            استرجاع الفاتورة وإتمامها
+          <Button onClick={loadDraftIntoForm} disabled={restoringDraft} className="bg-success hover:bg-success/90 text-success-foreground">
+            {restoringDraft ? <><Loader2 className="w-4 h-4 ml-1 animate-spin" /> جاري التحقق من المخزون…</> : "استرجاع الفاتورة وإتمامها"}
           </Button>
         </div>
       )}

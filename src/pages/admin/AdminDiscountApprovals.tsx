@@ -47,7 +47,12 @@ interface Group {
   created_at: string;
   req_ids: string[];
   reqs: Req[];
+  expired: boolean;
 }
+
+const EXPIRY_HOURS = 24;
+const isExpired = (createdAt: string) =>
+  Date.now() - new Date(createdAt).getTime() > EXPIRY_HOURS * 3600_000;
 
 export default function AdminDiscountApprovals({ embedded }: { embedded?: boolean } = {}) {
   const Wrapper: any = embedded ? Fragment : AdminLayout;
@@ -61,6 +66,23 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
   const [decision, setDecision] = useState<{ group: Group; type: "approve" | "reject" } | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
+
+  // Load current available stock per product for the open decision group.
+  useEffect(() => {
+    (async () => {
+      if (!decision) { setStockMap({}); return; }
+      const ids = Array.from(new Set(decision.group.reqs.map((r) => r.product_id).filter(Boolean))) as string[];
+      if (!ids.length) return;
+      const entries = await Promise.all(ids.map(async (pid) => {
+        const { data } = await supabase.rpc("get_available_quantity" as any, {
+          p_product_id: pid, p_branch_id: decision.group.branch_id,
+        });
+        return [pid, Number(data ?? 0)] as [string, number];
+      }));
+      setStockMap(Object.fromEntries(entries));
+    })();
+  }, [decision]);
 
   const load = async () => {
     setLoading(true);
@@ -70,7 +92,18 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
       loadDiscountPolicy(),
     ]);
     setBranches(br ?? []);
-    setRows((data ?? []) as any);
+    const allRows = (data ?? []) as any as Req[];
+    // Auto-reject any pending request older than 24h — reservation is no longer valid.
+    const expiredIds = allRows.filter((r) => r.status === "pending" && isExpired(r.created_at)).map((r) => r.id);
+    if (expiredIds.length > 0) {
+      await supabase.from("discount_approval_requests" as any).update({
+        status: "rejected",
+        decided_at: new Date().toISOString(),
+        admin_note: "انتهت صلاحية الحجز (24 ساعة) — الطلب مرفوض تلقائياً",
+      }).in("id", expiredIds);
+      allRows.forEach((r) => { if (expiredIds.includes(r.id)) { r.status = "rejected"; (r as any).admin_note = "انتهت صلاحية الحجز (24 ساعة) — الطلب مرفوض تلقائياً"; } });
+    }
+    setRows(allRows);
     const map: Record<string, number> = {};
     if (policy?.mode === "global") {
       (br ?? []).forEach((b: any) => { map[b.id] = policy.percent; });
@@ -107,6 +140,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
         created_at: r.created_at,
         req_ids: [],
         reqs: [],
+        expired: false,
       };
       g.items_count += 1;
       g.invoice_value += itemValue;
@@ -122,6 +156,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
     }
     for (const g of map.values()) {
       g.diff = Math.max(0, g.max_pct - g.allowed_pct);
+      g.expired = isExpired(g.created_at);
     }
     return Array.from(map.values()).sort((a, b) => b.created_at.localeCompare(a.created_at));
   }, [rows, branches, allowed]);
@@ -203,21 +238,30 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
         { key: "allowed_pct", header: "الحد المسموح %", render: (g: Group) => `${Number(g.allowed_pct).toFixed(1)}%` },
         { key: "diff", header: "الفرق", render: (g: Group) => <span className="text-warning font-bold">+{g.diff.toFixed(1)}%</span> },
         { key: "status", header: "الحالة", render: (g: Group) => {
-          if (g.status === "pending") return <span className="px-2 py-1 rounded text-xs bg-warning/10 text-warning">معلّق</span>;
+          if (g.expired && g.status === "pending") return <span className="px-2 py-1 rounded text-xs bg-destructive/15 text-destructive font-bold">منتهي الصلاحية</span>;
+          if (g.status === "pending") {
+            const hoursLeft = Math.max(0, EXPIRY_HOURS - (Date.now() - new Date(g.created_at).getTime()) / 3600_000);
+            return <span className="px-2 py-1 rounded text-xs bg-warning/10 text-warning">معلّق · باقي {hoursLeft.toFixed(1)}س</span>;
+          }
           if (g.status === "approved") return <span className="px-2 py-1 rounded text-xs bg-success/10 text-success">موافق</span>;
           if (g.status === "rejected") return <span className="px-2 py-1 rounded text-xs bg-destructive/10 text-destructive">مرفوض</span>;
           return <span className="px-2 py-1 rounded text-xs bg-muted">مختلط</span>;
         }},
-        { key: "actions", header: "إجراء", render: (g: Group) => g.status === "pending" ? (
-          <div className="flex gap-1">
-            <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ group: g, type: "approve" }); setNote(""); }}>
-              <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> موافقة
-            </Button>
-            <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => { setDecision({ group: g, type: "reject" }); setNote(""); }}>
-              <XCircle className="w-3.5 h-3.5 ml-1" /> رفض
-            </Button>
-          </div>
-        ) : <span className="text-xs text-muted-foreground">{g.reqs[0]?.admin_note ?? "—"}</span> },
+        { key: "actions", header: "إجراء", render: (g: Group) => {
+          if (g.expired && g.status === "pending") {
+            return <span className="text-xs text-destructive font-semibold">انتهت صلاحية الحجز — سيُرفض تلقائياً</span>;
+          }
+          return g.status === "pending" ? (
+            <div className="flex gap-1">
+              <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ group: g, type: "approve" }); setNote(""); }}>
+                <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> موافقة
+              </Button>
+              <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => { setDecision({ group: g, type: "reject" }); setNote(""); }}>
+                <XCircle className="w-3.5 h-3.5 ml-1" /> رفض
+              </Button>
+            </div>
+          ) : <span className="text-xs text-muted-foreground">{g.reqs[0]?.admin_note ?? "—"}</span>;
+        }},
       ]} />
 
       <Dialog open={!!decision} onOpenChange={(o) => !o && setDecision(null)}>
@@ -233,12 +277,16 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
               <div><b>قيمة الفاتورة:</b> {formatEGP(decision.group.invoice_value)}</div>
               <div><b>الخصم المطلوب:</b> {decision.group.max_pct.toFixed(1)}% (الحد {decision.group.allowed_pct}%)</div>
               <div className="mt-2 space-y-1 max-h-40 overflow-y-auto border rounded p-2 bg-muted/30">
-                {decision.group.reqs.map((r) => (
-                  <div key={r.id} className="flex justify-between text-xs">
-                    <span>{r.product_name} × {r.quantity}</span>
-                    <span>{formatEGP(r.requested_price)} ({Number(r.discount_percent).toFixed(1)}%)</span>
-                  </div>
-                ))}
+                {decision.group.reqs.map((r) => {
+                  const stock = stockMap[r.product_id ?? ""] ?? null;
+                  const short = stock !== null && stock < r.quantity;
+                  return (
+                    <div key={r.id} className={`flex justify-between text-xs ${short ? "text-destructive font-bold" : ""}`}>
+                      <span>{r.product_name} × {r.quantity} {stock !== null && <span className="text-[10px] text-muted-foreground">(المخزون: {stock})</span>}</span>
+                      <span>{formatEGP(r.requested_price)} ({Number(r.discount_percent).toFixed(1)}%)</span>
+                    </div>
+                  );
+                })}
               </div>
               <Label className="mt-3 block">{decision.type === "reject" ? "سبب الرفض (مطلوب)" : "ملاحظة (اختياري)"}</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={decision.type === "reject" ? "اكتب السبب الذي سيظهر للكاشير" : "ملاحظة"} />
