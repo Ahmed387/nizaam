@@ -453,6 +453,22 @@ export default function EditSaleInvoice() {
         return;
       }
     }
+
+    // 3) Persist invoice date/time change (admin only, guarded by RLS/trigger on server)
+    const snap = initialSnapshotRef.current;
+    const oldIso = snap?.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
+    const newIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
+    if (oldIso !== newIso && newIso) {
+      const { error } = await supabase.from("invoices").update({ invoice_date: newIso }).eq("id", invoiceId!);
+      if (error) {
+        setSaving(false);
+        const msg = /owner|admin or super_admin|super_admin/i.test(error.message)
+          ? "تعديل تاريخ الفاتورة متاح لصاحب الشركة فقط"
+          : error.message;
+        toast.error(msg);
+        return;
+      }
+    }
     setSaving(false);
 
     const willBeFullyPaid = isFullyPaidTransition();
