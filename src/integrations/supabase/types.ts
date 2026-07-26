@@ -1015,6 +1015,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_credit_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "customer_credit_log_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -2075,6 +2082,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "invoices_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2941,6 +2955,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "payment_transactions_installment_id_fkey"
             columns: ["installment_id"]
             isOneToOne: false
@@ -3125,6 +3146,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
           },
         ]
       }
@@ -3774,6 +3802,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_returns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "purchase_returns_shipment_id_fkey"
             columns: ["shipment_id"]
             isOneToOne: false
@@ -3909,6 +3944,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "quotes_tenant_id_fkey"
@@ -4376,6 +4418,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shipments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "shipments_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4652,6 +4701,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
           },
         ]
       }
@@ -5289,6 +5345,28 @@ export type Database = {
           total_debit: number | null
         }
         Relationships: []
+      }
+      v_contact_balances: {
+        Row: {
+          contact_id: string | null
+          credit_balance: number | null
+          last_transaction_date: string | null
+          ledger_balance: number | null
+          name: string | null
+          overdue_amount: number | null
+          tenant_id: string | null
+          total_balance: number | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_partner_balances: {
         Row: {
