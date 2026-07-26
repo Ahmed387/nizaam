@@ -154,8 +154,9 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining || 0), 0);
           setPartyBalance({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
         } else if (form.party_type === "supplier") {
-          const { data } = await supabase.from("contacts").select("balance").eq("id", form.party_id).maybeSingle();
-          const amt = Number((data as any)?.balance ?? 0);
+          // TODO Phase 2.2B: Remove after contacts.balance column is dropped
+          const { data } = await supabase.from("v_contact_balances" as any).select("total_balance").eq("contact_id", form.party_id).maybeSingle();
+          const amt = Number((data as any)?.total_balance ?? 0);
           setPartyBalance({ label: amt >= 0 ? "مستحق للمورد علينا" : "رصيد لصالحنا عند المورد", amount: Math.abs(amt), tone: amt > 0 ? "bad" : amt < 0 ? "good" : "neutral" });
         } else if (form.party_type === "customer") {
           const { data } = await supabase.from("payment_plans" as any).select("remaining_amount").eq("entity_type", "customer").eq("entity_id", form.party_id).eq("status", "active");
