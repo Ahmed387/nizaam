@@ -909,7 +909,6 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
-          balance: number
           branch_id: string | null
           contact_person: string | null
           created_at: string
@@ -925,7 +924,6 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          balance?: number
           branch_id?: string | null
           contact_person?: string | null
           created_at?: string
@@ -941,7 +939,6 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          balance?: number
           branch_id?: string | null
           contact_person?: string | null
           created_at?: string
@@ -6012,10 +6009,6 @@ export type Database = {
             }
             Returns: string
           }
-      recalc_contact_balance: {
-        Args: { _contact_id: string }
-        Returns: undefined
-      }
       record_contact_payment:
         | {
             Args: {
