@@ -44,7 +44,7 @@ export default function AdminDashboard() {
     ] = await Promise.all([
       supabase.from("invoices").select("total").eq("status", "active").gte("created_at", todayIso),
       supabase.from("products").select("quantity, low_stock_alert"),
-      supabase.from("branches").select("*").eq("is_active", true),
+      supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("invoices").select("*, branches(name)").order("created_at", { ascending: false }).limit(5),
       supabase.from("approval_requests" as any).select("id").eq("status", "pending"),
       supabase
