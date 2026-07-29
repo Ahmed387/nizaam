@@ -226,6 +226,9 @@ export default function NewSaleReturn() {
         }
       }
     }
+
+    setBusy(true);
+    try {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
       const { data: rr, error } = await supabase.rpc("register_sale_return_full" as any, {
         _invoice_id: invoice.id,
