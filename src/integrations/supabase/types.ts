@@ -6363,6 +6363,10 @@ export type Database = {
         Args: { p_draft_id: string; p_status?: string }
         Returns: undefined
       }
+      repost_invoice_journal: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       reserve_stock: {
         Args: {
           p_branch_id: string
