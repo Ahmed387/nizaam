@@ -46,7 +46,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
 
   const loadBranches = async () => {
     if (!tenantId) return;
-    const { data } = await supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true);
+    const { data } = await supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).neq("code", "PARTNER-CASH");
     setBranches(data ?? []);
   };
 

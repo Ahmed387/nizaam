@@ -143,7 +143,7 @@ export default function Settings() {
     (async () => {
       const [{ data }, { data: brs }] = await Promise.all([
         supabase.from("settings").select("*"),
-        supabase.from("branches").select("id, low_balance_threshold, monthly_sales_target"),
+        supabase.from("branches").select("id, low_balance_threshold, monthly_sales_target, code").neq("code", "PARTNER-CASH"),
       ]);
       for (const row of data ?? []) {
         if (row.key === "company") setCompany(row.value as any);

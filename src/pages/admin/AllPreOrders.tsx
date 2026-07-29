@@ -28,7 +28,7 @@ export default function AllPreOrders() {
   const load = async () => {
     const [{ data: po }, { data: br }] = await Promise.all([
       supabase.from("pre_orders").select("*").order("created_at", { ascending: false }),
-      supabase.from("branches").select("id, name"),
+      supabase.from("branches").select("id, name").neq("code", "PARTNER-CASH"),
     ]);
     setRows(po ?? []);
     setBranches(Object.fromEntries((br ?? []).map((b: any) => [b.id, b.name])));
