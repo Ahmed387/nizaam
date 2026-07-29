@@ -4920,6 +4920,7 @@ export type Database = {
           owner_user_id: string | null
           plan: string
           primary_color: string | null
+          setup_completed: boolean
           slug: string
           suspended_at: string | null
           suspension_reason: string | null
@@ -4939,6 +4940,7 @@ export type Database = {
           owner_user_id?: string | null
           plan?: string
           primary_color?: string | null
+          setup_completed?: boolean
           slug: string
           suspended_at?: string | null
           suspension_reason?: string | null
@@ -4958,6 +4960,7 @@ export type Database = {
           owner_user_id?: string | null
           plan?: string
           primary_color?: string | null
+          setup_completed?: boolean
           slug?: string
           suspended_at?: string | null
           suspension_reason?: string | null

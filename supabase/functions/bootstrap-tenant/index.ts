@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     // ---- 2. create tenant (this triggers trg_seed_coa_on_tenant → seeds 60+ CoA) ----
     const { data: tenant, error: tErr } = await supabase
       .from("tenants")
-      .insert({ name: company_name.trim(), slug, plan: "free", is_active: true })
+      .insert({ name: company_name.trim(), slug, plan: "free", is_active: true, setup_completed: true })
       .select()
       .single();
     if (tErr || !tenant) return json({ error: "فشل إنشاء الشركة: " + (tErr?.message ?? "") }, 500);
