@@ -112,9 +112,13 @@ function DataTableInner<T>(
   })();
 
   return (
-    <div className="card-elevated overflow-hidden">
+    <div ref={ref} className="card-elevated overflow-hidden">
       {Header}
       {Body}
     </div>
   );
 }
+
+export const DataTable = forwardRef(DataTableInner) as <T>(
+  props: DataTableProps<T> & { ref?: Ref<HTMLDivElement> }
+) => JSX.Element;
