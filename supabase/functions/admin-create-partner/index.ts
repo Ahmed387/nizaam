@@ -34,19 +34,39 @@ Deno.serve(async (req) => {
 
     // Verify caller is admin/super_admin
     const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', callerId);
-    const isAdmin = (roles ?? []).some((r: any) => r.role === 'admin' || r.role === 'super_admin');
+    const rolesList = (roles ?? []).map((r: any) => r.role);
+    const isAdmin = rolesList.includes('admin') || rolesList.includes('super_admin');
+    const isSuperAdmin = rolesList.includes('super_admin');
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden — admin only' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Resolve caller's tenant from profiles — never trust body tenant_id
+    const { data: callerProfile, error: callerProfErr } = await admin
+      .from('profiles').select('tenant_id').eq('id', callerId).maybeSingle();
+    if (callerProfErr || !callerProfile?.tenant_id) {
+      return new Response(JSON.stringify({ error: 'Caller has no tenant' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const callerTenantId = callerProfile.tenant_id as string;
+
     const body = await req.json();
     const {
-      tenant_id, partner_name, partner_type,
+      tenant_id: bodyTenantId, partner_name, partner_type,
       capital_share = 0, operating_share = 0, initial_capital = 0,
       username, password, email, phone,
     } = body ?? {};
+
+    // Only super_admin may target a tenant different from their own
+    const tenant_id = (isSuperAdmin && bodyTenantId) ? bodyTenantId : callerTenantId;
+    if (!isSuperAdmin && bodyTenantId && bodyTenantId !== callerTenantId) {
+      return new Response(JSON.stringify({ error: 'Forbidden — cross-tenant operation not allowed' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!tenant_id || !partner_name || !partner_type || !username || !password) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
