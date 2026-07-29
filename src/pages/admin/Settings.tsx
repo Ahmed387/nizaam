@@ -213,6 +213,9 @@ export default function Settings() {
       toast.success("تم حفظ سياسة الإرجاع");
     } catch (e: any) { toast.error(e.message ?? "خطأ"); }
     finally { setSavingReturnPolicy(false); }
+  };
+
+
 
   const saveThresholds = async () => {
     setSavingThresholds(true);
