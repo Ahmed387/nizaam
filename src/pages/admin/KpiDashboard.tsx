@@ -78,16 +78,15 @@ export default function KpiDashboard() {
 
   useEffect(() => { load(); }, [tenantId, start, end]);
 
-  // Realtime auto-refresh every 30s + on GL changes
+  // Realtime auto-refresh on GL changes
   useEffect(() => {
     if (!tenantId) return;
-    const interval = setInterval(() => { load(); }, 30000);
     const channel = supabase
       .channel(`kpi-realtime-${tenantId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries", filter: `tenant_id=eq.${tenantId}` }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "journal_lines" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entry_lines" }, () => load())
       .subscribe();
-    return () => { clearInterval(interval); supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); };
   }, [tenantId, start, end]);
 
   return (
