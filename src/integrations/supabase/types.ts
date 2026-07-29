@@ -6684,6 +6684,7 @@ export type Database = {
         | "worker"
         | "driver"
         | "partner"
+        | "owner"
       approval_action: "delete" | "update"
       approval_status: "pending" | "approved" | "rejected"
       invoice_status: "active" | "cancelled"
@@ -6846,6 +6847,7 @@ export const Constants = {
         "worker",
         "driver",
         "partner",
+        "owner",
       ],
       approval_action: ["delete", "update"],
       approval_status: ["pending", "approved", "rejected"],
