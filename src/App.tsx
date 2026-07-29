@@ -69,6 +69,8 @@ import PriceAuditLog from "./pages/admin/PriceAuditLog";
 
 import BranchDashboard from "./pages/branch/Dashboard";
 import NewSale from "./pages/branch/NewSale";
+import ShiftOpen from "./pages/branch/ShiftOpen";
+import ShiftClose from "./pages/branch/ShiftClose";
 import EditSaleInvoice from "./pages/branch/EditSaleInvoice";
 import PreOrders from "./pages/branch/PreOrders";
 import SalesHistory from "./pages/branch/SalesHistory";
