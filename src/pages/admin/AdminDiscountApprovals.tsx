@@ -87,7 +87,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
   const load = async () => {
     setLoading(true);
     const [{ data: br }, { data }, policy] = await Promise.all([
-      supabase.from("branches").select("id, name").eq("tenant_id", tenantId),
+      supabase.from("branches").select("id, name").eq("tenant_id", tenantId).neq("code", "PARTNER-CASH"),
       supabase.from("discount_approval_requests" as any).select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
       loadDiscountPolicy(),
     ]);

@@ -64,7 +64,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     setLoading(true);
     const [{ data: prods }, { data: brs }, { data: cs }] = await Promise.all([
       supabase.from("products").select("*, branches(name), categories(name)").order("created_at", { ascending: false }),
-      supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("branches").select("id, name").eq("is_active", true).neq("code", "PARTNER-CASH").order("name"),
       supabase.from("categories").select("id, name").order("name"),
     ]);
     setRows(
