@@ -6582,6 +6582,10 @@ export type Database = {
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
+      set_scheduled_reports_cron: {
+        Args: { _day: number; _hour: number }
+        Returns: undefined
+      }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
       system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
