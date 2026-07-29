@@ -52,6 +52,10 @@ export default function Settings() {
   const [discBranchPct, setDiscBranchPct] = useState<Record<string, number>>({});
   const [savingDiscount, setSavingDiscount] = useState(false);
 
+  // === Return-window policy (owner-only) ===
+  const [returnWindowDays, setReturnWindowDays] = useState<number>(20);
+  const [savingReturnPolicy, setSavingReturnPolicy] = useState(false);
+
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
     { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
