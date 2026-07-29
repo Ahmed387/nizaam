@@ -6,7 +6,8 @@ import { buildKpiAlerts, KpiAlert, KpiSnapshot } from "@/lib/kpiAlerts";
 import { notifyMany, getTenantAdmins } from "@/lib/notifications";
 import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft, Siren } from "lucide-react";
 
-const POLL_MS = 60_000;
+// Realtime on GL — no polling. Debounce to coalesce rapid changes.
+const DEBOUNCE_MS = 3_000;
 
 export function KpiHealthAlert() {
   const { tenantId } = useAuth();
