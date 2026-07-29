@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ExecutiveProfitSummary } from "@/components/ExecutiveProfitSummary";
 import { KpiHealthAlert } from "@/components/KpiHealthAlert";
+import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
