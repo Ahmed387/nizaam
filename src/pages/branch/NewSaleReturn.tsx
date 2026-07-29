@@ -637,6 +637,32 @@ export default function NewSaleReturn() {
         </DialogContent>
       </Dialog>
 
+      {/* Owner override — return window exceeded */}
+      <Dialog open={overrideOpen} onOpenChange={(o) => { setOverrideOpen(o); if (!o) setPendingDraft(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <ShieldAlert className="w-5 h-5" /> تجاوز فترة الإرجاع
+            </DialogTitle>
+            <DialogDescription>
+              {overrideMeta && (
+                <>فترة الإرجاع المسموح بها: <b>{overrideMeta.windowDays} يوم</b>. هذه الفاتورة مرّ عليها <b>{overrideMeta.daysSince} يوم</b>. بصفتك المالك يمكنك التجاوز مع تسجيل السبب.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>سبب التجاوز (مطلوب)</Label>
+            <Textarea rows={3} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="اكتب سبب واضح للسماح بالمرتجع بعد انتهاء الفترة" />
+          </div>
+          <DialogFooter className="gap-2 flex-row">
+            <Button variant="outline" onClick={() => setOverrideOpen(false)}>إلغاء</Button>
+            <Button onClick={confirmOwnerOverride} className="bg-warning text-warning-foreground hover:bg-warning/90 gap-2">
+              <ShieldAlert className="w-4 h-4" /> متابعة بصفتي المالك
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Print dialog */}
       <Dialog open={printOpen} onOpenChange={(o) => { setPrintOpen(o); if (!o) nav(`/branch/${branchId}/invoices?tab=sale_return`); }}>
         <DialogContent>
