@@ -290,6 +290,34 @@ export default function NewSaleReturn() {
     }
   };
 
+  const confirmOwnerOverride = async () => {
+    const reason = overrideReason.trim();
+    if (!reason) return toast.error("اكتب سبب التجاوز");
+    if (!overrideMeta || !invoice) return;
+    const meta = { reason, daysSince: overrideMeta.daysSince, windowDays: overrideMeta.windowDays };
+    setOverrideApproved(meta);
+    setOverrideOpen(false);
+    try {
+      await logAudit({
+        userId: user!.id,
+        userName: profile?.name ?? "",
+        action: "UPDATE",
+        entity: "return_owner_override",
+        entityId: invoice.id,
+        details: {
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          days_since: meta.daysSince,
+          window_days: meta.windowDays,
+          reason,
+          owner_id: user!.id,
+        },
+      });
+    } catch {}
+    await submit(pendingDraft);
+    setOverrideApproved(null);
+  };
+
   // Shortcuts
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
