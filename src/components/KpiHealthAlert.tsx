@@ -6,7 +6,8 @@ import { buildKpiAlerts, KpiAlert, KpiSnapshot } from "@/lib/kpiAlerts";
 import { notifyMany, getTenantAdmins } from "@/lib/notifications";
 import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft, Siren } from "lucide-react";
 
-const POLL_MS = 60_000;
+// Realtime on GL — no polling. Debounce to coalesce rapid changes.
+const DEBOUNCE_MS = 3_000;
 
 export function KpiHealthAlert() {
   const { tenantId } = useAuth();
@@ -47,8 +48,15 @@ export function KpiHealthAlert() {
     };
 
     run();
-    const t = setInterval(run, POLL_MS);
-    return () => { cancelled = true; clearInterval(t); };
+    let debounce: any;
+    const channel = supabase
+      .channel(`kpi-health-${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries", filter: `tenant_id=eq.${tenantId}` }, () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(run, DEBOUNCE_MS);
+      })
+      .subscribe();
+    return () => { cancelled = true; clearTimeout(debounce); supabase.removeChannel(channel); };
   }, [tenantId]);
 
   const { dangers, warnings } = useMemo(() => ({

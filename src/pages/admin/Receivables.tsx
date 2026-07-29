@@ -61,11 +61,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     setBranches(map);
     setLoading(false);
   };
-  useEffect(() => {
-    load();
-    const id = setInterval(load, 60000);
-    return () => clearInterval(id);
-  }, []);
+  useEffect(() => { load(); }, []);
   useRealtimeRefresh(["payment_plans", "payment_installments", "invoice_payments", "invoices"], load);
 
   const filtered = useMemo(() => {
