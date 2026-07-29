@@ -220,6 +220,8 @@ const App = () => (
             {/* Hubs */}
             <Route path="/admin/catalog" element={<ProtectedRoute adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute adminOnly><ReportsHub /></ProtectedRoute>} />
+            <Route path="/admin/cockpit" element={<ProtectedRoute ownerOnly><CockpitPage /></ProtectedRoute>} />
+            <Route path="/admin/insights" element={<ProtectedRoute ownerOnly><InsightsPage /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute adminOnly><FinanceHub /></ProtectedRoute>} />
             <Route path="/admin/main-treasury" element={<ProtectedRoute adminOnly><MainTreasury /></ProtectedRoute>} />
             <Route path="/admin/financial-dashboard" element={<ProtectedRoute adminOnly><FinancialDashboard /></ProtectedRoute>} />
