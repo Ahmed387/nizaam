@@ -48,8 +48,15 @@ export function KpiHealthAlert() {
     };
 
     run();
-    const t = setInterval(run, POLL_MS);
-    return () => { cancelled = true; clearInterval(t); };
+    let debounce: any;
+    const channel = supabase
+      .channel(`kpi-health-${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries", filter: `tenant_id=eq.${tenantId}` }, () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(run, DEBOUNCE_MS);
+      })
+      .subscribe();
+    return () => { cancelled = true; clearTimeout(debounce); supabase.removeChannel(channel); };
   }, [tenantId]);
 
   const { dangers, warnings } = useMemo(() => ({
