@@ -295,6 +295,7 @@ export default function Settings() {
             { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
             { v: "targets", icon: Target, label: "أهداف المبيعات" },
             { v: "discount", icon: Percent, label: "إعدادات الخصم" },
+            ...(isOwner ? [{ v: "return-policy", icon: AlertTriangle, label: "سياسة الإرجاع" }] : []),
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
