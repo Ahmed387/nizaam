@@ -38,6 +38,18 @@ export function ProtectedRoute({
     return <Navigate to={`/suspended?slug=${tenant.slug}`} replace />;
   }
 
+  // Force admins to complete tenant setup before entering the app.
+  // Allow the wizard route itself and profile so they can finish or sign out.
+  if (
+    isAdmin &&
+    tenant &&
+    (tenant as any).setup_completed === false &&
+    !loc.pathname.startsWith("/setup-wizard") &&
+    !loc.pathname.startsWith("/profile")
+  ) {
+    return <Navigate to="/setup-wizard" replace />;
+  }
+
   if (ownerOnly && !isOwner) return <Navigate to="/" replace />;
   if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
