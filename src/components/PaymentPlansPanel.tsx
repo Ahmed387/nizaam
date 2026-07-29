@@ -20,6 +20,23 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
   const [installments, setInstallments] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<{ planId: string; installmentId?: string; amount: number } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ kind: "tx"; row: any } | null>(null);
+
+  const openEditForInstallment = async (installmentId: string) => {
+    const { data, error } = await supabase
+      .from("payment_transactions")
+      .select("*")
+      .eq("installment_id", installmentId)
+      .is("voided_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      toast.error("مافيش دفعة قابلة للتعديل على القسط ده");
+      return;
+    }
+    setEditTarget({ kind: "tx", row: data });
+  };
 
   const load = async () => {
     setLoading(true);
