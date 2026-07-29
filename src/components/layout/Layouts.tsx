@@ -56,6 +56,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const adminNav: NavItem[] = [
     { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
+    ...(isOwner ? [{ to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" /> }] : []),
+    ...(isOwner ? [{ to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" /> }] : []),
     { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" /> },
     { to: "/admin/contacts", label: "جهات التواصل (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
     { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
