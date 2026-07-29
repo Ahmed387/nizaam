@@ -61,7 +61,7 @@ export default function ShiftOpen() {
   if (existing) {
     return (
       <BranchLayout>
-        <PageHeader title="وردية الكاشير" description="لديك وردية مفتوحة بالفعل" />
+        <PageHeader title="وردية الكاشير" subtitle="لديك وردية مفتوحة بالفعل" />
         <Card className="p-6 max-w-xl mx-auto space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><div className="text-muted-foreground">تاريخ الفتح</div><div className="font-semibold">{new Date(existing.opened_at).toLocaleString("ar-EG")}</div></div>
@@ -80,7 +80,7 @@ export default function ShiftOpen() {
 
   return (
     <BranchLayout>
-      <PageHeader title="فتح وردية جديدة" description="أدخل رصيد الدرج الافتتاحي قبل بدء البيع" />
+      <PageHeader title="فتح وردية جديدة" subtitle="أدخل رصيد الدرج الافتتاحي قبل بدء البيع" />
       <Card className="p-6 max-w-xl mx-auto">
         <form onSubmit={submit} className="space-y-4">
           <div>
