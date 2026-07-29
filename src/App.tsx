@@ -114,6 +114,8 @@ import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
 import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
+import CockpitPage from "./pages/admin/CockpitPage";
+import InsightsPage from "./pages/admin/InsightsPage";
 import FinanceHub from "./pages/admin/FinanceHub";
 import MainTreasury from "./pages/admin/MainTreasury";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
