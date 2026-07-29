@@ -205,10 +205,27 @@ export default function NewSaleReturn() {
         return toast.error("أدخل رقم العملية للتحويل");
       if (refundMode === "balance" && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
       if (refundMode === "mixed" && balancePart > 0 && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
-    }
 
-    setBusy(true);
-    try {
+      // Return-window policy (skipped when this call is already an approved owner override)
+      if (!overrideApproved) {
+        const policy = await evaluateReturnPolicy({
+          invoiceId: invoice.id,
+          invoiceDate: (invoice as any).invoice_date ?? invoice.created_at,
+          isOwner,
+        });
+        if (policy.status === "blocked") {
+          toast.error(`انتهت فترة الإرجاع (${policy.windowDays} يوم — الفاتورة من ${policy.daysSince} يوم). تواصل مع المالك للموافقة.`);
+          return;
+        }
+        if (policy.status === "override_required") {
+          setOverrideMeta({ daysSince: policy.daysSince, windowDays: policy.windowDays });
+          setOverrideReason("");
+          setPendingDraft(asDraft);
+          setOverrideOpen(true);
+          return;
+        }
+      }
+    }
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
       const { data: rr, error } = await supabase.rpc("register_sale_return_full" as any, {
         _invoice_id: invoice.id,
