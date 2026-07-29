@@ -1,18 +1,9 @@
-import { ReactNode } from "react";
+import { forwardRef, ReactNode, Ref } from "react";
 import { Loader2 } from "lucide-react";
 
 type Align = "right" | "left" | "center";
 
-export function DataTable<T>({
-  columns,
-  rows,
-  loading,
-  empty = "لا توجد بيانات",
-  onRowClick,
-  title,
-  description,
-  footer,
-}: {
+interface DataTableProps<T> {
   columns: {
     key: string;
     header: string;
@@ -20,21 +11,31 @@ export function DataTable<T>({
     className?: string;
     align?: Align;
     width?: string;
-    /** Mark numeric columns: applies tabular-nums + bolder typography. */
     numeric?: boolean;
-    /** Keep this column visible (sticky) while scrolling horizontally on mobile. Defaults to the first column. */
     sticky?: boolean;
   }[];
   rows: T[];
   loading?: boolean;
   empty?: string;
   onRowClick?: (row: T) => void;
-  /** Optional card header — title at top, description centered below. */
   title?: ReactNode;
   description?: ReactNode;
-  /** Optional footer row (totals, etc). */
   footer?: ReactNode;
-}) {
+}
+
+function DataTableInner<T>(
+  {
+    columns,
+    rows,
+    loading,
+    empty = "لا توجد بيانات",
+    onRowClick,
+    title,
+    description,
+    footer,
+  }: DataTableProps<T>,
+  ref: Ref<HTMLDivElement>
+) {
   const alignClass = (a?: Align) =>
     a === "right" ? "text-right" : a === "left" ? "text-left" : "text-center";
 
