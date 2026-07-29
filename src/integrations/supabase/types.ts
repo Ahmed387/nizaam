@@ -6260,10 +6260,9 @@ export type Database = {
         }[]
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_owner: {
-        Args: { _tenant_id: string; _user_id: string }
-        Returns: boolean
-      }
+      is_owner:
+        | { Args: { _user_id: string }; Returns: boolean }
+        | { Args: { _tenant_id: string; _user_id: string }; Returns: boolean }
       is_partner_owner: { Args: { _partner_id: string }; Returns: boolean }
       is_personal_owner: { Args: never; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
@@ -6684,6 +6683,7 @@ export type Database = {
         | "worker"
         | "driver"
         | "partner"
+        | "owner"
       approval_action: "delete" | "update"
       approval_status: "pending" | "approved" | "rejected"
       invoice_status: "active" | "cancelled"
@@ -6846,6 +6846,7 @@ export const Constants = {
         "worker",
         "driver",
         "partner",
+        "owner",
       ],
       approval_action: ["delete", "update"],
       approval_status: ["pending", "approved", "rejected"],
