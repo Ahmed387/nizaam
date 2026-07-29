@@ -12,6 +12,7 @@ interface Tenant {
   is_suspended?: boolean;
   suspension_reason?: string | null;
   owner_user_id?: string | null;
+  setup_completed?: boolean;
 }
 
 interface AuthCtx {
