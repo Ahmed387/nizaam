@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatEGP } from "@/lib/format";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
-import { AlertCircle, Calendar, CreditCard } from "lucide-react";
+import { EditPaymentDialog } from "./EditPaymentDialog";
+import { toast } from "sonner";
+import { AlertCircle, Calendar, CreditCard, Pencil } from "lucide-react";
 
 interface Props {
   entityType: "customer" | "supplier" | "employee";
@@ -18,6 +20,23 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
   const [installments, setInstallments] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<{ planId: string; installmentId?: string; amount: number } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ kind: "tx"; row: any } | null>(null);
+
+  const openEditForInstallment = async (installmentId: string) => {
+    const { data, error } = await supabase
+      .from("payment_transactions")
+      .select("*")
+      .eq("installment_id", installmentId)
+      .is("voided_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      toast.error("مافيش دفعة قابلة للتعديل على القسط ده");
+      return;
+    }
+    setEditTarget({ kind: "tx", row: data });
+  };
 
   const load = async () => {
     setLoading(true);
@@ -109,7 +128,11 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
                           {i.status === "pending" && <Badge>قادم</Badge>}
                         </td>
                         <td className="px-3 py-2 text-left">
-                          {i.status !== "paid" && (
+                          {i.status === "paid" ? (
+                            <Button size="sm" variant="ghost" onClick={() => openEditForInstallment(i.id)} className="gap-1">
+                              <Pencil className="w-3 h-3" /> تعديل الدفعة
+                            </Button>
+                          ) : (
                             <Button size="sm" variant="outline" onClick={() => setPaying({ planId: p.id, installmentId: i.id, amount: remaining })}>
                               {direction === "in" ? "استلام" : "دفع"}
                             </Button>
@@ -138,6 +161,13 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
           onSuccess={load}
         />
       )}
+
+      <EditPaymentDialog
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        target={editTarget}
+        onSuccess={load}
+      />
     </div>
   );
 }
