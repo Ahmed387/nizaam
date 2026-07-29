@@ -801,6 +801,88 @@ export type Database = {
         }
         Relationships: []
       }
+      cashier_shifts: {
+        Row: {
+          branch_id: string
+          cash_sales: number | null
+          cashier_id: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          id: string
+          open_notes: string | null
+          opened_at: string
+          opening_cash: number
+          status: string
+          tenant_id: string
+          updated_at: string
+          variance: number | null
+        }
+        Insert: {
+          branch_id: string
+          cash_sales?: number | null
+          cashier_id: string
+          close_notes?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_cash?: number | null
+          created_at?: string
+          expected_cash?: number | null
+          id?: string
+          open_notes?: string | null
+          opened_at?: string
+          opening_cash?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          variance?: number | null
+        }
+        Update: {
+          branch_id?: string
+          cash_sales?: number | null
+          cashier_id?: string
+          close_notes?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_cash?: number | null
+          created_at?: string
+          expected_cash?: number | null
+          id?: string
+          open_notes?: string | null
+          opened_at?: string
+          opening_cash?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashier_shifts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashier_shifts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "cashier_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -5770,6 +5852,39 @@ export type Database = {
         Args: { p_reason: string; p_voucher_id: string }
         Returns: undefined
       }
+      close_cashier_shift: {
+        Args: {
+          p_auto?: boolean
+          p_closing_cash: number
+          p_notes?: string
+          p_shift_id: string
+        }
+        Returns: {
+          branch_id: string
+          cash_sales: number | null
+          cashier_id: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          id: string
+          open_notes: string | null
+          opened_at: string
+          opening_cash: number
+          status: string
+          tenant_id: string
+          updated_at: string
+          variance: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cashier_shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       close_fiscal_period:
         | { Args: { p_period_id: string }; Returns: Json }
         | { Args: { p_period_id: string; p_reason?: string }; Returns: Json }
@@ -6082,6 +6197,34 @@ export type Database = {
         Args: { _end_date: string; _start_date: string }
         Returns: Json
       }
+      get_open_shift: {
+        Args: { p_branch_id: string }
+        Returns: {
+          branch_id: string
+          cash_sales: number | null
+          cashier_id: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          id: string
+          open_notes: string | null
+          opened_at: string
+          opening_cash: number
+          status: string
+          tenant_id: string
+          updated_at: string
+          variance: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cashier_shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_partner_net_balance: { Args: { p_partner_id: string }; Returns: Json }
       get_product_references_count: {
         Args: { _product_id: string }
@@ -6146,6 +6289,34 @@ export type Database = {
           _type: Database["public"]["Enums"]["voucher_type"]
         }
         Returns: string
+      }
+      open_cashier_shift: {
+        Args: { p_branch_id: string; p_notes?: string; p_opening_cash: number }
+        Returns: {
+          branch_id: string
+          cash_sales: number | null
+          cashier_id: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          id: string
+          open_notes: string | null
+          opened_at: string
+          opening_cash: number
+          status: string
+          tenant_id: string
+          updated_at: string
+          variance: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cashier_shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       partial_confirm_transfer: {
         Args: { p_received: number; p_transfer_id: string }
@@ -6412,6 +6583,7 @@ export type Database = {
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
+      shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
       system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
