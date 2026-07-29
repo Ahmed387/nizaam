@@ -161,6 +161,10 @@ export default function Settings() {
           const v: any = row.value ?? {};
           if (v.mode === "per_branch") setDiscMode("per_branch");
           if (v.branches && typeof v.branches === "object") setDiscBranchPct(v.branches);
+        if (row.key === "return_policy") {
+          const v: any = row.value ?? {};
+          const n = Number(v.days);
+          if (Number.isFinite(n) && n >= 1) setReturnWindowDays(Math.min(365, Math.max(1, Math.floor(n))));
         }
       }
       const tmap: Record<string, number> = {};
