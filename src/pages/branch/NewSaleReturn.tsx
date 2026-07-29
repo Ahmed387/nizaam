@@ -14,10 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIcon, Package, CreditCard } from "lucide-react";
+import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIcon, Package, CreditCard, ShieldAlert } from "lucide-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
+import { evaluateReturnPolicy } from "@/lib/returnPolicy";
+import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/roles";
 
 interface Line {
   invoice_item_id: string;
@@ -78,6 +81,14 @@ export default function NewSaleReturn() {
   // Print dialog
   const [printOpen, setPrintOpen] = useState(false);
   const [savedNumber, setSavedNumber] = useState("");
+
+  // Return-window override
+  const { user, profile, isOwner } = useAuth();
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideMeta, setOverrideMeta] = useState<{ daysSince: number; windowDays: number } | null>(null);
+  const [overrideApproved, setOverrideApproved] = useState<{ reason: string; daysSince: number; windowDays: number } | null>(null);
+  const [pendingDraft, setPendingDraft] = useState<boolean>(false);
 
   const loadInvoices = useCallback(async () => {
     if (!branchId) return;
@@ -194,6 +205,26 @@ export default function NewSaleReturn() {
         return toast.error("أدخل رقم العملية للتحويل");
       if (refundMode === "balance" && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
       if (refundMode === "mixed" && balancePart > 0 && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
+
+      // Return-window policy (skipped when this call is already an approved owner override)
+      if (!overrideApproved) {
+        const policy = await evaluateReturnPolicy({
+          invoiceId: invoice.id,
+          invoiceDate: (invoice as any).invoice_date ?? invoice.created_at,
+          isOwner,
+        });
+        if (policy.status === "blocked") {
+          toast.error(`انتهت فترة الإرجاع (${policy.windowDays} يوم — الفاتورة من ${policy.daysSince} يوم). تواصل مع المالك للموافقة.`);
+          return;
+        }
+        if (policy.status === "override_required") {
+          setOverrideMeta({ daysSince: policy.daysSince, windowDays: policy.windowDays });
+          setOverrideReason("");
+          setPendingDraft(asDraft);
+          setOverrideOpen(true);
+          return;
+        }
+      }
     }
 
     setBusy(true);
@@ -257,6 +288,34 @@ export default function NewSaleReturn() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirmOwnerOverride = async () => {
+    const reason = overrideReason.trim();
+    if (!reason) return toast.error("اكتب سبب التجاوز");
+    if (!overrideMeta || !invoice) return;
+    const meta = { reason, daysSince: overrideMeta.daysSince, windowDays: overrideMeta.windowDays };
+    setOverrideApproved(meta);
+    setOverrideOpen(false);
+    try {
+      await logAudit({
+        userId: user!.id,
+        userName: profile?.name ?? "",
+        action: "UPDATE",
+        entity: "return_owner_override",
+        entityId: invoice.id,
+        details: {
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          days_since: meta.daysSince,
+          window_days: meta.windowDays,
+          reason,
+          owner_id: user!.id,
+        },
+      });
+    } catch {}
+    await submit(pendingDraft);
+    setOverrideApproved(null);
   };
 
   // Shortcuts
@@ -575,6 +634,32 @@ export default function NewSaleReturn() {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Owner override — return window exceeded */}
+      <Dialog open={overrideOpen} onOpenChange={(o) => { setOverrideOpen(o); if (!o) setPendingDraft(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <ShieldAlert className="w-5 h-5" /> تجاوز فترة الإرجاع
+            </DialogTitle>
+            <DialogDescription>
+              {overrideMeta && (
+                <>فترة الإرجاع المسموح بها: <b>{overrideMeta.windowDays} يوم</b>. هذه الفاتورة مرّ عليها <b>{overrideMeta.daysSince} يوم</b>. بصفتك المالك يمكنك التجاوز مع تسجيل السبب.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>سبب التجاوز (مطلوب)</Label>
+            <Textarea rows={3} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="اكتب سبب واضح للسماح بالمرتجع بعد انتهاء الفترة" />
+          </div>
+          <DialogFooter className="gap-2 flex-row">
+            <Button variant="outline" onClick={() => setOverrideOpen(false)}>إلغاء</Button>
+            <Button onClick={confirmOwnerOverride} className="bg-warning text-warning-foreground hover:bg-warning/90 gap-2">
+              <ShieldAlert className="w-4 h-4" /> متابعة بصفتي المالك
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -30,7 +30,7 @@ interface InvoiceSettings { footer_note: string; show_logo: boolean }
 interface InventorySettings { default_low_stock_alert: number }
 
 export default function Settings() {
-  const { user, profile, branches, roles } = useAuth();
+  const { user, profile, branches, roles, isOwner } = useAuth();
   const canManageAdminTools = roles.includes("admin") || roles.includes("super_admin");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,6 +51,10 @@ export default function Settings() {
   const [discGlobalPct, setDiscGlobalPct] = useState<number>(10);
   const [discBranchPct, setDiscBranchPct] = useState<Record<string, number>>({});
   const [savingDiscount, setSavingDiscount] = useState(false);
+
+  // === Return-window policy (owner-only) ===
+  const [returnWindowDays, setReturnWindowDays] = useState<number>(20);
+  const [savingReturnPolicy, setSavingReturnPolicy] = useState(false);
 
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
@@ -158,6 +162,11 @@ export default function Settings() {
           if (v.mode === "per_branch") setDiscMode("per_branch");
           if (v.branches && typeof v.branches === "object") setDiscBranchPct(v.branches);
         }
+        if (row.key === "return_policy") {
+          const v: any = row.value ?? {};
+          const n = Number(v.days);
+          if (Number.isFinite(n) && n >= 1) setReturnWindowDays(Math.min(365, Math.max(1, Math.floor(n))));
+        }
       }
       const tmap: Record<string, number> = {};
       const gmap: Record<string, number> = {};
@@ -187,6 +196,26 @@ export default function Settings() {
     } catch (e: any) { toast.error(e.message ?? "خطأ"); }
     finally { setSavingDiscount(false); }
   };
+
+  const saveReturnPolicy = async () => {
+    if (!isOwner) return toast.error("هذا الإعداد للمالك فقط");
+    const n = Math.min(365, Math.max(1, Math.floor(Number(returnWindowDays) || 20)));
+    setSavingReturnPolicy(true);
+    try {
+      await supabase.from("settings").upsert({
+        key: "return_policy",
+        value: { days: n } as any,
+        updated_by: user!.id,
+        updated_at: new Date().toISOString(),
+      });
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "return_policy", details: { days: n } });
+      setReturnWindowDays(n);
+      toast.success("تم حفظ سياسة الإرجاع");
+    } catch (e: any) { toast.error(e.message ?? "خطأ"); }
+    finally { setSavingReturnPolicy(false); }
+  };
+
+
 
   const saveThresholds = async () => {
     setSavingThresholds(true);
@@ -266,6 +295,7 @@ export default function Settings() {
             { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
             { v: "targets", icon: Target, label: "أهداف المبيعات" },
             { v: "discount", icon: Percent, label: "إعدادات الخصم" },
+            ...(isOwner ? [{ v: "return-policy", icon: AlertTriangle, label: "سياسة الإرجاع" }] : []),
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
@@ -574,6 +604,42 @@ export default function Settings() {
         <TabsContent value="backup" className="mt-4">
           <BackupTab />
         </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="return-policy" className="mt-4">
+            <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-warning shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-lg font-bold">سياسة الإرجاع</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    حدد عدد الأيام المسموح فيها بإرجاع المبيعات. بعد انتهاء الفترة يتم منع الكاشير والمدير من عمل مرتجع،
+                    ويسمح <b>للمالك فقط</b> بالتجاوز مع تسجيل السبب في سجل التدقيق.
+                    <br />
+                    <span className="text-xs">استثناءات (لا يتم تطبيق الفترة عليها): الفواتير المرتبطة بخطط تقسيط، الحجوزات المكتملة، معاملات الشركاء.</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-w-xs">
+                <Label>عدد الأيام المسموح بها</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Input
+                    type="number" min={1} max={365} className="text-right"
+                    value={returnWindowDays}
+                    onChange={(e) => setReturnWindowDays(Number(e.target.value))}
+                  />
+                  <span className="text-xs text-muted-foreground w-12">يوم</span>
+                </div>
+              </div>
+
+              <Button onClick={saveReturnPolicy} disabled={savingReturnPolicy} className="gap-2">
+                {savingReturnPolicy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                حفظ
+              </Button>
+            </div>
+          </TabsContent>
+        )}
 
         <TabsContent value="2fa" className="mt-4">
           <TwoFactorTab />
