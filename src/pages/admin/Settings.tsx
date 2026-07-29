@@ -30,7 +30,7 @@ interface InvoiceSettings { footer_note: string; show_logo: boolean }
 interface InventorySettings { default_low_stock_alert: number }
 
 export default function Settings() {
-  const { user, profile, branches, roles } = useAuth();
+  const { user, profile, branches, roles, isOwner } = useAuth();
   const canManageAdminTools = roles.includes("admin") || roles.includes("super_admin");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
