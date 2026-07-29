@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatEGP } from "@/lib/format";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
-import { AlertCircle, Calendar, CreditCard } from "lucide-react";
+import { EditPaymentDialog } from "./EditPaymentDialog";
+import { toast } from "sonner";
+import { AlertCircle, Calendar, CreditCard, Pencil } from "lucide-react";
 
 interface Props {
   entityType: "customer" | "supplier" | "employee";
