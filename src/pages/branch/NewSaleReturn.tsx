@@ -82,6 +82,14 @@ export default function NewSaleReturn() {
   const [printOpen, setPrintOpen] = useState(false);
   const [savedNumber, setSavedNumber] = useState("");
 
+  // Return-window override
+  const { user, profile, isOwner } = useAuth();
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideMeta, setOverrideMeta] = useState<{ daysSince: number; windowDays: number } | null>(null);
+  const [overrideApproved, setOverrideApproved] = useState<{ reason: string; daysSince: number; windowDays: number } | null>(null);
+  const [pendingDraft, setPendingDraft] = useState<boolean>(false);
+
   const loadInvoices = useCallback(async () => {
     if (!branchId) return;
     const { data } = await supabase
