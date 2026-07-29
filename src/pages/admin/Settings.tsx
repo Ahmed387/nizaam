@@ -197,6 +197,23 @@ export default function Settings() {
     finally { setSavingDiscount(false); }
   };
 
+  const saveReturnPolicy = async () => {
+    if (!isOwner) return toast.error("هذا الإعداد للمالك فقط");
+    const n = Math.min(365, Math.max(1, Math.floor(Number(returnWindowDays) || 20)));
+    setSavingReturnPolicy(true);
+    try {
+      await supabase.from("settings").upsert({
+        key: "return_policy",
+        value: { days: n } as any,
+        updated_by: user!.id,
+        updated_at: new Date().toISOString(),
+      });
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "return_policy", details: { days: n } });
+      setReturnWindowDays(n);
+      toast.success("تم حفظ سياسة الإرجاع");
+    } catch (e: any) { toast.error(e.message ?? "خطأ"); }
+    finally { setSavingReturnPolicy(false); }
+
   const saveThresholds = async () => {
     setSavingThresholds(true);
     try {
