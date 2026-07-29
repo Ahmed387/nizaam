@@ -166,6 +166,50 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
       />
 
 
+      {isOwner && (
+        <div className="card-elevated p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3 font-semibold">
+            <Clock className="w-4 h-4 text-primary" />
+            موعد التقرير الأسبوعي التلقائي
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[140px]">
+              <div className="text-xs text-muted-foreground mb-1">اليوم</div>
+              <Select value={String(schedDay)} onValueChange={(v) => setSchedDay(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">الأحد</SelectItem>
+                  <SelectItem value="1">الإثنين</SelectItem>
+                  <SelectItem value="2">الثلاثاء</SelectItem>
+                  <SelectItem value="3">الأربعاء</SelectItem>
+                  <SelectItem value="4">الخميس</SelectItem>
+                  <SelectItem value="5">الجمعة</SelectItem>
+                  <SelectItem value="6">السبت</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[140px]">
+              <div className="text-xs text-muted-foreground mb-1">الساعة</div>
+              <Select value={String(schedHour)} onValueChange={(v) => setSchedHour(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={saveSchedule} disabled={savingSched} className="gap-2">
+              {savingSched && <Loader2 className="w-4 h-4 animate-spin" />}
+              حفظ الموعد
+            </Button>
+            <div className="text-xs text-muted-foreground ms-auto">
+              التوقيت: UTC (يتم التنفيذ أسبوعياً في اليوم والساعة المختارين)
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end mb-4">
         <Button onClick={runNow} disabled={running} className="gap-2">
           {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
