@@ -128,7 +128,11 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
                           {i.status === "pending" && <Badge>قادم</Badge>}
                         </td>
                         <td className="px-3 py-2 text-left">
-                          {i.status !== "paid" && (
+                          {i.status === "paid" ? (
+                            <Button size="sm" variant="ghost" onClick={() => openEditForInstallment(i.id)} className="gap-1">
+                              <Pencil className="w-3 h-3" /> تعديل الدفعة
+                            </Button>
+                          ) : (
                             <Button size="sm" variant="outline" onClick={() => setPaying({ planId: p.id, installmentId: i.id, amount: remaining })}>
                               {direction === "in" ? "استلام" : "دفع"}
                             </Button>
