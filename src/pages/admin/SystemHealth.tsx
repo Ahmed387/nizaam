@@ -107,7 +107,6 @@ export default function SystemHealth() {
       .subscribe();
 
     return () => {
-      clearInterval(t);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
