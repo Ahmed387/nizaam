@@ -6,7 +6,18 @@ import { formatEGP } from "@/lib/format";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { toast } from "sonner";
-import { AlertCircle, Calendar, CreditCard, Pencil } from "lucide-react";
+import { AlertCircle, Calendar, CreditCard, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   entityType: "customer" | "supplier" | "employee";
@@ -21,6 +32,49 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<{ planId: string; installmentId?: string; amount: number } | null>(null);
   const [editTarget, setEditTarget] = useState<{ kind: "tx"; row: any } | null>(null);
+  const [voidTarget, setVoidTarget] = useState<{ txId: string; amount: number; installmentNo: number } | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [voiding, setVoiding] = useState(false);
+
+  const openVoidForInstallment = async (installmentId: string, installmentNo: number) => {
+    const { data, error } = await supabase
+      .from("payment_transactions")
+      .select("id, amount")
+      .eq("installment_id", installmentId)
+      .is("voided_at", null)
+      .is("reverses_tx_id", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      toast.error("مافيش دفعة قابلة للإلغاء على القسط ده");
+      return;
+    }
+    setVoidReason("");
+    setVoidTarget({ txId: data.id, amount: Number(data.amount), installmentNo });
+  };
+
+  const confirmVoid = async () => {
+    if (!voidTarget) return;
+    if (!voidReason.trim() || voidReason.trim().length < 5) {
+      toast.error("السبب مطلوب (5 أحرف على الأقل)");
+      return;
+    }
+    setVoiding(true);
+    const { error } = await supabase.rpc("void_payment_transaction", {
+      p_tx_id: voidTarget.txId,
+      p_reason: voidReason.trim(),
+    });
+    setVoiding(false);
+    if (error) {
+      toast.error(error.message || "فشل إلغاء الدفعة");
+      return;
+    }
+    toast.success("تم إلغاء الدفعة ورجّع القسط لحالة معلّق");
+    setVoidTarget(null);
+    setVoidReason("");
+    await load();
+  };
 
   const openEditForInstallment = async (installmentId: string) => {
     const { data, error } = await supabase
@@ -129,15 +183,26 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
                         </td>
                         <td className="px-3 py-2 text-left">
                           {i.status === "paid" ? (
-                            <Button size="sm" variant="ghost" onClick={() => openEditForInstallment(i.id)} className="gap-1">
-                              <Pencil className="w-3 h-3" /> تعديل الدفعة
-                            </Button>
+                            <div className="flex items-center gap-1 justify-end">
+                              <Button size="sm" variant="ghost" onClick={() => openEditForInstallment(i.id)} className="gap-1">
+                                <Pencil className="w-3 h-3" /> تعديل
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openVoidForInstallment(i.id, i.installment_number)}
+                                className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-3 h-3" /> إلغاء
+                              </Button>
+                            </div>
                           ) : (
                             <Button size="sm" variant="outline" onClick={() => setPaying({ planId: p.id, installmentId: i.id, amount: remaining })}>
                               {direction === "in" ? "استلام" : "دفع"}
                             </Button>
                           )}
                         </td>
+
                       </tr>
                     );
                   })}
@@ -168,6 +233,37 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
         target={editTarget}
         onSuccess={load}
       />
+
+      <AlertDialog open={!!voidTarget} onOpenChange={(o) => { if (!o) { setVoidTarget(null); setVoidReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">إلغاء دفعة القسط #{voidTarget?.installmentNo}</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span>هيتم عكس الدفعة ({voidTarget ? formatEGP(voidTarget.amount) : ""}) بالكامل من الخزينة والدفتر العام، والقسط هيرجع "معلّق".</span>
+              <span className="block text-xs">الدفعة الأصلية هتفضل في السجل كـ voided للـ Audit Trail.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">سبب الإلغاء (مطلوب)</label>
+            <Textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="مثال: الدفعة اتسجلت بالغلط بمبلغ خطأ"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmVoid(); }}
+              disabled={voiding}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {voiding ? "جاري..." : "تأكيد الإلغاء"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

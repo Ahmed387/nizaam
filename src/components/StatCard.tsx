@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { forwardRef, ReactNode } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 type Accent = "primary" | "success" | "warning" | "destructive" | "secondary";
@@ -41,25 +41,25 @@ const ACCENTS: Record<Accent, { bg: string; border: string; chip: string; value:
   },
 };
 
-export function StatCard({
-  label,
-  value,
-  icon,
-  trend,
-  hint,
-  accent = "primary",
-}: {
+interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
   label: string;
   value: string | number;
   icon: ReactNode;
   trend?: { positive: boolean; text: string };
   hint?: string;
   accent?: Accent;
-}) {
+}
+
+export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatCard(
+  { label, value, icon, trend, hint, accent = "primary", className, ...rest },
+  ref
+) {
   const a = ACCENTS[accent];
   return (
     <div
-      className={`rounded-2xl p-5 h-full border ${a.border} ${a.bg} flex flex-col items-center justify-center text-center transition-shadow hover:shadow-md`}
+      ref={ref}
+      {...rest}
+      className={`rounded-2xl p-5 h-full border ${a.border} ${a.bg} flex flex-col items-center justify-center text-center transition-shadow hover:shadow-md ${className ?? ""}`}
     >
       <div className="flex items-center justify-center gap-2 mb-3">
         <span className={`text-sm font-semibold ${a.label}`}>{label}</span>
@@ -81,4 +81,4 @@ export function StatCard({
       {hint && !trend && <div className="mt-2 text-xs text-muted-foreground font-medium">{hint}</div>}
     </div>
   );
-}
+});
