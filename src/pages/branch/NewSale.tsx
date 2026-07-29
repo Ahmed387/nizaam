@@ -124,6 +124,30 @@ export default function NewSale() {
     return () => clearInterval(id);
   }, []);
 
+  // Guard: block sales without an open cashier shift (admins are exempt)
+  const [shiftReady, setShiftReady] = useState<boolean>(false);
+  useEffect(() => {
+    if (!branchId || !user?.id) return;
+    if (isAdmin) { setShiftReady(true); return; }
+    (async () => {
+      const { getOpenShift } = await import("@/lib/shifts");
+      try {
+        const s = await getOpenShift(branchId);
+        if (!s) {
+          toast.error("لازم تفتح وردية قبل البدء في البيع");
+          nav(`/branch/${branchId}/shifts/open`, {
+            replace: true,
+            state: { returnTo: `/branch/${branchId}/sales/new` },
+          });
+        } else {
+          setShiftReady(true);
+        }
+      } catch (e: any) {
+        toast.error(e.message ?? "خطأ في التحقق من الوردية");
+      }
+    })();
+  }, [branchId, user?.id, isAdmin, nav]);
+
   useEffect(() => {
     setCreditToApply(0);
     setUseSettlement(false);
