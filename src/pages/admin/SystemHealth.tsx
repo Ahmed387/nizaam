@@ -91,10 +91,9 @@ export default function SystemHealth() {
     }
   };
 
-  // Initial + polling + realtime
+  // Initial + realtime
   useEffect(() => {
     load();
-    const t = setInterval(() => load(true), POLL_MS);
 
     // Realtime: refetch when any accounting-affecting table changes
     const channel = supabase
