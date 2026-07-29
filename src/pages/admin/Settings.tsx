@@ -605,6 +605,42 @@ export default function Settings() {
           <BackupTab />
         </TabsContent>
 
+        {isOwner && (
+          <TabsContent value="return-policy" className="mt-4">
+            <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-warning shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-lg font-bold">سياسة الإرجاع</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    حدد عدد الأيام المسموح فيها بإرجاع المبيعات. بعد انتهاء الفترة يتم منع الكاشير والمدير من عمل مرتجع،
+                    ويسمح <b>للمالك فقط</b> بالتجاوز مع تسجيل السبب في سجل التدقيق.
+                    <br />
+                    <span className="text-xs">استثناءات (لا يتم تطبيق الفترة عليها): الفواتير المرتبطة بخطط تقسيط، الحجوزات المكتملة، معاملات الشركاء.</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-w-xs">
+                <Label>عدد الأيام المسموح بها</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Input
+                    type="number" min={1} max={365} className="text-right"
+                    value={returnWindowDays}
+                    onChange={(e) => setReturnWindowDays(Number(e.target.value))}
+                  />
+                  <span className="text-xs text-muted-foreground w-12">يوم</span>
+                </div>
+              </div>
+
+              <Button onClick={saveReturnPolicy} disabled={savingReturnPolicy} className="gap-2">
+                {savingReturnPolicy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                حفظ
+              </Button>
+            </div>
+          </TabsContent>
+        )}
+
         <TabsContent value="2fa" className="mt-4">
           <TwoFactorTab />
         </TabsContent>
