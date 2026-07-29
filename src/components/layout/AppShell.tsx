@@ -104,15 +104,20 @@ export function AppShell({
         {/* Nav (grouped) */}
         <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "px-2 py-3" : "px-3 py-3"} space-y-4`}>
           {isCollapsed && !isMobile && (
-            <button
-              onClick={() => setCollapsed(false)}
-              className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors mb-1"
-              aria-label="فتح القائمة"
-              title="فتح"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setCollapsed(false)}
+                  className="w-full flex items-center justify-center py-2.5 rounded-xl bg-gradient-to-l from-primary to-primary-glow text-primary-foreground hover:opacity-90 shadow-[0_4px_14px_-4px_hsl(217_91%_55%_/_0.5)] transition-all mb-2"
+                  aria-label="فتح القائمة"
+                >
+                  <ChevronsLeft className="w-5 h-5" strokeWidth={2.5} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="font-semibold">فتح القائمة</TooltipContent>
+            </Tooltip>
           )}
+
           {groupedNav.map((group, gi) => (
             <div key={`${group.label}-${gi}`} className="space-y-1">
               {!isCollapsed && group.label && (
