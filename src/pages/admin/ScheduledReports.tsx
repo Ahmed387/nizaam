@@ -60,6 +60,7 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
 
   useEffect(() => {
     load();
+    loadSchedule();
     const ch = supabase
       .channel("sr-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_reports" }, load)
