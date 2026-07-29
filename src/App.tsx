@@ -292,6 +292,8 @@ const App = () => (
             <Route path="/branch/:id/quotes/:quoteId" element={<ProtectedRoute perm="sales.view"><QuoteView /></ProtectedRoute>} />
             <Route path="/branch/:id/adjustments/new" element={<ProtectedRoute perm="inventory.update"><NewStockAdjustment /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/new" element={<ProtectedRoute perm="sales.create"><NewSale /></ProtectedRoute>} />
+            <Route path="/branch/:id/shifts/open" element={<ProtectedRoute perm="sales.create"><ShiftOpen /></ProtectedRoute>} />
+            <Route path="/branch/:id/shifts/close" element={<ProtectedRoute perm="sales.create"><ShiftClose /></ProtectedRoute>} />
             <Route path="/branch/:id/sales/returns" element={<RedirectReturnsToInvoices />} />
             
             <Route path="/branch/:id/sales/:invoiceId/edit" element={<ProtectedRoute perm="sales.create"><EditSaleInvoice /></ProtectedRoute>} />
