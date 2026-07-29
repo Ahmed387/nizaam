@@ -21,12 +21,32 @@ interface Report {
 }
 
 export default function ScheduledReports({ embedded }: { embedded?: boolean } = {}) {
-  const { tenantId } = useAuth();
+  const { tenantId, isOwner } = useAuth() as any;
   const [rows, setRows] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [aiBusy, setAiBusy] = useState<string | null>(null);
   const [aiOutput, setAiOutput] = useState<Record<string, string>>({});
+  const [schedDay, setSchedDay] = useState<number>(0);
+  const [schedHour, setSchedHour] = useState<number>(10);
+  const [savingSched, setSavingSched] = useState(false);
+
+  const loadSchedule = async () => {
+    const { data } = await supabase.from("settings").select("value").eq("key", "scheduled_reports_schedule").maybeSingle();
+    const v: any = data?.value;
+    if (v && typeof v === "object") {
+      if (typeof v.day === "number") setSchedDay(v.day);
+      if (typeof v.hour === "number") setSchedHour(v.hour);
+    }
+  };
+
+  const saveSchedule = async () => {
+    setSavingSched(true);
+    const { error } = await supabase.rpc("set_scheduled_reports_cron" as any, { _day: schedDay, _hour: schedHour });
+    setSavingSched(false);
+    if (error) toast.error(error.message);
+    else toast.success("تم حفظ موعد التقرير الأسبوعي");
+  };
 
   const load = async () => {
     const { data } = await supabase
