@@ -19,11 +19,8 @@ interface Grant {
 
 interface UserRow { id: string; email: string; full_name?: string }
 
-const OWNER_EMAIL = "an.ayoub98@gmail.com";
-
 export function PersonalExpensesAccessTab() {
-  const { user } = useAuth();
-  const isOwner = (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  const { user, isOwner } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [pickUser, setPickUser] = useState<string>("");
