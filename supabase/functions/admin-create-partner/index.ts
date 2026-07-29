@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!tenant_id || !partner_name || !partner_type || !username || !password) {
+    if (!partner_name || !partner_type || !username || !password) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
