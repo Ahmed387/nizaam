@@ -161,6 +161,13 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
           onSuccess={load}
         />
       )}
+
+      <EditPaymentDialog
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        target={editTarget}
+        onSuccess={load}
+      />
     </div>
   );
 }
