@@ -55,21 +55,24 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const totalAdminApprovals = (pendingApprovals || 0) + (pendingDiscounts || 0);
 
   const adminNav: NavItem[] = [
-    { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" /> },
-    ...(isOwner ? [{ to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" /> }] : []),
-    ...(isOwner ? [{ to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" /> }] : []),
-    { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" /> },
-    { to: "/admin/contacts", label: "جهات التواصل (كل الفروع)", icon: <Factory className="w-4 h-4" /> },
-    { to: "/admin/employees", label: "الموظفين (كل الفروع)", icon: <UserCircle className="w-4 h-4" /> },
-    { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> },
-    ...(isAdmin ? [{ to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" /> }] : []),
-    { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" /> },
-    ...(isOwner ? [{ to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" /> }] : []),
-    ...(isOwner ? [{ to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
-    ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" /> }] : []),
-    { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" /> },
-    ...(isAdmin ? [{ to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined }] : []),
-    { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" /> },
+    { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عام" },
+    ...(isOwner ? [{ to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عام" }] : []),
+    ...(isOwner ? [{ to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عام" }] : []),
+
+    { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" />, group: "العمليات" },
+    { to: "/admin/contacts", label: "جهات التواصل", icon: <Factory className="w-4 h-4" />, group: "العمليات" },
+    { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات" },
+    { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات" },
+
+    ...(isAdmin ? [{ to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
+    { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية" },
+    ...(isOwner ? [{ to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" />, group: "المالية" }] : []),
+    ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
+    { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية" },
+
+    ...(isOwner ? [{ to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة" }] : []),
+    ...(isAdmin ? [{ to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة" }] : []),
+    { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة" },
   ];
 
   const supervisorNav: NavItem[] = [
