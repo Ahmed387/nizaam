@@ -93,6 +93,9 @@ export default function PersonalExpenses() {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
+  // month tab ("__all__" = الإجمالي)
+  const [activeTab, setActiveTab] = useState<string>("__all__");
+
   // dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -197,16 +200,46 @@ export default function PersonalExpenses() {
       .map(([k, v]) => ({ key: k, ...v }));
   }, [filtered]);
 
-  const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.amount), 0), [filtered]);
-  const attachmentCounts = useAttachmentCounts("personal_expense", filtered.map(r => r.id));
+  // Month tabs: every month that has data + current month (auto-created each month)
+  const monthTabs = useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    const cur = monthKey(new Date().toISOString());
+    map.set(cur, { total: 0, count: 0 });
+    rows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      const v = map.get(k) || { total: 0, count: 0 };
+      v.total += Number(r.amount);
+      v.count += 1;
+      map.set(k, v);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([k, v]) => ({ key: k, ...v }));
+  }, [rows]);
+
+  // Rows shown in the table = filters + active month tab
+  const visible = useMemo(
+    () => activeTab === "__all__" ? filtered : filtered.filter(r => monthKey(r.expense_datetime) === activeTab),
+    [filtered, activeTab]
+  );
+
+  const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
+  const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
   const openAdd = () => {
     setEditing(null);
+    // Prefill with the currently opened month tab (now if it's the current month)
+    const now = new Date();
+    let dt = now;
+    if (activeTab !== "__all__" && activeTab !== monthKey(now.toISOString())) {
+      const [y, m] = activeTab.split("-").map(Number);
+      dt = new Date(y, m - 1, 1, now.getHours(), now.getMinutes());
+    }
     setForm({
       amount: "",
       description: "",
       category: "",
-      expense_datetime: toLocalInput(new Date().toISOString()),
+      expense_datetime: toLocalInput(dt.toISOString()),
       notes: "",
     });
     setDialogOpen(true);
@@ -354,7 +387,40 @@ export default function PersonalExpenses() {
         </div>
       </div>
 
-      {/* Grand total (respects active filters) */}
+      {/* Month tabs — تبويب لكل شهر/سنة + تبويب الإجمالي */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("__all__")}
+          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
+            activeTab === "__all__"
+              ? "bg-gradient-to-l from-primary to-primary/80 text-primary-foreground border-primary shadow-md"
+              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
+          }`}
+        >
+          الإجمالي
+        </button>
+        {monthTabs.map((m, idx) => (
+          <button
+            key={m.key}
+            type="button"
+            onClick={() => setActiveTab(m.key)}
+            className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+              activeTab === m.key
+                ? `bg-gradient-to-br shadow-md ${monthColors[idx % monthColors.length]} ring-2 ring-primary/40`
+                : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
+            }`}
+          >
+            <CalendarDays className="w-4 h-4 opacity-70" />
+            {monthLabel(m.key)}
+            <span className="text-xs font-extrabold tabular-nums opacity-90">
+              {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Grand total (respects active filters + month tab) */}
       <div className="mb-6">
         <Card className="p-6 bg-gradient-to-l from-rose-500/20 via-rose-500/10 to-transparent border-rose-400/40 animate-fade-in">
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -364,7 +430,8 @@ export default function PersonalExpenses() {
               </div>
               <div>
                 <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">
-                  الإجمالي {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? "(بعد الفلاتر)" : ""}
+                  {activeTab === "__all__" ? "إجمالي كل الشهور" : `مصاريف ${monthLabel(activeTab)}`}
+                  {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? " (بعد الفلاتر)" : ""}
                 </div>
                 <div className="text-4xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
                   {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
@@ -372,12 +439,21 @@ export default function PersonalExpenses() {
                 </div>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {filtered.length.toLocaleString("ar-EG")} مصروف · {monthlyTotals.length} شهر
+            <div className="flex items-center gap-2">
+              <div className="text-xs text-muted-foreground">
+                {visible.length.toLocaleString("ar-EG")} مصروف
+                {activeTab === "__all__" ? ` · ${monthlyTotals.length} شهر` : ""}
+              </div>
+              {activeTab !== "__all__" && (
+                <Button size="sm" variant="outline" onClick={() => exportMonthPDF(activeTab)}>
+                  <FileDown className="w-4 h-4 ml-1" /> PDF الشهر
+                </Button>
+              )}
             </div>
           </div>
         </Card>
       </div>
+
 
 
 
@@ -428,20 +504,20 @@ export default function PersonalExpenses() {
         </div>
       </Card>
 
-      {/* Monthly totals */}
-      {monthlyTotals.length > 0 && (
+      {/* Monthly totals — تظهر في تبويب الإجمالي فقط */}
+      {activeTab === "__all__" && monthlyTotals.length > 0 && (
         <div className="mb-6">
           <div className="text-sm font-semibold mb-3 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-primary" /> الإجماليات الشهرية</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {monthlyTotals.map((m, idx) => (
-              <Card key={m.key} className={`p-4 bg-gradient-to-br border ${monthColors[idx % monthColors.length]}`}>
+              <Card key={m.key} onClick={() => setActiveTab(m.key)} className={`p-4 cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br border ${monthColors[idx % monthColors.length]}`}>
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="text-xs opacity-80">{monthLabel(m.key)}</div>
                     <div className="text-2xl font-extrabold mt-1">{m.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}<span className="text-sm mr-1">ج.م</span></div>
                     <div className="text-xs mt-1 opacity-70">{m.count} مصروف</div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => exportMonthPDF(m.key)} title="تصدير PDF لهذا الشهر">
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportMonthPDF(m.key); }} title="تصدير PDF لهذا الشهر">
                     <FileDown className="w-4 h-4" />
                   </Button>
                 </div>
@@ -469,7 +545,7 @@ export default function PersonalExpenses() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : visible.length === 0 ? (
                 <tr><td colSpan={7} className="p-10 text-center">
                   <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
                     <Receipt className="w-10 h-10 opacity-40" />
@@ -477,7 +553,7 @@ export default function PersonalExpenses() {
                     {canEdit && <Button size="sm" variant="outline" onClick={openAdd}><Plus className="w-4 h-4 ml-1" />أضف أول مصروف</Button>}
                   </div>
                 </td></tr>
-              ) : filtered.map(r => (
+              ) : visible.map(r => (
                 <tr key={r.id} className="border-t hover:bg-primary/5 transition-colors">
                   <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
                   <td className="p-3 font-semibold">{r.description}</td>
