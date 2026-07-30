@@ -29,17 +29,15 @@ export const PaymentStatusRibbon = forwardRef<
 });
 
 /** Compact colored pill for payment status. */
-export function PaymentStatusBadge({
-  state,
-  total,
-  paid,
-  compact = false,
-}: {
-  state: PayState;
-  total?: number;
-  paid?: number;
-  compact?: boolean;
-}) {
+export const PaymentStatusBadge = forwardRef<
+  HTMLSpanElement,
+  {
+    state: PayState;
+    total?: number;
+    paid?: number;
+    compact?: boolean;
+  } & Omit<React.HTMLAttributes<HTMLSpanElement>, "children">
+>(function PaymentStatusBadge({ state, total, paid, compact = false, className = "", ...rest }, ref) {
   const map = {
     paid: {
       label: "مدفوعة بالكامل",
