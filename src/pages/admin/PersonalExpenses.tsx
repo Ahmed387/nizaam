@@ -172,11 +172,18 @@ export default function PersonalExpenses() {
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
+  // تخصيص صاحب الشركة
+  const isPersonalOwner = (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  const greetedRef = useRef(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [bellRing, setBellRing] = useState(false);
+  const [seenAlerts, setSeenAlerts] = useState<string[]>([]);
+
   // Resolve owner + access
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const isPersonalOwner = (user.email || "").toLowerCase() === OWNER_EMAIL;
       if (isPersonalOwner) {
         setOwnerId(user.id);
         setCanEdit(true);
@@ -192,7 +199,7 @@ export default function PersonalExpenses() {
         }
       }
     })();
-  }, [user]);
+  }, [user, isPersonalOwner]);
 
   const load = async () => {
     if (!ownerId) return;
@@ -209,16 +216,49 @@ export default function PersonalExpenses() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [ownerId]);
 
-  // realtime
+  // تحية ترحيبية لصاحب الشركة (مرة واحدة كل جلسة فتح للصفحة)
+  useEffect(() => {
+    if (!isPersonalOwner || !ownerId || greetedRef.current) return;
+    greetedRef.current = true;
+    setCelebrate(true);
+    const t1 = setTimeout(() => {
+      fancyToast.info(`${greeting()} ${OWNER_NAME} 👋`, "دفترك الشخصي جاهز — كل حاجة هنا خاصة بيك لوحدك");
+    }, 500);
+    const t2 = setTimeout(() => setCelebrate(false), 2600);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+    // eslint-disable-next-line
+  }, [isPersonalOwner, ownerId]);
+
+  // realtime + إشعارات فورية
   useEffect(() => {
     if (!ownerId) return;
     const ch = supabase
       .channel(`ope-${ownerId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "owner_personal_expenses", filter: `owner_user_id=eq.${ownerId}` }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "owner_personal_expenses", filter: `owner_user_id=eq.${ownerId}` },
+        (payload: any) => {
+          if (isPersonalOwner) {
+            const rec: any = payload.new || payload.old;
+            const amt = Number(rec?.amount || 0);
+            setBellRing(true);
+            setTimeout(() => setBellRing(false), 1200);
+            if (payload.eventType === "INSERT") {
+              fancyToast.success(`مصروف جديد: ${EGP(amt)}`, rec?.description || undefined);
+            } else if (payload.eventType === "UPDATE") {
+              fancyToast.info("تم تعديل مصروف", rec?.description || undefined);
+            } else if (payload.eventType === "DELETE") {
+              fancyToast.warn("تم حذف مصروف", rec?.description || undefined);
+            }
+          }
+          load();
+        }
+      )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
-  }, [ownerId]);
+  }, [ownerId, isPersonalOwner]);
+
 
   const allCategories = useMemo(() => {
     const s = new Set<string>();
