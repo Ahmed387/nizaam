@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { CheckCircle2, Clock, CircleDashed } from "lucide-react";
 import { formatEGP } from "@/lib/format";
 
@@ -11,29 +12,32 @@ export function computePayState(total: number, paid: number): PayState {
 }
 
 /** Colored vertical ribbon shown on the right (RTL) side of invoice rows / cards. */
-export function PaymentStatusRibbon({ state, className = "" }: { state: PayState; className?: string }) {
+export const PaymentStatusRibbon = forwardRef<
+  HTMLSpanElement,
+  { state: PayState; className?: string } & React.HTMLAttributes<HTMLSpanElement>
+>(function PaymentStatusRibbon({ state, className = "", ...rest }, ref) {
   const color =
     state === "paid" ? "bg-success" : state === "partial" ? "bg-warning" : "bg-muted-foreground/30";
   return (
     <span
+      ref={ref}
       aria-hidden
+      {...rest}
       className={`inline-block w-1.5 self-stretch rounded-full ${color} ${className}`}
     />
   );
-}
+});
 
 /** Compact colored pill for payment status. */
-export function PaymentStatusBadge({
-  state,
-  total,
-  paid,
-  compact = false,
-}: {
-  state: PayState;
-  total?: number;
-  paid?: number;
-  compact?: boolean;
-}) {
+export const PaymentStatusBadge = forwardRef<
+  HTMLSpanElement,
+  {
+    state: PayState;
+    total?: number;
+    paid?: number;
+    compact?: boolean;
+  } & Omit<React.HTMLAttributes<HTMLSpanElement>, "children">
+>(function PaymentStatusBadge({ state, total, paid, compact = false, className = "", ...rest }, ref) {
   const map = {
     paid: {
       label: "مدفوعة بالكامل",
@@ -54,7 +58,9 @@ export function PaymentStatusBadge({
   const { label, cls, Icon } = map[state];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls}`}
+      ref={ref}
+      {...rest}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls} ${className}`}
     >
       <Icon className="w-3.5 h-3.5" />
       {label}
@@ -65,4 +71,4 @@ export function PaymentStatusBadge({
       )}
     </span>
   );
-}
+});
