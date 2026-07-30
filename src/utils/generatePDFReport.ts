@@ -1715,6 +1715,7 @@ export type PartnerStatementInput = {
     monthsCount: number;
     periodLabel?: string | null;
   } | null;
+  companyName?: string;
 };
 
 export async function generatePartnerStatementReport(input: PartnerStatementInput): Promise<void> {
@@ -1842,13 +1843,43 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
       </div>
     `).join("");
 
+    // Signature + company stamp block
+    const company = input.companyName || input.branchName || "الشركة";
+    const signatureHtml = `
+      <div style="margin-top:22px;padding-top:14px;border-top:1px dashed ${C.border};">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;align-items:end;">
+          <div style="text-align:center;">
+            <div style="height:52px;border-bottom:1px solid ${C.ink};"></div>
+            <div style="font-size:11px;color:${C.muted};margin-top:6px;">توقيع الشريك</div>
+            <div style="font-size:12px;color:${C.ink};font-weight:700;">${input.partner.name}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="height:52px;border-bottom:1px solid ${C.ink};"></div>
+            <div style="font-size:11px;color:${C.muted};margin-top:6px;">توقيع المحاسب / المسؤول</div>
+            <div style="font-size:12px;color:${C.ink};font-weight:700;">${input.userName}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:104px;height:104px;margin:0 auto;border:2px solid ${C.accent};border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${C.accent};">
+              <div style="font-size:12px;font-weight:800;line-height:1.4;">${company}</div>
+              <div style="font-size:9px;opacity:.8;margin-top:2px;">ختم الشركة</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:14px;text-align:center;font-size:10px;color:${C.muted};line-height:1.8;">
+          هذا الكشف صادر آليًا من نظام Nizam بتاريخ ${fmtDateTime(new Date().toISOString())} — غير معتمد إلا بالتوقيع والختم.
+        </div>
+      </div>
+    `;
+
     const sectionsHtml = [
       `<div data-pdf-section="header">${header}</div>`,
       `<div data-pdf-section="identity">${identity}</div>`,
       `<div data-pdf-section="summary">${summary}</div>`,
       input.lastProfit ? `<div data-pdf-section="last-profit">${lastProfitHtml}</div>` : "",
       tableSections,
+      `<div data-pdf-section="signature">${signatureHtml}</div>`,
     ].join("");
+
 
     const fromStr = input.filters.from || "الكل";
     const toStr = input.filters.to || "الكل";

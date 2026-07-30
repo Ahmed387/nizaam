@@ -1434,8 +1434,9 @@ export default function NewSale() {
                 <div className="text-sm">ابحث عن منتج لإضافته للفاتورة</div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
+
                 <thead><tr className="bg-surface-2 text-xs">
                   <th className="p-2 text-right">المنتج</th>
                   <th className="p-2">الكمية</th>
@@ -1550,6 +1551,83 @@ export default function NewSale() {
               </table>
               </div>
             )}
+
+            {/* Mobile card list — نفس البيانات بشكل مناسب للموبايل */}
+            {items.length > 0 && (
+              <div className="md:hidden divide-y divide-border">
+                {items.map((i) => {
+                  const k = itemKey(i);
+                  const lineTotal = Math.max(0, i.quantity * i.selling_price - i.line_discount);
+                  const effUnit = lineTotal / Math.max(1, i.quantity);
+                  const isLoss = i.cost_price > 0 && effUnit < i.cost_price;
+                  const lineProfit = (i.selling_price - i.cost_price) * i.quantity - i.line_discount;
+                  return (
+                    <div key={`m-${k}`} className={`p-3 space-y-3 ${isLoss ? "bg-destructive/5" : ""}`}>
+                      <div className="flex items-start gap-2">
+                        <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold border border-primary/20">
+                          {(i.product_name || "?").trim().charAt(0)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm leading-snug break-words">{i.product_name}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {i.color && <ColorChip name={i.color} />}
+                            {showCost && <span className="text-[11px] text-muted-foreground">شراء: {formatEGP(i.cost_price)}</span>}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => updateQty(k, 0)} className="shrink-0">
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-[11px] text-muted-foreground mb-1">الكمية</div>
+                          <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
+                            <button type="button" onClick={() => updateQty(k, Math.max(1, Number(i.quantity || 0) - 1))} className="px-3 py-2 hover:bg-muted">
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <Input type="number" min="1" value={i.quantity} onChange={(e) => updateQty(k, parseInt(e.target.value) || 0)} className="flex-1 h-10 text-center border-0 rounded-none focus-visible:ring-0" />
+                            <button type="button" onClick={() => updateQty(k, Number(i.quantity || 0) + 1)} className="px-3 py-2 hover:bg-muted">
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-muted-foreground mb-1">سعر البيع</div>
+                          <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="h-10 text-center" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] text-muted-foreground mb-1">خصم السطر</div>
+                        <div className="flex items-stretch rounded-lg border border-border overflow-hidden bg-background">
+                          <Input
+                            type="number" min="0" step="0.01"
+                            value={i.discount_input || ""}
+                            onChange={(e) => setDiscountInput(k, parseFloat(e.target.value) || 0)}
+                            className="flex-1 h-10 text-center border-0 rounded-none focus-visible:ring-0"
+                            placeholder={i.discount_mode === "amount" ? "مبلغ" : "%"}
+                          />
+                          <button type="button" onClick={() => setDiscountMode(k, "amount")}
+                            className={`px-4 text-xs font-bold ${i.discount_mode === "amount" ? "bg-primary text-primary-foreground" : "bg-surface-2"}`}>ج.م</button>
+                          <button type="button" onClick={() => setDiscountMode(k, "percent")}
+                            className={`px-4 text-xs font-bold border-r border-border ${i.discount_mode === "percent" ? "bg-primary text-primary-foreground" : "bg-surface-2"}`}>%</button>
+                        </div>
+                        {i.line_discount > 0 && <div className="text-[10px] text-muted-foreground mt-1">= {formatEGP(i.line_discount)}</div>}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-border">
+                        {showCost ? (
+                          <div className={`text-xs font-bold ${lineProfit >= 0 ? "text-success" : "text-destructive"}`}>الربح: {formatEGP(lineProfit)}</div>
+                        ) : <span />}
+                        <div className="text-base font-extrabold">{formatEGP(lineTotal)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
 
           </div>
 

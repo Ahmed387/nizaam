@@ -86,6 +86,17 @@ export async function downloadPartnerStatementPdf(opts: {
     };
   }
 
+  // Company name for the stamp block (tenant settings → tenants table fallback)
+  let companyName: string | undefined;
+  try {
+    const { data: st } = await supabase.from("settings").select("value").eq("key", "company").maybeSingle();
+    companyName = (st?.value as any)?.name || undefined;
+    if (!companyName) {
+      const { data: tn } = await supabase.from("tenants").select("name").limit(1).maybeSingle();
+      companyName = (tn as any)?.name || undefined;
+    }
+  } catch { /* stamp falls back to branch name */ }
+
   await generatePartnerStatementReport({
     partner: partner as any,
     transactions: (txs ?? []) as any[],
@@ -94,5 +105,6 @@ export async function downloadPartnerStatementPdf(opts: {
     branchName: opts.branchName || "-",
     userName: opts.userName || "-",
     lastProfit,
+    companyName,
   });
 }
