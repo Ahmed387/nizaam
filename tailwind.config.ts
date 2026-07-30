@@ -88,11 +88,57 @@ export default {
             height: "0",
           },
         },
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.94)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "pop-in": {
+          "0%": { opacity: "0", transform: "scale(0.8)" },
+          "60%": { opacity: "1", transform: "scale(1.06)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        "gradient-x": {
+          "0%, 100%": { "background-position": "0% 50%" },
+          "50%": { "background-position": "100% 50%" },
+        },
+        shimmer: {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(220%)" },
+        },
+        wiggle: {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "20%": { transform: "rotate(-12deg)" },
+          "40%": { transform: "rotate(10deg)" },
+          "60%": { transform: "rotate(-6deg)" },
+          "80%": { transform: "rotate(4deg)" },
+        },
+        "pulse-ring": {
+          "0%": { transform: "scale(0.9)", opacity: "0.7" },
+          "70%": { transform: "scale(1.6)", opacity: "0" },
+          "100%": { transform: "scale(1.6)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.45s ease-out both",
+        "scale-in": "scale-in 0.35s ease-out both",
+        "pop-in": "pop-in 0.5s cubic-bezier(0.22,1,0.36,1) both",
+        float: "float 4s ease-in-out infinite",
+        "gradient-x": "gradient-x 6s ease infinite",
+        shimmer: "shimmer 2.6s ease-in-out infinite",
+        wiggle: "wiggle 0.9s ease-in-out",
+        "pulse-ring": "pulse-ring 1.8s cubic-bezier(0.24,0,0.38,1) infinite",
       },
+
     },
   },
   plugins: [require("tailwindcss-animate")],
