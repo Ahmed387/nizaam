@@ -58,7 +58,9 @@ export const PaymentStatusBadge = forwardRef<
   const { label, cls, Icon } = map[state];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls}`}
+      ref={ref}
+      {...rest}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls} ${className}`}
     >
       <Icon className="w-3.5 h-3.5" />
       {label}
@@ -69,4 +71,4 @@ export const PaymentStatusBadge = forwardRef<
       )}
     </span>
   );
-}
+});
