@@ -33,6 +33,65 @@ interface Row {
 }
 
 const OWNER_EMAIL = "an.ayoub98@gmail.com";
+const OWNER_NAME = "أحمد ناصر";
+
+/** تحية حسب وقت اليوم */
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "ليلة هادية يا";
+  if (h < 12) return "صباح الخير يا";
+  if (h < 17) return "نهارك سعيد يا";
+  if (h < 22) return "مساء الخير يا";
+  return "مساء الفل يا";
+}
+
+const EGP = (n: number) => `${n.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
+
+/** توست ملوّن */
+const fancyToast = {
+  success: (title: string, description?: string) =>
+    toast.success(title, {
+      description,
+      duration: 4000,
+      className: "border-emerald-400/50",
+      style: {
+        background: "linear-gradient(90deg, hsl(152 60% 42% / 0.16), hsl(152 60% 42% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(152 60% 42%)",
+      },
+    }),
+  info: (title: string, description?: string) =>
+    toast(title, {
+      description,
+      duration: 5000,
+      style: {
+        background: "linear-gradient(90deg, hsl(217 91% 60% / 0.16), hsl(217 91% 60% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(217 91% 60%)",
+      },
+    }),
+  warn: (title: string, description?: string) =>
+    toast.warning(title, {
+      description,
+      duration: 6000,
+      style: {
+        background: "linear-gradient(90deg, hsl(38 92% 50% / 0.18), hsl(38 92% 50% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(38 92% 50%)",
+      },
+    }),
+  danger: (title: string, description?: string) =>
+    toast.error(title, {
+      description,
+      duration: 5000,
+      style: {
+        background: "linear-gradient(90deg, hsl(0 84% 60% / 0.16), hsl(0 84% 60% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(0 84% 60%)",
+      },
+    }),
+};
+
 const monthColors = [
   "from-rose-500/15 to-rose-500/5 border-rose-400/30 text-rose-700 dark:text-rose-300",
   "from-amber-500/15 to-amber-500/5 border-amber-400/30 text-amber-700 dark:text-amber-300",
