@@ -525,31 +525,108 @@ export default function PersonalExpenses() {
   return (
     <AdminLayout>
       {/* Hero header */}
-      <div className="relative overflow-hidden rounded-2xl mb-6 p-6 bg-gradient-to-l from-primary/20 via-primary/10 to-transparent border border-primary/20">
-        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="relative overflow-hidden rounded-2xl mb-6 p-6 border border-primary/20 bg-[length:200%_200%] bg-gradient-to-l from-primary/25 via-fuchsia-500/10 to-emerald-500/15 animate-gradient-x animate-fade-in">
+        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-primary/25 blur-3xl animate-float" />
+        <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-emerald-500/25 blur-3xl animate-float [animation-delay:1.2s]" />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-y-0 w-1/3 bg-gradient-to-l from-transparent via-white/20 to-transparent animate-shimmer" />
+        </div>
         <div className="relative flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-fuchsia-500 flex items-center justify-center shadow-lg animate-pop-in ${celebrate ? "animate-wiggle" : ""}`}>
               <Wallet className="w-7 h-7 text-primary-foreground" />
             </div>
-            <div>
-              <div className="text-2xl font-extrabold flex items-center gap-2">
-                المصاريف الشخصية
-                <Sparkles className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
-              </div>
+            <div className="animate-fade-in [animation-delay:120ms]">
+              {isPersonalOwner ? (
+                <>
+                  <div className="text-2xl md:text-3xl font-extrabold flex items-center gap-2 flex-wrap">
+                    <span className="bg-[length:200%_auto] bg-gradient-to-l from-primary via-fuchsia-500 to-emerald-500 bg-clip-text text-transparent animate-gradient-x">
+                      {greeting()} {OWNER_NAME}
+                    </span>
+                    <Crown className="w-6 h-6 text-amber-500 animate-float" />
+                    {celebrate && <PartyPopper className="w-6 h-6 text-fuchsia-500 animate-pop-in" />}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    دفترك الشخصي — منفصل تماماً عن حسابات النظام
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-extrabold flex items-center gap-2">
+                    المصاريف الشخصية
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          {canEdit && (
-            <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-md">
-              <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
-            </Button>
-          )}
+          <div className="flex items-center gap-2 animate-fade-in [animation-delay:220ms]">
+            {isPersonalOwner && (
+              <Popover open={bellOpen} onOpenChange={(o) => { setBellOpen(o); if (o) setSeenAlerts(alerts.map(a => a.id)); }}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="إشعاراتي"
+                    className="relative w-12 h-12 rounded-2xl bg-background/70 backdrop-blur border border-primary/30 flex items-center justify-center hover:scale-105 hover:border-primary transition-transform shadow-sm"
+                  >
+                    {unseenAlerts.length > 0 && (
+                      <span className="absolute inset-0 rounded-2xl border-2 border-primary/50 animate-pulse-ring" />
+                    )}
+                    <Bell className={`w-5 h-5 text-primary ${bellRing ? "animate-wiggle" : ""}`} />
+                    {unseenAlerts.length > 0 && (
+                      <span className="absolute -top-1.5 -left-1.5 min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-br from-rose-500 to-fuchsia-600 text-white text-[11px] font-extrabold flex items-center justify-center shadow animate-pop-in">
+                        {unseenAlerts.length}
+                      </span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 p-0 overflow-hidden">
+                  <div className="p-3 border-b bg-gradient-to-l from-primary/15 to-transparent font-bold text-sm flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" /> إشعارات {OWNER_NAME}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {alerts.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-muted-foreground">مفيش تنبيهات دلوقتي 🎉</div>
+                    ) : alerts.map((a, i) => {
+                      const tone =
+                        a.tone === "good" ? "from-emerald-500/15 border-r-emerald-500 text-emerald-700 dark:text-emerald-300"
+                        : a.tone === "warn" ? "from-amber-500/15 border-r-amber-500 text-amber-700 dark:text-amber-300"
+                        : a.tone === "hot" ? "from-rose-500/15 border-r-rose-500 text-rose-700 dark:text-rose-300"
+                        : "from-sky-500/15 border-r-sky-500 text-sky-700 dark:text-sky-300";
+                      const Icon = a.tone === "good" ? TrendingDown : a.tone === "warn" ? TrendingUp : a.tone === "hot" ? Flame : Sparkles;
+                      return (
+                        <div
+                          key={a.id}
+                          style={{ animationDelay: `${i * 70}ms` }}
+                          className={`p-3 border-b border-r-4 bg-gradient-to-l to-transparent ${tone} animate-fade-in`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-bold text-sm">{a.title}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{a.body}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {canEdit && (
+              <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-fuchsia-600 shadow-md hover:scale-105 transition-transform">
+                <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
 
       {/* Month tabs — تبويب لكل شهر/سنة + تبويب الإجمالي */}
       <div className="mb-4 flex flex-wrap gap-2">
