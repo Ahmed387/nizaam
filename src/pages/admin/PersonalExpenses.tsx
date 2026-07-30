@@ -200,8 +200,31 @@ export default function PersonalExpenses() {
       .map(([k, v]) => ({ key: k, ...v }));
   }, [filtered]);
 
-  const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.amount), 0), [filtered]);
-  const attachmentCounts = useAttachmentCounts("personal_expense", filtered.map(r => r.id));
+  // Month tabs: every month that has data + current month (auto-created each month)
+  const monthTabs = useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    const cur = monthKey(new Date().toISOString());
+    map.set(cur, { total: 0, count: 0 });
+    rows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      const v = map.get(k) || { total: 0, count: 0 };
+      v.total += Number(r.amount);
+      v.count += 1;
+      map.set(k, v);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([k, v]) => ({ key: k, ...v }));
+  }, [rows]);
+
+  // Rows shown in the table = filters + active month tab
+  const visible = useMemo(
+    () => activeTab === "__all__" ? filtered : filtered.filter(r => monthKey(r.expense_datetime) === activeTab),
+    [filtered, activeTab]
+  );
+
+  const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
+  const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
   const openAdd = () => {
     setEditing(null);
