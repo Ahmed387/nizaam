@@ -140,7 +140,7 @@ function categoryColor(cat: string) {
 
 
 export default function PersonalExpenses() {
-  const { user } = useAuth();
+  const { user, profile, isOwner } = useAuth();
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -173,7 +173,10 @@ export default function PersonalExpenses() {
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
   // تخصيص صاحب الشركة
-  const isPersonalOwner = (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
+  const isPersonalOwner = isOwner || (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  const ownerDisplayName = profile?.name?.trim() || OWNER_NAME;
+
   const greetedRef = useRef(false);
   const [celebrate, setCelebrate] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -222,7 +225,7 @@ export default function PersonalExpenses() {
     greetedRef.current = true;
     setCelebrate(true);
     const t1 = setTimeout(() => {
-      fancyToast.info(`${greeting()} ${OWNER_NAME} 👋`, "دفترك الشخصي جاهز — كل حاجة هنا خاصة بيك لوحدك");
+      fancyToast.info(`${greeting()} ${ownerDisplayName} 👋`, "دفترك الشخصي جاهز — كل حاجة هنا خاصة بيك لوحدك");
     }, 500);
     const t2 = setTimeout(() => setCelebrate(false), 2600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
@@ -541,7 +544,7 @@ export default function PersonalExpenses() {
                 <>
                   <div className="text-2xl md:text-3xl font-extrabold flex items-center gap-2 flex-wrap">
                     <span className="bg-[length:200%_auto] bg-gradient-to-l from-primary via-fuchsia-500 to-emerald-500 bg-clip-text text-transparent animate-gradient-x">
-                      {greeting()} {OWNER_NAME}
+                      {greeting()} {ownerDisplayName}
                     </span>
                     <Crown className="w-6 h-6 text-amber-500 animate-float" />
                     {celebrate && <PartyPopper className="w-6 h-6 text-fuchsia-500 animate-pop-in" />}
@@ -586,7 +589,7 @@ export default function PersonalExpenses() {
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-80 p-0 overflow-hidden">
                   <div className="p-3 border-b bg-gradient-to-l from-primary/15 to-transparent font-bold text-sm flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-primary" /> إشعارات {OWNER_NAME}
+                    <Bell className="w-4 h-4 text-primary" /> إشعارات {ownerDisplayName}
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {alerts.length === 0 ? (
