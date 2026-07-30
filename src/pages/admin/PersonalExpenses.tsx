@@ -327,6 +327,69 @@ export default function PersonalExpenses() {
   const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
+  /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
+  const alerts = useMemo(() => {
+    if (!isPersonalOwner) return [] as { id: string; tone: "good" | "warn" | "info" | "hot"; title: string; body: string }[];
+    const out: { id: string; tone: "good" | "warn" | "info" | "hot"; title: string; body: string }[] = [];
+    const now = new Date();
+    const curKey = monthKey(now.toISOString());
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = monthKey(prev.toISOString());
+    const sum = (k: string) => rows.filter(r => monthKey(r.expense_datetime) === k).reduce((s, r) => s + Number(r.amount), 0);
+    const curT = sum(curKey);
+    const prevT = sum(prevKey);
+
+    if (prevT > 0) {
+      const diff = ((curT - prevT) / prevT) * 100;
+      if (diff >= 15) out.push({ id: `up-${curKey}-${Math.round(diff)}`, tone: "warn", title: `مصاريف الشهر أعلى بـ ${Math.round(diff)}%`, body: `${EGP(curT)} مقابل ${EGP(prevT)} الشهر اللي فات` });
+      else if (diff <= -15) out.push({ id: `down-${curKey}-${Math.round(diff)}`, tone: "good", title: `وفّرت ${Math.round(Math.abs(diff))}% الشهر ده 👏`, body: `${EGP(curT)} مقابل ${EGP(prevT)} الشهر اللي فات` });
+    }
+
+    // أعلى تصنيف في الشهر الحالي
+    const catMap = new Map<string, number>();
+    rows.filter(r => monthKey(r.expense_datetime) === curKey).forEach(r => {
+      const c = (r.category || "بدون تصنيف").trim();
+      catMap.set(c, (catMap.get(c) || 0) + Number(r.amount));
+    });
+    const top = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (top && curT > 0) out.push({ id: `top-${curKey}-${top[0]}`, tone: "hot", title: `أكتر بند صرف: ${top[0]}`, body: `${EGP(top[1])} — ${Math.round((top[1] / curT) * 100)}% من مصاريف الشهر` });
+
+    // مصروف كبير (أعلى من 3 أضعاف المتوسط)
+    if (rows.length >= 5) {
+      const avg = rows.reduce((s, r) => s + Number(r.amount), 0) / rows.length;
+      const big = rows.filter(r => monthKey(r.expense_datetime) === curKey && Number(r.amount) > avg * 3)
+        .sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+      if (big) out.push({ id: `big-${big.id}`, tone: "warn", title: `مصروف كبير: ${EGP(Number(big.amount))}`, body: `${big.description} — أعلى بكتير من متوسط صرفك` });
+    }
+
+    // مصاريف النهارده
+    const todayStr = now.toDateString();
+    const today = rows.filter(r => new Date(r.expense_datetime).toDateString() === todayStr);
+    if (today.length) {
+      const t = today.reduce((s, r) => s + Number(r.amount), 0);
+      out.push({ id: `today-${todayStr}-${today.length}`, tone: "info", title: `صرفت النهارده ${EGP(t)}`, body: `${today.length} عملية مسجّلة اليوم` });
+    }
+    return out;
+  }, [rows, isPersonalOwner]);
+
+  const unseenAlerts = useMemo(() => alerts.filter(a => !seenAlerts.includes(a.id)), [alerts, seenAlerts]);
+
+  // إشعار تلقائي لأهم تنبيه عند فتح الصفحة
+  const alertToastedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isPersonalOwner || !alerts.length) return;
+    const a = alerts.find(x => x.tone === "warn") || alerts[0];
+    if (alertToastedRef.current === a.id) return;
+    alertToastedRef.current = a.id;
+    const t = setTimeout(() => {
+      if (a.tone === "warn") fancyToast.warn(a.title, a.body);
+      else if (a.tone === "good") fancyToast.success(a.title, a.body);
+      else fancyToast.info(a.title, a.body);
+    }, 1600);
+    return () => clearTimeout(t);
+  }, [alerts, isPersonalOwner]);
+
+
   const openAdd = () => {
     setEditing(null);
     // Prefill with the currently opened month tab (now if it's the current month)
