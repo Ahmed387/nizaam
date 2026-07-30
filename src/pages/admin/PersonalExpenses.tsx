@@ -517,7 +517,7 @@ export default function PersonalExpenses() {
                     <div className="text-2xl font-extrabold mt-1">{m.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}<span className="text-sm mr-1">ج.م</span></div>
                     <div className="text-xs mt-1 opacity-70">{m.count} مصروف</div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => exportMonthPDF(m.key)} title="تصدير PDF لهذا الشهر">
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportMonthPDF(m.key); }} title="تصدير PDF لهذا الشهر">
                     <FileDown className="w-4 h-4" />
                   </Button>
                 </div>
