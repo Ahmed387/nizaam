@@ -504,13 +504,13 @@ export default function PersonalExpenses() {
         </div>
       </Card>
 
-      {/* Monthly totals */}
-      {monthlyTotals.length > 0 && (
+      {/* Monthly totals — تظهر في تبويب الإجمالي فقط */}
+      {activeTab === "__all__" && monthlyTotals.length > 0 && (
         <div className="mb-6">
           <div className="text-sm font-semibold mb-3 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-primary" /> الإجماليات الشهرية</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {monthlyTotals.map((m, idx) => (
-              <Card key={m.key} className={`p-4 bg-gradient-to-br border ${monthColors[idx % monthColors.length]}`}>
+              <Card key={m.key} onClick={() => setActiveTab(m.key)} className={`p-4 cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br border ${monthColors[idx % monthColors.length]}`}>
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="text-xs opacity-80">{monthLabel(m.key)}</div>
