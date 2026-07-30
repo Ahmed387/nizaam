@@ -440,7 +440,7 @@ export default function PersonalExpenses() {
     else res = await supabase.from("owner_personal_expenses" as any).insert(payload);
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
-    toast.success(editing ? "تم التعديل" : "تمت الإضافة");
+    if (!isPersonalOwner) toast.success(editing ? "تم التعديل" : "تمت الإضافة");
     setDialogOpen(false);
     load();
   };
