@@ -140,7 +140,7 @@ function categoryColor(cat: string) {
 
 
 export default function PersonalExpenses() {
-  const { user, profile, isOwner, hasRole } = useAuth();
+  const { user, profile, isOwner } = useAuth();
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
