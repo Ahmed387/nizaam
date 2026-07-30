@@ -15,9 +15,9 @@ import { toast } from "sonner";
 import { Check, X, Clock, Wallet, HandCoins } from "lucide-react";
 
 const STATUS_INFO: Record<string, { label: string; color: string }> = {
-  pending_branch_manager: { label: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning" },
-  pending_admin: { label: "بانتظار المدير العام", color: "bg-blue-500/15 text-blue-400" },
-  approved_pending_funds: { label: "معتمدة — في انتظار الرصيد", color: "bg-orange-500/15 text-orange-400" },
+  pending_branch_manager: { header: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning" },
+  pending_admin: { header: "بانتظار المدير العام", color: "bg-blue-500/15 text-blue-400" },
+  approved_pending_funds: { header: "معتمدة — في انتظار الرصيد", color: "bg-orange-500/15 text-orange-400" },
 };
 
 export default function AdminAdvanceApprovals({ embedded = false }: { embedded?: boolean } = {}) {
@@ -107,25 +107,25 @@ export default function AdminAdvanceApprovals({ embedded = false }: { embedded?:
     <>
       <DataTable
         loading={loading}
-        data={rows}
-        emptyMessage="لا توجد طلبات سلف بانتظار الموافقة"
+        rows={rows}
+        empty="لا توجد طلبات سلف بانتظار الموافقة"
         columns={[
-          { key: "created_at", label: "التاريخ", render: (r: any) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
-          { key: "branch", label: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
-          { key: "employee", label: "الموظف", render: (r: any) => (
+          { key: "created_at", header: "التاريخ", render: (r: any) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
+          { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+          { key: "employee", header: "الموظف", render: (r: any) => (
             <div>
               <div className="font-bold">{r.employees?.name ?? "—"}</div>
               <div className="text-xs text-muted-foreground">{r.employees?.job_title ?? ""}</div>
             </div>
           ) },
-          { key: "amount", label: "المبلغ", render: (r: any) => <span className="font-bold">{formatEGP(r.amount)}</span> },
-          { key: "monthly_deduct", label: "الخصم الشهري", render: (r: any) => formatEGP(r.monthly_deduct) },
-          { key: "reason", label: "السبب", render: (r: any) => <span className="text-xs">{r.reason || "—"}</span> },
-          { key: "status", label: "الحالة", render: (r: any) => {
+          { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold">{formatEGP(r.amount)}</span> },
+          { key: "monthly_deduct", header: "الخصم الشهري", render: (r: any) => formatEGP(r.monthly_deduct) },
+          { key: "reason", header: "السبب", render: (r: any) => <span className="text-xs">{r.reason || "—"}</span> },
+          { key: "status", header: "الحالة", render: (r: any) => {
             const s = STATUS_INFO[r.status] ?? { label: r.status, color: "bg-muted" };
             return <span className={`px-2 py-1 rounded-full text-[11px] font-bold ${s.color}`}>{s.label}</span>;
           } },
-          { key: "actions", label: "", render: (r: any) => (
+          { key: "actions", header: "", render: (r: any) => (
             <div className="flex gap-1 justify-end">
               <Button size="sm" className="gap-1" onClick={() => { setDecisionRow(r); setDecision("approve"); setNote(""); }} disabled={!isAdmin}>
                 <Check className="w-3.5 h-3.5" /> موافقة
@@ -180,7 +180,7 @@ export default function AdminAdvanceApprovals({ embedded = false }: { embedded?:
   if (embedded) return body;
   return (
     <AdminLayout>
-      <PageHeader title="طلبات السلف" subtitle="طلبات سلف الموظفين بانتظار موافقة المدير العام — كل الفروع" icon={<HandCoins className="w-5 h-5" />} />
+      <PageHeader title="طلبات السلف" subtitle="طلبات سلف الموظفين بانتظار موافقة المدير العام — كل الفروع" />
       {body}
     </AdminLayout>
   );
