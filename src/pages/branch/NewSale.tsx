@@ -1434,8 +1434,9 @@ export default function NewSale() {
                 <div className="text-sm">ابحث عن منتج لإضافته للفاتورة</div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
+
                 <thead><tr className="bg-surface-2 text-xs">
                   <th className="p-2 text-right">المنتج</th>
                   <th className="p-2">الكمية</th>
