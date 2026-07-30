@@ -14,11 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, Filter, X, Sparkles, Receipt } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+
 
 interface Row {
   id: string;
@@ -31,6 +33,65 @@ interface Row {
 }
 
 const OWNER_EMAIL = "an.ayoub98@gmail.com";
+const OWNER_NAME = "أحمد ناصر";
+
+/** تحية حسب وقت اليوم */
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "ليلة هادية يا";
+  if (h < 12) return "صباح الخير يا";
+  if (h < 17) return "نهارك سعيد يا";
+  if (h < 22) return "مساء الخير يا";
+  return "مساء الفل يا";
+}
+
+const EGP = (n: number) => `${n.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
+
+/** توست ملوّن */
+const fancyToast = {
+  success: (title: string, description?: string) =>
+    toast.success(title, {
+      description,
+      duration: 4000,
+      className: "border-emerald-400/50",
+      style: {
+        background: "linear-gradient(90deg, hsl(152 60% 42% / 0.16), hsl(152 60% 42% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(152 60% 42%)",
+      },
+    }),
+  info: (title: string, description?: string) =>
+    toast(title, {
+      description,
+      duration: 5000,
+      style: {
+        background: "linear-gradient(90deg, hsl(217 91% 60% / 0.16), hsl(217 91% 60% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(217 91% 60%)",
+      },
+    }),
+  warn: (title: string, description?: string) =>
+    toast.warning(title, {
+      description,
+      duration: 6000,
+      style: {
+        background: "linear-gradient(90deg, hsl(38 92% 50% / 0.18), hsl(38 92% 50% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(38 92% 50%)",
+      },
+    }),
+  danger: (title: string, description?: string) =>
+    toast.error(title, {
+      description,
+      duration: 5000,
+      style: {
+        background: "linear-gradient(90deg, hsl(0 84% 60% / 0.16), hsl(0 84% 60% / 0.04))",
+        borderInlineStartWidth: "5px",
+        borderInlineStartColor: "hsl(0 84% 60%)",
+      },
+    }),
+};
+
 const monthColors = [
   "from-rose-500/15 to-rose-500/5 border-rose-400/30 text-rose-700 dark:text-rose-300",
   "from-amber-500/15 to-amber-500/5 border-amber-400/30 text-amber-700 dark:text-amber-300",
@@ -111,11 +172,18 @@ export default function PersonalExpenses() {
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
+  // تخصيص صاحب الشركة
+  const isPersonalOwner = (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  const greetedRef = useRef(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [bellRing, setBellRing] = useState(false);
+  const [seenAlerts, setSeenAlerts] = useState<string[]>([]);
+
   // Resolve owner + access
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const isPersonalOwner = (user.email || "").toLowerCase() === OWNER_EMAIL;
       if (isPersonalOwner) {
         setOwnerId(user.id);
         setCanEdit(true);
@@ -131,7 +199,7 @@ export default function PersonalExpenses() {
         }
       }
     })();
-  }, [user]);
+  }, [user, isPersonalOwner]);
 
   const load = async () => {
     if (!ownerId) return;
@@ -148,16 +216,49 @@ export default function PersonalExpenses() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [ownerId]);
 
-  // realtime
+  // تحية ترحيبية لصاحب الشركة (مرة واحدة كل جلسة فتح للصفحة)
+  useEffect(() => {
+    if (!isPersonalOwner || !ownerId || greetedRef.current) return;
+    greetedRef.current = true;
+    setCelebrate(true);
+    const t1 = setTimeout(() => {
+      fancyToast.info(`${greeting()} ${OWNER_NAME} 👋`, "دفترك الشخصي جاهز — كل حاجة هنا خاصة بيك لوحدك");
+    }, 500);
+    const t2 = setTimeout(() => setCelebrate(false), 2600);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+    // eslint-disable-next-line
+  }, [isPersonalOwner, ownerId]);
+
+  // realtime + إشعارات فورية
   useEffect(() => {
     if (!ownerId) return;
     const ch = supabase
       .channel(`ope-${ownerId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "owner_personal_expenses", filter: `owner_user_id=eq.${ownerId}` }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "owner_personal_expenses", filter: `owner_user_id=eq.${ownerId}` },
+        (payload: any) => {
+          if (isPersonalOwner) {
+            const rec: any = payload.new || payload.old;
+            const amt = Number(rec?.amount || 0);
+            setBellRing(true);
+            setTimeout(() => setBellRing(false), 1200);
+            if (payload.eventType === "INSERT") {
+              fancyToast.success(`مصروف جديد: ${EGP(amt)}`, rec?.description || undefined);
+            } else if (payload.eventType === "UPDATE") {
+              fancyToast.info("تم تعديل مصروف", rec?.description || undefined);
+            } else if (payload.eventType === "DELETE") {
+              fancyToast.warn("تم حذف مصروف", rec?.description || undefined);
+            }
+          }
+          load();
+        }
+      )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
-  }, [ownerId]);
+  }, [ownerId, isPersonalOwner]);
+
 
   const allCategories = useMemo(() => {
     const s = new Set<string>();
@@ -226,6 +327,69 @@ export default function PersonalExpenses() {
   const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
+  /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
+  const alerts = useMemo(() => {
+    if (!isPersonalOwner) return [] as { id: string; tone: "good" | "warn" | "info" | "hot"; title: string; body: string }[];
+    const out: { id: string; tone: "good" | "warn" | "info" | "hot"; title: string; body: string }[] = [];
+    const now = new Date();
+    const curKey = monthKey(now.toISOString());
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = monthKey(prev.toISOString());
+    const sum = (k: string) => rows.filter(r => monthKey(r.expense_datetime) === k).reduce((s, r) => s + Number(r.amount), 0);
+    const curT = sum(curKey);
+    const prevT = sum(prevKey);
+
+    if (prevT > 0) {
+      const diff = ((curT - prevT) / prevT) * 100;
+      if (diff >= 15) out.push({ id: `up-${curKey}-${Math.round(diff)}`, tone: "warn", title: `مصاريف الشهر أعلى بـ ${Math.round(diff)}%`, body: `${EGP(curT)} مقابل ${EGP(prevT)} الشهر اللي فات` });
+      else if (diff <= -15) out.push({ id: `down-${curKey}-${Math.round(diff)}`, tone: "good", title: `وفّرت ${Math.round(Math.abs(diff))}% الشهر ده 👏`, body: `${EGP(curT)} مقابل ${EGP(prevT)} الشهر اللي فات` });
+    }
+
+    // أعلى تصنيف في الشهر الحالي
+    const catMap = new Map<string, number>();
+    rows.filter(r => monthKey(r.expense_datetime) === curKey).forEach(r => {
+      const c = (r.category || "بدون تصنيف").trim();
+      catMap.set(c, (catMap.get(c) || 0) + Number(r.amount));
+    });
+    const top = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (top && curT > 0) out.push({ id: `top-${curKey}-${top[0]}`, tone: "hot", title: `أكتر بند صرف: ${top[0]}`, body: `${EGP(top[1])} — ${Math.round((top[1] / curT) * 100)}% من مصاريف الشهر` });
+
+    // مصروف كبير (أعلى من 3 أضعاف المتوسط)
+    if (rows.length >= 5) {
+      const avg = rows.reduce((s, r) => s + Number(r.amount), 0) / rows.length;
+      const big = rows.filter(r => monthKey(r.expense_datetime) === curKey && Number(r.amount) > avg * 3)
+        .sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+      if (big) out.push({ id: `big-${big.id}`, tone: "warn", title: `مصروف كبير: ${EGP(Number(big.amount))}`, body: `${big.description} — أعلى بكتير من متوسط صرفك` });
+    }
+
+    // مصاريف النهارده
+    const todayStr = now.toDateString();
+    const today = rows.filter(r => new Date(r.expense_datetime).toDateString() === todayStr);
+    if (today.length) {
+      const t = today.reduce((s, r) => s + Number(r.amount), 0);
+      out.push({ id: `today-${todayStr}-${today.length}`, tone: "info", title: `صرفت النهارده ${EGP(t)}`, body: `${today.length} عملية مسجّلة اليوم` });
+    }
+    return out;
+  }, [rows, isPersonalOwner]);
+
+  const unseenAlerts = useMemo(() => alerts.filter(a => !seenAlerts.includes(a.id)), [alerts, seenAlerts]);
+
+  // إشعار تلقائي لأهم تنبيه عند فتح الصفحة
+  const alertToastedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isPersonalOwner || !alerts.length) return;
+    const a = alerts.find(x => x.tone === "warn") || alerts[0];
+    if (alertToastedRef.current === a.id) return;
+    alertToastedRef.current = a.id;
+    const t = setTimeout(() => {
+      if (a.tone === "warn") fancyToast.warn(a.title, a.body);
+      else if (a.tone === "good") fancyToast.success(a.title, a.body);
+      else fancyToast.info(a.title, a.body);
+    }, 1600);
+    return () => clearTimeout(t);
+  }, [alerts, isPersonalOwner]);
+
+
   const openAdd = () => {
     setEditing(null);
     // Prefill with the currently opened month tab (now if it's the current month)
@@ -276,7 +440,7 @@ export default function PersonalExpenses() {
     else res = await supabase.from("owner_personal_expenses" as any).insert(payload);
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
-    toast.success(editing ? "تم التعديل" : "تمت الإضافة");
+    if (!isPersonalOwner) toast.success(editing ? "تم التعديل" : "تمت الإضافة");
     setDialogOpen(false);
     load();
   };
@@ -285,7 +449,7 @@ export default function PersonalExpenses() {
     if (!delRow) return;
     const { error } = await supabase.from("owner_personal_expenses" as any).delete().eq("id", delRow.id);
     if (error) return toast.error(error.message);
-    toast.success("تم الحذف");
+    if (!isPersonalOwner) toast.success("تم الحذف");
     setDelRow(null);
     load();
   };
@@ -361,31 +525,108 @@ export default function PersonalExpenses() {
   return (
     <AdminLayout>
       {/* Hero header */}
-      <div className="relative overflow-hidden rounded-2xl mb-6 p-6 bg-gradient-to-l from-primary/20 via-primary/10 to-transparent border border-primary/20">
-        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="relative overflow-hidden rounded-2xl mb-6 p-6 border border-primary/20 bg-[length:200%_200%] bg-gradient-to-l from-primary/25 via-fuchsia-500/10 to-emerald-500/15 animate-gradient-x animate-fade-in">
+        <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-primary/25 blur-3xl animate-float" />
+        <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-emerald-500/25 blur-3xl animate-float [animation-delay:1.2s]" />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-y-0 w-1/3 bg-gradient-to-l from-transparent via-white/20 to-transparent animate-shimmer" />
+        </div>
         <div className="relative flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-fuchsia-500 flex items-center justify-center shadow-lg animate-pop-in ${celebrate ? "animate-wiggle" : ""}`}>
               <Wallet className="w-7 h-7 text-primary-foreground" />
             </div>
-            <div>
-              <div className="text-2xl font-extrabold flex items-center gap-2">
-                المصاريف الشخصية
-                <Sparkles className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
-              </div>
+            <div className="animate-fade-in [animation-delay:120ms]">
+              {isPersonalOwner ? (
+                <>
+                  <div className="text-2xl md:text-3xl font-extrabold flex items-center gap-2 flex-wrap">
+                    <span className="bg-[length:200%_auto] bg-gradient-to-l from-primary via-fuchsia-500 to-emerald-500 bg-clip-text text-transparent animate-gradient-x">
+                      {greeting()} {OWNER_NAME}
+                    </span>
+                    <Crown className="w-6 h-6 text-amber-500 animate-float" />
+                    {celebrate && <PartyPopper className="w-6 h-6 text-fuchsia-500 animate-pop-in" />}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    دفترك الشخصي — منفصل تماماً عن حسابات النظام
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-extrabold flex items-center gap-2">
+                    المصاريف الشخصية
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          {canEdit && (
-            <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-md">
-              <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
-            </Button>
-          )}
+          <div className="flex items-center gap-2 animate-fade-in [animation-delay:220ms]">
+            {isPersonalOwner && (
+              <Popover open={bellOpen} onOpenChange={(o) => { setBellOpen(o); if (o) setSeenAlerts(alerts.map(a => a.id)); }}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="إشعاراتي"
+                    className="relative w-12 h-12 rounded-2xl bg-background/70 backdrop-blur border border-primary/30 flex items-center justify-center hover:scale-105 hover:border-primary transition-transform shadow-sm"
+                  >
+                    {unseenAlerts.length > 0 && (
+                      <span className="absolute inset-0 rounded-2xl border-2 border-primary/50 animate-pulse-ring" />
+                    )}
+                    <Bell className={`w-5 h-5 text-primary ${bellRing ? "animate-wiggle" : ""}`} />
+                    {unseenAlerts.length > 0 && (
+                      <span className="absolute -top-1.5 -left-1.5 min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-br from-rose-500 to-fuchsia-600 text-white text-[11px] font-extrabold flex items-center justify-center shadow animate-pop-in">
+                        {unseenAlerts.length}
+                      </span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 p-0 overflow-hidden">
+                  <div className="p-3 border-b bg-gradient-to-l from-primary/15 to-transparent font-bold text-sm flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" /> إشعارات {OWNER_NAME}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {alerts.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-muted-foreground">مفيش تنبيهات دلوقتي 🎉</div>
+                    ) : alerts.map((a, i) => {
+                      const tone =
+                        a.tone === "good" ? "from-emerald-500/15 border-r-emerald-500 text-emerald-700 dark:text-emerald-300"
+                        : a.tone === "warn" ? "from-amber-500/15 border-r-amber-500 text-amber-700 dark:text-amber-300"
+                        : a.tone === "hot" ? "from-rose-500/15 border-r-rose-500 text-rose-700 dark:text-rose-300"
+                        : "from-sky-500/15 border-r-sky-500 text-sky-700 dark:text-sky-300";
+                      const Icon = a.tone === "good" ? TrendingDown : a.tone === "warn" ? TrendingUp : a.tone === "hot" ? Flame : Sparkles;
+                      return (
+                        <div
+                          key={a.id}
+                          style={{ animationDelay: `${i * 70}ms` }}
+                          className={`p-3 border-b border-r-4 bg-gradient-to-l to-transparent ${tone} animate-fade-in`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-bold text-sm">{a.title}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{a.body}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {canEdit && (
+              <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-fuchsia-600 shadow-md hover:scale-105 transition-transform">
+                <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
 
       {/* Month tabs — تبويب لكل شهر/سنة + تبويب الإجمالي */}
       <div className="mb-4 flex flex-wrap gap-2">
