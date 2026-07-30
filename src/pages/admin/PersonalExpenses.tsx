@@ -173,7 +173,10 @@ export default function PersonalExpenses() {
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
   // تخصيص صاحب الشركة
-  const isPersonalOwner = (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
+  const isPersonalOwner = isOwner || hasRole("owner") || (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  const ownerDisplayName = profile?.name?.trim() || OWNER_NAME;
+
   const greetedRef = useRef(false);
   const [celebrate, setCelebrate] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
