@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export const INV_STATUS_LABELS: Record<string, string> = {
