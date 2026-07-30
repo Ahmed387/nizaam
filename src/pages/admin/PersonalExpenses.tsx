@@ -174,7 +174,7 @@ export default function PersonalExpenses() {
 
   // تخصيص صاحب الشركة
   // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
-  const isPersonalOwner = isOwner || hasRole("owner") || (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  const isPersonalOwner = isOwner || (user?.email || "").toLowerCase() === OWNER_EMAIL;
   const ownerDisplayName = profile?.name?.trim() || OWNER_NAME;
 
   const greetedRef = useRef(false);
