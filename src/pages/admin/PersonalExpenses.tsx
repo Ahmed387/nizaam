@@ -33,17 +33,19 @@ interface Row {
 }
 
 const OWNER_EMAIL = "an.ayoub98@gmail.com";
-const OWNER_NAME = "أحمد ناصر";
+const OWNER_NAME = "حج ناصر";
 
 /** تحية حسب وقت اليوم */
 function greeting() {
   const h = new Date().getHours();
   if (h < 5) return "ليلة هادية يا";
   if (h < 12) return "صباح الخير يا";
-  if (h < 17) return "نهارك سعيد يا";
-  if (h < 22) return "مساء الخير يا";
-  return "مساء الفل يا";
+  if (h < 16) return "نهارك سعيد يا";
+  if (h < 19) return "مساء الخير يا";
+  if (h < 23) return "مساء الفل يا";
+  return "تصبح على خير يا";
 }
+
 
 const EGP = (n: number) => `${n.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
 
