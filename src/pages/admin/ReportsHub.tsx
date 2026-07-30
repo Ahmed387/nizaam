@@ -10,6 +10,7 @@ import PriceAuditLog from "./PriceAuditLog";
 import ProfitabilityReport from "./ProfitabilityReport";
 import ExecutiveInsights from "./ExecutiveInsights";
 import OwnerCockpit from "./OwnerCockpit";
+import ReturnOverrides from "./ReturnOverrides";
 
 export default function ReportsHub() {
   const [params, setParams] = useSearchParams();
@@ -28,6 +29,7 @@ export default function ReportsHub() {
           <TabsTrigger value="scheduled">⏰ المجدولة</TabsTrigger>
           <TabsTrigger value="audit">سجل العمليات</TabsTrigger>
           <TabsTrigger value="price-audit">سجل الأسعار</TabsTrigger>
+          <TabsTrigger value="return-overrides">↩️ تجاوزات المرتجعات</TabsTrigger>
         </TabsList>
         {canSeeProfit && <TabsContent value="owner" className="mt-4"><OwnerCockpit embedded /></TabsContent>}
         <TabsContent value="central" className="mt-4"><AdminReports embedded /></TabsContent>
@@ -36,6 +38,7 @@ export default function ReportsHub() {
         <TabsContent value="scheduled" className="mt-4"><ScheduledReports embedded /></TabsContent>
         <TabsContent value="audit" className="mt-4"><AuditLog embedded /></TabsContent>
         <TabsContent value="price-audit" className="mt-4"><PriceAuditLog embedded /></TabsContent>
+        <TabsContent value="return-overrides" className="mt-4"><ReturnOverrides embedded /></TabsContent>
       </Tabs>
     </AdminLayout>
   );
