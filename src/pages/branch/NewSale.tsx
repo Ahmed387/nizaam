@@ -1550,7 +1550,6 @@ export default function NewSale() {
                 </tbody>
               </table>
               </div>
-              </>
             )}
 
             {/* Mobile card list — نفس البيانات بشكل مناسب للموبايل */}
