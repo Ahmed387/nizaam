@@ -449,7 +449,7 @@ export default function PersonalExpenses() {
     if (!delRow) return;
     const { error } = await supabase.from("owner_personal_expenses" as any).delete().eq("id", delRow.id);
     if (error) return toast.error(error.message);
-    toast.success("تم الحذف");
+    if (!isPersonalOwner) toast.success("تم الحذف");
     setDelRow(null);
     load();
   };
