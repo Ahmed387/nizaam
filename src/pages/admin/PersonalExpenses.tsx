@@ -545,7 +545,7 @@ export default function PersonalExpenses() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : visible.length === 0 ? (
                 <tr><td colSpan={7} className="p-10 text-center">
                   <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
                     <Receipt className="w-10 h-10 opacity-40" />
@@ -553,7 +553,7 @@ export default function PersonalExpenses() {
                     {canEdit && <Button size="sm" variant="outline" onClick={openAdd}><Plus className="w-4 h-4 ml-1" />أضف أول مصروف</Button>}
                   </div>
                 </td></tr>
-              ) : filtered.map(r => (
+              ) : visible.map(r => (
                 <tr key={r.id} className="border-t hover:bg-primary/5 transition-colors">
                   <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
                   <td className="p-3 font-semibold">{r.description}</td>
