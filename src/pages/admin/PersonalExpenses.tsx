@@ -228,11 +228,18 @@ export default function PersonalExpenses() {
 
   const openAdd = () => {
     setEditing(null);
+    // Prefill with the currently opened month tab (now if it's the current month)
+    const now = new Date();
+    let dt = now;
+    if (activeTab !== "__all__" && activeTab !== monthKey(now.toISOString())) {
+      const [y, m] = activeTab.split("-").map(Number);
+      dt = new Date(y, m - 1, 1, now.getHours(), now.getMinutes());
+    }
     setForm({
       amount: "",
       description: "",
       category: "",
-      expense_datetime: toLocalInput(new Date().toISOString()),
+      expense_datetime: toLocalInput(dt.toISOString()),
       notes: "",
     });
     setDialogOpen(true);
