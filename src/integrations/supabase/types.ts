@@ -6150,8 +6150,8 @@ export type Database = {
       generate_alerts: {
         Args: never
         Returns: {
-          low_stock_notifs: number
-          overdue_notifs: number
+          low_stock_count: number
+          overdue_count: number
         }[]
       }
       get_available_quantity: {
