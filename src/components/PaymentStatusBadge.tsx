@@ -12,16 +12,21 @@ export function computePayState(total: number, paid: number): PayState {
 }
 
 /** Colored vertical ribbon shown on the right (RTL) side of invoice rows / cards. */
-export function PaymentStatusRibbon({ state, className = "" }: { state: PayState; className?: string }) {
+export const PaymentStatusRibbon = forwardRef<
+  HTMLSpanElement,
+  { state: PayState; className?: string } & React.HTMLAttributes<HTMLSpanElement>
+>(function PaymentStatusRibbon({ state, className = "", ...rest }, ref) {
   const color =
     state === "paid" ? "bg-success" : state === "partial" ? "bg-warning" : "bg-muted-foreground/30";
   return (
     <span
+      ref={ref}
       aria-hidden
+      {...rest}
       className={`inline-block w-1.5 self-stretch rounded-full ${color} ${className}`}
     />
   );
-}
+});
 
 /** Compact colored pill for payment status. */
 export function PaymentStatusBadge({
