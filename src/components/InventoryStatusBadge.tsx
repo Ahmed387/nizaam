@@ -21,10 +21,13 @@ const STYLES: Record<string, string> = {
   cancelled: "bg-gray-500/15 text-gray-600 border-gray-500/30",
 };
 
-export function InventoryStatusBadge({ status }: { status: string }) {
+export const InventoryStatusBadge = forwardRef<
+  HTMLDivElement,
+  { status: string } & React.HTMLAttributes<HTMLDivElement>
+>(function InventoryStatusBadge({ status, className = "", ...rest }, ref) {
   return (
-    <Badge variant="outline" className={STYLES[status] ?? ""}>
+    <Badge ref={ref} variant="outline" {...rest} className={`${STYLES[status] ?? ""} ${className}`}>
       {INV_STATUS_LABELS[status] ?? status}
     </Badge>
   );
-}
+});
