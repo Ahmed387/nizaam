@@ -93,6 +93,9 @@ export default function PersonalExpenses() {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
+  // month tab ("__all__" = الإجمالي)
+  const [activeTab, setActiveTab] = useState<string>("__all__");
+
   // dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
