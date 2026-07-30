@@ -1715,6 +1715,7 @@ export type PartnerStatementInput = {
     monthsCount: number;
     periodLabel?: string | null;
   } | null;
+  companyName?: string;
 };
 
 export async function generatePartnerStatementReport(input: PartnerStatementInput): Promise<void> {
