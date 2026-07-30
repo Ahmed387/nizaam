@@ -15,9 +15,9 @@ import { toast } from "sonner";
 import { Check, X, Clock, Wallet, HandCoins } from "lucide-react";
 
 const STATUS_INFO: Record<string, { label: string; color: string }> = {
-  pending_branch_manager: { header: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning" },
-  pending_admin: { header: "بانتظار المدير العام", color: "bg-blue-500/15 text-blue-400" },
-  approved_pending_funds: { header: "معتمدة — في انتظار الرصيد", color: "bg-orange-500/15 text-orange-400" },
+  pending_branch_manager: { label: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning" },
+  pending_admin: { label: "بانتظار المدير العام", color: "bg-blue-500/15 text-blue-400" },
+  approved_pending_funds: { label: "معتمدة — في انتظار الرصيد", color: "bg-orange-500/15 text-orange-400" },
 };
 
 export default function AdminAdvanceApprovals({ embedded = false }: { embedded?: boolean } = {}) {
