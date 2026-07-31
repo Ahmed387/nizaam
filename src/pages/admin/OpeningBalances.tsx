@@ -375,7 +375,7 @@ export default function OpeningBalances() {
               {saving ? "جارٍ الترحيل..." : "تأكيد الترحيل"}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </AdminLayout>
   );
