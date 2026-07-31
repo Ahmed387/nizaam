@@ -249,7 +249,7 @@ const App = () => (
             <Route path="/admin/financial-position/transactions" element={<ProtectedRoute ownerOnly><PartnerTransactions /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advances" element={<ProtectedRoute ownerOnly><PartnerAdvances /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
-            <Route path="/admin/shifts" element={<ProtectedRoute roles={["admin", "owner", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
+            <Route path="/admin/shifts" element={<ProtectedRoute roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute ownerOnly><SystemHealth /></ProtectedRoute>} />
             <Route path="/admin/personal-expenses" element={<ProtectedRoute><PersonalExpenses /></ProtectedRoute>} />
 
