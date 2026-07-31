@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { lineProfit } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
+import { fetchSchedules, fetchClosures, countWorkingDays, type BranchSchedule, type BranchClosure } from "@/lib/branchSchedule";
 import {
   FileSpreadsheet, Printer, ShoppingCart, TrendingUp, TrendingDown,
   Wallet, Store, Users, Truck, Package, RotateCcw, Building2, AlertTriangle,
@@ -54,6 +55,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [overdueIns, setOverdueIns] = useState<any[]>([]);
   const [payPlans, setPayPlans] = useState<any[]>([]);
   const [invPayments, setInvPayments] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Record<string, BranchSchedule>>({});
+  const [closures, setClosures] = useState<BranchClosure[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -103,6 +106,9 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     setOverdueIns(oi.data ?? []);
     setPayPlans(pp.data ?? []);
     setInvPayments(ipay.data ?? []);
+    const [sch, clo] = await Promise.all([fetchSchedules(), fetchClosures()]);
+    setSchedules(sch);
+    setClosures(clo);
     setLoading(false);
   };
 
@@ -194,6 +200,15 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
   // Per-branch (used in global mode)
   // ⚠️ Uses lineProfit() — single source of truth for revenue/cost/profit
+  // Actual working days per branch (weekly off-days + exceptional closures excluded)
+  const workingDaysByBranch = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const b of branches) {
+      m[b.id] = countWorkingDays(schedules[b.id], closures.filter((c) => c.branch_id === b.id), from, to);
+    }
+    return m;
+  }, [branches, schedules, closures, from, to]);
+
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
