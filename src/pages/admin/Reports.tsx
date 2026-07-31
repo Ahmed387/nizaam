@@ -238,6 +238,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
     return {
       ...b,
+      workingDays: workingDaysByBranch[b.id] ?? 0,
       invoices: bInv.length, sales, cost, profit,
       expenses: exp, net: profit - exp,
       inventoryValue: bProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0),
@@ -663,6 +664,32 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         {/* ===== TAB 6: BRANCHES (global only) ===== */}
         {scope === "global" && (
           <TabsContent value="branches" className="mt-4 space-y-6">
+
+            {/* ===== Working-day averages (company wide) ===== */}
+            <div className="card-elevated p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
+                <h4 className="font-extrabold text-base md:text-lg">المتوسطات على أيام العمل الفعلية</h4>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  بعد استبعاد الإجازات الأسبوعية والإغلاق الاستثنائي لكل فرع (من {from} إلى {to})
+                </p>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <MiniKpi label="إجمالي أيام العمل (كل الفروع)" value={String(companyWorkDays.days)} icon={<Layers className="w-4 h-4" />} />
+                  <MiniKpi label="متوسط المبيعات / يوم عمل" value={formatEGP(companyWorkDays.salesPerDay)} icon={<ShoppingCart className="w-4 h-4" />} accent="success" />
+                  <MiniKpi label="متوسط صافي التشغيل / يوم عمل" value={formatEGP(companyWorkDays.netPerDay)} icon={<Wallet className="w-4 h-4" />} accent={companyWorkDays.netPerDay >= 0 ? "success" : "destructive"} />
+                  <MiniKpi label="متوسط الفواتير / يوم عمل" value={companyWorkDays.invPerDay.toFixed(1)} icon={<Receipt className="w-4 h-4" />} />
+                </div>
+                <DataTable rows={perBranch} loading={loading} empty="لا توجد فروع"
+                  columns={[
+                    { key: "name", header: "الفرع", render: (r: any) => <b>{r.name}</b> },
+                    { key: "workingDays", header: "أيام العمل" },
+                    { key: "spd", header: "مبيعات / يوم عمل", render: (r: any) => <b className="text-success">{formatEGP(r.workingDays ? r.sales / r.workingDays : 0)}</b> },
+                    { key: "npd", header: "صافي / يوم عمل", render: (r: any) => <b className={r.net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.workingDays ? r.net / r.workingDays : 0)}</b> },
+                    { key: "ipd", header: "فواتير / يوم عمل", render: (r: any) => (r.workingDays ? r.invoices / r.workingDays : 0).toFixed(1) },
+                  ]} />
+              </div>
+            </div>
             <div className="card-elevated p-5">
               <h4 className="font-bold mb-4">مقارنة الفروع — المبيعات والمصروفات التشغيلية</h4>
               {perBranch.length === 0 ? (
