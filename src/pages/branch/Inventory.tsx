@@ -526,7 +526,7 @@ export default function Inventory() {
         }
       />
 
-      <CycleCountAlert branchId={branchId} onStartCount={() => setSearchParams({ tab: "counting" })} />
+      <CycleCountAlert branchId={branchId} onStartCount={() => setSearchParams({ tab: "count" })} />
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList className="flex flex-wrap gap-1 h-auto p-1.5">
