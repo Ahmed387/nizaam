@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2, HelpCircle, Check, ChevronsUpDown, Package } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ProductImage } from "@/components/ProductImage";
 
 interface Line {
   product_id: string; product_name: string;
@@ -41,7 +42,7 @@ function ProductCombobox({
           {selected ? (
             <span className="flex items-center gap-2 truncate">
               {selected.image ? (
-                <img src={selected.image} alt="" className="w-6 h-6 rounded object-cover" />
+                <ProductImage src={selected.image} alt="" className="w-6 h-6 rounded object-cover" />
               ) : (
                 <Package className="w-4 h-4 text-muted-foreground" />
               )}
@@ -64,7 +65,7 @@ function ProductCombobox({
                 <CommandItem key={p.id} value={p.id} onSelect={() => { onSelect(p.id); setOpen(false); setQ(""); }}>
                   <Check className={cn("ml-2 h-4 w-4", value === p.id ? "opacity-100" : "opacity-0")} />
                   {p.image ? (
-                    <img src={p.image} alt="" className="w-8 h-8 rounded object-cover ml-2" />
+                    <ProductImage src={p.image} alt="" className="w-8 h-8 rounded object-cover ml-2" />
                   ) : (
                     <Package className="w-4 h-4 text-muted-foreground ml-2" />
                   )}

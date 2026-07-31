@@ -32,6 +32,7 @@ import { formatDateTime } from "@/lib/format";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, DialogTitle as DlgTitle } from "@/components/ui/dialog";
+import { ProductImage } from "@/components/ProductImage";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -671,7 +672,7 @@ export default function Inventory() {
                         <td className="px-4 py-3 align-middle">
                           <div className="flex items-center gap-3 min-w-0">
                             {r.image ? (
-                              <img src={r.image} alt={r.name} className="w-11 h-11 rounded object-cover shrink-0" />
+                              <ProductImage src={r.image} alt={r.name} className="w-11 h-11 rounded object-cover shrink-0" />
                             ) : (
                               <div className="w-11 h-11 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
                             )}
@@ -760,7 +761,7 @@ export default function Inventory() {
                       onDoubleClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}
                     >
                       {r.image ? (
-                        <img src={r.image} alt={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
+                        <ProductImage src={r.image} alt={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
                       ) : (
                         <div className="w-14 h-14 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
                       )}
@@ -843,7 +844,7 @@ export default function Inventory() {
             <div className="col-span-2">
               <Label>صورة المنتج</Label>
               <div className="mt-1.5 flex items-center gap-3">
-                {form.image && <img src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
+                {form.image && <ProductImage src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
                 <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   <span className="text-sm">{form.image ? "تغيير الصورة" : "رفع صورة"}</span>
@@ -987,7 +988,7 @@ export default function Inventory() {
                     <Label className="text-xs font-semibold mb-1.5 block">صورة المنتج</Label>
                     <div className="flex items-center gap-3 flex-wrap">
                       {editForm.image ? (
-                        <img src={editForm.image} alt="" className="w-20 h-20 rounded-md object-cover border" />
+                        <ProductImage src={editForm.image} alt="" className="w-20 h-20 rounded-md object-cover border" />
                       ) : (
                         <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center text-muted-foreground text-[10px] text-center px-1">لا توجد صورة</div>
                       )}

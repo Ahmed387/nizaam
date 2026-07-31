@@ -13,6 +13,7 @@ import { Plus, FolderTree, Folder, Trash2, Pencil, Loader2, Package, Search } fr
 import { formatEGP } from "@/lib/format";
 import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip } from "@/components/AttributePicker";
+import { ProductImage } from "@/components/ProductImage";
 
 export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const [cats, setCats] = useState<any[]>([]);
@@ -208,7 +209,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                   return (
                     <div key={p.id} className="rounded-lg border border-border bg-card hover:border-primary/40 hover:shadow-sm transition p-3 flex gap-3">
                       {p.image ? (
-                        <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded-md shrink-0" />
+                        <ProductImage src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded-md shrink-0" />
                       ) : (
                         <div className="w-16 h-16 rounded-md bg-surface-2 flex items-center justify-center shrink-0">
                           <Package className="w-6 h-6 text-muted-foreground" />

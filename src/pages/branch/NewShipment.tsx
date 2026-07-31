@@ -23,6 +23,7 @@ import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
+import { ProductImage } from "@/components/ProductImage";
 
 interface Line {
   id?: string | null;
@@ -650,7 +651,7 @@ export default function NewShipment() {
                     <div className="shrink-0">
                       <div className="relative">
                         {l.image
-                          ? <img src={l.image} alt="" className="w-16 h-16 rounded-md object-cover border border-border" />
+                          ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-md object-cover border border-border" />
                           : <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center border border-border"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
                         }
                         {l.product_id === null && (

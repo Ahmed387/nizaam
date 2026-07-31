@@ -313,7 +313,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
             ),
           },
           { key: "image", header: "صورة", render: (r: Row) => r.image
-              ? <img src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
+              ? <ProductImage src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
               : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div> },
           { key: "sku", header: "الكود", render: (r: Row) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
           { key: "name", header: "الاسم", render: (r: Row) => <span className="font-semibold">{r.name}</span> },
@@ -374,7 +374,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               <div className="col-span-2">
                 <Label>صورة المنتج</Label>
                 <div className="mt-1.5 flex items-center gap-3">
-                  {editing.image && <img src={editing.image} alt="" className="w-16 h-16 rounded object-cover border" />}
+                  {editing.image && <ProductImage src={editing.image} alt="" className="w-16 h-16 rounded object-cover border" />}
                   <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     <span className="text-sm">{editing.image ? "تغيير" : "رفع"}</span>
@@ -689,7 +689,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
           <div className="col-span-2">
             <Label>صورة المنتج</Label>
             <div className="mt-1.5 flex items-center gap-3">
-              {form.image && <img src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
+              {form.image && <ProductImage src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
               <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 <span className="text-sm">{form.image ? "تغيير" : "رفع"}</span>

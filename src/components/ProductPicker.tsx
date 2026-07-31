@@ -13,6 +13,7 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip } from "@/components/AttributePicker";
+import { ProductImage } from "@/components/ProductImage";
 
 export interface ProductRow {
   id: string;
@@ -277,7 +278,7 @@ function NewProductDialog({
             <Label className="text-xs">صورة المنتج (اختياري)</Label>
             <div className="mt-1.5 flex items-center gap-3 flex-wrap">
               {image ? (
-                <img src={image} alt="" className="w-16 h-16 rounded-md object-cover border" />
+                <ProductImage src={image} alt="" className="w-16 h-16 rounded-md object-cover border" />
               ) : (
                 <div className="w-16 h-16 rounded-md border border-dashed flex items-center justify-center text-[10px] text-muted-foreground">لا توجد</div>
               )}
