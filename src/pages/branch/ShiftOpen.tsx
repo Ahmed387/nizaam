@@ -28,13 +28,23 @@ export default function ShiftOpen() {
   const [openingCash, setOpeningCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [existing, setExisting] = useState<any>(null);
+  const [offReason, setOffReason] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<BranchSchedule | undefined>(undefined);
+  const [ack, setAck] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
     (async () => {
       try {
-        const s = await getOpenShift(branchId);
+        const [s, scheds, closures] = await Promise.all([
+          getOpenShift(branchId),
+          fetchSchedules(),
+          fetchClosures(branchId),
+        ]);
         setExisting(s);
+        const sch = scheds[branchId];
+        setSchedule(sch);
+        setOffReason(offDayReason(sch, closures));
       } catch (e: any) {
         toast.error(e.message ?? "خطأ في قراءة الوردية");
       } finally {
@@ -43,8 +53,14 @@ export default function ShiftOpen() {
     })();
   }, [branchId, user?.id]);
 
+  const blocked = !!offReason && !!schedule?.block_open_on_off_day && !ack;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (blocked) {
+      toast.error("الفرع مقفول اليوم — تحتاج تأكيد المالك لفتح وردية");
+      return;
+    }
     setBusy(true);
     try {
       await openShift(branchId, Number(openingCash) || 0, notes || undefined);
@@ -56,6 +72,7 @@ export default function ShiftOpen() {
       setBusy(false);
     }
   };
+
 
   if (loading) {
     return <BranchLayout><div className="flex justify-center p-10"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
