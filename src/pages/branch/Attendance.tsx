@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, LogIn, LogOut, ArrowRight, Zap } from "lucide-react";
+import { Plus, LogIn, LogOut, ArrowRight, Zap, CalendarOff } from "lucide-react";
+import { fetchSchedules, fetchClosures, offDayReason } from "@/lib/branchSchedule";
 
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
