@@ -38,6 +38,20 @@ export default function BranchReports() {
   const [products, setProducts] = useState<any[]>([]);
   const [returns, setReturns] = useState<any[]>([]);
   const [branchName, setBranchName] = useState("");
+  const [workingDays, setWorkingDays] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!branchId) return;
+      const [schedules, closures] = await Promise.all([fetchSchedules(), fetchClosures(branchId)]);
+      if (cancelled) return;
+      setWorkingDays(countWorkingDays(schedules[branchId], closures, from, to));
+    })();
+    return () => { cancelled = true; };
+  }, [branchId, from, to]);
+
+
 
   // Voucher categories that mirror business events already counted elsewhere.
   // We hide them from "expenses" and "treasury cash flow" to prevent double-counting:
