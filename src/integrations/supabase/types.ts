@@ -6104,44 +6104,25 @@ export type Database = {
         }
         Returns: string
       }
-      create_manual_voucher:
-        | {
-            Args: {
-              p_amount: number
-              p_branch_id: string
-              p_category_id: string
-              p_description?: string
-              p_fee_amount?: number
-              p_party_id?: string
-              p_party_name?: string
-              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
-              p_payment_method: string
-              p_reference_number?: string
-              p_transferred_to?: string
-              p_type: Database["public"]["Enums"]["voucher_type"]
-              p_voucher_date?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_branch_id: string
-              p_category_id: string
-              p_description?: string
-              p_fee_amount?: number
-              p_party_id?: string
-              p_party_name?: string
-              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
-              p_payment_method: string
-              p_reference_number?: string
-              p_transferred_from?: string
-              p_transferred_to?: string
-              p_type: Database["public"]["Enums"]["voucher_type"]
-              p_voucher_date?: string
-            }
-            Returns: string
-          }
+      create_manual_voucher: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_category_id: string
+          p_description?: string
+          p_fee_amount?: number
+          p_party_id?: string
+          p_party_name?: string
+          p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+          p_payment_method: string
+          p_reference_number?: string
+          p_transferred_from?: string
+          p_transferred_to?: string
+          p_type: Database["public"]["Enums"]["voucher_type"]
+          p_voucher_date?: string
+        }
+        Returns: string
+      }
       create_partner_advance: {
         Args: {
           _advance_date: string
@@ -6597,44 +6578,29 @@ export type Database = {
             }
             Returns: string
           }
-      record_contact_payment:
-        | {
-            Args: {
-              p_amount: number
-              p_branch_id: string
-              p_contact_id: string
-              p_direction: string
-              p_fee_amount: number
-              p_fee_on_customer: boolean
-              p_fee_type: string
-              p_notes?: string
-              p_payment_method: string
-              p_received_by_name: string
-              p_reference_number: string
-              p_transfer_from_account?: string
-              p_transfer_to_account: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_branch_id: string
-              p_contact_id: string
-              p_direction: string
-              p_fee_amount: number
-              p_fee_on_customer: boolean
-              p_fee_type: string
-              p_invoice_id?: string
-              p_notes?: string
-              p_payment_method: string
-              p_received_by_name: string
-              p_reference_number: string
-              p_transfer_from_account?: string
-              p_transfer_to_account: string
-            }
-            Returns: string
-          }
+      recalc_contact_balance: {
+        Args: { p_contact_id: string }
+        Returns: undefined
+      }
+      record_contact_payment: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_contact_id: string
+          p_direction: string
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_fee_type: string
+          p_invoice_id?: string
+          p_notes?: string
+          p_payment_method: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_from_account?: string
+          p_transfer_to_account: string
+        }
+        Returns: string
+      }
       record_partner_advance_payment: {
         Args: {
           _advance_id: string
@@ -6782,6 +6748,7 @@ export type Database = {
         Args: { _day: number; _hour: number }
         Returns: undefined
       }
+      shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
       system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }

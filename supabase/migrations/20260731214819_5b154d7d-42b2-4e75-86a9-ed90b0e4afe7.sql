@@ -1,0 +1,2 @@
+DROP FUNCTION IF EXISTS public.record_contact_payment(uuid,uuid,text,numeric,text,text,text,text,numeric,text,boolean,text,text);
+DROP FUNCTION IF EXISTS public.create_manual_voucher(uuid,voucher_type,uuid,numeric,text,text,text,numeric,voucher_party_type,uuid,text,text,date);
