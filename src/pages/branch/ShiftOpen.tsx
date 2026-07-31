@@ -133,7 +133,7 @@ export default function ShiftOpen() {
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
           </div>
-          <Button type="submit" disabled={busy} className="w-full h-11">
+          <Button type="submit" disabled={busy || blocked} className="w-full h-11">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><DoorOpen className="w-4 h-4 me-2" />فتح الوردية</>)}
           </Button>
         </form>
