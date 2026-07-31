@@ -14,10 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import * as XLSX from "xlsx";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
@@ -510,6 +511,69 @@ export default function PersonalExpenses() {
   const pdfMonthRows = useMemo(() => pdfMonth ? filtered.filter(r => monthKey(r.expense_datetime) === pdfMonth) : [], [pdfMonth, filtered]);
   const pdfMonthTotal = useMemo(() => pdfMonthRows.reduce((s, r) => s + Number(r.amount), 0), [pdfMonthRows]);
 
+  /** إجماليات كل شهر من كل البيانات (بدون فلاتر) — لمقارنة شهر بشهر */
+  const rawMonthTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      m.set(k, (m.get(k) || 0) + Number(r.amount));
+    });
+    return m;
+  }, [rows]);
+
+  /** مقارنة شهر بالشهر اللي قبله: الفرق بالجنيه ونسبة التغيير */
+  const monthDelta = (key: string) => {
+    const [y, mo] = key.split("-").map(Number);
+    const prevDate = new Date(y, mo - 2, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    const cur = rawMonthTotals.get(key) || 0;
+    const prev = rawMonthTotals.get(prevKey) || 0;
+    if (!rawMonthTotals.has(prevKey)) return null;
+    const diff = cur - prev;
+    const pct = prev > 0 ? (diff / prev) * 100 : (cur > 0 ? 100 : 0);
+    return { prevKey, prev, cur, diff, pct };
+  };
+
+  /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة */
+  const exportExcel = (mkey: string | null) => {
+    try {
+      const data = mkey ? filtered.filter(r => monthKey(r.expense_datetime) === mkey) : visible;
+      if (data.length === 0) return toast.error("مفيش بيانات للتصدير");
+      const sorted = [...data].sort((a, b) => a.expense_datetime.localeCompare(b.expense_datetime));
+      const aoa: (string | number)[][] = [
+        ["التاريخ", "الوقت", "الوصف", "التصنيف", "المبلغ (ج.م)", "ملاحظات"],
+        ...sorted.map(r => {
+          const d = new Date(r.expense_datetime);
+          return [
+            d.toLocaleDateString("ar-EG"),
+            d.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }),
+            r.description || "",
+            r.category || "بدون تصنيف",
+            Number(r.amount),
+            r.notes || "",
+          ];
+        }),
+      ];
+      const total = sorted.reduce((s, r) => s + Number(r.amount), 0);
+      aoa.push([]);
+      aoa.push(["", "", "", "الإجمالي", total, ""]);
+
+      if (mkey) {
+        const d = monthDelta(mkey);
+        if (d) aoa.push(["", "", "", `مقارنة بـ ${monthLabel(d.prevKey)}`, Number(d.diff.toFixed(2)), `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(1)}%`]);
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 14 }, { wch: 10 }, { wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 30 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, mkey ? mkey : "الكل");
+      XLSX.writeFile(wb, `personal-expenses-${mkey || "all"}.xlsx`);
+      toast.success("تم تصدير ملف Excel");
+    } catch (e: any) {
+      toast.error("فشل تصدير Excel: " + (e?.message || ""));
+    }
+  };
+
   const clearFilters = () => {
     setQ(""); setFromDate(""); setToDate(""); setFilterCategory("__all__"); setMinAmount(""); setMaxAmount("");
   };
@@ -683,9 +747,24 @@ export default function PersonalExpenses() {
                   {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
                   <span className="text-lg font-semibold opacity-70 mr-1">ج.م</span>
                 </div>
+                {activeTab !== "__all__" && (() => {
+                  const d = monthDelta(activeTab);
+                  if (!d) return null;
+                  const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
+                  return (
+                    <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                      flat ? "bg-muted text-muted-foreground"
+                        : up ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    }`}>
+                      {flat ? <Minus className="w-3.5 h-3.5" /> : up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                      {flat ? "زي الشهر اللي فات" : `${up ? "+" : "−"}${Math.abs(d.pct).toFixed(1)}% (${EGP(Math.abs(d.diff))}) عن ${monthLabel(d.prevKey)}`}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="text-xs text-muted-foreground">
                 {visible.length.toLocaleString("ar-EG")} مصروف
                 {activeTab === "__all__" ? ` · ${monthlyTotals.length} شهر` : ""}
@@ -695,7 +774,11 @@ export default function PersonalExpenses() {
                   <FileDown className="w-4 h-4 ml-1" /> PDF الشهر
                 </Button>
               )}
+              <Button size="sm" variant="outline" onClick={() => exportExcel(activeTab === "__all__" ? null : activeTab)}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> {activeTab === "__all__" ? "Excel (الكل)" : "Excel الشهر"}
+              </Button>
             </div>
+
           </div>
         </Card>
       </div>
@@ -762,12 +845,33 @@ export default function PersonalExpenses() {
                     <div className="text-xs opacity-80">{monthLabel(m.key)}</div>
                     <div className="text-2xl font-extrabold mt-1">{m.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}<span className="text-sm mr-1">ج.م</span></div>
                     <div className="text-xs mt-1 opacity-70">{m.count} مصروف</div>
+                    {(() => {
+                      const d = monthDelta(m.key);
+                      if (!d) return null;
+                      const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
+                      return (
+                        <div className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                          flat ? "bg-background/60 text-muted-foreground"
+                            : up ? "bg-rose-500/20 text-rose-700 dark:text-rose-300"
+                            : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                        }`}>
+                          {flat ? <Minus className="w-3 h-3" /> : up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {flat ? "بدون تغيير" : `${up ? "+" : "−"}${Math.abs(d.pct).toFixed(1)}%`}
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportMonthPDF(m.key); }} title="تصدير PDF لهذا الشهر">
-                    <FileDown className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportMonthPDF(m.key); }} title="تصدير PDF لهذا الشهر">
+                      <FileDown className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportExcel(m.key); }} title="تصدير Excel لهذا الشهر">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
+
             ))}
           </div>
         </div>
