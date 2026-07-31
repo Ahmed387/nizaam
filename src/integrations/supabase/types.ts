@@ -632,6 +632,134 @@ export type Database = {
           },
         ]
       }
+      branch_closures: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          reason: string | null
+          start_date: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          reason?: string | null
+          start_date: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          reason?: string | null
+          start_date?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_closures_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_closures_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "branch_closures_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branch_schedules: {
+        Row: {
+          auto_close_hours: number
+          block_open_on_off_day: boolean
+          branch_id: string
+          close_grace_minutes: number
+          close_time: string | null
+          created_at: string
+          id: string
+          open_time: string | null
+          pre_close_warn_minutes: number
+          reminder_hours: number
+          tenant_id: string
+          updated_at: string
+          weekly_off: number[]
+        }
+        Insert: {
+          auto_close_hours?: number
+          block_open_on_off_day?: boolean
+          branch_id: string
+          close_grace_minutes?: number
+          close_time?: string | null
+          created_at?: string
+          id?: string
+          open_time?: string | null
+          pre_close_warn_minutes?: number
+          reminder_hours?: number
+          tenant_id: string
+          updated_at?: string
+          weekly_off?: number[]
+        }
+        Update: {
+          auto_close_hours?: number
+          block_open_on_off_day?: boolean
+          branch_id?: string
+          close_grace_minutes?: number
+          close_time?: string | null
+          created_at?: string
+          id?: string
+          open_time?: string | null
+          pre_close_warn_minutes?: number
+          reminder_hours?: number
+          tenant_id?: string
+          updated_at?: string
+          weekly_off?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_schedules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_schedules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "branch_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_users: {
         Row: {
           branch_id: string
@@ -816,6 +944,8 @@ export type Database = {
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -835,6 +965,8 @@ export type Database = {
           open_notes?: string | null
           opened_at?: string
           opening_cash?: number
+          pre_close_warned_at?: string | null
+          reminder_sent_at?: string | null
           status?: string
           tenant_id: string
           updated_at?: string
@@ -854,6 +986,8 @@ export type Database = {
           open_notes?: string | null
           opened_at?: string
           opening_cash?: number
+          pre_close_warned_at?: string | null
+          reminder_sent_at?: string | null
           status?: string
           tenant_id?: string
           updated_at?: string
@@ -5659,6 +5793,54 @@ export type Database = {
           },
         ]
       }
+      v_shifts_history: {
+        Row: {
+          branch_id: string | null
+          branch_name: string | null
+          cash_sales: number | null
+          cashier_id: string | null
+          cashier_name: string | null
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string | null
+          expected_cash: number | null
+          id: string | null
+          open_notes: string | null
+          opened_at: string | null
+          opening_cash: number | null
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
+          status: string | null
+          tenant_id: string | null
+          updated_at: string | null
+          variance: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashier_shifts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashier_shifts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "cashier_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_supplier_ledger: {
         Row: {
           amount: number | null
@@ -5873,6 +6055,8 @@ export type Database = {
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -6213,6 +6397,8 @@ export type Database = {
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -6305,6 +6491,8 @@ export type Database = {
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -6575,6 +6763,14 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      run_shift_maintenance: {
+        Args: never
+        Returns: {
+          auto_closed: number
+          reminded: number
+          warned: number
+        }[]
       }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
       seed_default_chart_of_accounts: {

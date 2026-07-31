@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { getOpenShift, openShift } from "@/lib/shifts";
 import { formatEGP } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
+import { BranchSchedule, fetchClosures, fetchSchedules, offDayReason } from "@/lib/branchSchedule";
+import { AlertTriangle } from "lucide-react";
+
 
 export default function ShiftOpen() {
   const { id: branchId = "" } = useParams();
@@ -25,13 +28,23 @@ export default function ShiftOpen() {
   const [openingCash, setOpeningCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [existing, setExisting] = useState<any>(null);
+  const [offReason, setOffReason] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<BranchSchedule | undefined>(undefined);
+  const [ack, setAck] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
     (async () => {
       try {
-        const s = await getOpenShift(branchId);
+        const [s, scheds, closures] = await Promise.all([
+          getOpenShift(branchId),
+          fetchSchedules(),
+          fetchClosures(branchId),
+        ]);
         setExisting(s);
+        const sch = scheds[branchId];
+        setSchedule(sch);
+        setOffReason(offDayReason(sch, closures));
       } catch (e: any) {
         toast.error(e.message ?? "خطأ في قراءة الوردية");
       } finally {
@@ -40,8 +53,14 @@ export default function ShiftOpen() {
     })();
   }, [branchId, user?.id]);
 
+  const blocked = !!offReason && !!schedule?.block_open_on_off_day && !ack;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (blocked) {
+      toast.error("الفرع مقفول اليوم — تحتاج تأكيد المالك لفتح وردية");
+      return;
+    }
     setBusy(true);
     try {
       await openShift(branchId, Number(openingCash) || 0, notes || undefined);
@@ -53,6 +72,7 @@ export default function ShiftOpen() {
       setBusy(false);
     }
   };
+
 
   if (loading) {
     return <BranchLayout><div className="flex justify-center p-10"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
@@ -82,7 +102,23 @@ export default function ShiftOpen() {
     <BranchLayout>
       <PageHeader title="فتح وردية جديدة" subtitle="أدخل رصيد الدرج الافتتاحي قبل بدء البيع" />
       <Card className="p-6 max-w-xl mx-auto">
+        {offReason && (
+          <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" style={{ animation: "shift-shake 0.9s ease-in-out infinite" }} />
+            <div className="flex-1 text-sm">
+              <div className="font-bold">الفرع مقفول اليوم</div>
+              <div className="text-muted-foreground">{offReason}</div>
+              {schedule?.block_open_on_off_day && (
+                <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
+                  <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+                  تأكيد المالك بفتح الوردية استثناءً
+                </label>
+              )}
+            </div>
+          </div>
+        )}
         <form onSubmit={submit} className="space-y-4">
+
           <div>
             <Label>الرصيد الافتتاحي في الدرج (جنيه)</Label>
             <Input
@@ -97,7 +133,7 @@ export default function ShiftOpen() {
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
           </div>
-          <Button type="submit" disabled={busy} className="w-full h-11">
+          <Button type="submit" disabled={busy || blocked} className="w-full h-11">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><DoorOpen className="w-4 h-4 me-2" />فتح الوردية</>)}
           </Button>
         </form>

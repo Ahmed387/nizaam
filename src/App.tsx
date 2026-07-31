@@ -27,6 +27,7 @@ function AdminRedirectToContact() {
 }
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import ShiftAlertBar from "@/components/ShiftAlertBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -97,6 +98,7 @@ import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
 import Presence from "./pages/admin/Presence";
+import ShiftsHistory from "./pages/admin/ShiftsHistory";
 import Attendance from "./pages/branch/Attendance";
 import Receivables from "./pages/admin/Receivables";
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
@@ -179,6 +181,7 @@ const App = () => (
           <AuthProvider>
           <PresenceTracker />
           <PaidCelebration />
+          <ShiftAlertBar />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
@@ -246,6 +249,7 @@ const App = () => (
             <Route path="/admin/financial-position/transactions" element={<ProtectedRoute ownerOnly><PartnerTransactions /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advances" element={<ProtectedRoute ownerOnly><PartnerAdvances /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
+            <Route path="/admin/shifts" element={<ProtectedRoute roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute ownerOnly><SystemHealth /></ProtectedRoute>} />
             <Route path="/admin/personal-expenses" element={<ProtectedRoute><PersonalExpenses /></ProtectedRoute>} />
 
