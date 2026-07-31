@@ -27,7 +27,7 @@ export function CycleCountAlert({ branchId, onStartCount }: { branchId?: string;
         .from("products")
         .select("id,name,created_at")
         .eq("branch_id", branchId)
-        .eq("is_active", true);
+        .is("archived_at", null);
       if (!products?.length) { if (!cancelled) setStale([]); return; }
 
       const { data: counts } = await supabase
