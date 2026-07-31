@@ -63,17 +63,23 @@ export default function ShiftsHistory() {
     const totalVar = closed.reduce((s, r) => s + Number(r.variance ?? 0), 0);
     const auto = rows.filter((r) => r.status === "auto_closed").length;
     const open = rows.filter((r) => r.status === "open").length;
-    const byCashier = new Map<string, { name: string; variance: number; count: number }>();
+    const byCashier = new Map<string, { name: string; variance: number; count: number; auto: number; shortages: number; months: Set<string> }>();
     for (const r of closed) {
       const k = r.cashier_id;
-      const cur = byCashier.get(k) ?? { name: r.cashier_name ?? "—", variance: 0, count: 0 };
-      cur.variance += Number(r.variance ?? 0);
+      const cur = byCashier.get(k) ?? { name: r.cashier_name ?? "—", variance: 0, count: 0, auto: 0, shortages: 0, months: new Set<string>() };
+      const v = Number(r.variance ?? 0);
+      cur.variance += v;
       cur.count += 1;
+      if (r.status === "auto_closed") cur.auto += 1;
+      if (v < -0.01) cur.shortages += 1;
+      cur.months.add(r.opened_at.slice(0, 7));
       byCashier.set(k, cur);
     }
     return {
       totalVar, auto, open,
-      ranking: Array.from(byCashier.values()).sort((a, b) => a.variance - b.variance),
+      ranking: Array.from(byCashier.values())
+        .map((c) => ({ ...c, avg: c.count ? c.variance / c.count : 0, monthsCount: c.months.size }))
+        .sort((a, b) => a.variance - b.variance),
     };
   }, [rows]);
 
