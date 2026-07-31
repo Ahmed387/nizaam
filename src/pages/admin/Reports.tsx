@@ -249,7 +249,22 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         treasury.filter((t) => t.branch_id === b.id && t.type === "payment").reduce((s, t) => s + Number(t.amount), 0),
       cashIn, walletIn, instapayIn, bankIn, creditIn, otherIn, totalReceived,
     };
-  }), [branches, invoices, expenses, products, employees, treasury, invPayments]);
+  }), [branches, invoices, expenses, products, employees, treasury, invPayments, workingDaysByBranch]);
+
+  // Company-wide averages based on actual working days
+  const companyWorkDays = useMemo(() => {
+    const rows = scope === "global" ? perBranch : perBranch.filter((b: any) => b.id === scope);
+    const days = rows.reduce((s: number, b: any) => s + (b.workingDays || 0), 0);
+    const sales = rows.reduce((s: number, b: any) => s + b.sales, 0);
+    const net = rows.reduce((s: number, b: any) => s + b.net, 0);
+    const inv = rows.reduce((s: number, b: any) => s + b.invoices, 0);
+    return {
+      days,
+      salesPerDay: days ? sales / days : 0,
+      netPerDay: days ? net / days : 0,
+      invPerDay: days ? inv / days : 0,
+    };
+  }, [perBranch, scope]);
 
   // Top products in scope — uses lineProfit() (single source of truth)
   const topProductsAll = useMemo(() => {
