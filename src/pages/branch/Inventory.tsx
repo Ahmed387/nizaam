@@ -3,6 +3,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { CycleCountAlert } from "@/components/CycleCountAlert";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -525,6 +526,8 @@ export default function Inventory() {
           </div>
         }
       />
+
+      <CycleCountAlert branchId={branchId} onStartCount={() => setSearchParams({ tab: "count" })} />
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList className="flex flex-wrap gap-1 h-auto p-1.5">

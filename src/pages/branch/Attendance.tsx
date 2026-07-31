@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, LogIn, LogOut, ArrowRight, Zap } from "lucide-react";
+import { Plus, LogIn, LogOut, ArrowRight, Zap, CalendarOff } from "lucide-react";
+import { fetchSchedules, fetchClosures, offDayReason } from "@/lib/branchSchedule";
 
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
@@ -46,6 +47,20 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const [form, setForm] = useState({ employee_id: "", status: "present", notes: "" });
 
   const [presence, setPresence] = useState<Record<string, { last_login_at: string | null; last_seen_at: string }>>({});
+  const [branchOff, setBranchOff] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!branchId) return;
+      const [schedules, closures] = await Promise.all([fetchSchedules(), fetchClosures(branchId)]);
+      if (cancelled) return;
+      setBranchOff(offDayReason(schedules[branchId], closures, date));
+    })();
+    return () => { cancelled = true; };
+  }, [branchId, date]);
+
+
 
   const load = async () => {
     setLoading(true);
@@ -127,6 +142,18 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const body = (
     <>
       {embedded && <div className="flex justify-end mb-3">{controls}</div>}
+
+      {branchOff && (
+        <div className="mb-3 rounded-lg border border-warning/40 bg-warning/10 p-3 flex items-start gap-2">
+          <CalendarOff className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <div className="font-bold">الفرع مقفول في اليوم ده</div>
+            <div className="text-muted-foreground">{branchOff} — الغياب في اليوم ده مش محسوب على الموظفين.</div>
+          </div>
+        </div>
+      )}
+
+
 
 
       <DataTable

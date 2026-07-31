@@ -14,7 +14,8 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
 import { generateProfitReport, generateBranchTabReport, type ReportsTabKey } from "@/utils/generatePDFReport";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
+import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText, CalendarDays } from "lucide-react";
+import { fetchSchedules, fetchClosures, countWorkingDays } from "@/lib/branchSchedule";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
@@ -37,6 +38,20 @@ export default function BranchReports() {
   const [products, setProducts] = useState<any[]>([]);
   const [returns, setReturns] = useState<any[]>([]);
   const [branchName, setBranchName] = useState("");
+  const [workingDays, setWorkingDays] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!branchId) return;
+      const [schedules, closures] = await Promise.all([fetchSchedules(), fetchClosures(branchId)]);
+      if (cancelled) return;
+      setWorkingDays(countWorkingDays(schedules[branchId], closures, from, to));
+    })();
+    return () => { cancelled = true; };
+  }, [branchId, from, to]);
+
+
 
   // Voucher categories that mirror business events already counted elsewhere.
   // We hide them from "expenses" and "treasury cash flow" to prevent double-counting:
@@ -221,6 +236,14 @@ export default function BranchReports() {
         <StatCard label="صافي الربح" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
         <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard label="أيام العمل الفعلية" value={String(workingDays)} icon={<CalendarDays className="w-4 h-4" />} hint="بعد استبعاد الإجازات والإغلاق" />
+        <StatCard label="متوسط المبيعات / يوم عمل" value={formatEGP(workingDays ? totalSales / workingDays : 0)} icon={<ShoppingCart className="w-4 h-4" />} />
+        <StatCard label="متوسط الربح / يوم عمل" value={formatEGP(workingDays ? netProfit / workingDays : 0)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
+        <StatCard label="متوسط الفواتير / يوم عمل" value={(workingDays ? activeInv.length / workingDays : 0).toFixed(1)} icon={<FileText className="w-4 h-4" />} />
+      </div>
+
 
       <Tabs defaultValue="charts">
         <TabsList>
