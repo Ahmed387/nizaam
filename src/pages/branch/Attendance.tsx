@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, LogIn, LogOut, ArrowRight, Zap, CalendarOff } from "lucide-react";
-import { fetchSchedules, fetchClosures, offDayReason } from "@/lib/branchSchedule";
+import { fetchSchedules, fetchClosures, offDayReason, countWorkingDays } from "@/lib/branchSchedule";
 
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 
@@ -48,6 +48,8 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
 
   const [presence, setPresence] = useState<Record<string, { last_login_at: string | null; last_seen_at: string }>>({});
   const [branchOff, setBranchOff] = useState<string | null>(null);
+  const [monthWorkingDays, setMonthWorkingDays] = useState(0);
+  const [monthAtt, setMonthAtt] = useState<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +58,14 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
       const [schedules, closures] = await Promise.all([fetchSchedules(), fetchClosures(branchId)]);
       if (cancelled) return;
       setBranchOff(offDayReason(schedules[branchId], closures, date));
+      // Compliance is measured over actual working days of the selected month only
+      const monthStart = date.slice(0, 8) + "01";
+      const monthEnd = date;
+      setMonthWorkingDays(countWorkingDays(schedules[branchId], closures, monthStart, monthEnd));
+      const { data: mAtt } = await supabase
+        .from("attendance").select("employee_id,status,date")
+        .eq("branch_id", branchId).gte("date", monthStart).lte("date", monthEnd);
+      if (!cancelled) setMonthAtt(mAtt ?? []);
     })();
     return () => { cancelled = true; };
   }, [branchId, date]);
@@ -93,6 +103,15 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     rows.forEach((r) => m.set(r.employee_id, r));
     return m;
   }, [rows]);
+
+  // Attendance days counted only on branch working days (off-days never count as absence)
+  const complianceByEmployee = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const a of monthAtt) {
+      if (a.status === "present" || a.status === "late") m[a.employee_id] = (m[a.employee_id] ?? 0) + 1;
+    }
+    return m;
+  }, [monthAtt]);
 
   const upsert = async (employeeId: string, patch: any) => {
     const emp = employees.find((e) => e.id === employeeId);
@@ -148,13 +167,18 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
           <CalendarOff className="w-5 h-5 text-warning shrink-0 mt-0.5" />
           <div className="text-sm">
             <div className="font-bold">الفرع مقفول في اليوم ده</div>
-            <div className="text-muted-foreground">{branchOff} — الغياب في اليوم ده مش محسوب على الموظفين.</div>
+            <div className="text-muted-foreground">{branchOff} — الغياب في اليوم ده مش محسوب على الموظفين، واليوم ده مستبعد من أيام العمل.</div>
           </div>
         </div>
       )}
 
 
 
+
+      <div className="mb-3 text-xs text-muted-foreground">
+        أيام العمل الفعلية من بداية الشهر حتى {formatDate(date)}: <b className="text-foreground">{monthWorkingDays}</b> يوم
+        (بعد استبعاد الإجازات الأسبوعية والإغلاق الاستثنائي) — نسبة الالتزام محسوبة على الأيام دي بس.
+      </div>
 
       <DataTable
         loading={loading}
@@ -180,6 +204,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             key: "status", header: "الحالة",
             render: (e: any) => {
               const a = byEmployee.get(e.id);
+              if (!a && branchOff) return <span className="text-info">عطلة الفرع</span>;
               const status = a?.status ?? "absent";
               const color = status === "present" ? "text-success" : status === "late" ? "text-warning" : status === "leave" ? "text-info" : "text-muted-foreground";
               return <span className={color}>{STATUS[status as keyof typeof STATUS] ?? status}</span>;
@@ -211,6 +236,21 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 <div className="text-xs leading-tight">
                   <div className={loginToday ? "text-success" : "text-muted-foreground"}>دخول: {loginToday ? fmtTime(p.last_login_at) : "لم يدخل"}</div>
                   <div className={seenToday ? "text-info" : "text-muted-foreground"}>آخر ظهور: {seenToday ? fmtTime(p.last_seen_at) : "—"}</div>
+                </div>
+              );
+            },
+          },
+          {
+            key: "compliance", header: "الالتزام (أيام العمل)",
+            render: (e: any) => {
+              if (!monthWorkingDays) return <span className="text-xs text-muted-foreground">—</span>;
+              const done = complianceByEmployee[e.id] ?? 0;
+              const pct = Math.min(100, Math.round((done / monthWorkingDays) * 100));
+              const color = pct >= 90 ? "text-success" : pct >= 70 ? "text-warning" : "text-destructive";
+              return (
+                <div className="text-xs leading-tight">
+                  <span className={`font-bold ${color}`}>{pct}%</span>
+                  <span className="text-muted-foreground"> ({done}/{monthWorkingDays})</span>
                 </div>
               );
             },
