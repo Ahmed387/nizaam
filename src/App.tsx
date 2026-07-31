@@ -28,6 +28,7 @@ function AdminRedirectToContact() {
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import ShiftAlertBar from "@/components/ShiftAlertBar";
+import DesktopNotifications from "@/components/DesktopNotifications";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -182,6 +183,7 @@ const App = () => (
           <PresenceTracker />
           <PaidCelebration />
           <ShiftAlertBar />
+          <DesktopNotifications />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />

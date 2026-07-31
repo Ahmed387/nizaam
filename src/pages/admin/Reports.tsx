@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { lineProfit } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
+import { fetchSchedules, fetchClosures, countWorkingDays, type BranchSchedule, type BranchClosure } from "@/lib/branchSchedule";
 import {
   FileSpreadsheet, Printer, ShoppingCart, TrendingUp, TrendingDown,
   Wallet, Store, Users, Truck, Package, RotateCcw, Building2, AlertTriangle,
@@ -54,6 +55,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [overdueIns, setOverdueIns] = useState<any[]>([]);
   const [payPlans, setPayPlans] = useState<any[]>([]);
   const [invPayments, setInvPayments] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Record<string, BranchSchedule>>({});
+  const [closures, setClosures] = useState<BranchClosure[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -103,6 +106,9 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     setOverdueIns(oi.data ?? []);
     setPayPlans(pp.data ?? []);
     setInvPayments(ipay.data ?? []);
+    const [sch, clo] = await Promise.all([fetchSchedules(), fetchClosures()]);
+    setSchedules(sch);
+    setClosures(clo);
     setLoading(false);
   };
 
@@ -194,6 +200,15 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
   // Per-branch (used in global mode)
   // ⚠️ Uses lineProfit() — single source of truth for revenue/cost/profit
+  // Actual working days per branch (weekly off-days + exceptional closures excluded)
+  const workingDaysByBranch = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const b of branches) {
+      m[b.id] = countWorkingDays(schedules[b.id], closures.filter((c) => c.branch_id === b.id), from, to);
+    }
+    return m;
+  }, [branches, schedules, closures, from, to]);
+
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
     const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
@@ -223,6 +238,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
     return {
       ...b,
+      workingDays: workingDaysByBranch[b.id] ?? 0,
       invoices: bInv.length, sales, cost, profit,
       expenses: exp, net: profit - exp,
       inventoryValue: bProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0),
@@ -233,7 +249,22 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         treasury.filter((t) => t.branch_id === b.id && t.type === "payment").reduce((s, t) => s + Number(t.amount), 0),
       cashIn, walletIn, instapayIn, bankIn, creditIn, otherIn, totalReceived,
     };
-  }), [branches, invoices, expenses, products, employees, treasury, invPayments]);
+  }), [branches, invoices, expenses, products, employees, treasury, invPayments, workingDaysByBranch]);
+
+  // Company-wide averages based on actual working days
+  const companyWorkDays = useMemo(() => {
+    const rows = scope === "global" ? perBranch : perBranch.filter((b: any) => b.id === scope);
+    const days = rows.reduce((s: number, b: any) => s + (b.workingDays || 0), 0);
+    const sales = rows.reduce((s: number, b: any) => s + b.sales, 0);
+    const net = rows.reduce((s: number, b: any) => s + b.net, 0);
+    const inv = rows.reduce((s: number, b: any) => s + b.invoices, 0);
+    return {
+      days,
+      salesPerDay: days ? sales / days : 0,
+      netPerDay: days ? net / days : 0,
+      invPerDay: days ? inv / days : 0,
+    };
+  }, [perBranch, scope]);
 
   // Top products in scope — uses lineProfit() (single source of truth)
   const topProductsAll = useMemo(() => {
@@ -648,6 +679,32 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         {/* ===== TAB 6: BRANCHES (global only) ===== */}
         {scope === "global" && (
           <TabsContent value="branches" className="mt-4 space-y-6">
+
+            {/* ===== Working-day averages (company wide) ===== */}
+            <div className="card-elevated p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
+                <h4 className="font-extrabold text-base md:text-lg">المتوسطات على أيام العمل الفعلية</h4>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  بعد استبعاد الإجازات الأسبوعية والإغلاق الاستثنائي لكل فرع (من {from} إلى {to})
+                </p>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <MiniKpi label="إجمالي أيام العمل (كل الفروع)" value={String(companyWorkDays.days)} icon={<Layers className="w-4 h-4" />} />
+                  <MiniKpi label="متوسط المبيعات / يوم عمل" value={formatEGP(companyWorkDays.salesPerDay)} icon={<ShoppingCart className="w-4 h-4" />} accent="success" />
+                  <MiniKpi label="متوسط صافي التشغيل / يوم عمل" value={formatEGP(companyWorkDays.netPerDay)} icon={<Wallet className="w-4 h-4" />} accent={companyWorkDays.netPerDay >= 0 ? "success" : "destructive"} />
+                  <MiniKpi label="متوسط الفواتير / يوم عمل" value={companyWorkDays.invPerDay.toFixed(1)} icon={<Receipt className="w-4 h-4" />} />
+                </div>
+                <DataTable rows={perBranch} loading={loading} empty="لا توجد فروع"
+                  columns={[
+                    { key: "name", header: "الفرع", render: (r: any) => <b>{r.name}</b> },
+                    { key: "workingDays", header: "أيام العمل" },
+                    { key: "spd", header: "مبيعات / يوم عمل", render: (r: any) => <b className="text-success">{formatEGP(r.workingDays ? r.sales / r.workingDays : 0)}</b> },
+                    { key: "npd", header: "صافي / يوم عمل", render: (r: any) => <b className={r.net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(r.workingDays ? r.net / r.workingDays : 0)}</b> },
+                    { key: "ipd", header: "فواتير / يوم عمل", render: (r: any) => (r.workingDays ? r.invoices / r.workingDays : 0).toFixed(1) },
+                  ]} />
+              </div>
+            </div>
             <div className="card-elevated p-5">
               <h4 className="font-bold mb-4">مقارنة الفروع — المبيعات والمصروفات التشغيلية</h4>
               {perBranch.length === 0 ? (
