@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { getOpenShift, openShift } from "@/lib/shifts";
 import { formatEGP } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
+import { BranchSchedule, fetchClosures, fetchSchedules, offDayReason } from "@/lib/branchSchedule";
+import { AlertTriangle } from "lucide-react";
+
 
 export default function ShiftOpen() {
   const { id: branchId = "" } = useParams();
