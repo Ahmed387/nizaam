@@ -526,6 +526,8 @@ export default function Inventory() {
         }
       />
 
+      <CycleCountAlert branchId={branchId} onStartCount={() => setSearchParams({ tab: "counting" })} />
+
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList className="flex flex-wrap gap-1 h-auto p-1.5">
           <TabsTrigger value="products" className="text-base font-bold px-4 py-2">الأصناف المتاحة في المخزن</TabsTrigger>
