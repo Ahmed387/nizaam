@@ -239,6 +239,13 @@ export default function FinancialPosition() {
               iconClass="text-warning"
             />
             <ActionButton
+              to="/admin/accounting/opening-balances"
+              icon={<Scale className="w-4 h-4" />}
+              title="الأرصدة الافتتاحية"
+              note="أول ما تبدأ شغل حقيقي — تدخل كاش الخزن وأرصدة العملاء والموردين وكميات المخزون."
+              iconClass="text-primary"
+            />
+            <ActionButton
               to="/admin/accounting/bank-reconciliation"
               icon={<Landmark className="w-4 h-4" />}
               title="المطابقة البنكية"
