@@ -131,6 +131,7 @@ export default function NewSale() {
     if (isAdmin) { setShiftReady(true); return; }
     (async () => {
       const { getOpenShift } = await import("@/lib/shifts");
+      const { fetchSchedules, hoursOpen } = await import("@/lib/branchSchedule");
       try {
         const s = await getOpenShift(branchId);
         if (!s) {
@@ -139,9 +140,18 @@ export default function NewSale() {
             replace: true,
             state: { returnTo: `/branch/${branchId}/sales/new` },
           });
-        } else {
-          setShiftReady(true);
+          return;
         }
+        // Hard stop: shift exceeded the branch max open hours — must be closed first
+        const scheds = await fetchSchedules();
+        const maxHrs = scheds[branchId]?.auto_close_hours ?? 16;
+        const hrs = hoursOpen(s.opened_at);
+        if (hrs >= maxHrs) {
+          toast.error(`الوردية مفتوحة من ${Math.floor(hrs)} ساعة — لازم تقفلها قبل ما تكمل بيع`);
+          nav(`/branch/${branchId}/shifts/close`, { replace: true });
+          return;
+        }
+        setShiftReady(true);
       } catch (e: any) {
         toast.error(e.message ?? "خطأ في التحقق من الوردية");
       }
