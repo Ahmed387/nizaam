@@ -511,6 +511,69 @@ export default function PersonalExpenses() {
   const pdfMonthRows = useMemo(() => pdfMonth ? filtered.filter(r => monthKey(r.expense_datetime) === pdfMonth) : [], [pdfMonth, filtered]);
   const pdfMonthTotal = useMemo(() => pdfMonthRows.reduce((s, r) => s + Number(r.amount), 0), [pdfMonthRows]);
 
+  /** إجماليات كل شهر من كل البيانات (بدون فلاتر) — لمقارنة شهر بشهر */
+  const rawMonthTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      m.set(k, (m.get(k) || 0) + Number(r.amount));
+    });
+    return m;
+  }, [rows]);
+
+  /** مقارنة شهر بالشهر اللي قبله: الفرق بالجنيه ونسبة التغيير */
+  const monthDelta = (key: string) => {
+    const [y, mo] = key.split("-").map(Number);
+    const prevDate = new Date(y, mo - 2, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    const cur = rawMonthTotals.get(key) || 0;
+    const prev = rawMonthTotals.get(prevKey) || 0;
+    if (!rawMonthTotals.has(prevKey)) return null;
+    const diff = cur - prev;
+    const pct = prev > 0 ? (diff / prev) * 100 : (cur > 0 ? 100 : 0);
+    return { prevKey, prev, cur, diff, pct };
+  };
+
+  /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة */
+  const exportExcel = (mkey: string | null) => {
+    try {
+      const data = mkey ? filtered.filter(r => monthKey(r.expense_datetime) === mkey) : visible;
+      if (data.length === 0) return toast.error("مفيش بيانات للتصدير");
+      const sorted = [...data].sort((a, b) => a.expense_datetime.localeCompare(b.expense_datetime));
+      const aoa: (string | number)[][] = [
+        ["التاريخ", "الوقت", "الوصف", "التصنيف", "المبلغ (ج.م)", "ملاحظات"],
+        ...sorted.map(r => {
+          const d = new Date(r.expense_datetime);
+          return [
+            d.toLocaleDateString("ar-EG"),
+            d.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }),
+            r.description || "",
+            r.category || "بدون تصنيف",
+            Number(r.amount),
+            r.notes || "",
+          ];
+        }),
+      ];
+      const total = sorted.reduce((s, r) => s + Number(r.amount), 0);
+      aoa.push([]);
+      aoa.push(["", "", "", "الإجمالي", total, ""]);
+
+      if (mkey) {
+        const d = monthDelta(mkey);
+        if (d) aoa.push(["", "", "", `مقارنة بـ ${monthLabel(d.prevKey)}`, Number(d.diff.toFixed(2)), `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(1)}%`]);
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 14 }, { wch: 10 }, { wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 30 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, mkey ? mkey : "الكل");
+      XLSX.writeFile(wb, `personal-expenses-${mkey || "all"}.xlsx`);
+      toast.success("تم تصدير ملف Excel");
+    } catch (e: any) {
+      toast.error("فشل تصدير Excel: " + (e?.message || ""));
+    }
+  };
+
   const clearFilters = () => {
     setQ(""); setFromDate(""); setToDate(""); setFilterCategory("__all__"); setMinAmount(""); setMaxAmount("");
   };
