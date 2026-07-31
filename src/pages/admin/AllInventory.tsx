@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History } from "lucide-react";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductImage } from "@/components/ProductImage";
+import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 
 interface Row {
@@ -103,12 +104,14 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
 
   const uploadImage = async (file: File, branchId: string): Promise<string | null> => {
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${branchId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: false });
-    setUploading(false);
-    if (error) { toast.error(error.message); return null; }
-    return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    try {
+      return await uploadProductImage(file, branchId);
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+      return null;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const saveEdit = async () => {
@@ -639,12 +642,14 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
 
   const upload = async (file: File) => {
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `shared/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file);
-    setUploading(false);
-    if (error) return toast.error(error.message);
-    setForm((f) => ({ ...f, image: supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl }));
+    try {
+      const path = await uploadProductImage(file, "shared");
+      setForm((f) => ({ ...f, image: path }));
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const submit = async () => {
