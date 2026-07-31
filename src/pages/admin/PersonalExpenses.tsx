@@ -845,12 +845,33 @@ export default function PersonalExpenses() {
                     <div className="text-xs opacity-80">{monthLabel(m.key)}</div>
                     <div className="text-2xl font-extrabold mt-1">{m.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}<span className="text-sm mr-1">ج.م</span></div>
                     <div className="text-xs mt-1 opacity-70">{m.count} مصروف</div>
+                    {(() => {
+                      const d = monthDelta(m.key);
+                      if (!d) return null;
+                      const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
+                      return (
+                        <div className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                          flat ? "bg-background/60 text-muted-foreground"
+                            : up ? "bg-rose-500/20 text-rose-700 dark:text-rose-300"
+                            : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                        }`}>
+                          {flat ? <Minus className="w-3 h-3" /> : up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {flat ? "بدون تغيير" : `${up ? "+" : "−"}${Math.abs(d.pct).toFixed(1)}%`}
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportMonthPDF(m.key); }} title="تصدير PDF لهذا الشهر">
-                    <FileDown className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportMonthPDF(m.key); }} title="تصدير PDF لهذا الشهر">
+                      <FileDown className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); exportExcel(m.key); }} title="تصدير Excel لهذا الشهر">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
+
             ))}
           </div>
         </div>
