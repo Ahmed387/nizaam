@@ -222,6 +222,14 @@ export default function BranchReports() {
         <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard label="أيام العمل الفعلية" value={String(workingDays)} icon={<CalendarDays className="w-4 h-4" />} hint="بعد استبعاد الإجازات والإغلاق" />
+        <StatCard label="متوسط المبيعات / يوم عمل" value={formatEGP(workingDays ? totalSales / workingDays : 0)} icon={<ShoppingCart className="w-4 h-4" />} />
+        <StatCard label="متوسط الربح / يوم عمل" value={formatEGP(workingDays ? netProfit / workingDays : 0)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
+        <StatCard label="متوسط الفواتير / يوم عمل" value={(workingDays ? activeInv.length / workingDays : 0).toFixed(1)} icon={<FileText className="w-4 h-4" />} />
+      </div>
+
+
       <Tabs defaultValue="charts">
         <TabsList>
           <TabsTrigger value="charts">📊 التحليل البصري</TabsTrigger>
