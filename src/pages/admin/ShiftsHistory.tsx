@@ -165,16 +165,34 @@ export default function ShiftsHistory() {
       </Card>
 
       {stats.ranking.length > 0 && (
-        <Card className="p-4 mt-4">
-          <div className="font-bold mb-3">ترتيب الكاشيرية بالعجز التراكمي</div>
-          <div className="space-y-2">
-            {stats.ranking.map((c) => (
-              <div key={c.name} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
-                <span className="font-semibold">{c.name} <span className="text-xs text-muted-foreground">({c.count} وردية)</span></span>
-                <span className={c.variance < 0 ? "text-destructive font-bold" : "text-success font-bold"}>{formatEGP(c.variance)}</span>
-              </div>
-            ))}
-          </div>
+        <Card className="p-4 mt-4 overflow-x-auto">
+          <div className="font-bold mb-3">مقارنة أداء الكاشيرية</div>
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr className="text-right">
+                <th className="p-2">الكاشير</th>
+                <th className="p-2">ورديات</th>
+                <th className="p-2">شهور</th>
+                <th className="p-2">إجمالي الفرق</th>
+                <th className="p-2">متوسط الفرق / وردية</th>
+                <th className="p-2">مرات عجز</th>
+                <th className="p-2">قفل تلقائي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.ranking.map((c) => (
+                <tr key={c.name} className="border-t border-border">
+                  <td className="p-2 font-semibold">{c.name}</td>
+                  <td className="p-2">{c.count}</td>
+                  <td className="p-2">{c.monthsCount}</td>
+                  <td className={`p-2 font-bold ${c.variance < 0 ? "text-destructive" : c.variance > 0 ? "text-success" : ""}`}>{formatEGP(c.variance)}</td>
+                  <td className={`p-2 font-bold ${c.avg < 0 ? "text-destructive" : c.avg > 0 ? "text-success" : ""}`}>{formatEGP(c.avg)}</td>
+                  <td className="p-2">{c.shortages > 0 ? <Badge variant="destructive">{c.shortages}</Badge> : "—"}</td>
+                  <td className="p-2">{c.auto > 0 ? <Badge className="bg-warning text-warning-foreground">{c.auto}</Badge> : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
       )}
     </AdminLayout>
