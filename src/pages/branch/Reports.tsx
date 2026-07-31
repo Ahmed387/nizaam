@@ -14,7 +14,8 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
 import { generateProfitReport, generateBranchTabReport, type ReportsTabKey } from "@/utils/generatePDFReport";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText } from "lucide-react";
+import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText, CalendarDays } from "lucide-react";
+import { fetchSchedules, fetchClosures, countWorkingDays } from "@/lib/branchSchedule";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
