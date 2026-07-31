@@ -47,6 +47,20 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const [form, setForm] = useState({ employee_id: "", status: "present", notes: "" });
 
   const [presence, setPresence] = useState<Record<string, { last_login_at: string | null; last_seen_at: string }>>({});
+  const [branchOff, setBranchOff] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!branchId) return;
+      const [schedules, closures] = await Promise.all([fetchSchedules(), fetchClosures(branchId)]);
+      if (cancelled) return;
+      setBranchOff(offDayReason(schedules[branchId], closures, date));
+    })();
+    return () => { cancelled = true; };
+  }, [branchId, date]);
+
+
 
   const load = async () => {
     setLoading(true);
