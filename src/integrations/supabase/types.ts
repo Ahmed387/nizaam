@@ -1154,6 +1154,7 @@ export type Database = {
           is_migrated: boolean
           name: string
           notes: string | null
+          opening_balance: number
           phone: string | null
           refund_status: string
           tenant_id: string | null
@@ -1169,6 +1170,7 @@ export type Database = {
           is_migrated?: boolean
           name: string
           notes?: string | null
+          opening_balance?: number
           phone?: string | null
           refund_status?: string
           tenant_id?: string | null
@@ -1184,6 +1186,7 @@ export type Database = {
           is_migrated?: boolean
           name?: string
           notes?: string | null
+          opening_balance?: number
           phone?: string | null
           refund_status?: string
           tenant_id?: string | null
@@ -5751,6 +5754,7 @@ export type Database = {
           last_transaction_date: string | null
           ledger_balance: number | null
           name: string | null
+          opening_balance: number | null
           overdue_amount: number | null
           tenant_id: string | null
           total_balance: number | null
@@ -6392,6 +6396,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_opening_balances: { Args: never; Returns: Json }
       get_partner_net_balance: { Args: { p_partner_id: string }; Returns: Json }
       get_product_references_count: {
         Args: { _product_id: string }
@@ -6535,6 +6540,15 @@ export type Database = {
           asset_id: string
           journal_entry_id: string
         }[]
+      }
+      post_opening_balances: {
+        Args: {
+          p_cash?: Json
+          p_contacts?: Json
+          p_date: string
+          p_inventory?: Json
+        }
+        Returns: Json
       }
       preview_flexible_distribution: {
         Args: {
