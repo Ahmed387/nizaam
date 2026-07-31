@@ -272,6 +272,7 @@ const App = () => (
             <Route path="/admin/accounting/bank-reconciliation" element={<ProtectedRoute adminOnly><BankReconciliation /></ProtectedRoute>} />
             <Route path="/admin/accounting/bank-reconciliation/:id" element={<ProtectedRoute adminOnly><BankReconciliationDetail /></ProtectedRoute>} />
             <Route path="/admin/accounting/fiscal-closing" element={<ProtectedRoute adminOnly><FiscalClosing /></ProtectedRoute>} />
+            <Route path="/admin/accounting/opening-balances" element={<ProtectedRoute adminOnly><OpeningBalances /></ProtectedRoute>} />
             <Route path="/admin/accounting/flexible-distribution" element={<ProtectedRoute adminOnly><FlexibleDistribution /></ProtectedRoute>} />
             <Route path="/admin/accounting/budgets" element={<ProtectedRoute adminOnly><Budgets /></ProtectedRoute>} />
             <Route path="/admin/accounting/kpis" element={<ProtectedRoute adminOnly><KpiDashboard /></ProtectedRoute>} />
