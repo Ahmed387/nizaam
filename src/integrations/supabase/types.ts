@@ -6578,6 +6578,10 @@ export type Database = {
             }
             Returns: string
           }
+      recalc_contact_balance: {
+        Args: { p_contact_id: string }
+        Returns: undefined
+      }
       record_contact_payment: {
         Args: {
           p_amount: number
