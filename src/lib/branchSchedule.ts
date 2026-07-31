@@ -85,3 +85,21 @@ export function minutesToClose(closeTime: string | null | undefined, now = new D
 export function hoursOpen(openedAt: string, now = new Date()): number {
   return (now.getTime() - new Date(openedAt).getTime()) / 3_600_000;
 }
+
+/** Number of actual working days in [from,to] after removing weekly off-days and exceptional closures. */
+export function countWorkingDays(
+  schedule: BranchSchedule | undefined,
+  closures: BranchClosure[],
+  from: string,
+  to: string,
+): number {
+  const start = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return 0;
+  let n = 0;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = d.toISOString().slice(0, 10);
+    if (!offDayReason(schedule, closures, iso)) n += 1;
+  }
+  return n;
+}
