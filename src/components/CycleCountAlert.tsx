@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarClock, ChevronDown } from "lucide-react";
+import { CalendarClock, ChevronDown, Loader2, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -16,12 +18,23 @@ interface StaleProduct {
 export function CycleCountAlert({ branchId, onStartCount }: { branchId?: string; onStartCount?: () => void }) {
   const [stale, setStale] = useState<StaleProduct[]>([]);
   const [openList, setOpenList] = useState(false);
+  const [lastSession, setLastSession] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!branchId) return;
       const cutoff = new Date(Date.now() - STALE_DAYS * 86400000).toISOString();
+
+      const { data: lastSess } = await supabase
+        .from("inventory_sessions" as any)
+        .select("created_at")
+        .eq("branch_id", branchId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!cancelled) setLastSession(((lastSess ?? []) as any[])[0]?.created_at ?? null);
 
       const { data: products } = await supabase
         .from("products")
@@ -54,6 +67,21 @@ export function CycleCountAlert({ branchId, onStartCount }: { branchId?: string;
     return () => { cancelled = true; };
   }, [branchId]);
 
+  const monthlyDue = !lastSession || Date.now() - new Date(lastSession).getTime() > 30 * 86400000;
+
+  const startMonthly = async () => {
+    if (!branchId) return;
+    setCreating(true);
+    const { data, error } = await supabase.rpc("create_inventory_session" as any, {
+      p_branch_id: branchId,
+      p_notes: `جلسة جرد دورية شهرية — ${stale.length} صنف متأخر عن الجرد`,
+    });
+    setCreating(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم فتح جلسة الجرد الشهرية");
+    navigate(`/branch/${branchId}/inventory-count/${data}/report`);
+  };
+
   if (!stale.length) return null;
 
   return (
@@ -65,10 +93,22 @@ export function CycleCountAlert({ branchId, onStartCount }: { branchId?: string;
           <div className="text-sm text-muted-foreground">
             الأصناف دي معدّاش عليها جرد فعلي من أكتر من {STALE_DAYS} يوم (أو عمرها ما اتجردت).
           </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            آخر جلسة جرد: {lastSession ? new Date(lastSession).toLocaleDateString("ar-EG") : "لا يوجد"}
+            {monthlyDue && " — الجرد الشهري مستحق دلوقتي."}
+          </div>
         </div>
-        {onStartCount && (
-          <Button size="sm" onClick={onStartCount}>ابدأ جلسة جرد</Button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {monthlyDue && (
+            <Button size="sm" onClick={startMonthly} disabled={creating} className="gap-1">
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" />}
+              افتح جلسة الجرد الشهرية بالأصناف المتأخرة
+            </Button>
+          )}
+          {onStartCount && (
+            <Button size="sm" variant="outline" onClick={onStartCount}>ابدأ جلسة جرد</Button>
+          )}
+        </div>
       </div>
 
       <Collapsible open={openList} onOpenChange={setOpenList}>
