@@ -20,6 +20,8 @@ import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History } from "lucide-react";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
+import { ProductImage } from "@/components/ProductImage";
+import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 
 interface Row {
@@ -102,12 +104,14 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
 
   const uploadImage = async (file: File, branchId: string): Promise<string | null> => {
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${branchId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: false });
-    setUploading(false);
-    if (error) { toast.error(error.message); return null; }
-    return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    try {
+      return await uploadProductImage(file, branchId);
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+      return null;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const saveEdit = async () => {
@@ -312,7 +316,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
             ),
           },
           { key: "image", header: "صورة", render: (r: Row) => r.image
-              ? <img src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
+              ? <ProductImage src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
               : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div> },
           { key: "sku", header: "الكود", render: (r: Row) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
           { key: "name", header: "الاسم", render: (r: Row) => <span className="font-semibold">{r.name}</span> },
@@ -373,7 +377,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               <div className="col-span-2">
                 <Label>صورة المنتج</Label>
                 <div className="mt-1.5 flex items-center gap-3">
-                  {editing.image && <img src={editing.image} alt="" className="w-16 h-16 rounded object-cover border" />}
+                  {editing.image && <ProductImage src={editing.image} alt="" className="w-16 h-16 rounded object-cover border" />}
                   <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     <span className="text-sm">{editing.image ? "تغيير" : "رفع"}</span>
@@ -638,12 +642,14 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
 
   const upload = async (file: File) => {
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `shared/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file);
-    setUploading(false);
-    if (error) return toast.error(error.message);
-    setForm((f) => ({ ...f, image: supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl }));
+    try {
+      const path = await uploadProductImage(file, "shared");
+      setForm((f) => ({ ...f, image: path }));
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const submit = async () => {
@@ -688,7 +694,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
           <div className="col-span-2">
             <Label>صورة المنتج</Label>
             <div className="mt-1.5 flex items-center gap-3">
-              {form.image && <img src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
+              {form.image && <ProductImage src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
               <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 <span className="text-sm">{form.image ? "تغيير" : "رفع"}</span>

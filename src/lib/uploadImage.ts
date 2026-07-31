@@ -46,19 +46,32 @@ async function compressImage(file: File, maxDim = 1200, quality = 0.85): Promise
   return await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), mime, quality));
 }
 
+/** يجيب tenant_id للمستخدم الحالي (مطلوب لمسار الرفع الآمن). */
+export async function currentTenantId(): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) throw new Error("غير مسجّل الدخول");
+  const { data, error } = await supabase.from("profiles").select("tenant_id").eq("id", auth.user.id).maybeSingle();
+  if (error) throw error;
+  if (!data?.tenant_id) throw new Error("مفيش شركة مرتبطة بالمستخدم");
+  return data.tenant_id as string;
+}
+
 /**
- * يرفع صورة منتج لـ bucket: product-images ويعيد الـ public URL.
+ * يرفع صورة منتج لـ bucket خاص: product-images ويعيد المسار المخزّن.
+ * العرض بيتم عن طريق Signed URL مؤقت (شوف src/lib/productImage.ts).
  * @param file ملف الصورة
- * @param folder مجلد فرعي داخل البـ bucket (مثلاً branchId أو "price-list")
+ * @param folder مجلد فرعي داخل مجلد الشركة (مثلاً branchId أو "price-list")
  */
 export async function uploadProductImage(file: File, folder: string): Promise<string> {
   const blob = await compressImage(file);
   const ext = blob.type === "image/png" ? "png" : "jpg";
-  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const tenantId = await currentTenantId();
+  const sub = (folder || "shared").replace(/^\/+|\/+$/g, "") || "shared";
+  const path = `${tenantId}/${sub}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { error } = await supabase.storage
     .from("product-images")
     .upload(path, blob, { upsert: false, contentType: blob.type });
   if (error) throw error;
-  const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-  return data.publicUrl;
+  return path;
 }
+

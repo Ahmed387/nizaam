@@ -19,6 +19,7 @@ import { printHtml } from "@/lib/export";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { ProductImage } from "@/components/ProductImage";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -330,7 +331,7 @@ export default function ShipmentView() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {it.products?.image ? (
-                        <img src={it.products.image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border" />
+                        <ProductImage src={it.products.image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">صورة</div>
                       )}
