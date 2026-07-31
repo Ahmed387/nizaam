@@ -747,9 +747,24 @@ export default function PersonalExpenses() {
                   {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
                   <span className="text-lg font-semibold opacity-70 mr-1">ج.م</span>
                 </div>
+                {activeTab !== "__all__" && (() => {
+                  const d = monthDelta(activeTab);
+                  if (!d) return null;
+                  const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
+                  return (
+                    <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                      flat ? "bg-muted text-muted-foreground"
+                        : up ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    }`}>
+                      {flat ? <Minus className="w-3.5 h-3.5" /> : up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                      {flat ? "زي الشهر اللي فات" : `${up ? "+" : "−"}${Math.abs(d.pct).toFixed(1)}% (${EGP(Math.abs(d.diff))}) عن ${monthLabel(d.prevKey)}`}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="text-xs text-muted-foreground">
                 {visible.length.toLocaleString("ar-EG")} مصروف
                 {activeTab === "__all__" ? ` · ${monthlyTotals.length} شهر` : ""}
@@ -759,7 +774,11 @@ export default function PersonalExpenses() {
                   <FileDown className="w-4 h-4 ml-1" /> PDF الشهر
                 </Button>
               )}
+              <Button size="sm" variant="outline" onClick={() => exportExcel(activeTab === "__all__" ? null : activeTab)}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> {activeTab === "__all__" ? "Excel (الكل)" : "Excel الشهر"}
+              </Button>
             </div>
+
           </div>
         </Card>
       </div>
