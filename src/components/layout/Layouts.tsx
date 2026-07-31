@@ -63,6 +63,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/contacts", label: "جهات التواصل", icon: <Factory className="w-4 h-4" />, group: "العمليات" },
     { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات" },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات" },
+    { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات" },
 
     ...(isAdmin ? [{ to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية" },
