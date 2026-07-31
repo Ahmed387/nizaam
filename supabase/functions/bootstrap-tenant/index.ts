@@ -33,7 +33,44 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
+    // ---- authorization: only super admins, or an admin whose own tenant setup is unfinished ----
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return json({ error: "غير مصرح" }, 401);
+    }
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { auth: { persistSession: false } }
+    );
+    const { data: claimsRes, error: claimsErr } = await authClient.auth.getClaims(
+      authHeader.replace("Bearer ", "")
+    );
+    const callerId = (claimsRes as any)?.claims?.sub as string | undefined;
+    if (claimsErr || !callerId) return json({ error: "غير مصرح" }, 401);
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } }
+    );
+    const { data: roleRows } = await admin
+      .from("user_roles").select("role, tenant_id").eq("user_id", callerId);
+    const roles = (roleRows ?? []).map((r: any) => r.role);
+    let allowed = roles.includes("super_admin");
+    if (!allowed && (roles.includes("admin") || roles.includes("owner"))) {
+      const { data: prof } = await admin
+        .from("profiles").select("tenant_id").eq("id", callerId).maybeSingle();
+      if (prof?.tenant_id) {
+        const { data: t } = await admin
+          .from("tenants").select("setup_completed").eq("id", prof.tenant_id).maybeSingle();
+        allowed = t?.setup_completed === false;
+      }
+    }
+    if (!allowed) return json({ error: "غير مصرح بإنشاء شركة جديدة" }, 403);
+
     const body: Body = await req.json();
+
     const {
       company_name, slug, admin_name, admin_email, admin_password,
       branches = [], partners = [],
