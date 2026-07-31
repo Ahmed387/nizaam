@@ -102,7 +102,23 @@ export default function ShiftOpen() {
     <BranchLayout>
       <PageHeader title="فتح وردية جديدة" subtitle="أدخل رصيد الدرج الافتتاحي قبل بدء البيع" />
       <Card className="p-6 max-w-xl mx-auto">
+        {offReason && (
+          <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" style={{ animation: "shift-shake 0.9s ease-in-out infinite" }} />
+            <div className="flex-1 text-sm">
+              <div className="font-bold">الفرع مقفول اليوم</div>
+              <div className="text-muted-foreground">{offReason}</div>
+              {schedule?.block_open_on_off_day && (
+                <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
+                  <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+                  تأكيد المالك بفتح الوردية استثناءً
+                </label>
+              )}
+            </div>
+          </div>
+        )}
         <form onSubmit={submit} className="space-y-4">
+
           <div>
             <Label>الرصيد الافتتاحي في الدرج (جنيه)</Label>
             <Input
