@@ -6748,6 +6748,7 @@ export type Database = {
         Args: { _day: number; _hour: number }
         Returns: undefined
       }
+      shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
       system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
