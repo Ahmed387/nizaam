@@ -61,7 +61,7 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
       return;
     }
     setVoiding(true);
-    const { error } = await supabase.rpc("void_payment_transaction", {
+    const { data, error } = await supabase.rpc("request_void_payment_transaction" as any, {
       p_tx_id: voidTarget.txId,
       p_reason: voidReason.trim(),
     });
@@ -70,7 +70,14 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
       toast.error(error.message || "فشل إلغاء الدفعة");
       return;
     }
-    toast.success("تم إلغاء الدفعة ورجّع القسط لحالة معلّق");
+    const status = (data as any)?.status;
+    if (status === "pending") {
+      toast.success("تم إرسال طلب الإلغاء لمدير الفرع للموافقة عليه");
+    } else if (status === "already_pending") {
+      toast.info("في طلب إلغاء معلّق بالفعل على الدفعة دي");
+    } else {
+      toast.success("تم إلغاء الدفعة ورجّع القسط لحالة معلّق");
+    }
     setVoidTarget(null);
     setVoidReason("");
     await load();
@@ -241,6 +248,7 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
             <AlertDialogDescription className="space-y-2">
               <span>هيتم عكس الدفعة ({voidTarget ? formatEGP(voidTarget.amount) : ""}) بالكامل من الخزينة والدفتر العام، والقسط هيرجع "معلّق".</span>
               <span className="block text-xs">الدفعة الأصلية هتفضل في السجل كـ voided للـ Audit Trail.</span>
+              <span className="block text-xs text-warning">لو إنت كاشير، الطلب هيتبعت لمدير الفرع يوافق عليه الأول.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

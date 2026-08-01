@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent, Trash2,
 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -213,6 +213,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
     ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),
     ...(canSeeDiscounts ? [{ to: `/branch/${id}/discount-approvals`, label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscountCount || undefined }] : []),
+    ...(canSeeDiscounts ? [{ to: `/branch/${id}/void-approvals`, label: "طلبات إلغاء الدفعات", icon: <Trash2 className="w-4 h-4" /> }] : []),
     ...(isManager ? [{ to: `/branch/${id}/approval-requests`, label: "طلباتي للموافقة", icon: <Inbox className="w-4 h-4" />, badge: pendingMyApprovals || undefined }] : []),
   ];
 
