@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { VariantLine } from "@/components/VariantChips";
+import type { VariantAttrs } from "@/lib/productVariant";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIco
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 
-interface Line {
+interface Line extends VariantAttrs {
   shipment_item_id?: string;
   product_id: string;
   product_name: string;

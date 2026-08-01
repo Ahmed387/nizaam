@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { VariantLine } from "@/components/VariantChips";
+import type { VariantAttrs } from "@/lib/productVariant";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
@@ -23,7 +24,7 @@ import { evaluateReturnPolicy } from "@/lib/returnPolicy";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 
-interface Line {
+interface Line extends VariantAttrs {
   invoice_item_id: string;
   product_id: string;
   product_name: string;
