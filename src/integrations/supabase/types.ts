@@ -5950,6 +5950,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _void_payment_transaction_exec: {
+        Args: { p_reason: string; p_tx_id: string }
+        Returns: string
+      }
       acknowledge_treasury_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
