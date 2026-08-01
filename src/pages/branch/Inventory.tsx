@@ -458,7 +458,23 @@ export default function Inventory() {
 
   const submit = async () => {
     if (!form.name) return toast.error("اسم المنتج مطلوب");
+    if (!form.brand.trim()) return toast.error("الماركة مطلوبة لتمييز المنتج");
+    if (!form.model.trim()) return toast.error("الموديل مطلوب لتمييز المنتج");
+    // تحقق مبدئي من التكرار (نفس الاسم + الماركة + الموديل + اللون + السعة + المقاس)
+    const norm = (v: string) => (v || "").trim().toLowerCase();
+    const dup = rows.find(
+      (p) =>
+        !p.archived_at &&
+        norm(String(p.name)) === norm(form.name) &&
+        norm(String((p as any).brand ?? "")) === norm(form.brand) &&
+        norm(String((p as any).model ?? "")) === norm(form.model) &&
+        norm(String((p as any).color ?? "")) === norm(form.color) &&
+        norm(String((p as any).capacity ?? "")) === norm(form.capacity) &&
+        norm(String((p as any).size ?? "")) === norm(form.size)
+    );
+    if (dup) return toast.error("هذا المنتج بنفس الماركة/الموديل/اللون/السعة موجود بالفعل في هذا الفرع");
     // ولّد SKU فريد داخل الشركة
+
     let sku = "";
     for (let i = 0; i < 10; i++) {
       const { data: skuRes } = await supabase.rpc("next_sku");
