@@ -201,6 +201,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           p_description: form.description.trim() || null,
           p_reference_number: pm.reference_number ?? null,
           p_transferred_to: pm.transfer_to_account ?? null,
+          p_transferred_from: pm.transfer_from_account ?? null,
           p_fee_amount: pm.fee_amount ?? 0,
           p_edit_reason: editReason.trim(),
         });
