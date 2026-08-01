@@ -458,7 +458,23 @@ export default function Inventory() {
 
   const submit = async () => {
     if (!form.name) return toast.error("اسم المنتج مطلوب");
+    if (!form.brand.trim()) return toast.error("الماركة مطلوبة لتمييز المنتج");
+    if (!form.model.trim()) return toast.error("الموديل مطلوب لتمييز المنتج");
+    // تحقق مبدئي من التكرار (نفس الاسم + الماركة + الموديل + اللون + السعة + المقاس)
+    const norm = (v: string) => (v || "").trim().toLowerCase();
+    const dup = rows.find(
+      (p) =>
+        !p.archived_at &&
+        norm(String(p.name)) === norm(form.name) &&
+        norm(String((p as any).brand ?? "")) === norm(form.brand) &&
+        norm(String((p as any).model ?? "")) === norm(form.model) &&
+        norm(String((p as any).color ?? "")) === norm(form.color) &&
+        norm(String((p as any).capacity ?? "")) === norm(form.capacity) &&
+        norm(String((p as any).size ?? "")) === norm(form.size)
+    );
+    if (dup) return toast.error("هذا المنتج بنفس الماركة/الموديل/اللون/السعة موجود بالفعل في هذا الفرع");
     // ولّد SKU فريد داخل الشركة
+
     let sku = "";
     for (let i = 0; i < 10; i++) {
       const { data: skuRes } = await supabase.rpc("next_sku");
@@ -490,20 +506,21 @@ export default function Inventory() {
         quantity: qty,
         image: form.image || null,
         color: form.color || null,
+        brand: form.brand || null,
+        model: form.model || null,
+        product_type: form.product_type || null,
+        capacity: form.capacity || null,
+        size: form.size || null,
       },
     });
-    if (error) return toast.error(error.message);
-    const newId = (data as any)?.product_id;
-    if (newId) {
-      const patch: any = {};
-      if (form.color) patch.color = form.color;
-      if (form.product_type) patch.product_type = form.product_type;
-      if (form.capacity) patch.capacity = form.capacity;
-      if (form.size) patch.size = form.size;
-      if (form.brand) patch.brand = form.brand.trim();
-      if (form.model) patch.model = form.model.trim();
-      if (Object.keys(patch).length) await supabase.from("products").update(patch as any).eq("id", newId);
+    if (error) {
+      const msg = /products_variant_uniq|duplicate key/i.test(error.message)
+        ? "هذا المنتج بنفس الماركة/الموديل/اللون/السعة موجود بالفعل في هذا الفرع"
+        : error.message;
+      return toast.error(msg);
     }
+    const newId = (data as any)?.product_id;
+
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
       toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول شحنة شراء.");
@@ -880,8 +897,8 @@ export default function Inventory() {
             <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الماركة</Label><div className="mt-1.5"><AttributePicker table="brands" value={form.brand} onChange={(v) => setForm({ ...form, brand: v ?? "" })} placeholder="اختر الماركة" /></div></div>
-            <div><Label>الموديل</Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mt-1.5 font-mono text-sm" placeholder="مثال: GR-EF40P" /></div>
+            <div><Label>الماركة <span className="text-destructive">*</span></Label><div className="mt-1.5"><AttributePicker table="brands" value={form.brand} onChange={(v) => setForm({ ...form, brand: v ?? "" })} placeholder="اختر الماركة" /></div></div>
+            <div><Label>الموديل <span className="text-destructive">*</span></Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mt-1.5 font-mono text-sm" placeholder="مثال: GR-EF40P" /></div>
             <div><Label>اللون</Label><div className="mt-1.5"><ColorPicker value={form.color} onChange={(v) => setForm({ ...form, color: v ?? "" })} /></div></div>
             <div><Label>النوع</Label><div className="mt-1.5"><AttributePicker table="product_types" value={form.product_type} onChange={(v) => setForm({ ...form, product_type: v ?? "" })} placeholder="اختر النوع" /></div></div>
             <div><Label>السعة</Label><div className="mt-1.5"><AttributePicker table="capacities" value={form.capacity} onChange={(v) => setForm({ ...form, capacity: v ?? "" })} placeholder="اختر السعة" /></div></div>
