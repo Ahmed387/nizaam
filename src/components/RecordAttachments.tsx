@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { tenantStoragePath } from "@/lib/attachmentPath";
 import { Eye, Trash2, Paperclip, Loader2, FileText, Image as ImageIcon, Upload } from "lucide-react";
 import { compressImage } from "@/lib/compressImage";
 import type { RecordType } from "@/hooks/useAttachmentCounts";
@@ -105,7 +106,7 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
       }
       setPhase("upload");
       const safe = working.name.replace(/[^\w.\-]/g, "_");
-      const path = `${recordType}/${recordId}/${Date.now()}_${safe}`;
+      const path = await tenantStoragePath(`${recordType}/${recordId}/${Date.now()}_${safe}`);
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, working, { contentType: working.type });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from("attachments" as any).insert({

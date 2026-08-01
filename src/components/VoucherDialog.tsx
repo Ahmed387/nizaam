@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
+import { tenantStoragePath } from "@/lib/attachmentPath";
 import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -250,7 +251,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
               continue;
             }
             const safeName = working.name.replace(/[^\w.\-]/g, "_");
-            const path = `voucher/${voucherId}/${Date.now()}_${safeName}`;
+            const path = await tenantStoragePath(`voucher/${voucherId}/${Date.now()}_${safeName}`);
             const { error: upErr } = await supabase.storage.from(ATT_BUCKET).upload(path, working, { contentType: working.type });
             if (upErr) throw upErr;
             const { error: insErr } = await supabase.from("attachments" as any).insert({

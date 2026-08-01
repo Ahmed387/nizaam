@@ -6045,6 +6045,10 @@ export type Database = {
         Args: { p_transfer_id: string }
         Returns: undefined
       }
+      acknowledge_treasury_transfer__impl: {
+        Args: { p_transfer_id: string }
+        Returns: undefined
+      }
       add_invoice_payment: {
         Args: {
           p_amount: number
@@ -6121,7 +6125,15 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: undefined
       }
+      approve_inventory_session__impl: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
       archive_product: { Args: { _product_id: string }; Returns: undefined }
+      assert_can_edit_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       assert_same_tenant: { Args: { p_tenant: string }; Returns: undefined }
       backfill_missing_journals: { Args: never; Returns: Json }
       calculate_payment_fee: {
@@ -6141,6 +6153,10 @@ export type Database = {
         Returns: Json
       }
       cancel_pre_order: {
+        Args: { p_pre_order_id: string; p_refund: boolean }
+        Returns: undefined
+      }
+      cancel_pre_order__impl: {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
       }
@@ -6335,6 +6351,30 @@ export type Database = {
         Returns: Json
       }
       edit_invoice:
+        | {
+            Args: { _customer_id: string; _invoice_id: string; _items: Json }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _customer_id: string
+              _invoice_id: string
+              _items: Json
+              _vat_rate: number
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _customer_id: string
+              _discount_amount: number
+              _invoice_id: string
+              _items: Json
+              _vat_rate: number
+            }
+            Returns: undefined
+          }
+      edit_invoice__impl:
         | {
             Args: { _customer_id: string; _invoice_id: string; _items: Json }
             Returns: undefined
@@ -6646,6 +6686,10 @@ export type Database = {
         Args: { p_received: number; p_transfer_id: string }
         Returns: Json
       }
+      partial_confirm_transfer__impl: {
+        Args: { p_received: number; p_transfer_id: string }
+        Returns: Json
+      }
       partner_withdraw_from_distribution: {
         Args: {
           p_amount: number
@@ -6848,6 +6892,10 @@ export type Database = {
       reject_transfer: { Args: { p_transfer_id: string }; Returns: Json }
       reject_transfer_group: { Args: { p_group: string }; Returns: number }
       reject_treasury_transfer: {
+        Args: { p_reason: string; p_transfer_id: string }
+        Returns: undefined
+      }
+      reject_treasury_transfer__impl: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: undefined
       }

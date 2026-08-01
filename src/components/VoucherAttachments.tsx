@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { tenantStoragePath } from "@/lib/attachmentPath";
 import { Eye, Trash2, Paperclip, Loader2, FileText, Image as ImageIcon, Upload } from "lucide-react";
 
 interface Attachment {
@@ -74,7 +75,7 @@ export function VoucherAttachments({ voucherId, canEdit = true }: { voucherId: s
     setUploading(true);
     try {
       const safeName = file.name.replace(/[^\w.\-]/g, "_");
-      const path = `vouchers/${voucherId}/${Date.now()}_${safeName}`;
+      const path = await tenantStoragePath(`vouchers/${voucherId}/${Date.now()}_${safeName}`);
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from("voucher_attachments" as any).insert({
