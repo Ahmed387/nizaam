@@ -51,7 +51,7 @@ export default function ProductAttributes() {
     const { data, error } = await supabase
       .from("products")
       .select("id, name, sku, branch_id, brand, model, color, product_type, capacity, size, branches(name)")
-      .eq("is_archived", false)
+      .is("archived_at", null)
       .order("name");
     if (error) toast.error("تعذر تحميل المنتجات");
     setRows((data as any as Prod[]) ?? []);
@@ -113,13 +113,13 @@ export default function ProductAttributes() {
     <AdminLayout>
       <PageHeader
         title="استخراج خصائص المنتجات"
-        description="استخرج الماركة والموديل واللون والنوع والسعة تلقائياً من أسماء المنتجات القديمة، وراجعها قبل الحفظ"
+        subtitle="استخرج الماركة والموديل واللون والنوع والسعة تلقائياً من أسماء المنتجات القديمة، وراجعها قبل الحفظ"
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <StatCard title="إجمالي المنتجات" value={String(rows.length)} icon={Package} />
-        <StatCard title="مكتملة الخصائص" value={String(filled)} icon={CheckCircle2} />
-        <StatCard title="ناقصة الخصائص" value={String(rows.length - filled)} icon={Wand2} />
+        <StatCard label="إجمالي المنتجات" value={String(rows.length)} icon={<Package className="w-5 h-5" />} />
+        <StatCard label="مكتملة الخصائص" value={String(filled)} icon={<CheckCircle2 className="w-5 h-5" />} />
+        <StatCard label="ناقصة الخصائص" value={String(rows.length - filled)} icon={<Wand2 className="w-5 h-5" />} />
       </div>
 
       <Card className="mb-4">
