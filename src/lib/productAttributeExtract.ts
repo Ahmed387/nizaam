@@ -39,6 +39,9 @@ export const BRAND_ALIASES: Record<string, string[]> = {
   "بيسيل": ["بيسيل", "bissell"],
   "ترست": ["ترست", "trust"],
   "بريما": ["بريما", "prima"],
+  "بريمير": ["بريمير", "premier"],
+  "أوليمبك إلكتريك": ["اوليمبك اليكتريك", "اوليمبك إلكتريك", "اوليمبك"],
+  "سولتير": ["سولتير"],
 };
 
 /** Product types (النوع) keyed by canonical label -> spellings. */
@@ -124,7 +127,7 @@ function extractCapacity(name: string): string | null {
   return null;
 }
 
-const MODEL_RE = /\b[A-Z0-9]{2,}(?:[-/][A-Z0-9()]+)+\b|\b[A-Z]{1,3}\d{2,}[A-Z0-9]*\b/;
+const MODEL_RE = /[A-Z0-9]{2,}(?:[-/][A-Z0-9]+(?:\([A-Z0-9]+\))?)+|\b[A-Z]{1,3}\d{2,}[A-Z0-9]*\b/;
 
 function extractModel(name: string, sku?: string | null): string | null {
   const fromName = name.toUpperCase().match(MODEL_RE)?.[0];
