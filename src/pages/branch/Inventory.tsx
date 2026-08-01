@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ColorPicker, ColorChip } from "@/components/ColorPicker";
+import { VariantChips } from "@/components/VariantChips";
 import { AttributePicker } from "@/components/AttributePicker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -437,7 +438,7 @@ export default function Inventory() {
   const filtered = rows.filter((p) => {
     const isArchived = !!p.archived_at;
     if (showArchived ? !isArchived : isArchived) return false;
-    if (search && !searchMatch(search, p.name, p.sku, p.legacy_code)) return false;
+    if (search && !searchMatch(search, p.name, p.sku, p.legacy_code, p.brand, p.model, p.color, p.capacity, p.size, p.product_type)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;
@@ -619,7 +620,7 @@ export default function Inventory() {
 
         <TabsContent value="products" className="mt-4">
           <div className="flex gap-3 mb-4 flex-wrap items-center">
-            <Input placeholder="ابحث بالاسم أو الكود" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+            <Input placeholder="ابحث بالاسم أو الكود أو الماركة أو الموديل أو اللون" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -701,7 +702,7 @@ export default function Inventory() {
                         <td className="px-3 py-3 align-middle text-muted-foreground truncate" title={r.categories?.name ?? ""}>
                           <div className="flex flex-col gap-1">
                             <span>{r.categories?.name ?? "—"}</span>
-                            {r.color && <ColorChip name={r.color} />}
+                            <VariantChips attrs={r} />
                           </div>
                         </td>
                         <td className="px-3 py-3 align-middle text-center">
@@ -792,7 +793,7 @@ export default function Inventory() {
                           <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
                           <span className="text-success">بيع: {formatEGP(r.selling_price)}</span>
                           <span className="text-primary">سوق: {formatEGP(r.market_price)}</span>
-                          {r.color && <ColorChip name={r.color} />}
+                          <VariantChips attrs={r} />
                         </div>
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
@@ -879,6 +880,8 @@ export default function Inventory() {
             <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>الماركة</Label><div className="mt-1.5"><AttributePicker table="brands" value={form.brand} onChange={(v) => setForm({ ...form, brand: v ?? "" })} placeholder="اختر الماركة" /></div></div>
+            <div><Label>الموديل</Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mt-1.5 font-mono text-sm" placeholder="مثال: GR-EF40P" /></div>
             <div><Label>اللون</Label><div className="mt-1.5"><ColorPicker value={form.color} onChange={(v) => setForm({ ...form, color: v ?? "" })} /></div></div>
             <div><Label>النوع</Label><div className="mt-1.5"><AttributePicker table="product_types" value={form.product_type} onChange={(v) => setForm({ ...form, product_type: v ?? "" })} placeholder="اختر النوع" /></div></div>
             <div><Label>السعة</Label><div className="mt-1.5"><AttributePicker table="capacities" value={form.capacity} onChange={(v) => setForm({ ...form, capacity: v ?? "" })} placeholder="اختر السعة" /></div></div>
@@ -1086,6 +1089,14 @@ export default function Inventory() {
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">الماركة</Label>
+                        <AttributePicker table="brands" value={editForm.brand} onChange={(v) => setEditForm({ ...editForm, brand: v ?? "" })} placeholder="اختر الماركة" />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold mb-1.5 block">الموديل</Label>
+                        <Input value={editForm.model} onChange={(e) => setEditForm({ ...editForm, model: e.target.value })} className="font-mono text-sm" placeholder="مثال: GR-EF40P" />
+                      </div>
                       <div>
                         <Label className="text-xs font-semibold mb-1.5 block">اللون</Label>
                         <ColorPicker value={editForm.color} onChange={(v) => setEditForm({ ...editForm, color: v ?? "" })} />
