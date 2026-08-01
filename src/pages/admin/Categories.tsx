@@ -46,7 +46,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
     const ids = [c.id, ...childIds];
     const { data } = await supabase
       .from("products")
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert,color,product_type,capacity,size")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,category_id,low_stock_alert,brand,model,color,product_type,capacity,size")
       .in("category_id", ids)
       .is("archived_at", null)
       .order("name");
@@ -195,7 +195,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                       .replace(/ة/g, "ه");
                   const branch = branches.find((b) => b.id === p.branch_id);
                   const haystack = normalize(
-                    [p.name, p.sku, p.color, p.product_type, p.capacity, p.size, branch?.name, p.cost_price, p.selling_price, p.quantity]
+                    [p.name, p.sku, p.brand, p.model, p.color, p.product_type, p.capacity, p.size, branch?.name, p.cost_price, p.selling_price, p.quantity]
                       .filter((x) => x !== null && x !== undefined)
                       .join(" ")
                   );
@@ -231,6 +231,8 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                         </div>
 
                         <div className="flex flex-wrap gap-1">
+                          {p.brand && <AttributeChip label="الماركة" value={p.brand} tone="primary" />}
+                          {p.model && <AttributeChip label="الموديل" value={p.model} tone="neutral" />}
                           {p.color && <ColorChip name={p.color} />}
                           <AttributeChip label="نوع" value={p.product_type} tone="primary" />
                           <AttributeChip label="سعة" value={p.capacity} tone="success" />

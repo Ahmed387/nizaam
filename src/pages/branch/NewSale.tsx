@@ -30,10 +30,12 @@ import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
 import { ColorChip } from "@/components/ColorPicker";
+import { VariantLine } from "@/components/VariantChips";
+import type { VariantAttrs } from "@/lib/productVariant";
 
 
 
-interface Item {
+interface Item extends VariantAttrs {
   product_id: string;
   product_name: string;
   quantity: number;
@@ -572,6 +574,11 @@ export default function NewSale() {
         discount_mode: "amount",
         discount_input: 0,
         color: (p as any).color ?? null,
+        brand: (p as any).brand ?? null,
+        model: (p as any).model ?? null,
+        product_type: (p as any).product_type ?? null,
+        capacity: (p as any).capacity ?? null,
+        size: (p as any).size ?? null,
       }]);
     }
     setSearch("");
@@ -1356,6 +1363,7 @@ export default function NewSale() {
                             <span className="truncate">{p.sku}</span>
                             {p.color && <ColorChip name={p.color} />}
                           </div>
+                          <VariantLine attrs={p as any} className="block mt-0.5" />
                           {showCost && Number(p.cost_price) > 0 && (
                             <div className="text-[10px] text-muted-foreground mt-1">
                               شراء: {formatEGP(p.cost_price)} · ربح: <span className="text-primary font-bold">{formatEGP(profit)}</span>
@@ -1479,6 +1487,7 @@ export default function NewSale() {
                                 <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
                                 {i.color && <ColorChip name={i.color} />}
                               </div>
+                              <VariantLine attrs={i} className="block mt-0.5" />
                               {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
                             </div>
 
@@ -1583,6 +1592,7 @@ export default function NewSale() {
                             {i.color && <ColorChip name={i.color} />}
                             {showCost && <span className="text-[11px] text-muted-foreground">شراء: {formatEGP(i.cost_price)}</span>}
                           </div>
+                          <VariantLine attrs={i} className="block mt-0.5" />
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => updateQty(k, 0)} className="shrink-0">
                           <Trash2 className="w-4 h-4 text-destructive" />

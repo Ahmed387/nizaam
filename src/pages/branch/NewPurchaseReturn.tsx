@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { VariantLine } from "@/components/VariantChips";
+import type { VariantAttrs } from "@/lib/productVariant";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { toast } from "sonner";
@@ -20,7 +22,7 @@ import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIco
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 
-interface Line {
+interface Line extends VariantAttrs {
   shipment_item_id?: string;
   product_id: string;
   product_name: string;
@@ -108,7 +110,7 @@ export default function NewPurchaseReturn() {
     setPickOpen(false);
     const { data: sh } = await supabase
       .from("shipments")
-      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone), shipment_items(id, product_id, product_name, quantity, cost_price)")
+      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone), shipment_items(id, product_id, product_name, brand, model, color, product_type, capacity, size, quantity, cost_price)")
       .eq("id", shipId).maybeSingle();
     if (!sh) return toast.error("الفاتورة غير موجودة");
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped
@@ -151,6 +153,12 @@ export default function NewPurchaseReturn() {
           shipment_item_id: it.id,
           product_id: it.product_id,
           product_name: it.product_name,
+          brand: it.brand ?? null,
+          model: it.model ?? null,
+          color: it.color ?? null,
+          product_type: it.product_type ?? null,
+          capacity: it.capacity ?? null,
+          size: it.size ?? null,
           unit_cost: Number(it.cost_price),
           received_qty: recv,
           already_returned: ret,
@@ -398,6 +406,7 @@ export default function NewPurchaseReturn() {
                   <div key={l.shipment_item_id ?? i} className="grid grid-cols-12 gap-2 items-center p-2 border rounded">
                     <div className="col-span-5 text-sm">
                       <div className="font-medium">{l.product_name}</div>
+                      <VariantLine attrs={l as any} className="block" />
                       <div className="text-[11px] text-muted-foreground">
                         مستلم: {l.received_qty}
                         {l.already_returned > 0 && <> • مرتجع سابق: {l.already_returned}</>}
