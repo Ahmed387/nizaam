@@ -248,6 +248,7 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
             <AlertDialogDescription className="space-y-2">
               <span>هيتم عكس الدفعة ({voidTarget ? formatEGP(voidTarget.amount) : ""}) بالكامل من الخزينة والدفتر العام، والقسط هيرجع "معلّق".</span>
               <span className="block text-xs">الدفعة الأصلية هتفضل في السجل كـ voided للـ Audit Trail.</span>
+              <span className="block text-xs text-warning">لو إنت كاشير، الطلب هيتبعت لمدير الفرع يوافق عليه الأول.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
