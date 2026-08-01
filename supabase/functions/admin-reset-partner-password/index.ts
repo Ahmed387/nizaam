@@ -16,8 +16,12 @@ Deno.serve(async (req) => {
     const callerId = c.claims.sub as string;
 
     const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', callerId);
-    const isAdmin = (roles ?? []).some((r: any) => r.role === 'admin' || r.role === 'super_admin');
+    const isSuperAdmin = (roles ?? []).some((r: any) => r.role === 'super_admin');
+    const isAdmin = isSuperAdmin || (roles ?? []).some((r: any) => r.role === 'admin' || r.role === 'owner');
     if (!isAdmin) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    const { data: callerProfile } = await admin.from('profiles').select('tenant_id').eq('id', callerId).maybeSingle();
+    const callerTenantId = callerProfile?.tenant_id ?? null;
 
     const { partner_id, new_password } = await req.json();
     if (!partner_id || !new_password) return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -27,6 +31,11 @@ Deno.serve(async (req) => {
 
     const { data: link } = await admin.from('partner_users').select('user_id, tenant_id').eq('partner_id', partner_id).maybeSingle();
     if (!link?.user_id) return new Response(JSON.stringify({ error: 'Partner user not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    // Tenant isolation: only a super_admin may act outside their own company
+    if (!isSuperAdmin && (!callerTenantId || link.tenant_id !== callerTenantId)) {
+      return new Response(JSON.stringify({ error: 'Forbidden: partner belongs to another tenant' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     const { error: uErr } = await admin.auth.admin.updateUserById(link.user_id, { password: new_password });
     if (uErr) return new Response(JSON.stringify({ error: uErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
