@@ -6603,6 +6603,10 @@ export type Database = {
       }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
+      next_journal_number: {
+        Args: { p_entry_date: string; p_tenant_id: string }
+        Returns: string
+      }
       next_pre_order_number: { Args: never; Returns: string }
       next_purchase_return_number: { Args: never; Returns: string }
       next_sale_return_number: { Args: never; Returns: string }
