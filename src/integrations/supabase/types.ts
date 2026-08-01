@@ -6980,6 +6980,10 @@ export type Database = {
       }
       shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
+      sync_invoice_cash_treasury: {
+        Args: { _invoice_id: string }
+        Returns: undefined
+      }
       system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
