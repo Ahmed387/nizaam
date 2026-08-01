@@ -332,8 +332,10 @@
 .card-elevated > table td {
   min-width: 0 !important;
   white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+
 }
 
 .overflow-x-auto > table input,
