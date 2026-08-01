@@ -353,15 +353,9 @@ export default function ExecutiveInsights({ embedded }: Props) {
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4" /> توزيع المصروفات حسب الفئة</h3>
           {expByCat.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا توجد مصروفات</div> : (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={expByCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={(e: any) => `${e.name}`}>
-                  {expByCat.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <ShareBreakdown items={expByCat.map((e: any) => ({ name: e.name, value: Number(e.value) }))} format={(v) => formatEGP(v)} />
           )}
+
         </div>
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-3">أعلى وأقل المصروفات</h3>
