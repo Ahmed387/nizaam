@@ -19,6 +19,12 @@ export interface PickedProduct {
   image: string;
   source: Source;
   available?: number | null;
+  brand?: string | null;
+  model?: string | null;
+  color?: string | null;
+  product_type?: string | null;
+  capacity?: string | null;
+  size?: string | null;
 }
 
 interface PriceListRow {
@@ -41,7 +47,7 @@ export function ShipmentLineProductCell({
   const [source, setSource] = useState<Source>(value.product_id ? "inventory" : "manual");
   const [available, setAvailable] = useState<number | null>(null);
   const [manualMatches, setManualMatches] = useState<{
-    inventory: { id: string; name: string; sku: string; quantity: number; cost_price: number; image: string | null }[];
+    inventory: { id: string; name: string; sku: string; quantity: number; cost_price: number; image: string | null; brand?: string | null; model?: string | null; color?: string | null; product_type?: string | null; capacity?: string | null; size?: string | null }[];
     pricelist: PriceListRow[];
   }>({ inventory: [], pricelist: [] });
 
@@ -64,7 +70,7 @@ export function ShipmentLineProductCell({
       const esc = q.replace(/[%,()]/g, " ");
       const [invRes, plRes] = await Promise.all([
         supabase.from("products")
-          .select("id, name, sku, quantity, cost_price, image")
+          .select("id, name, sku, quantity, cost_price, image, brand, model, color, product_type, capacity, size")
           .eq("branch_id", branchId)
           .or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`)
           .limit(5),
@@ -105,6 +111,12 @@ export function ShipmentLineProductCell({
             image: p.image ?? "",
             source: "inventory",
             available: Number(p.quantity),
+            brand: (p as any).brand ?? null,
+            model: (p as any).model ?? null,
+            color: (p as any).color ?? null,
+            product_type: (p as any).product_type ?? null,
+            capacity: (p as any).capacity ?? null,
+            size: (p as any).size ?? null,
           })}
           triggerLabel="— اختر من مخزون الفرع —"
         />
@@ -151,7 +163,7 @@ export function ShipmentLineProductCell({
                   <button
                     key={`inv-${p.id}`}
                     type="button"
-                    onClick={() => { setSource("inventory"); onChange({ product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", source: "inventory", available: Number(p.quantity) }); }}
+                    onClick={() => { setSource("inventory"); onChange({ product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", source: "inventory", available: Number(p.quantity), brand: (p as any).brand ?? null, model: (p as any).model ?? null, color: (p as any).color ?? null, product_type: (p as any).product_type ?? null, capacity: (p as any).capacity ?? null, size: (p as any).size ?? null }); }}
                     className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded bg-background hover:bg-accent border border-border text-right min-w-0"
                   >
                     <span className="flex items-center gap-1 min-w-0">

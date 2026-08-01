@@ -12,7 +12,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 import { ColorChip } from "@/components/ColorPicker";
-import { AttributeChip } from "@/components/AttributePicker";
+import { AttributeChip, AttributePicker } from "@/components/AttributePicker";
+import { variantSearchTokens } from "@/lib/productVariant";
 import { ProductImage } from "@/components/ProductImage";
 
 export interface ProductRow {
@@ -28,6 +29,8 @@ export interface ProductRow {
   product_type?: string | null;
   capacity?: string | null;
   size?: string | null;
+  brand?: string | null;
+  model?: string | null;
 }
 
 /**
@@ -63,7 +66,7 @@ export function ProductPicker({
     setLoading(true);
     const { data } = await supabase
       .from("products")
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size,brand,model")
       .eq("branch_id", branchId)
       .is("archived_at", null)
       .order("name");
@@ -126,7 +129,7 @@ export function ProductPicker({
                   {list.map((p) => (
                     <CommandItem
                       key={p.id}
-                      value={`${p.name} ${p.sku}`}
+                      value={`${p.name} ${p.sku} ${variantSearchTokens(p)}`}
                       onSelect={() => { onPick(p); setOpen(false); }}
                       className="flex items-center justify-between gap-2"
                     >
@@ -136,6 +139,8 @@ export function ProductPicker({
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1.5 flex-wrap">
                             <span>{p.sku}</span>
+                            <AttributeChip label="الماركة" value={p.brand} tone="primary" />
+                            <AttributeChip label="الموديل" value={p.model} />
                             {p.color && <ColorChip name={p.color} />}
                             <AttributeChip label="النوع" value={p.product_type} tone="primary" />
                             <AttributeChip label="السعة" value={p.capacity} tone="success" />
@@ -203,11 +208,13 @@ function NewProductDialog({
   const [sell, setSell] = useState(0);
   const [low, setLow] = useState(5);
   const [image, setImage] = useState<string>("");
+  const [brand, setBrand] = useState<string>("");
+  const [model, setModel] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setName(""); setSku(genSku()); setCost(0); setSell(0); setLow(5); setImage(""); }
+    if (open) { setName(""); setSku(genSku()); setCost(0); setSell(0); setLow(5); setImage(""); setBrand(""); setModel(""); }
   }, [open]);
 
   const uploadImg = async (file: File) => {
@@ -238,8 +245,10 @@ function NewProductDialog({
         quantity: 0,
         low_stock_alert: low,
         image: image || null,
+        brand: brand.trim() || null,
+        model: model.trim() || null,
       })
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size")
+      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size,brand,model")
       .single();
     setBusy(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
@@ -255,6 +264,18 @@ function NewProductDialog({
           <div>
             <Label className="text-xs">اسم الصنف *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5" autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">الماركة</Label>
+              <div className="mt-1.5">
+                <AttributePicker table="brands" value={brand} onChange={(v) => setBrand(v ?? "")} placeholder="اختر الماركة" compact />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">الموديل</Label>
+              <Input value={model} onChange={(e) => setModel(e.target.value)} className="mt-1.5 font-mono text-xs" placeholder="مثال: GR-EF40P" />
+            </div>
           </div>
           <div>
             <Label className="text-xs">الكود (SKU)</Label>
