@@ -284,7 +284,15 @@
   overflow: hidden;
 }
 #invoice-print-area table.tr-items th { font-size: 13.5pt; font-weight: 800; }
-#invoice-print-area .tr-name { text-align: center; direction: rtl; white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
+#invoice-print-area .tr-name {
+  text-align: center;
+  direction: rtl;
+  white-space: normal;
+  word-wrap: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  unicode-bidi: plaintext;
+}
 #invoice-print-area .tr-num { text-align: center; white-space: nowrap; direction: ltr; }
 #invoice-print-area .tr-totals { width: 100%; margin: 2mm 0 0 0; border-collapse: collapse; }
 #invoice-print-area .tr-totals th,

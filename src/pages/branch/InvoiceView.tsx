@@ -283,7 +283,18 @@ export default function InvoiceView() {
             {items.map((it, idx) => (
               <tr key={it.id} className="border-b border-border">
                 <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                <td className="p-2 font-medium align-middle"><span className="inline-flex items-center gap-1.5 leading-relaxed">{it.product_name}{it.color && <ColorChip name={it.color} />}</span><VariantLine attrs={{ ...(it as any), color: null }} className="block mt-0.5" /></td>
+                <td className="p-2 font-medium align-middle">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span
+                      dir="auto"
+                      className="leading-relaxed whitespace-normal [overflow-wrap:normal] [word-break:normal] [unicode-bidi:plaintext]"
+                    >
+                      {it.product_name}
+                    </span>
+                    {it.color && <ColorChip name={it.color} />}
+                  </div>
+                  <VariantLine attrs={{ ...(it as any), color: null }} className="block mt-0.5" />
+                </td>
 
                 <td className="text-center p-2">{it.quantity}</td>
                 <td className="text-center p-2">{formatEGP(it.selling_price)}</td>

@@ -390,7 +390,7 @@ ${headStyles}
   #invoice-print-area .tr-meta-grid td { font-size: 9pt !important; padding: 0.7mm 0.6mm !important; line-height: 1.3 !important; }
   #invoice-print-area table.tr-items { table-layout: fixed !important; width: 100% !important; }
   #invoice-print-area table.tr-items th,
-  #invoice-print-area table.tr-items td { font-size: 9.5pt !important; padding: 1.6mm 0.8mm !important; border: 0.3mm solid #000 !important; line-height: 1.25 !important; word-wrap: break-word !important; overflow-wrap: anywhere !important; white-space: normal !important; }
+  #invoice-print-area table.tr-items td { font-size: 9.5pt !important; padding: 1.6mm 0.8mm !important; border: 0.3mm solid #000 !important; line-height: 1.25 !important; word-wrap: break-word !important; overflow-wrap: break-word !important; white-space: normal !important; }
   #invoice-print-area table.tr-items th { font-size: 9.5pt !important; font-weight: 800 !important; }
   #invoice-print-area table.tr-items .tr-name { text-align: right !important; }
   #invoice-print-area .tr-totals th,
