@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import { VariantLine } from "@/components/VariantChips";
+import type { VariantAttrs } from "@/lib/productVariant";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -9,6 +11,7 @@ interface Row {
   id: string;
   product_id: string;
   product_name?: string;
+  attrs?: VariantAttrs | null;
   reserved_quantity: number;
   cashier_name: string | null;
   created_at: string;
@@ -40,9 +43,9 @@ export function ActiveReservationsPanel({ branchId }: { branchId: string }) {
     const list = (res ?? []) as any as Row[];
     const ids = Array.from(new Set(list.map((r) => r.product_id)));
     if (ids.length) {
-      const { data: prods } = await supabase.from("products").select("id, name").in("id", ids);
-      const map = new Map((prods ?? []).map((p: any) => [p.id, p.name]));
-      list.forEach((r) => { r.product_name = map.get(r.product_id) ?? "—"; });
+      const { data: prods } = await supabase.from("products").select("id, name, brand, model, color, product_type, capacity, size").in("id", ids);
+      const map = new Map((prods ?? []).map((p: any) => [p.id, p]));
+      list.forEach((r) => { const p: any = map.get(r.product_id); r.product_name = p?.name ?? "—"; r.attrs = p ?? null; });
     }
     setRows(list);
   }, [branchId]);
@@ -90,7 +93,10 @@ export function ActiveReservationsPanel({ branchId }: { branchId: string }) {
                 const leftMs = new Date(r.expires_at).getTime() - now;
                 return (
                   <tr key={r.id} className="border-t border-border">
-                    <td className="px-3 py-2">{r.product_name}</td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{r.product_name}</div>
+                      <VariantLine attrs={r.attrs} className="block" />
+                    </td>
                     <td className="px-3 py-2 font-bold">{r.reserved_quantity}</td>
                     <td className="px-3 py-2">{r.cashier_name ?? "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{arabicDuration(ageMs)}</td>
