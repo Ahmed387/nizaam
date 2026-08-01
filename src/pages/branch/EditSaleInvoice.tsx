@@ -37,6 +37,12 @@ type Item = {
   selling_price: number;
   market_price: number;
   line_discount: number;
+  brand?: string | null;
+  model?: string | null;
+  color?: string | null;
+  product_type?: string | null;
+  capacity?: string | null;
+  size?: string | null;
 };
 
 type Snapshot = {
