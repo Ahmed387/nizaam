@@ -23,7 +23,7 @@ import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductImage } from "@/components/ProductImage";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
-import { VariantChips } from "@/components/VariantChips";
+import { ProductCell } from "@/components/VariantChips";
 
 interface Row {
   id: string;
@@ -306,6 +306,8 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
         columns={[
           {
             key: "select",
+            width: "3rem",
+            align: "center",
             header: (
               <Checkbox
                 checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
@@ -316,29 +318,41 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleRow(r.id)} onClick={(e) => e.stopPropagation()} />
             ),
           },
-          { key: "image", header: "صورة", render: (r: Row) => r.image
-              ? <ProductImage src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
-              : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div> },
-          { key: "sku", header: "الكود", render: (r: Row) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
-          { key: "name", header: "الاسم", render: (r: Row) => (
-            <div className="min-w-[180px]">
-              <div className="font-semibold">{r.name}</div>
-              <VariantChips attrs={r as any} className="mt-1" />
+          { key: "image", header: "صورة", width: "4.5rem", align: "center", render: (r: Row) => (
+            <div className="flex justify-center">
+              {r.image
+                ? <ProductImage src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
+                : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
             </div>
           ) },
-          { key: "branch", header: "الفرع", render: (r: Row) => <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">{r.branch_name}</span> },
-          { key: "category", header: "التصنيف", render: (r: Row) => r.category_name },
-          { key: "quantity", header: "الكمية", render: (r: Row) => <span className="font-bold">{r.quantity}</span> },
-          { key: "cost_price", header: "شراء", render: (r: Row) => formatEGP(r.cost_price) },
-          { key: "selling_price", header: "بيع", render: (r: Row) => <span className="text-success">{formatEGP(r.selling_price)}</span> },
-          { key: "market_price", header: "سوق", render: (r: Row) => <span className="text-primary">{formatEGP(r.market_price)}</span> },
-          { key: "status", header: "الحالة", render: (r: Row) => {
-            if (r.quantity === 0) return <span className="px-2 py-1 rounded text-xs bg-destructive/15 text-destructive">🔴 نفد</span>;
-            if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning">🟡 منخفض</span>;
-            return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success">🟢 متوفر</span>;
+          { key: "name", header: "المنتج", width: "30%", align: "right", render: (r: Row) => (
+            <ProductCell
+              name={r.name}
+              attrs={r as any}
+              sub={
+                <span className="flex flex-wrap items-center gap-x-2">
+                  <span className="font-mono">{r.sku}</span>
+                  <span className="text-primary">{r.branch_name}</span>
+                  {r.category_name && <span>· {r.category_name}</span>}
+                </span>
+              }
+            />
+          ) },
+          { key: "quantity", header: "الكمية", width: "5rem", align: "center", numeric: true, render: (r: Row) => <span className="font-bold">{r.quantity}</span> },
+          { key: "prices", header: "الأسعار (شراء / بيع / سوق)", width: "16%", align: "center", render: (r: Row) => (
+            <div className="flex flex-col items-center gap-0.5 text-xs tabular-nums">
+              <span className="text-muted-foreground">{formatEGP(r.cost_price)}</span>
+              <span className="text-success font-semibold">{formatEGP(r.selling_price)}</span>
+              <span className="text-primary">{formatEGP(r.market_price)}</span>
+            </div>
+          ) },
+          { key: "status", header: "الحالة", width: "6.5rem", align: "center", render: (r: Row) => {
+            if (r.quantity === 0) return <span className="px-2 py-1 rounded text-xs bg-destructive/15 text-destructive whitespace-nowrap">🔴 نفد</span>;
+            if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning whitespace-nowrap">🟡 منخفض</span>;
+            return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success whitespace-nowrap">🟢 متوفر</span>;
           }},
-          { key: "actions", header: "إجراءات", render: (r: Row) => (
-            <div className="flex gap-1 flex-wrap">
+          { key: "actions", header: "إجراءات", width: "9rem", align: "center", render: (r: Row) => (
+            <div className="flex gap-1 justify-center">
               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPriceEdit(r); }} title="تعديل السعر">
                 <Tag className="w-3.5 h-3.5" />
               </Button>
@@ -355,6 +369,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
           )},
         ]}
       />
+
 
       {priceEdit && (
         <PriceEditDialog
