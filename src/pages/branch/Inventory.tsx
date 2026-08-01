@@ -1106,32 +1106,11 @@ export default function Inventory() {
                         <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs font-semibold mb-1.5 block">الماركة</Label>
-                        <AttributePicker table="brands" value={editForm.brand} onChange={(v) => setEditForm({ ...editForm, brand: v ?? "" })} placeholder="اختر الماركة" />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold mb-1.5 block">الموديل</Label>
-                        <Input value={editForm.model} onChange={(e) => setEditForm({ ...editForm, model: e.target.value })} className="font-mono text-sm" placeholder="مثال: GR-EF40P" />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold mb-1.5 block">اللون</Label>
-                        <ColorPicker value={editForm.color} onChange={(v) => setEditForm({ ...editForm, color: v ?? "" })} />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold mb-1.5 block">النوع</Label>
-                        <AttributePicker table="product_types" value={editForm.product_type} onChange={(v) => setEditForm({ ...editForm, product_type: v ?? "" })} placeholder="اختر النوع" />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold mb-1.5 block">السعة</Label>
-                        <AttributePicker table="capacities" value={editForm.capacity} onChange={(v) => setEditForm({ ...editForm, capacity: v ?? "" })} placeholder="اختر السعة" />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold mb-1.5 block">المقاس / الحجم</Label>
-                        <AttributePicker table="sizes" value={editForm.size} onChange={(v) => setEditForm({ ...editForm, size: v ?? "" })} placeholder="اختر المقاس" />
-                      </div>
-                    </div>
+                    <VariantAttributesFields
+                      value={editForm}
+                      required={["brand", "model"]}
+                      onChange={(patch) => setEditForm({ ...editForm, ...patch } as any)}
+                    />
                   </div>
                 </section>
               </div>
