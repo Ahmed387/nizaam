@@ -6185,6 +6185,10 @@ export type Database = {
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
+      decide_payment_void_request: {
+        Args: { p_approve: boolean; p_note?: string; p_request_id: string }
+        Returns: Json
+      }
       delete_voucher_admin: {
         Args: { p_reason?: string; p_voucher_id: string }
         Returns: Json
@@ -6707,6 +6711,10 @@ export type Database = {
       repost_invoice_journal: {
         Args: { p_invoice_id: string }
         Returns: undefined
+      }
+      request_void_payment_transaction: {
+        Args: { p_reason: string; p_tx_id: string }
+        Returns: Json
       }
       reserve_stock: {
         Args: {
