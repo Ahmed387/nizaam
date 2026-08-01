@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
     const providedCron = req.headers.get("x-cron-secret");
     const isCron = !!cronSecret && providedCron === cronSecret;
 
+    let allowedTenants: string[] | undefined;
     if (!isCron) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) {
@@ -54,8 +55,7 @@ Deno.serve(async (req) => {
         const { data: adminTenants } = await admin.from("user_roles")
           .select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
         const allowed = (adminTenants ?? []).map((r: any) => r.tenant_id);
-        // Stash on url object for downstream filtering
-        (globalThis as any).__allowedTenants = allowed;
+        allowedTenants = allowed;
       }
     }
 
@@ -64,9 +64,7 @@ Deno.serve(async (req) => {
 
     let q = admin.from("tenants").select("id, name, is_active, is_suspended");
     if (onlyTenant) q = q.eq("id", onlyTenant);
-    const allowedTenants = (globalThis as any).__allowedTenants as string[] | undefined;
-    if (!isCron && !onlyTenant && allowedTenants) q = q.in("id", allowedTenants);
-    (globalThis as any).__allowedTenants = undefined;
+    if (!isCron && !onlyTenant) q = q.in("id", allowedTenants ?? []);
     const { data: tenants, error: terr } = await q;
     if (terr) throw terr;
 
