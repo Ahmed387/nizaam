@@ -341,7 +341,10 @@ export default function NewShipment() {
     for (const l of lines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
+      if (l.product_id === null && (!l.brand?.trim() || !l.model?.trim()))
+        return toast.error(`أدخل الماركة والموديل للصنف الجديد: ${l.product_name}`);
     }
+
 
     setBusy(true);
     try {
