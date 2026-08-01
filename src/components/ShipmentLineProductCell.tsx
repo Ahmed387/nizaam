@@ -47,7 +47,7 @@ export function ShipmentLineProductCell({
   const [source, setSource] = useState<Source>(value.product_id ? "inventory" : "manual");
   const [available, setAvailable] = useState<number | null>(null);
   const [manualMatches, setManualMatches] = useState<{
-    inventory: { id: string; name: string; sku: string; quantity: number; cost_price: number; image: string | null }[];
+    inventory: { id: string; name: string; sku: string; quantity: number; cost_price: number; image: string | null; brand?: string | null; model?: string | null; color?: string | null; product_type?: string | null; capacity?: string | null; size?: string | null }[];
     pricelist: PriceListRow[];
   }>({ inventory: [], pricelist: [] });
 
