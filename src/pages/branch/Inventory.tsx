@@ -897,8 +897,8 @@ export default function Inventory() {
             <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الماركة</Label><div className="mt-1.5"><AttributePicker table="brands" value={form.brand} onChange={(v) => setForm({ ...form, brand: v ?? "" })} placeholder="اختر الماركة" /></div></div>
-            <div><Label>الموديل</Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mt-1.5 font-mono text-sm" placeholder="مثال: GR-EF40P" /></div>
+            <div><Label>الماركة <span className="text-destructive">*</span></Label><div className="mt-1.5"><AttributePicker table="brands" value={form.brand} onChange={(v) => setForm({ ...form, brand: v ?? "" })} placeholder="اختر الماركة" /></div></div>
+            <div><Label>الموديل <span className="text-destructive">*</span></Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mt-1.5 font-mono text-sm" placeholder="مثال: GR-EF40P" /></div>
             <div><Label>اللون</Label><div className="mt-1.5"><ColorPicker value={form.color} onChange={(v) => setForm({ ...form, color: v ?? "" })} /></div></div>
             <div><Label>النوع</Label><div className="mt-1.5"><AttributePicker table="product_types" value={form.product_type} onChange={(v) => setForm({ ...form, product_type: v ?? "" })} placeholder="اختر النوع" /></div></div>
             <div><Label>السعة</Label><div className="mt-1.5"><AttributePicker table="capacities" value={form.capacity} onChange={(v) => setForm({ ...form, capacity: v ?? "" })} placeholder="اختر السعة" /></div></div>
