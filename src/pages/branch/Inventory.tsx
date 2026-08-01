@@ -506,20 +506,21 @@ export default function Inventory() {
         quantity: qty,
         image: form.image || null,
         color: form.color || null,
+        brand: form.brand || null,
+        model: form.model || null,
+        product_type: form.product_type || null,
+        capacity: form.capacity || null,
+        size: form.size || null,
       },
     });
-    if (error) return toast.error(error.message);
-    const newId = (data as any)?.product_id;
-    if (newId) {
-      const patch: any = {};
-      if (form.color) patch.color = form.color;
-      if (form.product_type) patch.product_type = form.product_type;
-      if (form.capacity) patch.capacity = form.capacity;
-      if (form.size) patch.size = form.size;
-      if (form.brand) patch.brand = form.brand.trim();
-      if (form.model) patch.model = form.model.trim();
-      if (Object.keys(patch).length) await supabase.from("products").update(patch as any).eq("id", newId);
+    if (error) {
+      const msg = /products_variant_uniq|duplicate key/i.test(error.message)
+        ? "هذا المنتج بنفس الماركة/الموديل/اللون/السعة موجود بالفعل في هذا الفرع"
+        : error.message;
+      return toast.error(msg);
     }
+    const newId = (data as any)?.product_id;
+
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
       toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول شحنة شراء.");
