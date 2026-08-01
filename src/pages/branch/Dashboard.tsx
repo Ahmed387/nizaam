@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, Legend, PieChart, Pie, Cell,
+
 } from "recharts";
 import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
 
