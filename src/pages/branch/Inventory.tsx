@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ColorPicker, ColorChip } from "@/components/ColorPicker";
-import { VariantChips } from "@/components/VariantChips";
+import { VariantChips, ProductCell } from "@/components/VariantChips";
 import { AttributePicker } from "@/components/AttributePicker";
 import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
