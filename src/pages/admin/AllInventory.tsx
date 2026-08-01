@@ -23,7 +23,7 @@ import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductImage } from "@/components/ProductImage";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
-import { VariantChips } from "@/components/VariantChips";
+import { ProductCell } from "@/components/VariantChips";
 
 interface Row {
   id: string;
