@@ -15,7 +15,9 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, Legend, PieChart, Pie, Cell,
 } from "recharts";
+import { ShareBreakdown } from "@/components/charts/RankBars";
 import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
+
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
@@ -350,14 +352,11 @@ export default function BranchDashboard() {
           {paymentBreakdown.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مبيعات اليوم</div>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={paymentBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e: any) => e.name}>
-                  {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <ShareBreakdown
+              items={paymentBreakdown.map((p: any) => ({ name: p.name, value: Number(p.value) }))}
+              format={(v) => formatEGP(v)}
+            />
+
           )}
         </div>
       </div>
