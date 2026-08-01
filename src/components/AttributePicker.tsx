@@ -10,7 +10,7 @@ import { useTextLookup } from "@/hooks/useTextLookup";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type LookupTable = "product_types" | "capacities" | "sizes";
+type LookupTable = "product_types" | "capacities" | "sizes" | "brands";
 
 /** Compact chip that shows a labelled attribute value inline. */
 export function AttributeChip({

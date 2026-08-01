@@ -10,9 +10,11 @@ export interface LookupItem {
 /**
  * Generic hook for simple {id, name} lookup tables scoped per tenant.
  * Mirrors the shape of useColors but without the `hex` column.
- * Used by product_types, capacities, sizes.
+ * Used by product_types, capacities, sizes, brands.
  */
-export function useTextLookup(table: "product_types" | "capacities" | "sizes") {
+export type LookupTableName = "product_types" | "capacities" | "sizes" | "brands";
+
+export function useTextLookup(table: LookupTableName) {
   const { tenantId } = useAuth();
   const [items, setItems] = useState<LookupItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,3 +63,4 @@ export function useTextLookup(table: "product_types" | "capacities" | "sizes") {
 export const useProductTypes = () => useTextLookup("product_types");
 export const useCapacities   = () => useTextLookup("capacities");
 export const useSizes        = () => useTextLookup("sizes");
+export const useBrands       = () => useTextLookup("brands");
