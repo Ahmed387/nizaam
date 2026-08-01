@@ -744,31 +744,21 @@ export default function NewShipment() {
                   </div>
 
                   {/* Variant attributes row */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 px-3 pb-3">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">الماركة</Label>
-                      <AttributePicker table="brands" value={l.brand ?? ""} onChange={(v) => updateLine(i, { brand: v ?? "" })} placeholder="الماركة" compact />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">الموديل</Label>
-                      <Input value={l.model ?? ""} onChange={(e) => updateLine(i, { model: e.target.value })} placeholder="GR-EF40P" className="h-9 font-mono text-xs" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">اللون</Label>
-                      <ColorPicker value={l.color ?? ""} onChange={(v) => updateLine(i, { color: v ?? "" })} compact />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">النوع</Label>
-                      <AttributePicker table="product_types" value={l.product_type ?? ""} onChange={(v) => updateLine(i, { product_type: v ?? "" })} placeholder="النوع" compact />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">السعة</Label>
-                      <AttributePicker table="capacities" value={l.capacity ?? ""} onChange={(v) => updateLine(i, { capacity: v ?? "" })} placeholder="السعة" compact />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">المقاس</Label>
-                      <AttributePicker table="sizes" value={l.size ?? ""} onChange={(v) => updateLine(i, { size: v ?? "" })} placeholder="المقاس" compact />
-                    </div>
+                  <div className="px-3 pb-3">
+                    <VariantAttributesFields
+                      compact
+                      subtitle="سجّل خصائص الصنف عشان يتميز في المخزن والفواتير"
+                      value={{
+                        brand: l.brand ?? "",
+                        model: l.model ?? "",
+                        color: l.color ?? "",
+                        product_type: l.product_type ?? "",
+                        capacity: l.capacity ?? "",
+                        size: l.size ?? "",
+                      }}
+                      required={["brand", "model"]}
+                      onChange={(patch) => updateLine(i, patch as any)}
+                    />
                   </div>
 
                   {/* Net summary footer */}
