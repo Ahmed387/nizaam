@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AdminLayout } from "@/components/layout/Layouts";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -105,7 +106,8 @@ export default function AskMe() {
   );
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-5xl flex-col gap-4" dir="rtl">
+    <AdminLayout>
+    <div className="mx-auto flex h-[calc(100dvh-12rem)] w-full max-w-5xl flex-col gap-4" dir="rtl">
       {header}
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -208,5 +210,6 @@ export default function AskMe() {
         </div>
       </Card>
     </div>
+    </AdminLayout>
   );
 }

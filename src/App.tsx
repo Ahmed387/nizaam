@@ -151,6 +151,7 @@ import PartnerAdvances from "./pages/admin/PartnerAdvances";
 import PartnerAdvanceDetail from "./pages/admin/PartnerAdvanceDetail";
 import SystemHealth from "./pages/admin/SystemHealth";
 import PersonalExpenses from "./pages/admin/PersonalExpenses";
+import AskMe from "./pages/admin/AskMe";
 import PartnerDashboard from "./pages/partner/Dashboard";
 import PartnerLedger from "./pages/partner/Ledger";
 import PartnerAdvancesView from "./pages/partner/Advances";
@@ -257,6 +258,7 @@ const App = () => (
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
             <Route path="/admin/shifts" element={<ProtectedRoute roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute ownerOnly><SystemHealth /></ProtectedRoute>} />
+            <Route path="/admin/ask-me" element={<ProtectedRoute ownerOnly><AskMe /></ProtectedRoute>} />
             <Route path="/admin/personal-expenses" element={<ProtectedRoute><PersonalExpenses /></ProtectedRoute>} />
 
 
