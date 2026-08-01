@@ -1592,6 +1592,7 @@ export default function NewSale() {
                             {i.color && <ColorChip name={i.color} />}
                             {showCost && <span className="text-[11px] text-muted-foreground">شراء: {formatEGP(i.cost_price)}</span>}
                           </div>
+                          <VariantLine attrs={i} className="block mt-0.5" />
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => updateQty(k, 0)} className="shrink-0">
                           <Trash2 className="w-4 h-4 text-destructive" />
