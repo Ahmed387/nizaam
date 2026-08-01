@@ -1815,6 +1815,39 @@ export type Database = {
           },
         ]
       }
+      health_check_runs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          failure_count: number
+          failures: Json
+          id: string
+          source: string
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          failure_count?: number
+          failures?: Json
+          id?: string
+          source?: string
+          status: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          failure_count?: number
+          failures?: Json
+          id?: string
+          source?: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       inventory_adjustments: {
         Row: {
           adjustment_amount: number
@@ -6136,6 +6169,14 @@ export type Database = {
       }
       assert_same_tenant: { Args: { p_tenant: string }; Returns: undefined }
       backfill_missing_journals: { Args: never; Returns: Json }
+      branch_cycle_count_status: {
+        Args: { p_branch_id: string; p_stale_days?: number }
+        Returns: {
+          critical_count: number
+          last_session: string
+          overdue_count: number
+        }[]
+      }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number
@@ -6301,6 +6342,7 @@ export type Database = {
         Args: { p_reason?: string; p_voucher_id: string }
         Returns: Json
       }
+      detect_anomalies: { Args: never; Returns: number }
       detect_orphaned_batches: {
         Args: never
         Returns: {
@@ -6465,6 +6507,7 @@ export type Database = {
         }
         Returns: Json
       }
+      enforce_cycle_counts: { Args: { p_stale_days?: number }; Returns: number }
       expire_old_reservations: { Args: never; Returns: number }
       generate_alerts: {
         Args: never
@@ -6618,6 +6661,20 @@ export type Database = {
           _type: Database["public"]["Enums"]["voucher_type"]
         }
         Returns: string
+      }
+      notify_tenant_admins: {
+        Args: {
+          p_body: string
+          p_dedupe_hours?: number
+          p_entity?: string
+          p_entity_id?: string
+          p_link?: string
+          p_roles?: Database["public"]["Enums"]["app_role"][]
+          p_tenant_id: string
+          p_title: string
+          p_type?: string
+        }
+        Returns: number
       }
       open_cashier_shift: {
         Args: { p_branch_id: string; p_notes?: string; p_opening_cash: number }
@@ -6902,6 +6959,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      run_regression_checks: { Args: { p_source?: string }; Returns: string }
       run_shift_maintenance: {
         Args: never
         Returns: {
