@@ -574,6 +574,11 @@ export default function NewSale() {
         discount_mode: "amount",
         discount_input: 0,
         color: (p as any).color ?? null,
+        brand: (p as any).brand ?? null,
+        model: (p as any).model ?? null,
+        product_type: (p as any).product_type ?? null,
+        capacity: (p as any).capacity ?? null,
+        size: (p as any).size ?? null,
       }]);
     }
     setSearch("");
