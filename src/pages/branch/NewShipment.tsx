@@ -184,6 +184,12 @@ export default function NewShipment() {
         discount_percent: Number(r.discount_percent ?? 0),
         discount_amount: Number(r.discount_amount ?? 0),
         image: "",
+        brand: r.brand ?? "",
+        model: r.model ?? "",
+        color: r.color ?? "",
+        product_type: r.product_type ?? "",
+        capacity: r.capacity ?? "",
+        size: r.size ?? "",
       })));
       setLoadedEdit(true);
       // Count related batches for the edit-confirmation modal
