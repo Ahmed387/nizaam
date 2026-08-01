@@ -23,6 +23,7 @@ import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductImage } from "@/components/ProductImage";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
+import { VariantChips } from "@/components/VariantChips";
 
 interface Row {
   id: string;
@@ -319,7 +320,12 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               ? <ProductImage src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
               : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div> },
           { key: "sku", header: "الكود", render: (r: Row) => <span className="font-mono text-xs text-muted-foreground">{r.sku}</span> },
-          { key: "name", header: "الاسم", render: (r: Row) => <span className="font-semibold">{r.name}</span> },
+          { key: "name", header: "الاسم", render: (r: Row) => (
+            <div className="min-w-[180px]">
+              <div className="font-semibold">{r.name}</div>
+              <VariantChips attrs={r as any} className="mt-1" />
+            </div>
+          ) },
           { key: "branch", header: "الفرع", render: (r: Row) => <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">{r.branch_name}</span> },
           { key: "category", header: "التصنيف", render: (r: Row) => r.category_name },
           { key: "quantity", header: "الكمية", render: (r: Row) => <span className="font-bold">{r.quantity}</span> },

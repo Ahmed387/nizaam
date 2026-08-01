@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
+import { VariantLine } from "@/components/VariantChips";
 
 export default function Review() {
   const { id: branchId, sessionId } = useParams<{ id: string; sessionId: string }>();
@@ -115,7 +116,7 @@ export default function Review() {
                 return (
                   <tr key={it.id} className={`border-t border-border ${rowBg}`}>
                     <td className="px-3 py-2">{it.product_code}</td>
-                    <td className="px-3 py-2">{it.product_name}</td>
+                    <td className="px-3 py-2">{it.product_name}<VariantLine attrs={it as any} className="block mt-0.5" /></td>
                     <td className="px-3 py-2">{it.unit ?? "—"}</td>
                     <td className="px-3 py-2">{Number(it.system_quantity)}</td>
                     <td className="px-3 py-2">{it.actual_quantity == null ? "—" : Number(it.actual_quantity)}</td>
