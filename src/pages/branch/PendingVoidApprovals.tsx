@@ -50,7 +50,7 @@ export default function PendingVoidApprovals() {
   };
 
   useEffect(() => { load(); }, []);
-  useRealtimeRefresh([{ table: "approval_requests" }], load);
+  useRealtimeRefresh(["approval_requests"], load);
 
   const submitDecision = async () => {
     if (!decision) return;
