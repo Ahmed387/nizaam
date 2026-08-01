@@ -63,7 +63,12 @@ export function ProductCell({
   const parts = variantParts(attrs);
   return (
     <div className={cn("text-right leading-snug", className)}>
-      <div className="font-semibold text-foreground break-words">{name}</div>
+      <div
+        dir="auto"
+        className="font-semibold text-foreground whitespace-normal [overflow-wrap:normal] [word-break:normal] [unicode-bidi:plaintext]"
+      >
+        {name}
+      </div>
       {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}
       {parts.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
