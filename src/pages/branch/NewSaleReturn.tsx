@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { VariantLine } from "@/components/VariantChips";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
@@ -126,7 +127,7 @@ export default function NewSaleReturn() {
       (inv as any).contacts.balance = await fetchContactBalance((inv as any).contact_id);
     }
     const { data: items } = await supabase
-      .from("invoice_items").select("id, product_id, product_name, quantity, selling_price, line_discount, total")
+      .from("invoice_items").select("id, product_id, product_name, brand, model, color, product_type, capacity, size, quantity, selling_price, line_discount, total")
       .eq("invoice_id", invId);
 
     // Already-returned per product on this invoice
@@ -441,6 +442,7 @@ export default function NewSaleReturn() {
                   <div key={l.invoice_item_id} className="grid grid-cols-12 gap-2 items-center p-2 border rounded">
                     <div className="col-span-5 text-sm">
                       <div className="font-medium">{l.product_name}</div>
+                      <VariantLine attrs={l as any} className="block" />
                       <div className="text-[11px] text-muted-foreground">
                         مباع: {l.sold_qty}
                         {l.already_returned > 0 && <> • مرتجع سابق: {l.already_returned}</>}
