@@ -1,3 +1,4 @@
+import { VariantLine } from "@/components/VariantChips";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -92,7 +93,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     setLoading(true);
     let q = supabase
       .from("invoice_items")
-      .select("product_id, product_name, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
+      .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
       .eq("tenant_id", tenantId);
     const { data, error } = await q;
     setLoading(false);
@@ -144,7 +145,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       const hasReturn = retQty > 0;
 
       const key = r.product_id ?? r.product_name;
-      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, qty: 0, gross_qty: 0, returned_qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
+      const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, brand: r.brand, model: r.model, color: r.color, product_type: r.product_type, capacity: r.capacity, size: r.size, qty: 0, gross_qty: 0, returned_qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
       prev.qty += netQty;
       prev.gross_qty += qtyRaw;
       prev.returned_qty += retQty;
@@ -340,7 +341,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                   {topMargin.map((r, i) => (
                     <tr key={r.product_id ?? r.product_name} className={`border-t border-border/50 align-middle hover:bg-success/5 transition-colors ${i % 2 === 1 ? "bg-surface/30" : ""}`}>
                       <td className="px-2 py-3 text-center text-muted-foreground font-semibold tabular-nums">{i + 1}</td>
-                      <td className="px-3 py-3 font-semibold text-foreground break-words leading-snug text-center" title={r.product_name}>{r.product_name}</td>
+                      <td className="px-3 py-3 font-semibold text-foreground break-words leading-snug text-center" title={r.product_name}>{r.product_name}<VariantLine attrs={r as any} className="block mt-0.5" /></td>
                       <td className="px-2 py-3 text-center font-bold tabular-nums">{r.qty}</td>
                       <td className="px-3 py-3 text-center whitespace-nowrap text-success font-extrabold tabular-nums">{formatEGP(r.profit)}</td>
                       <td className="px-2 py-3 text-center whitespace-nowrap font-extrabold text-success tabular-nums">{r.margin.toFixed(1)}%</td>
@@ -376,7 +377,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                   {bottomMargin.map((r, i) => (
                     <tr key={r.product_id ?? r.product_name} className={`border-t border-border/50 align-middle hover:bg-destructive/5 transition-colors ${i % 2 === 1 ? "bg-surface/30" : ""}`}>
                       <td className="px-2 py-3 text-center text-muted-foreground font-semibold tabular-nums">{i + 1}</td>
-                      <td className="px-3 py-3 font-semibold text-foreground break-words leading-snug text-center" title={r.product_name}>{r.product_name}</td>
+                      <td className="px-3 py-3 font-semibold text-foreground break-words leading-snug text-center" title={r.product_name}>{r.product_name}<VariantLine attrs={r as any} className="block mt-0.5" /></td>
                       <td className="px-2 py-3 text-center font-bold tabular-nums">{r.qty}</td>
                       <td className={`px-3 py-3 text-center whitespace-nowrap font-extrabold tabular-nums ${r.profit >= 0 ? "text-warning" : "text-destructive"}`}>{formatEGP(r.profit)}</td>
                       <td className={`px-2 py-3 text-center whitespace-nowrap font-extrabold tabular-nums ${r.margin < 10 ? "text-destructive" : "text-warning"}`}>{r.margin.toFixed(1)}%</td>
@@ -426,7 +427,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                       const n = new Set(expanded); n.has(key) ? n.delete(key) : n.add(key); setExpanded(n);
                     }}>
                       <td className="px-3 py-3">{open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}</td>
-                      <td className="px-3 py-3 font-semibold border-r border-border/40">{r.product_name}</td>
+                      <td className="px-3 py-3 font-semibold border-r border-border/40">{r.product_name}<VariantLine attrs={r as any} className="block mt-0.5" /></td>
                       <td className="px-3 py-3 text-center tabular-nums text-muted-foreground border-r border-border/40">{r.gross_qty}</td>
                       <td className="px-3 py-3 text-center tabular-nums border-r border-border/40">{r.returned_qty > 0 ? <span className="text-warning font-bold">{r.returned_qty}</span> : <span className="text-muted-foreground">0</span>}</td>
                       <td className="px-3 py-3 text-center tabular-nums font-bold border-r border-border/40">{r.qty}</td>
