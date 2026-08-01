@@ -88,7 +88,7 @@ export default function NewShipment() {
   const [newSup, setNewSup] = useState({ name: "", contact_person: "", phone: "", address: "" });
   const [savingSup, setSavingSup] = useState(false);
   const [showExtrasBreakdown, setShowExtrasBreakdown] = useState(false);
-  const [openSections, setOpenSections] = useState({ supplier: false, extras: false, products: false, payment: false, summary: false });
+  const [openSections, setOpenSections] = useState({ supplier: true, extras: true, products: true, payment: true, summary: true });
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
   const createSupplier = async () => {

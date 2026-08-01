@@ -99,7 +99,7 @@ export default function NewSale() {
   const [newCustOpen, setNewCustOpen] = useState(false);
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
-  const [openSections, setOpenSections] = useState({ customer: false, products: false, payment: false, summary: false });
+  const [openSections, setOpenSections] = useState({ customer: true, products: true, payment: true, summary: true });
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
   // Customer credit balance + ledger balance
   const [customerCredit, setCustomerCredit] = useState(0);

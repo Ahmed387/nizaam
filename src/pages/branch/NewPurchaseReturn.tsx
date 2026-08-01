@@ -62,7 +62,7 @@ export default function NewPurchaseReturn() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
-  const [openSections, setOpenSections] = useState({ supplier: false, products: false, payment: false, summary: false });
+  const [openSections, setOpenSections] = useState({ supplier: true, products: true, payment: true, summary: true });
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
 
