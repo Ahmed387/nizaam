@@ -129,6 +129,7 @@ import FinancialDashboard from "./pages/admin/FinancialDashboard";
 import ReportComparison from "./pages/admin/ReportComparison";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
 import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
+import PendingVoidApprovals from "./pages/branch/PendingVoidApprovals";
 import InvCountSessions from "./pages/branch/inventory-count/Sessions";
 import InvCountNew from "./pages/branch/inventory-count/NewSession";
 import InvCountSheet from "./pages/branch/inventory-count/CountingSheet";
@@ -335,6 +336,7 @@ const App = () => (
             <Route path="/branch/:id/approval-requests" element={<ProtectedRoute><MyApprovalRequests /></ProtectedRoute>} />
 
             <Route path="/branch/:id/discount-approvals" element={<ProtectedRoute><PendingDiscountApprovals /></ProtectedRoute>} />
+            <Route path="/branch/:id/void-approvals" element={<ProtectedRoute><PendingVoidApprovals /></ProtectedRoute>} />
             <Route path="/admin/discount-approvals" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=discounts" replace /></ProtectedRoute>} />
             <Route path="/admin/profitability" element={<ProtectedRoute adminOnly><Navigate to="/admin/reports-hub?tab=profitability" replace /></ProtectedRoute>} />
 
