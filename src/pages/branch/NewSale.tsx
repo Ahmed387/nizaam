@@ -30,10 +30,12 @@ import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
 import { ColorChip } from "@/components/ColorPicker";
+import { VariantLine } from "@/components/VariantChips";
+import type { VariantAttrs } from "@/lib/productVariant";
 
 
 
-interface Item {
+interface Item extends VariantAttrs {
   product_id: string;
   product_name: string;
   quantity: number;
