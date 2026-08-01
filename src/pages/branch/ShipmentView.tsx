@@ -20,6 +20,7 @@ import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalRe
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ProductImage } from "@/components/ProductImage";
+import { VariantLine } from "@/components/VariantChips";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -337,6 +338,7 @@ export default function ShipmentView() {
                       )}
                       <div>
                         <div className="font-medium flex items-center gap-1.5">{it.product_name}{it.color && <ColorChip name={it.color} />}</div>
+                        <VariantLine attrs={{ ...(it as any), color: null }} />
                         {it.products?.name && it.products.name !== it.product_name && (
                           <div className="text-xs text-muted-foreground">{it.products.name}</div>
                         )}

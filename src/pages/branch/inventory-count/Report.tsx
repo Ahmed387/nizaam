@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { exportElementToPdf } from "@/lib/inventoryPdf";
 import { Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
+import { VariantLine } from "@/components/VariantChips";
 
 export default function Report() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -149,7 +150,7 @@ export default function Report() {
                 <tr key={it.id}>
                   <td className="border border-gray-300 px-2 py-1">{idx + 1}</td>
                   <td className="border border-gray-300 px-2 py-1">{it.product_code}</td>
-                  <td className="border border-gray-300 px-2 py-1">{it.product_name}</td>
+                  <td className="border border-gray-300 px-2 py-1">{it.product_name}<VariantLine attrs={it as any} className="block mt-0.5" /></td>
                   <td className="border border-gray-300 px-2 py-1">{it.unit ?? "—"}</td>
                   <td className="border border-gray-300 px-2 py-1">{Number(it.system_quantity)}</td>
                   <td className="border border-gray-300 px-2 py-1">{it.actual_quantity == null ? "—" : Number(it.actual_quantity)}</td>

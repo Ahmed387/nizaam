@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer, ArrowLeftRight } from "lucide-react";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
+import { VariantLine } from "@/components/VariantChips";
 
 const statusLabel = (s: string) =>
   ({ pending: "قيد التنفيذ", confirmed: "مستلم", completed: "مكتمل", cancelled: "ملغي", rejected: "مرفوض" } as any)[s] ?? s;
@@ -35,7 +36,7 @@ export default function StockTransferView() {
       const productIds = Array.from(new Set(group.map((r) => r.product_id)));
       const [{ data: bs }, { data: ps }] = await Promise.all([
         supabase.from("branches").select("id, name, address, phone").in("id", branchIds),
-        supabase.from("products").select("id, name, sku").in("id", productIds),
+        supabase.from("products").select("id, name, sku, brand, model, color, product_type, capacity, size").in("id", productIds),
       ]);
       const bMap: any = {}; (bs ?? []).forEach((b: any) => { bMap[b.id] = b; }); setBranches(bMap);
       const pMap: any = {}; (ps ?? []).forEach((p: any) => { pMap[p.id] = p; }); setProducts(pMap);
@@ -117,7 +118,7 @@ export default function StockTransferView() {
               return (
                 <tr key={r.id} className="border-b border-border">
                   <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="p-2 font-medium">{p?.name ?? "—"}</td>
+                  <td className="p-2 font-medium">{p?.name ?? "—"}<VariantLine attrs={p as any} className="block mt-0.5" /></td>
                   <td className="p-2 text-muted-foreground">{p?.sku ?? "—"}</td>
                   <td className="text-center p-2">{r.quantity}</td>
                   <td className="text-center p-2">{r.received_quantity ?? "—"}</td>

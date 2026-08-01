@@ -10,6 +10,7 @@ import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Loader2, Send, Search, ScanLine, Save, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { VariantLine } from "@/components/VariantChips";
 
 const PAGE_SIZE = 50;
 
@@ -39,7 +40,7 @@ export default function CountingSheet() {
       supabase
         .from("inventory_session_items" as any)
         // never select system_quantity — keep keeper blind
-        .select("id, product_code, product_name, unit, actual_quantity, color, product_type, capacity, size")
+        .select("id, product_code, product_name, unit, actual_quantity, brand, model, color, product_type, capacity, size")
         .eq("session_id", sessionId)
         .order("product_name"),
     ]);
@@ -244,6 +245,7 @@ export default function CountingSheet() {
                     <td className="px-3 py-2 font-mono text-xs">{it.product_code}</td>
                     <td className="px-3 py-2">
                       <div className="font-medium">{it.product_name}</div>
+                      <VariantLine attrs={it as any} />
                       {(it.color || it.product_type || it.capacity || it.size) && (
                         <div className="text-[11px] text-muted-foreground">
                           {[it.product_type, it.color, it.capacity, it.size].filter(Boolean).join(" • ")}

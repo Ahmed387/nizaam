@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { exportElementToPdf } from "@/lib/inventoryPdf";
 import { Loader2, Download, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { VariantLine } from "@/components/VariantChips";
 
 export default function Snapshot() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -25,7 +26,7 @@ export default function Snapshot() {
       const [s, it] = await Promise.all([
         supabase.from("inventory_sessions" as any).select("*, branches(name)").eq("id", sessionId).maybeSingle(),
         supabase.from("inventory_session_items" as any)
-          .select("product_code, product_name, unit, system_quantity")
+          .select("product_code, product_name, unit, system_quantity, brand, model, color, product_type, capacity, size")
           .eq("session_id", sessionId)
           .order("product_name"),
       ]);
@@ -135,7 +136,7 @@ export default function Snapshot() {
               <tr key={idx}>
                 <td className="border border-gray-300 px-2 py-1">{idx + 1}</td>
                 <td className="border border-gray-300 px-2 py-1">{it.product_code}</td>
-                <td className="border border-gray-300 px-2 py-1">{it.product_name}</td>
+                <td className="border border-gray-300 px-2 py-1">{it.product_name}<VariantLine attrs={it as any} className="block mt-0.5" /></td>
                 <td className="border border-gray-300 px-2 py-1">{it.unit ?? "—"}</td>
                 <td className="border border-gray-300 px-2 py-1 font-bold">{Number(it.system_quantity)}</td>
               </tr>

@@ -9,6 +9,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { ArrowRight, Printer } from "lucide-react";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { VariantLine } from "@/components/VariantChips";
 
 export default function SaleReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
@@ -106,7 +107,7 @@ export default function SaleReturnView() {
             {items.map((it, idx) => (
               <tr key={it.id} className="border-b border-border">
                 <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                <td className="p-2 font-medium">{it.products?.name ?? "—"}</td>
+                <td className="p-2 font-medium">{(it as any).product_name ?? it.products?.name ?? "—"}<VariantLine attrs={it as any} className="block mt-0.5" /></td>
                 <td className="p-2 text-muted-foreground">{it.products?.sku ?? "—"}</td>
                 <td className="text-center p-2">{it.quantity}</td>
                 <td className="text-center p-2">{formatEGP(Number(it.refund) / Math.max(1, Number(it.quantity)))}</td>

@@ -6,6 +6,7 @@ import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, Check, X } from "lucide-react";
+import { VariantLine } from "@/components/VariantChips";
 
 export default function Approval() {
   const { id: branchId, sessionId } = useParams<{ id: string; sessionId: string }>();
@@ -105,7 +106,7 @@ export default function Approval() {
                   return (
                     <tr key={it.id} className={`border-t border-border ${d < 0 ? "bg-red-500/5" : "bg-emerald-500/5"}`}>
                       <td className="px-3 py-2">{it.product_code}</td>
-                      <td className="px-3 py-2">{it.product_name}</td>
+                      <td className="px-3 py-2">{it.product_name}<VariantLine attrs={it as any} className="block mt-0.5" /></td>
                       <td className="px-3 py-2">{Number(it.system_quantity)}</td>
                       <td className="px-3 py-2">{Number(it.actual_quantity ?? 0)}</td>
                       <td className={`px-3 py-2 font-bold ${d < 0 ? "text-red-500" : "text-emerald-500"}`}>{d > 0 ? `+${d}` : d}</td>
