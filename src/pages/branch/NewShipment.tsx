@@ -693,6 +693,12 @@ export default function NewShipment() {
                           sku: p.sku || l.sku || genSku(),
                           cost_price: p.cost_price || l.cost_price,
                           image: p.image || l.image,
+                          brand: p.brand ?? l.brand ?? "",
+                          model: p.model ?? l.model ?? "",
+                          color: p.color ?? l.color ?? "",
+                          product_type: p.product_type ?? l.product_type ?? "",
+                          capacity: p.capacity ?? l.capacity ?? "",
+                          size: p.size ?? l.size ?? "",
                         })}
                       />
                     </div>
