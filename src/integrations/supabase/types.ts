@@ -6048,6 +6048,20 @@ export type Database = {
       add_invoice_payment: {
         Args: {
           p_amount: number
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_invoice_id: string
+          p_payment_method: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_from_account: string
+          p_transfer_to_account: string
+        }
+        Returns: string
+      }
+      add_invoice_payment__impl: {
+        Args: {
+          p_amount: number
           p_fee_amount?: number
           p_fee_on_customer?: boolean
           p_invoice_id: string
@@ -6108,6 +6122,7 @@ export type Database = {
         Returns: undefined
       }
       archive_product: { Args: { _product_id: string }; Returns: undefined }
+      assert_same_tenant: { Args: { p_tenant: string }; Returns: undefined }
       backfill_missing_journals: { Args: never; Returns: Json }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
@@ -6118,6 +6133,10 @@ export type Database = {
         Returns: boolean
       }
       cancel_invoice_with_refund: {
+        Args: { _invoice_id: string; _reason: string; _refund_method?: string }
+        Returns: Json
+      }
+      cancel_invoice_with_refund__impl: {
         Args: { _invoice_id: string; _reason: string; _refund_method?: string }
         Returns: Json
       }
@@ -6342,6 +6361,21 @@ export type Database = {
       edit_invoice_payment: {
         Args: {
           p_amount: number
+          p_fee_amount: number
+          p_fee_on_customer: boolean
+          p_payment_id: string
+          p_payment_method: string
+          p_reason: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_from_account: string
+          p_transfer_to_account: string
+        }
+        Returns: string
+      }
+      edit_invoice_payment__impl: {
+        Args: {
+          p_amount: number
           p_fee_amount?: number
           p_fee_on_customer?: boolean
           p_payment_id: string
@@ -6357,6 +6391,20 @@ export type Database = {
       edit_payment_transaction: {
         Args: {
           p_amount: number
+          p_fee_amount: number
+          p_payment_method: string
+          p_reason: string
+          p_received_by_name: string
+          p_reference_number: string
+          p_transfer_from_account: string
+          p_transfer_to_account: string
+          p_tx_id: string
+        }
+        Returns: string
+      }
+      edit_payment_transaction__impl: {
+        Args: {
+          p_amount: number
           p_fee_amount?: number
           p_payment_method: string
           p_reason?: string
@@ -6369,6 +6417,10 @@ export type Database = {
         Returns: string
       }
       edit_shipment: {
+        Args: { p_header: Json; p_items: Json; p_shipment_id: string }
+        Returns: Json
+      }
+      edit_shipment__impl: {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
       }
@@ -6506,6 +6558,10 @@ export type Database = {
         Returns: string
       }
       hard_delete_invoice: { Args: { _invoice_id: string }; Returns: undefined }
+      hard_delete_invoice__impl: {
+        Args: { _invoice_id: string }
+        Returns: undefined
+      }
       has_permission: {
         Args: { _key: string; _user_id: string }
         Returns: boolean
@@ -6759,6 +6815,10 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: Json
       }
+      redistribute_installments_after_return__impl: {
+        Args: { _invoice_id: string }
+        Returns: Json
+      }
       register_sale_return: {
         Args: {
           _invoice_id: string
@@ -6935,10 +6995,18 @@ export type Database = {
         Returns: boolean
       }
       void_invoice_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: string
+      }
+      void_invoice_payment__impl: {
         Args: { p_payment_id: string; p_reason?: string }
         Returns: string
       }
       void_payment_transaction: {
+        Args: { p_reason: string; p_tx_id: string }
+        Returns: string
+      }
+      void_payment_transaction__impl: {
         Args: { p_reason?: string; p_tx_id: string }
         Returns: string
       }
