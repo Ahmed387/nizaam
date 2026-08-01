@@ -1,3 +1,4 @@
+import { VariantLine } from "@/components/VariantChips";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -239,6 +240,12 @@ export default function EditSaleInvoice() {
       cost_price: Number(p.cost_price ?? 0),
       selling_price: Number(p.selling_price ?? 0),
       market_price: Number(p.market_price ?? 0),
+      brand: p.brand ?? null,
+      model: p.model ?? null,
+      color: p.color ?? null,
+      product_type: p.product_type ?? null,
+      capacity: p.capacity ?? null,
+      size: p.size ?? null,
     });
     setOpenSuggestIdx(null);
   };
@@ -662,6 +669,7 @@ export default function EditSaleInvoice() {
                                 className="w-full text-right p-2 hover:bg-muted text-xs border-b border-border last:border-0"
                               >
                                 <div className="font-bold">{p.name}</div>
+                                <VariantLine attrs={p} className="block" />
                                 <div className="text-[11px] text-muted-foreground flex justify-between">
                                   <span>SKU: {p.sku ?? "—"}</span>
                                   <span>
@@ -673,6 +681,7 @@ export default function EditSaleInvoice() {
                           )}
                         </div>
                       )}
+                      <VariantLine attrs={it as any} className="block mt-1 px-1" />
                       {!it.product_id && it.product_name && (
                         <div className="text-[11px] text-warning mt-0.5 font-semibold">⚠️ منتج غير مربوط بالمخزون</div>
                       )}
