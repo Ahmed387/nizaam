@@ -96,14 +96,16 @@ Deno.serve(async (req) => {
         user_metadata: { name: emp.name, tenant_id: emp.tenant_id },
       });
       if (createErr) {
-        const { data: existing } = await admin.auth.admin.listUsers();
-        const found = existing?.users?.find(
-          (u: any) => (u.email ?? "").toLowerCase() === email,
+        // SECURITY: an auth account already exists for this email but it is NOT linked
+        // to this employee row. Never reset its password or re-parent its profile —
+        // that would allow taking over an unrelated (possibly other-tenant) account.
+        return new Response(
+          JSON.stringify({
+            error:
+              "هذا البريد مرتبط بحساب موجود بالفعل. يجب على مدير الشركة ربط الحساب بالموظف أولاً.",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
-        if (!found) throw createErr;
-        authUserId = found.id;
-        // sync existing user's password to the verified one
-        await admin.auth.admin.updateUserById(authUserId, { password });
       } else {
         authUserId = created.user!.id;
       }
