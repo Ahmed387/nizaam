@@ -1487,6 +1487,7 @@ export default function NewSale() {
                                 <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
                                 {i.color && <ColorChip name={i.color} />}
                               </div>
+                              <VariantLine attrs={i} className="block mt-0.5" />
                               {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
                             </div>
 
