@@ -12,10 +12,8 @@ import { DataTable } from "@/components/DataTable";
 import { StatCard } from "@/components/StatCard";
 import { ReportIntro } from "@/components/ReportIntro";
 import { printReport } from "@/lib/export";
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, Legend,
-} from "recharts";
+import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
+
 import { Printer, TrendingUp, TrendingDown, Package, Wallet, Users, AlertCircle } from "lucide-react";
 
 const today = () => new Date().toISOString().slice(0, 10);
