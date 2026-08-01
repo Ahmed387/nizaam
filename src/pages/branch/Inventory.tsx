@@ -706,23 +706,25 @@ export default function Inventory() {
                             ) : (
                               <div className="w-11 h-11 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
                             )}
-                            <div className="min-w-0">
-                              <div className="font-semibold truncate" title={r.name}>{r.name}</div>
-                              <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-1.5">
-                                <span>{r.sku}</span>
-                                {r.legacy_code && (
-                                  <span className="px-1 py-0.5 rounded bg-muted/60 text-[10px]" title="رمز الصنف في النظام القديم">قديم: {r.legacy_code}</span>
-                                )}
-                              </div>
-                            </div>
+                            <ProductCell
+                              className="min-w-0"
+                              name={r.name}
+                              attrs={r}
+                              sub={
+                                <span className="font-mono inline-flex items-center gap-1.5">
+                                  <span>{r.sku}</span>
+                                  {r.legacy_code && (
+                                    <span className="px-1 py-0.5 rounded bg-muted/60 text-[10px]" title="رمز الصنف في النظام القديم">قديم: {r.legacy_code}</span>
+                                  )}
+                                </span>
+                              }
+                            />
                           </div>
                         </td>
-                        <td className="px-3 py-3 align-middle text-muted-foreground truncate" title={r.categories?.name ?? ""}>
-                          <div className="flex flex-col gap-1">
-                            <span>{r.categories?.name ?? "—"}</span>
-                            <VariantChips attrs={r} />
-                          </div>
+                        <td className="px-3 py-3 align-middle text-center text-muted-foreground break-words" title={r.categories?.name ?? ""}>
+                          {r.categories?.name ?? "—"}
                         </td>
+
                         <td className="px-3 py-3 align-middle text-center">
                           <div className="font-bold">{r.quantity}</div>
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
