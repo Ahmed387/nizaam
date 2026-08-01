@@ -1363,6 +1363,7 @@ export default function NewSale() {
                             <span className="truncate">{p.sku}</span>
                             {p.color && <ColorChip name={p.color} />}
                           </div>
+                          <VariantLine attrs={p as any} className="block mt-0.5" />
                           {showCost && Number(p.cost_price) > 0 && (
                             <div className="text-[10px] text-muted-foreground mt-1">
                               شراء: {formatEGP(p.cost_price)} · ربح: <span className="text-primary font-bold">{formatEGP(profit)}</span>
