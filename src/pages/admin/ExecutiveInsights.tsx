@@ -280,32 +280,14 @@ export default function ExecutiveInsights({ embedded }: Props) {
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2 text-destructive"><Users className="w-4 h-4" /> أكبر الموردين الدائنين (إحنا مدينين لهم — علينا فلوس)</h3>
           {suppliersWeOwe.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا يوجد موردون مستحقون</div> : (
-            <>
-              <ResponsiveContainer width="100%" height={Math.max(220, suppliersWeOwe.length * 36)}>
-                <BarChart data={suppliersWeOwe} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => formatEGP(Number(v))} />
-                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 18 ? v.slice(0, 18) + "…" : v)} />
-                  <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Bar dataKey="amount" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </>
+            <RankBars items={suppliersWeOwe.map((s: any) => ({ name: s.name, value: Number(s.amount) }))} tone="destructive" format={(v) => formatEGP(v)} />
           )}
         </div>
 
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2 text-success"><Users className="w-4 h-4" /> موردين لنا رصيد عندهم (إحنا لينا فلوس عندهم)</h3>
           {suppliersOwingUs.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا يوجد</div> : (
-            <ResponsiveContainer width="100%" height={Math.max(220, suppliersOwingUs.length * 36)}>
-              <BarChart data={suppliersOwingUs} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => formatEGP(Number(v))} />
-                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 18 ? v.slice(0, 18) + "…" : v)} />
-                <Tooltip formatter={(v: any) => formatEGP(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Bar dataKey="amount" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <RankBars items={suppliersOwingUs.map((s: any) => ({ name: s.name, value: Number(s.amount) }))} tone="success" format={(v) => formatEGP(v)} />
           )}
         </div>
       </div>
@@ -314,16 +296,11 @@ export default function ExecutiveInsights({ embedded }: Props) {
       <div className="card-elevated p-4 mb-6">
         <h3 className="font-bold mb-3 flex items-center gap-2 text-primary"><Package className="w-4 h-4" /> أعلى 10 منتجات مبيعاً</h3>
         {topProducts.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا توجد مبيعات في الفترة</div> : (
-          <ResponsiveContainer width="100%" height={Math.max(320, topProducts.length * 44)}>
-            <BarChart data={topProducts} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => formatEGP(Number(v))} />
-              <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 22 ? v.slice(0, 22) + "…" : v)} />
-              <Tooltip formatter={(v: any, n: any) => [n === "qty" ? formatNumber(Number(v)) : formatEGP(Number(v)), n === "qty" ? "الكمية" : n === "revenue" ? "الإيراد" : "الربح"]} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              <Legend formatter={(v) => v === "revenue" ? "الإيراد" : v === "profit" ? "الربح" : "الكمية"} />
-              <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <RankBars
+            items={topProducts.map((p: any) => ({ name: p.name, value: Number(p.revenue), sub: `${formatNumber(p.qty)} قطعة` }))}
+            tone="primary"
+            format={(v) => formatEGP(v)}
+          />
         )}
       </div>
 
@@ -332,15 +309,12 @@ export default function ExecutiveInsights({ embedded }: Props) {
         <h3 className="font-bold mb-3 flex items-center gap-2 text-accent"><Package className="w-4 h-4" /> أكثر المنتجات طلباً في الحجوزات (Pre-orders)</h3>
         {topPreOrderProducts.length === 0 ? <div className="text-center text-muted-foreground py-8 text-sm">لا توجد طلبات حجز في الفترة</div> : (
           <div className="grid lg:grid-cols-2 gap-4">
-            <ResponsiveContainer width="100%" height={Math.max(280, topPreOrderProducts.length * 36)}>
-              <BarChart data={topPreOrderProducts} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v: any) => (typeof v === "string" && v.length > 18 ? v.slice(0, 18) + "…" : v)} />
-                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Bar dataKey="qty" name="الكمية المطلوبة" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <RankBars
+              items={topPreOrderProducts.map((p: any) => ({ name: p.name, value: Number(p.qty) }))}
+              tone="accent"
+              format={(v) => `${formatNumber(v)} قطعة`}
+            />
+
             <DataTable rows={topPreOrderProducts} empty=""
               columns={[
                 { key: "name", header: "المنتج", render: (r: any) => <b>{r.name}</b> },
