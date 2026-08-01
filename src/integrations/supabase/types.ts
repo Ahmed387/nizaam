@@ -6125,6 +6125,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ai_sql: { Args: { query: string }; Returns: Json }
       allocate_capital_to_branch: {
         Args: {
           _allocation_date?: string
