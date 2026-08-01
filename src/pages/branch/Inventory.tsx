@@ -53,7 +53,7 @@ export default function Inventory() {
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
     low_stock_alert: "5", quantity: "0", image: "", color: "",
-    product_type: "", capacity: "", size: "",
+    product_type: "", capacity: "", size: "", brand: "", model: "",
   });
   const [uploading, setUploading] = useState(false);
   const [historyFor, setHistoryFor] = useState<any>(null);
@@ -62,7 +62,7 @@ export default function Inventory() {
     name: "", sku: "", quantity: "0",
     cost_price: "", selling_price: "", market_price: "",
     qty_notes: "", price_reason: "", image: "", color: "",
-    product_type: "", capacity: "", size: "",
+    product_type: "", capacity: "", size: "", brand: "", model: "",
   });
   const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -126,6 +126,8 @@ export default function Inventory() {
       product_type: String(r.product_type ?? ""),
       capacity: String(r.capacity ?? ""),
       size: String(r.size ?? ""),
+      brand: String(r.brand ?? ""),
+      model: String(r.model ?? ""),
     });
   };
 
@@ -164,7 +166,9 @@ export default function Inventory() {
     const typeChanged = (editForm.product_type || "") !== (editAll.product_type || "");
     const capChanged = (editForm.capacity || "") !== (editAll.capacity || "");
     const sizeChanged = (editForm.size || "") !== (editAll.size || "");
-    const attrsChanged = colorChanged || typeChanged || capChanged || sizeChanged;
+    const brandChanged = (editForm.brand || "") !== (editAll.brand || "");
+    const modelChanged = (editForm.model || "") !== (editAll.model || "");
+    const attrsChanged = colorChanged || typeChanged || capChanged || sizeChanged || brandChanged || modelChanged;
 
     if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !attrsChanged) {
       setEditAll(null);
@@ -186,6 +190,8 @@ export default function Inventory() {
       if (typeChanged) patch.product_type = editForm.product_type || null;
       if (capChanged) patch.capacity = editForm.capacity || null;
       if (sizeChanged) patch.size = editForm.size || null;
+      if (brandChanged) patch.brand = editForm.brand.trim() || null;
+      if (modelChanged) patch.model = editForm.model.trim() || null;
       const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
       if (error) {
         setSavingEdit(false);
@@ -493,6 +499,8 @@ export default function Inventory() {
       if (form.product_type) patch.product_type = form.product_type;
       if (form.capacity) patch.capacity = form.capacity;
       if (form.size) patch.size = form.size;
+      if (form.brand) patch.brand = form.brand.trim();
+      if (form.model) patch.model = form.model.trim();
       if (Object.keys(patch).length) await supabase.from("products").update(patch as any).eq("id", newId);
     }
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
@@ -502,7 +510,7 @@ export default function Inventory() {
     toast.success("تمت إضافة المنتج");
 
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "" });
     load();
   };
 
@@ -877,7 +885,7 @@ export default function Inventory() {
             <div><Label>المقاس / الحجم</Label><div className="mt-1.5"><AttributePicker table="sizes" value={form.size} onChange={(v) => setForm({ ...form, size: v ?? "" })} placeholder="اختر المقاس" /></div></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "" }); setOpen(false); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "" }); setOpen(false); }}>إلغاء</Button>
             <Button className="btn-gradient" onClick={submit}>إضافة</Button>
           </DialogFooter>
         </DialogContent>
