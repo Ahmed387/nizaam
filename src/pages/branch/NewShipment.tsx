@@ -25,6 +25,7 @@ import { createApprovalRequest } from "@/lib/approvalRequests";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { ProductImage } from "@/components/ProductImage";
 import { AttributePicker } from "@/components/AttributePicker";
+import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { ColorPicker } from "@/components/ColorPicker";
 
 interface Line {
