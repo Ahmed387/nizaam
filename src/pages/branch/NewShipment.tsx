@@ -24,6 +24,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { ProductImage } from "@/components/ProductImage";
+import { AttributePicker } from "@/components/AttributePicker";
+import { ColorPicker } from "@/components/ColorPicker";
 
 interface Line {
   id?: string | null;
@@ -35,6 +37,12 @@ interface Line {
   discount_percent: number;
   discount_amount: number;
   image: string;
+  brand?: string;
+  model?: string;
+  color?: string;
+  product_type?: string;
+  capacity?: string;
+  size?: string;
   uploadingImg?: boolean;
 }
 
@@ -189,7 +197,7 @@ export default function NewShipment() {
   }, [isEdit, shipmentId, loadedEdit]);
 
   const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "" }]);
+    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "", brand: "", model: "", color: "", product_type: "", capacity: "", size: "" }]);
 
   const itemsGross = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
   const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
@@ -219,7 +227,7 @@ export default function NewShipment() {
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
-    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "" });
+    if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", brand: p.brand ?? "", model: p.model ?? "", color: p.color ?? "", product_type: p.product_type ?? "", capacity: p.capacity ?? "", size: p.size ?? "" });
     else updateLine(i, { product_id: productId });
   };
 
@@ -343,6 +351,12 @@ export default function NewShipment() {
         discount_percent: Number(l.discount_percent) || 0,
         discount_amount: Number(l.discount_amount) || 0,
         image: l.image || undefined,
+        brand: l.brand?.trim() || undefined,
+        model: l.model?.trim() || undefined,
+        color: l.color?.trim() || undefined,
+        product_type: l.product_type?.trim() || undefined,
+        capacity: l.capacity?.trim() || undefined,
+        size: l.size?.trim() || undefined,
       }));
       const { data: rpcRes, error: rpcErr } = await supabase.rpc("record_shipment", {
         p_header: {
@@ -707,6 +721,34 @@ export default function NewShipment() {
                     <div className="space-y-1">
                       <Label className="text-[10px] font-semibold text-muted-foreground">خصم مبلغ</Label>
                       <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" className="h-9" />
+                    </div>
+                  </div>
+
+                  {/* Variant attributes row */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 px-3 pb-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">الماركة</Label>
+                      <AttributePicker table="brands" value={l.brand ?? ""} onChange={(v) => updateLine(i, { brand: v ?? "" })} placeholder="الماركة" compact />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">الموديل</Label>
+                      <Input value={l.model ?? ""} onChange={(e) => updateLine(i, { model: e.target.value })} placeholder="GR-EF40P" className="h-9 font-mono text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">اللون</Label>
+                      <ColorPicker value={l.color ?? ""} onChange={(v) => updateLine(i, { color: v ?? "" })} compact />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">النوع</Label>
+                      <AttributePicker table="product_types" value={l.product_type ?? ""} onChange={(v) => updateLine(i, { product_type: v ?? "" })} placeholder="النوع" compact />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">السعة</Label>
+                      <AttributePicker table="capacities" value={l.capacity ?? ""} onChange={(v) => updateLine(i, { capacity: v ?? "" })} placeholder="السعة" compact />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">المقاس</Label>
+                      <AttributePicker table="sizes" value={l.size ?? ""} onChange={(v) => updateLine(i, { size: v ?? "" })} placeholder="المقاس" compact />
                     </div>
                   </div>
 
