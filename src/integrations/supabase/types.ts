@@ -6266,44 +6266,26 @@ export type Database = {
         }
         Returns: string
       }
-      create_pre_order:
-        | {
-            Args: {
-              p_branch_id: string
-              p_customer_id: string
-              p_customer_name: string
-              p_customer_phone: string
-              p_deposit_amount: number
-              p_expected_price: number
-              p_model_code: string
-              p_notes: string
-              p_payment_method: string
-              p_price_list_item_id: string
-              p_product_name: string
-              p_quantity: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_branch_id: string
-              p_customer_id: string
-              p_customer_name: string
-              p_customer_phone: string
-              p_deposit_amount: number
-              p_expected_price: number
-              p_model_code: string
-              p_notes: string
-              p_payment_method: string
-              p_price_list_item_id: string
-              p_product_name: string
-              p_quantity: number
-              p_received_by_name?: string
-              p_reference_number?: string
-              p_transfer_to_account?: string
-            }
-            Returns: string
-          }
+      create_pre_order: {
+        Args: {
+          p_branch_id: string
+          p_customer_id: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_deposit_amount: number
+          p_expected_price: number
+          p_model_code: string
+          p_notes: string
+          p_payment_method: string
+          p_price_list_item_id: string
+          p_product_name: string
+          p_quantity: number
+          p_received_by_name?: string
+          p_reference_number?: string
+          p_transfer_to_account?: string
+        }
+        Returns: string
+      }
       create_product_with_opening_stock: {
         Args: { p_product: Json }
         Returns: Json
@@ -6464,44 +6446,25 @@ export type Database = {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
       }
-      edit_voucher:
-        | {
-            Args: {
-              p_amount: number
-              p_category_id: string
-              p_description?: string
-              p_edit_reason?: string
-              p_fee_amount?: number
-              p_party_id?: string
-              p_party_name?: string
-              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
-              p_payment_method: string
-              p_reference_number?: string
-              p_transferred_to?: string
-              p_voucher_date: string
-              p_voucher_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_category_id: string
-              p_description?: string
-              p_edit_reason?: string
-              p_fee_amount?: number
-              p_party_id?: string
-              p_party_name?: string
-              p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
-              p_payment_method: string
-              p_reference_number?: string
-              p_transferred_from?: string
-              p_transferred_to?: string
-              p_voucher_date: string
-              p_voucher_id: string
-            }
-            Returns: Json
-          }
+      edit_voucher: {
+        Args: {
+          p_amount: number
+          p_category_id: string
+          p_description?: string
+          p_edit_reason?: string
+          p_fee_amount?: number
+          p_party_id?: string
+          p_party_name?: string
+          p_party_type?: Database["public"]["Enums"]["voucher_party_type"]
+          p_payment_method: string
+          p_reference_number?: string
+          p_transferred_from?: string
+          p_transferred_to?: string
+          p_voucher_date: string
+          p_voucher_id: string
+        }
+        Returns: Json
+      }
       expire_old_reservations: { Args: never; Returns: number }
       generate_alerts: {
         Args: never
@@ -6640,6 +6603,10 @@ export type Database = {
       }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
+      next_journal_number: {
+        Args: { p_entry_date: string; p_tenant_id: string }
+        Returns: string
+      }
       next_pre_order_number: { Args: never; Returns: string }
       next_purchase_return_number: { Args: never; Returns: string }
       next_sale_return_number: { Args: never; Returns: string }
@@ -6754,39 +6721,23 @@ export type Database = {
         }
         Returns: Json
       }
-      process_sale:
-        | {
-            Args: {
-              p_branch_id: string
-              p_customer_id: string
-              p_discount_amount: number
-              p_discount_percent: number
-              p_discount_reason: string
-              p_items: Json
-              p_payment_method: string
-              p_payments?: Json
-              p_subtotal: number
-              p_total: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_branch_id: string
-              p_customer_id: string
-              p_discount_amount: number
-              p_discount_percent: number
-              p_discount_reason: string
-              p_items: Json
-              p_payment_method: string
-              p_payments?: Json
-              p_subtotal: number
-              p_total: number
-              p_vat_amount?: number
-              p_vat_rate?: number
-            }
-            Returns: string
-          }
+      process_sale: {
+        Args: {
+          p_branch_id: string
+          p_customer_id: string
+          p_discount_amount: number
+          p_discount_percent: number
+          p_discount_reason: string
+          p_items: Json
+          p_payment_method: string
+          p_payments?: Json
+          p_subtotal: number
+          p_total: number
+          p_vat_amount?: number
+          p_vat_rate?: number
+        }
+        Returns: string
+      }
       recalc_contact_balance: {
         Args: { p_contact_id: string }
         Returns: undefined
@@ -6992,34 +6943,20 @@ export type Database = {
         }
         Returns: string
       }
-      transfer_treasury_atomic:
-        | {
-            Args: {
-              p_amount: number
-              p_fee_amount?: number
-              p_from_branch: string
-              p_payment_method?: string
-              p_reason: string
-              p_reference_number?: string
-              p_to_branch: string
-              p_transfer_to_account?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_fee_actually_charged?: boolean
-              p_fee_amount?: number
-              p_from_branch: string
-              p_payment_method?: string
-              p_reason: string
-              p_reference_number?: string
-              p_to_branch: string
-              p_transfer_to_account?: string
-            }
-            Returns: string
-          }
+      transfer_treasury_atomic: {
+        Args: {
+          p_amount: number
+          p_fee_actually_charged?: boolean
+          p_fee_amount?: number
+          p_from_branch: string
+          p_payment_method?: string
+          p_reason: string
+          p_reference_number?: string
+          p_to_branch: string
+          p_transfer_to_account?: string
+        }
+        Returns: string
+      }
       update_product_price_with_reason: {
         Args: {
           _cost_price?: number
