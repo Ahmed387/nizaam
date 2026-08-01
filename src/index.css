@@ -379,3 +379,78 @@
   0% { transform: translateY(24px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+
+/* ===== Global table polish (app tables only, print layouts excluded) ===== */
+:where(body) table:not(.tr-items):not(.no-table-polish) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+#invoice-print-area table,
+.print-area table,
+.thermal-receipt table {
+  border-collapse: collapse;
+}
+
+/* Header */
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > thead > tr > th {
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--muted-foreground));
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > thead > tr > th:first-child {
+  border-start-start-radius: 0.5rem;
+}
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > thead > tr > th:last-child {
+  border-start-end-radius: 0.5rem;
+}
+
+/* Body cells */
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > tbody > tr > td {
+  vertical-align: middle;
+  padding: 0.625rem 0.75rem;
+  line-height: 1.45;
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
+}
+
+/* Zebra + hover */
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > tbody > tr:nth-child(even) > td {
+  background: hsl(var(--muted) / 0.25);
+}
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > tbody > tr:hover > td {
+  background: hsl(var(--accent) / 0.35);
+}
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+
+/* Footer / totals rows */
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > tfoot > tr > td,
+:where(main, .card-elevated, [data-table-shell]) table:not(.no-table-polish) > tfoot > tr > th {
+  background: hsl(var(--muted) / 0.5);
+  font-weight: 700;
+  padding: 0.625rem 0.75rem;
+  vertical-align: middle;
+  border-top: 1px solid hsl(var(--border));
+}
+
+/* Numbers stay readable in RTL layouts */
+table .num,
+table [data-num] {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Keep inline controls compact inside tables */
+table td .h-9 { height: 2rem; }
