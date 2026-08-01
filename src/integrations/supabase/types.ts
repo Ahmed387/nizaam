@@ -6751,12 +6751,10 @@ export type Database = {
         }
         Returns: string
       }
-      record_shipment:
-        | { Args: { p_header: Json; p_lines: Json }; Returns: Json }
-        | {
-            Args: { p_header: Json; p_lines: Json; p_plan?: Json }
-            Returns: Json
-          }
+      record_shipment: {
+        Args: { p_header: Json; p_lines: Json; p_plan?: Json }
+        Returns: Json
+      }
       redistribute_installments_after_return: {
         Args: { _invoice_id: string }
         Returns: Json
