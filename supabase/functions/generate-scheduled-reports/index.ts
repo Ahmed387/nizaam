@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
         .from("returns")
         .select("total_refund")
         .eq("tenant_id", t.id)
+        .eq("status", "active")
         .gte("created_at", sinceISO)
         .lte("created_at", untilISO);
       const totalReturns = (returns ?? []).reduce((s, r: any) => s + Number(r.total_refund || 0), 0);
