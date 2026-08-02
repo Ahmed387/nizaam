@@ -359,10 +359,43 @@ export default function AllEmployees() {
                   {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <div className="text-[11px] text-muted-foreground mt-1">
-                ده الفرع الرئيسي للموظف. لو محتاج تربطه بأكتر من فرع (مثلاً محاسب على كل الفروع) — افتح صفحته بعد الإنشاء واستخدم زر "إدارة الفروع".
-              </div>
             </div>
+            {!isSimpleRole && (
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label>الفروع المسموح بالدخول عليها *</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline"
+                    onClick={() => setAllowedBranchIds(
+                      allowedBranchIds.length === branches.length ? [] : branches.map((b) => b.id)
+                    )}
+                  >
+                    {allowedBranchIds.length === branches.length ? "إلغاء الكل" : "اختيار كل الفروع"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {branches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={allowedBranchIds.includes(b.id)}
+                        onChange={(e) => setAllowedBranchIds(
+                          e.target.checked
+                            ? [...allowedBranchIds, b.id]
+                            : allowedBranchIds.filter((x) => x !== b.id)
+                        )}
+                      />
+                      {b.name}
+                    </label>
+                  ))}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-2">
+                  هيتعمل للموظف حساب دخول ويترّبط بالفروع دي فوراً من نفس الفورم — مش محتاج ترجع لصفحة الموظف.
+                </div>
+              </div>
+            )}
+
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div>
               <Label>الوظيفة *</Label>
