@@ -10,6 +10,7 @@ import { formatEGP } from "@/lib/format";
 import { AlertCircle, Search, RefreshCw, Calendar } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useNavigate } from "react-router-dom";
+import { useBranchScope } from "@/lib/branchScope";
 
 type Plan = {
   id: string;
@@ -38,6 +39,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [branches, setBranches] = useState<Record<string, string>>({});
+  const { isAllowed, filterBranches } = useBranchScope();
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [branchFilter, setBranchFilter] = useState<string>("all");
@@ -54,10 +56,10 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
       supabase.from("payment_installments").select("*").in("status", ["pending", "overdue", "partial"]),
       supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH"),
     ]);
-    setPlans((pp as any) ?? []);
+    setPlans((((pp as any) ?? []) as any[]).filter((r: any) => isAllowed(r.branch_id)) as any);
     setInstallments((pi as any) ?? []);
     const map: Record<string, string> = {};
-    (br ?? []).forEach((b: any) => (map[b.id] = b.name));
+    filterBranches((br ?? []) as any).forEach((b: any) => (map[b.id] = b.name));
     setBranches(map);
     setLoading(false);
   };
