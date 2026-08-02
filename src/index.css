@@ -156,7 +156,37 @@
     transition: background-color 150ms ease;
   }
   .table-row-hover:hover { background-color: hsl(var(--surface-2)); }
+
+  /* ===== Responsive stat cards ===== */
+  .stat-shell {
+    container-type: inline-size;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .stat-value {
+    font-size: clamp(1.05rem, 13cqi, 2.25rem);
+    line-height: 1.1;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-variant-numeric: tabular-nums;
+    unicode-bidi: isolate;
+  }
 }
+
+/* Global safety net: big numbers inside any card never spill outside it */
+:where(.card-elevated, .stat-shell, [data-stat-card]) {
+  min-width: 0;
+}
+:where(.card-elevated, .stat-shell, [data-stat-card])
+  :is(.text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl) {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 
 /* Hide thermal receipt on screen — only used during printing */
 .thermal-print { display: none; }
