@@ -406,8 +406,19 @@ export function UserPermissionsTab() {
                 <Badge className="bg-destructive/15 text-destructive border border-destructive/30">
                   ممنوع استثناءً: {diff.revoked.length}
                 </Badge>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 text-[11px]"
+                  disabled={!diff.extra.length || saving}
+                  onClick={clearExtras}
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <RotateCcw className="w-3.5 h-3.5 ml-1" />}
+                  شيل كل الصلاحيات الزيادة ({diff.extra.length})
+                </Button>
               </div>
             </div>
+
 
             {!diff.extra.length && !diff.revoked.length ? (
               <div className="text-xs text-muted-foreground">
