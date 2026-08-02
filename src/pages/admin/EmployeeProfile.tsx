@@ -290,25 +290,33 @@ export default function EmployeeProfile() {
 
   const submitCreateAccount = async () => {
     if (!acctForm.email || !acctForm.password) return toast.error("أدخل البريد وكلمة المرور");
-    if (acctForm.password.length < 8) return toast.error("كلمة المرور 8 أحرف على الأقل");
+    if (acctForm.password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: acctForm.email,
-        password: acctForm.password,
-        options: {
-          data: { name: emp.name, username: acctForm.email.split("@")[0] },
-          emailRedirectTo: window.location.origin,
+      const { data, error } = await supabase.functions.invoke("admin-create-employee", {
+        body: {
+          employee_id: emp.id,
+          name: emp.name,
+          job_title: emp.job_title,
+          phone: emp.phone,
+          national_id: emp.national_id,
+          base_salary: emp.base_salary,
+          hire_date: emp.hire_date,
+          branch_id: emp.branch_id,
+          allowed_branch_ids: acctForm.branchIds,
+          role: acctForm.role,
+          is_active: emp.is_active ?? true,
+          has_system_access: true,
+          email: acctForm.email.trim().toLowerCase(),
+          password: acctForm.password,
+          work_start: emp.work_start ?? null,
+          work_end: emp.work_end ?? null,
+          work_days: emp.work_days ?? [0, 1, 2, 3, 4, 5],
+          late_grace_minutes: emp.late_grace_minutes ?? 15,
         },
       });
-      if (error) throw error;
-      const uid = data.user?.id;
-      if (!uid) throw new Error("فشل إنشاء الحساب");
-      await new Promise((r) => setTimeout(r, 400));
-      await supabase.from("user_roles").insert({ user_id: uid, role: acctForm.role });
-      if (acctForm.role !== "admin" && acctForm.branchIds.length) {
-        await supabase.from("branch_users").insert(acctForm.branchIds.map((bid) => ({ user_id: uid, branch_id: bid })));
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error ?? error?.message ?? "فشل إنشاء الحساب");
       }
-      await supabase.from("employees").update({ user_id: uid }).eq("id", emp.id);
       toast.success("تم إنشاء حساب الدخول وربطه بالموظف");
       setAcctOpen(false);
       load();
@@ -316,6 +324,7 @@ export default function EmployeeProfile() {
       toast.error(e.message);
     }
   };
+
 
   const unlinkAccount = async () => {
     if (!emp.user_id) return;
