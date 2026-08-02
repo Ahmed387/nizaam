@@ -339,102 +339,152 @@ export default function AllEmployees() {
 
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "تعديل موظف" : "موظف جديد"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>الفرع الأساسي *</Label>
-              <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
-                <SelectContent>
-                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {!isSimpleRole && (
-              <div className="rounded-lg border p-3 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <Label>الفروع المسموح بالدخول عليها *</Label>
-                  <button
-                    type="button"
-                    className="text-xs text-primary underline"
-                    onClick={() => setAllowedBranchIds(
-                      allowedBranchIds.length === branches.length ? [] : branches.map((b) => b.id)
-                    )}
-                  >
-                    {allowedBranchIds.length === branches.length ? "إلغاء الكل" : "اختيار كل الفروع"}
-                  </button>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-lg">{editing ? "تعديل موظف" : "موظف جديد"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 pt-2">
+            {/* بيانات الموظف */}
+            <section className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Users className="w-4 h-4" /> بيانات الموظف
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>الاسم *</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" placeholder="اسم الموظف بالكامل" />
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {branches.map((b) => (
-                    <label key={b.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={allowedBranchIds.includes(b.id)}
-                        onChange={(e) => setAllowedBranchIds(
-                          e.target.checked
-                            ? [...allowedBranchIds, b.id]
-                            : allowedBranchIds.filter((x) => x !== b.id)
-                        )}
-                      />
-                      {b.name}
-                    </label>
-                  ))}
+                <div>
+                  <Label>التليفون *</Label>
+                  <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01xxxxxxxxx" />
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-2">
-                  هيتعمل للموظف حساب دخول ويترّبط بالفروع دي فوراً من نفس الفورم — مش محتاج ترجع لصفحة الموظف.
+                <div>
+                  <Label>الوظيفة *</Label>
+                  <Select value={form.job_title} onValueChange={onPositionChange}>
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الوظيفة" /></SelectTrigger>
+                    <SelectContent>
+                      {POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.value}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>الدور (الصلاحية) *</Label>
+                  <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الصلاحية" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                      <SelectItem value="accountant">محاسب</SelectItem>
+                      <SelectItem value="cashier">كاشير</SelectItem>
+                      <SelectItem value="warehouse">أمين مخازن</SelectItem>
+                      <SelectItem value="supervisor">ملاحظ (متابعة الحضور والانصراف فقط)</SelectItem>
+                      <SelectItem value="viewer">Viewer — مراقب (قراءة فقط لكل البيانات)</SelectItem>
+                      <SelectItem value="worker">عامل</SelectItem>
+                      <SelectItem value="driver">سواق</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>الرقم القومي</Label>
+                  <Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" />
+                </div>
+                <div>
+                  <Label>الراتب الأساسي</Label>
+                  <Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" placeholder="0" />
                 </div>
               </div>
-            )}
+            </section>
 
-            <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
-            <div>
-              <Label>الوظيفة *</Label>
-              <Select value={form.job_title} onValueChange={onPositionChange}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الوظيفة" /></SelectTrigger>
-                <SelectContent>
-                  {POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.value}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>الدور (الصلاحية) *</Label>
-              <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الصلاحية" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
-                  <SelectItem value="accountant">محاسب</SelectItem>
-                  <SelectItem value="cashier">كاشير</SelectItem>
-                  <SelectItem value="warehouse">أمين مخازن</SelectItem>
-                  <SelectItem value="supervisor">ملاحظ (متابعة الحضور والانصراف فقط)</SelectItem>
-                  <SelectItem value="viewer">Viewer — مراقب (قراءة فقط لكل البيانات)</SelectItem>
-                  <SelectItem value="worker">عامل</SelectItem>
-                  <SelectItem value="driver">سواق</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>التليفون *</Label><Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><Label>الرقم القومي</Label><Input dir="ltr" className="text-right mt-1.5" maxLength={14} value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value.replace(/\D/g, "") })} placeholder="14 رقم" /></div>
-            {!isSimpleRole && (
-              <>
-                <div><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" /></div>
-                <div><Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور (للدخول كموظف) *"}</Label><Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" /></div>
-              </>
-            )}
-            {isSimpleRole && (
-              <div className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+            {/* الفروع */}
+            <section className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <UserCheck className="w-4 h-4" /> الفروع
+              </div>
+              <div>
+                <Label>الفرع الأساسي *</Label>
+                <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="— اختر —" /></SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!isSimpleRole && (
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-sm">الفروع المسموح بالدخول عليها *</Label>
+                    <Button
+                      type="button" variant="ghost" size="sm" className="h-7 text-xs"
+                      onClick={() => setAllowedBranchIds(
+                        allowedBranchIds.length === branches.length ? [] : branches.map((b) => b.id)
+                      )}
+                    >
+                      {allowedBranchIds.length === branches.length ? "إلغاء الكل" : "اختيار كل الفروع"}
+                    </Button>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                    {branches.map((b) => {
+                      const checked = allowedBranchIds.includes(b.id);
+                      return (
+                        <label
+                          key={b.id}
+                          className={`flex items-start gap-2 text-sm rounded-lg border px-3 py-2 cursor-pointer transition-colors ${checked ? "border-primary bg-primary/10" : "bg-background hover:bg-muted/60"}`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 shrink-0 accent-[hsl(var(--primary))]"
+                            checked={checked}
+                            onChange={(e) => setAllowedBranchIds(
+                              e.target.checked
+                                ? [...allowedBranchIds, b.id]
+                                : allowedBranchIds.filter((x) => x !== b.id)
+                            )}
+                          />
+                          <span className="leading-snug">{b.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* الدخول على النظام */}
+            {!isSimpleRole ? (
+              <section className="rounded-xl border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <ClipboardCheck className="w-4 h-4" /> بيانات الدخول
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>البريد الإلكتروني *</Label>
+                    <Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" />
+                  </div>
+                  <div>
+                    <Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور *"}</Label>
+                    <Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" />
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3">
                 {form.role === "worker" ? "العمال" : "السواقين"} لا يدخلون على السيستم — يتابعهم المحاسب أو أمين المخزن.
               </div>
             )}
-            <div><Label>الراتب الأساسي</Label><Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" /></div>
-            <ShiftEditor value={shift} onChange={setShift} />
+
+            {/* الشيفت */}
+            <section className="rounded-xl border bg-card p-4">
+              <ShiftEditor value={shift} onChange={setShift} />
+            </section>
+
             {editing && (
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
+                <input type="checkbox" className="accent-[hsl(var(--primary))]" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
                 موظف نشط
               </label>
             )}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
             <Button onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : editing ? "حفظ" : "إضافة"}</Button>
