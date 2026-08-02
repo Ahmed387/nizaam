@@ -147,53 +147,45 @@ export default function AllEmployees() {
   const submit = async () => {
     if (!form.name || !form.job_title || !form.branch_id || !form.role) return toast.error("املأ الاسم والوظيفة والفرع والصلاحية");
     if (!form.phone) return toast.error("التليفون مطلوب");
-
-    const payload: any = {
-      branch_id: form.branch_id,
-      name: form.name.trim(),
-      job_title: form.job_title,
-      phone: form.phone.trim(),
-      national_id: form.national_id.trim() || null,
-      base_salary: Number(form.base_salary) || 0,
-      hire_date: form.hire_date,
-      role: form.role || null,
-      is_active: form.is_active,
-      has_system_access: !isSimpleRole,
-      work_start: shift.work_start,
-      work_end: shift.work_end,
-      work_days: shift.work_days,
-      late_grace_minutes: shift.late_grace_minutes,
-    };
-
-    if (isSimpleRole) {
-      // Workers/Drivers: no email/password — they don't log in
-      payload.email = null;
-      if (!editing) payload.login_password = null;
-    } else {
+    if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب لدخول الموظف");
       if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
       if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
-      const emailLower = form.email.trim().toLowerCase();
-      const { data: dup } = await supabase.from("employees").select("id").ilike("email", emailLower).maybeSingle();
-      if (dup && dup.id !== editing?.id) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
-      payload.email = emailLower;
-      if (!editing || form.login_password) {
-        payload.login_password = form.login_password || null;
-      }
+      if (!allowedBranchIds.length && !form.branch_id) return toast.error("اختر الفروع المسموح بها");
     }
 
-    if (editing) {
-      const { error } = await supabase.from("employees").update(payload).eq("id", editing.id);
-      if (error) return toast.error(error.message);
-      toast.success("تم التعديل");
-    } else {
-      const { error } = await supabase.from("employees").insert({ ...payload, tenant_id: tenantId });
-      if (error) return toast.error(error.message);
-      toast.success("تمت الإضافة");
-    }
+    setSaving(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-employee", {
+      body: {
+        employee_id: editing?.id ?? null,
+        name: form.name.trim(),
+        job_title: form.job_title,
+        phone: form.phone.trim(),
+        national_id: form.national_id.trim() || null,
+        base_salary: Number(form.base_salary) || 0,
+        hire_date: form.hire_date,
+        branch_id: form.branch_id,
+        allowed_branch_ids: isSimpleRole ? [] : allowedBranchIds,
+        role: form.role,
+        is_active: form.is_active,
+        has_system_access: !isSimpleRole,
+        email: isSimpleRole ? null : form.email.trim().toLowerCase(),
+        password: form.login_password || null,
+        work_start: shift.work_start,
+        work_end: shift.work_end,
+        work_days: shift.work_days,
+        late_grace_minutes: shift.late_grace_minutes,
+      },
+    });
+    setSaving(false);
+    const errMsg = (error as any)?.message ?? (data as any)?.error;
+    if (errMsg) return toast.error(String(errMsg));
+
+    toast.success(editing ? "تم التعديل" : "تمت إضافة الموظف وربط حسابه بالفروع");
     setOpen(false);
     load();
   };
+
 
 
   const confirmDelete = async () => {
