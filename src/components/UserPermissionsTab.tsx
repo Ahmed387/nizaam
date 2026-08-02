@@ -61,20 +61,26 @@ export function UserPermissionsTab() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [rolePerms, setRolePerms] = useState<Record<string, Record<string, boolean>>>({});
 
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }, { data: rp }] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
       supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
       supabase.from("employees").select("user_id").eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
+      supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
     ]);
     setEmployeeUserIds(new Set(((emps ?? []) as any[]).map((e) => e.user_id)));
     setUsers(profs ?? []);
     setAllBranches((brs ?? []) as any);
+    const pmap: Record<string, Record<string, boolean>> = {};
+    ((rp ?? []) as any[]).forEach((r) => { (pmap[r.role] = pmap[r.role] || {})[r.permission_key] = !!r.allowed; });
+    Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([r, defs]) => { if (!pmap[r]) pmap[r] = { ...defs }; });
+    setRolePerms(pmap);
     const rmap: Record<string, string[]> = {};
     (roles ?? []).forEach((r: any) => { (rmap[r.user_id] = rmap[r.user_id] || []).push(r.role); });
     setRolesByUser(rmap);
