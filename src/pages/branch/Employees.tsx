@@ -203,7 +203,7 @@ export default function Employees() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>البريد الإلكتروني *</Label>
-                  <Input dir="ltr" type="email" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <Input dir="ltr" type="email" name="employee-email" autoComplete="off" data-lpignore="true" data-form-type="other" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
                 <div>
                   <Label>التليفون *</Label>
@@ -258,6 +258,10 @@ export default function Employees() {
                   <div className="relative mt-1.5">
                     <Input
                       type={showPwd ? "text" : "password"}
+                      name="employee-new-password"
+                      autoComplete="new-password"
+                      data-lpignore="true"
+                      data-form-type="other"
                       value={form.login_password}
                       onChange={(e) => setForm({ ...form, login_password: e.target.value })}
                       className="pl-10"

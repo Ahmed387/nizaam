@@ -458,11 +458,11 @@ export default function AllEmployees() {
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
                     <Label>البريد الإلكتروني *</Label>
-                    <Input type="email" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" />
+                    <Input type="email" name="employee-email" autoComplete="off" data-lpignore="true" data-form-type="other" dir="ltr" className="text-right mt-1.5" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="employee@company.com" />
                   </div>
                   <div>
                     <Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور *"}</Label>
-                    <Input type="password" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" />
+                    <Input type="password" name="employee-new-password" autoComplete="new-password" data-lpignore="true" data-form-type="other" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" />
                   </div>
                 </div>
               </section>
