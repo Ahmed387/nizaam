@@ -223,35 +223,35 @@ export function UserPermissionsTab() {
     if (!tenantId || !userId) return;
     setSaving(true);
     const upserts: any[] = [];
-    const removals: string[] = [];
     USER_PERMISSION_GROUPS.forEach((g) =>
       g.actions.forEach((a) => {
         const key = `${g.key}.${a}`;
         const v = state[key] ?? "default";
-        if (v === "default") removals.push(key);
-        else upserts.push({ tenant_id: tenantId, user_id: userId, permission_key: key, allowed: v === "allow" });
+        if (v !== "default") upserts.push({ tenant_id: tenantId, user_id: userId, permission_key: key, allowed: v === "allow" });
       }),
     );
     try {
-      if (removals.length) {
-        const { error } = await supabase
-          .from("user_permissions" as any)
-          .delete()
-          .eq("user_id", userId)
-          .in("permission_key", removals);
-        if (error) throw error;
-      }
+      // Wipe every stored override for this user first (root fix: nothing can survive
+      // a removal because of key lists that don't match what's actually in the DB),
+      // then write back only what's currently selected.
+      const { error: delErr } = await supabase
+        .from("user_permissions" as any)
+        .delete()
+        .eq("user_id", userId)
+        .eq("tenant_id", tenantId);
+      if (delErr) throw delErr;
+
       if (upserts.length) {
         const { data, error } = await supabase
           .from("user_permissions" as any)
-          .upsert(upserts, { onConflict: "tenant_id,user_id,permission_key" })
+          .insert(upserts)
           .select("permission_key");
         if (error) throw error;
         if (!data || data.length === 0) throw new Error("لم يتم تسجيل أي استثناء — تأكد من صلاحياتك كمالك");
       }
       // Re-read from DB so the screen always reflects what's actually stored
       await loadOverrides(userId);
-      toast.success(upserts.length ? `تم حفظ ${upserts.length} استثناء فعليًا` : "تم مسح كل الاستثناءات");
+      toast.success(upserts.length ? `تم حفظ ${upserts.length} استثناء فعليًا` : "تم مسح كل الاستثناءات فعليًا");
     } catch (e: any) {
       toast.error("فشل الحفظ: " + (e?.message ?? e));
     } finally {
@@ -261,14 +261,35 @@ export function UserPermissionsTab() {
 
   /** Remove every override → the employee falls back to his role defaults. */
   const resetToRoleDefaults = async () => {
-    if (!userId) return;
+    if (!userId || !tenantId) return;
     setSaving(true);
-    const { error } = await supabase.from("user_permissions" as any).delete().eq("user_id", userId);
+    const { error } = await supabase
+      .from("user_permissions" as any)
+      .delete()
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId);
+    if (error) { setSaving(false); toast.error("فشل الإرجاع: " + error.message); return; }
+    await loadOverrides(userId);
     setSaving(false);
-    if (error) { toast.error("فشل الإرجاع: " + error.message); return; }
-    setState({});
     toast.success("تم إرجاع الموظف لصلاحيات دوره الافتراضية");
   };
+
+  /** Remove only the EXTRA granted permissions (keeps manual restrictions). */
+  const clearExtras = async () => {
+    if (!userId || !tenantId || !diff.extra.length) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("user_permissions" as any)
+      .delete()
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .in("permission_key", diff.extra);
+    if (error) { setSaving(false); toast.error("فشل الحذف: " + error.message); return; }
+    await loadOverrides(userId);
+    setSaving(false);
+    toast.success(`تم سحب ${diff.extra.length} صلاحية إضافية`);
+  };
+
 
 
   const TriToggle = ({ perm }: { perm: string }) => {
