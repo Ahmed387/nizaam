@@ -16,6 +16,7 @@ import {
   USER_PERMISSION_GROUPS,
   MANAGED_ROLES,
   ROLE_LABELS,
+  DEFAULT_ROLE_PERMISSIONS,
   AppRole,
 } from "@/lib/roles";
 
@@ -24,6 +25,11 @@ type Group = { key: string; label: string; actions: ("view" | "create" | "update
 type Node = { group: Group; children: Group[] };
 
 const ACTION_LABELS: Record<string, string> = { view: "عرض", create: "إنشاء", update: "تعديل", delete: "حذف" };
+
+/** permission_key → readable label (e.g. "المبيعات — إنشاء"). */
+const PERM_LABELS: Record<string, string> = Object.fromEntries(
+  USER_PERMISSION_GROUPS.flatMap((g) => g.actions.map((a) => [`${g.key}.${a}`, `${g.label} — ${ACTION_LABELS[a]}`])),
+);
 
 /** Strip the "الصفحة ← " prefix from sub-section labels for the tree view. */
 const childLabel = (label: string) => (label.includes("←") ? label.split("←").slice(1).join("←").trim() : label);
@@ -55,20 +61,26 @@ export function UserPermissionsTab() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [rolePerms, setRolePerms] = useState<Record<string, Record<string, boolean>>>({});
 
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }, { data: rp }] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
       supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
       supabase.from("employees").select("user_id").eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
+      supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
     ]);
     setEmployeeUserIds(new Set(((emps ?? []) as any[]).map((e) => e.user_id)));
     setUsers(profs ?? []);
     setAllBranches((brs ?? []) as any);
+    const pmap: Record<string, Record<string, boolean>> = {};
+    ((rp ?? []) as any[]).forEach((r) => { (pmap[r.role] = pmap[r.role] || {})[r.permission_key] = !!r.allowed; });
+    Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([r, defs]) => { if (!pmap[r]) pmap[r] = { ...defs }; });
+    setRolePerms(pmap);
     const rmap: Record<string, string[]> = {};
     (roles ?? []).forEach((r: any) => { (rmap[r.user_id] = rmap[r.user_id] || []).push(r.role); });
     setRolesByUser(rmap);
@@ -125,6 +137,24 @@ export function UserPermissionsTab() {
         .filter(Boolean) as Node[],
     })).filter((s) => s.nodes.length);
   }, [q]);
+
+  /** Differences between this user's overrides and the defaults of his role. */
+  const diff = useMemo(() => {
+    const extra: string[] = [];   // مسموح له استثناءً (الدور مش مديهاله)
+    const revoked: string[] = []; // ممنوع منه استثناءً (الدور كان مديهاله)
+    const same: string[] = [];    // استثناء بنفس نتيجة الدور
+    if (!userId) return { extra, revoked, same };
+    const defs = rolePerms[role] ?? DEFAULT_ROLE_PERMISSIONS[role] ?? {};
+    Object.entries(state).forEach(([key, v]) => {
+      if (v !== "allow" && v !== "deny") return;
+      const roleAllows = defs[key] === true;
+      if (v === "allow" && !roleAllows) extra.push(key);
+      else if (v === "deny" && roleAllows) revoked.push(key);
+      else same.push(key);
+    });
+    return { extra, revoked, same };
+  }, [state, role, rolePerms, userId]);
+
 
   const set = (key: string, v: Tri) => setState((p) => ({ ...p, [key]: v }));
 
@@ -304,6 +334,61 @@ export function UserPermissionsTab() {
             </div>
           </div>
         </div>
+
+        {userId && (
+          <div className="rounded-lg border border-primary/25 bg-gradient-to-l from-primary/5 to-transparent p-3 space-y-3 animate-fade-in">
+            <div className="flex flex-wrap items-center gap-2">
+              <FolderTree className="w-4 h-4 text-primary" />
+              <span className="font-bold text-sm">الاستثناءات مقارنة بصلاحيات الدور ({ROLE_LABELS[role as AppRole] ?? (role || "بدون دور")})</span>
+              <div className="flex flex-wrap gap-2 ms-auto">
+                <Badge className="bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                  مسموح زيادة: {diff.extra.length}
+                </Badge>
+                <Badge className="bg-destructive/15 text-destructive border border-destructive/30">
+                  ممنوع استثناءً: {diff.revoked.length}
+                </Badge>
+              </div>
+            </div>
+
+            {!diff.extra.length && !diff.revoked.length ? (
+              <div className="text-xs text-muted-foreground">
+                مفيش أي استثناء — الموظف شغال بصلاحيات دوره الافتراضية بالظبط.
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-3">
+                {!!diff.extra.length && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2">
+                    <div className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> مسموح له غير الافتراضي ({diff.extra.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {diff.extra.map((k) => (
+                        <span key={k} className="text-[11px] rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2 py-0.5">
+                          {PERM_LABELS[k] ?? k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!!diff.revoked.length && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2">
+                    <div className="text-xs font-bold text-destructive mb-1">
+                      ممنوع منه رغم إن دوره بيسمح ({diff.revoked.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {diff.revoked.map((k) => (
+                        <span key={k} className="text-[11px] rounded-full bg-destructive/15 text-destructive px-2 py-0.5">
+                          {PERM_LABELS[k] ?? k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
 
         {userId && (
           <div className="rounded-lg border bg-muted/20 p-3 space-y-3 animate-fade-in">
