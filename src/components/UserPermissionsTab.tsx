@@ -261,8 +261,14 @@ export function UserPermissionsTab() {
               <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.name || u.username || u.id}</SelectItem>
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name || u.username || u.id}
+                    {(rolesByUser[u.id] ?? []).length > 0 && (
+                      <span className="text-xs text-muted-foreground"> — {(rolesByUser[u.id] ?? []).map((r) => ROLE_LABELS[r as AppRole] ?? r).join("، ")}</span>
+                    )}
+                  </SelectItem>
                 ))}
+
               </SelectContent>
             </Select>
           </div>
