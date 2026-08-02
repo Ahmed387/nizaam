@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Banknote, Boxes, Users, Save, Scale, Search, ShieldAlert } from "lucide-react";
+import { useBranchScope } from "@/lib/branchScope";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,6 +34,8 @@ export default function OpeningBalances() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [branches, setBranches] = useState<Branch[]>([]);
+
+  const { filterBranches } = useBranchScope();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
 
@@ -55,7 +58,7 @@ export default function OpeningBalances() {
         .eq("tenant_id", tenantId).is("archived_at", null).order("name"),
       supabase.rpc("get_opening_balances" as any),
     ]);
-    setBranches((b.data as any) ?? []);
+    setBranches(filterBranches(((b.data as any) ?? []) as any) as any);
     setContacts((c.data as any) ?? []);
     setProducts((p.data as any) ?? []);
 

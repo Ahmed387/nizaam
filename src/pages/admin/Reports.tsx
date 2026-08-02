@@ -25,6 +25,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   PieChart, Pie, Cell as RCell,
 } from "recharts";
+import { useBranchScope } from "@/lib/branchScope";
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))", "#8b5cf6", "#06b6d4"];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -40,6 +41,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [productSort, setProductSort] = useState<"profit" | "revenue" | "qty">("profit");
 
   const [branches, setBranches] = useState<Branch[]>([]);
+
+  const { filterBranches } = useBranchScope();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -85,7 +88,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("payment_plans").select("*").neq("status", "completed"),
       supabase.from("invoice_payments").select("branch_id, payment_method, amount, created_at").gte("created_at", fromIso).lte("created_at", toIso),
     ]);
-    setBranches(b.data ?? []);
+    setBranches(filterBranches((b.data ?? []) as any) as any);
     setInvoices(inv.data ?? []);
     setExpenses((exp.data ?? []).map((v: any) => ({
       id: v.id, branch_id: v.branch_id, date: v.voucher_date, amount: v.amount,

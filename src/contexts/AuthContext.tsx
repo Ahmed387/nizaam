@@ -25,6 +25,8 @@ interface AuthCtx {
   branches: { id: string; name: string; code: string }[];
   loading: boolean;
   ctxReady: boolean;
+  /** Branch ids this user may see in admin pages; null = all branches. */
+  branchScope: string[] | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isOwner: boolean;
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [ctxReady, setCtxReady] = useState(false);
   const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
+  const [userPerms, setUserPerms] = useState<Record<string, boolean>>({});
 
   const loadPerms = async (tid: string | null) => {
     if (!tid) { setPermsByRole({}); return; }
@@ -71,6 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles(ctx.roles);
     setBranches(ctx.branches as any);
     await loadPerms(ctx.tenantId);
+    const { data: overrides } = await supabase
+      .from("user_permissions" as any)
+      .select("permission_key, allowed")
+      .eq("user_id", uid);
+    setUserPerms(Object.fromEntries((overrides ?? []).map((r: any) => [r.permission_key, !!r.allowed])));
     setCtxReady(true);
   };
 
@@ -88,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTenant(null);
         setRoles([]);
         setBranches([]);
+        setUserPerms({});
         setCtxReady(false);
       }
     });
@@ -125,6 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         { event: "*", schema: "public", table: "branch_users", filter: `user_id=eq.${user.id}` },
         () => loadCtx(user.id)
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_permissions", filter: `user_id=eq.${user.id}` },
+        () => loadCtx(user.id)
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
@@ -139,11 +153,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     branches,
     loading,
     ctxReady,
+    branchScope:
+      roles.includes("admin") || roles.includes("super_admin") || (!!user?.id && user.id === tenant?.owner_user_id)
+        ? null
+        : branches.map((b) => b.id),
     isAdmin: roles.includes("admin") || roles.includes("super_admin"),
     isSuperAdmin: roles.includes("super_admin"),
     isOwner: !!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id,
     hasRole: (r) => roles.includes(r),
-    can: (key) => checkPermission(roles, permsByRole, key),
+    can: (key) => checkPermission(roles, permsByRole, key, userPerms),
     signOut: async () => {
       await supabase.auth.signOut();
     },

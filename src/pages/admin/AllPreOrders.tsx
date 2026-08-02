@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { BookmarkPlus, Clock, CheckCircle2, XCircle, PackageCheck } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { useBranchScope } from "@/lib/branchScope";
 
 const STATUS_LABEL: Record<string, { ar: string; cls: string }> = {
   pending:   { ar: "في الانتظار", cls: "bg-warning/15 text-warning" },
@@ -20,6 +21,7 @@ const STATUS_LABEL: Record<string, { ar: string; cls: string }> = {
 export default function AllPreOrders() {
   const [rows, setRows] = useState<any[]>([]);
   const [branches, setBranches] = useState<Record<string, string>>({});
+  const { isAllowed, filterBranches } = useBranchScope();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -30,8 +32,8 @@ export default function AllPreOrders() {
       supabase.from("pre_orders").select("*").order("created_at", { ascending: false }),
       supabase.from("branches").select("id, name").neq("code", "PARTNER-CASH"),
     ]);
-    setRows(po ?? []);
-    setBranches(Object.fromEntries((br ?? []).map((b: any) => [b.id, b.name])));
+    setRows(((po ?? []) as any[]).filter((r: any) => isAllowed(r.branch_id)));
+    setBranches(Object.fromEntries(filterBranches((br ?? []) as any).map((b: any) => [b.id, b.name])));
     setLoading(false);
   };
 

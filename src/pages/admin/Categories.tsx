@@ -14,10 +14,12 @@ import { formatEGP } from "@/lib/format";
 import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip } from "@/components/AttributePicker";
 import { ProductImage } from "@/components/ProductImage";
+import { useBranchScope } from "@/lib/branchScope";
 
 export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const [cats, setCats] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const { filterBranches } = useBranchScope();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", parent_id: "" });
@@ -32,7 +34,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
       supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").order("name"),
     ]);
     setCats(c ?? []);
-    setBranches(b ?? []);
+    setBranches(filterBranches((b ?? []) as any) as any);
   };
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["categories", "products"], load);

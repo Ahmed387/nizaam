@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime, formatEGP } from "@/lib/format";
 import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { useBranchScope } from "@/lib/branchScope";
 
 const PRICE_TYPE_LABEL: Record<string, string> = {
   selling_price: "سعر البيع",
@@ -45,6 +46,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);
+  const { filterBranches } = useBranchScope();
   const [products, setProducts] = useState<any[]>([]);
 
   // filters
@@ -72,7 +74,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
 
   useEffect(() => {
     load();
-    supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").then(({ data }) => setBranches(data ?? []));
+    supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").then(({ data }) => setBranches(filterBranches((data ?? [])) as any) as any);
     supabase.from("products").select("id,name").limit(1000).then(({ data }) => setProducts(data ?? []));
 
     const ch = supabase

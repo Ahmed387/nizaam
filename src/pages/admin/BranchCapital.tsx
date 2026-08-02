@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Building2, PlusCircle, TrendingUp, TrendingDown, Wallet, Package, Users, PieChart } from "lucide-react";
 import { formatDate } from "@/lib/format";
+import { useBranchScope } from "@/lib/branchScope";
 
 type Branch = { id: string; name: string; code: string };
 type Allocation = { id: string; branch_id: string; amount: number; allocation_date: string; notes: string | null; created_at: string };
@@ -38,6 +39,7 @@ const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFract
 export default function BranchCapital() {
   const { tenantId } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
+  const { filterBranches } = useBranchScope();
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [positions, setPositions] = useState<Record<string, Position>>({});
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export default function BranchCapital() {
       supabase.from("branch_capital_allocations" as any).select("*").eq("tenant_id", tenantId).order("allocation_date", { ascending: false }),
     ]);
     const brs = (br ?? []) as Branch[];
-    setBranches(brs);
+    setBranches(filterBranches((brs) as any) as any);
     setAllocations((al ?? []) as any);
 
     // load positions in parallel

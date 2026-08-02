@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllAttendance from "./AllAttendance";
+import { useBranchScope } from "@/lib/branchScope";
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" },
@@ -38,6 +39,7 @@ export default function AllEmployees() {
   useAuth();
   const [emps, setEmps] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const { filterBranches } = useBranchScope();
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
   const [userBranches, setUserBranches] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function AllEmployees() {
       supabase.from("advances").select("employee_id, remaining"),
     ]);
     setEmps(e ?? []);
-    setBranches(b ?? []);
+    setBranches(filterBranches((b ?? []) as any) as any);
     const map: Record<string, number> = {};
     for (const x of (a ?? []) as any[]) {
       map[x.employee_id] = (map[x.employee_id] ?? 0) + Number(x.remaining);

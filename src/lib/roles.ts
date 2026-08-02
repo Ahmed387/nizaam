@@ -74,10 +74,66 @@ export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_settings", label: "الإعدادات", actions: ["view"] },
 ];
 
+/** Sub-sections (tabs) inside admin hub pages — each can be granted separately. */
+export const ADMIN_SUBSECTION_PERMISSION_GROUPS: PermGroup[] = [
+  // الفروع والمخزون
+  { key: "admin_catalog_branches", label: "الفروع والمخزون ← إدارة الفروع", actions: ["view"] },
+  { key: "admin_catalog_categories", label: "الفروع والمخزون ← التصنيفات", actions: ["view"] },
+  { key: "admin_catalog_pricelist", label: "الفروع والمخزون ← قائمة الأسعار", actions: ["view"] },
+  { key: "admin_catalog_inventory", label: "الفروع والمخزون ← مخزون كل الفروع", actions: ["view"] },
+  // المالية
+  { key: "admin_finance_vouchers", label: "المالية ← السندات المالية", actions: ["view"] },
+  { key: "admin_finance_receivables", label: "المالية ← ذمم العملاء والموردين", actions: ["view"] },
+  // التقارير
+  { key: "admin_reports_owner", label: "التقارير ← نظرة المالك", actions: ["view"] },
+  { key: "admin_reports_central", label: "التقارير ← العمليات (مركزية)", actions: ["view"] },
+  { key: "admin_reports_profitability", label: "التقارير ← الربحية", actions: ["view"] },
+  { key: "admin_reports_insights", label: "التقارير ← الرؤى التنفيذية", actions: ["view"] },
+  { key: "admin_reports_scheduled", label: "التقارير ← التقارير المجدولة", actions: ["view"] },
+  { key: "admin_reports_audit", label: "التقارير ← سجل العمليات", actions: ["view"] },
+  { key: "admin_reports_price_audit", label: "التقارير ← سجل الأسعار", actions: ["view"] },
+  { key: "admin_reports_return_overrides", label: "التقارير ← تجاوزات المرتجعات", actions: ["view"] },
+  // مركز الموافقات
+  { key: "admin_approvals_requests", label: "الموافقات ← طلبات الموافقة", actions: ["view"] },
+  { key: "admin_approvals_discounts", label: "الموافقات ← طلبات الخصم", actions: ["view"] },
+  { key: "admin_approvals_advances", label: "الموافقات ← طلبات السلف", actions: ["view"] },
+];
+
+/**
+ * Sub-section key → parent page key. When a sub-section has no explicit rule,
+ * it inherits the parent page permission.
+ */
+export const SUBSECTION_PARENT: Record<string, string> = {
+  admin_catalog_branches: "admin_catalog",
+  admin_catalog_categories: "admin_catalog",
+  admin_catalog_pricelist: "admin_catalog",
+  admin_catalog_inventory: "admin_catalog",
+  admin_finance_vouchers: "admin_finance",
+  admin_finance_receivables: "admin_finance",
+  admin_reports_owner: "admin_reports_hub",
+  admin_reports_central: "admin_reports_hub",
+  admin_reports_profitability: "admin_reports_hub",
+  admin_reports_insights: "admin_reports_hub",
+  admin_reports_scheduled: "admin_reports_hub",
+  admin_reports_audit: "admin_reports_hub",
+  admin_reports_price_audit: "admin_reports_hub",
+  admin_reports_return_overrides: "admin_reports_hub",
+  admin_approvals_requests: "admin_approvals",
+  admin_approvals_discounts: "admin_approvals",
+  admin_approvals_advances: "admin_approvals",
+};
+
 /** Full permission catalog used by the admin Role Permissions panel. */
 export const PERMISSION_GROUPS: PermGroup[] = [
   ...BRANCH_PERMISSION_GROUPS,
   ...ADMIN_NAV_PERMISSION_GROUPS,
+];
+
+/** Everything an owner can grant to a single user (roles + sub-sections). */
+export const USER_PERMISSION_GROUPS: PermGroup[] = [
+  ...BRANCH_PERMISSION_GROUPS,
+  ...ADMIN_NAV_PERMISSION_GROUPS,
+  ...ADMIN_SUBSECTION_PERMISSION_GROUPS,
 ];
 
 
@@ -133,14 +189,25 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   viewer: Object.fromEntries(BRANCH_PERMISSION_GROUPS.flatMap(g => g.actions.filter(a => a === "view").map(a => [`${g.key}.${a}`, true]))),
 };
 
-/** Local permission check (mirrors DB has_permission). Admin/super always true. */
+/**
+ * Local permission check (mirrors DB has_permission). Admin/super always true.
+ * Resolution order: per-user override → role matrix → parent page (for sub-sections).
+ */
 export function checkPermission(
   roles: AppRole[],
   permsByRole: Record<string, Record<string, boolean>>,
   key: string,
+  userOverrides: Record<string, boolean> = {},
 ): boolean {
   if (roles.includes("admin") || roles.includes("super_admin")) return true;
-  return roles.some((r) => permsByRole[r]?.[key] === true);
+  if (userOverrides[key] !== undefined) return userOverrides[key];
+  if (roles.some((r) => permsByRole[r]?.[key] === true)) return true;
+  const parent = SUBSECTION_PARENT[key.replace(/\.[^.]+$/, "")];
+  if (parent) {
+    const hasExplicit = roles.some((r) => permsByRole[r]?.[key] !== undefined);
+    if (!hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides);
+  }
+  return false;
 }
 
 export async function fetchUserContext(userId: string) {

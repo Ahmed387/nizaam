@@ -19,6 +19,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck, Loader2 } from "lucide-react";
 import { createApprovalRequest } from "@/lib/approvalRequests";
+import { useBranchScope } from "@/lib/branchScope";
 
 interface Supplier {
   id: string;
@@ -53,6 +54,7 @@ export default function AllSuppliers() {
   const nav = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const { filterBranches } = useBranchScope();
   const [shipSums, setShipSums] = useState<ShipmentSummary[]>([]);
   const [paySums, setPaySums] = useState<PaymentSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +103,7 @@ export default function AllSuppliers() {
     const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
     const balMap = await fetchContactBalanceMap(list.map((c) => c.id));
     setSuppliers(mergeBalancesById(list, balMap) as any);
-    setBranches(brs ?? []);
+    setBranches(filterBranches((brs ?? []) as any) as any);
 
     // تجميع الشحنات لكل (مورد + فرع)
     const shipMap = new Map<string, ShipmentSummary>();
