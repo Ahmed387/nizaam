@@ -63,7 +63,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     const fromIso = new Date(from).toISOString();
     const toIso = new Date(to + "T23:59:59").toISOString();
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
-      supabase.from("branches").select("id,name,code").eq("is_active", true),
+      // خزينة الشركاء (PARTNER-CASH) فرع افتراضي محاسبي — مش فرع تشغيلي، بيتستبعد من تقارير الفروع
+      supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*"),
