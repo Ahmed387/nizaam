@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
