@@ -18,7 +18,7 @@ import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck } from "lucide-react";
+import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllAttendance from "./AllAttendance";
 
@@ -59,6 +59,7 @@ export default function AllEmployees() {
   const [shift, setShift] = useState<ShiftValue>(emptyShift());
   const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
   const isSimpleRole = form.role === "worker" || form.role === "driver";
 
 
@@ -463,7 +464,13 @@ export default function AllEmployees() {
                   </div>
                   <div>
                     <Label>{editing ? "كلمة المرور (اتركها فارغة بدون تغيير)" : "كلمة المرور *"}</Label>
-                    <Input type="password" name="employee-new-password" autoComplete="new-password" data-lpignore="true" data-form-type="other" dir="ltr" className="text-right mt-1.5" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" />
+                    <div className="relative mt-1.5">
+                      <Input type={showPwd ? "text" : "password"} name="employee-new-password" autoComplete="new-password" data-lpignore="true" data-form-type="other" dir="ltr" className="text-right pl-10" value={form.login_password} onChange={(e) => setForm({ ...form, login_password: e.target.value })} placeholder="6 أحرف على الأقل" />
+                      <button type="button" tabIndex={-1} onClick={() => setShowPwd((v) => !v)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
