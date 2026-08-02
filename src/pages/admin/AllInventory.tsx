@@ -24,6 +24,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { ProductCell } from "@/components/VariantChips";
+import { useBranchScope } from "@/lib/branchScope";
 
 interface Row {
   id: string;
@@ -47,6 +48,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const { filterBranches } = useBranchScope();
   const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -77,7 +79,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
         category_name: p.categories?.name ?? "—",
       }))
     );
-    setBranches(brs ?? []);
+    setBranches(filterBranches((brs ?? []) as any) as any);
     setCats(cs ?? []);
     setSelected(new Set());
     setLoading(false);

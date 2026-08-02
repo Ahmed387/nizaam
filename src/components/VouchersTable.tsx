@@ -23,6 +23,7 @@ import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { generateVouchersReport } from "@/utils/generatePDFReport";
+import { useBranchScope } from "@/lib/branchScope";
 
 interface Props {
   branchId?: string;
@@ -36,6 +37,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [rows, setRows] = useState<Voucher[]>([]);
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const { filterBranches } = useBranchScope();
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Voucher | null>(null);
@@ -78,7 +80,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   useEffect(() => {
     fetchVoucherCategories(type).then(setCats).catch(() => {});
     if (adminAllBranches) {
-      supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").order("name").then(({ data }) => setBranches(data ?? []));
+      supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").order("name").then(({ data }) => setBranches(filterBranches((data ?? [])) as any) as any);
     }
   }, [type, adminAllBranches]);
 

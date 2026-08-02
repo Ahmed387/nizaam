@@ -16,6 +16,7 @@ import { lineProfit } from "@/lib/profitEngine";
 import { ReportIntro } from "@/components/ReportIntro";
 import { StatCard } from "@/components/StatCard";
 import { generateProfitReport } from "@/utils/generatePDFReport";
+import { useBranchScope } from "@/lib/branchScope";
 
 interface Row {
   product_id: string | null;
@@ -61,6 +62,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
   const [cashierId, setCashierId] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [branches, setBranches] = useState<any[]>([]);
+  const { filterBranches } = useBranchScope();
   const [cashiers, setCashiers] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [productCat, setProductCat] = useState<Record<string, string | null>>({});
@@ -73,7 +75,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
 
   useEffect(() => {
     if (!tenantId) return;
-    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).neq("code", "PARTNER-CASH").then(({ data }) => setBranches(data ?? []));
+    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).neq("code", "PARTNER-CASH").then(({ data }) => setBranches(filterBranches((data ?? [])) as any) as any);
     supabase.from("categories").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setCategories(data ?? []));
     supabase.from("products").select("id, category_id").eq("tenant_id", tenantId).then(({ data }) => {
       const m: Record<string, string | null> = {};

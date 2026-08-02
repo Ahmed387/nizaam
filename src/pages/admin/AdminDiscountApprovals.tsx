@@ -14,6 +14,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import { notify } from "@/lib/notifications";
 import { loadDiscountPolicy } from "@/lib/discountPolicy";
+import { useBranchScope } from "@/lib/branchScope";
 
 interface Req {
   id: string;
@@ -59,6 +60,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
   const { tenantId, user } = useAuth();
   const [rows, setRows] = useState<Req[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const { filterBranches } = useBranchScope();
   const [loading, setLoading] = useState(true);
   const [branchFilter, setBranchFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
@@ -91,7 +93,7 @@ export default function AdminDiscountApprovals({ embedded }: { embedded?: boolea
       supabase.from("discount_approval_requests" as any).select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
       loadDiscountPolicy(),
     ]);
-    setBranches(br ?? []);
+    setBranches(filterBranches((br ?? []) as any) as any);
     const allRows = (data ?? []) as any as Req[];
     // Auto-reject any pending request older than 24h — reservation is no longer valid.
     const expiredIds = allRows.filter((r) => r.status === "pending" && isExpired(r.created_at)).map((r) => r.id);

@@ -15,6 +15,7 @@ import { printReport } from "@/lib/export";
 import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
 
 import { Printer, TrendingUp, TrendingDown, Package, Wallet, Users, AlertCircle } from "lucide-react";
+import { useBranchScope } from "@/lib/branchScope";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
@@ -35,6 +36,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
   const [to, setTo] = useState(today());
   const [branchId, setBranchId] = useState<string>("all");
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const { filterBranches } = useBranchScope();
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -45,7 +47,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
   const loadBranches = async () => {
     if (!tenantId) return;
     const { data } = await supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).neq("code", "PARTNER-CASH");
-    setBranches(data ?? []);
+    setBranches(filterBranches((data ?? []) as any) as any);
   };
 
   const load = async () => {

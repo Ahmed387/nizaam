@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { TrendingUp, TrendingDown, ShoppingCart, Wallet, ArrowRight } from "lucide-react";
 import {
+import { useBranchScope } from "@/lib/branchScope";
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
 
@@ -96,6 +97,7 @@ function DeltaCell({ curr, prev, invert }: { curr: number; prev: number; invert?
 
 export default function ReportComparison() {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const { filterBranches } = useBranchScope();
   const [branchId, setBranchId] = useState("global");
 
   // Period A defaults: last 30 days
@@ -111,7 +113,7 @@ export default function ReportComparison() {
 
   useEffect(() => {
     supabase.from("branches").select("id,name").eq("is_active", true).neq("code", "PARTNER-CASH").then((r) => {
-      setBranches(r.data ?? []);
+      setBranches(filterBranches((r.data ?? []) as any) as any);
     });
   }, []);
 
