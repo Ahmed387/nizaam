@@ -138,6 +138,24 @@ export function UserPermissionsTab() {
     })).filter((s) => s.nodes.length);
   }, [q]);
 
+  /** Differences between this user's overrides and the defaults of his role. */
+  const diff = useMemo(() => {
+    const extra: string[] = [];   // مسموح له استثناءً (الدور مش مديهاله)
+    const revoked: string[] = []; // ممنوع منه استثناءً (الدور كان مديهاله)
+    const same: string[] = [];    // استثناء بنفس نتيجة الدور
+    if (!userId) return { extra, revoked, same };
+    const defs = rolePerms[role] ?? DEFAULT_ROLE_PERMISSIONS[role] ?? {};
+    Object.entries(state).forEach(([key, v]) => {
+      if (v !== "allow" && v !== "deny") return;
+      const roleAllows = defs[key] === true;
+      if (v === "allow" && !roleAllows) extra.push(key);
+      else if (v === "deny" && roleAllows) revoked.push(key);
+      else same.push(key);
+    });
+    return { extra, revoked, same };
+  }, [state, role, rolePerms, userId]);
+
+
   const set = (key: string, v: Tri) => setState((p) => ({ ...p, [key]: v }));
 
   const setNode = (node: Node, v: Tri) => {
