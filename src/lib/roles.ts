@@ -183,14 +183,25 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   viewer: Object.fromEntries(BRANCH_PERMISSION_GROUPS.flatMap(g => g.actions.filter(a => a === "view").map(a => [`${g.key}.${a}`, true]))),
 };
 
-/** Local permission check (mirrors DB has_permission). Admin/super always true. */
+/**
+ * Local permission check (mirrors DB has_permission). Admin/super always true.
+ * Resolution order: per-user override → role matrix → parent page (for sub-sections).
+ */
 export function checkPermission(
   roles: AppRole[],
   permsByRole: Record<string, Record<string, boolean>>,
   key: string,
+  userOverrides: Record<string, boolean> = {},
 ): boolean {
   if (roles.includes("admin") || roles.includes("super_admin")) return true;
-  return roles.some((r) => permsByRole[r]?.[key] === true);
+  if (userOverrides[key] !== undefined) return userOverrides[key];
+  if (roles.some((r) => permsByRole[r]?.[key] === true)) return true;
+  const parent = SUBSECTION_PARENT[key.replace(/\.[^.]+$/, "")];
+  if (parent) {
+    const hasExplicit = roles.some((r) => permsByRole[r]?.[key] !== undefined);
+    if (!hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides);
+  }
+  return false;
 }
 
 export async function fetchUserContext(userId: string) {
