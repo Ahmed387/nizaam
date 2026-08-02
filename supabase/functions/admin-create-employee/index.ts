@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
 
     // ---------- CREATE ----------
     let userId: string | null = null;
+    let newlyCreatedUser = false;
     if (has_system_access) {
       if (!email) return json({ error: 'الإيميل مطلوب' }, 400);
       if (!password || String(password).length < 6) return json({ error: 'كلمة المرور 6 أحرف على الأقل' }, 400);
@@ -131,6 +132,7 @@ Deno.serve(async (req) => {
       });
       if ('error' in created) return json({ error: created.error }, 400);
       userId = created.userId;
+      newlyCreatedUser = created.created;
       payload.login_password = password;
     }
 
@@ -140,7 +142,7 @@ Deno.serve(async (req) => {
       .select('id').single();
 
     if (insErr || !emp) {
-      if (userId) await admin.auth.admin.deleteUser(userId).catch(() => {});
+      if (userId && newlyCreatedUser) await admin.auth.admin.deleteUser(userId).catch(() => {});
       return json({ error: insErr?.message ?? 'فشل إضافة الموظف' }, 400);
     }
 
@@ -171,8 +173,9 @@ async function findUserIdByEmail(email: string): Promise<string | null> {
 async function createAccount(
   admin: any,
   opts: { email: string; password: string; name: string; tenantId: string; role: string },
-): Promise<{ userId: string } | { error: string }> {
+): Promise<{ userId: string; created: boolean } | { error: string }> {
   let userId: string | null = null;
+  let createdNew = true;
   const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
     email: opts.email,
     password: opts.password,
@@ -198,6 +201,7 @@ async function createAccount(
       user_metadata: { name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId },
     });
     userId = existingId;
+    createdNew = false;
   } else {
     userId = authUser.user.id as string;
   }
@@ -209,7 +213,7 @@ async function createAccount(
     { user_id: userId, role: opts.role, tenant_id: opts.tenantId },
     { onConflict: 'user_id,role' },
   );
-  return { userId: userId! };
+  return { userId: userId!, created: createdNew };
 }
 
 async function syncBranches(admin: any, userId: string, tenantId: string, branchIds: string[]) {
