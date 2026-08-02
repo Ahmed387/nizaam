@@ -128,53 +128,45 @@ export async function fetchProfitWindow(params: {
   const invSelect =
     "id, branch_id, is_migrated, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)";
 
-  let curQ = supabase
-    .from("invoices")
-    .select(invSelect)
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .gte("created_at", fromIso)
-    .lte("created_at", toIso);
-  let prevQ = supabase
-    .from("invoices")
-    .select(invSelect)
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .gte("created_at", prevFromIso)
-    .lte("created_at", prevToIso);
-  let expQ = supabase
-    .from("vouchers")
-    .select("amount, branch_id, voucher_categories!inner(is_deductible_from_profit)")
-    .eq("tenant_id", tenantId)
-    .eq("type", "payment")
-    .eq("status", "active")
-    .eq("voucher_categories.is_deductible_from_profit", true)
-    .gte("voucher_date", fromDate)
-    .lte("voucher_date", toDate);
-  let prevExpQ = supabase
-    .from("vouchers")
-    .select("amount, voucher_categories!inner(is_deductible_from_profit)")
-    .eq("tenant_id", tenantId)
-    .eq("type", "payment")
-    .eq("status", "active")
-    .eq("voucher_categories.is_deductible_from_profit", true)
-    .gte("voucher_date", prevFromDate)
-    .lte("voucher_date", prevToDate);
+  // ملاحظة: PostgREST بيقص عند 1000 صف — بنستخدم fetchAllRows عشان الأرقام ما تنقصش
+  const buildInv = (f: string, t: string) => {
+    let q = supabase
+      .from("invoices")
+      .select(invSelect)
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .gte("created_at", f)
+      .lte("created_at", t);
+    if (branchId) q = q.eq("branch_id", branchId);
+    return q;
+  };
+  const buildExp = (f: string, t: string, withBranch: boolean) => {
+    let q = supabase
+      .from("vouchers")
+      .select(
+        withBranch
+          ? "amount, branch_id, voucher_categories!inner(is_deductible_from_profit)"
+          : "amount, voucher_categories!inner(is_deductible_from_profit)",
+      )
+      .eq("tenant_id", tenantId)
+      .eq("type", "payment")
+      .eq("status", "active")
+      .eq("voucher_categories.is_deductible_from_profit", true)
+      .gte("voucher_date", f)
+      .lte("voucher_date", t);
+    if (branchId) q = q.eq("branch_id", branchId);
+    return q;
+  };
 
-  if (branchId) {
-    curQ = curQ.eq("branch_id", branchId);
-    prevQ = prevQ.eq("branch_id", branchId);
-    expQ = expQ.eq("branch_id", branchId);
-    prevExpQ = prevExpQ.eq("branch_id", branchId);
-  }
-
-  const [invRes, prevInvRes, expRes, prevExpRes, branchesRes] = await Promise.all([
-    curQ,
-    prevQ,
-    expQ,
-    prevExpQ,
+  const [invRows, prevInvRows, expRows, prevExpRows, branchesRes] = await Promise.all([
+    fetchAllRows<any>(() => buildInv(fromIso, toIso)),
+    fetchAllRows<any>(() => buildInv(prevFromIso, prevToIso)),
+    fetchAllRows<any>(() => buildExp(fromDate, toDate, true)),
+    fetchAllRows<any>(() => buildExp(prevFromDate, prevToDate, false)),
     supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).neq("code", "PARTNER-CASH"),
   ]);
+  const invRes = { data: invRows };
+  const expRes = { data: expRows };
 
   const sumInv = (rows: any[]) => {
     let rev = 0,
@@ -189,8 +181,8 @@ export async function fetchProfitWindow(params: {
     return { revenue: rev, cost };
   };
 
-  const cur = sumInv(invRes.data ?? []);
-  const prev = sumInv(prevInvRes.data ?? []);
+  const cur = sumInv(invRows);
+  const prev = sumInv(prevInvRows);
   const expenses = (expRes.data ?? []).reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
   const prevExpenses = (prevExpRes.data ?? []).reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
 
