@@ -19,6 +19,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 
 export interface InvoiceItemLike {
   quantity: number | string | null;
@@ -183,8 +184,8 @@ export async function fetchProfitWindow(params: {
 
   const cur = sumInv(invRows);
   const prev = sumInv(prevInvRows);
-  const expenses = (expRes.data ?? []).reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
-  const prevExpenses = (prevExpRes.data ?? []).reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
+  const expenses = expRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
+  const prevExpenses = prevExpRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
 
   const totals: ProfitTotals = {
     revenue: cur.revenue,
