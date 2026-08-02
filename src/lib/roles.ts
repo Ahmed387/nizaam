@@ -30,8 +30,10 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 /** Roles whose users only access their own profile (worker/driver). */
 export const SELF_ONLY_ROLES: AppRole[] = ["worker", "driver"];
 
-/** Permission catalog used by the admin Role Permissions panel. */
-export const PERMISSION_GROUPS: { key: string; label: string; actions: ("view" | "create" | "update" | "delete")[] }[] = [
+type PermGroup = { key: string; label: string; actions: ("view" | "create" | "update" | "delete")[] };
+
+/** Branch/operations permission catalog. */
+export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "dashboard", label: "الرئيسية", actions: ["view"] },
   { key: "sales", label: "المبيعات", actions: ["view", "create", "update", "delete"] },
   { key: "invoices", label: "الفواتير والمستندات", actions: ["view", "update", "delete"] },
@@ -50,6 +52,34 @@ export const PERMISSION_GROUPS: { key: string; label: string; actions: ("view" |
   { key: "reports", label: "التقارير", actions: ["view"] },
   { key: "attachments", label: "المرفقات (ملفات الفواتير والمستندات)", actions: ["view", "create", "update", "delete"] },
 ];
+
+/** Admin sidebar pages — the owner can grant any of these to any role. */
+export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
+  { key: "admin_home", label: "الرئيسية (لوحة التحكم العامة)", actions: ["view"] },
+  { key: "admin_cockpit", label: "لوحة المالك", actions: ["view"] },
+  { key: "admin_ask_me", label: "اسألني (المساعد الذكي)", actions: ["view"] },
+  { key: "admin_insights", label: "الرؤى التنفيذية", actions: ["view"] },
+  { key: "admin_catalog", label: "الفروع والمخزون", actions: ["view"] },
+  { key: "admin_product_attributes", label: "خصائص المنتجات", actions: ["view"] },
+  { key: "admin_contacts", label: "جهات التواصل", actions: ["view"] },
+  { key: "admin_employees", label: "الموظفين (إدارة)", actions: ["view"] },
+  { key: "admin_presence", label: "تتبع المستخدمين", actions: ["view"] },
+  { key: "admin_shifts", label: "سجل الورديات", actions: ["view"] },
+  { key: "admin_main_treasury", label: "الخزنة الرئيسية", actions: ["view"] },
+  { key: "admin_finance", label: "المالية", actions: ["view"] },
+  { key: "admin_financial_position", label: "الذمة المالية للشركاء", actions: ["view"] },
+  { key: "admin_reports_hub", label: "التقارير (المركزية)", actions: ["view"] },
+  { key: "admin_system_health", label: "فحص السيستم", actions: ["view"] },
+  { key: "admin_approvals", label: "طلبات موافقة الأدمن", actions: ["view"] },
+  { key: "admin_settings", label: "الإعدادات", actions: ["view"] },
+];
+
+/** Full permission catalog used by the admin Role Permissions panel. */
+export const PERMISSION_GROUPS: PermGroup[] = [
+  ...BRANCH_PERMISSION_GROUPS,
+  ...ADMIN_NAV_PERMISSION_GROUPS,
+];
+
 
 
 /** Roles managed via the Permissions panel (super_admin/admin always full). */
