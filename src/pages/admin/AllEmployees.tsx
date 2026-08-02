@@ -116,6 +116,7 @@ export default function AllEmployees() {
   const openNew = () => {
     setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setShift(emptyShift());
+    setAllowedBranchIds([]);
     setEditing(null);
     setOpen(true);
   };
@@ -127,6 +128,7 @@ export default function AllEmployees() {
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
     });
+    setAllowedBranchIds(e.user_id ? (userBranches[e.user_id] ?? []) : (e.branch_id ? [e.branch_id] : []));
     setShift({
       work_start: e.work_start ?? null,
       work_end: e.work_end ?? null,
@@ -135,6 +137,7 @@ export default function AllEmployees() {
     });
     setOpen(true);
   };
+
 
   const onPositionChange = (val: string) => {
     const pos = POSITIONS.find((p) => p.value === val);
