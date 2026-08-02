@@ -34,7 +34,7 @@ const POSITIONS = [
 
 export default function AllEmployees() {
   const nav = useNavigate();
-  const { tenantId } = useAuth();
+  useAuth();
   const [emps, setEmps] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
