@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, Clock, HandCoins } from "lucide-react";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
@@ -103,7 +104,7 @@ export default function Employees() {
       },
     });
     if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error ?? error?.message ?? "فشل إضافة الموظف");
+      return toast.error((await edgeErrorMessage(error, data)) ?? "فشل إضافة الموظف");
     }
     toast.success(isSimpleRole ? "تمت الإضافة" : "تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
 
