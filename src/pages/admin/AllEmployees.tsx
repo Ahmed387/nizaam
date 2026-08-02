@@ -394,6 +394,10 @@ export default function AllEmployees() {
                   <Label>الراتب الأساسي</Label>
                   <Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" placeholder="0" />
                 </div>
+                <div>
+                  <Label>تاريخ التعيين</Label>
+                  <Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" />
+                </div>
               </div>
             </section>
 

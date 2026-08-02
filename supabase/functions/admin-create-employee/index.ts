@@ -112,7 +112,10 @@ Deno.serve(async (req) => {
         await admin.from('employees').update({ user_id: userId }).eq('id', employee_id);
       }
 
-      if (userId) await syncBranches(admin, userId, tenantId, has_system_access ? finalBranchIds : []);
+      if (userId) {
+        await setRole(admin, userId as string, tenantId, role);
+        await syncBranches(admin, userId, tenantId, has_system_access ? finalBranchIds : []);
+      }
       return json({ ok: true, employee_id, user_id: userId });
     }
 
@@ -209,11 +212,23 @@ async function createAccount(
   await admin.from('profiles').upsert({
     id: userId, name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId, is_active: true,
   });
+  await setRole(admin, userId!, opts.tenantId, opts.role);
+  return { userId: userId!, created: createdNew };
+}
+
+/** Employee has exactly ONE role: insert the new one and drop any other stale roles. */
+async function setRole(admin: any, userId: string, tenantId: string, role: string) {
   await admin.from('user_roles').upsert(
-    { user_id: userId, role: opts.role, tenant_id: opts.tenantId },
+    { user_id: userId, role, tenant_id: tenantId },
     { onConflict: 'user_id,role' },
   );
-  return { userId: userId!, created: createdNew };
+  const { data: existing } = await admin.from('user_roles').select('role').eq('user_id', userId);
+  const stale = (existing ?? [])
+    .map((r: any) => r.role)
+    .filter((r: string) => r !== role && r !== 'super_admin' && r !== 'owner');
+  if (stale.length) {
+    await admin.from('user_roles').delete().eq('user_id', userId).in('role', stale);
+  }
 }
 
 async function syncBranches(admin: any, userId: string, tenantId: string, branchIds: string[]) {
