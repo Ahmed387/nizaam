@@ -24,6 +24,7 @@ interface AuthCtx {
   roles: AppRole[];
   branches: { id: string; name: string; code: string }[];
   loading: boolean;
+  ctxReady: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isOwner: boolean;
