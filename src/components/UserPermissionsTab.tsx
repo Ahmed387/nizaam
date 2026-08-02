@@ -82,12 +82,13 @@ export function UserPermissionsTab() {
 
   /** Owners / admins / super admins / partners are never managed here — they hold full company access. */
   const FULL_ACCESS_ROLES = ["owner", "admin", "super_admin", "partner"];
+  /** Only real, active employee records of this tenant appear here (deleted employees never show). */
   const selectableUsers = useMemo(
     () =>
       users.filter((u) => {
+        if (!employeeUserIds.has(u.id)) return false;
         const rs = rolesByUser[u.id] ?? [];
-        if (rs.some((r) => FULL_ACCESS_ROLES.includes(r))) return false;
-        return employeeUserIds.has(u.id) || rs.some((r) => MANAGED_ROLES.includes(r as AppRole));
+        return !rs.some((r) => FULL_ACCESS_ROLES.includes(r));
       }),
     // eslint-disable-next-line
     [users, rolesByUser, employeeUserIds],
