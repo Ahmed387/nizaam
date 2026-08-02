@@ -604,9 +604,16 @@ export function UserPermissionsTab() {
                 </div>
               </div>
             ))}
-            <Button variant="outline" size="sm" onClick={() => setState({})}>
-              <RotateCcw className="w-4 h-4 ml-1" /> رجّع الكل للافتراضي
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setState({})}>
+                <RotateCcw className="w-4 h-4 ml-1" /> تفريغ الاختيارات (من غير حفظ)
+              </Button>
+              <Button variant="destructive" size="sm" onClick={resetToRoleDefaults} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RotateCcw className="w-4 h-4 ml-1" />}
+                رجّع الموظف لصلاحيات دوره الافتراضية
+              </Button>
+            </div>
+
           </div>
         )}
 
