@@ -59,17 +59,19 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatC
     <div
       ref={ref}
       {...rest}
-      className={`rounded-2xl p-5 h-full border ${a.border} ${a.bg} flex flex-col items-center justify-center text-center transition-shadow hover:shadow-md ${className ?? ""}`}
+      data-stat-card
+      className={`stat-shell rounded-2xl p-4 md:p-5 h-full border ${a.border} ${a.bg} flex flex-col items-center justify-center text-center transition-shadow hover:shadow-md ${className ?? ""}`}
     >
-      <div className="flex items-center justify-center gap-2 mb-3">
-        <span className={`text-sm font-semibold ${a.label}`}>{label}</span>
-        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${a.chip} [&_svg]:w-3.5 [&_svg]:h-3.5`}>
+      <div className="flex items-center justify-center gap-2 mb-3 max-w-full min-w-0">
+        <span className={`text-sm font-semibold break-words ${a.label}`}>{label}</span>
+        <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${a.chip} [&_svg]:w-3.5 [&_svg]:h-3.5`}>
           {icon}
         </div>
       </div>
-      <div className={`text-3xl md:text-4xl font-extrabold tabular-nums leading-none ${a.value}`}>
+      <div className={`stat-value font-extrabold ${a.value}`}>
         {value}
       </div>
+
       {trend && (
         <div
           className={`mt-2 flex items-center justify-center gap-1 text-xs font-bold ${trend.positive ? "text-success" : "text-destructive"}`}
