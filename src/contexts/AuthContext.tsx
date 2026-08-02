@@ -24,6 +24,7 @@ interface AuthCtx {
   roles: AppRole[];
   branches: { id: string; name: string; code: string }[];
   loading: boolean;
+  ctxReady: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isOwner: boolean;
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [branches, setBranches] = useState<AuthCtx["branches"]>([]);
   const [loading, setLoading] = useState(true);
+  const [ctxReady, setCtxReady] = useState(false);
   const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
 
   const loadPerms = async (tid: string | null) => {
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles(ctx.roles);
     setBranches(ctx.branches as any);
     await loadPerms(ctx.tenantId);
+    setCtxReady(true);
   };
 
 
@@ -77,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
+        setCtxReady(false);
         setTimeout(() => loadCtx(sess.user.id), 0);
       } else {
         setProfile(null);
@@ -84,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTenant(null);
         setRoles([]);
         setBranches([]);
+        setCtxReady(false);
       }
     });
 
@@ -91,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) await loadCtx(data.session.user.id);
+      else setCtxReady(true);
       setLoading(false);
     });
 
@@ -132,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     roles,
     branches,
     loading,
+    ctxReady,
     isAdmin: roles.includes("admin") || roles.includes("super_admin"),
     isSuperAdmin: roles.includes("super_admin"),
     isOwner: !!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id,
