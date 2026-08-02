@@ -11,9 +11,17 @@ import {
   AppRole,
   MANAGED_ROLES,
   PERMISSION_GROUPS,
+  BRANCH_PERMISSION_GROUPS,
+  ADMIN_NAV_PERMISSION_GROUPS,
   ROLE_LABELS,
   DEFAULT_ROLE_PERMISSIONS,
 } from "@/lib/roles";
+
+const SECTIONS = [
+  { title: "صفحات الفرع والعمليات", groups: BRANCH_PERMISSION_GROUPS },
+  { title: "قائمة الإدارة الجانبية (Sidebar)", groups: ADMIN_NAV_PERMISSION_GROUPS },
+];
+
 
 const ACTION_LABELS: Record<string, string> = {
   view: "عرض",
