@@ -203,8 +203,14 @@ export default function NewShipment() {
     })();
   }, [isEdit, shipmentId, loadedEdit]);
 
-  const addLine = () =>
-    setLines([...lines, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "", brand: "", model: "", color: "", product_type: "", capacity: "", size: "" }]);
+  const addLine = () => {
+    setLines((prev) => {
+      const next = [...prev, { product_id: null, product_name: "", sku: genSku(), quantity: 1, cost_price: 0, discount_percent: 0, discount_amount: 0, image: "", brand: "", model: "", color: "", product_type: "", capacity: "", size: "" }];
+      setActiveLine(next.length - 1);
+      return next;
+    });
+  };
+
 
   const itemsGross = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
   const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
