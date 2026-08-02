@@ -81,6 +81,8 @@ export default function NewShipment() {
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
   const [affectedBatches, setAffectedBatches] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
+  const [activeLine, setActiveLine] = useState<number | null>(null);
+
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.length > 0, "لديك فاتورة شراء غير محفوظة. هل تريد المغادرة وفقدان البيانات؟");
   const [plan, setPlan] = useState<PaymentPlanState>(defaultPlan());
