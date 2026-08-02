@@ -188,20 +188,20 @@ export function UserPermissionsTab() {
   const TriToggle = ({ perm }: { perm: string }) => {
     const v = state[perm] ?? "default";
     return (
-      <div className="flex rounded-md overflow-hidden border shrink-0">
+      <div className="flex rounded-full overflow-hidden border border-border/70 bg-background/80 shadow-sm shrink-0">
         {(["default", "allow", "deny"] as Tri[]).map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => set(perm, opt)}
-            className={`px-2 py-1 text-xs transition-colors ${
+            className={`px-2.5 py-1 text-[11px] font-medium transition-all duration-200 ${
               v === opt
                 ? opt === "allow"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-emerald-500 text-white shadow-inner"
                   : opt === "deny"
-                    ? "bg-destructive text-destructive-foreground"
+                    ? "bg-destructive text-destructive-foreground shadow-inner"
                     : "bg-muted text-foreground"
-                : "bg-background hover:bg-muted"
+                : "text-muted-foreground hover:bg-muted/70"
             }`}
           >
             {opt === "default" ? "افتراضي" : opt === "allow" ? "مسموح" : "ممنوع"}
@@ -212,15 +212,16 @@ export function UserPermissionsTab() {
   };
 
   const ActionsRow = ({ group }: { group: Group }) => (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       {group.actions.map((a) => (
-        <div key={a} className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground w-9">{ACTION_LABELS[a]}</span>
+        <div key={a} className="flex items-center gap-1">
+          <span className="text-[11px] text-muted-foreground w-8 text-left">{ACTION_LABELS[a]}</span>
           <TriToggle perm={`${group.key}.${a}`} />
         </div>
       ))}
     </div>
   );
+
 
   /** Summary of what is explicitly set on a node (parent + children). */
   const nodeSummary = (node: Node) => {
