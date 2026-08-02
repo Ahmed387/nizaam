@@ -683,11 +683,55 @@ export default function NewShipment() {
             {lines.map((l, i) => {
               const net = lineNet(l);
               const gross = l.quantity * l.cost_price;
+              const expanded = activeLine === i;
+
+              if (!expanded) {
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setActiveLine(i)}
+                    className="w-full text-right rounded-lg border border-border bg-surface-1/40 hover:bg-surface-1/80 hover:border-primary/50 transition-all flex items-center gap-3 p-2.5"
+                  >
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center justify-center">{i + 1}</span>
+                    {l.image
+                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded object-cover border border-border shrink-0" />
+                      : <span className="w-9 h-9 rounded bg-muted flex items-center justify-center border border-border shrink-0"><ImageIcon className="w-4 h-4 text-muted-foreground" /></span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-sm truncate">{l.product_name || "صنف بدون اسم"}</span>
+                      <span className="block text-[11px] text-muted-foreground truncate">
+                        {[l.brand, l.model, l.color].filter(Boolean).join(" · ") || l.sku}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">×{l.quantity}</span>
+                    <span className="shrink-0 font-bold text-primary text-sm">{formatEGP(net)}</span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span
+                      role="button"
+                      tabIndex={-1}
+                      onClick={(e) => { e.stopPropagation(); removeLine(i); }}
+                      className="shrink-0 text-destructive hover:bg-destructive/10 rounded p-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </span>
+                  </button>
+                );
+              }
+
               return (
-                <div key={i} className="rounded-lg border border-border bg-surface-1/30 hover:bg-surface-1/60 transition-colors">
+                <div key={i} className="rounded-lg border-2 border-primary/40 bg-surface-1/30 shadow-sm transition-colors">
                   {/* Header: image + product picker + delete */}
                   <div className="flex items-start gap-3 p-3 border-b border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setActiveLine(null)}
+                      className="shrink-0 mt-1 text-muted-foreground hover:text-foreground"
+                      title="طي الصنف"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
                     <div className="shrink-0">
+
                       <div className="relative">
                         {l.image
                           ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-md object-cover border border-border" />
