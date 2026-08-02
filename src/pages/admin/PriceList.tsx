@@ -243,7 +243,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
     });
     let failed = 0;
     for (const u of updates) {
-      const { error } = await supabase.from("price_list_items").update({ [bulkField]: u.value }).eq("id", u.id);
+      const { error } = await supabase.from("price_list_items").update({ [bulkField]: u.value } as any).eq("id", u.id);
       if (error) failed++;
     }
     if (user && profile) {
