@@ -18,7 +18,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Upload, Trash2, Loader2, Search, X, FileUp } from "lucide-react";
+import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Source = {
   id: string;
