@@ -277,7 +277,7 @@ export function UserPermissionsTab() {
             <Select value={userId} onValueChange={setUserId}>
               <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
               <SelectContent>
-                {users.map((u) => (
+                {selectableUsers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name || u.username || u.id}
                     {(rolesByUser[u.id] ?? []).length > 0 && (
@@ -285,9 +285,15 @@ export function UserPermissionsTab() {
                     )}
                   </SelectItem>
                 ))}
-
+                {!selectableUsers.length && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">لا يوجد موظفين قابلين للتحكم في صلاحياتهم</div>
+                )}
               </SelectContent>
             </Select>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              المالك والمدير والشركاء مش بيظهروا هنا — عندهم صلاحيات الشركة كاملة.
+            </div>
+
           </div>
           <div>
             <div className="text-sm mb-1">بحث في الصلاحيات</div>
