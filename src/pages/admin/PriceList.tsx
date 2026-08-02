@@ -175,6 +175,105 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  // -------- rename supplier --------
+  const renameSupplier = async () => {
+    if (!renameId) return;
+    const n = renameValue.trim();
+    if (!n) return toast.error("اكتب اسم المورد");
+    const before = sources.find((s) => s.id === renameId);
+    const { error } = await supabase.from("price_list_sources").update({ supplier_name: n }).eq("id", renameId);
+    if (error) return toast.error(error.message);
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "price_list_source", entityId: renameId,
+        details: { changes: { supplier_name: { from: before?.supplier_name, to: n } } },
+      });
+    }
+    toast.success("تم تعديل اسم المورد");
+    setRenameId(null);
+    load();
+  };
+
+  // -------- edit single item --------
+  const openEdit = (item: Item) => {
+    setEditItem(item);
+    setEditForm({
+      product_name: item.product_name,
+      model_code: item.model_code ?? "",
+      category: item.category ?? "",
+      cost_price: item.cost_price,
+      suggested_sell_price: item.suggested_sell_price,
+      display_price: item.display_price,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editItem) return;
+    const name = String(editForm.product_name ?? "").trim();
+    if (!name) return toast.error("اسم المنتج مطلوب");
+    setSavingItem(true);
+    await updateItemField(editItem.id, {
+      product_name: name,
+      model_code: String(editForm.model_code ?? "").trim() || null,
+      category: String(editForm.category ?? "").trim() || null,
+      cost_price: Number(editForm.cost_price) || 0,
+      suggested_sell_price: Number(editForm.suggested_sell_price) || 0,
+      display_price: Number(editForm.display_price) || 0,
+    });
+    setSavingItem(false);
+    setEditItem(null);
+    toast.success("تم حفظ التعديل");
+  };
+
+  // -------- bulk price adjustment --------
+  const bulkTargets = () =>
+    bulkScope === "selected" ? currentItems.filter((i) => selected.has(i.id)) : currentItems;
+
+  const applyBulk = async () => {
+    const v = Number(bulkValue);
+    if (isNaN(v) || v === 0) return toast.error("اكتب قيمة التعديل");
+    const targets = bulkTargets();
+    if (!targets.length) return toast.error("لا توجد أصناف مختارة");
+    setBulkBusy(true);
+    const updates = targets.map((it) => {
+      const base = Number((it as any)[bulkField]) || 0;
+      const next = bulkMode === "percent" ? base * (1 + v / 100) : base + v;
+      return { id: it.id, value: Math.max(0, Math.round(next * 100) / 100) };
+    });
+    let failed = 0;
+    for (const u of updates) {
+      const { error } = await supabase.from("price_list_items").update({ [bulkField]: u.value }).eq("id", u.id);
+      if (error) failed++;
+    }
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "price_list_bulk", entityId: activeTab,
+        details: { field: bulkField, mode: bulkMode, value: v, count: updates.length },
+      });
+    }
+    setBulkBusy(false);
+    setBulkOpen(false);
+    setBulkValue("");
+    if (failed) toast.error(`فشل تعديل ${failed} صنف`);
+    else toast.success(`تم تعديل ${updates.length} صنف`);
+    load();
+  };
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  const allSelected = currentItems.length > 0 && currentItems.every((i) => selected.has(i.id));
+  const toggleSelectAll = () =>
+    setSelected(allSelected ? new Set() : new Set(currentItems.map((i) => i.id)));
+
+
+
   // -------- file upload + AI parse --------
   const handleFile = async (file: File) => {
     if (!currentSource) return;
