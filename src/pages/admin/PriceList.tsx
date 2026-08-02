@@ -68,6 +68,21 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   const [addSupplierOpen, setAddSupplierOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [deleteSupplierId, setDeleteSupplierId] = useState<string | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editItem, setEditItem] = useState<Item | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Item>>({});
+  const [savingItem, setSavingItem] = useState(false);
+
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkField, setBulkField] = useState<"display_price" | "suggested_sell_price" | "cost_price">("display_price");
+  const [bulkMode, setBulkMode] = useState<"percent" | "amount">("percent");
+  const [bulkValue, setBulkValue] = useState("");
+  const [bulkScope, setBulkScope] = useState<"all" | "selected">("all");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
