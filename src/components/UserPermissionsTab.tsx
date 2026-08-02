@@ -334,45 +334,76 @@ export function UserPermissionsTab() {
         ) : (
           <div className="space-y-6">
             {filteredSections.map((sec) => (
-              <div key={sec.title}>
-                <div className="font-bold mb-2">{sec.title}</div>
-                <div className="rounded-lg border p-2 bg-background/50">
+              <div key={sec.title} className="rounded-xl border border-primary/20 overflow-hidden bg-card">
+                <div className="px-4 py-2.5 bg-gradient-to-l from-primary/15 via-primary/5 to-transparent border-b border-primary/20 font-bold text-primary flex items-center gap-2">
+                  <FolderTree className="w-4 h-4" /> {sec.title}
+                </div>
+                <div className="p-3 space-y-2">
                   {sec.nodes.map((node) => {
                     const hasKids = node.children.length > 0;
                     const open = expanded[node.group.key] ?? !!q.trim();
                     const { allow, deny } = nodeSummary(node);
                     return (
-                      <div key={node.group.key} className="relative">
+                      <div
+                        key={node.group.key}
+                        className={`rounded-xl border transition-all duration-300 ${
+                          open && hasKids
+                            ? "border-primary/40 bg-primary/[0.04] shadow-sm"
+                            : "border-border bg-background hover:border-primary/30"
+                        }`}
+                      >
                         {/* Parent node */}
-                        <div className="flex flex-wrap items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/40 transition-colors">
+                        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
                           <button
                             type="button"
                             disabled={!hasKids}
                             onClick={() => setExpanded((p) => ({ ...p, [node.group.key]: !open }))}
-                            className={`flex items-center gap-1.5 text-sm font-medium ${hasKids ? "hover:text-primary" : "cursor-default"}`}
+                            className={`flex items-center gap-2 text-sm font-bold ${hasKids ? "hover:text-primary" : "cursor-default"}`}
                           >
-                            {hasKids ? (
-                              <ChevronDown className={`w-4 h-4 text-primary transition-transform duration-300 ${open ? "rotate-0" : "rotate-90"}`} />
-                            ) : (
-                              <span className="w-4" />
-                            )}
-                            {hasKids
-                              ? (open ? <FolderOpen className="w-4 h-4 text-primary" /> : <Folder className="w-4 h-4 text-primary" />)
-                              : <FileText className="w-4 h-4 text-muted-foreground" />}
+                            <span
+                              className={`w-6 h-6 rounded-md flex items-center justify-center border transition-all duration-300 ${
+                                hasKids
+                                  ? "bg-primary/15 border-primary/30 text-primary"
+                                  : "bg-muted/40 border-transparent text-muted-foreground"
+                              }`}
+                            >
+                              {hasKids ? (
+                                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${open ? "rotate-0" : "rotate-90"}`} />
+                              ) : (
+                                <FileText className="w-3.5 h-3.5" />
+                              )}
+                            </span>
+                            <span
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors duration-300 ${
+                                hasKids ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                              }`}
+                            >
+                              {hasKids ? (open ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />) : <FileText className="w-4 h-4" />}
+                            </span>
                             {node.group.label}
                             {hasKids && (
-                              <Badge variant="secondary" className="text-[10px]">{node.children.length}</Badge>
+                              <Badge variant="secondary" className="text-[10px] rounded-full">{node.children.length}</Badge>
                             )}
                           </button>
-                          <div className="flex items-center gap-1 text-[10px]">
-                            {allow > 0 && <Badge className="text-[10px]">مسموح {allow}</Badge>}
-                            {deny > 0 && <Badge variant="destructive" className="text-[10px]">ممنوع {deny}</Badge>}
+
+                          <div className="flex items-center gap-1">
+                            {allow > 0 && (
+                              <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+                                مسموح {allow}
+                              </span>
+                            )}
+                            {deny > 0 && (
+                              <span className="rounded-full bg-destructive/15 text-destructive border border-destructive/30 px-2 py-0.5 text-[10px] font-bold">
+                                ممنوع {deny}
+                              </span>
+                            )}
                           </div>
-                          <div className="ms-auto flex items-center gap-2">
+
+                          <div className="ms-auto flex flex-wrap items-center gap-2">
                             <ActionsRow group={node.group} />
                             {hasKids && (
                               <div className="flex gap-1">
-                                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setNode(node, "allow")}>الكل مسموح</Button>
+                                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-[11px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10" onClick={() => setNode(node, "allow")}>الكل مسموح</Button>
                                 <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setNode(node, "default")}>افتراضي</Button>
                               </div>
                             )}
@@ -386,16 +417,26 @@ export function UserPermissionsTab() {
                             style={{ gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0 }}
                           >
                             <div className="overflow-hidden">
-                              <div className="relative mr-[18px] pr-5">
+                              <div className="relative px-3 pb-3 pt-1 mr-6">
                                 {/* vertical trunk */}
-                                <span className="absolute top-0 bottom-3 right-0 w-px bg-primary/30" />
-                                {node.children.map((c) => (
-                                  <div key={c.key} className="relative py-1">
+                                <span className="absolute top-0 bottom-6 right-[6px] w-[2px] rounded bg-gradient-to-b from-primary/50 to-primary/10" />
+                                {node.children.map((c, i) => (
+                                  <div
+                                    key={c.key}
+                                    className="relative py-1"
+                                    style={{
+                                      transition: "transform .3s ease, opacity .3s ease",
+                                      transitionDelay: open ? `${i * 40}ms` : "0ms",
+                                      transform: open ? "translateX(0)" : "translateX(10px)",
+                                      opacity: open ? 1 : 0,
+                                    }}
+                                  >
                                     {/* horizontal branch */}
-                                    <span className="absolute top-1/2 right-0 w-4 h-px bg-primary/30" />
-                                    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-background px-2 py-1.5 hover:border-primary/40 transition-colors">
-                                      <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                                      <span className="text-sm">{childLabel(c.label)}</span>
+                                    <span className="absolute top-1/2 right-[6px] w-4 h-[2px] rounded bg-primary/40" />
+                                    <span className="absolute top-1/2 right-[2px] -mt-[3px] w-[7px] h-[7px] rounded-full bg-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]" />
+                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 mr-6 hover:border-primary/50 hover:bg-primary/[0.03] transition-all duration-200">
+                                      <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                                      <span className="text-sm font-medium">{childLabel(c.label)}</span>
                                       <div className="ms-auto"><ActionsRow group={c} /></div>
                                     </div>
                                   </div>
@@ -415,6 +456,7 @@ export function UserPermissionsTab() {
             </Button>
           </div>
         )}
+
       </CardContent>
     </Card>
   );
