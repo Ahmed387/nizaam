@@ -336,6 +336,61 @@ export function UserPermissionsTab() {
         </div>
 
         {userId && (
+          <div className="rounded-lg border border-primary/25 bg-gradient-to-l from-primary/5 to-transparent p-3 space-y-3 animate-fade-in">
+            <div className="flex flex-wrap items-center gap-2">
+              <FolderTree className="w-4 h-4 text-primary" />
+              <span className="font-bold text-sm">الاستثناءات مقارنة بصلاحيات الدور ({ROLE_LABELS[role as AppRole] ?? role || "بدون دور"})</span>
+              <div className="flex flex-wrap gap-2 ms-auto">
+                <Badge className="bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                  مسموح زيادة: {diff.extra.length}
+                </Badge>
+                <Badge className="bg-destructive/15 text-destructive border border-destructive/30">
+                  ممنوع استثناءً: {diff.revoked.length}
+                </Badge>
+              </div>
+            </div>
+
+            {!diff.extra.length && !diff.revoked.length ? (
+              <div className="text-xs text-muted-foreground">
+                مفيش أي استثناء — الموظف شغال بصلاحيات دوره الافتراضية بالظبط.
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-3">
+                {!!diff.extra.length && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2">
+                    <div className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> مسموح له غير الافتراضي ({diff.extra.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {diff.extra.map((k) => (
+                        <span key={k} className="text-[11px] rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2 py-0.5">
+                          {PERM_LABELS[k] ?? k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!!diff.revoked.length && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2">
+                    <div className="text-xs font-bold text-destructive mb-1">
+                      ممنوع منه رغم إن دوره بيسمح ({diff.revoked.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {diff.revoked.map((k) => (
+                        <span key={k} className="text-[11px] rounded-full bg-destructive/15 text-destructive px-2 py-0.5">
+                          {PERM_LABELS[k] ?? k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {userId && (
           <div className="rounded-lg border bg-muted/20 p-3 space-y-3 animate-fade-in">
             <div className="flex flex-wrap items-center gap-2">
               <UserCog className="w-4 h-4 text-primary" />
