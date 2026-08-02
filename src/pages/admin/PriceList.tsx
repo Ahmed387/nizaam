@@ -390,9 +390,17 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
           <div className="overflow-x-auto">
             <TabsList className="flex w-max h-auto flex-wrap gap-1">
               {sources.map((s) => (
-                <TabsTrigger key={s.id} value={s.id}>{s.supplier_name}</TabsTrigger>
+                <TabsTrigger
+                  key={s.id}
+                  value={s.id}
+                  title="دبل كليك لتعديل الاسم"
+                  onDoubleClick={() => { setRenameId(s.id); setRenameValue(s.supplier_name); }}
+                >
+                  {s.supplier_name}
+                </TabsTrigger>
               ))}
             </TabsList>
+
           </div>
 
           {sources.map((s) => (
