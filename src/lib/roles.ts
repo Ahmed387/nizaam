@@ -127,6 +127,12 @@ export const SUBSECTION_PARENT: Record<string, string> = {
 export const PERMISSION_GROUPS: PermGroup[] = [
   ...BRANCH_PERMISSION_GROUPS,
   ...ADMIN_NAV_PERMISSION_GROUPS,
+];
+
+/** Everything an owner can grant to a single user (roles + sub-sections). */
+export const USER_PERMISSION_GROUPS: PermGroup[] = [
+  ...BRANCH_PERMISSION_GROUPS,
+  ...ADMIN_NAV_PERMISSION_GROUPS,
   ...ADMIN_SUBSECTION_PERMISSION_GROUPS,
 ];
 
