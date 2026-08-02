@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
 
     // ---------- CREATE ----------
     let userId: string | null = null;
+    let newlyCreatedUser = false;
     if (has_system_access) {
       if (!email) return json({ error: 'الإيميل مطلوب' }, 400);
       if (!password || String(password).length < 6) return json({ error: 'كلمة المرور 6 أحرف على الأقل' }, 400);
@@ -131,6 +132,7 @@ Deno.serve(async (req) => {
       });
       if ('error' in created) return json({ error: created.error }, 400);
       userId = created.userId;
+      newlyCreatedUser = created.created;
       payload.login_password = password;
     }
 
@@ -140,7 +142,7 @@ Deno.serve(async (req) => {
       .select('id').single();
 
     if (insErr || !emp) {
-      if (userId) await admin.auth.admin.deleteUser(userId).catch(() => {});
+      if (userId && newlyCreatedUser) await admin.auth.admin.deleteUser(userId).catch(() => {});
       return json({ error: insErr?.message ?? 'فشل إضافة الموظف' }, 400);
     }
 
@@ -152,18 +154,58 @@ Deno.serve(async (req) => {
   }
 });
 
+async function findUserIdByEmail(email: string): Promise<string | null> {
+  try {
+    const url = `${Deno.env.get('SUPABASE_URL')}/auth/v1/admin/users?filter=${encodeURIComponent(email)}`;
+    const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    const found = (body?.users ?? []).find(
+      (u: any) => String(u.email ?? '').toLowerCase() === email.toLowerCase(),
+    );
+    return found?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function createAccount(
   admin: any,
   opts: { email: string; password: string; name: string; tenantId: string; role: string },
-): Promise<{ userId: string } | { error: string }> {
+): Promise<{ userId: string; created: boolean } | { error: string }> {
+  let userId: string | null = null;
+  let createdNew = true;
   const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
     email: opts.email,
     password: opts.password,
     email_confirm: true,
     user_metadata: { name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId },
   });
-  if (authErr || !authUser?.user) return { error: authErr?.message ?? 'فشل إنشاء حساب الدخول' };
-  const userId = authUser.user.id as string;
+
+  if (authErr || !authUser?.user) {
+    // Account already exists in auth (e.g. created earlier / left over) → reuse it
+    const existingId = await findUserIdByEmail(opts.email);
+    if (!existingId) return { error: authErr?.message ?? 'فشل إنشاء حساب الدخول' };
+
+    // Make sure the existing account belongs to this tenant before reusing it
+    const { data: prof } = await admin
+      .from('profiles').select('tenant_id').eq('id', existingId).maybeSingle();
+    if (prof?.tenant_id && prof.tenant_id !== opts.tenantId) {
+      return { error: 'الإيميل ده مستخدم بالفعل في شركة تانية — استخدم إيميل مختلف' };
+    }
+
+    await admin.auth.admin.updateUserById(existingId, {
+      password: opts.password,
+      email_confirm: true,
+      user_metadata: { name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId },
+    });
+    userId = existingId;
+    createdNew = false;
+  } else {
+    userId = authUser.user.id as string;
+  }
+
   await admin.from('profiles').upsert({
     id: userId, name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId, is_active: true,
   });
@@ -171,7 +213,7 @@ async function createAccount(
     { user_id: userId, role: opts.role, tenant_id: opts.tenantId },
     { onConflict: 'user_id,role' },
   );
-  return { userId };
+  return { userId: userId!, created: createdNew };
 }
 
 async function syncBranches(admin: any, userId: string, tenantId: string, branchIds: string[]) {

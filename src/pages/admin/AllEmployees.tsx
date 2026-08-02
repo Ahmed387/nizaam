@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { searchMatch } from "@/lib/search";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
@@ -178,7 +179,7 @@ export default function AllEmployees() {
       },
     });
     setSaving(false);
-    const errMsg = (error as any)?.message ?? (data as any)?.error;
+    const errMsg = await edgeErrorMessage(error, data);
     if (errMsg) return toast.error(String(errMsg));
 
     toast.success(editing ? "تم التعديل" : "تمت إضافة الموظف وربط حسابه بالفروع");
