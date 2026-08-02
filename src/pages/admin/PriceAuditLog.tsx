@@ -72,7 +72,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
 
   useEffect(() => {
     load();
-    supabase.from("branches").select("id,name").then(({ data }) => setBranches(data ?? []));
+    supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").then(({ data }) => setBranches(data ?? []));
     supabase.from("products").select("id,name").limit(1000).then(({ data }) => setProducts(data ?? []));
 
     const ch = supabase

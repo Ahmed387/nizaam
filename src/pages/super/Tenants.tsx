@@ -52,7 +52,7 @@ export default function Tenants() {
     const ids = (data ?? []).map((t: any) => t.id);
     if (ids.length) {
       const [br, us, pr] = await Promise.all([
-        supabase.from("branches").select("tenant_id"),
+        supabase.from("branches").select("tenant_id").neq("code", "PARTNER-CASH"),
         supabase.from("profiles").select("tenant_id"),
         supabase.from("products").select("tenant_id"),
       ]);
