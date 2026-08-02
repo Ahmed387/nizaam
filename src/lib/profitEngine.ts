@@ -173,7 +173,7 @@ export async function fetchProfitWindow(params: {
     prevQ,
     expQ,
     prevExpQ,
-    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true),
+    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).neq("code", "PARTNER-CASH"),
   ]);
 
   const sumInv = (rows: any[]) => {
