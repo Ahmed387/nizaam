@@ -107,20 +107,33 @@ export function UserPermissionsTab() {
   );
 
 
+  /** Load saved overrides for the selected user (source of truth = DB). */
+  const loadOverrides = async (uid: string) => {
+    const { data, error } = await supabase
+      .from("user_permissions" as any)
+      .select("permission_key, allowed")
+      .eq("user_id", uid);
+    if (error) { toast.error("تعذر تحميل الاستثناءات: " + error.message); return; }
+    const s: Record<string, Tri> = {};
+    (data ?? []).forEach((r: any) => { s[r.permission_key] = r.allowed ? "allow" : "deny"; });
+    setState(s);
+  };
+
   useEffect(() => {
     if (!userId) { setState({}); setRole(""); setBranchIds([]); return; }
     setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
     setBranchIds(branchIdsByUser[userId] ?? []);
-    supabase
-      .from("user_permissions" as any)
-      .select("permission_key, allowed")
-      .eq("user_id", userId)
-      .then(({ data }) => {
-        const s: Record<string, Tri> = {};
-        (data ?? []).forEach((r: any) => { s[r.permission_key] = r.allowed ? "allow" : "deny"; });
-        setState(s);
-      });
-  }, [userId, rolesByUser, branchIdsByUser]);
+    loadOverrides(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
+    setBranchIds(branchIdsByUser[userId] ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolesByUser, branchIdsByUser]);
+
 
   const filteredSections = useMemo(() => {
     const term = q.trim();
@@ -219,19 +232,44 @@ export function UserPermissionsTab() {
         else upserts.push({ tenant_id: tenantId, user_id: userId, permission_key: key, allowed: v === "allow" });
       }),
     );
-    let error: any = null;
-    if (removals.length) {
-      const r = await supabase.from("user_permissions" as any).delete().eq("user_id", userId).in("permission_key", removals);
-      error = r.error;
+    try {
+      if (removals.length) {
+        const { error } = await supabase
+          .from("user_permissions" as any)
+          .delete()
+          .eq("user_id", userId)
+          .in("permission_key", removals);
+        if (error) throw error;
+      }
+      if (upserts.length) {
+        const { data, error } = await supabase
+          .from("user_permissions" as any)
+          .upsert(upserts, { onConflict: "tenant_id,user_id,permission_key" })
+          .select("permission_key");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("لم يتم تسجيل أي استثناء — تأكد من صلاحياتك كمالك");
+      }
+      // Re-read from DB so the screen always reflects what's actually stored
+      await loadOverrides(userId);
+      toast.success(upserts.length ? `تم حفظ ${upserts.length} استثناء فعليًا` : "تم مسح كل الاستثناءات");
+    } catch (e: any) {
+      toast.error("فشل الحفظ: " + (e?.message ?? e));
+    } finally {
+      setSaving(false);
     }
-    if (!error && upserts.length) {
-      const r = await supabase.from("user_permissions" as any).upsert(upserts, { onConflict: "tenant_id,user_id,permission_key" });
-      error = r.error;
-    }
-    setSaving(false);
-    if (error) toast.error("فشل الحفظ: " + error.message);
-    else toast.success("تم حفظ صلاحيات المستخدم");
   };
+
+  /** Remove every override → the employee falls back to his role defaults. */
+  const resetToRoleDefaults = async () => {
+    if (!userId) return;
+    setSaving(true);
+    const { error } = await supabase.from("user_permissions" as any).delete().eq("user_id", userId);
+    setSaving(false);
+    if (error) { toast.error("فشل الإرجاع: " + error.message); return; }
+    setState({});
+    toast.success("تم إرجاع الموظف لصلاحيات دوره الافتراضية");
+  };
+
 
   const TriToggle = ({ perm }: { perm: string }) => {
     const v = state[perm] ?? "default";
@@ -566,9 +604,16 @@ export function UserPermissionsTab() {
                 </div>
               </div>
             ))}
-            <Button variant="outline" size="sm" onClick={() => setState({})}>
-              <RotateCcw className="w-4 h-4 ml-1" /> رجّع الكل للافتراضي
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setState({})}>
+                <RotateCcw className="w-4 h-4 ml-1" /> تفريغ الاختيارات (من غير حفظ)
+              </Button>
+              <Button variant="destructive" size="sm" onClick={resetToRoleDefaults} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RotateCcw className="w-4 h-4 ml-1" />}
+                رجّع الموظف لصلاحيات دوره الافتراضية
+              </Button>
+            </div>
+
           </div>
         )}
 
