@@ -72,7 +72,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
 
   useEffect(() => {
     if (!tenantId) return;
-    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setBranches(data ?? []));
+    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).neq("code", "PARTNER-CASH").then(({ data }) => setBranches(data ?? []));
     supabase.from("categories").select("id, name").eq("tenant_id", tenantId).then(({ data }) => setCategories(data ?? []));
     supabase.from("products").select("id, category_id").eq("tenant_id", tenantId).then(({ data }) => {
       const m: Record<string, string | null> = {};

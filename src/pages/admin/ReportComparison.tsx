@@ -110,7 +110,7 @@ export default function ReportComparison() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from("branches").select("id,name").eq("is_active", true).then((r) => {
+    supabase.from("branches").select("id,name").eq("is_active", true).neq("code", "PARTNER-CASH").then((r) => {
       setBranches(r.data ?? []);
     });
   }, []);
