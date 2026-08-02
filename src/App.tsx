@@ -208,31 +208,31 @@ const App = () => (
             <Route path="/super/users" element={<ProtectedRoute superAdminOnly><SuperUsers /></ProtectedRoute>} />
 
             {/* Admin */}
-            <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/dashboard" element={<ProtectedRoute perm="admin_home.view" adminOnly><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/branches/:id" element={<ProtectedRoute adminOnly><BranchProfile /></ProtectedRoute>} />
             <Route path="/admin/pre-orders" element={<ProtectedRoute adminOnly><AllPreOrders /></ProtectedRoute>} />
-            <Route path="/admin/contacts" element={<ProtectedRoute adminOnly><AllSuppliers /></ProtectedRoute>} />
+            <Route path="/admin/contacts" element={<ProtectedRoute perm="admin_contacts.view" adminOnly><AllSuppliers /></ProtectedRoute>} />
             <Route path="/admin/suppliers" element={<Navigate to="/admin/contacts?type=supplier" replace />} />
             <Route path="/admin/contacts/:contactId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
             <Route path="/admin/suppliers/:contactId" element={<AdminRedirectToContact />} />
-            <Route path="/admin/employees" element={<ProtectedRoute roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
+            <Route path="/admin/employees" element={<ProtectedRoute perm="admin_employees.view" roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
-            <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute perm="admin_settings.view" adminOnly><Settings /></ProtectedRoute>} />
             <Route path="/admin/approval-requests" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=approvals" replace /></ProtectedRoute>} />
-            <Route path="/admin/approvals-hub" element={<ProtectedRoute adminOnly><AdminApprovalsHub /></ProtectedRoute>} />
+            <Route path="/admin/approvals-hub" element={<ProtectedRoute perm="admin_approvals.view" adminOnly><AdminApprovalsHub /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
-            <Route path="/admin/presence" element={<ProtectedRoute roles={["admin", "supervisor", "viewer"]}><Presence /></ProtectedRoute>} />
+            <Route path="/admin/presence" element={<ProtectedRoute perm="admin_presence.view" roles={["admin", "supervisor", "viewer"]}><Presence /></ProtectedRoute>} />
             <Route path="/admin/attachments" element={<ProtectedRoute adminOnly><AttachmentsHub scope="admin" /></ProtectedRoute>} />
 
 
             {/* Hubs */}
-            <Route path="/admin/catalog" element={<ProtectedRoute adminOnly><CatalogHub /></ProtectedRoute>} />
-            <Route path="/admin/reports-hub" element={<ProtectedRoute adminOnly><ReportsHub /></ProtectedRoute>} />
-            <Route path="/admin/cockpit" element={<ProtectedRoute ownerOnly><CockpitPage /></ProtectedRoute>} />
-            <Route path="/admin/insights" element={<ProtectedRoute ownerOnly><InsightsPage /></ProtectedRoute>} />
-            <Route path="/admin/finance" element={<ProtectedRoute adminOnly><FinanceHub /></ProtectedRoute>} />
-            <Route path="/admin/main-treasury" element={<ProtectedRoute adminOnly><MainTreasury /></ProtectedRoute>} />
+            <Route path="/admin/catalog" element={<ProtectedRoute perm="admin_catalog.view" adminOnly><CatalogHub /></ProtectedRoute>} />
+            <Route path="/admin/reports-hub" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><ReportsHub /></ProtectedRoute>} />
+            <Route path="/admin/cockpit" element={<ProtectedRoute perm="admin_cockpit.view" ownerOnly><CockpitPage /></ProtectedRoute>} />
+            <Route path="/admin/insights" element={<ProtectedRoute perm="admin_insights.view" ownerOnly><InsightsPage /></ProtectedRoute>} />
+            <Route path="/admin/finance" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FinanceHub /></ProtectedRoute>} />
+            <Route path="/admin/main-treasury" element={<ProtectedRoute perm="admin_main_treasury.view" adminOnly><MainTreasury /></ProtectedRoute>} />
             <Route path="/admin/financial-dashboard" element={<ProtectedRoute adminOnly><FinancialDashboard /></ProtectedRoute>} />
             <Route path="/admin/report-comparison" element={<ProtectedRoute adminOnly><ReportComparison /></ProtectedRoute>} />
 
@@ -244,21 +244,21 @@ const App = () => (
             <Route path="/admin/reports" element={<Navigate to="/admin/reports-hub?tab=central" replace />} />
             <Route path="/admin/scheduled-reports" element={<Navigate to="/admin/reports-hub?tab=scheduled" replace />} />
             <Route path="/admin/audit-log" element={<Navigate to="/admin/reports-hub?tab=audit" replace />} />
-            <Route path="/admin/product-attributes" element={<ProtectedRoute adminOnly><ProductAttributes /></ProtectedRoute>} />
+            <Route path="/admin/product-attributes" element={<ProtectedRoute perm="admin_product_attributes.view" adminOnly><ProductAttributes /></ProtectedRoute>} />
             <Route path="/admin/price-audit" element={<ProtectedRoute adminOnly><PriceAuditLog /></ProtectedRoute>} />
             <Route path="/admin/vouchers" element={<Navigate to="/admin/finance?tab=vouchers" replace />} />
             <Route path="/admin/receivables" element={<Navigate to="/admin/finance?tab=receivables" replace />} />
 
             {/* Financial Position (Partners) */}
-            <Route path="/admin/financial-position" element={<ProtectedRoute ownerOnly><FinancialPosition /></ProtectedRoute>} />
+            <Route path="/admin/financial-position" element={<ProtectedRoute perm="admin_financial_position.view" ownerOnly><FinancialPosition /></ProtectedRoute>} />
             <Route path="/admin/financial-position/partners" element={<ProtectedRoute ownerOnly><PartnersList /></ProtectedRoute>} />
             <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute ownerOnly><AdminPartnerProfile /></ProtectedRoute>} />
             <Route path="/admin/financial-position/transactions" element={<ProtectedRoute ownerOnly><PartnerTransactions /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advances" element={<ProtectedRoute ownerOnly><PartnerAdvances /></ProtectedRoute>} />
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
-            <Route path="/admin/shifts" element={<ProtectedRoute roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
-            <Route path="/admin/system-health" element={<ProtectedRoute ownerOnly><SystemHealth /></ProtectedRoute>} />
-            <Route path="/admin/ask-me" element={<ProtectedRoute ownerOnly><AskMe /></ProtectedRoute>} />
+            <Route path="/admin/shifts" element={<ProtectedRoute perm="admin_shifts.view" roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
+            <Route path="/admin/system-health" element={<ProtectedRoute perm="admin_system_health.view" ownerOnly><SystemHealth /></ProtectedRoute>} />
+            <Route path="/admin/ask-me" element={<ProtectedRoute perm="admin_ask_me.view" ownerOnly><AskMe /></ProtectedRoute>} />
             <Route path="/admin/personal-expenses" element={<ProtectedRoute><PersonalExpenses /></ProtectedRoute>} />
 
 
