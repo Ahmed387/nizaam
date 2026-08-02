@@ -339,7 +339,7 @@ export function UserPermissionsTab() {
           <div className="rounded-lg border border-primary/25 bg-gradient-to-l from-primary/5 to-transparent p-3 space-y-3 animate-fade-in">
             <div className="flex flex-wrap items-center gap-2">
               <FolderTree className="w-4 h-4 text-primary" />
-              <span className="font-bold text-sm">الاستثناءات مقارنة بصلاحيات الدور ({ROLE_LABELS[role as AppRole] ?? role || "بدون دور"})</span>
+              <span className="font-bold text-sm">الاستثناءات مقارنة بصلاحيات الدور ({ROLE_LABELS[role as AppRole] ?? (role || "بدون دور")})</span>
               <div className="flex flex-wrap gap-2 ms-auto">
                 <Badge className="bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
                   مسموح زيادة: {diff.extra.length}
