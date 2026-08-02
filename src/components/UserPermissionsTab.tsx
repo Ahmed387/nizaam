@@ -64,7 +64,7 @@ export function UserPermissionsTab() {
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
       supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
-      supabase.from("employees").select("user_id").eq("tenant_id", tenantId).not("user_id", "is", null),
+      supabase.from("employees").select("user_id").eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
     ]);
     setEmployeeUserIds(new Set(((emps ?? []) as any[]).map((e) => e.user_id)));
     setUsers(profs ?? []);
@@ -82,12 +82,13 @@ export function UserPermissionsTab() {
 
   /** Owners / admins / super admins / partners are never managed here — they hold full company access. */
   const FULL_ACCESS_ROLES = ["owner", "admin", "super_admin", "partner"];
+  /** Only real, active employee records of this tenant appear here (deleted employees never show). */
   const selectableUsers = useMemo(
     () =>
       users.filter((u) => {
+        if (!employeeUserIds.has(u.id)) return false;
         const rs = rolesByUser[u.id] ?? [];
-        if (rs.some((r) => FULL_ACCESS_ROLES.includes(r))) return false;
-        return employeeUserIds.has(u.id) || rs.some((r) => MANAGED_ROLES.includes(r as AppRole));
+        return !rs.some((r) => FULL_ACCESS_ROLES.includes(r));
       }),
     // eslint-disable-next-line
     [users, rolesByUser, employeeUserIds],
