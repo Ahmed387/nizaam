@@ -414,8 +414,14 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setBulkOpen(true); setBulkScope(selected.size ? "selected" : "all"); }}>
+                    <Percent className="h-4 w-4 ml-1" /> تعديل جماعي للأسعار
+                  </Button>
                   <Button variant="outline" onClick={() => { setUploadOpen(true); setParsedDiff(null); }}>
                     <Upload className="h-4 w-4 ml-1" /> تحديث القائمة
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => { setRenameId(s.id); setRenameValue(s.supplier_name); }} title="تعديل اسم المورد">
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteSupplierId(s.id)} title="حذف المورد">
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -428,31 +434,63 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Input placeholder="بحث في المنتجات..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
               </div>
 
-              <div className="border rounded-lg bg-card" dir="rtl">
+              {selected.size > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                  <span className="font-medium flex items-center gap-2"><CheckSquare className="h-4 w-4 text-primary" /> تم اختيار {selected.size} صنف</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => { setBulkScope("selected"); setBulkOpen(true); }}>تعديل أسعار المختار</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>إلغاء التحديد</Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="border rounded-lg bg-card overflow-x-auto" dir="rtl">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="text-right font-semibold">اسم المنتج</TableHead>
-                      <TableHead className="text-right font-semibold">الموديل</TableHead>
+                      <TableHead className="w-10 text-center">
+                        <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="تحديد الكل" />
+                      </TableHead>
+                      <TableHead className="text-center font-semibold min-w-[220px]">اسم المنتج</TableHead>
+                      <TableHead className="text-center font-semibold">الموديل</TableHead>
                       <TableHead className="text-center font-semibold">سعر الشراء</TableHead>
                       <TableHead className="text-center font-semibold">سعر البيع المقترح</TableHead>
                       <TableHead className="text-center font-semibold">السعر المعروض للكاشير</TableHead>
                       <TableHead className="text-center font-semibold">ظاهر</TableHead>
-                      <TableHead className="text-right font-semibold">الفئة</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="text-center font-semibold">الفئة</TableHead>
+                      <TableHead className="w-24 text-center font-semibold">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {currentItems.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
                     ) : currentItems.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="font-medium">{item.product_name}</TableCell>
-                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground font-mono">{item.model_code ?? "—"}</TableCell>
-                        <TableCell className="text-center tabular-nums">{formatEGP(item.cost_price)}</TableCell>
-                        <TableCell className="text-center tabular-nums text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
-                        <TableCell className="text-center">
+                      <TableRow
+                        key={item.id}
+                        className="hover:bg-muted/30 transition-colors align-middle"
+                        onDoubleClick={() => openEdit(item)}
+                        title="دبل كليك لتعديل الصنف"
+                      >
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                        </TableCell>
+                        <TableCell
+                          className="font-medium text-center align-middle"
+                          style={{ unicodeBidi: "plaintext", whiteSpace: "normal", overflowWrap: "normal", wordBreak: "normal" }}
+                        >
+                          {item.product_name}
+                        </TableCell>
+                        <TableCell
+                          className="text-center align-middle text-sm text-muted-foreground font-mono"
+                          style={{ unicodeBidi: "plaintext", whiteSpace: "normal" }}
+                        >
+                          {item.model_code ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-center align-middle tabular-nums whitespace-nowrap">{formatEGP(item.cost_price)}</TableCell>
+                        <TableCell className="text-center align-middle tabular-nums text-muted-foreground whitespace-nowrap">{formatEGP(item.suggested_sell_price)}</TableCell>
+                        <TableCell className="text-center align-middle" onClick={(e) => e.stopPropagation()}>
                           <Input
+                            key={`${item.id}-${item.display_price}`}
                             type="number"
                             className="w-28 mx-auto text-center tabular-nums font-semibold"
                             defaultValue={item.display_price}
@@ -462,7 +500,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center align-middle">
                           <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Switch variant="premium" checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
                             <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-colors", item.is_active ? "bg-success/10 border-success/30 text-success" : "bg-muted/50 border-border text-muted-foreground")}>
@@ -471,15 +509,21 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right text-sm">{item.category ?? "—"}</TableCell>
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        <TableCell className="text-center align-middle text-sm">{item.category ?? "—"}</TableCell>
+                        <TableCell className="text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(item)} title="تعديل الصنف">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)} title="حذف">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
+
                 </Table>
               </div>
 
