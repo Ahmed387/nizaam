@@ -50,11 +50,16 @@ export function ProtectedRoute({
     return <Navigate to="/setup-wizard" replace />;
   }
 
-  if (ownerOnly && !isOwner) return <Navigate to="/" replace />;
-  if (superAdminOnly && !isSuperAdmin) return <Navigate to="/" replace />;
-  if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
-  if (perm && !can(perm)) return <Navigate to="/" replace />;
-  if (roles && !isAdmin && !roles.some((r) => hasRole(r))) return <Navigate to="/" replace />;
+  // Gates are OR-ed: an explicitly granted permission can unlock a page that is
+  // otherwise owner/admin/role gated.
+  const gates: boolean[] = [];
+  if (ownerOnly) gates.push(isOwner || isSuperAdmin);
+  if (superAdminOnly) gates.push(isSuperAdmin);
+  if (adminOnly) gates.push(isAdmin);
+  if (roles) gates.push(isAdmin || roles.some((r) => hasRole(r)));
+  if (perm) gates.push(can(perm));
+  if (gates.length > 0 && !gates.some(Boolean)) return <Navigate to="/" replace />;
+
 
   return <>{children}</>;
 }
