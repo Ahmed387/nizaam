@@ -6,10 +6,10 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
-  const { user, isAdmin, isSuperAdmin, hasRole, branches, tenant, loading } = useAuth();
+  const { user, isAdmin, isSuperAdmin, hasRole, branches, tenant, loading, ctxReady, can } = useAuth();
   const nav = useNavigate();
   useEffect(() => {
-    if (loading) return;
+    if (loading || !ctxReady) return;
     if (!user) { nav("/welcome", { replace: true }); return; }
     if (isSuperAdmin) { nav("/super/dashboard", { replace: true }); return; }
     // Force admins to finish tenant setup before entering the system
@@ -26,9 +26,21 @@ const Index = () => {
       supabase.auth.signOut().finally(() => nav("/welcome", { replace: true }));
       return;
     }
+    const grantedAdminEntry = [
+      ["admin_home.view", "/admin/dashboard"],
+      ["admin_cockpit.view", "/admin/cockpit"],
+      ["admin_ask_me.view", "/admin/ask-me"],
+      ["admin_insights.view", "/admin/insights"],
+      ["admin_catalog.view", "/admin/catalog"],
+      ["admin_contacts.view", "/admin/contacts"],
+      ["admin_employees.view", "/admin/employees"],
+      ["admin_finance.view", "/admin/finance"],
+      ["admin_reports_hub.view", "/admin/reports-hub"],
+    ].find(([permission]) => can(permission));
+    if (grantedAdminEntry) { nav(grantedAdminEntry[1], { replace: true }); return; }
     if (branches[0]) { nav(`/branch/${branches[0].id}/dashboard`, { replace: true }); return; }
     nav("/welcome", { replace: true });
-  }, [user, isAdmin, isSuperAdmin, hasRole, branches, tenant, loading, nav]);
+  }, [user, isAdmin, isSuperAdmin, hasRole, branches, tenant, loading, ctxReady, can, nav]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />

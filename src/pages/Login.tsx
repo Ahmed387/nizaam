@@ -15,7 +15,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const { user, isAdmin, isSuperAdmin, branches, loading, hasRole, ctxReady, roles } = useAuth();
+  const { user, isAdmin, isSuperAdmin, branches, loading, hasRole, ctxReady, roles, can } = useAuth();
   const nav = useNavigate();
 
   useEffect(() => {
@@ -23,10 +23,19 @@ export default function Login() {
     if (isSuperAdmin) nav("/super/dashboard", { replace: true });
     else if (isAdmin) nav("/admin/dashboard", { replace: true });
     else if (hasRole("partner")) nav("/partner/dashboard", { replace: true });
+    else if (can("admin_home.view")) nav("/admin/dashboard", { replace: true });
+    else if (can("admin_cockpit.view")) nav("/admin/cockpit", { replace: true });
+    else if (can("admin_ask_me.view")) nav("/admin/ask-me", { replace: true });
+    else if (can("admin_insights.view")) nav("/admin/insights", { replace: true });
+    else if (can("admin_catalog.view")) nav("/admin/catalog", { replace: true });
+    else if (can("admin_contacts.view")) nav("/admin/contacts", { replace: true });
+    else if (can("admin_employees.view")) nav("/admin/employees", { replace: true });
+    else if (can("admin_finance.view")) nav("/admin/finance", { replace: true });
+    else if (can("admin_reports_hub.view")) nav("/admin/reports-hub", { replace: true });
     else if (branches[0]) nav(`/branch/${branches[0].id}/dashboard`, { replace: true });
     else if (roles.length > 0) nav("/admin/dashboard", { replace: true });
     else toast.error("حسابك غير مرتبط بأي فرع أو صلاحية — كلّم مدير الشركة");
-  }, [user, isAdmin, isSuperAdmin, branches, loading, hasRole, nav, ctxReady, roles]);
+  }, [user, isAdmin, isSuperAdmin, branches, loading, hasRole, nav, ctxReady, roles, can]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -42,9 +42,11 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (!user) return json({ error: "غير مصرح" }, 401);
 
-    const { data: roles } = await sb.from("user_roles").select("role").eq("user_id", user.id);
-    const isOwner = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "super_admin");
-    if (!isOwner) return json({ error: "هذه الصفحة متاحة لصاحب الشركة فقط" }, 403);
+    const { data: allowed, error: permissionError } = await sb.rpc("has_permission", {
+      _user_id: user.id,
+      _key: "admin_ask_me.view",
+    });
+    if (permissionError || !allowed) return json({ error: "ليس لديك صلاحية استخدام اسألني" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const history: { role: string; content: string }[] = Array.isArray(body?.messages) ? body.messages : [];
