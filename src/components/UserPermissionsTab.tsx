@@ -42,6 +42,7 @@ const SECTIONS: { title: string; nodes: Node[] }[] = [
 export function UserPermissionsTab() {
   const { tenantId } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
+  const [employeeUserIds, setEmployeeUserIds] = useState<Set<string>>(new Set());
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, string[]>>({});
   const [branchIdsByUser, setBranchIdsByUser] = useState<Record<string, string[]>>({});
