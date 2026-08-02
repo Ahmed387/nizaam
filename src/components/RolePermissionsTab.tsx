@@ -141,30 +141,38 @@ export function RolePermissionsTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {PERMISSION_GROUPS.map((g) => (
-                      <tr key={g.key} className="border-t">
-                        <td className="p-2 font-medium">{g.label}</td>
-                        {(["view", "create", "update", "delete"] as const).map((a) => {
-                          const key = `${g.key}.${a}`;
-                          const supported = g.actions.includes(a);
-                          return (
-                            <td key={a} className="p-2 text-center">
-                              {supported ? (
-                                <Checkbox
-                                  checked={!!perms[role]?.[key]}
-                                  onCheckedChange={() => toggle(role, key)}
-                                />
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
+                    {SECTIONS.map((section) => (
+                      <>
+                        <tr key={section.title} className="border-t bg-primary/5">
+                          <td colSpan={5} className="p-2 font-bold text-primary text-right">{section.title}</td>
+                        </tr>
+                        {section.groups.map((g) => (
+                          <tr key={g.key} className="border-t">
+                            <td className="p-2 font-medium">{g.label}</td>
+                            {(["view", "create", "update", "delete"] as const).map((a) => {
+                              const key = `${g.key}.${a}`;
+                              const supported = g.actions.includes(a);
+                              return (
+                                <td key={a} className="p-2 text-center">
+                                  {supported ? (
+                                    <Checkbox
+                                      checked={!!perms[role]?.[key]}
+                                      onCheckedChange={() => toggle(role, key)}
+                                    />
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </>
                     ))}
                   </tbody>
                 </table>
               </div>
+
             </TabsContent>
           ))}
         </Tabs>
