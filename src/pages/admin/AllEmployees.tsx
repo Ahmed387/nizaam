@@ -34,7 +34,7 @@ const POSITIONS = [
 
 export default function AllEmployees() {
   const nav = useNavigate();
-  const { tenantId } = useAuth();
+  useAuth();
   const [emps, setEmps] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
@@ -56,7 +56,10 @@ export default function AllEmployees() {
     hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
   });
   const [shift, setShift] = useState<ShiftValue>(emptyShift());
+  const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const isSimpleRole = form.role === "worker" || form.role === "driver";
+
 
   const load = async () => {
     setLoading(true);
@@ -113,6 +116,7 @@ export default function AllEmployees() {
   const openNew = () => {
     setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
     setShift(emptyShift());
+    setAllowedBranchIds([]);
     setEditing(null);
     setOpen(true);
   };
@@ -124,6 +128,7 @@ export default function AllEmployees() {
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
     });
+    setAllowedBranchIds(e.user_id ? (userBranches[e.user_id] ?? []) : (e.branch_id ? [e.branch_id] : []));
     setShift({
       work_start: e.work_start ?? null,
       work_end: e.work_end ?? null,
@@ -133,6 +138,7 @@ export default function AllEmployees() {
     setOpen(true);
   };
 
+
   const onPositionChange = (val: string) => {
     const pos = POSITIONS.find((p) => p.value === val);
     setForm({ ...form, job_title: val, role: pos?.role ?? form.role });
@@ -141,53 +147,45 @@ export default function AllEmployees() {
   const submit = async () => {
     if (!form.name || !form.job_title || !form.branch_id || !form.role) return toast.error("املأ الاسم والوظيفة والفرع والصلاحية");
     if (!form.phone) return toast.error("التليفون مطلوب");
-
-    const payload: any = {
-      branch_id: form.branch_id,
-      name: form.name.trim(),
-      job_title: form.job_title,
-      phone: form.phone.trim(),
-      national_id: form.national_id.trim() || null,
-      base_salary: Number(form.base_salary) || 0,
-      hire_date: form.hire_date,
-      role: form.role || null,
-      is_active: form.is_active,
-      has_system_access: !isSimpleRole,
-      work_start: shift.work_start,
-      work_end: shift.work_end,
-      work_days: shift.work_days,
-      late_grace_minutes: shift.late_grace_minutes,
-    };
-
-    if (isSimpleRole) {
-      // Workers/Drivers: no email/password — they don't log in
-      payload.email = null;
-      if (!editing) payload.login_password = null;
-    } else {
+    if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب لدخول الموظف");
       if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
       if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
-      const emailLower = form.email.trim().toLowerCase();
-      const { data: dup } = await supabase.from("employees").select("id").ilike("email", emailLower).maybeSingle();
-      if (dup && dup.id !== editing?.id) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
-      payload.email = emailLower;
-      if (!editing || form.login_password) {
-        payload.login_password = form.login_password || null;
-      }
+      if (!allowedBranchIds.length && !form.branch_id) return toast.error("اختر الفروع المسموح بها");
     }
 
-    if (editing) {
-      const { error } = await supabase.from("employees").update(payload).eq("id", editing.id);
-      if (error) return toast.error(error.message);
-      toast.success("تم التعديل");
-    } else {
-      const { error } = await supabase.from("employees").insert({ ...payload, tenant_id: tenantId });
-      if (error) return toast.error(error.message);
-      toast.success("تمت الإضافة");
-    }
+    setSaving(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-employee", {
+      body: {
+        employee_id: editing?.id ?? null,
+        name: form.name.trim(),
+        job_title: form.job_title,
+        phone: form.phone.trim(),
+        national_id: form.national_id.trim() || null,
+        base_salary: Number(form.base_salary) || 0,
+        hire_date: form.hire_date,
+        branch_id: form.branch_id,
+        allowed_branch_ids: isSimpleRole ? [] : allowedBranchIds,
+        role: form.role,
+        is_active: form.is_active,
+        has_system_access: !isSimpleRole,
+        email: isSimpleRole ? null : form.email.trim().toLowerCase(),
+        password: form.login_password || null,
+        work_start: shift.work_start,
+        work_end: shift.work_end,
+        work_days: shift.work_days,
+        late_grace_minutes: shift.late_grace_minutes,
+      },
+    });
+    setSaving(false);
+    const errMsg = (error as any)?.message ?? (data as any)?.error;
+    if (errMsg) return toast.error(String(errMsg));
+
+    toast.success(editing ? "تم التعديل" : "تمت إضافة الموظف وربط حسابه بالفروع");
     setOpen(false);
     load();
   };
+
 
 
   const confirmDelete = async () => {
@@ -359,10 +357,43 @@ export default function AllEmployees() {
                   {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <div className="text-[11px] text-muted-foreground mt-1">
-                ده الفرع الرئيسي للموظف. لو محتاج تربطه بأكتر من فرع (مثلاً محاسب على كل الفروع) — افتح صفحته بعد الإنشاء واستخدم زر "إدارة الفروع".
-              </div>
             </div>
+            {!isSimpleRole && (
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label>الفروع المسموح بالدخول عليها *</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline"
+                    onClick={() => setAllowedBranchIds(
+                      allowedBranchIds.length === branches.length ? [] : branches.map((b) => b.id)
+                    )}
+                  >
+                    {allowedBranchIds.length === branches.length ? "إلغاء الكل" : "اختيار كل الفروع"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {branches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={allowedBranchIds.includes(b.id)}
+                        onChange={(e) => setAllowedBranchIds(
+                          e.target.checked
+                            ? [...allowedBranchIds, b.id]
+                            : allowedBranchIds.filter((x) => x !== b.id)
+                        )}
+                      />
+                      {b.name}
+                    </label>
+                  ))}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-2">
+                  هيتعمل للموظف حساب دخول ويترّبط بالفروع دي فوراً من نفس الفورم — مش محتاج ترجع لصفحة الموظف.
+                </div>
+              </div>
+            )}
+
             <div><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
             <div>
               <Label>الوظيفة *</Label>
@@ -413,7 +444,7 @@ export default function AllEmployees() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button onClick={submit}>{editing ? "حفظ" : "إضافة"}</Button>
+            <Button onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : editing ? "حفظ" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
