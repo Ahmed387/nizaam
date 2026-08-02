@@ -232,19 +232,44 @@ export function UserPermissionsTab() {
         else upserts.push({ tenant_id: tenantId, user_id: userId, permission_key: key, allowed: v === "allow" });
       }),
     );
-    let error: any = null;
-    if (removals.length) {
-      const r = await supabase.from("user_permissions" as any).delete().eq("user_id", userId).in("permission_key", removals);
-      error = r.error;
+    try {
+      if (removals.length) {
+        const { error } = await supabase
+          .from("user_permissions" as any)
+          .delete()
+          .eq("user_id", userId)
+          .in("permission_key", removals);
+        if (error) throw error;
+      }
+      if (upserts.length) {
+        const { data, error } = await supabase
+          .from("user_permissions" as any)
+          .upsert(upserts, { onConflict: "tenant_id,user_id,permission_key" })
+          .select("permission_key");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("لم يتم تسجيل أي استثناء — تأكد من صلاحياتك كمالك");
+      }
+      // Re-read from DB so the screen always reflects what's actually stored
+      await loadOverrides(userId);
+      toast.success(upserts.length ? `تم حفظ ${upserts.length} استثناء فعليًا` : "تم مسح كل الاستثناءات");
+    } catch (e: any) {
+      toast.error("فشل الحفظ: " + (e?.message ?? e));
+    } finally {
+      setSaving(false);
     }
-    if (!error && upserts.length) {
-      const r = await supabase.from("user_permissions" as any).upsert(upserts, { onConflict: "tenant_id,user_id,permission_key" });
-      error = r.error;
-    }
-    setSaving(false);
-    if (error) toast.error("فشل الحفظ: " + error.message);
-    else toast.success("تم حفظ صلاحيات المستخدم");
   };
+
+  /** Remove every override → the employee falls back to his role defaults. */
+  const resetToRoleDefaults = async () => {
+    if (!userId) return;
+    setSaving(true);
+    const { error } = await supabase.from("user_permissions" as any).delete().eq("user_id", userId);
+    setSaving(false);
+    if (error) { toast.error("فشل الإرجاع: " + error.message); return; }
+    setState({});
+    toast.success("تم إرجاع الموظف لصلاحيات دوره الافتراضية");
+  };
+
 
   const TriToggle = ({ perm }: { perm: string }) => {
     const v = state[perm] ?? "default";
