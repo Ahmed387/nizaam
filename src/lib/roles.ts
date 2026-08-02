@@ -96,7 +96,7 @@ export const MANAGED_ROLES: AppRole[] = [
 
 /** Sensible defaults applied the first time the panel is opened for a tenant. */
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
-  branch_manager: Object.fromEntries(PERMISSION_GROUPS.flatMap(g => g.actions.map(a => [`${g.key}.${a}`, true]))),
+  branch_manager: Object.fromEntries(BRANCH_PERMISSION_GROUPS.flatMap(g => g.actions.map(a => [`${g.key}.${a}`, true]))),
   accountant: {
     "dashboard.view": true, "sales.view": true, "invoices.view": true, "invoices.update": true,
     "preorders.view": true, "shipments.view": true, "inventory.view": true,
