@@ -26,6 +26,11 @@ type Node = { group: Group; children: Group[] };
 
 const ACTION_LABELS: Record<string, string> = { view: "عرض", create: "إنشاء", update: "تعديل", delete: "حذف" };
 
+/** permission_key → readable label (e.g. "المبيعات — إنشاء"). */
+const PERM_LABELS: Record<string, string> = Object.fromEntries(
+  USER_PERMISSION_GROUPS.flatMap((g) => g.actions.map((a) => [`${g.key}.${a}`, `${g.label} — ${ACTION_LABELS[a]}`])),
+);
+
 /** Strip the "الصفحة ← " prefix from sub-section labels for the tree view. */
 const childLabel = (label: string) => (label.includes("←") ? label.split("←").slice(1).join("←").trim() : label);
 
