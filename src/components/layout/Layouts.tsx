@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole, user } = useAuth();
+  const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole, user, can } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
   const [mainTreasuryId, setMainTreasuryId] = useState<string | null>(null);
@@ -54,28 +54,38 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const totalAdminApprovals = (pendingApprovals || 0) + (pendingDiscounts || 0);
 
+  const allAdminNav: (NavItem & { perm: string; ownerOnly?: boolean; adminOnly?: boolean })[] = [
+    { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عام", perm: "admin_home.view" },
+    { to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عام", perm: "admin_cockpit.view", ownerOnly: true },
+    { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عام", perm: "admin_ask_me.view", ownerOnly: true },
+    { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عام", perm: "admin_insights.view", ownerOnly: true },
+
+    { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" />, group: "العمليات", perm: "admin_catalog.view" },
+    { to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" />, group: "العمليات", perm: "admin_product_attributes.view" },
+    { to: "/admin/contacts", label: "جهات التواصل", icon: <Factory className="w-4 h-4" />, group: "العمليات", perm: "admin_contacts.view" },
+    { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات", perm: "admin_employees.view" },
+    { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_presence.view" },
+    { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_shifts.view" },
+
+    { to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" />, group: "المالية", perm: "admin_main_treasury.view", adminOnly: true },
+    { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية", perm: "admin_finance.view" },
+    { to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" />, group: "المالية", perm: "admin_financial_position.view", ownerOnly: true },
+    { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية", perm: "admin_reports_hub.view" },
+
+    { to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة", perm: "admin_system_health.view", ownerOnly: true },
+    { to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة", perm: "admin_approvals.view", adminOnly: true },
+    { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة", perm: "admin_settings.view" },
+  ];
+
   const adminNav: NavItem[] = [
-    { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عام" },
-    ...(isOwner ? [{ to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عام" }] : []),
-    ...(isOwner ? [{ to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عام" }] : []),
-    ...(isOwner ? [{ to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عام" }] : []),
-
-    { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" />, group: "العمليات" },
-    { to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" />, group: "العمليات" },
-    { to: "/admin/contacts", label: "جهات التواصل", icon: <Factory className="w-4 h-4" />, group: "العمليات" },
-    { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات" },
-    { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات" },
-    { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات" },
-
-    ...(isAdmin ? [{ to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
-    { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية" },
-    ...(isOwner ? [{ to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" />, group: "المالية" }] : []),
+    ...allAdminNav
+      .filter((i) => {
+        if (i.ownerOnly) return isOwner || can(i.perm);
+        if (i.adminOnly) return isAdmin || can(i.perm);
+        return isAdmin || can(i.perm);
+      })
+      .map(({ perm, ownerOnly, adminOnly, ...rest }) => rest),
     ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
-    { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية" },
-
-    ...(isOwner ? [{ to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة" }] : []),
-    ...(isAdmin ? [{ to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة" }] : []),
-    { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة" },
   ];
 
   const supervisorNav: NavItem[] = [
@@ -83,7 +93,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> },
   ];
 
-  const nav = isAdmin ? adminNav : hasRole("supervisor") ? supervisorNav : [];
+  const nav = isAdmin ? adminNav : adminNav.length > 0 ? adminNav : hasRole("supervisor") ? supervisorNav : [];
   return (
     <AppShell
       title={tenant?.name ?? "Nizam"}
