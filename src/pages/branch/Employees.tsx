@@ -74,59 +74,39 @@ export default function Employees() {
     if (!form.name || !form.job_title || !form.phone) {
       return toast.error("الاسم والتليفون والوظيفة مطلوبة");
     }
-
-    if (isSimpleRole) {
-      // Workers/Drivers: no login, no email
-      const { error } = await supabase.from("employees").insert({
-        branch_id: branchId!,
-        tenant_id: tenant?.id ?? null,
-        name: form.name.trim(),
-        job_title: form.job_title,
-        phone: form.phone.trim(),
-        national_id: form.national_id.trim() || null,
-        base_salary: Number(form.base_salary) || 0,
-        hire_date: form.hire_date,
-        role: form.role as any,
-        has_system_access: false,
-        work_start: shift.work_start,
-        work_end: shift.work_end,
-        work_days: shift.work_days,
-        late_grace_minutes: shift.late_grace_minutes,
-      });
-      if (error) return toast.error(error.message);
-      toast.success("تمت الإضافة");
-    } else {
+    if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب");
       if (!form.login_password || form.login_password.length < 6) {
         return toast.error("كلمة المرور 6 أحرف على الأقل");
       }
-      const emailLower = form.email.trim().toLowerCase();
-      const { data: dup } = await supabase
-        .from("employees").select("id").ilike("email", emailLower).maybeSingle();
-      if (dup) return toast.error("يوجد موظف بنفس الإيميل بالفعل");
+    }
 
-      const { error } = await supabase.from("employees").insert({
-        branch_id: branchId!,
-        tenant_id: tenant?.id ?? null,
+    const { data, error } = await supabase.functions.invoke("admin-create-employee", {
+      body: {
         name: form.name.trim(),
         job_title: form.job_title,
-        email: emailLower,
         phone: form.phone.trim(),
         national_id: form.national_id.trim() || null,
-        address: form.address.trim() || null,
         base_salary: Number(form.base_salary) || 0,
         hire_date: form.hire_date,
-        login_password: form.login_password,
-        role: form.role as any,
-        has_system_access: true,
+        branch_id: branchId,
+        allowed_branch_ids: branchId ? [branchId] : [],
+        role: form.role,
+        is_active: true,
+        has_system_access: !isSimpleRole,
+        email: isSimpleRole ? null : form.email.trim().toLowerCase(),
+        password: isSimpleRole ? null : form.login_password,
         work_start: shift.work_start,
         work_end: shift.work_end,
         work_days: shift.work_days,
         late_grace_minutes: shift.late_grace_minutes,
-      });
-      if (error) return toast.error(error.message);
-      toast.success("تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
+      },
+    });
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error ?? error?.message ?? "فشل إضافة الموظف");
     }
+    toast.success(isSimpleRole ? "تمت الإضافة" : "تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
+
 
     setOpen(false);
     setForm({
