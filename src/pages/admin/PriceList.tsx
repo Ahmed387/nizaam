@@ -532,6 +532,112 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
         </Tabs>
       )}
 
+      {/* Rename supplier dialog */}
+      <Dialog open={!!renameId} onOpenChange={(o) => !o && setRenameId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>تعديل اسم المورد</DialogTitle>
+            <DialogDescription>الاسم الجديد هيظهر في كل الأماكن المرتبطة بالقائمة</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>اسم المورد</Label>
+            <Input value={renameValue} autoFocus onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && renameSupplier()} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameId(null)}>إلغاء</Button>
+            <Button onClick={renameSupplier}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit item dialog */}
+      <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل الصنف</DialogTitle>
+            <DialogDescription>تقدر تعدل الاسم أو الموديل أو الفئة أو الأسعار</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <Label>اسم المنتج</Label>
+              <Input value={String(editForm.product_name ?? "")} onChange={(e) => setEditForm((f) => ({ ...f, product_name: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>الموديل</Label>
+              <Input value={String(editForm.model_code ?? "")} onChange={(e) => setEditForm((f) => ({ ...f, model_code: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>الفئة</Label>
+              <Input value={String(editForm.category ?? "")} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>سعر الشراء</Label>
+              <Input type="number" value={String(editForm.cost_price ?? 0)} onChange={(e) => setEditForm((f) => ({ ...f, cost_price: Number(e.target.value) }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>سعر البيع المقترح</Label>
+              <Input type="number" value={String(editForm.suggested_sell_price ?? 0)} onChange={(e) => setEditForm((f) => ({ ...f, suggested_sell_price: Number(e.target.value) }))} />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>السعر المعروض للكاشير</Label>
+              <Input type="number" value={String(editForm.display_price ?? 0)} onChange={(e) => setEditForm((f) => ({ ...f, display_price: Number(e.target.value) }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={savingItem}>
+              {savingItem && <Loader2 className="h-4 w-4 ml-2 animate-spin" />} حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk price adjustment dialog */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل جماعي للأسعار</DialogTitle>
+            <DialogDescription>زوّد أو قلّل الأسعار بنسبة مئوية أو بمبلغ ثابت</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>السعر المستهدف</Label>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+                {([["display_price", "المعروض للكاشير"], ["suggested_sell_price", "البيع المقترح"], ["cost_price", "الشراء"]] as const).map(([k, l]) => (
+                  <Button key={k} type="button" size="sm" variant={bulkField === k ? "default" : "ghost"} onClick={() => setBulkField(k)}>{l}</Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>النطاق</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                <Button type="button" size="sm" variant={bulkScope === "all" ? "default" : "ghost"} onClick={() => setBulkScope("all")}>كل الأصناف ({currentItems.length})</Button>
+                <Button type="button" size="sm" variant={bulkScope === "selected" ? "default" : "ghost"} onClick={() => setBulkScope("selected")} disabled={!selected.size}>المختار ({selected.size})</Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>طريقة التعديل</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                <Button type="button" size="sm" variant={bulkMode === "percent" ? "default" : "ghost"} onClick={() => setBulkMode("percent")}>نسبة %</Button>
+                <Button type="button" size="sm" variant={bulkMode === "amount" ? "default" : "ghost"} onClick={() => setBulkMode("amount")}>مبلغ ثابت</Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>القيمة ({bulkMode === "percent" ? "مثال: 2 للزيادة 2% أو -2 للتخفيض" : "مثال: 50 أو -50"})</Label>
+              <Input type="number" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} placeholder={bulkMode === "percent" ? "2" : "50"} />
+            </div>
+            <p className="text-xs text-muted-foreground">هيتم التعديل على {bulkTargets().length} صنف.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>إلغاء</Button>
+            <Button onClick={applyBulk} disabled={bulkBusy}>
+              {bulkBusy && <Loader2 className="h-4 w-4 ml-2 animate-spin" />} تطبيق
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Add supplier dialog */}
       <Dialog open={addSupplierOpen} onOpenChange={setAddSupplierOpen}>
         <DialogContent>
