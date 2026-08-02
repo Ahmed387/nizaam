@@ -68,7 +68,8 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
       await Promise.all([
         fetchProfitWindow({ tenantId, range: rangeForDates(todayStr, todayStr) }),
         fetchProfitWindow({ tenantId, range: rangeForDates(monthStart, todayStr) }),
-        supabase.from("treasury" as any).select("type, amount").eq("status", "active"),
+        // ملاحظة: جدول treasury مفيهوش عمود status، والنوع بيكون income / expense
+        supabase.from("treasury" as any).select("type, amount").eq("tenant_id", tenantId),
         // TODO Phase 2.2B: Remove after contacts.balance column is dropped
         supabase.from("v_contact_balances" as any).select("type, total_balance"),
         supabase
@@ -108,8 +109,8 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
 
     // Treasury
     const tr = (treasury.data ?? []) as any[];
-    const cashIn = tr.filter((x) => x.type === "deposit").reduce((s, x) => s + Number(x.amount || 0), 0);
-    const cashOut = tr.filter((x) => x.type === "withdraw").reduce((s, x) => s + Number(x.amount || 0), 0);
+    const cashIn = tr.filter((x) => x.type === "income").reduce((s, x) => s + Number(x.amount || 0), 0);
+    const cashOut = tr.filter((x) => x.type === "expense").reduce((s, x) => s + Number(x.amount || 0), 0);
     setTreasuryBalance(cashIn - cashOut);
 
     // Supplier & customer balances

@@ -74,7 +74,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("supplier_payments").select("*").gte("paid_at", fromIso).lte("paid_at", toIso),
       supabase.from("employees").select("*").eq("is_active", true),
       supabase.from("vouchers" as any).select("type, amount, branch_id, voucher_date").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("returns").select("*").gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("returns").select("*").eq("status", "active").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("contacts").select("id,branch_id"),
       supabase.from("shipments").select("contact_id,total_cost"),
       supabase.from("supplier_payments").select("contact_id,amount"),
