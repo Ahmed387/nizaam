@@ -58,12 +58,14 @@ export function UserPermissionsTab() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
       supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
+      supabase.from("employees").select("user_id").eq("tenant_id", tenantId).not("user_id", "is", null),
     ]);
+    setEmployeeUserIds(new Set(((emps ?? []) as any[]).map((e) => e.user_id)));
     setUsers(profs ?? []);
     setAllBranches((brs ?? []) as any);
     const rmap: Record<string, string[]> = {};
@@ -76,6 +78,20 @@ export function UserPermissionsTab() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId]);
+
+  /** Owners / admins / super admins / partners are never managed here — they hold full company access. */
+  const FULL_ACCESS_ROLES = ["owner", "admin", "super_admin", "partner"];
+  const selectableUsers = useMemo(
+    () =>
+      users.filter((u) => {
+        const rs = rolesByUser[u.id] ?? [];
+        if (rs.some((r) => FULL_ACCESS_ROLES.includes(r))) return false;
+        return employeeUserIds.has(u.id) || rs.some((r) => MANAGED_ROLES.includes(r as AppRole));
+      }),
+    // eslint-disable-next-line
+    [users, rolesByUser, employeeUserIds],
+  );
+
 
   useEffect(() => {
     if (!userId) { setState({}); setRole(""); setBranchIds([]); return; }
