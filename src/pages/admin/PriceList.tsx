@@ -18,7 +18,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Upload, Trash2, Loader2, Search, X, FileUp } from "lucide-react";
+import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Source = {
   id: string;
@@ -67,6 +68,21 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   const [addSupplierOpen, setAddSupplierOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [deleteSupplierId, setDeleteSupplierId] = useState<string | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editItem, setEditItem] = useState<Item | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Item>>({});
+  const [savingItem, setSavingItem] = useState(false);
+
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkField, setBulkField] = useState<"display_price" | "suggested_sell_price" | "cost_price">("display_price");
+  const [bulkMode, setBulkMode] = useState<"percent" | "amount">("percent");
+  const [bulkValue, setBulkValue] = useState("");
+  const [bulkScope, setBulkScope] = useState<"all" | "selected">("all");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -158,6 +174,105 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
     if (error) return toast.error(error.message);
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
+
+  // -------- rename supplier --------
+  const renameSupplier = async () => {
+    if (!renameId) return;
+    const n = renameValue.trim();
+    if (!n) return toast.error("اكتب اسم المورد");
+    const before = sources.find((s) => s.id === renameId);
+    const { error } = await supabase.from("price_list_sources").update({ supplier_name: n }).eq("id", renameId);
+    if (error) return toast.error(error.message);
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "price_list_source", entityId: renameId,
+        details: { changes: { supplier_name: { from: before?.supplier_name, to: n } } },
+      });
+    }
+    toast.success("تم تعديل اسم المورد");
+    setRenameId(null);
+    load();
+  };
+
+  // -------- edit single item --------
+  const openEdit = (item: Item) => {
+    setEditItem(item);
+    setEditForm({
+      product_name: item.product_name,
+      model_code: item.model_code ?? "",
+      category: item.category ?? "",
+      cost_price: item.cost_price,
+      suggested_sell_price: item.suggested_sell_price,
+      display_price: item.display_price,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editItem) return;
+    const name = String(editForm.product_name ?? "").trim();
+    if (!name) return toast.error("اسم المنتج مطلوب");
+    setSavingItem(true);
+    await updateItemField(editItem.id, {
+      product_name: name,
+      model_code: String(editForm.model_code ?? "").trim() || null,
+      category: String(editForm.category ?? "").trim() || null,
+      cost_price: Number(editForm.cost_price) || 0,
+      suggested_sell_price: Number(editForm.suggested_sell_price) || 0,
+      display_price: Number(editForm.display_price) || 0,
+    });
+    setSavingItem(false);
+    setEditItem(null);
+    toast.success("تم حفظ التعديل");
+  };
+
+  // -------- bulk price adjustment --------
+  const bulkTargets = () =>
+    bulkScope === "selected" ? currentItems.filter((i) => selected.has(i.id)) : currentItems;
+
+  const applyBulk = async () => {
+    const v = Number(bulkValue);
+    if (isNaN(v) || v === 0) return toast.error("اكتب قيمة التعديل");
+    const targets = bulkTargets();
+    if (!targets.length) return toast.error("لا توجد أصناف مختارة");
+    setBulkBusy(true);
+    const updates = targets.map((it) => {
+      const base = Number((it as any)[bulkField]) || 0;
+      const next = bulkMode === "percent" ? base * (1 + v / 100) : base + v;
+      return { id: it.id, value: Math.max(0, Math.round(next * 100) / 100) };
+    });
+    let failed = 0;
+    for (const u of updates) {
+      const { error } = await supabase.from("price_list_items").update({ [bulkField]: u.value } as any).eq("id", u.id);
+      if (error) failed++;
+    }
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "UPDATE", entity: "price_list_bulk", entityId: activeTab,
+        details: { field: bulkField, mode: bulkMode, value: v, count: updates.length },
+      });
+    }
+    setBulkBusy(false);
+    setBulkOpen(false);
+    setBulkValue("");
+    if (failed) toast.error(`فشل تعديل ${failed} صنف`);
+    else toast.success(`تم تعديل ${updates.length} صنف`);
+    load();
+  };
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  const allSelected = currentItems.length > 0 && currentItems.every((i) => selected.has(i.id));
+  const toggleSelectAll = () =>
+    setSelected(allSelected ? new Set() : new Set(currentItems.map((i) => i.id)));
+
+
 
   // -------- file upload + AI parse --------
   const handleFile = async (file: File) => {
@@ -275,9 +390,17 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
           <div className="overflow-x-auto">
             <TabsList className="flex w-max h-auto flex-wrap gap-1">
               {sources.map((s) => (
-                <TabsTrigger key={s.id} value={s.id}>{s.supplier_name}</TabsTrigger>
+                <TabsTrigger
+                  key={s.id}
+                  value={s.id}
+                  title="دبل كليك لتعديل الاسم"
+                  onDoubleClick={() => { setRenameId(s.id); setRenameValue(s.supplier_name); }}
+                >
+                  {s.supplier_name}
+                </TabsTrigger>
               ))}
             </TabsList>
+
           </div>
 
           {sources.map((s) => (
@@ -291,8 +414,14 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setBulkOpen(true); setBulkScope(selected.size ? "selected" : "all"); }}>
+                    <Percent className="h-4 w-4 ml-1" /> تعديل جماعي للأسعار
+                  </Button>
                   <Button variant="outline" onClick={() => { setUploadOpen(true); setParsedDiff(null); }}>
                     <Upload className="h-4 w-4 ml-1" /> تحديث القائمة
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => { setRenameId(s.id); setRenameValue(s.supplier_name); }} title="تعديل اسم المورد">
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteSupplierId(s.id)} title="حذف المورد">
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -305,31 +434,63 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Input placeholder="بحث في المنتجات..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
               </div>
 
-              <div className="border rounded-lg bg-card" dir="rtl">
+              {selected.size > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                  <span className="font-medium flex items-center gap-2"><CheckSquare className="h-4 w-4 text-primary" /> تم اختيار {selected.size} صنف</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => { setBulkScope("selected"); setBulkOpen(true); }}>تعديل أسعار المختار</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>إلغاء التحديد</Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="border rounded-lg bg-card overflow-x-auto" dir="rtl">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="text-right font-semibold">اسم المنتج</TableHead>
-                      <TableHead className="text-right font-semibold">الموديل</TableHead>
+                      <TableHead className="w-10 text-center">
+                        <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="تحديد الكل" />
+                      </TableHead>
+                      <TableHead className="text-center font-semibold min-w-[220px]">اسم المنتج</TableHead>
+                      <TableHead className="text-center font-semibold">الموديل</TableHead>
                       <TableHead className="text-center font-semibold">سعر الشراء</TableHead>
                       <TableHead className="text-center font-semibold">سعر البيع المقترح</TableHead>
                       <TableHead className="text-center font-semibold">السعر المعروض للكاشير</TableHead>
                       <TableHead className="text-center font-semibold">ظاهر</TableHead>
-                      <TableHead className="text-right font-semibold">الفئة</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="text-center font-semibold">الفئة</TableHead>
+                      <TableHead className="w-24 text-center font-semibold">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {currentItems.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد منتجات — حدّث القائمة من الزر أعلاه</TableCell></TableRow>
                     ) : currentItems.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="font-medium">{item.product_name}</TableCell>
-                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground font-mono">{item.model_code ?? "—"}</TableCell>
-                        <TableCell className="text-center tabular-nums">{formatEGP(item.cost_price)}</TableCell>
-                        <TableCell className="text-center tabular-nums text-muted-foreground">{formatEGP(item.suggested_sell_price)}</TableCell>
-                        <TableCell className="text-center">
+                      <TableRow
+                        key={item.id}
+                        className="hover:bg-muted/30 transition-colors align-middle"
+                        onDoubleClick={() => openEdit(item)}
+                        title="دبل كليك لتعديل الصنف"
+                      >
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                        </TableCell>
+                        <TableCell
+                          className="font-medium text-center align-middle"
+                          style={{ unicodeBidi: "plaintext", whiteSpace: "normal", overflowWrap: "normal", wordBreak: "normal" }}
+                        >
+                          {item.product_name}
+                        </TableCell>
+                        <TableCell
+                          className="text-center align-middle text-sm text-muted-foreground font-mono"
+                          style={{ unicodeBidi: "plaintext", whiteSpace: "normal" }}
+                        >
+                          {item.model_code ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-center align-middle tabular-nums whitespace-nowrap">{formatEGP(item.cost_price)}</TableCell>
+                        <TableCell className="text-center align-middle tabular-nums text-muted-foreground whitespace-nowrap">{formatEGP(item.suggested_sell_price)}</TableCell>
+                        <TableCell className="text-center align-middle" onClick={(e) => e.stopPropagation()}>
                           <Input
+                            key={`${item.id}-${item.display_price}`}
                             type="number"
                             className="w-28 mx-auto text-center tabular-nums font-semibold"
                             defaultValue={item.display_price}
@@ -339,7 +500,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center align-middle">
                           <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Switch variant="premium" checked={item.is_active} onCheckedChange={(v) => updateItemField(item.id, { is_active: v })} />
                             <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-colors", item.is_active ? "bg-success/10 border-success/30 text-success" : "bg-muted/50 border-border text-muted-foreground")}>
@@ -348,15 +509,21 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right text-sm">{item.category ?? "—"}</TableCell>
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        <TableCell className="text-center align-middle text-sm">{item.category ?? "—"}</TableCell>
+                        <TableCell className="text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(item)} title="تعديل الصنف">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)} title="حذف">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
+
                 </Table>
               </div>
 
@@ -364,6 +531,112 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
           ))}
         </Tabs>
       )}
+
+      {/* Rename supplier dialog */}
+      <Dialog open={!!renameId} onOpenChange={(o) => !o && setRenameId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>تعديل اسم المورد</DialogTitle>
+            <DialogDescription>الاسم الجديد هيظهر في كل الأماكن المرتبطة بالقائمة</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>اسم المورد</Label>
+            <Input value={renameValue} autoFocus onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && renameSupplier()} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameId(null)}>إلغاء</Button>
+            <Button onClick={renameSupplier}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit item dialog */}
+      <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل الصنف</DialogTitle>
+            <DialogDescription>تقدر تعدل الاسم أو الموديل أو الفئة أو الأسعار</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <Label>اسم المنتج</Label>
+              <Input value={String(editForm.product_name ?? "")} onChange={(e) => setEditForm((f) => ({ ...f, product_name: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>الموديل</Label>
+              <Input value={String(editForm.model_code ?? "")} onChange={(e) => setEditForm((f) => ({ ...f, model_code: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>الفئة</Label>
+              <Input value={String(editForm.category ?? "")} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>سعر الشراء</Label>
+              <Input type="number" value={String(editForm.cost_price ?? 0)} onChange={(e) => setEditForm((f) => ({ ...f, cost_price: Number(e.target.value) }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>سعر البيع المقترح</Label>
+              <Input type="number" value={String(editForm.suggested_sell_price ?? 0)} onChange={(e) => setEditForm((f) => ({ ...f, suggested_sell_price: Number(e.target.value) }))} />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>السعر المعروض للكاشير</Label>
+              <Input type="number" value={String(editForm.display_price ?? 0)} onChange={(e) => setEditForm((f) => ({ ...f, display_price: Number(e.target.value) }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={savingItem}>
+              {savingItem && <Loader2 className="h-4 w-4 ml-2 animate-spin" />} حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk price adjustment dialog */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل جماعي للأسعار</DialogTitle>
+            <DialogDescription>زوّد أو قلّل الأسعار بنسبة مئوية أو بمبلغ ثابت</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>السعر المستهدف</Label>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+                {([["display_price", "المعروض للكاشير"], ["suggested_sell_price", "البيع المقترح"], ["cost_price", "الشراء"]] as const).map(([k, l]) => (
+                  <Button key={k} type="button" size="sm" variant={bulkField === k ? "default" : "ghost"} onClick={() => setBulkField(k)}>{l}</Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>النطاق</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                <Button type="button" size="sm" variant={bulkScope === "all" ? "default" : "ghost"} onClick={() => setBulkScope("all")}>كل الأصناف ({currentItems.length})</Button>
+                <Button type="button" size="sm" variant={bulkScope === "selected" ? "default" : "ghost"} onClick={() => setBulkScope("selected")} disabled={!selected.size}>المختار ({selected.size})</Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>طريقة التعديل</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                <Button type="button" size="sm" variant={bulkMode === "percent" ? "default" : "ghost"} onClick={() => setBulkMode("percent")}>نسبة %</Button>
+                <Button type="button" size="sm" variant={bulkMode === "amount" ? "default" : "ghost"} onClick={() => setBulkMode("amount")}>مبلغ ثابت</Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>القيمة ({bulkMode === "percent" ? "مثال: 2 للزيادة 2% أو -2 للتخفيض" : "مثال: 50 أو -50"})</Label>
+              <Input type="number" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} placeholder={bulkMode === "percent" ? "2" : "50"} />
+            </div>
+            <p className="text-xs text-muted-foreground">هيتم التعديل على {bulkTargets().length} صنف.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>إلغاء</Button>
+            <Button onClick={applyBulk} disabled={bulkBusy}>
+              {bulkBusy && <Loader2 className="h-4 w-4 ml-2 animate-spin" />} تطبيق
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Add supplier dialog */}
       <Dialog open={addSupplierOpen} onOpenChange={setAddSupplierOpen}>
