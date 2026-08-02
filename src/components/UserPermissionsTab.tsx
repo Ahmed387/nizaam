@@ -123,7 +123,7 @@ export function UserPermissionsTab() {
     setSavingAccess(true);
     try {
       const current = rolesByUser[userId] ?? [];
-      const keep = current.filter((r) => r === "super_admin" || r === "owner" || r === "partner");
+      const keep: string[] = current.filter((r) => r === "super_admin" || r === "owner" || r === "partner");
       if (role && !keep.includes(role)) {
         const toDelete = current.filter((r) => !keep.includes(r) && r !== role);
         if (toDelete.length) {
