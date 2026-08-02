@@ -107,20 +107,33 @@ export function UserPermissionsTab() {
   );
 
 
+  /** Load saved overrides for the selected user (source of truth = DB). */
+  const loadOverrides = async (uid: string) => {
+    const { data, error } = await supabase
+      .from("user_permissions" as any)
+      .select("permission_key, allowed")
+      .eq("user_id", uid);
+    if (error) { toast.error("تعذر تحميل الاستثناءات: " + error.message); return; }
+    const s: Record<string, Tri> = {};
+    (data ?? []).forEach((r: any) => { s[r.permission_key] = r.allowed ? "allow" : "deny"; });
+    setState(s);
+  };
+
   useEffect(() => {
     if (!userId) { setState({}); setRole(""); setBranchIds([]); return; }
     setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
     setBranchIds(branchIdsByUser[userId] ?? []);
-    supabase
-      .from("user_permissions" as any)
-      .select("permission_key, allowed")
-      .eq("user_id", userId)
-      .then(({ data }) => {
-        const s: Record<string, Tri> = {};
-        (data ?? []).forEach((r: any) => { s[r.permission_key] = r.allowed ? "allow" : "deny"; });
-        setState(s);
-      });
-  }, [userId, rolesByUser, branchIdsByUser]);
+    loadOverrides(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
+    setBranchIds(branchIdsByUser[userId] ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolesByUser, branchIdsByUser]);
+
 
   const filteredSections = useMemo(() => {
     const term = q.trim();
