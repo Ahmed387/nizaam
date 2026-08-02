@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
@@ -211,10 +212,7 @@ export default function NewSale() {
 
 
   const [defaultBankAccount, setDefaultBankAccount] = useState<string>("");
-  useEffect(() => {
-    if (!branchId) return;
-    supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("name").then(({ data }) => setProducts(data ?? []));
-    supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
+  const loadCatalog = useCallback(() => {
     supabase.from("price_list_items_public").select("id, product_name, model_code, category, supplier_name, display_price").eq("is_active", true).then(({ data }) => {
       const list = data ?? [];
       setCatalog(list);
@@ -222,6 +220,14 @@ export default function NewSale() {
       list.forEach((p: any) => { if (p.product_name) m[p.product_name] = Number(p.display_price); });
       setPricesMap(m);
     });
+  }, []);
+  // Price list edits (rename / bulk price changes) reflect live without refreshing the page
+  useRealtimeRefresh(["price_list_items", "price_list_sources"], loadCatalog);
+  useEffect(() => {
+    if (!branchId) return;
+    supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("name").then(({ data }) => setProducts(data ?? []));
+    supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
+    loadCatalog();
     // Load branch default bank account (settings key scoped by branch)
     supabase.from("settings" as any).select("value").eq("key", `branch_default_bank:${branchId}`).maybeSingle()
       .then(({ data }) => setDefaultBankAccount(String((data as any)?.value?.account ?? "")));

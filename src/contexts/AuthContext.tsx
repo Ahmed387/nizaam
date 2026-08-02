@@ -143,6 +143,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  // Realtime: role permission matrix changes apply instantly (no refresh / re-login needed)
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`role-perms-${tenantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "role_permissions", filter: `tenant_id=eq.${tenantId}` },
+        () => loadPerms(tenantId),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId]);
+
   const value: AuthCtx = {
     user,
     session,
