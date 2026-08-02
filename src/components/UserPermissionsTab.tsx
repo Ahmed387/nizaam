@@ -16,6 +16,7 @@ import {
   USER_PERMISSION_GROUPS,
   MANAGED_ROLES,
   ROLE_LABELS,
+  DEFAULT_ROLE_PERMISSIONS,
   AppRole,
 } from "@/lib/roles";
 
