@@ -236,7 +236,11 @@ export default function NewShipment() {
     setLines(copy);
   };
 
-  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
+  const removeLine = (i: number) => {
+    setLines(lines.filter((_, idx) => idx !== i));
+    setActiveLine((cur) => (cur === null ? null : cur === i ? null : cur > i ? cur - 1 : cur));
+  };
+
 
   const grandTotal = itemsNet + totalExtras + Number(admin || 0);
 
