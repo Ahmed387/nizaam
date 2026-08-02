@@ -78,7 +78,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   useEffect(() => {
     fetchVoucherCategories(type).then(setCats).catch(() => {});
     if (adminAllBranches) {
-      supabase.from("branches").select("id,name").order("name").then(({ data }) => setBranches(data ?? []));
+      supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").order("name").then(({ data }) => setBranches(data ?? []));
     }
   }, [type, adminAllBranches]);
 

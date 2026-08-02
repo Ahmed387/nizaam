@@ -126,7 +126,8 @@ Deno.serve(async (req) => {
       const { data: branches } = await admin
         .from("branches")
         .select("id, name")
-        .eq("tenant_id", t.id);
+        .eq("tenant_id", t.id)
+        .neq("code", "PARTNER-CASH");
       const perBranch = (branches ?? []).map((b: any) => ({
         branch_id: b.id,
         branch_name: b.name,
