@@ -444,7 +444,7 @@ export default function AllEmployees() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button onClick={submit}>{editing ? "حفظ" : "إضافة"}</Button>
+            <Button onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : editing ? "حفظ" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
