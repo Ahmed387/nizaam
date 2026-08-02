@@ -130,7 +130,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   },
   worker: {},
   driver: {},
-  viewer: Object.fromEntries(PERMISSION_GROUPS.flatMap(g => g.actions.filter(a => a === "view").map(a => [`${g.key}.${a}`, true]))),
+  viewer: Object.fromEntries(BRANCH_PERMISSION_GROUPS.flatMap(g => g.actions.filter(a => a === "view").map(a => [`${g.key}.${a}`, true]))),
 };
 
 /** Local permission check (mirrors DB has_permission). Admin/super always true. */
