@@ -334,7 +334,7 @@ export default function AllSuppliers() {
 
   useEffect(() => {
     if (!shipForm.branch_id) { setBranchProducts([]); return; }
-    supabase.from("products").select("*").eq("branch_id", shipForm.branch_id).order("name")
+    supabase.from("products").select("*").eq("branch_id", shipForm.branch_id).is("archived_at", null).order("name")
       .then(({ data }) => setBranchProducts(data ?? []));
   }, [shipForm.branch_id]);
 

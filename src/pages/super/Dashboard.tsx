@@ -23,7 +23,7 @@ export default function SuperDashboard() {
     const [t, u, b, i, rev] = await Promise.all([
       supabase.from("tenants").select("id, name, slug, is_suspended, suspension_reason, created_at").order("created_at", { ascending: false }),
       supabase.from("profiles").select("*", { count: "exact", head: true }),
-      supabase.from("branches").select("*", { count: "exact", head: true }),
+      supabase.from("branches").select("*", { count: "exact", head: true }).neq("code", "PARTNER-CASH"),
       supabase.from("invoices").select("*", { count: "exact", head: true }),
       supabase.from("invoices").select("total").eq("status", "active"),
     ]);
