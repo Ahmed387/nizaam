@@ -18,7 +18,7 @@ import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck } from "lucide-react";
+import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllAttendance from "./AllAttendance";
 
@@ -59,6 +59,7 @@ export default function AllEmployees() {
   const [shift, setShift] = useState<ShiftValue>(emptyShift());
   const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
   const isSimpleRole = form.role === "worker" || form.role === "driver";
 
 
