@@ -20,10 +20,10 @@ export function ProtectedRoute({
   /** Optional permission key (e.g. "sales.view"). When provided, takes precedence over `roles`. */
   perm?: string;
 }) {
-  const { user, loading, isAdmin, isSuperAdmin, isOwner, hasRole, tenant, signOut, can } = useAuth();
+  const { user, loading, ctxReady, isAdmin, isSuperAdmin, isOwner, hasRole, tenant, signOut, can } = useAuth();
   const loc = useLocation();
 
-  if (loading) {
+  if (loading || (user && !ctxReady)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
