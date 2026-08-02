@@ -112,7 +112,10 @@ Deno.serve(async (req) => {
         await admin.from('employees').update({ user_id: userId }).eq('id', employee_id);
       }
 
-      if (userId) await syncBranches(admin, userId, tenantId, has_system_access ? finalBranchIds : []);
+      if (userId) {
+        await setRole(admin, userId as string, tenantId, role);
+        await syncBranches(admin, userId, tenantId, has_system_access ? finalBranchIds : []);
+      }
       return json({ ok: true, employee_id, user_id: userId });
     }
 
