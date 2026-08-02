@@ -258,6 +258,10 @@ export default function Employees() {
                   <div className="relative mt-1.5">
                     <Input
                       type={showPwd ? "text" : "password"}
+                      name="employee-new-password"
+                      autoComplete="new-password"
+                      data-lpignore="true"
+                      data-form-type="other"
                       value={form.login_password}
                       onChange={(e) => setForm({ ...form, login_password: e.target.value })}
                       className="pl-10"
