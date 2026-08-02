@@ -64,7 +64,7 @@ export function UserPermissionsTab() {
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
       supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
-      supabase.from("employees").select("user_id").eq("tenant_id", tenantId).not("user_id", "is", null),
+      supabase.from("employees").select("user_id").eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
     ]);
     setEmployeeUserIds(new Set(((emps ?? []) as any[]).map((e) => e.user_id)));
     setUsers(profs ?? []);
