@@ -42,6 +42,7 @@ const SECTIONS: { title: string; nodes: Node[] }[] = [
 export function UserPermissionsTab() {
   const { tenantId } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
+  const [employeeUserIds, setEmployeeUserIds] = useState<Set<string>>(new Set());
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, string[]>>({});
   const [branchIdsByUser, setBranchIdsByUser] = useState<Record<string, string[]>>({});
@@ -58,12 +59,14 @@ export function UserPermissionsTab() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
       supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
+      supabase.from("employees").select("user_id").eq("tenant_id", tenantId).not("user_id", "is", null),
     ]);
+    setEmployeeUserIds(new Set(((emps ?? []) as any[]).map((e) => e.user_id)));
     setUsers(profs ?? []);
     setAllBranches((brs ?? []) as any);
     const rmap: Record<string, string[]> = {};
@@ -76,6 +79,20 @@ export function UserPermissionsTab() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId]);
+
+  /** Owners / admins / super admins / partners are never managed here — they hold full company access. */
+  const FULL_ACCESS_ROLES = ["owner", "admin", "super_admin", "partner"];
+  const selectableUsers = useMemo(
+    () =>
+      users.filter((u) => {
+        const rs = rolesByUser[u.id] ?? [];
+        if (rs.some((r) => FULL_ACCESS_ROLES.includes(r))) return false;
+        return employeeUserIds.has(u.id) || rs.some((r) => MANAGED_ROLES.includes(r as AppRole));
+      }),
+    // eslint-disable-next-line
+    [users, rolesByUser, employeeUserIds],
+  );
+
 
   useEffect(() => {
     if (!userId) { setState({}); setRole(""); setBranchIds([]); return; }
@@ -260,7 +277,7 @@ export function UserPermissionsTab() {
             <Select value={userId} onValueChange={setUserId}>
               <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
               <SelectContent>
-                {users.map((u) => (
+                {selectableUsers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name || u.username || u.id}
                     {(rolesByUser[u.id] ?? []).length > 0 && (
@@ -268,9 +285,15 @@ export function UserPermissionsTab() {
                     )}
                   </SelectItem>
                 ))}
-
+                {!selectableUsers.length && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">لا يوجد موظفين قابلين للتحكم في صلاحياتهم</div>
+                )}
               </SelectContent>
             </Select>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              المالك والمدير والشركاء مش بيظهروا هنا — عندهم صلاحيات الشركة كاملة.
+            </div>
+
           </div>
           <div>
             <div className="text-sm mb-1">بحث في الصلاحيات</div>
