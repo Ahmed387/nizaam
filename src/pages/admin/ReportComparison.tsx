@@ -11,9 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { TrendingUp, TrendingDown, ShoppingCart, Wallet, ArrowRight } from "lucide-react";
 import {
-import { useBranchScope } from "@/lib/branchScope";
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
+import { useBranchScope } from "@/lib/branchScope";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);

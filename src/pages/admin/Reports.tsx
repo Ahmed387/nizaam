@@ -22,10 +22,10 @@ import {
   Receipt, ArrowDownCircle, ArrowUpCircle, Layers, ChevronLeft,
 } from "lucide-react";
 import {
-import { useBranchScope } from "@/lib/branchScope";
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   PieChart, Pie, Cell as RCell,
 } from "recharts";
+import { useBranchScope } from "@/lib/branchScope";
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))", "#8b5cf6", "#06b6d4"];
 const today = () => new Date().toISOString().slice(0, 10);
