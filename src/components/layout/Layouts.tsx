@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, tenantId, isAdmin, isSuperAdmin, isOwner, hasRole, user, can } = useAuth();
+  const { tenant, tenantId, branches, isAdmin, isSuperAdmin, isOwner, hasRole, user, can } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
   const [mainTreasuryId, setMainTreasuryId] = useState<string | null>(null);
@@ -88,12 +88,32 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
   ];
 
+  // A role's normal branch permissions remain available when an individual
+  // employee is granted extra admin pages. The extra grant is additive; it
+  // must not make the admin sidebar look like it replaced the role access.
+  const primaryBranch = branches[0];
+  const employeeBranchNav: NavItem[] = !isAdmin && primaryBranch ? [
+    { to: `/branch/${primaryBranch.id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` },
+    ...(can("invoices.view") ? [{ to: `/branch/${primaryBranch.id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
+    ...(can("inventory.view") ? [{ to: `/branch/${primaryBranch.id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
+    ...(can("customers.view") || can("suppliers.view") ? [{ to: `/branch/${primaryBranch.id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
+    ...(can("treasury.view") ? [{ to: `/branch/${primaryBranch.id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
+    ...(can("employees.view") ? [{ to: `/branch/${primaryBranch.id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
+    ...(can("reports.view") ? [{ to: `/branch/${primaryBranch.id}/reports`, label: "تقارير الفرع", icon: <BarChart3 className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
+  ] : [];
+
   const supervisorNav: NavItem[] = [
     { to: "/admin/employees", label: "الموظفين والحضور", icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> },
   ];
 
-  const nav = isAdmin ? adminNav : adminNav.length > 0 ? adminNav : hasRole("supervisor") ? supervisorNav : [];
+  const nav = isAdmin
+    ? adminNav
+    : adminNav.length > 0
+      ? [...adminNav, ...employeeBranchNav]
+      : hasRole("supervisor")
+        ? supervisorNav
+        : employeeBranchNav;
   return (
     <AppShell
       title={tenant?.name ?? "Nizam"}
