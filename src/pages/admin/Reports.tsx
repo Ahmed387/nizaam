@@ -66,7 +66,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
       // خزينة الشركاء (PARTNER-CASH) فرع افتراضي محاسبي — مش فرع تشغيلي، بيتستبعد من تقارير الفروع
       supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),
-      supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
+      // سحب كل الفواتير على دفعات (الحد الافتراضي 1000 صف كان بيقص التقارير في الفترات الكبيرة)
+      fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso)).then((rows) => ({ data: rows })),
       supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
       // المنتجات المؤرشفة مش بتتحسب في قيمة المخزون ولا تنبيهات النقص
       supabase.from("products").select("*").is("archived_at", null),
