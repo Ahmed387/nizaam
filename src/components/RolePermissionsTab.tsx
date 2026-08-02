@@ -11,9 +11,17 @@ import {
   AppRole,
   MANAGED_ROLES,
   PERMISSION_GROUPS,
+  BRANCH_PERMISSION_GROUPS,
+  ADMIN_NAV_PERMISSION_GROUPS,
   ROLE_LABELS,
   DEFAULT_ROLE_PERMISSIONS,
 } from "@/lib/roles";
+
+const SECTIONS = [
+  { title: "صفحات الفرع والعمليات", groups: BRANCH_PERMISSION_GROUPS },
+  { title: "قائمة الإدارة الجانبية (Sidebar)", groups: ADMIN_NAV_PERMISSION_GROUPS },
+];
+
 
 const ACTION_LABELS: Record<string, string> = {
   view: "عرض",
@@ -141,30 +149,38 @@ export function RolePermissionsTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {PERMISSION_GROUPS.map((g) => (
-                      <tr key={g.key} className="border-t">
-                        <td className="p-2 font-medium">{g.label}</td>
-                        {(["view", "create", "update", "delete"] as const).map((a) => {
-                          const key = `${g.key}.${a}`;
-                          const supported = g.actions.includes(a);
-                          return (
-                            <td key={a} className="p-2 text-center">
-                              {supported ? (
-                                <Checkbox
-                                  checked={!!perms[role]?.[key]}
-                                  onCheckedChange={() => toggle(role, key)}
-                                />
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
+                    {SECTIONS.map((section) => (
+                      <>
+                        <tr key={section.title} className="border-t bg-primary/5">
+                          <td colSpan={5} className="p-2 font-bold text-primary text-right">{section.title}</td>
+                        </tr>
+                        {section.groups.map((g) => (
+                          <tr key={g.key} className="border-t">
+                            <td className="p-2 font-medium">{g.label}</td>
+                            {(["view", "create", "update", "delete"] as const).map((a) => {
+                              const key = `${g.key}.${a}`;
+                              const supported = g.actions.includes(a);
+                              return (
+                                <td key={a} className="p-2 text-center">
+                                  {supported ? (
+                                    <Checkbox
+                                      checked={!!perms[role]?.[key]}
+                                      onCheckedChange={() => toggle(role, key)}
+                                    />
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </>
                     ))}
                   </tbody>
                 </table>
               </div>
+
             </TabsContent>
           ))}
         </Tabs>
