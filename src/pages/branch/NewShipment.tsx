@@ -825,13 +825,20 @@ export default function NewShipment() {
                         <span className="text-[10px] text-muted-foreground line-through">{formatEGP(gross)}</span>
                       )}
                       <span className="font-bold text-primary text-sm">{formatEGP(net)}</span>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setActiveLine(null)}>
+                        <ChevronUp className="w-3 h-3" />تم — اطوِ الصنف
+                      </Button>
                     </div>
                   </div>
                 </div>
               );
             })}
+            <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
+              <Plus className="w-4 h-4" />إضافة صنف جديد
+            </Button>
           </div>
         )}
+
       </CollapsibleSection>
 
 
