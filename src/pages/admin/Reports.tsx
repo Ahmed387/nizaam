@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP } from "@/lib/format";
 import { lineProfit } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
@@ -65,7 +66,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
       // خزينة الشركاء (PARTNER-CASH) فرع افتراضي محاسبي — مش فرع تشغيلي، بيتستبعد من تقارير الفروع
       supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),
-      supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso),
+      // سحب كل الفواتير على دفعات (الحد الافتراضي 1000 صف كان بيقص التقارير في الفترات الكبيرة)
+      fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso)).then((rows) => ({ data: rows })),
       supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
       // المنتجات المؤرشفة مش بتتحسب في قيمة المخزون ولا تنبيهات النقص
       supabase.from("products").select("*").is("archived_at", null),
@@ -74,7 +76,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("supplier_payments").select("*").gte("paid_at", fromIso).lte("paid_at", toIso),
       supabase.from("employees").select("*").eq("is_active", true),
       supabase.from("vouchers" as any).select("type, amount, branch_id, voucher_date").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("returns").select("*").gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("returns").select("*").eq("status", "active").gte("created_at", fromIso).lte("created_at", toIso),
       supabase.from("contacts").select("id,branch_id"),
       supabase.from("shipments").select("contact_id,total_cost"),
       supabase.from("supplier_payments").select("contact_id,amount"),

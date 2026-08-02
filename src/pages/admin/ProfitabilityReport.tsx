@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft, FileText } from "lucide-react";
@@ -91,11 +92,23 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
 
   const load = async () => {
     setLoading(true);
-    let q = supabase
-      .from("invoice_items")
-      .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
-      .eq("tenant_id", tenantId);
-    const { data, error } = await q;
+    // فلترة التاريخ على السيرفر + سحب كل الصفوف على دفعات (PostgREST بيقص عند 1000)
+    const build = () => {
+      let q = supabase
+        .from("invoice_items")
+        .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
+        .eq("tenant_id", tenantId)
+        .neq("invoice.status", "cancelled");
+      if (from) q = q.gte("invoice.created_at", new Date(from + "T00:00:00").toISOString());
+      if (to) q = q.lte("invoice.created_at", new Date(to + "T23:59:59.999").toISOString());
+      if (branchId) q = q.eq("invoice.branch_id", branchId);
+      return q;
+    };
+    let data: any[] = [];
+    let error: any = null;
+    try {
+      data = await fetchAllRows<any>(build);
+    } catch (e) { error = e; }
     setLoading(false);
     if (error) { console.error(error); return; }
 

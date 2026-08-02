@@ -54,8 +54,8 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
           const amt = Number((data as any)?.total_balance ?? 0);
           setBal(balanceLabel(amt));
         } else {
-          const { data } = await supabase.from("advances" as any).select("remaining_amount").eq("employee_id", value).in("status", ["approved", "active"]);
-          const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.remaining_amount ?? 0), 0);
+          const { data } = await supabase.from("advances" as any).select("remaining").eq("employee_id", value);
+          const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.remaining ?? 0), 0);
           setBal({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
         }
       } catch { setBal(null); }

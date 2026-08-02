@@ -92,17 +92,21 @@ Deno.serve(async (req) => {
         .from("returns")
         .select("total_refund")
         .eq("tenant_id", t.id)
+        .eq("status", "active")
         .gte("created_at", sinceISO)
         .lte("created_at", untilISO);
       const totalReturns = (returns ?? []).reduce((s, r: any) => s + Number(r.total_refund || 0), 0);
 
-      // Expenses
+      // المصروفات = سندات الصرف القابلة للخصم من الأرباح (نفس مصدر التقارير في التطبيق)
       const { data: expenses } = await admin
-        .from("expenses")
-        .select("amount")
+        .from("vouchers")
+        .select("amount, voucher_categories!inner(is_deductible_from_profit)")
         .eq("tenant_id", t.id)
-        .gte("created_at", sinceISO)
-        .lte("created_at", untilISO);
+        .eq("type", "payment")
+        .eq("status", "active")
+        .eq("voucher_categories.is_deductible_from_profit", true)
+        .gte("voucher_date", periodStart.toISOString().slice(0, 10))
+        .lte("voucher_date", periodEnd.toISOString().slice(0, 10));
       const totalExpenses = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount || 0), 0);
 
       // Treasury net
