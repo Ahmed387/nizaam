@@ -178,7 +178,7 @@ export default function AllEmployees() {
       },
     });
     setSaving(false);
-    const errMsg = (error as any)?.message ?? (data as any)?.error;
+    const errMsg = await edgeErrorMessage(error, data);
     if (errMsg) return toast.error(String(errMsg));
 
     toast.success(editing ? "تم التعديل" : "تمت إضافة الموظف وربط حسابه بالفروع");
