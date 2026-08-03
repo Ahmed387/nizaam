@@ -45,15 +45,22 @@ export function useUnsavedChanges(isDirty: boolean, message: string) {
       const url = new URL(anchor.href, window.location.origin);
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
 
-      const ok = window.confirm(message);
-      if (!ok) {
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
+      e.preventDefault();
+      e.stopPropagation();
+      void confirmAlert({
+        title: "لسه فيه بيانات مش متسجلة",
+        description: message,
+        confirmLabel: "أيوه، اخرج وسيبها",
+        cancelLabel: "لأ، كمّل شغلي",
+        tone: "warning",
+      }).then((ok) => {
+        if (!ok) return;
         cleanedRef.current = true;
         dirtyRef.current = false;
-      }
+        anchor.click();
+      });
     };
+
 
     window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("click", clickHandler, true);
