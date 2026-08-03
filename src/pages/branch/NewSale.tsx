@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { focusSection } from "@/lib/sectionFocus";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -104,7 +105,7 @@ export default function NewSale() {
   const [newCust, setNewCust] = useState({ name: "", phone: "", address: "" });
   const [savingCust, setSavingCust] = useState(false);
   const [openSections, setOpenSections] = useState({ customer: true, products: true, payment: true, summary: true });
-  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
   // Customer credit balance + ledger balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { focusSection } from "@/lib/sectionFocus";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -94,7 +95,7 @@ export default function NewShipment() {
   const [savingSup, setSavingSup] = useState(false);
   const [showExtrasBreakdown, setShowExtrasBreakdown] = useState(false);
   const [openSections, setOpenSections] = useState({ supplier: true, extras: true, products: true, payment: true, summary: true });
-  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   // ===== Local autosave (crash / accidental reload safety net) =====
   const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, notes, lines, plan };

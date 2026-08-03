@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { focusSection } from "@/lib/sectionFocus";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -66,7 +67,7 @@ export default function NewPurchaseReturn() {
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
   const [openSections, setOpenSections] = useState({ supplier: true, products: true, payment: true, summary: true });
-  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
 
   // Refund
