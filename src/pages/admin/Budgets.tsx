@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Target, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -98,7 +99,7 @@ export default function Budgets() {
   const deletePlan = async (accountId: string) => {
     const row = budgets.find(b => b.account_id === accountId);
     if (!row) return;
-    if (!confirm("حذف بند الموازنة؟")) return;
+    if (!(await confirmAlert({ title: "حذف بند الموازنة؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("budgets" as any).delete().eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     toast.success("تم الحذف");

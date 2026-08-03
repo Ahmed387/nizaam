@@ -11,6 +11,7 @@ import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
 import { Loader2, Save, Smartphone, CreditCard, Landmark, Banknote, Plus, Trash2, Wallet } from "lucide-react";
 import { loadTransferFees } from "@/lib/paymentMethods";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 interface FeeRow {
   payment_method: string;
@@ -111,7 +112,7 @@ export function PaymentFeesTab() {
   };
 
   const removeCustom = async (key: string) => {
-    if (!confirm("حذف طريقة الدفع دي؟")) return;
+    if (!(await confirmAlert({ title: "حذف طريقة الدفع دي؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("transfer_fees").delete().eq("payment_method", key);
     if (error) return toast.error(error.message);
     toast.success("تم الحذف");

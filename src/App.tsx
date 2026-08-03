@@ -27,6 +27,7 @@ function AdminRedirectToContact() {
 }
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import ShiftAlertBar from "@/components/ShiftAlertBar";
 import DesktopNotifications from "@/components/DesktopNotifications";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -182,6 +183,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Sonner position="top-center" dir="rtl" />
+        <ConfirmDialogHost />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
           <PresenceTracker />

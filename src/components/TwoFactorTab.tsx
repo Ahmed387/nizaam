@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { Loader2, ShieldCheck, ShieldOff, KeyRound } from "lucide-react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 export function TwoFactorTab() {
   const [factors, setFactors] = useState<any[]>([]);
@@ -62,7 +63,7 @@ export function TwoFactorTab() {
   };
 
   const removeFactor = async (id: string) => {
-    if (!confirm("تأكيد إلغاء المصادقة الثنائية؟ ده هيقلل من حماية حسابك.")) return;
+    if (!(await confirmAlert({ title: "تأكيد إلغاء المصادقة الثنائية؟ ده هيقلل من حماية حسابك.", description: "ده هيقلل حماية حسابك.", confirmLabel: "أيوه، الغيها", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.auth.mfa.unenroll({ factorId: id });
     if (error) return toast.error(error.message);
     toast.success("تم إلغاء التفعيل");

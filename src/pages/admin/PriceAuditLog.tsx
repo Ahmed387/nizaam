@@ -14,6 +14,7 @@ import { formatDateTime, formatEGP } from "@/lib/format";
 import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useBranchScope } from "@/lib/branchScope";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 const PRICE_TYPE_LABEL: Record<string, string> = {
   selling_price: "سعر البيع",
@@ -137,7 +138,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
   const [busy, setBusy] = useState(false);
 
   const deleteRow = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذا السجل نهائياً؟")) return;
+    if (!(await confirmAlert({ title: "هل أنت متأكد من حذف هذا السجل نهائياً؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("price_audit_log").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setRows((prev) => prev.filter((r) => r.id !== id));

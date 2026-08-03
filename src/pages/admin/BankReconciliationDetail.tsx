@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowRight, Plus, Link2, Unlink, CheckCircle2, Sparkles } from "lucide-react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 type Statement = any;
 type StmtLine = { id: string; txn_date: string; description: string | null; reference: string | null; debit: number; credit: number; is_matched: boolean; matched_journal_line_id: string | null };
@@ -103,7 +104,13 @@ export default function BankReconciliationDetail() {
     const sNet = (s.debit || 0) - (s.credit || 0);
     const jNet = (j.debit || 0) - (j.credit || 0);
     if (Math.abs(sNet - jNet) > 0.01) {
-      if (!confirm(`المبالغ غير متطابقة (${fmt(sNet)} مقابل ${fmt(jNet)}). متابعة المطابقة؟`)) return;
+      if (!(await confirmAlert({
+        title: "المبالغ مش متطابقة",
+        description: `كشف الحساب ${fmt(sNet)} مقابل القيد ${fmt(jNet)}. تحب تكمّل المطابقة برضه؟`,
+        confirmLabel: "أيوه، كمّل",
+        cancelLabel: "لأ، ارجع",
+        tone: "warning",
+      }))) return;
     }
     const { error } = await supabase.from("bank_statement_lines" as any).update({
       is_matched: true, matched_journal_line_id: selectedJ, matched_at: new Date().toISOString(),

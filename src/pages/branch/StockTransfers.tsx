@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 type Item = { product_id: string; quantity: string };
 
@@ -143,7 +144,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
 
 
   const rejectTransfer = async (t: any) => {
-    if (!confirm("رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟")) return;
+    if (!(await confirmAlert({ title: "رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟", description: "الكمية هترجع لمخزن الفرع المرسل.", confirmLabel: "أيوه، ارفض", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error: rpcErr } = await supabase.rpc("reject_transfer", { p_transfer_id: t.id });
     if (rpcErr) { toast.error(rpcErr.message); return; }
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { rejected: true } });
@@ -178,7 +179,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   };
 
   const rejectGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
-    if (!confirm("رفض كل الأصناف وإرجاع الكميات لمخزن فرعك المرسل؟")) return;
+    if (!(await confirmAlert({ title: "رفض كل الأصناف وإرجاع الكميات لمخزن فرعك المرسل؟", description: "الكمية هترجع لمخزن الفرع المرسل.", confirmLabel: "أيوه، ارفض", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { data, error } = await supabase.rpc("reject_transfer_group", { p_group: groupId });
     if (error) return toast.error(error.message);
     const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");

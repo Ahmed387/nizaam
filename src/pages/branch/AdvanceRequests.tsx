@@ -16,6 +16,7 @@ import { notify, notifyMany, getTenantAdmins } from "@/lib/notifications";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, Clock, AlertCircle, Wallet, HandCoins } from "lucide-react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 type Status = "pending_branch_manager" | "pending_admin" | "approved" | "approved_pending_funds" | "rejected";
 
@@ -200,7 +201,7 @@ export default function AdvanceRequests({ embedded = false }: { embedded?: boole
   };
 
   const disburse = async (row: any) => {
-    if (!confirm(`صرف السلفة بقيمة ${formatEGP(row.amount)}؟ سيتم خصم المبلغ من الخزنة.`)) return;
+    if (!(await confirmAlert({ title: `صرف السلفة بقيمة ${formatEGP(row.amount)}؟ سيتم خصم المبلغ من الخزنة.`, description: "هيتخصم المبلغ من الخزنة على طول.", confirmLabel: "أيوه، اصرفها", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     setBusy(true);
     try {
       const { error } = await supabase.rpc("disburse_pending_advance", { p_request_id: row.id });
