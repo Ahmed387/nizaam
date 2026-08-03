@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission } from "@/lib/roles";
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ctxReady, setCtxReady] = useState(false);
   const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
   const [userPerms, setUserPerms] = useState<Record<string, boolean>>({});
+  const currentUserIdRef = useRef<string | null>(null);
 
   const loadPerms = async (tid: string | null) => {
     if (!tid) { setPermsByRole({}); return; }
