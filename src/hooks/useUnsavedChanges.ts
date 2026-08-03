@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 /**
  * Warns the user before leaving the page when there are unsaved changes.
