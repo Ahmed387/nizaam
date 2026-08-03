@@ -15,6 +15,7 @@ import { VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
+import { docSuccess, docError } from "@/lib/docToast";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Loader2, Link2, Printer, AlertTriangle, Save, FileText, User as UserIcon, Package, CreditCard, ShieldAlert } from "lucide-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
@@ -284,15 +285,15 @@ export default function NewSaleReturn() {
       }
 
       if (asDraft) {
-        toast.success("تم حفظ المرتجع كمسودة");
+        docSuccess({ title: "تم حفظ المرتجع كمسودة", docNumber: number, amount: total });
         nav(`/branch/${branchId}/invoices?tab=sale_return`);
       } else {
-        toast.success("تم تسجيل مرتجع البيع");
+        docSuccess({ title: "تم تسجيل مرتجع البيع بنجاح", docNumber: number, amount: total, description: `عدد الأصناف: ${activeLines.length}` });
         setSavedNumber(number);
         setPrintOpen(true);
       }
     } catch (err: any) {
-      toast.error(err.message ?? "فشل الحفظ");
+      docError({ title: "فشل حفظ مرتجع البيع", description: err.message ?? "خطأ غير متوقع" });
     } finally {
       setBusy(false);
     }

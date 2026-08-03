@@ -12,6 +12,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
+import { docSuccess, docError, docWarning } from "@/lib/docToast";
 import { Loader2, Plus, Trash2, Upload, ImageIcon, UserPlus, ChevronDown, ChevronUp, User as UserIcon, Wallet, Package, CreditCard, FileText } from "lucide-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { uploadProductImage } from "@/lib/uploadImage";
@@ -449,7 +450,7 @@ export default function NewShipment() {
         }
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
-        toast.warning("تم حفظ الشحنة ولكن فشل إنشاء خطة الدفع — راجعها يدوياً");
+        docWarning({ title: "تم حفظ الشحنة", description: "لكن فشل إنشاء خطة الدفع — راجعها يدوياً" });
       }
 
       try {
@@ -464,7 +465,12 @@ export default function NewShipment() {
         });
       } catch (e) { console.warn("audit failed", e); }
 
-      toast.success("تم تسجيل الشحنة بنجاح");
+      docSuccess({
+        title: "تم تسجيل الشحنة بنجاح",
+        description: `عدد الأصناف: ${lines.length}`,
+        amount: grandTotal,
+        action: { label: "فتح الشحنة", onClick: () => nav(`/branch/${branchId}/shipments/${ship.id}`) },
+      });
       // Reset form for a new shipment
       setSupplierId("");
       setArrival(new Date().toISOString().split("T")[0]);
@@ -479,7 +485,7 @@ export default function NewShipment() {
       loadProducts();
     } catch (err: any) {
       console.error("shipment save failed:", err);
-      toast.error(err.message ?? "خطأ في حفظ الشحنة");
+      docError({ title: "فشل حفظ الشحنة", description: err.message ?? "خطأ غير متوقع" });
     } finally {
       setBusy(false);
     }
