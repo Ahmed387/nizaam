@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -285,9 +287,11 @@ export default function NewSaleReturn() {
       }
 
       if (asDraft) {
+        formDraft.clear();
         docSuccess({ title: "تم حفظ المرتجع كمسودة", docNumber: number, amount: total });
         nav(`/branch/${branchId}/invoices?tab=sale_return`);
       } else {
+        formDraft.clear();
         docSuccess({ title: "تم تسجيل مرتجع البيع بنجاح", docNumber: number, amount: total, description: `عدد الأصناف: ${activeLines.length}` });
         setSavedNumber(number);
         setPrintOpen(true);
@@ -383,6 +387,15 @@ export default function NewSaleReturn() {
   return (
     <BranchLayout>
       <PageHeader title="مرتجع بيع جديد" subtitle="إرجاع بضاعة من العميل" />
+
+      {formDraft.draft && !invoice && (
+        <DraftRestoreBar
+          savedAt={formDraft.draft.savedAt}
+          summary={`${formDraft.draft.data.lines?.length ?? 0} صنف`}
+          onRestore={restoreDraft}
+          onDismiss={formDraft.clear}
+        />
+      )}
 
       <div className="space-y-4">
         {/* 1) Customer + invoice link */}
