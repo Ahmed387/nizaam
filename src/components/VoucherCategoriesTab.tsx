@@ -13,6 +13,7 @@ import { Plus, Trash2, Lock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { toast } from "sonner";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 type DialogState =
   | { open: false }
@@ -49,7 +50,7 @@ export function VoucherCategoriesTab() {
     if (c.is_system) return toast.error("لا يمكن حذف تصنيف نظامي");
     const { count } = await supabase.from("vouchers" as any).select("id", { count: "exact", head: true }).eq("category_id", c.id);
     if ((count ?? 0) > 0) return toast.error("التصنيف مرتبط بسندات — قم بتعطيله بدلاً من الحذف");
-    if (!confirm(`حذف "${c.name}"؟`)) return;
+    if (!(await confirmAlert({ title: `حذف "${c.name}"؟`, description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("voucher_categories" as any).delete().eq("id", c.id);
     if (error) return toast.error(error.message);
     toast.success("تم الحذف");

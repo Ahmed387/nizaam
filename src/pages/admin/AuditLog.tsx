@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { FileSpreadsheet, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
   const { tenant, profile, isAdmin } = useAuth();
@@ -54,7 +55,7 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
   };
 
   const deleteRow = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذه الحركة نهائياً؟")) return;
+    if (!(await confirmAlert({ title: "هل أنت متأكد من حذف هذه الحركة نهائياً؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("audit_log").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setRows((prev) => prev.filter((r) => r.id !== id));

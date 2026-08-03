@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, Database, Trash2, Sparkles } from "lucide-react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 const SAMPLE_CATEGORIES = ["إلكترونيات", "ملابس", "مواد غذائية", "أدوات منزلية", "مستلزمات مكتبية"];
 
@@ -134,7 +135,7 @@ export default function SeedData() {
   };
 
   const clearAll = async () => {
-    if (!confirm("سيتم حذف كل البيانات التشغيلية (المنتجات، الفواتير، العملاء...). هل أنت متأكد؟")) return;
+    if (!(await confirmAlert({ title: "سيتم حذف كل البيانات التشغيلية (المنتجات، الفواتير، العملاء...). هل أنت متأكد؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     setClearing(true);
     setLog([]);
     try {

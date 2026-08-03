@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 type Source = {
   id: string;
@@ -169,7 +170,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   };
 
   const deleteItem = async (id: string) => {
-    if (!confirm("حذف هذا الصنف؟")) return;
+    if (!(await confirmAlert({ title: "حذف هذا الصنف؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("price_list_items").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setItems((prev) => prev.filter((i) => i.id !== id));

@@ -15,6 +15,7 @@ import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip } from "@/components/AttributePicker";
 import { ProductImage } from "@/components/ProductImage";
 import { useBranchScope } from "@/lib/branchScope";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const [cats, setCats] = useState<any[]>([]);
@@ -74,7 +75,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("تأكيد الحذف؟")) return;
+    if (!(await confirmAlert({ title: "تأكيد الحذف؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { count } = await supabase.from("products").select("id", { head: true, count: "exact" }).eq("category_id", id);
     if ((count ?? 0) > 0) return toast.error("لا يمكن الحذف، يوجد منتجات بهذا التصنيف");
     const { error } = await supabase.from("categories").delete().eq("id", id);

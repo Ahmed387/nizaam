@@ -22,6 +22,7 @@ import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
 import { summarizeMonth, AttendanceSummary } from "@/lib/salaryCalc";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
@@ -887,7 +888,7 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
   };
 
   const remove = async (side: "front" | "back") => {
-    if (!confirm("حذف الصورة؟")) return;
+    if (!(await confirmAlert({ title: "حذف الصورة؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
     const oldPath = side === "front" ? emp.national_id_front_url : emp.national_id_back_url;
     if (oldPath) await supabase.storage.from("employee-ids").remove([oldPath]);
