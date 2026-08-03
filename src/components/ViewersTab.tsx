@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Trash2, Eye, KeyRound } from "lucide-react";
-import {
 import { confirmAlert } from "@/components/ConfirmDialog";
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 
