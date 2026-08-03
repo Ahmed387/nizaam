@@ -185,6 +185,41 @@ export default function NewPurchaseReturn() {
   const updateLine = (i: number, patch: Partial<Line>) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
 
+  // ===== Local autosave (crash / accidental reload safety net) =====
+  const draftSnapshot = {
+    shipmentId: shipment?.id ?? null,
+    lines,
+    reasonPick, reasonOther, notes, invoiceDate,
+    refundMode, transferMethod, refundRef, refundAccount,
+    cashPart, transferPart, balancePart,
+  };
+  const formDraft = useFormDraft<typeof draftSnapshot>(
+    "purchase-return",
+    [user?.id, branchId],
+    draftSnapshot,
+    !!shipment && lines.length > 0 && !busy,
+  );
+  const restoreDraft = async () => {
+    const d = formDraft.draft?.data;
+    if (!d?.shipmentId) return;
+    await pickShipment(d.shipmentId);
+    setLines((cur) =>
+      cur.map((l) => {
+        const saved = (d.lines ?? []).find((x: Line) => x.product_id === l.product_id);
+        return saved ? { ...l, quantity: Math.min(saved.quantity, l.max_qty) } : l;
+      }),
+    );
+    setReasonPick(d.reasonPick ?? reasonPick);
+    setReasonOther(d.reasonOther ?? "");
+    setNotes(d.notes ?? "");
+    setInvoiceDate(d.invoiceDate ?? invoiceDate);
+    setRefundMode(d.refundMode ?? "cash");
+    setTransferMethod(d.transferMethod ?? "vodafone");
+    setRefundRef(d.refundRef ?? "");
+    setRefundAccount(d.refundAccount ?? "");
+    formDraft.dismiss();
+  };
+
   const total = lines.reduce((s, l) => s + l.quantity * l.unit_cost, 0);
 
   useEffect(() => {
