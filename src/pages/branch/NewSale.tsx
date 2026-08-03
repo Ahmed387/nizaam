@@ -15,6 +15,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
+import { docSuccess, docError } from "@/lib/docToast";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package, ChevronDown, ChevronUp, CreditCard, FileText } from "lucide-react";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
@@ -1071,7 +1072,12 @@ export default function NewSale() {
       try { await releaseDraftReservations(draftIdRef.current, "completed"); } catch {}
 
 
-      toast.success(isCredit && creditRemaining > 0 ? `تم إنشاء الفاتورة — متبقي ${formatEGP(creditRemaining)} كآجل` : "تم إنشاء الفاتورة");
+      docSuccess({
+        title: "تم إنشاء فاتورة البيع بنجاح",
+        description: isCredit && creditRemaining > 0 ? `متبقي ${formatEGP(creditRemaining)} كآجل` : "تم تحصيل المبلغ بالكامل",
+        amount: total,
+        action: { label: "فتح الفاتورة", onClick: () => nav(`/branch/${branchId}/sales/${invId}`) },
+      });
       nav(`/branch/${branchId}/sales/${invId}`);
     } catch (e: any) {
       toast.error(e.message);
