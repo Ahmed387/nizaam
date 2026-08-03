@@ -27,6 +27,7 @@ function AdminRedirectToContact() {
 }
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import ShiftAlertBar from "@/components/ShiftAlertBar";
 import DesktopNotifications from "@/components/DesktopNotifications";
 import { TooltipProvider } from "@/components/ui/tooltip";
