@@ -135,7 +135,7 @@ export default function SeedData() {
   };
 
   const clearAll = async () => {
-    if (!(await confirmAlert({ title: "سيتم حذف كل البيانات التشغيلية (المنتجات، الفواتير، العملاء...). هل أنت متأكد؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
+    if (!(await confirmAlert({ title: "سيتم حذف كل البيانات التشغيلية (المنتجات، الفواتير، العملاء...). هل أنت متأكد؟", description: "كل البيانات التشغيلية هتتمسح ومش هترجع تاني.", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     setClearing(true);
     setLog([]);
     try {
