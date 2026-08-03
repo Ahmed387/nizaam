@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +95,32 @@ export default function NewShipment() {
   const [showExtrasBreakdown, setShowExtrasBreakdown] = useState(false);
   const [openSections, setOpenSections] = useState({ supplier: true, extras: true, products: true, payment: true, summary: true });
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+
+  // ===== Local autosave (crash / accidental reload safety net) =====
+  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, notes, lines, plan };
+  const formDraft = useFormDraft<typeof draftSnapshot>(
+    "purchase",
+    [user?.id, branchId],
+    draftSnapshot,
+    !isEdit && lines.length > 0 && !busy,
+  );
+  const restoreDraft = () => {
+    const d = formDraft.draft?.data;
+    if (!d) return;
+    setSupplierId(d.supplierId ?? "");
+    setArrival(d.arrival ?? arrival);
+    setInvoiceDate(d.invoiceDate ?? invoiceDate);
+    setReceivedBy(d.receivedBy ?? receivedBy);
+    setShipping(d.shipping ?? 0);
+    setCustoms(d.customs ?? 0);
+    setOtherCost(d.otherCost ?? 0);
+    setOtherDesc(d.otherDesc ?? "");
+    setAdmin(d.admin ?? 0);
+    setNotes(d.notes ?? "");
+    setLines(d.lines ?? []);
+    if (d.plan) setPlan(d.plan);
+    formDraft.dismiss();
+  };
 
   const createSupplier = async () => {
     if (!newSup.name.trim()) return toast.error("اسم الشركة مطلوب");
@@ -465,6 +493,7 @@ export default function NewShipment() {
         });
       } catch (e) { console.warn("audit failed", e); }
 
+      formDraft.clear();
       docSuccess({
         title: "تم تسجيل الشحنة بنجاح",
         description: `عدد الأصناف: ${lines.length}`,
@@ -497,6 +526,15 @@ export default function NewShipment() {
         title={isEdit ? "تعديل الشحنة" : "شحنة جديدة"}
         subtitle={isEdit ? (isAdmin ? "تعديل مباشر" : "سيُرسل التعديل للمدير للموافقة") : "استلام بضاعة من مورد"}
       />
+
+      {!isEdit && formDraft.draft && lines.length === 0 && (
+        <DraftRestoreBar
+          savedAt={formDraft.draft.savedAt}
+          summary={`${formDraft.draft.data.lines?.length ?? 0} صنف`}
+          onRestore={restoreDraft}
+          onDismiss={formDraft.clear}
+        />
+      )}
 
       <div className="space-y-4">
       {/* 1) Supplier */}

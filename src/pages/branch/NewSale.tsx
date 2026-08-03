@@ -15,6 +15,8 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { docSuccess, docError } from "@/lib/docToast";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package, ChevronDown, ChevronUp, CreditCard, FileText } from "lucide-react";
@@ -117,6 +119,50 @@ export default function NewSale() {
   // Invoice-level discount
   const [invoiceDiscountMode, setInvoiceDiscountMode] = useState<"amount" | "percent">("amount");
   const [invoiceDiscountInput, setInvoiceDiscountInput] = useState<number>(0);
+
+  // ===== Local autosave (crash / accidental reload safety net) =====
+  const localSnapshot = { items, customerId, invoiceDate, vatEnabled, vatRate, invoiceNotes, invoiceDiscountMode, invoiceDiscountInput };
+  const localDraft = useFormDraft<typeof localSnapshot>(
+    "sale",
+    [user?.id, branchId],
+    localSnapshot,
+    items.length > 0 && !busy,
+  );
+  const [localDraftDismissed, setLocalDraftDismissed] = useState(false);
+  const [restoringLocal, setRestoringLocal] = useState(false);
+  const restoreLocalDraft = async () => {
+    const d = localDraft.draft?.data;
+    if (!d || !branchId) return;
+    setRestoringLocal(true);
+    try {
+      const kept: Item[] = [];
+      const shortages: string[] = [];
+      for (const it of d.items ?? []) {
+        const r = await reserveStock({
+          productId: it.product_id,
+          branchId,
+          draftId: draftIdRef.current,
+          quantity: it.quantity,
+          cashierName: user?.email ?? null,
+        });
+        if (r.ok) kept.push(it);
+        else shortages.push(it.product_name);
+      }
+      setItems(kept);
+      setCustomerId(d.customerId ?? "");
+      setInvoiceDate(d.invoiceDate ?? invoiceDate);
+      setVatEnabled(!!d.vatEnabled);
+      setVatRate(d.vatRate ?? 14);
+      setInvoiceNotes(d.invoiceNotes ?? "");
+      setInvoiceDiscountMode(d.invoiceDiscountMode ?? "amount");
+      setInvoiceDiscountInput(d.invoiceDiscountInput ?? 0);
+      if (shortages.length) toast.warning(`تم استبعاد أصناف غير متاحة الآن: ${shortages.join("، ")}`);
+      setLocalDraftDismissed(true);
+      localDraft.dismiss();
+    } finally {
+      setRestoringLocal(false);
+    }
+  };
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
@@ -1072,6 +1118,7 @@ export default function NewSale() {
       try { await releaseDraftReservations(draftIdRef.current, "completed"); } catch {}
 
 
+      localDraft.clear();
       docSuccess({
         title: "تم إنشاء فاتورة البيع بنجاح",
         description: isCredit && creditRemaining > 0 ? `متبقي ${formatEGP(creditRemaining)} كآجل` : "تم تحصيل المبلغ بالكامل",
@@ -1089,6 +1136,15 @@ export default function NewSale() {
   return (
     <BranchLayout>
       <PageHeader title="فاتورة جديدة" subtitle="نقطة البيع" />
+
+      {localDraft.draft && !localDraftDismissed && items.length === 0 && (
+        <DraftRestoreBar
+          savedAt={localDraft.draft.savedAt}
+          summary={restoringLocal ? "جاري الاسترجاع..." : `${localDraft.draft.data.items?.length ?? 0} صنف`}
+          onRestore={restoreLocalDraft}
+          onDismiss={() => { setLocalDraftDismissed(true); localDraft.clear(); }}
+        />
+      )}
 
       {resumeDraft && (
         <div className="card-elevated p-4 mb-4 border-2 border-success bg-success/5 flex items-center justify-between gap-3 flex-wrap">

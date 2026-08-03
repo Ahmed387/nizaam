@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +81,29 @@ export default function EditSaleInvoice() {
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [openSections, setOpenSections] = useState({ customer: true, items: true, payments: true, summary: true });
   const [invoiceDate, setInvoiceDate] = useState<string>("");
+
+  // ===== Local autosave (crash / accidental reload safety net) =====
+  const draftSnapshot = { items, customerId, vatRate, discountAmount, discountType, discountPercent, invoiceDate };
+  const formDraft = useFormDraft<typeof draftSnapshot>(
+    "edit-invoice",
+    [invoiceId],
+    draftSnapshot,
+    !loading && !!invoice && !saving,
+  );
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const restoreDraft = () => {
+    const d = formDraft.draft?.data;
+    if (!d) return;
+    setItems(d.items ?? []);
+    setCustomerId(d.customerId ?? null);
+    setVatRate(d.vatRate ?? 0);
+    setDiscountAmount(d.discountAmount ?? 0);
+    setDiscountType(d.discountType ?? "amount");
+    setDiscountPercent(d.discountPercent ?? 0);
+    if (d.invoiceDate) setInvoiceDate(d.invoiceDate);
+    setDraftDismissed(true);
+    formDraft.dismiss();
+  };
   const { isAdmin } = useAuth();
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
 
@@ -483,6 +508,7 @@ export default function EditSaleInvoice() {
       }
     }
     setSaving(false);
+    formDraft.clear();
 
     const willBeFullyPaid = isFullyPaidTransition();
     showDiffToast(fullDiff, willBeFullyPaid);
@@ -590,6 +616,15 @@ export default function EditSaleInvoice() {
             </Button>
           }
         />
+
+        {formDraft.draft && !draftDismissed && (
+          <DraftRestoreBar
+            savedAt={formDraft.draft.savedAt}
+            summary={`${formDraft.draft.data.items?.length ?? 0} بند`}
+            onRestore={restoreDraft}
+            onDismiss={() => { setDraftDismissed(true); formDraft.clear(); }}
+          />
+        )}
 
         {/* Customer section */}
         <CollapsibleSection

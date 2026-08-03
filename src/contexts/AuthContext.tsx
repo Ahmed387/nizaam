@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission } from "@/lib/roles";
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ctxReady, setCtxReady] = useState(false);
   const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
   const [userPerms, setUserPerms] = useState<Record<string, boolean>>({});
+  const currentUserIdRef = useRef<string | null>(null);
 
   const loadPerms = async (tid: string | null) => {
     if (!tid) { setPermsByRole({}); return; }
@@ -85,12 +86,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, sess) => {
+      const nextUserId = sess?.user?.id ?? null;
       setSession(sess);
       setUser(sess?.user ?? null);
-      if (sess?.user) {
-        setCtxReady(false);
-        setTimeout(() => loadCtx(sess.user.id), 0);
+      if (nextUserId) {
+        // Same user (TOKEN_REFRESHED / tab re-focus / repeated SIGNED_IN):
+        // refresh context silently so ProtectedRoute never unmounts the page
+        // and in-progress forms (sales, purchases, returns) keep their state.
+        const sameUser = currentUserIdRef.current === nextUserId;
+        currentUserIdRef.current = nextUserId;
+        if (!sameUser) setCtxReady(false);
+        setTimeout(() => loadCtx(nextUserId), 0);
       } else {
+        currentUserIdRef.current = null;
         setProfile(null);
         setTenantId(null);
         setTenant(null);
@@ -104,13 +112,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
-      if (data.session?.user) await loadCtx(data.session.user.id);
-      else setCtxReady(true);
+      if (data.session?.user) {
+        currentUserIdRef.current = data.session.user.id;
+        await loadCtx(data.session.user.id);
+      } else setCtxReady(true);
       setLoading(false);
     });
 
     return () => sub.subscription.unsubscribe();
   }, []);
+
 
   // Realtime: re-fetch context (and force re-login) if this user's roles or branches change
   useEffect(() => {

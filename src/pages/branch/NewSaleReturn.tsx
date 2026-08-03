@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -186,6 +188,41 @@ export default function NewSaleReturn() {
   const updateLine = (i: number, patch: Partial<Line>) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
 
+  // ===== Local autosave (crash / accidental reload safety net) =====
+  const draftSnapshot = {
+    invoiceId: invoice?.id ?? null,
+    lines,
+    reasonPick, reasonOther, notes, invoiceDate,
+    refundMode, transferMethod, refundRef, refundAccount,
+    cashPart, transferPart, balancePart,
+  };
+  const formDraft = useFormDraft<typeof draftSnapshot>(
+    "sale-return",
+    [user?.id, branchId],
+    draftSnapshot,
+    !!invoice && lines.length > 0 && !busy,
+  );
+  const restoreDraft = async () => {
+    const d = formDraft.draft?.data;
+    if (!d?.invoiceId) return;
+    await pickInvoice(d.invoiceId);
+    setLines((cur) =>
+      cur.map((l) => {
+        const saved = (d.lines ?? []).find((x: Line) => x.product_id === l.product_id);
+        return saved ? { ...l, quantity: Math.min(saved.quantity, l.max_qty) } : l;
+      }),
+    );
+    setReasonPick(d.reasonPick ?? reasonPick);
+    setReasonOther(d.reasonOther ?? "");
+    setNotes(d.notes ?? "");
+    setInvoiceDate(d.invoiceDate ?? invoiceDate);
+    setRefundMode(d.refundMode ?? "cash");
+    setTransferMethod(d.transferMethod ?? "vodafone");
+    setRefundRef(d.refundRef ?? "");
+    setRefundAccount(d.refundAccount ?? "");
+    formDraft.dismiss();
+  };
+
   const total = lines.reduce((s, l) => s + l.quantity * l.unit_refund, 0);
 
   useEffect(() => {
@@ -285,9 +322,11 @@ export default function NewSaleReturn() {
       }
 
       if (asDraft) {
+        formDraft.clear();
         docSuccess({ title: "تم حفظ المرتجع كمسودة", docNumber: number, amount: total });
         nav(`/branch/${branchId}/invoices?tab=sale_return`);
       } else {
+        formDraft.clear();
         docSuccess({ title: "تم تسجيل مرتجع البيع بنجاح", docNumber: number, amount: total, description: `عدد الأصناف: ${activeLines.length}` });
         setSavedNumber(number);
         setPrintOpen(true);
@@ -383,6 +422,15 @@ export default function NewSaleReturn() {
   return (
     <BranchLayout>
       <PageHeader title="مرتجع بيع جديد" subtitle="إرجاع بضاعة من العميل" />
+
+      {formDraft.draft && !invoice && (
+        <DraftRestoreBar
+          savedAt={formDraft.draft.savedAt}
+          summary={`${formDraft.draft.data.lines?.length ?? 0} صنف`}
+          onRestore={restoreDraft}
+          onDismiss={formDraft.clear}
+        />
+      )}
 
       <div className="space-y-4">
         {/* 1) Customer + invoice link */}
