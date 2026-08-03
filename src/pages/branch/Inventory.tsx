@@ -36,6 +36,7 @@ import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, DialogTitle as DlgTitle } from "@/components/ui/dialog";
 import { ProductImage } from "@/components/ProductImage";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -863,10 +864,16 @@ export default function Inventory() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={open} onOpenChange={(o) => {
+      <Dialog open={open} onOpenChange={async (o) => {
         if (!o) {
           const dirty = !!(form.name || form.cost_price || form.selling_price || form.market_price || form.image || (form.quantity && form.quantity !== "0") || form.category_id);
-          if (dirty && !window.confirm("لديك بيانات منتج لم يتم حفظها. هل تريد الإغلاق وفقدانها؟")) return;
+          if (dirty && !(await confirmAlert({
+            title: "لسه فيه بيانات منتج مش متسجلة",
+            description: "لو قفلت دلوقتي هتضيع كل اللي كتبته.",
+            confirmLabel: "أيوه، اقفل",
+            cancelLabel: "لأ، كمّل",
+            tone: "warning",
+          }))) return;
         }
         setOpen(o);
       }}>

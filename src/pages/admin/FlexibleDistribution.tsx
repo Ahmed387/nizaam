@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Calculator, PieChart, TrendingUp, Wallet, Loader2 } from "lucide-react";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -89,9 +90,13 @@ export default function FlexibleDistribution() {
       return;
     }
     if (
-      !confirm(
-        `تأكيد توزيع ${fmt(preview.distributable)} ج.م على الشركاء؟\nالسلف المستحقة هتتخصم تلقائياً.`
-      )
+      !(await confirmAlert({
+        title: `هنوزّع ${fmt(preview.distributable)} ج.م على الشركاء`,
+        description: "السلف المستحقة هتتخصم تلقائي من نصيب كل شريك. متأكد؟",
+        confirmLabel: "أيوه، وزّع",
+        cancelLabel: "لأ، استنى",
+        tone: "warning",
+      }))
     )
       return;
     setDistributing(true);

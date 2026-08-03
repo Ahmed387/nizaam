@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
+import { confirmAlert } from "@/components/ConfirmDialog";
 
 type Item = {
   id?: string;
@@ -1038,12 +1039,16 @@ export default function EditSaleInvoice() {
         <div className="flex justify-end gap-2 pt-2">
           <Button
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               if (
                 stagedOps.length > 0 &&
-                !window.confirm(
-                  `عندك ${stagedOps.length} تعديل معلّق على الدفعات لسه ما اتحفظش. لو خرجت هيتم إلغاؤهم بالكامل. تأكيد الخروج؟`
-                )
+                !(await confirmAlert({
+                  title: "لسه فيه تعديلات مش متسجلة",
+                  description: `عندك ${stagedOps.length} تعديل على الدفعات لسه ما اتحفظش — لو خرجت دلوقتي هيتلغوا كلهم.`,
+                  confirmLabel: "أيوه، اخرج",
+                  cancelLabel: "لأ، كمّل",
+                  tone: "warning",
+                }))
               )
                 return;
               nav(`/branch/${branchId}/sales/${invoiceId}`);
