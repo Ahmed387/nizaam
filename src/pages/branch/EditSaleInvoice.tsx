@@ -1,4 +1,5 @@
 import { VariantLine } from "@/components/VariantChips";
+import { focusSection } from "@/lib/sectionFocus";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -105,7 +106,7 @@ export default function EditSaleInvoice() {
     formDraft.dismiss();
   };
   const { isAdmin } = useAuth();
-  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
   const initialTotalRef = useRef<number>(0);
