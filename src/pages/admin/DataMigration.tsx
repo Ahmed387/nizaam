@@ -156,7 +156,7 @@ function LegacyPanel() {
       for (const g of groups) {
         const rep = await runLegacyDryRun({
           kind, branchId: g.branchId || branchId, docs: g.docs,
-          supplierId: needsSupplier ? supplierId || null : null, skipExisting,
+          supplierId: isPurchase ? supplierId || null : null, skipExisting,
         });
         rep.docs.forEach((d) => { d.branchName = branchName(g.branchId || branchId); });
         parts.push(rep);
@@ -254,7 +254,7 @@ function LegacyPanel() {
           userId: user!.id,
           label: (label.trim() || "ترحيل") + (g.warehouse ? ` — ${g.warehouse}` : ""),
           fileName,
-          supplierId: needsSupplier ? supplierId : null,
+          supplierId: isPurchase ? supplierId || null : null,
           docs: g.docs,
           skipExisting,
           onProgress: (done) => setProgress({ done: base + done, total: docs.length }),
