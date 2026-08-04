@@ -55,7 +55,43 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
     load();
   }, [load]);
 
+  const createPlan = async () => {
+    setCreating(true);
+    try {
+      const { data: sh, error: se } = await supabase
+        .from("shipments")
+        .select("id, branch_id, contact_id, total_cost, contacts(name)")
+        .eq("id", shipmentId)
+        .single();
+      if (se) throw se;
+      const total = Number((sh as any).total_cost || 0);
+      const { error } = await supabase.from("payment_plans").insert({
+        branch_id: (sh as any).branch_id,
+        entity_type: "supplier",
+        entity_id: (sh as any).contact_id,
+        entity_name: (sh as any).contacts?.name ?? "مورد",
+        total_amount: total,
+        paid_amount: 0,
+        remaining_amount: total,
+        plan_type: "open",
+        reference_type: "shipment",
+        reference_id: shipmentId,
+        status: "active",
+        created_by: user!.id,
+      } as any);
+      if (error) throw error;
+      toast.success("تم إنشاء خطة الدفع ✅", { description: "دلوقتي تقدر تسجّل المدفوع وتعدّل طريقة الدفع" });
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل إنشاء خطة الدفع");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const active = txs.filter((t) => !t.voided_at);
+
 
   return (
     <div className="card-elevated overflow-hidden mb-6 animate-fade-in">
