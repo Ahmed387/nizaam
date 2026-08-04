@@ -54,25 +54,38 @@ function LegacyPanel() {
   const [checking, setChecking] = useState(false);
   /** ربط مخازن الملف بفروع النظام: اسم المخزن → id الفرع */
   const [whMap, setWhMap] = useState<Record<string, string>>({});
+  /** المستندات بعد التعديل اليدوي (دي اللي بتترحّل فعليًا) */
+  const [docs, setDocs] = useState<LegacyDoc[]>([]);
 
-  // أي تغيير في الإعدادات بيلغي الفحص السابق
-  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap]);
+  // أي تغيير في الإعدادات أو البيانات بيلغي الفحص السابق
+  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs]);
+
+  const warehouses = useMemo(
+    () => [...new Set(docs.map((d) => d.warehouse).filter(Boolean))],
+    [docs],
+  );
+  const fileAccounts = useMemo(
+    () => [...new Set(docs.map((d) => d.account.trim()).filter(Boolean))],
+    [docs],
+  );
 
   // أول ما الملف يتقرا: نحاول نطابق كل مخزن بفرع بنفس الاسم
   useEffect(() => {
-    if (!sheet) { setWhMap({}); return; }
     const normalize = (s: string) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
-    const next: Record<string, string> = {};
-    for (const w of sheet.warehouses) {
-      const nw = normalize(w);
-      const hit = (branches as any[]).find((b) => {
-        const nb = normalize(b.name);
-        return nb === nw || nb.includes(nw) || nw.includes(nb);
-      });
-      next[w] = hit?.id ?? "";
-    }
-    setWhMap(next);
-  }, [sheet, branches]);
+    setWhMap((prev) => {
+      const next: Record<string, string> = {};
+      for (const w of warehouses) {
+        if (prev[w]) { next[w] = prev[w]; continue; }
+        const nw = normalize(w);
+        const hit = (branches as any[]).find((b) => {
+          const nb = normalize(b.name);
+          return nb === nw || nb.includes(nw) || nw.includes(nb);
+        });
+        next[w] = hit?.id ?? "";
+      }
+      return next;
+    });
+  }, [warehouses, branches]);
 
   useEffect(() => {
     supabase.from("contacts").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []));
@@ -80,21 +93,27 @@ function LegacyPanel() {
 
 
   const kind = (kindOverride || sheet?.kind || "") as LegacyKind | "";
-  const needsSupplier = kind === "purchase" || kind === "purchase_return";
+  const isPurchase = kind === "purchase" || kind === "purchase_return";
+  /** المورد الافتراضي مطلوب بس لو فيه مستند مفيهوش اسم مورد في الملف */
+  const needsSupplier = isPurchase && docs.some((d) => !d.account.trim());
 
-  const docs = sheet?.docs ?? [];
+  const itemCount = useMemo(() => docs.reduce((s, d) => s + d.items.length, 0), [docs]);
+  const grandTotal = useMemo(() => docs.reduce((s, d) => s + d.headerTotal, 0), [docs]);
   const warned = useMemo(() => docs.filter((d) => d.warnings.length), [docs]);
   const branchName = (id: string) => (branches as any[]).find((b) => b.id === id)?.name ?? "—";
 
   /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
   const unmappedWarehouses = useMemo(
-    () => (sheet?.warehouses ?? []).filter((w) => !whMap[w]),
-    [sheet, whMap],
+    () => warehouses.filter((w) => !whMap[w]),
+    [warehouses, whMap],
   );
 
-  /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الرئيسي المختار) */
+  /** لازم نختار فرع افتراضي بس لو فيه مستند من غير مخزن */
+  const needsDefaultBranch = useMemo(() => docs.some((d) => !d.warehouse), [docs]);
+
+  /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الافتراضي المختار) */
   const groups = useMemo(() => {
-    const m = new Map<string, { warehouse: string; branchId: string; docs: typeof docs }>();
+    const m = new Map<string, { warehouse: string; branchId: string; docs: LegacyDoc[] }>();
     for (const d of docs) {
       const target = d.warehouse ? whMap[d.warehouse] || "" : branchId;
       const k = `${d.warehouse}|${target}`;
@@ -107,10 +126,13 @@ function LegacyPanel() {
   const onFile = async (file: File) => {
     setResults(null);
     setSheet(null);
+    setDocs([]);
+    setWhMap({});
     setFileName(file.name);
     try {
       const parsed = await parseLegacyFile(file);
       setSheet(parsed);
+      setDocs(parsed.docs);
       setKindOverride("");
       if (parsed.issues.length) parsed.issues.forEach((i) => toast.warning(i));
       else toast.success(`اتقرأ ${parsed.docs.length} مستند و ${parsed.itemCount} صنف`);
@@ -118,6 +140,7 @@ function LegacyPanel() {
       toast.error("فشلت قراءة الملف: " + e.message);
     }
   };
+
 
   const dryRun = async () => {
     if (!branchId) return toast.error("اختار الفرع الأول");
