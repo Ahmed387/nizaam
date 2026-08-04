@@ -49,6 +49,7 @@ import {
   Activity,
   Download,
   Package,
+  Percent,
 } from "lucide-react";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
@@ -184,6 +185,17 @@ export default function SupplierProfile() {
   const shipmentItemCount = (sh: any) => ((sh.shipment_items ?? []) as any[]).length;
   const shipmentUnitsCount = (sh: any) =>
     ((sh.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0);
+
+  // الخصومات اللي المورد عملها لنا على الشحنات
+  const discountShipments = useMemo(
+    () => shipments.filter((s) => Number(s.discount_amount ?? 0) > 0),
+    [shipments]
+  );
+  const totalDiscounts = discountShipments.reduce((s, x) => s + Number(x.discount_amount ?? 0), 0);
+  const grossBeforeDiscount = totalShipments + totalDiscounts;
+  const discountPct = grossBeforeDiscount > 0 ? (totalDiscounts / grossBeforeDiscount) * 100 : 0;
+  const lastDiscount = discountShipments[0];
+
 
   // Unified timeline
   const timeline = useMemo(() => {
@@ -404,11 +416,17 @@ export default function SupplierProfile() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <StatCard label="عدد الشحنات" value={shipments.length} icon={<Truck className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي الأصناف" value={`${totalItemsCount} (${totalUnits} وحدة)`} icon={<Package className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي الشحنات" value={formatEGP(totalShipments)} icon={<DollarSign className="w-5 h-5" />} accent="secondary" />
         <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
+        <StatCard
+          label={`إجمالي الخصومات (${discountPct.toFixed(1)}%)`}
+          value={formatEGP(totalDiscounts)}
+          icon={<Percent className="w-5 h-5" />}
+          accent="success"
+        />
         <StatCard
           label={creditAtSupplier > 0 ? "رصيد ليك عند المورد" : "المتبقي عليك"}
           value={formatEGP(creditAtSupplier > 0 ? creditAtSupplier : owedByUs)}
@@ -416,6 +434,17 @@ export default function SupplierProfile() {
           accent={creditAtSupplier > 0 ? "success" : owedByUs > 0 ? "warning" : "success"}
         />
       </div>
+      {totalDiscounts > 0 && lastDiscount && (
+        <div className="card-elevated p-3 mb-6 bg-success/10 border-success/30 text-sm">
+          <span className="font-semibold text-success">
+            🎁 المورد ده عملّك خصومات بإجمالي {formatEGP(totalDiscounts)} على {discountShipments.length} شحنة
+          </span>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            آخر خصم كان يوم {formatDate(lastDiscount.arrival_date)} بقيمة {formatEGP(Number(lastDiscount.discount_amount))}
+            {lastDiscount.discount_type === "percent" ? ` (${Number(lastDiscount.discount_value)}%)` : ""}
+          </div>
+        </div>
+      )}
       {creditAtSupplier > 0 && (
         <div className="card-elevated p-3 mb-6 bg-success/10 border-success/30 text-sm flex items-center justify-between">
           <div>
@@ -433,6 +462,9 @@ export default function SupplierProfile() {
           )}
           {(supplier?.type === "supplier" || supplier?.type === "both") && (
             <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
+          )}
+          {(supplier?.type === "supplier" || supplier?.type === "both") && (
+            <TabsTrigger value="discounts" className="gap-2"><Percent className="w-4 h-4" /> الخصومات ({discountShipments.length})</TabsTrigger>
           )}
           {(supplier?.type === "customer" || supplier?.type === "both") && (
             <TabsTrigger value="sales" className="gap-2"><Receipt className="w-4 h-4" /> المبيعات ({invoices.length})</TabsTrigger>
@@ -526,8 +558,60 @@ export default function SupplierProfile() {
               { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
               { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
               {
+                key: "discount_amount",
+                header: "الخصم",
+                render: (r: any) =>
+                  Number(r.discount_amount ?? 0) > 0 ? (
+                    <span className="font-bold text-success">
+                      −{formatEGP(r.discount_amount)}
+                      {r.discount_type === "percent" ? ` (${Number(r.discount_value)}%)` : ""}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
+              },
+              {
                 key: "total_cost",
                 header: "الإجمالي",
+                render: (r: any) => <span className="font-bold text-warning">{formatEGP(r.total_cost)}</span>,
+              },
+            ]}
+          />
+        </TabsContent>
+
+        <TabsContent value="discounts" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <StatCard label="عدد الشحنات اللي فيها خصم" value={discountShipments.length} icon={<Percent className="w-5 h-5" />} accent="primary" />
+            <StatCard label="إجمالي الخصومات" value={formatEGP(totalDiscounts)} icon={<Percent className="w-5 h-5" />} accent="success" />
+            <StatCard label="متوسط نسبة الخصم" value={`${discountPct.toFixed(2)}%`} icon={<Percent className="w-5 h-5" />} accent="secondary" />
+          </div>
+          <DataTable
+            loading={loading}
+            rows={discountShipments}
+            empty="المورد ده معملش أي خصم لحد دلوقتي"
+            onRowClick={(r: any) => nav(`/branch/${r.branch_id}/shipments/${r.id}`)}
+            columns={[
+              { key: "arrival_date", header: "تاريخ الخصم", render: (r: any) => formatDate(r.arrival_date) },
+              { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+              {
+                key: "discount_type",
+                header: "نوع الخصم",
+                render: (r: any) =>
+                  r.discount_type === "percent" ? `نسبة ${Number(r.discount_value)}%` : "مبلغ ثابت",
+              },
+              {
+                key: "gross",
+                header: "قبل الخصم",
+                render: (r: any) => formatEGP(Number(r.total_cost) + Number(r.discount_amount ?? 0)),
+              },
+              {
+                key: "discount_amount",
+                header: "قيمة الخصم",
+                render: (r: any) => <span className="font-bold text-success">−{formatEGP(r.discount_amount)}</span>,
+              },
+              {
+                key: "total_cost",
+                header: "بعد الخصم",
                 render: (r: any) => <span className="font-bold text-warning">{formatEGP(r.total_cost)}</span>,
               },
             ]}
