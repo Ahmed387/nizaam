@@ -377,27 +377,49 @@ function LegacyPanel() {
           الفرع مبتختروش من فوق — بيتحدد من عمود <b>المخزن</b> اللي جوه الملف، وانت بتربط كل مخزن بفرعه.
         </div>
 
-        {/* أعمدة قالب نظام */}
-        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
-          <div className="text-sm font-bold text-warning flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> الشيت القديم ناقصه أعمدة — استخدم قالب نظام
+        {/* أعمدة قالب نظام — بتتفحص حسب الشيت المرفوع */}
+        <div className={`rounded-lg border p-3 space-y-2 animate-fade-in ${
+          !sheet ? "border-border bg-muted/30"
+            : colAudit.missing.length ? "border-warning/40 bg-warning/5"
+            : "border-success/40 bg-success/5"
+        }`}>
+          <div className={`text-sm font-bold flex items-center gap-2 ${
+            !sheet ? "" : colAudit.missing.length ? "text-warning" : "text-success"
+          }`}>
+            {!sheet ? <><BookOpen className="w-4 h-4" /> الأعمدة اللي النظام بيقراها</>
+              : colAudit.missing.length
+                ? <><AlertTriangle className="w-4 h-4" /> ملفك ناقصه {colAudit.missing.length} عمود — تقدر تكمّلهم من شاشة المراجعة أو تستخدم قالب نظام</>
+                : <><CheckCircle2 className="w-4 h-4" /> ملفك فيه كل الأعمدة اللي النظام محتاجها 👏</>}
           </div>
           <p className="text-xs leading-6 text-muted-foreground">
-            شيت البيع القديم فيه <b>سعر البيع بس</b>، ومفيهوش التكلفة ولا سعر السوق ولا بيانات المنتج ولا الخزنة اللي دخلت فيها الفلوس.
-            القالب الجديد فيه كل الأعمدة اللي النظام بيشتغل بيها، فالفاتورة بتشبك على النظام على طول.
-            وأي عمود ناقص في ملفك القديم النظام بيقراه <b>صفر</b> وانت بتعدّله من شاشة المراجعة قبل الاعتماد.
+            {!sheet
+              ? "دي كل الأعمدة اللي النظام بيشتغل بيها. ارفع الملف وهقولك على طول إيه الموجود فيه وإيه الناقص."
+              : "الفحص ده على الملف اللي رفعته بالظبط. أي عمود ناقص النظام بيقراه صفر/فاضي، وتقدر تعدّله من شاشة المراجعة قبل الاعتماد."}
           </p>
+
+          {sheet && colAudit.present.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {colAudit.present.map((c) => (
+                <Badge key={c.key} variant="outline" className="border-success/40 text-success bg-success/10 text-[11px]">
+                  <CheckCircle2 className="w-3 h-3 ml-1" /> {c.col}
+                </Badge>
+              ))}
+            </div>
+          )}
+
           <div className="grid md:grid-cols-2 gap-1.5">
-            {COLUMN_HELP.map((c) => (
-              <div key={c.col} className="text-[11px] leading-5 rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+            {(sheet ? colAudit.missing : COLUMN_HELP).map((c) => (
+              <div key={c.key} className="text-[11px] leading-5 rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
                 <b className="text-foreground">{c.col}</b> — {c.what}. <span className="text-muted-foreground">{c.need}</span>
               </div>
             ))}
           </div>
+
           <Button variant="outline" size="sm" onClick={() => downloadLegacyTemplate(kindOverride || sheet?.kind || "")}>
             <Download className="w-4 h-4 ml-1" /> نزّل قالب نظام (بالأعمدة الكاملة + شرح)
           </Button>
         </div>
+
       </Card>
 
       <Card className="p-4 space-y-4">
