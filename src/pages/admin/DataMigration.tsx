@@ -24,7 +24,7 @@ import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import * as XLSX from "xlsx";
 import { formatEGP } from "@/lib/format";
-import { downloadLegacyTemplate, COLUMN_HELP } from "@/lib/legacyTemplate";
+import { downloadLegacyTemplate, COLUMN_HELP, auditSheetColumns } from "@/lib/legacyTemplate";
 
 const LEGACY_ORDER: LegacyKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
 
