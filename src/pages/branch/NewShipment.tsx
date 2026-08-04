@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { focusSection } from "@/lib/sectionFocus";
 import { useNavigate, useParams } from "react-router-dom";
@@ -703,48 +704,53 @@ export default function NewShipment() {
 
           {/* Live distribution preview */}
           {lines.length > 0 && (totalExtras > 0 || invoiceDiscountAmount > 0) && (
-            <div className="mt-5 border border-border rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between flex-wrap gap-2">
-                <span>توزيع خصم الفاتورة والمصاريف على الأصناف (بالتناسب مع قيمة وكمية كل صنف)</span>
-                <span className="flex items-center gap-3">
-                  {invoiceDiscountAmount > 0 && <span className="text-destructive">خصم الفاتورة: − {formatEGP(invoiceDiscountAmount)}</span>}
-                  {totalExtras > 0 && <span className="text-muted-foreground">مصاريف للتوزيع: {formatEGP(totalExtras)}</span>}
-                </span>
+            <div className="mt-5 rounded-xl border border-border overflow-hidden bg-card">
+              <div className="px-4 py-3 bg-surface-2 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-bold">توزيع الخصم والمصاريف على الأصناف</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {invoiceDiscountAmount > 0 && (
+                    <span className="px-2.5 py-1 rounded-md bg-destructive/10 text-destructive text-[11px] font-bold whitespace-nowrap">
+                      خصم الفاتورة − {formatEGP(invoiceDiscountAmount)}
+                    </span>
+                  )}
+                  {totalExtras > 0 && (
+                    <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-600 text-[11px] font-bold whitespace-nowrap">
+                      مصاريف {formatEGP(totalExtras)}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-surface-2/60">
-                    <tr>
-                      <th className="px-3 py-2 text-right">المنتج</th>
-                      <th className="px-3 py-2 text-right">الكمية</th>
-                      <th className="px-3 py-2 text-right">سعر الوحدة قبل الخصم</th>
-                      <th className="px-3 py-2 text-right">نصيب الصنف من الخصم</th>
-                      <th className="px-3 py-2 text-right">خصم الوحدة</th>
-                      <th className="px-3 py-2 text-right">سعر الوحدة بعد الخصم</th>
-                      <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
-                      <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
-                      <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {distribution.map((d, i) => (
-                      <tr key={i} className="border-t border-border">
-                        <td className="px-3 py-2">{d.line.product_name || "—"}</td>
-                        <td className="px-3 py-2">{d.line.quantity}</td>
-                        <td className="px-3 py-2 text-muted-foreground line-through">{formatEGP(d.unitBefore)}</td>
-                        <td className="px-3 py-2 text-destructive">
-                          − {formatEGP(d.invDiscShare)}
-                          <span className="text-[10px] opacity-70"> ({d.invDiscPct.toFixed(1)}%)</span>
-                        </td>
-                        <td className="px-3 py-2 text-destructive">− {formatEGP(d.invDiscUnit)}</td>
-                        <td className="px-3 py-2 font-semibold">{formatEGP(d.baseUnit)}</td>
-                        <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
-                        <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
-                        <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              <div className="divide-y divide-border">
+                {distribution.map((d, i) => (
+                  <div key={i} className="p-3 space-y-2.5">
+                    {/* Header: product + qty */}
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-sm font-semibold leading-snug">{d.line.product_name || "— صنف بدون اسم —"}</span>
+                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-surface-2 text-[11px] font-bold whitespace-nowrap">
+                        الكمية: {d.line.quantity}
+                      </span>
+                    </div>
+
+                    {/* Metrics */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+                      <Metric label="سعر الوحدة قبل الخصم" value={formatEGP(d.unitBefore)} className="text-muted-foreground line-through" />
+                      <Metric
+                        label={`نصيبه من الخصم (${d.invDiscPct.toFixed(1)}%)`}
+                        value={`− ${formatEGP(d.invDiscUnit)} / وحدة`}
+                        hint={`إجمالي − ${formatEGP(d.invDiscShare)}`}
+                        className="text-destructive"
+                      />
+                      <Metric label="سعر الوحدة بعد الخصم" value={formatEGP(d.baseUnit)} className="text-foreground font-bold" />
+                      <Metric label="نصيب الشحن/الوحدة" value={`+ ${formatEGP(d.unitExtra)}`} className="text-amber-600" />
+                      <Metric label="التكلفة الحقيقية/الوحدة" value={formatEGP(d.trueUnit)} className="text-primary font-bold" highlight />
+                    </div>
+
+                    <div className="text-[11px] text-emerald-600 font-semibold">
+                      سعر البيع المقترح (+30%): {formatEGP(d.trueUnit * 1.3)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -1129,5 +1135,15 @@ export default function NewShipment() {
         </DialogContent>
       </Dialog>
     </BranchLayout>
+  );
+}
+
+function Metric({ label, value, hint, className, highlight }: { label: string; value: string; hint?: string; className?: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-lg border px-2.5 py-1.5 min-w-0", highlight ? "border-primary/40 bg-primary/5" : "border-border bg-surface-2/50")}>
+      <div className="text-[10px] text-muted-foreground leading-tight mb-0.5">{label}</div>
+      <div className={cn("text-xs whitespace-nowrap overflow-hidden text-ellipsis font-semibold", className)}>{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground whitespace-nowrap">{hint}</div>}
+    </div>
   );
 }
