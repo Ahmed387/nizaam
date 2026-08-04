@@ -344,11 +344,40 @@ function LegacyPanel() {
           </div>
 
           {sheet.warehouses.length > 0 && (
-            <div className="text-xs text-muted-foreground">
-              مخازن الملف: {sheet.warehouses.map((w) => <Badge key={w} variant="outline" className="mx-1">{w}</Badge>)}
-              — كلها هتترحّل على الفرع المختار.
+            <div className={`border rounded-lg p-3 space-y-2 ${unmappedWarehouses.length ? "border-warning bg-warning/5" : "bg-muted/30"}`}>
+              <div className="text-sm font-semibold flex items-center gap-1">
+                <AlertTriangle className={`w-4 h-4 ${unmappedWarehouses.length ? "text-warning" : "text-muted-foreground"}`} />
+                ربط مخازن الملف بفروع النظام
+              </div>
+              {unmappedWarehouses.length > 0 && (
+                <div className="text-xs text-warning">
+                  في مخزن (أو أكتر) في الملف مش موجود عندك على النظام: <b>{unmappedWarehouses.join("، ")}</b> —
+                  اختارله فرع من الفروع المتاحة تحت، أو اعمل الفرع الأول من صفحة الفروع وارجع هنا.
+                </div>
+              )}
+              <div className="grid md:grid-cols-2 gap-2">
+                {sheet.warehouses.map((w) => (
+                  <div key={w} className="flex items-center gap-2">
+                    <Badge variant="outline" className="shrink-0 max-w-[45%] truncate">{w}</Badge>
+                    <span className="text-muted-foreground text-xs">←</span>
+                    <Select value={whMap[w] || ""} onValueChange={(v) => setWhMap((m) => ({ ...m, [w]: v }))}>
+                      <SelectTrigger className={`h-9 ${!whMap[w] ? "border-warning" : ""}`}>
+                        <SelectValue placeholder="اختار الفرع" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                أي مستند مفيهوش مخزن هيترحّل على الفرع الرئيسي المختار فوق.
+                {groups.length > 1 && ` الملف ده هيتقسم على ${groups.length} مجموعة ترحيل.`}
+              </div>
             </div>
           )}
+
 
           {warned.length > 0 && (
             <div className="border rounded p-3 bg-warning/5 max-h-40 overflow-y-auto text-xs space-y-1">
