@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronLeft, Trash2, Plus, Wand2, Search } from "lucide-react";
 import type { LegacyDoc, LegacyItem } from "@/lib/legacySheetParser";
+import type { ColumnKey } from "@/lib/legacyTemplate";
 import { formatEGP } from "@/lib/format";
 import { confirmAlert } from "@/components/ConfirmDialog";
 
