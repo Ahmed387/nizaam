@@ -143,7 +143,8 @@ function LegacyPanel() {
 
 
   const dryRun = async () => {
-    if (!branchId) return toast.error("اختار الفرع الأول");
+    if (needsDefaultBranch && !branchId) return toast.error("فيه مستندات من غير مخزن — اختار الفرع الافتراضي");
+
     if (!kind) return toast.error("حدّد نوع المستندات");
     if (!docs.length) return toast.error("مفيش مستندات للفحص");
     if (unmappedWarehouses.length) {
