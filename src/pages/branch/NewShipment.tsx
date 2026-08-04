@@ -1001,18 +1001,24 @@ export default function NewShipment() {
       >
         <div className="p-5">
         <div className="grid md:grid-cols-2 gap-4 items-end">
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
 
-            <div className="flex justify-between"><span className="text-muted-foreground">إجمالي البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
-            {itemsDiscount > 0 && (
-              <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
-            )}
-            <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
+            {/* 1) البضاعة */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="px-3 py-1.5 bg-surface-2 text-[11px] font-bold text-muted-foreground">١ — قيمة البضاعة</div>
+              <div className="p-3 space-y-1.5">
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف ({lines.length} صنف / {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة)</span><b>{formatEGP(itemsGross)}</b></div>
+                {itemsDiscount > 0 && (
+                  <div className="flex justify-between text-destructive"><span>− خصومات على الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
+                )}
+                <div className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
+              </div>
+            </div>
 
-            {/* خصم على الفاتورة كلها */}
-            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+            {/* 2) خصم على الفاتورة كلها */}
+            <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-semibold text-primary">خصم على الفاتورة كلها</Label>
+                <Label className="text-xs font-semibold text-primary">٢ — خصم على الفاتورة كلها</Label>
                 <div className="inline-flex rounded-md overflow-hidden border border-input">
                   <button
                     type="button"
@@ -1040,23 +1046,42 @@ export default function NewShipment() {
                 placeholder="0"
                 className="h-9"
               />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                الخصم بيتوزّع على الأصناف بالتناسب مع قيمة كل صنف، وبينزّل تكلفة الوحدة في المخزن.
+              </p>
               {invoiceDiscountAmount > 0 && (
-                <div className="flex justify-between text-destructive text-xs font-semibold">
-                  <span>قيمة الخصم على الفاتورة</span>
-                  <b>− {formatEGP(invoiceDiscountAmount)}</b>
-                </div>
+                <>
+                  <div className="flex justify-between text-destructive text-xs font-semibold">
+                    <span>قيمة الخصم</span><b>− {formatEGP(invoiceDiscountAmount)}</b>
+                  </div>
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-muted-foreground">صافي البضاعة بعد الخصم</span><b>{formatEGP(netAfterInvoiceDiscount)}</b>
+                  </div>
+                </>
               )}
             </div>
 
-            {invoiceDiscountAmount > 0 && (
-              <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة بعد خصم الفاتورة</span><b>{formatEGP(netAfterInvoiceDiscount)}</b></div>
-            )}
-            <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(admin)}</b></div>
-            <div className="border-t border-border pt-2 flex justify-between text-lg">
-              <span>الإجمالي</span>
+            {/* 3) المصاريف */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="px-3 py-1.5 bg-surface-2 text-[11px] font-bold text-muted-foreground flex items-center justify-between">
+                <span>٣ — المصاريف الإضافية</span>
+                <span className="text-amber-600">{formatEGP(totalExtras + Number(admin || 0))}</span>
+              </div>
+              <div className="p-3 space-y-1.5">
+                <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى{otherDesc ? ` (${otherDesc})` : ""}</span><b>{formatEGP(otherCost)}</b></div>
+                <div className="text-[10px] text-muted-foreground">↑ التلاتة دول بيتوزّعوا على تكلفة الوحدة</div>
+                <div className="flex justify-between border-t border-dashed border-border pt-1.5">
+                  <span className="text-muted-foreground">مصاريف إدارية <span className="text-[10px]">(مش بتدخل في تكلفة الوحدة)</span></span>
+                  <b>{formatEGP(admin)}</b>
+                </div>
+              </div>
+            </div>
+
+            {/* 4) الإجمالي */}
+            <div className="rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5 flex justify-between items-center text-lg">
+              <span className="font-bold">٤ — الإجمالي المستحق للمورد</span>
               <b className="text-primary">{formatEGP(grandTotal)}</b>
             </div>
             {(() => {
