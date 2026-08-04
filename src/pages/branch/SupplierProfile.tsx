@@ -463,6 +463,9 @@ export default function SupplierProfile() {
           {(supplier?.type === "supplier" || supplier?.type === "both") && (
             <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
           )}
+          {(supplier?.type === "supplier" || supplier?.type === "both") && (
+            <TabsTrigger value="discounts" className="gap-2"><Percent className="w-4 h-4" /> الخصومات ({discountShipments.length})</TabsTrigger>
+          )}
           {(supplier?.type === "customer" || supplier?.type === "both") && (
             <TabsTrigger value="sales" className="gap-2"><Receipt className="w-4 h-4" /> المبيعات ({invoices.length})</TabsTrigger>
           )}
