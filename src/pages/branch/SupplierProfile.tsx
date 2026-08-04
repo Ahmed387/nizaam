@@ -558,8 +558,60 @@ export default function SupplierProfile() {
               { key: "shipping_cost", header: "شحن", render: (r: any) => formatEGP(r.shipping_cost) },
               { key: "admin_cost", header: "إدارية", render: (r: any) => formatEGP(r.admin_cost) },
               {
+                key: "discount_amount",
+                header: "الخصم",
+                render: (r: any) =>
+                  Number(r.discount_amount ?? 0) > 0 ? (
+                    <span className="font-bold text-success">
+                      −{formatEGP(r.discount_amount)}
+                      {r.discount_type === "percent" ? ` (${Number(r.discount_value)}%)` : ""}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
+              },
+              {
                 key: "total_cost",
                 header: "الإجمالي",
+                render: (r: any) => <span className="font-bold text-warning">{formatEGP(r.total_cost)}</span>,
+              },
+            ]}
+          />
+        </TabsContent>
+
+        <TabsContent value="discounts" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <StatCard label="عدد الشحنات اللي فيها خصم" value={discountShipments.length} icon={<Percent className="w-5 h-5" />} accent="primary" />
+            <StatCard label="إجمالي الخصومات" value={formatEGP(totalDiscounts)} icon={<Percent className="w-5 h-5" />} accent="success" />
+            <StatCard label="متوسط نسبة الخصم" value={`${discountPct.toFixed(2)}%`} icon={<Percent className="w-5 h-5" />} accent="secondary" />
+          </div>
+          <DataTable
+            loading={loading}
+            rows={discountShipments}
+            empty="المورد ده معملش أي خصم لحد دلوقتي"
+            onRowClick={(r: any) => nav(`/branch/${r.branch_id}/shipments/${r.id}`)}
+            columns={[
+              { key: "arrival_date", header: "تاريخ الخصم", render: (r: any) => formatDate(r.arrival_date) },
+              { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+              {
+                key: "discount_type",
+                header: "نوع الخصم",
+                render: (r: any) =>
+                  r.discount_type === "percent" ? `نسبة ${Number(r.discount_value)}%` : "مبلغ ثابت",
+              },
+              {
+                key: "gross",
+                header: "قبل الخصم",
+                render: (r: any) => formatEGP(Number(r.total_cost) + Number(r.discount_amount ?? 0)),
+              },
+              {
+                key: "discount_amount",
+                header: "قيمة الخصم",
+                render: (r: any) => <span className="font-bold text-success">−{formatEGP(r.discount_amount)}</span>,
+              },
+              {
+                key: "total_cost",
+                header: "بعد الخصم",
                 render: (r: any) => <span className="font-bold text-warning">{formatEGP(r.total_cost)}</span>,
               },
             ]}
