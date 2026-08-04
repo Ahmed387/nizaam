@@ -43,19 +43,19 @@ export interface LegacyOutcome {
   skipped: number;
 }
 
-const TABLE: Record<LegacyKind, string> = {
+export const TABLE: Record<LegacyKind, string> = {
   sale: "invoices",
   purchase: "shipments",
   sale_return: "returns",
   purchase_return: "purchase_returns",
 };
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
-interface ProdRow { id: string; name: string; legacy_code: string | null; sku: string | null; cost_price: number }
+export interface ProdRow { id: string; name: string; legacy_code: string | null; sku: string | null; cost_price: number }
 
-class ProductIndex {
+export class ProductIndex {
   byCode = new Map<string, ProdRow>();
   byName = new Map<string, ProdRow>();
 
@@ -74,7 +74,7 @@ class ProductIndex {
   }
 }
 
-async function loadProducts(branchId: string): Promise<ProductIndex> {
+export async function loadProducts(branchId: string): Promise<ProductIndex> {
   const idx = new ProductIndex();
   const page = 1000;
   for (let from = 0; ; from += page) {
@@ -91,7 +91,7 @@ async function loadProducts(branchId: string): Promise<ProductIndex> {
 }
 
 /** يجيب الأرقام القديمة اللي اترحّلت قبل كده لنفس النوع/الفرع. */
-async function loadExisting(kind: LegacyKind, branchId: string): Promise<Set<string>> {
+export async function loadExisting(kind: LegacyKind, branchId: string): Promise<Set<string>> {
   const set = new Set<string>();
   const page = 1000;
   for (let from = 0; ; from += page) {
@@ -108,7 +108,7 @@ async function loadExisting(kind: LegacyKind, branchId: string): Promise<Set<str
   return set;
 }
 
-async function resolveContactByName(
+export async function resolveContactByName(
   cache: Map<string, string>,
   name: string,
   branchId: string,
@@ -142,8 +142,17 @@ function stampDoc(kind: LegacyKind, id: string, doc: LegacyDoc, batchId: string 
 
 /* ----------------------------- الشراء ----------------------------- */
 
-async function migratePurchase(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductIndex, batchId: string | null) {
-  if (!a.supplierId) throw new Error("اختار المورد الأول");
+async function migratePurchase(
+  doc: LegacyDoc,
+  a: LegacyRunArgs,
+  idx: ProductIndex,
+  contacts: Map<string, string>,
+  batchId: string | null,
+) {
+  const supplierId = doc.account
+    ? await resolveContactByName(contacts, doc.account, a.branchId, "supplier")
+    : a.supplierId;
+  if (!supplierId) throw new Error("مفيش مورد للفاتورة دي — اختار مورد افتراضي أو ضيف عمود «المورد» في الملف");
 
   const newCodes: { code: string; name: string }[] = [];
   const lines = doc.items.map((it) => {
@@ -182,7 +191,7 @@ async function migratePurchase(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductInd
   const { data: res, error } = await supabase.rpc("record_shipment", {
     p_header: {
       branch_id: a.branchId,
-      contact_id: a.supplierId,
+      contact_id: supplierId,
       arrival_date: doc.dateISO.slice(0, 10),
       received_by: "ترحيل بيانات",
       shipping_cost: 0,
@@ -241,7 +250,7 @@ async function migratePurchase(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductInd
     await createPaymentPlanWithInitial({
       branchId: a.branchId,
       entityType: "supplier",
-      entityId: a.supplierId,
+      entityId: supplierId,
       entityName: doc.account || "مورد",
       totalAmount: total,
       referenceType: "shipment",
@@ -396,7 +405,13 @@ async function migrateSaleReturn(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductI
 
 /* -------------------------- مرتجع الشراء -------------------------- */
 
-async function migratePurchaseReturn(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductIndex, batchId: string | null) {
+async function migratePurchaseReturn(
+  doc: LegacyDoc,
+  a: LegacyRunArgs,
+  idx: ProductIndex,
+  contacts: Map<string, string>,
+  batchId: string | null,
+) {
   const items: any[] = [];
   let total = 0;
   for (const it of doc.items) {
@@ -408,7 +423,9 @@ async function migratePurchaseReturn(doc: LegacyDoc, a: LegacyRunArgs, idx: Prod
   }
 
   let shipmentId: string | null = null;
-  let contactId: string | null = a.supplierId ?? null;
+  let contactId: string | null = doc.account
+    ? await resolveContactByName(contacts, doc.account, a.branchId, "supplier")
+    : (a.supplierId ?? null);
   if (doc.originalNumber) {
     const { data } = await supabase
       .from("shipments")
@@ -419,7 +436,7 @@ async function migratePurchaseReturn(doc: LegacyDoc, a: LegacyRunArgs, idx: Prod
       .maybeSingle();
     if (data) { shipmentId = (data as any).id; contactId = (data as any).contact_id ?? contactId; }
   }
-  if (!contactId) throw new Error("اختار المورد الأول");
+  if (!contactId) throw new Error("مفيش مورد للمرتجع ده — اختار مورد افتراضي أو ضيف عمود «المورد» في الملف");
   if (!shipmentId) doc.warnings.push("فاتورة الشراء الأصلية مش موجودة — اتسجل كمرتجع حر.");
 
   const { data: pr, error } = await supabase
@@ -467,6 +484,24 @@ async function migratePurchaseReturn(doc: LegacyDoc, a: LegacyRunArgs, idx: Prod
   return { number: (pr as any).return_number as string, total, note: shipmentId ? undefined : "مرتجع حر" };
 }
 
+/* --------------------------- فترات مقفولة --------------------------- */
+
+export interface ClosedPeriod { name: string; start: string; end: string }
+
+export async function loadClosedPeriods(): Promise<ClosedPeriod[]> {
+  const { data } = await supabase
+    .from("fiscal_periods" as any)
+    .select("name, period_start, period_end, status")
+    .neq("status", "open");
+  return (data ?? []).map((p: any) => ({ name: p.name, start: p.period_start, end: p.period_end }));
+}
+
+export function findClosedPeriod(periods: ClosedPeriod[], dateISO: string): string | null {
+  const d = (dateISO || "").slice(0, 10);
+  if (!d) return null;
+  return periods.find((p) => d >= p.start && d <= p.end)?.name ?? null;
+}
+
 /* ------------------------------ Runner ------------------------------ */
 
 export async function runLegacyMigration(a: LegacyRunArgs): Promise<LegacyOutcome> {
@@ -493,19 +528,23 @@ export async function runLegacyMigration(a: LegacyRunArgs): Promise<LegacyOutcom
     batchId = (data as any)?.id ?? null;
   } catch { /* الدفعة اختيارية */ }
 
+  const closed = await loadClosedPeriods();
+
   let done = 0;
   for (const doc of a.docs) {
     try {
+      const closedName = findClosedPeriod(closed, doc.dateISO);
+      if (closedName) throw new Error(`التاريخ واقع في فترة محاسبية مقفولة (${closedName}) — افتح الفترة الأول`);
       if (existing.has(doc.legacyNumber)) {
         results.push({ legacyNumber: doc.legacyNumber, ok: true, skipped: true, items: doc.items.length, total: doc.headerTotal, note: "مرحّل قبل كده" });
       } else if (!doc.items.length) {
         throw new Error("المستند مفيهوش أصناف");
       } else {
         let out: { number: string; total: number; note?: string };
-        if (a.kind === "purchase") out = await migratePurchase(doc, a, idx, batchId);
+        if (a.kind === "purchase") out = await migratePurchase(doc, a, idx, contacts, batchId);
         else if (a.kind === "sale") out = await migrateSale(doc, a, idx, contacts, batchId);
         else if (a.kind === "sale_return") out = await migrateSaleReturn(doc, a, idx, batchId);
-        else out = await migratePurchaseReturn(doc, a, idx, batchId);
+        else out = await migratePurchaseReturn(doc, a, idx, contacts, batchId);
         results.push({
           legacyNumber: doc.legacyNumber,
           ok: true,
