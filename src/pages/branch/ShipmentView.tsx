@@ -144,7 +144,8 @@ export default function ShipmentView() {
   const customs = Number(ship.customs_cost ?? 0);
   const otherCost = Number(ship.other_cost ?? 0);
   const totalExtras = Number(ship.total_extra_costs ?? 0) || (Number(ship.shipping_cost ?? 0) + customs + otherCost);
-  const goodsValue = ship.total_cost - ship.shipping_cost - customs - otherCost - ship.admin_cost;
+  const invoiceDiscount = Number((ship as any).discount_amount ?? 0);
+  const goodsValue = ship.total_cost - ship.shipping_cost - customs - otherCost - ship.admin_cost + invoiceDiscount;
   const itemsGross = items.reduce((s, it) => s + Number(it.quantity) * Number(it.cost_price), 0);
   const itemsDiscount = itemsGross - items.reduce((s, it) => s + Number(it.total ?? 0), 0);
 
@@ -183,6 +184,7 @@ export default function ShipmentView() {
           <div class="row"><span>قيمة البضاعة</span><b>${formatEGP(itemsGross)}</b></div>
           ${itemsDiscount > 0 ? `<div class="row"><span>الخصومات</span><b class="neg">− ${formatEGP(itemsDiscount)}</b></div>` : ""}
           <div class="row"><span>صافي البضاعة</span><b>${formatEGP(goodsValue)}</b></div>
+          ${invoiceDiscount > 0 ? `<div class="row"><span>خصم على الفاتورة${(ship as any).discount_type === "percent" ? ` (${Number((ship as any).discount_value)}%)` : ""}</span><b class="neg">− ${formatEGP(invoiceDiscount)}</b></div>` : ""}
           <div class="row"><span>الشحن</span><b>${formatEGP(ship.shipping_cost)}</b></div>
           <div class="row"><span>إدارية</span><b>${formatEGP(ship.admin_cost)}</b></div>
           <div class="row" style="border-top:1px solid #ddd;padding-top:6px;margin-top:6px"><span><b>الإجمالي</b></span><b style="color:#3b82f6;font-size:15px">${formatEGP(ship.total_cost)}</b></div>
@@ -272,6 +274,12 @@ export default function ShipmentView() {
               <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
+            {invoiceDiscount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>خصم على الفاتورة{(ship as any).discount_type === "percent" ? ` (${Number((ship as any).discount_value)}%)` : ""}</span>
+                <b>− {formatEGP(invoiceDiscount)}</b>
+              </div>
+            )}
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(ship.shipping_cost)}</b></div>
             {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>}
             {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b>{formatEGP(otherCost)}</b></div>}

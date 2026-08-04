@@ -83,6 +83,9 @@ export default function NewShipment() {
   const [otherCost, setOtherCost] = useState(0);
   const [otherDesc, setOtherDesc] = useState("");
   const [admin, setAdmin] = useState(0);
+  const [invDiscType, setInvDiscType] = useState<"amount" | "percent">("amount");
+  const [invDiscValue, setInvDiscValue] = useState(0);
+
   const [notes, setNotes] = useState("");
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
   const [affectedBatches, setAffectedBatches] = useState(0);
@@ -100,7 +103,7 @@ export default function NewShipment() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   // ===== Local autosave (crash / accidental reload safety net) =====
-  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, notes, lines, plan };
+  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, invDiscType, invDiscValue, notes, lines, plan };
   const formDraft = useFormDraft<typeof draftSnapshot>(
     "purchase",
     [user?.id, branchId],
@@ -119,6 +122,8 @@ export default function NewShipment() {
     setOtherCost(d.otherCost ?? 0);
     setOtherDesc(d.otherDesc ?? "");
     setAdmin(d.admin ?? 0);
+    setInvDiscType(d.invDiscType ?? "amount");
+    setInvDiscValue(d.invDiscValue ?? 0);
     setNotes(d.notes ?? "");
     setLines(d.lines ?? []);
     if (d.plan) setPlan(d.plan);
@@ -208,6 +213,8 @@ export default function NewShipment() {
       setOtherCost(Number((s as any).other_cost ?? 0));
       setOtherDesc((s as any).other_cost_description ?? "");
       setAdmin(Number(s.admin_cost ?? 0));
+      setInvDiscType(((s as any).discount_type === "percent" ? "percent" : "amount"));
+      setInvDiscValue(Number((s as any).discount_value ?? 0));
       setNotes(s.notes ?? "");
       setLines((it ?? []).map((r: any) => ({
         id: r.id,
@@ -252,15 +259,29 @@ export default function NewShipment() {
 
   const totalExtras = Number(shipping || 0) + Number(customs || 0) + Number(otherCost || 0);
 
+  // خصم على إجمالي الفاتورة (بالجنيه أو بالنسبة) — يطبق على صافي البضاعة قبل المصاريف
+  const invoiceDiscountAmount = Math.min(
+    itemsNet,
+    Math.max(
+      0,
+      invDiscType === "percent"
+        ? (itemsNet * Math.min(100, Math.max(0, Number(invDiscValue) || 0))) / 100
+        : Number(invDiscValue) || 0,
+    ),
+  );
+  const netAfterInvoiceDiscount = Math.max(0, itemsNet - invoiceDiscountAmount);
+  const discFactor = itemsNet > 0 ? netAfterInvoiceDiscount / itemsNet : 1;
+
   // Real-time proportional distribution by line value
   const distribution = lines.map((l) => {
     const net = lineNet(l);
-    const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+    const baseUnit = (l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0) * discFactor;
     const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
     const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
     const trueUnit = baseUnit + unitExtra;
     return { line: l, baseUnit, unitExtra, lineShare, trueUnit };
   });
+
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
@@ -274,7 +295,7 @@ export default function NewShipment() {
   };
 
 
-  const grandTotal = itemsNet + totalExtras + Number(admin || 0);
+  const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0);
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
@@ -330,6 +351,8 @@ export default function NewShipment() {
       other_cost: Number(otherCost || 0),
       other_cost_description: otherDesc.trim() || null,
       admin_cost: Number(admin || 0),
+      discount_type: invDiscType,
+      discount_value: Number(invDiscValue || 0),
       notes: notes.trim(),
     };
     const items = lines.map((l) => ({
@@ -426,6 +449,8 @@ export default function NewShipment() {
           other_cost: Number(otherCost || 0),
           other_cost_description: otherDesc.trim() || null,
           admin_cost: Number(admin || 0),
+          discount_type: invDiscType,
+          discount_value: Number(invDiscValue || 0),
           notes: notes.trim() || null,
         },
         p_lines: linesPayload,
@@ -947,6 +972,49 @@ export default function NewShipment() {
               <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
+
+            {/* خصم على الفاتورة كلها */}
+            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-semibold text-primary">خصم على الفاتورة كلها</Label>
+                <div className="inline-flex rounded-md overflow-hidden border border-input">
+                  <button
+                    type="button"
+                    onClick={() => setInvDiscType("amount")}
+                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "amount" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
+                  >
+                    ج.م
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInvDiscType("percent")}
+                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "percent" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
+                  >
+                    %
+                  </button>
+                </div>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                max={invDiscType === "percent" ? 100 : undefined}
+                step="0.01"
+                value={invDiscValue}
+                onChange={(e) => setInvDiscValue(Number(e.target.value))}
+                placeholder="0"
+                className="h-9"
+              />
+              {invoiceDiscountAmount > 0 && (
+                <div className="flex justify-between text-destructive text-xs font-semibold">
+                  <span>قيمة الخصم على الفاتورة</span>
+                  <b>− {formatEGP(invoiceDiscountAmount)}</b>
+                </div>
+              )}
+            </div>
+
+            {invoiceDiscountAmount > 0 && (
+              <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة بعد خصم الفاتورة</span><b>{formatEGP(netAfterInvoiceDiscount)}</b></div>
+            )}
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
