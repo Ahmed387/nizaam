@@ -29,7 +29,17 @@ export interface LegacyItem {
   price: number;
   discount: number;
   total: number;
+  /** أعمدة قالب نظام الجديدة (اختيارية في الملفات القديمة) */
+  cost: number;
+  marketPrice: number;
+  discountPercent: number;
+  barcode: string;
+  unit: string;
+  brand: string;
+  model: string;
+  category: string;
 }
+
 
 export interface LegacyPayment {
   method: "cash" | "instapay" | "vodafone" | "bank";
