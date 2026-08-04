@@ -296,16 +296,10 @@ function LegacyPanel() {
   return (
     <div className="space-y-4">
       <Card className="p-4 space-y-4">
-        <div className="grid md:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label>الفرع اللي هتترحّل عليه</Label>
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
-              <SelectContent>
-                {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="text-sm font-bold flex items-center gap-2">
+          <Badge className="bg-primary text-primary-foreground">١</Badge> ارفع ملف النظام القديم
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label>اسم دفعة الترحيل</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="مثال: داتا معرض عبد المنعم" />
@@ -321,8 +315,10 @@ function LegacyPanel() {
         </div>
 
         <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded p-3">
-          ارفع الملف زي ما هو من النظام القديم — النظام بيفهم شكل البلوكات (سطر الفاتورة ← عناوين الأصناف ← الأصناف ← الإجمالي).
-          <b> الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
+          خطوات العملية: <b>١ رفع الملف</b> ← <b>٢ تحديد النوع وربط المخازن بالفروع</b> ← <b>٣ مراجعة وتعديل البيانات</b> ← <b>٤ فحص تجريبي</b> ← <b>٥ اعتماد وترحيل</b>.
+          الفرع مش بيتحدد في الأول — بيتحدد من عمود <b>المخزن</b> اللي في الملف نفسه، وكل مخزن بتربطه بفرعه.
+          <br />
+          <b>الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
         </div>
       </Card>
 
@@ -335,9 +331,13 @@ function LegacyPanel() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
             <div className="p-3 rounded border"><div className="text-xs text-muted-foreground">مستندات</div><div className="text-xl font-bold">{docs.length}</div></div>
-            <div className="p-3 rounded border bg-primary/10"><div className="text-xs text-primary">أصناف</div><div className="text-xl font-bold text-primary">{sheet.itemCount}</div></div>
-            <div className="p-3 rounded border bg-success/10"><div className="text-xs text-success">الإجمالي</div><div className="text-lg font-bold text-success">{formatEGP(sheet.grandTotal)}</div></div>
+            <div className="p-3 rounded border bg-primary/10"><div className="text-xs text-primary">أصناف</div><div className="text-xl font-bold text-primary">{itemCount}</div></div>
+            <div className="p-3 rounded border bg-success/10"><div className="text-xs text-success">الإجمالي</div><div className="text-lg font-bold text-success">{formatEGP(grandTotal)}</div></div>
             <div className="p-3 rounded border bg-warning/10"><div className="text-xs text-warning">فيها ملاحظات</div><div className="text-xl font-bold text-warning">{warned.length}</div></div>
+          </div>
+
+          <div className="text-sm font-bold flex items-center gap-2 pt-1">
+            <Badge className="bg-primary text-primary-foreground">٢</Badge> النوع وربط المخازن بالفروع
           </div>
 
           <div className="grid md:grid-cols-3 gap-3">
@@ -350,11 +350,15 @@ function LegacyPanel() {
                 </SelectContent>
               </Select>
             </div>
-            {needsSupplier && (
+            {isPurchase && (
               <div className="space-y-1">
-                <Label>المورد الافتراضي (لو الملف مفيهوش عمود مورد)</Label>
+                <Label>
+                  المورد الافتراضي {needsSupplier ? "(مطلوب — فيه فواتير من غير مورد)" : "(اختياري — كل الفواتير فيها مورد)"}
+                </Label>
                 <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger><SelectValue placeholder="اختار المورد" /></SelectTrigger>
+                  <SelectTrigger className={needsSupplier && !supplierId ? "border-warning" : ""}>
+                    <SelectValue placeholder="اختار المورد" />
+                  </SelectTrigger>
                   <SelectContent>
                     {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
@@ -370,8 +374,23 @@ function LegacyPanel() {
             </div>
           </div>
 
-          {sheet.warehouses.length > 0 && (
-            <div className={`border rounded-lg p-3 space-y-2 ${unmappedWarehouses.length ? "border-warning bg-warning/5" : "bg-muted/30"}`}>
+          {fileAccounts.length > 0 && (
+            <div className="border rounded-lg p-3 bg-muted/30 space-y-1">
+              <div className="text-sm font-semibold">
+                {isPurchase ? "الموردين" : "العملاء"} اللي في الملف ({fileAccounts.length})
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {fileAccounts.slice(0, 40).map((a) => <Badge key={a} variant="outline" className="font-normal">{a}</Badge>)}
+                {fileAccounts.length > 40 && <Badge variant="outline">+{fileAccounts.length - 40}</Badge>}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                كل اسم بيتربط بحساب موجود بنفس الاسم، ولو مش موجود بيتعمل تلقائي — يعني الملف الواحد ممكن يكون فيه أكتر من مورد عادي.
+              </div>
+            </div>
+          )}
+
+          {(warehouses.length > 0 || needsDefaultBranch) && (
+            <div className={`border rounded-lg p-3 space-y-2 ${unmappedWarehouses.length || (needsDefaultBranch && !branchId) ? "border-warning bg-warning/5" : "bg-muted/30"}`}>
               <div className="text-sm font-semibold flex items-center gap-1">
                 <AlertTriangle className={`w-4 h-4 ${unmappedWarehouses.length ? "text-warning" : "text-muted-foreground"}`} />
                 ربط مخازن الملف بفروع النظام
@@ -383,7 +402,7 @@ function LegacyPanel() {
                 </div>
               )}
               <div className="grid md:grid-cols-2 gap-2">
-                {sheet.warehouses.map((w) => (
+                {warehouses.map((w) => (
                   <div key={w} className="flex items-center gap-2">
                     <Badge variant="outline" className="shrink-0 max-w-[45%] truncate">{w}</Badge>
                     <span className="text-muted-foreground text-xs">←</span>
@@ -397,13 +416,35 @@ function LegacyPanel() {
                     </Select>
                   </div>
                 ))}
+                {needsDefaultBranch && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="shrink-0 max-w-[45%] truncate">مستندات من غير مخزن</Badge>
+                    <span className="text-muted-foreground text-xs">←</span>
+                    <Select value={branchId} onValueChange={setBranchId}>
+                      <SelectTrigger className={`h-9 ${!branchId ? "border-warning" : ""}`}>
+                        <SelectValue placeholder="اختار الفرع الافتراضي" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                أي مستند مفيهوش مخزن هيترحّل على الفرع الرئيسي المختار فوق.
-                {groups.length > 1 && ` الملف ده هيتقسم على ${groups.length} مجموعة ترحيل.`}
+                {groups.length > 1
+                  ? `الملف ده هيتقسم على ${groups.length} مجموعة ترحيل — كل مجموعة على فرعها.`
+                  : "كل المستندات هتترحّل على فرع واحد."}
               </div>
             </div>
           )}
+
+          <div className="text-sm font-bold flex items-center gap-2 pt-1">
+            <Badge className="bg-primary text-primary-foreground">٣</Badge> راجع وعدّل البيانات قبل الاعتماد
+          </div>
+          <LegacyDocsEditor docs={docs} onChange={setDocs} />
+
+
 
 
           {warned.length > 0 && (
