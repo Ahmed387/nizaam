@@ -8,6 +8,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
+import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
 import {
   DollarSign, AlertTriangle, Trash2, Plus, Users, Boxes, Receipt, CheckSquare,
   BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight,
@@ -27,7 +28,7 @@ export default function AdminDashboard() {
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [activeSessions, setActiveSessions] = useState(0);
   const [branchSummary, setBranchSummary] = useState<any[]>([]);
-  const [recent, setRecent] = useState<any[]>([]);
+  const [recent, setRecent] = useState<RecentDoc[]>([]);
   const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -39,14 +40,12 @@ export default function AdminDashboard() {
       { data: invToday },
       { data: prods },
       { data: branches },
-      { data: recentInv },
       { data: approvals },
       { data: sessions },
     ] = await Promise.all([
       supabase.from("invoices").select("total").eq("status", "active").gte("created_at", todayIso),
       supabase.from("products").select("quantity, low_stock_alert").is("archived_at", null),
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
-      supabase.from("invoices").select("*, branches(name)").order("created_at", { ascending: false }).limit(5),
       supabase.from("approval_requests" as any).select("id").eq("status", "pending"),
       supabase
         .from("inventory_sessions" as any)
@@ -59,7 +58,7 @@ export default function AdminDashboard() {
     setLowStock((prods ?? []).filter((p) => p.quantity <= p.low_stock_alert).length);
     setPendingApprovals((approvals ?? []).length);
     setActiveSessions((sessions ?? []).length);
-    setRecent(recentInv ?? []);
+    setRecent(await fetchRecentDocs(5));
     setActiveCountBranches(new Set((sessions ?? []).map((s: any) => s.branch_id)));
 
     // Branch cards — today's sales only (operational, no profit/treasury)
@@ -244,25 +243,27 @@ export default function AdminDashboard() {
       </div>
 
 
-      {/* Latest 5 invoices */}
+      {/* Latest 5 documents */}
       <div>
-        <h3 className="font-bold mb-3">آخر 5 فواتير</h3>
+        <h3 className="font-bold mb-3">آخر 5 حركات</h3>
         <DataTable
           loading={loading}
           rows={recent}
-          empty="لا توجد فواتير"
-          onRowClick={(r: any) => nav(`/branch/${r.branch_id}/sales/${r.id}`)}
+          empty="لا توجد حركات"
+          onRowClick={(r: RecentDoc) => nav(r.path)}
           columns={[
             {
-              key: "invoice_number",
-              header: "رقم",
-              render: (r: any) => (
-                <span className="text-primary font-medium hover:underline">{r.invoice_number}</span>
+              key: "kind",
+              header: "النوع",
+              render: (r: RecentDoc) => (
+                <span className={`px-2 py-0.5 rounded-full border text-xs font-semibold ${RECENT_DOC_KIND_CLASS[r.kind]}`}>{r.kindLabel}</span>
               ),
             },
-            { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
-            { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
-            { key: "created_at", header: "الوقت", render: (r: any) => formatDateTime(r.created_at) },
+            { key: "number", header: "رقم", render: (r: RecentDoc) => <span className="text-primary font-medium hover:underline">{r.number}</span> },
+            { key: "branch", header: "الفرع", render: (r: RecentDoc) => r.branch_name ?? "—" },
+            { key: "party", header: "الطرف", render: (r: RecentDoc) => r.party },
+            { key: "amount", header: "المبلغ", render: (r: RecentDoc) => formatEGP(r.amount) },
+            { key: "created_at", header: "الوقت", render: (r: RecentDoc) => formatDateTime(r.created_at) },
           ]}
         />
       </div>

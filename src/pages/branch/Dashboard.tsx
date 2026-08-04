@@ -8,6 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
+import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
 import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target, ShoppingCart, RotateCcw, PackagePlus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, Undo2, BookmarkPlus, Truck, Paperclip } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
@@ -33,7 +34,7 @@ export default function BranchDashboard() {
   const [treasury, setTreasury] = useState(0);
   const [lowStock, setLowStock] = useState<any[]>([]);
   const [newCust, setNewCust] = useState(0);
-  const [recent, setRecent] = useState<any[]>([]);
+  const [recent, setRecent] = useState<RecentDoc[]>([]);
   const [salesByDay, setSalesByDay] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
@@ -52,7 +53,7 @@ export default function BranchDashboard() {
     const last30 = new Date(today); last30.setDate(last30.getDate() - 29);
 
     const [
-      invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentInv,
+      invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentDocs,
       invLast30, invItemsToday, invItemsMonth, invAll30, branchRow,
     ] = await Promise.all([
       supabase.from("invoices").select("total, payment_method, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
@@ -62,7 +63,7 @@ export default function BranchDashboard() {
       supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
       supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
       supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
-      supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", id).order("created_at", { ascending: false }).limit(5),
+      fetchRecentDocs(5, id),
       supabase.from("invoices").select("created_at, total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
       supabase.from("invoice_items").select("product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
       supabase.from("invoice_items").select("quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", monthStart.toISOString()),
@@ -87,7 +88,7 @@ export default function BranchDashboard() {
     setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
     setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
     setNewCust((custs.data ?? []).length);
-    setRecent(recentInv.data ?? []);
+    setRecent(recentDocs as RecentDoc[]);
 
     const computeProfit = (rows: any[]) => rows.reduce((s, it: any) => {
       const qty = Number(it.quantity) || 0;
@@ -146,7 +147,7 @@ export default function BranchDashboard() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "invoice_items", "returns", "return_items", "vouchers", "products", "contacts", "branches"], load);
+  useRealtimeRefresh(["invoices", "invoice_items", "shipments", "purchase_returns", "returns", "return_items", "vouchers", "products", "contacts", "branches"], load);
 
   const todayVsYesterday = salesYesterday > 0 ? ((salesToday - salesYesterday) / salesYesterday) * 100 : 0;
   const monthVsLast = salesLastMonth > 0 ? ((salesMonth - salesLastMonth) / salesLastMonth) * 100 : 0;
@@ -427,12 +428,13 @@ export default function BranchDashboard() {
       {/* Recent invoices & low stock */}
       <div className="grid lg:grid-cols-2 gap-6">
         <div>
-          <h3 className="font-bold mb-3 text-lg">آخر الفواتير</h3>
-          <DataTable rows={recent} onRowClick={(r: any) => nav(`/branch/${id}/sales/${r.id}`)} columns={[
-            { key: "invoice_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.invoice_number}</span> },
-            { key: "customer", header: "العميل", render: (r: any) => r.contacts?.name ?? "نقدي" },
-            { key: "total", header: "المبلغ", render: (r: any) => formatEGP(r.total) },
-            { key: "created_at", header: "الوقت", render: (r: any) => formatDateTime(r.created_at) },
+          <h3 className="font-bold mb-3 text-lg">آخر الحركات</h3>
+          <DataTable rows={recent} empty="لا توجد حركات" onRowClick={(r: RecentDoc) => nav(r.path)} columns={[
+            { key: "kind", header: "النوع", render: (r: RecentDoc) => <span className={`px-2 py-0.5 rounded-full border text-xs font-semibold ${RECENT_DOC_KIND_CLASS[r.kind]}`}>{r.kindLabel}</span> },
+            { key: "number", header: "رقم", render: (r: RecentDoc) => <span className="font-mono text-primary">{r.number}</span> },
+            { key: "party", header: "الطرف", render: (r: RecentDoc) => r.party },
+            { key: "amount", header: "المبلغ", render: (r: RecentDoc) => formatEGP(r.amount) },
+            { key: "created_at", header: "الوقت", render: (r: RecentDoc) => formatDateTime(r.created_at) },
           ]} />
         </div>
 
