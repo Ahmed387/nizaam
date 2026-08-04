@@ -463,44 +463,6 @@ function KindPanel({ kind }: { kind: DocKind }) {
     }
   };
 
-  const dryRun = async () => {
-    if (!branchId) return toast.error("اختار الفرع الأول");
-    if (!kind) return toast.error("حدّد نوع المستندات");
-    if (!docs.length) return toast.error("مفيش مستندات للفحص");
-    setChecking(true);
-    try {
-      const rep = await runLegacyDryRun({
-        kind, branchId, docs, supplierId: needsSupplier ? supplierId || null : null, skipExisting,
-      });
-      setReport(rep);
-      if (rep.blocked) toast.warning(`الفحص خلص — فيه ${rep.blocked} مستند متوقف محتاج مراجعة`);
-      else toast.success(`الفحص خلص — كله تمام (${rep.ok} سليم${rep.warnings ? ` · ${rep.warnings} فيه ملاحظات` : ""})`);
-    } catch (e: any) {
-      toast.error("فشل الفحص: " + (e?.message ?? e));
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  const exportReport = () => {
-    if (!report) return;
-    const ws = XLSX.utils.json_to_sheet(
-      report.docs.map((d) => ({
-        "الرقم القديم": d.legacyNumber,
-        "التاريخ": d.dateISO.replace("T", " "),
-        "الحساب": d.account,
-        "أصناف": d.items,
-        "الإجمالي": d.total,
-        "المدفوع": d.paid,
-        "الحالة": d.status === "ok" ? "سليم" : d.status === "warning" ? "ملاحظات" : d.status === "skip" ? "هيتخطى" : "متوقف",
-        "التفاصيل": d.issues.map((i) => i.text).join(" | "),
-      })),
-    );
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "DryRun");
-    XLSX.writeFile(wb, `فحص-قبل-الترحيل-${kind || "legacy"}.xlsx`);
-  };
-
   const start = async () => {
     if (!branchId) return toast.error("اختار الفرع الأول");
     if (!docs.size) return toast.error("مفيش مستندات صالحة للترحيل");
@@ -525,7 +487,6 @@ function KindPanel({ kind }: { kind: DocKind }) {
         onProgress: (done, total) => setProgress({ done, total }),
       });
       setResults(out.results);
-      setReport(null);
       if (out.failed === 0) toast.success(`تم ترحيل ${out.inserted} مستند بنجاح 🎉`);
       else toast.warning(`تم ترحيل ${out.inserted} مستند — فشل ${out.failed}`);
     } catch (e: any) {
@@ -631,69 +592,6 @@ function KindPanel({ kind }: { kind: DocKind }) {
               </table>
             </div>
           </div>
-
-          {report && (
-            <div className="border-2 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-muted flex items-center justify-between">
-                <div className="text-sm font-bold flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" /> نتيجة الفحص التجريبي (مفيش حاجة اتسجلت لسه)
-                </div>
-                <Button variant="outline" size="sm" onClick={exportReport}>
-                  <Download className="w-4 h-4 ml-1" /> تصدير التقرير
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 text-center">
-                <div className="p-2 rounded border bg-success/10"><div className="text-xs text-success">سليم</div><div className="text-xl font-bold text-success">{report.ok}</div></div>
-                <div className="p-2 rounded border bg-warning/10"><div className="text-xs text-warning">فيه ملاحظات</div><div className="text-xl font-bold text-warning">{report.warnings}</div></div>
-                <div className="p-2 rounded border bg-destructive/10"><div className="text-xs text-destructive">متوقف</div><div className="text-xl font-bold text-destructive">{report.blocked}</div></div>
-                <div className="p-2 rounded border"><div className="text-xs text-muted-foreground">هيتخطى</div><div className="text-xl font-bold">{report.skipped}</div></div>
-              </div>
-
-              <div className="px-3 pb-3 text-xs space-y-1 text-muted-foreground">
-                {report.newContacts.length > 0 && (
-                  <div>🆕 <b>{report.newContacts.length}</b> حساب جديد هيتعمل: {report.newContacts.slice(0, 8).join("، ")}{report.newContacts.length > 8 ? " …" : ""}</div>
-                )}
-                {report.newProducts.length > 0 && (
-                  <div>📦 <b>{report.newProducts.length}</b> منتج جديد هيتعمل من فواتير الشراء.</div>
-                )}
-                {report.missingProducts.length > 0 && (
-                  <div className="text-destructive">⚠️ <b>{report.missingProducts.length}</b> منتج مش موجود — رحّل فواتير الشراء الأول.</div>
-                )}
-              </div>
-
-              <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/50"><tr>
-                    <th className="px-2 py-1">الرقم</th><th className="px-2 py-1">التاريخ</th>
-                    <th className="px-2 py-1">الحساب</th><th className="px-2 py-1">الإجمالي</th>
-                    <th className="px-2 py-1">الحالة</th><th className="px-2 py-1">التفاصيل</th>
-                  </tr></thead>
-                  <tbody>
-                    {report.docs.map((d, i) => (
-                      <tr key={d.legacyNumber + i} className="border-t">
-                        <td className="px-2 py-1 font-semibold">{d.legacyNumber}</td>
-                        <td className="px-2 py-1">{d.dateISO.replace("T", " ")}</td>
-                        <td className="px-2 py-1">{d.account || "—"}</td>
-                        <td className="px-2 py-1">{formatEGP(d.total)}</td>
-                        <td className="px-2 py-1">
-                          {d.status === "blocked" ? <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> متوقف</Badge>
-                            : d.status === "warning" ? <Badge className="bg-warning/15 text-warning">ملاحظات</Badge>
-                            : d.status === "skip" ? <Badge variant="outline">هيتخطى</Badge>
-                            : <Badge className="bg-success/15 text-success">سليم</Badge>}
-                        </td>
-                        <td className="px-2 py-1 text-muted-foreground">
-                          {d.issues.length ? d.issues.map((x, j) => (
-                            <div key={j} className={x.level === "error" ? "text-destructive" : x.level === "warning" ? "text-warning" : ""}>• {x.text}</div>
-                          )) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {busy && (
             <div className="space-y-1">
