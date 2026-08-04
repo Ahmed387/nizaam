@@ -338,9 +338,69 @@ function LegacyPanel() {
 
   return (
     <div className="space-y-4">
+      {/* ------------------------- الشرح بالعامية ------------------------- */}
+      <Card className="p-4 space-y-3 border-primary/30 bg-gradient-to-l from-primary/5 to-transparent animate-fade-in">
+        <div className="flex items-center gap-2 font-bold">
+          <BookOpen className="w-4 h-4 text-primary" /> الصفحة دي بتعمل إيه؟
+        </div>
+        <p className="text-sm leading-7 text-muted-foreground">
+          دي الصفحة اللي بترفع بيها فواتيرك القديمة (اللي على Excel) وتخليها فواتير حقيقية جوه نظام.
+          يعني الفاتورة مش بتتسجل «ورقة» — لأ، بتتحرّك في المخزن، وتدخّل فلوس الخزنة، وتقيّد على حساب العميل أو المورد،
+          وتعمل قيد يومية زي أي فاتورة بتعملها بإيدك من الشاشات العادية. عشان كده ركّز في المراجعة قبل ما تعتمد.
+        </p>
+
+        <div className="text-sm font-bold pt-1">ارفع بالترتيب ده — مهم جدًا 👇</div>
+        <div className="grid md:grid-cols-4 gap-2">
+          {[
+            { n: "١", t: "فواتير الشراء", d: "الأول خالص — منها بتتولد المنتجات نفسها وتكلفتها وأرصدة المخزن." },
+            { n: "٢", t: "فواتير البيع", d: "بعد الشراء — لأنها بتخصم من المخزون، ولو المنتج مش موجود الفاتورة هتقف." },
+            { n: "٣", t: "مرتجع البيع", d: "بعد البيع — بيتربط بالفاتورة الأصلية برقمها القديم." },
+            { n: "٤", t: "مرتجع الشراء", d: "آخر حاجة — بيتربط بفاتورة الشراء الأصلية." },
+          ].map((s, i) => (
+            <div key={s.n} className="rounded-xl border p-3 bg-surface-2/50 hover:border-primary/40 transition-colors animate-fade-in"
+              style={{ animationDelay: `${i * 60}ms` }}>
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <span className="w-6 h-6 rounded-full bg-primary/15 text-primary grid place-items-center text-xs">{s.n}</span>
+                {s.t}
+              </div>
+              <div className="text-xs text-muted-foreground leading-5 mt-1">{s.d}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded-lg p-3">
+          <b>خطوات الشغل:</b> ١ ترفع الملف ← ٢ تحدد النوع وتربط كل مخزن بفرعه وكل اسم بحسابه ← ٣ تراجع وتعدّل البيانات
+          (تمسح فاتورة، تظبط سعر أو تكلفة) ← ٤ فحص تجريبي (مبيسجّلش حاجة، بس بيقولك هيحصل إيه) ← ٥ تعتمد وترحّل.
+          <br />
+          الفرع مبتختروش من فوق — بيتحدد من عمود <b>المخزن</b> اللي جوه الملف، وانت بتربط كل مخزن بفرعه.
+        </div>
+
+        {/* أعمدة قالب نظام */}
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+          <div className="text-sm font-bold text-warning flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" /> الشيت القديم ناقصه أعمدة — استخدم قالب نظام
+          </div>
+          <p className="text-xs leading-6 text-muted-foreground">
+            شيت البيع القديم فيه <b>سعر البيع بس</b>، ومفيهوش التكلفة ولا سعر السوق ولا بيانات المنتج ولا الخزنة اللي دخلت فيها الفلوس.
+            القالب الجديد فيه كل الأعمدة اللي النظام بيشتغل بيها، فالفاتورة بتشبك على النظام على طول.
+            وأي عمود ناقص في ملفك القديم النظام بيقراه <b>صفر</b> وانت بتعدّله من شاشة المراجعة قبل الاعتماد.
+          </p>
+          <div className="grid md:grid-cols-2 gap-1.5">
+            {COLUMN_HELP.map((c) => (
+              <div key={c.col} className="text-[11px] leading-5 rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+                <b className="text-foreground">{c.col}</b> — {c.what}. <span className="text-muted-foreground">{c.need}</span>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => downloadLegacyTemplate(kindOverride || sheet?.kind || "")}>
+            <Download className="w-4 h-4 ml-1" /> نزّل قالب نظام (بالأعمدة الكاملة + شرح)
+          </Button>
+        </div>
+      </Card>
+
       <Card className="p-4 space-y-4">
         <div className="text-sm font-bold flex items-center gap-2">
-          <Badge className="bg-primary text-primary-foreground">١</Badge> ارفع ملف النظام القديم
+          <Badge className="bg-primary text-primary-foreground">١</Badge> ارفع الملف
         </div>
         <div className="grid md:grid-cols-2 gap-3">
           <div className="space-y-1">
@@ -348,7 +408,7 @@ function LegacyPanel() {
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="مثال: داتا معرض عبد المنعم" />
           </div>
           <div className="space-y-1">
-            <Label>ملف النظام القديم</Label>
+            <Label>ملف الفواتير (Excel)</Label>
             <label className="cursor-pointer block">
               <Button asChild className="w-full"><span><Upload className="w-4 h-4 ml-1" /> رفع Excel</span></Button>
               <input type="file" accept=".xlsx,.xls" className="hidden"
@@ -356,14 +416,8 @@ function LegacyPanel() {
             </label>
           </div>
         </div>
-
-        <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded p-3">
-          خطوات العملية: <b>١ رفع الملف</b> ← <b>٢ تحديد النوع وربط المخازن بالفروع</b> ← <b>٣ مراجعة وتعديل البيانات</b> ← <b>٤ فحص تجريبي</b> ← <b>٥ اعتماد وترحيل</b>.
-          الفرع مش بيتحدد في الأول — بيتحدد من عمود <b>المخزن</b> اللي في الملف نفسه، وكل مخزن بتربطه بفرعه.
-          <br />
-          <b>الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
-        </div>
       </Card>
+
 
       {sheet && (
         <Card className="p-4 space-y-3">
