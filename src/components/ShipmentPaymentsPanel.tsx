@@ -5,6 +5,7 @@ import { Wallet, Pencil, Loader2, RefreshCw } from "lucide-react";
 import { formatEGP, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
 import { EditPaymentDialog } from "./EditPaymentDialog";
+import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
 
 interface Props {
   shipmentId: string;
@@ -21,6 +22,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
   const [plan, setPlan] = useState<any>(null);
   const [txs, setTxs] = useState<any[]>([]);
   const [editRow, setEditRow] = useState<any>(null);
+  const [payOpen, setPayOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,9 +62,16 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
           <Wallet className="w-4 h-4 text-primary" />
           طرق الدفع على الشحنة
         </div>
-        <Button variant="ghost" size="sm" onClick={load} className="gap-1">
-          <RefreshCw className="w-3.5 h-3.5" /> تحديث
-        </Button>
+        <div className="flex items-center gap-2">
+          {canEdit && plan && Number(plan.remaining_amount ?? 0) > 0 && (
+            <Button size="sm" onClick={() => setPayOpen(true)} className="gap-1">
+              <Wallet className="w-3.5 h-3.5" /> تسجيل مبلغ مدفوع
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={load} className="gap-1">
+            <RefreshCw className="w-3.5 h-3.5" /> تحديث
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -90,7 +99,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
 
           {active.length === 0 ? (
             <div className="px-4 pb-4 text-sm text-muted-foreground">
-              الشحنة دي آجل ومفيش دفعات متسجلة — سجّل الدفع من ملف المورد.
+              الشحنة دي آجل ومفيش دفعات متسجلة لحد دلوقتي.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -144,6 +153,21 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
           onChanged?.();
         }}
       />
+      {payOpen && plan && (
+        <MultiMethodPaymentDialog
+          open={payOpen}
+          onOpenChange={setPayOpen}
+          mode={{ kind: "plan", planId: plan.id }}
+          defaultAmount={Number(plan.remaining_amount ?? 0)}
+          direction="out"
+          title="تسجيل مبلغ مدفوع للشحنة"
+          onSuccess={() => {
+            setPayOpen(false);
+            load();
+            onChanged?.();
+          }}
+        />
+      )}
     </div>
   );
 }

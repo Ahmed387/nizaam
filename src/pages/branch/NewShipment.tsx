@@ -31,6 +31,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { AttributePicker } from "@/components/AttributePicker";
 import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { ColorPicker } from "@/components/ColorPicker";
+import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 
 interface Line {
   id?: string | null;
@@ -887,8 +888,8 @@ export default function NewShipment() {
       </CollapsibleSection>
 
 
-      {/* 4) Payment plan for supplier — only in create mode */}
-      {!isEdit && (
+      {/* 4) Payment plan for supplier */}
+      {!isEdit ? (
         <CollapsibleSection
           title="طريقة الدفع للمورد"
           icon={<CreditCard className="w-5 h-5" />}
@@ -899,7 +900,18 @@ export default function NewShipment() {
             <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
           </div>
         </CollapsibleSection>
-      )}
+      ) : shipmentId ? (
+        <CollapsibleSection
+          title="طريقة الدفع والمبلغ المدفوع"
+          icon={<CreditCard className="w-5 h-5" />}
+          open={openSections.payment}
+          onToggle={() => toggleSection("payment")}
+        >
+          <div className="p-5">
+            <ShipmentPaymentsPanel shipmentId={shipmentId} canEdit={isAdmin} />
+          </div>
+        </CollapsibleSection>
+      ) : null}
 
       {/* Edit reason (manager only) */}
       {isEdit && isManager && !isAdmin && (
