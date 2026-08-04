@@ -303,6 +303,8 @@ export default function ShipmentView() {
         );
       })()}
 
+      <ShipmentPaymentsPanel shipmentId={ship.id} canEdit={canEdit} onChanged={loadShipment} />
+
 
       <div className="card-elevated overflow-hidden">
         <div className="p-4 border-b border-border font-bold flex items-center gap-2">
