@@ -536,13 +536,14 @@ function LegacyPanel() {
           <div className="grid md:grid-cols-2 gap-2">
             <Button onClick={dryRun} disabled={checking || busy || !docs.length} variant="outline" className="w-full">
               {checking ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 ml-2" />}
-              فحص تجريبي قبل الاعتماد (إجباري)
+              ٤ · فحص تجريبي قبل الاعتماد (إجباري)
             </Button>
             <Button onClick={start} disabled={busy || !docs.length || !report} className="w-full btn-gradient">
               {busy ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Boxes className="w-4 h-4 ml-2" />}
-              {report ? `اعتمد وارفع ${docs.length} مستند` : "اعمل الفحص الأول"}
+              {report ? `٥ · اعتمد وارفع ${docs.length} مستند` : "اعمل الفحص الأول"}
             </Button>
           </div>
+
         </Card>
       )}
 
