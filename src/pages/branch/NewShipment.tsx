@@ -970,6 +970,49 @@ export default function NewShipment() {
               <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
+
+            {/* خصم على الفاتورة كلها */}
+            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-semibold text-primary">خصم على الفاتورة كلها</Label>
+                <div className="inline-flex rounded-md overflow-hidden border border-input">
+                  <button
+                    type="button"
+                    onClick={() => setInvDiscType("amount")}
+                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "amount" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
+                  >
+                    ج.م
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInvDiscType("percent")}
+                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "percent" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
+                  >
+                    %
+                  </button>
+                </div>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                max={invDiscType === "percent" ? 100 : undefined}
+                step="0.01"
+                value={invDiscValue}
+                onChange={(e) => setInvDiscValue(Number(e.target.value))}
+                placeholder="0"
+                className="h-9"
+              />
+              {invoiceDiscountAmount > 0 && (
+                <div className="flex justify-between text-destructive text-xs font-semibold">
+                  <span>قيمة الخصم على الفاتورة</span>
+                  <b>− {formatEGP(invoiceDiscountAmount)}</b>
+                </div>
+              )}
+            </div>
+
+            {invoiceDiscountAmount > 0 && (
+              <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة بعد خصم الفاتورة</span><b>{formatEGP(netAfterInvoiceDiscount)}</b></div>
+            )}
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
             <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
