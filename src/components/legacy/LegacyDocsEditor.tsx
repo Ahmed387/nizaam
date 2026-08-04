@@ -140,22 +140,32 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
                 <div className="p-3 space-y-2 bg-background">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                     {([
-                      ["المخزن", "warehouse", "text"],
-                      ["إجمالي الفاتورة", "headerTotal", "number"],
-                      ["خصم الفاتورة", "headerDiscount", "number"],
-                      ["المدفوع", "paid", "number"],
-                      ["المستند الأصلي", "originalNumber", "text"],
-                    ] as const).map(([lbl, key, type]) => (
-                      <div key={key} className="space-y-1">
-                        <div className="text-muted-foreground">{lbl}</div>
-                        <Input type={type} className="h-8"
-                          value={(d as any)[key] ?? ""}
-                          onChange={(e) => patchDoc(i, {
-                            [key]: type === "number" ? Number(e.target.value) || 0 : e.target.value,
-                          } as any)} />
-                      </div>
-                    ))}
+                      ["المخزن", "warehouse", "text", "warehouse"],
+                      ["إجمالي الفاتورة", "headerTotal", "number", null],
+                      ["خصم الفاتورة", "headerDiscount", "number", "headerDiscount"],
+                      ["الضريبة", "tax", "number", "headerDiscount"],
+                      ["المدفوع", "paid", "number", "payments"],
+                      ["الآجل", "credit", "number", "credit"],
+                      ["المستند الأصلي", "originalNumber", "text", "original"],
+                      ["البائع", "salesperson", "text", "productInfo"],
+                    ] as const).map(([lbl, key, type, mk]) => {
+                      const isMissing = !!mk && miss.has(mk as ColumnKey);
+                      return (
+                        <div key={key} className="space-y-1">
+                          <div className={isMissing ? "text-warning font-semibold" : "text-muted-foreground"}>
+                            {lbl}{isMissing ? " • ناقص" : ""}
+                          </div>
+                          <Input type={type} className={`h-8 ${isMissing ? "border-warning bg-warning/5" : ""}`}
+                            title={isMissing ? "العمود ده مش موجود في الشيت — القيمة دي افتراضية، عدّلها" : undefined}
+                            value={(d as any)[key] ?? ""}
+                            onChange={(e) => patchDoc(i, {
+                              [key]: type === "number" ? Number(e.target.value) || 0 : e.target.value,
+                            } as any)} />
+                        </div>
+                      );
+                    })}
                   </div>
+
 
                   {diff > 1 && (
                     <div className="flex items-center gap-2 text-warning">
