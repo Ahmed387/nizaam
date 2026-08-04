@@ -349,6 +349,8 @@ export default function NewShipment() {
       other_cost: Number(otherCost || 0),
       other_cost_description: otherDesc.trim() || null,
       admin_cost: Number(admin || 0),
+      discount_type: invDiscType,
+      discount_value: Number(invDiscValue || 0),
       notes: notes.trim(),
     };
     const items = lines.map((l) => ({
@@ -445,6 +447,8 @@ export default function NewShipment() {
           other_cost: Number(otherCost || 0),
           other_cost_description: otherDesc.trim() || null,
           admin_cost: Number(admin || 0),
+          discount_type: invDiscType,
+          discount_value: Number(invDiscValue || 0),
           notes: notes.trim() || null,
         },
         p_lines: linesPayload,
