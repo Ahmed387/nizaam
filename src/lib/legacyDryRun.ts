@@ -22,6 +22,9 @@ export interface DryDocCheck {
   paid: number;
   status: "ok" | "warning" | "blocked" | "skip";
   issues: DryIssue[];
+  /** المخزن اللي في الملف والفرع اللي هيترحّل عليه */
+  warehouse?: string;
+  branchName?: string;
 }
 
 export interface DryRunReport {
