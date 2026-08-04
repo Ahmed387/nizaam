@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { LegacyDoc, LegacyKind } from "@/lib/legacySheetParser";
 import {
-  loadProducts, loadExisting, loadClosedPeriods, findClosedPeriod, TABLE, round2,
+  loadProducts, loadExisting, loadClosedPeriods, findClosedPeriod, round2,
 } from "@/lib/legacyMigration";
 
 /**
