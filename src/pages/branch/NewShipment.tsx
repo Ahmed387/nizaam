@@ -481,7 +481,10 @@ export default function NewShipment() {
         }
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
-        docWarning({ title: "تم حفظ الشحنة", description: "لكن فشل إنشاء خطة الدفع — راجعها يدوياً" });
+        docWarning({
+          title: "الشحنة اتسجلت ✅ بس الدفع لسه",
+          description: `ماقدرناش نسجّل خطة الدفع دلوقتي (${planErr?.message ?? "خطأ غير معروف"}). افتح "تعديل الشحنة" → قسم "طريقة الدفع للمورد" وسجّل المدفوع من هناك.`,
+        });
       }
 
       try {
