@@ -186,6 +186,9 @@ function LegacyPanel() {
     if (needsSupplier && !supplierId) return toast.error("اختار المورد");
     if (!docs.length) return toast.error("مفيش مستندات للترحيل");
     if (!report) return toast.error("لازم تعمل الفحص التجريبي الأول");
+    if (unmappedWarehouses.length) {
+      return toast.error(`لازم تختار فرع لكل مخزن: ${unmappedWarehouses.join("، ")}`);
+    }
 
     if (report.blocked) {
       const go = await confirmAlert({
@@ -202,6 +205,9 @@ function LegacyPanel() {
       title: `هترحّل ${docs.length} مستند (${LEGACY_KIND_LABEL[kind]})`,
       description:
         "الترحيل هيأثر على المخزن والخزنة وحسابات العملاء/الموردين زي أي فاتورة عادية. " +
+        (groups.length > 1
+          ? `المستندات هتتوزع على ${groups.length} فرع حسب المخزن اللي في الملف. `
+          : "") +
         "الترتيب الصح: شراء ← بيع ← مرتجعات. متأكد؟",
       confirmLabel: "أيوه، ابدأ الترحيل",
       cancelLabel: "لأ، استنى",
@@ -212,26 +218,34 @@ function LegacyPanel() {
     setBusy(true);
     setProgress({ done: 0, total: docs.length });
     try {
-      const out = await runLegacyMigration({
-        kind,
-        branchId,
-        userId: user!.id,
-        label: label.trim() || "ترحيل",
-        fileName,
-        supplierId: needsSupplier ? supplierId : null,
-        docs,
-        skipExisting,
-        onProgress: (done, total) => setProgress({ done, total }),
-      });
-      setResults(out.results);
+      const all: LegacyDocResult[] = [];
+      let inserted = 0, failed = 0, skipped = 0, base = 0;
+      for (const g of groups) {
+        const out = await runLegacyMigration({
+          kind,
+          branchId: g.branchId || branchId,
+          userId: user!.id,
+          label: (label.trim() || "ترحيل") + (g.warehouse ? ` — ${g.warehouse}` : ""),
+          fileName,
+          supplierId: needsSupplier ? supplierId : null,
+          docs: g.docs,
+          skipExisting,
+          onProgress: (done) => setProgress({ done: base + done, total: docs.length }),
+        });
+        all.push(...out.results);
+        inserted += out.inserted; failed += out.failed; skipped += out.skipped;
+        base += g.docs.length;
+      }
+      setResults(all);
       setReport(null);
-      if (out.failed === 0) toast.success(`تم ترحيل ${out.inserted} مستند بنجاح 🎉${out.skipped ? ` (${out.skipped} متخطي)` : ""}`);
-      else toast.warning(`تم ${out.inserted} — فشل ${out.failed} — متخطي ${out.skipped}`);
+      if (failed === 0) toast.success(`تم ترحيل ${inserted} مستند بنجاح 🎉${skipped ? ` (${skipped} متخطي)` : ""}`);
+      else toast.warning(`تم ${inserted} — فشل ${failed} — متخطي ${skipped}`);
     } catch (e: any) {
       toast.error(e.message ?? "فشل الترحيل");
     } finally {
       setBusy(false);
     }
+
   };
 
   const exportResults = () => {
