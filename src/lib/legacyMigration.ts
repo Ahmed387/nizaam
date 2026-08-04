@@ -18,6 +18,8 @@ export interface LegacyRunArgs {
   fileName?: string;
   /** المورد الافتراضي للشراء / مرتجع الشراء */
   supplierId?: string | null;
+  /** ربط اسم الحساب اللي في الملف بحساب موجود على النظام: الاسم → contact id */
+  contactMap?: Record<string, string>;
   docs: LegacyDoc[];
   /** يتخطى المستندات اللي رقمها القديم اتسجل قبل كده */
   skipExisting?: boolean;
