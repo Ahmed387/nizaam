@@ -47,20 +47,58 @@ export const ITEM_COLUMNS = [
   "النهائى",
 ] as const;
 
-export const COLUMN_HELP: { col: string; what: string; need: string }[] = [
-  { col: "التاريخ + الوقت", what: "تاريخ ووقت الفاتورة", need: "بيتسجل زي ما هو في النظام" },
-  { col: "رقم الفاتورة", what: "الرقم القديم", need: "بيمنع تكرار الترحيل" },
-  { col: "الفاتورة المرتجعة", what: "رقم الفاتورة الأصلية", need: "للمرتجعات بس — بتربط المرتجع بأصله" },
-  { col: "المخزن", what: "الفرع اللي اتعمل فيه المستند", need: "بيربط الحركة بالفرع الصح" },
-  { col: "الحساب", what: "اسم العميل أو المورد", need: "بيربط الرصيد بالحساب" },
-  { col: "كاش / انستاباي / فودافون كاش / PayMob", what: "المدفوع بكل وسيلة", need: "بيحدد الخزنة اللي هتدخل فيها الفلوس" },
-  { col: "الآجل", what: "المتبقي على الحساب", need: "بيتحوّل لرصيد آجل على العميل/المورد" },
-  { col: "خصم الفاتورة / الضريبة", what: "خصم وضريبة على مستوى الفاتورة", need: "عشان الإجمالي يطلع مضبوط" },
-  { col: "التكلفة", what: "سعر تكلفة الصنف", need: "مهم في فواتير البيع لحساب الربح — لو فاضي بيتحط صفر وتعدّله قبل الاعتماد" },
-  { col: "سعر السوق", what: "سعر البيع المعلن", need: "بيتحط على كارت المنتج" },
-  { col: "الماركة / الموديل / التصنيف / الوحدة / الباركود", what: "بيانات المنتج", need: "بتتسجل على المنتج الجديد بدل «غير محدد»" },
-  { col: "خصم % / الخصم", what: "خصم السطر بالنسبة أو بالجنيه", need: "أي واحد فيهم بيكفي" },
+export type ColumnKey =
+  | "date" | "number" | "original" | "warehouse" | "account"
+  | "payments" | "credit" | "headerDiscount" | "cost" | "marketPrice"
+  | "productInfo" | "lineDiscount";
+
+export const COLUMN_HELP: { key: ColumnKey; col: string; what: string; need: string }[] = [
+  { key: "date", col: "التاريخ + الوقت", what: "تاريخ ووقت الفاتورة", need: "بيتسجل زي ما هو في النظام" },
+  { key: "number", col: "رقم الفاتورة", what: "الرقم القديم", need: "بيمنع تكرار الترحيل" },
+  { key: "original", col: "الفاتورة المرتجعة", what: "رقم الفاتورة الأصلية", need: "للمرتجعات بس — بتربط المرتجع بأصله" },
+  { key: "warehouse", col: "المخزن", what: "الفرع اللي اتعمل فيه المستند", need: "بيربط الحركة بالفرع الصح" },
+  { key: "account", col: "الحساب", what: "اسم العميل أو المورد", need: "بيربط الرصيد بالحساب" },
+  { key: "payments", col: "كاش / انستاباي / فودافون كاش / PayMob", what: "المدفوع بكل وسيلة", need: "بيحدد الخزنة اللي هتدخل فيها الفلوس" },
+  { key: "credit", col: "الآجل", what: "المتبقي على الحساب", need: "بيتحوّل لرصيد آجل على العميل/المورد" },
+  { key: "headerDiscount", col: "خصم الفاتورة / الضريبة", what: "خصم وضريبة على مستوى الفاتورة", need: "عشان الإجمالي يطلع مضبوط" },
+  { key: "cost", col: "التكلفة", what: "سعر تكلفة الصنف", need: "مهم في فواتير البيع لحساب الربح — لو فاضي بيتحط صفر وتعدّله قبل الاعتماد" },
+  { key: "marketPrice", col: "سعر السوق", what: "سعر البيع المعلن", need: "بيتحط على كارت المنتج" },
+  { key: "productInfo", col: "الماركة / الموديل / التصنيف / الوحدة / الباركود", what: "بيانات المنتج", need: "بتتسجل على المنتج الجديد بدل «غير محدد»" },
+  { key: "lineDiscount", col: "خصم % / الخصم", what: "خصم السطر بالنسبة أو بالجنيه", need: "أي واحد فيهم بيكفي" },
 ];
+
+/** بيفحص الشيت المرفوع فعليًا ويرجّع الأعمدة الموجودة والناقصة */
+export function auditSheetColumns(docs: any[], kind?: string) {
+  const items = docs.flatMap((d) => d.items ?? []);
+  const someDoc = (fn: (d: any) => boolean) => docs.some(fn);
+  const someItem = (fn: (i: any) => boolean) => items.some(fn);
+
+  const present: Record<ColumnKey, boolean> = {
+    date: someDoc((d) => !!d.dateISO),
+    number: someDoc((d) => !!String(d.legacyNumber || "").trim()),
+    original: someDoc((d) => !!d.originalNumber),
+    warehouse: someDoc((d) => !!String(d.warehouse || "").trim()),
+    account: someDoc((d) => !!String(d.account || "").trim()),
+    payments: someDoc((d) => (d.payments ?? []).some((p: any) => Number(p.amount) > 0)),
+    credit: someDoc((d) => Number(d.credit) > 0 || Number(d.due) > 0),
+    headerDiscount: someDoc((d) => Number(d.headerDiscount) > 0 || Number(d.tax) > 0),
+    cost: someItem((i) => Number(i.cost) > 0),
+    marketPrice: someItem((i) => Number(i.marketPrice) > 0),
+    productInfo: someItem((i) => !!(i.brand || i.model || i.category || i.unit || i.barcode)),
+    lineDiscount: someItem((i) => Number(i.discount) > 0 || Number(i.discountPercent) > 0),
+  };
+
+  // المرتجع بس اللي محتاج رقم الفاتورة الأصلية
+  const relevant = COLUMN_HELP.filter(
+    (c) => c.key !== "original" || kind === "sale_return" || kind === "purchase_return",
+  );
+
+  return {
+    present: relevant.filter((c) => present[c.key]),
+    missing: relevant.filter((c) => !present[c.key]),
+  };
+}
+
 
 const EXAMPLE_DOC = [
   "2025-03-14", "13:20", "1024", "", "المخزن الرئيسي", "توشيبا للتجارة", "كاش + آجل",
