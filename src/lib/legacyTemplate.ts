@@ -52,23 +52,39 @@ export type ColumnKey =
   | "payments" | "credit" | "headerDiscount" | "cost" | "marketPrice"
   | "productInfo" | "lineDiscount";
 
-export const COLUMN_HELP: { key: ColumnKey; col: string; what: string; need: string }[] = [
-  { key: "date", col: "التاريخ + الوقت", what: "تاريخ ووقت الفاتورة", need: "بيتسجل زي ما هو في النظام" },
-  { key: "number", col: "رقم الفاتورة", what: "الرقم القديم", need: "بيمنع تكرار الترحيل" },
-  { key: "original", col: "الفاتورة المرتجعة", what: "رقم الفاتورة الأصلية", need: "للمرتجعات بس — بتربط المرتجع بأصله" },
-  { key: "warehouse", col: "المخزن", what: "الفرع اللي اتعمل فيه المستند", need: "بيربط الحركة بالفرع الصح" },
-  { key: "account", col: "الحساب", what: "اسم العميل أو المورد", need: "بيربط الرصيد بالحساب" },
-  { key: "payments", col: "كاش / انستاباي / فودافون كاش / PayMob", what: "المدفوع بكل وسيلة", need: "بيحدد الخزنة اللي هتدخل فيها الفلوس" },
-  { key: "credit", col: "الآجل", what: "المتبقي على الحساب", need: "بيتحوّل لرصيد آجل على العميل/المورد" },
-  { key: "headerDiscount", col: "خصم الفاتورة / الضريبة", what: "خصم وضريبة على مستوى الفاتورة", need: "عشان الإجمالي يطلع مضبوط" },
-  { key: "cost", col: "التكلفة", what: "سعر تكلفة الصنف", need: "مهم في فواتير البيع لحساب الربح — لو فاضي بيتحط صفر وتعدّله قبل الاعتماد" },
-  { key: "marketPrice", col: "سعر السوق", what: "سعر البيع المعلن", need: "بيتحط على كارت المنتج" },
-  { key: "productInfo", col: "الماركة / الموديل / التصنيف / الوحدة / الباركود", what: "بيانات المنتج", need: "بتتسجل على المنتج الجديد بدل «غير محدد»" },
-  { key: "lineDiscount", col: "خصم % / الخصم", what: "خصم السطر بالنسبة أو بالجنيه", need: "أي واحد فيهم بيكفي" },
+type Kind = "sale" | "purchase" | "sale_return" | "purchase_return" | "";
+
+export interface ColumnInfo {
+  key: ColumnKey;
+  col: string;
+  what: string;
+  need: string;
+  /** الأنواع اللي العمود ده مطلوب فيها فعليًا (فاضي = كل الأنواع) */
+  requiredFor?: Exclude<Kind, "">[];
+  /** الأنواع اللي العمود ده ملوش لازمة فيها خالص */
+  skipFor?: Exclude<Kind, "">[];
+  /** القيمة اللي النظام بيحطها لو العمود مش موجود */
+  fallback: string;
+}
+
+export const COLUMN_HELP: ColumnInfo[] = [
+  { key: "date", col: "التاريخ + الوقت", what: "تاريخ ووقت الفاتورة", need: "بيتسجل زي ما هو في النظام", fallback: "تاريخ النهاردة — لازم تظبطه بإيدك" },
+  { key: "number", col: "رقم الفاتورة", what: "الرقم القديم", need: "بيمنع تكرار الترحيل", fallback: "رقم تلقائي حسب ترتيب المستند في الملف" },
+  { key: "original", col: "الفاتورة المرتجعة", what: "رقم الفاتورة الأصلية", need: "للمرتجعات بس — بتربط المرتجع بأصله", requiredFor: ["sale_return", "purchase_return"], skipFor: ["sale", "purchase"], fallback: "فاضي → المرتجع بيتسجل حر من غير ربط بأصله" },
+  { key: "warehouse", col: "المخزن", what: "الفرع اللي اتعمل فيه المستند", need: "بيربط الحركة بالفرع الصح", fallback: "فاضي → بياخد الفرع الافتراضي اللي هتختاره" },
+  { key: "account", col: "الحساب", what: "اسم العميل أو المورد", need: "بيربط الرصيد بالحساب", fallback: "فاضي → بياخد الحساب الافتراضي اللي هتختاره" },
+  { key: "payments", col: "كاش / انستاباي / فودافون كاش / PayMob", what: "المدفوع بكل وسيلة", need: "بيحدد الخزنة اللي هتدخل فيها الفلوس", fallback: "المدفوع كله بيتحسب كاش" },
+  { key: "credit", col: "الآجل", what: "المتبقي على الحساب", need: "بيتحوّل لرصيد آجل على العميل/المورد", fallback: "٠ — يعني الفاتورة مدفوعة بالكامل" },
+  { key: "headerDiscount", col: "خصم الفاتورة / الضريبة", what: "خصم وضريبة على مستوى الفاتورة", need: "عشان الإجمالي يطلع مضبوط", requiredFor: [], fallback: "٠" },
+  { key: "cost", col: "التكلفة", what: "سعر تكلفة الصنف", need: "مهم في فواتير البيع لحساب الربح", requiredFor: ["sale", "sale_return"], skipFor: ["purchase", "purchase_return"], fallback: "٠ → النظام بياخد آخر تكلفة للمنتج، عدّلها من عمود «التكلفة»" },
+  { key: "marketPrice", col: "سعر السوق", what: "سعر البيع المعلن", need: "بيتحط على كارت المنتج", requiredFor: ["purchase"], fallback: "٠ → المنتج هيتسجل من غير سعر بيع معلن" },
+  { key: "productInfo", col: "الماركة / الموديل / التصنيف / الوحدة / الباركود", what: "بيانات المنتج", need: "بتتسجل على المنتج الجديد بدل «غير محدد»", requiredFor: [], fallback: "«غير محدد» / وحدة = قطعة" },
+  { key: "lineDiscount", col: "خصم % / الخصم", what: "خصم السطر بالنسبة أو بالجنيه", need: "أي واحد فيهم بيكفي", requiredFor: [], fallback: "٠" },
 ];
 
-/** بيفحص الشيت المرفوع فعليًا ويرجّع الأعمدة الموجودة والناقصة */
+/** بيفحص الشيت المرفوع فعليًا ويرجّع الأعمدة الموجودة والناقصة (مطلوبة/اختيارية) حسب نوع الفاتورة */
 export function auditSheetColumns(docs: any[], kind?: string) {
+  const k = (kind ?? "") as Kind;
   const items = docs.flatMap((d) => d.items ?? []);
   const someDoc = (fn: (d: any) => boolean) => docs.some(fn);
   const someItem = (fn: (i: any) => boolean) => items.some(fn);
@@ -88,16 +104,24 @@ export function auditSheetColumns(docs: any[], kind?: string) {
     lineDiscount: someItem((i) => Number(i.discount) > 0 || Number(i.discountPercent) > 0),
   };
 
-  // المرتجع بس اللي محتاج رقم الفاتورة الأصلية
-  const relevant = COLUMN_HELP.filter(
-    (c) => c.key !== "original" || kind === "sale_return" || kind === "purchase_return",
-  );
+  const relevant = COLUMN_HELP.filter((c) => !(k && c.skipFor?.includes(k as any)));
+  const isRequired = (c: ColumnInfo) =>
+    c.requiredFor === undefined ? true : !k ? c.requiredFor.length > 0 : c.requiredFor.includes(k as any);
+
+  const missingAll = relevant.filter((c) => !present[c.key]);
 
   return {
+    kind: k,
+    total: relevant.length,
     present: relevant.filter((c) => present[c.key]),
-    missing: relevant.filter((c) => !present[c.key]),
+    missing: missingAll,
+    missingKeys: missingAll.map((c) => c.key),
+    missingRequired: missingAll.filter(isRequired),
+    missingOptional: missingAll.filter((c) => !isRequired(c)),
+    isRequired,
   };
 }
+
 
 
 const EXAMPLE_DOC = [
