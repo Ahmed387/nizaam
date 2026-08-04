@@ -128,8 +128,8 @@ function LegacyPanel() {
 
   /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
   const unmappedWarehouses = useMemo(
-    () => warehouses.filter((w) => !whMap[w]),
-    [warehouses, whMap],
+    () => warehouses.filter((w) => !whMap[w] && docs.some((d) => d.warehouse === w && !d.branchId)),
+    [warehouses, whMap, docs],
   );
 
   /** لازم نختار فرع افتراضي بس لو فيه مستند من غير مخزن */
