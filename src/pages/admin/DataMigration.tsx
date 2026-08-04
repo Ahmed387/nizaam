@@ -50,13 +50,32 @@ function LegacyPanel() {
   const [results, setResults] = useState<LegacyDocResult[] | null>(null);
   const [report, setReport] = useState<DryRunReport | null>(null);
   const [checking, setChecking] = useState(false);
+  /** ربط مخازن الملف بفروع النظام: اسم المخزن → id الفرع */
+  const [whMap, setWhMap] = useState<Record<string, string>>({});
 
   // أي تغيير في الإعدادات بيلغي الفحص السابق
-  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName]);
+  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap]);
+
+  // أول ما الملف يتقرا: نحاول نطابق كل مخزن بفرع بنفس الاسم
+  useEffect(() => {
+    if (!sheet) { setWhMap({}); return; }
+    const normalize = (s: string) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const next: Record<string, string> = {};
+    for (const w of sheet.warehouses) {
+      const nw = normalize(w);
+      const hit = (branches as any[]).find((b) => {
+        const nb = normalize(b.name);
+        return nb === nw || nb.includes(nw) || nw.includes(nb);
+      });
+      next[w] = hit?.id ?? "";
+    }
+    setWhMap(next);
+  }, [sheet, branches]);
 
   useEffect(() => {
     supabase.from("contacts").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []));
   }, []);
+
 
   const kind = (kindOverride || sheet?.kind || "") as LegacyKind | "";
   const needsSupplier = kind === "purchase" || kind === "purchase_return";
