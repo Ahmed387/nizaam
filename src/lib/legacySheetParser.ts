@@ -254,8 +254,14 @@ export function parseLegacyRows(rows: any[][], fallbackKind: LegacyKind | null =
 
 function buildDoc(row: any[], H: Record<string, number>, seq: number, rowNo: number, kind: LegacyKind | null): LegacyDoc {
   const total = Math.abs(num(pick(H, row, "النهائى", "الاجمالى", "الإجمالي")));
-  const credit = Math.abs(num(pick(H, row, "الآجل", "الاجل")));
-  const due = Math.abs(num(pick(H, row, "المستحق")));
+  const payLabel = clean(pick(H, row, "طريقة السداد"));
+  const hasCreditCol = "الآجل" in H || "الاجل" in H;
+  // لو مفيش عمود "الآجل" نعتمد على طريقة السداد: آجل → المبلغ كله على الحساب
+  const credit = hasCreditCol
+    ? Math.abs(num(pick(H, row, "الآجل", "الاجل")))
+    : (payLabel.includes("آجل") || payLabel.includes("اجل") ? total : 0);
+  const due = hasCreditCol ? Math.abs(num(pick(H, row, "المستحق"))) : credit;
+
 
   const payments: LegacyPayment[] = [];
   const addPay = (method: LegacyPayment["method"], v: any) => {
