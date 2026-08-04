@@ -508,7 +508,7 @@ export function findClosedPeriod(periods: ClosedPeriod[], dateISO: string): stri
 
 export async function runLegacyMigration(a: LegacyRunArgs): Promise<LegacyOutcome> {
   const results: LegacyDocResult[] = [];
-  const contacts = new Map<string, string>();
+  const contacts = new Map<string, string>(Object.entries(a.contactMap ?? {}).filter(([k, v]) => k && v));
   const idx = await loadProducts(a.branchId);
   const existing = a.skipExisting ? await loadExisting(a.kind, a.branchId) : new Set<string>();
 
