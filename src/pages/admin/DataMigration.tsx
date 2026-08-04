@@ -165,12 +165,15 @@ function LegacyPanel() {
         "الرقم القديم": d.legacyNumber,
         "التاريخ": d.dateISO.replace("T", " "),
         "الحساب": d.account,
+        "المخزن في الملف": d.warehouse || "—",
+        "الفرع على النظام": d.branchName || "—",
         "أصناف": d.items,
         "الإجمالي": d.total,
         "المدفوع": d.paid,
         "الحالة": d.status === "ok" ? "سليم" : d.status === "warning" ? "ملاحظات" : d.status === "skip" ? "هيتخطى" : "متوقف",
         "التفاصيل": d.issues.map((i) => i.text).join(" | "),
       })),
+
     );
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "DryRun");
