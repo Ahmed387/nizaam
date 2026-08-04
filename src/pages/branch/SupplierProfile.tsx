@@ -186,6 +186,17 @@ export default function SupplierProfile() {
   const shipmentUnitsCount = (sh: any) =>
     ((sh.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0);
 
+  // الخصومات اللي المورد عملها لنا على الشحنات
+  const discountShipments = useMemo(
+    () => shipments.filter((s) => Number(s.discount_amount ?? 0) > 0),
+    [shipments]
+  );
+  const totalDiscounts = discountShipments.reduce((s, x) => s + Number(x.discount_amount ?? 0), 0);
+  const grossBeforeDiscount = totalShipments + totalDiscounts;
+  const discountPct = grossBeforeDiscount > 0 ? (totalDiscounts / grossBeforeDiscount) * 100 : 0;
+  const lastDiscount = discountShipments[0];
+
+
   // Unified timeline
   const timeline = useMemo(() => {
     const items: any[] = [];
