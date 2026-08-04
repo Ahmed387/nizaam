@@ -4878,6 +4878,9 @@ export type Database = {
           created_at: string
           current_balance: number | null
           customs_cost: number
+          discount_amount: number
+          discount_type: string
+          discount_value: number
           id: string
           invoice_date: string
           legacy_number: string | null
@@ -4901,6 +4904,9 @@ export type Database = {
           created_at?: string
           current_balance?: number | null
           customs_cost?: number
+          discount_amount?: number
+          discount_type?: string
+          discount_value?: number
           id?: string
           invoice_date?: string
           legacy_number?: string | null
@@ -4924,6 +4930,9 @@ export type Database = {
           created_at?: string
           current_balance?: number | null
           customs_cost?: number
+          discount_amount?: number
+          discount_type?: string
+          discount_value?: number
           id?: string
           invoice_date?: string
           legacy_number?: string | null
