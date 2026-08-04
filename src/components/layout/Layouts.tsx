@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
   ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent, Trash2,
-Wand2 } from "lucide-react";
+Wand2, FileSpreadsheet } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useParams } from "react-router-dom";
@@ -74,6 +74,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
     { to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة", perm: "admin_system_health.view", ownerOnly: true },
     { to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة", perm: "admin_approvals.view", adminOnly: true },
+    { to: "/admin/data-migration", label: "ترحيل الفواتير القديمة", icon: <FileSpreadsheet className="w-4 h-4" />, group: "الإدارة", perm: "admin_settings.view", adminOnly: true },
     { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة", perm: "admin_settings.view" },
   ];
 

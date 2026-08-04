@@ -98,6 +98,7 @@ import AdminReports from "./pages/admin/Reports";
 import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
+import DataMigration from "./pages/admin/DataMigration";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
 import Presence from "./pages/admin/Presence";
@@ -223,6 +224,7 @@ const App = () => (
             <Route path="/admin/approval-requests" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=approvals" replace /></ProtectedRoute>} />
             <Route path="/admin/approvals-hub" element={<ProtectedRoute perm="admin_approvals.view" adminOnly><AdminApprovalsHub /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
+            <Route path="/admin/data-migration" element={<ProtectedRoute adminOnly><DataMigration /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
             <Route path="/admin/presence" element={<ProtectedRoute perm="admin_presence.view" roles={["admin", "supervisor", "viewer"]}><Presence /></ProtectedRoute>} />
             <Route path="/admin/attachments" element={<ProtectedRoute adminOnly><AttachmentsHub scope="admin" /></ProtectedRoute>} />
