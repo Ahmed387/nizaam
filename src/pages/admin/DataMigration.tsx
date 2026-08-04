@@ -119,6 +119,11 @@ function LegacyPanel() {
   const itemCount = useMemo(() => docs.reduce((s, d) => s + d.items.length, 0), [docs]);
   const grandTotal = useMemo(() => docs.reduce((s, d) => s + d.headerTotal, 0), [docs]);
   const warned = useMemo(() => docs.filter((d) => d.warnings.length), [docs]);
+  const colAudit = useMemo(
+    () => auditSheetColumns(docs, kindOverride || sheet?.kind || ""),
+    [docs, kindOverride, sheet?.kind],
+  );
+
   const branchName = (id: string) => (branches as any[]).find((b) => b.id === id)?.name ?? "—";
 
   /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
