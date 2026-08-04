@@ -2337,6 +2337,8 @@ export type Database = {
           invoice_date: string
           invoice_number: string
           is_migrated: boolean
+          legacy_number: string | null
+          migration_batch_id: string | null
           migration_source: string | null
           notes: string | null
           payment_method: string
@@ -2369,6 +2371,8 @@ export type Database = {
           invoice_date?: string
           invoice_number: string
           is_migrated?: boolean
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           migration_source?: string | null
           notes?: string | null
           payment_method?: string
@@ -2401,6 +2405,8 @@ export type Database = {
           invoice_date?: string
           invoice_number?: string
           is_migrated?: boolean
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           migration_source?: string | null
           notes?: string | null
           payment_method?: string
@@ -2586,6 +2592,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "journal_entries"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      migration_batches: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          docs_failed: number
+          docs_ok: number
+          docs_total: number
+          file_name: string | null
+          id: string
+          kind: string
+          label: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          docs_failed?: number
+          docs_ok?: number
+          docs_total?: number
+          file_name?: string | null
+          id?: string
+          kind: string
+          label: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          docs_failed?: number
+          docs_ok?: number
+          docs_total?: number
+          file_name?: string | null
+          id?: string
+          kind?: string
+          label?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_batches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "migration_batches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
           },
         ]
       }
@@ -4141,6 +4210,8 @@ export type Database = {
           created_by: string
           id: string
           invoice_date: string
+          legacy_number: string | null
+          migration_batch_id: string | null
           notes: string | null
           reason: string
           refund_account: string | null
@@ -4162,6 +4233,8 @@ export type Database = {
           created_by: string
           id?: string
           invoice_date?: string
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           notes?: string | null
           reason: string
           refund_account?: string | null
@@ -4183,6 +4256,8 @@ export type Database = {
           created_by?: string
           id?: string
           invoice_date?: string
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           notes?: string | null
           reason?: string
           refund_account?: string | null
@@ -4466,7 +4541,9 @@ export type Database = {
           created_by: string
           id: string
           invoice_date: string
-          invoice_id: string
+          invoice_id: string | null
+          legacy_number: string | null
+          migration_batch_id: string | null
           notes: string | null
           reason: string
           refund_account: string | null
@@ -4486,7 +4563,9 @@ export type Database = {
           created_by: string
           id?: string
           invoice_date?: string
-          invoice_id: string
+          invoice_id?: string | null
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           notes?: string | null
           reason: string
           refund_account?: string | null
@@ -4506,7 +4585,9 @@ export type Database = {
           created_by?: string
           id?: string
           invoice_date?: string
-          invoice_id?: string
+          invoice_id?: string | null
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           notes?: string | null
           reason?: string
           refund_account?: string | null
@@ -4799,6 +4880,8 @@ export type Database = {
           customs_cost: number
           id: string
           invoice_date: string
+          legacy_number: string | null
+          migration_batch_id: string | null
           notes: string | null
           other_cost: number
           other_cost_description: string | null
@@ -4820,6 +4903,8 @@ export type Database = {
           customs_cost?: number
           id?: string
           invoice_date?: string
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null
@@ -4841,6 +4926,8 @@ export type Database = {
           customs_cost?: number
           id?: string
           invoice_date?: string
+          legacy_number?: string | null
+          migration_batch_id?: string | null
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null

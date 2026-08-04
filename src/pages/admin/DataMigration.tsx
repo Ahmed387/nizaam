@@ -1,27 +1,316 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet, Boxes } from "lucide-react";
 import { downloadTemplate, parseExcelFile, ParsedRow } from "@/lib/excelImport";
 import {
   DocKind, KIND_LABEL, MIGRATION_COLUMNS, MIGRATION_SAMPLE, DocResult,
   groupByDoc, runMigration,
 } from "@/lib/invoiceMigration";
+import {
+  parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL,
+} from "@/lib/legacySheetParser";
+import { runLegacyMigration, LegacyDocResult } from "@/lib/legacyMigration";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import * as XLSX from "xlsx";
 import { formatEGP } from "@/lib/format";
 
 const KINDS: DocKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
+const LEGACY_ORDER: LegacyKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
+
+/* ==================================================================== */
+/*                    ترحيل ملفات النظام القديم (بلوكات)                 */
+/* ==================================================================== */
+
+function LegacyPanel() {
+  const { user, branches } = useAuth();
+  const [branchId, setBranchId] = useState("");
+  const [label, setLabel] = useState(`ترحيل ${new Date().toISOString().slice(0, 10)}`);
+  const [supplierId, setSupplierId] = useState("");
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [kindOverride, setKindOverride] = useState<LegacyKind | "">("");
+  const [skipExisting, setSkipExisting] = useState(true);
+  const [fileName, setFileName] = useState("");
+  const [sheet, setSheet] = useState<ParsedLegacySheet | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [results, setResults] = useState<LegacyDocResult[] | null>(null);
+
+  useEffect(() => {
+    supabase.from("contacts").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []));
+  }, []);
+
+  const kind = (kindOverride || sheet?.kind || "") as LegacyKind | "";
+  const needsSupplier = kind === "purchase" || kind === "purchase_return";
+
+  const docs = sheet?.docs ?? [];
+  const warned = useMemo(() => docs.filter((d) => d.warnings.length), [docs]);
+
+  const onFile = async (file: File) => {
+    setResults(null);
+    setSheet(null);
+    setFileName(file.name);
+    try {
+      const parsed = await parseLegacyFile(file);
+      setSheet(parsed);
+      setKindOverride("");
+      if (parsed.issues.length) parsed.issues.forEach((i) => toast.warning(i));
+      else toast.success(`اتقرأ ${parsed.docs.length} مستند و ${parsed.itemCount} صنف`);
+    } catch (e: any) {
+      toast.error("فشلت قراءة الملف: " + e.message);
+    }
+  };
+
+  const start = async () => {
+    if (!branchId) return toast.error("اختار الفرع الأول");
+    if (!kind) return toast.error("حدّد نوع المستندات");
+    if (needsSupplier && !supplierId) return toast.error("اختار المورد");
+    if (!docs.length) return toast.error("مفيش مستندات للترحيل");
+
+    const ok = await confirmAlert({
+      title: `هترحّل ${docs.length} مستند (${LEGACY_KIND_LABEL[kind]})`,
+      description:
+        "الترحيل هيأثر على المخزن والخزنة وحسابات العملاء/الموردين زي أي فاتورة عادية. " +
+        "الترتيب الصح: شراء ← بيع ← مرتجعات. متأكد؟",
+      confirmLabel: "أيوه، ابدأ الترحيل",
+      cancelLabel: "لأ، استنى",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    setProgress({ done: 0, total: docs.length });
+    try {
+      const out = await runLegacyMigration({
+        kind,
+        branchId,
+        userId: user!.id,
+        label: label.trim() || "ترحيل",
+        fileName,
+        supplierId: needsSupplier ? supplierId : null,
+        docs,
+        skipExisting,
+        onProgress: (done, total) => setProgress({ done, total }),
+      });
+      setResults(out.results);
+      if (out.failed === 0) toast.success(`تم ترحيل ${out.inserted} مستند بنجاح 🎉${out.skipped ? ` (${out.skipped} متخطي)` : ""}`);
+      else toast.warning(`تم ${out.inserted} — فشل ${out.failed} — متخطي ${out.skipped}`);
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل الترحيل");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportResults = () => {
+    if (!results) return;
+    const ws = XLSX.utils.json_to_sheet(
+      results.map((r) => ({
+        "الرقم القديم": r.legacyNumber,
+        "الحالة": r.skipped ? "متخطي" : r.ok ? "تم" : "فشل",
+        "رقم النظام": r.number ?? "",
+        "عدد الأصناف": r.items,
+        "الإجمالي": r.total,
+        "ملاحظة": r.note ?? "",
+        "الخطأ": r.error ?? "",
+      })),
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Result");
+    XLSX.writeFile(wb, `نتيجة-ترحيل-${kind || "legacy"}.xlsx`);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 space-y-4">
+        <div className="grid md:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <Label>الفرع اللي هتترحّل عليه</Label>
+            <Select value={branchId} onValueChange={setBranchId}>
+              <SelectTrigger><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
+              <SelectContent>
+                {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>اسم دفعة الترحيل</Label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="مثال: داتا معرض عبد المنعم" />
+          </div>
+          <div className="space-y-1">
+            <Label>ملف النظام القديم</Label>
+            <label className="cursor-pointer block">
+              <Button asChild className="w-full"><span><Upload className="w-4 h-4 ml-1" /> رفع Excel</span></Button>
+              <input type="file" accept=".xlsx,.xls" className="hidden"
+                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+            </label>
+          </div>
+        </div>
+
+        <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded p-3">
+          ارفع الملف زي ما هو من النظام القديم — النظام بيفهم شكل البلوكات (سطر الفاتورة ← عناوين الأصناف ← الأصناف ← الإجمالي).
+          <b> الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
+        </div>
+      </Card>
+
+      {sheet && (
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <FileSpreadsheet className="w-4 h-4" /> {fileName}
+            {sheet.kind && <Badge className="bg-primary/15 text-primary">{LEGACY_KIND_LABEL[sheet.kind]}</Badge>}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+            <div className="p-3 rounded border"><div className="text-xs text-muted-foreground">مستندات</div><div className="text-xl font-bold">{docs.length}</div></div>
+            <div className="p-3 rounded border bg-primary/10"><div className="text-xs text-primary">أصناف</div><div className="text-xl font-bold text-primary">{sheet.itemCount}</div></div>
+            <div className="p-3 rounded border bg-success/10"><div className="text-xs text-success">الإجمالي</div><div className="text-lg font-bold text-success">{formatEGP(sheet.grandTotal)}</div></div>
+            <div className="p-3 rounded border bg-warning/10"><div className="text-xs text-warning">فيها ملاحظات</div><div className="text-xl font-bold text-warning">{warned.length}</div></div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label>نوع المستندات</Label>
+              <Select value={kind} onValueChange={(v) => setKindOverride(v as LegacyKind)}>
+                <SelectTrigger><SelectValue placeholder="اختار النوع" /></SelectTrigger>
+                <SelectContent>
+                  {LEGACY_ORDER.map((k) => <SelectItem key={k} value={k}>{LEGACY_KIND_LABEL[k]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {needsSupplier && (
+              <div className="space-y-1">
+                <Label>المورد (كل الفواتير هتتسجل عليه)</Label>
+                <Select value={supplierId} onValueChange={setSupplierId}>
+                  <SelectTrigger><SelectValue placeholder="اختار المورد" /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label>تخطي المرحّل قبل كده</Label>
+              <div className="flex items-center gap-2 h-10">
+                <Switch checked={skipExisting} onCheckedChange={setSkipExisting} />
+                <span className="text-xs text-muted-foreground">يمنع تكرار نفس رقم المستند القديم</span>
+              </div>
+            </div>
+          </div>
+
+          {sheet.warehouses.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              مخازن الملف: {sheet.warehouses.map((w) => <Badge key={w} variant="outline" className="mx-1">{w}</Badge>)}
+              — كلها هتترحّل على الفرع المختار.
+            </div>
+          )}
+
+          {warned.length > 0 && (
+            <div className="border rounded p-3 bg-warning/5 max-h-40 overflow-y-auto text-xs space-y-1">
+              <div className="font-semibold text-warning flex items-center gap-1 mb-1">
+                <AlertTriangle className="w-4 h-4" /> مستندات فيها ملاحظات:
+              </div>
+              {warned.slice(0, 30).map((d) => (
+                <div key={d.legacyNumber + d.row}><b>#{d.legacyNumber}:</b> {d.warnings.join("، ")}</div>
+              ))}
+            </div>
+          )}
+
+          <div className="border rounded overflow-hidden">
+            <div className="px-3 py-2 bg-muted text-sm font-semibold">معاينة أول 10 مستندات</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-2 py-1">الرقم</th><th className="px-2 py-1">التاريخ</th>
+                    <th className="px-2 py-1">الحساب</th><th className="px-2 py-1">أصناف</th>
+                    <th className="px-2 py-1">الإجمالي</th><th className="px-2 py-1">المدفوع</th>
+                    <th className="px-2 py-1">مرتبط بـ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docs.slice(0, 10).map((d) => (
+                    <tr key={d.legacyNumber + d.row} className="border-t">
+                      <td className="px-2 py-1 font-semibold">{d.legacyNumber}</td>
+                      <td className="px-2 py-1">{d.dateISO.replace("T", " ")}</td>
+                      <td className="px-2 py-1">{d.account || "—"}</td>
+                      <td className="px-2 py-1">{d.items.length}</td>
+                      <td className="px-2 py-1">{formatEGP(d.headerTotal)}</td>
+                      <td className="px-2 py-1">{formatEGP(d.paid)}</td>
+                      <td className="px-2 py-1">{d.originalNumber ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {busy && (
+            <div className="space-y-1">
+              <Progress value={progress.total ? (progress.done / progress.total) * 100 : 0} />
+              <div className="text-xs text-muted-foreground text-center">{progress.done} / {progress.total}</div>
+            </div>
+          )}
+
+          <Button onClick={start} disabled={busy || !docs.length} className="w-full btn-gradient">
+            {busy ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Boxes className="w-4 h-4 ml-2" />}
+            ابدأ ترحيل {docs.length} مستند
+          </Button>
+        </Card>
+      )}
+
+      {results && (
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-success" /> نتيجة الترحيل
+            </div>
+            <Button variant="outline" size="sm" onClick={exportResults}><Download className="w-4 h-4 ml-1" /> تصدير النتيجة</Button>
+          </div>
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50"><tr>
+                <th className="px-2 py-1">الرقم القديم</th><th className="px-2 py-1">الحالة</th>
+                <th className="px-2 py-1">رقم النظام</th><th className="px-2 py-1">الإجمالي</th>
+                <th className="px-2 py-1">ملاحظة / خطأ</th>
+              </tr></thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={r.legacyNumber + i} className="border-t">
+                    <td className="px-2 py-1">{r.legacyNumber}</td>
+                    <td className="px-2 py-1">
+                      {r.skipped
+                        ? <Badge variant="outline">متخطي</Badge>
+                        : r.ok ? <Badge className="bg-success/15 text-success">تم</Badge> : <Badge variant="destructive">فشل</Badge>}
+                    </td>
+                    <td className="px-2 py-1">{r.number ?? "—"}</td>
+                    <td className="px-2 py-1">{formatEGP(r.total)}</td>
+                    <td className={`px-2 py-1 ${r.error ? "text-destructive" : "text-muted-foreground"}`}>{r.error ?? r.note ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ==================================================================== */
+/*                      الترحيل بالقوالب الجاهزة                        */
+/* ==================================================================== */
 
 function KindPanel({ kind }: { kind: DocKind }) {
   const { user, branches } = useAuth();
@@ -231,13 +520,24 @@ export default function DataMigration() {
   return (
     <AdminLayout>
       <PageHeader title="ترحيل الفواتير القديمة" subtitle="رفع داتا الشركة القديمة (بيع / شراء / مرتجعات) من ملفات Excel" />
-      <Tabs defaultValue="purchase">
+      <Tabs defaultValue="legacy">
         <TabsList className="w-full justify-center flex-wrap h-auto">
-          {KINDS.map((k) => <TabsTrigger key={k} value={k} className="text-sm">{KIND_LABEL[k]}</TabsTrigger>)}
+          <TabsTrigger value="legacy" className="text-sm font-bold">ملفات النظام القديم</TabsTrigger>
+          <TabsTrigger value="templates" className="text-sm">قوالب Nizam الجاهزة</TabsTrigger>
         </TabsList>
-        {KINDS.map((k) => (
-          <TabsContent key={k} value={k} className="mt-4"><KindPanel kind={k} /></TabsContent>
-        ))}
+
+        <TabsContent value="legacy" className="mt-4"><LegacyPanel /></TabsContent>
+
+        <TabsContent value="templates" className="mt-4">
+          <Tabs defaultValue="purchase">
+            <TabsList className="w-full justify-center flex-wrap h-auto">
+              {KINDS.map((k) => <TabsTrigger key={k} value={k} className="text-sm">{KIND_LABEL[k]}</TabsTrigger>)}
+            </TabsList>
+            {KINDS.map((k) => (
+              <TabsContent key={k} value={k} className="mt-4"><KindPanel kind={k} /></TabsContent>
+            ))}
+          </Tabs>
+        </TabsContent>
       </Tabs>
     </AdminLayout>
   );
