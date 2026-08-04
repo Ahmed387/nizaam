@@ -266,6 +266,7 @@ function LegacyPanel() {
     setProgress({ done: 0, total: docs.length });
     try {
       const all: LegacyDocResult[] = [];
+      const sums: BranchSummary[] = [];
       let inserted = 0, failed = 0, skipped = 0, base = 0;
       for (const g of groups) {
         const out = await runLegacyMigration({
@@ -283,11 +284,32 @@ function LegacyPanel() {
         all.push(...out.results);
         inserted += out.inserted; failed += out.failed; skipped += out.skipped;
         base += g.docs.length;
+
+        // ملخص الفرع: المستندات اللي اتسجلت فعلًا بس
+        const done = new Set(out.results.filter((r) => r.ok && !r.skipped).map((r) => r.legacyNumber));
+        const s: BranchSummary = {
+          branchName: branchName(g.branchId || branchId),
+          warehouse: g.warehouse || "بدون مخزن في الملف",
+          docs: 0, items: 0, total: 0, credit: 0, byMethod: {},
+        };
+        for (const d of g.docs) {
+          if (!done.has(d.legacyNumber)) continue;
+          s.docs += 1;
+          s.items += d.items.length;
+          s.total += d.headerTotal;
+          s.credit += Math.max(0, d.headerTotal - d.paid);
+          for (const p of d.payments) {
+            s.byMethod[p.method] = (s.byMethod[p.method] ?? 0) + Math.min(p.amount, d.headerTotal);
+          }
+        }
+        if (s.docs) sums.push(s);
       }
       setResults(all);
+      setSummary(sums);
       setReport(null);
       if (failed === 0) toast.success(`تم ترحيل ${inserted} مستند بنجاح 🎉${skipped ? ` (${skipped} متخطي)` : ""}`);
       else toast.warning(`تم ${inserted} — فشل ${failed} — متخطي ${skipped}`);
+
     } catch (e: any) {
       toast.error(e.message ?? "فشل الترحيل");
     } finally {
