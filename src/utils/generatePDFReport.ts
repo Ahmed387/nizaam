@@ -101,6 +101,16 @@ const fmtDateTime = (d?: string | null) => {
   return `${fmtDate(d)} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
 };
 
+/** Escape user-controlled text before injecting into report HTML (prevents stored XSS). */
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const PAY_LABELS: Record<string, string> = {
   cash: "نقدي", transfer: "تحويل بنكي", card: "فيزا",
   wallet: "محفظة", instapay: "انستاباي", vodafone_cash: "فودافون كاش",
@@ -120,12 +130,12 @@ function headerHtml(opts: {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:14px;border-bottom:1px solid ${C.border};margin-bottom:22px;">
       <div style="font-size:11px;color:${C.muted};line-height:2;text-align:right;min-width:220px;">
         <div><b style="color:${C.text};">تاريخ التقرير:</b> ${fmtDateTime(new Date().toISOString())}</div>
-        <div><b style="color:${C.text};">المستخدم:</b> ${opts.userName}</div>
+        <div><b style="color:${C.text};">المستخدم:</b> ${esc(opts.userName)}</div>
         <div><b style="color:${C.text};">الفترة:</b> ${period}</div>
       </div>
       <div style="text-align:left;flex:1;">
-        <div style="font-size:24px;font-weight:800;color:${C.ink};letter-spacing:-0.3px;">${opts.title}</div>
-        <div style="font-size:13px;color:${C.accent};margin-top:6px;font-weight:600;">${opts.branchName}</div>
+        <div style="font-size:24px;font-weight:800;color:${C.ink};letter-spacing:-0.3px;">${esc(opts.title)}</div>
+        <div style="font-size:13px;color:${C.accent};margin-top:6px;font-weight:600;">${esc(opts.branchName)}</div>
       </div>
     </div>
   `;
@@ -135,7 +145,7 @@ function headerHtml(opts: {
 function sectionTitle(text: string) {
   return `
     <div style="text-align:center;margin:16px 0 18px;padding:12px 0;border-top:1px solid ${C.border};border-bottom:1px solid ${C.border};background:${C.softBg};">
-      <div style="font-size:20px;font-weight:800;color:${C.ink};letter-spacing:-0.2px;">${text}</div>
+      <div style="font-size:20px;font-weight:800;color:${C.ink};letter-spacing:-0.2px;">${esc(text)}</div>
       <div style="width:90px;height:3px;background:${C.accent};border-radius:2px;margin:8px auto 0;"></div>
     </div>
   `;
@@ -153,8 +163,8 @@ function kpiCardsHtml(cards: Card[]) {
           const valColor = c.color ?? (c.highlight ? C.accent : C.ink);
           return `
             <div style="border:1px solid ${border};background:${bg};border-radius:10px;padding:18px 14px;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-              <div style="font-size:12px;color:${C.muted};margin-bottom:10px;font-weight:600;line-height:1.3;">${c.label}</div>
-              <div style="font-size:19px;font-weight:800;color:${valColor};line-height:1.2;direction:ltr;unicode-bidi:isolate;">${c.value}</div>
+              <div style="font-size:12px;color:${C.muted};margin-bottom:10px;font-weight:600;line-height:1.3;">${esc(c.label)}</div>
+              <div style="font-size:19px;font-weight:800;color:${valColor};line-height:1.2;direction:ltr;unicode-bidi:isolate;">${esc(c.value)}</div>
             </div>`;
         })
         .join("")}
@@ -172,11 +182,11 @@ function invoiceCardHtml(r: {
 
   const headerCell = (label: string, value: string, valueColor = C.ink) => `
     <div style="display:flex;gap:6px;align-items:baseline;">
-      <span style="color:${C.muted};font-size:11px;">${label}:</span>
-      <span style="color:${valueColor};font-size:12px;font-weight:700;">${value}</span>
+      <span style="color:${C.muted};font-size:11px;">${esc(label)}:</span>
+      <span style="color:${valueColor};font-size:12px;font-weight:700;">${esc(value)}</span>
     </div>`;
 
-  const payPill = `<span style="background:${C.pill};color:${payColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${payLabel}</span>`;
+  const payPill = `<span style="background:${C.pill};color:${payColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${esc(payLabel)}</span>`;
 
   const itemsRows = r.items.map((it) => {
     const q = Number(it.quantity || 0);
@@ -189,7 +199,7 @@ function invoiceCardHtml(r: {
     const lpColor = lineProfit === null ? C.muted : lineProfit >= 0 ? C.good : C.bad;
     return `
       <tr>
-        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
+        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.product_name ?? "—")}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(up)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-weight:700;white-space:nowrap;">${fmtNum(tot)}</td>
@@ -443,8 +453,8 @@ function shipmentCardHtml(r: {
 
   const headerCell = (label: string, value: string, valueColor = C.ink) => `
     <div style="display:flex;gap:6px;align-items:baseline;">
-      <span style="color:${C.muted};font-size:11px;">${label}:</span>
-      <span style="color:${valueColor};font-size:12px;font-weight:700;">${value}</span>
+      <span style="color:${C.muted};font-size:11px;">${esc(label)}:</span>
+      <span style="color:${valueColor};font-size:12px;font-weight:700;">${esc(value)}</span>
     </div>`;
 
   const itemsRows = r.items.map((it) => {
@@ -453,7 +463,7 @@ function shipmentCardHtml(r: {
     const tot = Number(it.total || uc * q);
     return `
       <tr>
-        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
+        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.product_name ?? "—")}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(uc)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-weight:700;white-space:nowrap;">${fmtNum(tot)}</td>
@@ -494,7 +504,7 @@ function shipmentCardHtml(r: {
         </div>
         <div style="display:flex;gap:6px;align-items:center;justify-content:flex-start;">
           <span style="color:${C.muted};font-size:11px;">الحالة:</span>
-          <span style="background:${statusBg};color:${statusColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${statusLabel}</span>
+          <span style="background:${statusBg};color:${statusColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${esc(statusLabel)}</span>
         </div>
         ${headerCell("المستلم", r.sh.received_by ?? "—")}
         ${headerCell("المدفوع", fmtEGP(r.paid), C.good)}
@@ -514,7 +524,7 @@ function shipmentCardHtml(r: {
           ${totalsRows}
         </tbody>
       </table>
-      ${r.sh.notes ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">ملاحظات:</b> ${r.sh.notes}</div>` : ""}
+      ${r.sh.notes ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">ملاحظات:</b> ${esc(r.sh.notes)}</div>` : ""}
     </div>
   `;
 }
@@ -733,12 +743,12 @@ async function renderSectionsToPdf(opts: {
 // small reusable pieces for return/transfer cards
 function kv(label: string, value: string, color = C.ink) {
   return `<div style="display:flex;gap:6px;align-items:baseline;">
-    <span style="color:${C.muted};font-size:11px;">${label}:</span>
-    <span style="color:${color};font-size:12px;font-weight:700;">${value}</span>
+    <span style="color:${C.muted};font-size:11px;">${esc(label)}:</span>
+    <span style="color:${color};font-size:12px;font-weight:700;">${esc(value)}</span>
   </div>`;
 }
 function pill(text: string, color: string, bg: string) {
-  return `<span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${text}</span>`;
+  return `<span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${esc(text)}</span>`;
 }
 
 // ============================================================================
@@ -759,8 +769,8 @@ function saleReturnCardHtml(r: { ret: any; items: any[] }) {
     const tot = Number(it.refund || 0);
     const unit = q > 0 ? tot / q : 0;
     return `<tr>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.products?.name ?? "—"}</td>
-      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${it.products?.sku ?? "—"}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.products?.name ?? "—")}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${esc(it.products?.sku ?? "—")}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(unit)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.warn};white-space:nowrap;">${fmtNum(tot)}</td>
@@ -801,7 +811,7 @@ function saleReturnCardHtml(r: { ret: any; items: any[] }) {
           </tr>
         </tbody>
       </table>
-      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${r.ret.reason}</div>` : ""}
+      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${esc(r.ret.reason)}</div>` : ""}
     </div>
   `;
 }
@@ -878,8 +888,8 @@ function purchaseReturnCardHtml(r: { ret: any; items: any[] }) {
     const uc = Number(it.unit_cost || 0);
     const tot = Number(it.total || uc * q);
     return `<tr>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
-      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${it.products?.sku ?? "—"}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.product_name ?? "—")}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${esc(it.products?.sku ?? "—")}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(uc)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.warn};white-space:nowrap;">${fmtNum(tot)}</td>
@@ -920,7 +930,7 @@ function purchaseReturnCardHtml(r: { ret: any; items: any[] }) {
           </tr>
         </tbody>
       </table>
-      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${r.ret.reason}</div>` : ""}
+      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${esc(r.ret.reason)}</div>` : ""}
     </div>
   `;
 }
@@ -1013,7 +1023,7 @@ function transferGroupCardHtml(g: {
     const uc = Number(r.cost_price_at_transfer || 0);
     const val = Number(r.total_value_at_transfer ?? uc * q);
     return `<tr>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${r.products?.name ?? "—"}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(r.products?.name ?? "—")}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${rec === q ? C.good : rec === 0 ? C.bad : C.warn};font-weight:700;white-space:nowrap;">${r.status === "pending" ? "—" : fmtNum(rec)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${uc > 0 ? fmtNum(uc) : "—"}</td>
@@ -1055,7 +1065,7 @@ function transferGroupCardHtml(g: {
           </tr>
         </tbody>
       </table>
-      ${g.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${g.reason}</div>` : ""}
+      ${g.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${esc(g.reason)}</div>` : ""}
     </div>
   `;
 }
@@ -1187,7 +1197,7 @@ function profitBranchTableHtml(rows: ProfitWindow["perBranch"]) {
     const netColor = r.net >= 0 ? C.good : C.bad;
     return `<tr>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};">${i + 1}</td>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:12px;font-weight:700;color:${C.ink};">${r.name}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:12px;font-weight:700;color:${C.ink};">${esc(r.name)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(r.revenue)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(r.cost)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.warn};white-space:nowrap;">${fmtNum(r.expenses)}</td>
@@ -1325,12 +1335,12 @@ function voucherRowHtml(v: any, catName: string, branchName?: string, showBranch
   const amountSign = v.type === "receipt" ? "+" : "-";
   return `
     <tr style="${cancelled ? "opacity:0.55;text-decoration:line-through;" : ""}">
-      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-family:monospace;white-space:nowrap;">${v.voucher_number ?? "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-family:monospace;white-space:nowrap;">${esc(v.voucher_number ?? "—")}</td>
       <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtDate(v.voucher_date)}</td>
-      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${v.party_name || "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(v.party_name || "—")}</td>
       <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${payLabel}</td>
-      ${showBranch ? `<td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${branchName ?? "—"}</td>` : ""}
-      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${v.description || "—"}</td>
+      ${showBranch ? `<td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${esc(branchName ?? "—")}</td>` : ""}
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(v.description || "—")}</td>
       <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:12px;font-weight:800;color:${amountColor};white-space:nowrap;direction:ltr;">${amountSign} ${fmtNum(Number(v.amount || 0))}</td>
     </tr>
   `;
@@ -1577,7 +1587,7 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
       const totalExp = (input.expensesByType ?? []).reduce((s, e) => s + e.value, 0);
       const expRows = (input.expensesByType ?? [])
         .sort((a, b) => b.value - a.value)
-        .map((e) => [e.name, fmtEGP(e.value), totalExp ? fmtPct((e.value / totalExp) * 100) : "—"]);
+        .map((e) => [esc(e.name), fmtEGP(e.value), totalExp ? fmtPct((e.value / totalExp) * 100) : "—"]);
       sections.push(`<div data-pdf-section="exp">${simpleTable(["النوع", "المبلغ", "النسبة"], expRows)}</div>`);
     }
 
@@ -1595,7 +1605,7 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
         rows.map((r, i) => {
           const stock = r.stock ?? 0;
           const stockCell = `<b style="color:${stock <= 0 ? C.bad : stock <= 5 ? C.warn : C.text};">${fmtNum(stock)}</b>`;
-          return [String(i + 1), r.name, fmtNum(r.qty), stockCell, fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"];
+          return [String(i + 1), esc(r.name), fmtNum(r.qty), stockCell, fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"];
         }),
         ["36px", "", "110px", "80px", "130px", "110px"],
       );
@@ -1623,7 +1633,7 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
       const listRows = rows
         .slice()
         .sort((a, b) => (a.date > b.date ? -1 : 1))
-        .map((e, i) => [String(i + 1), fmtDate(e.date), e.type, e.description || "—", fmtEGP(Number(e.amount || 0))]);
+        .map((e, i) => [String(i + 1), fmtDate(e.date), esc(e.type), esc(e.description || "—"), fmtEGP(Number(e.amount || 0))]);
       sections.push(`<div data-pdf-section="full">${simpleTable(
         ["#", "التاريخ", "النوع", "الوصف", "المبلغ"],
         listRows,
@@ -1644,8 +1654,8 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
         .sort((a, b) => a.quantity - b.quantity)
         .map((p, i) => [
           String(i + 1),
-          p.name,
-          p.sku || "—",
+          esc(p.name),
+          esc(p.sku || "—"),
           `<b style="color:${p.quantity === 0 ? C.bad : C.warn};">${fmtNum(p.quantity)}</b>`,
           fmtNum(p.low_stock_alert),
           fmtNum(Math.max(0, p.low_stock_alert - p.quantity)),
@@ -1752,7 +1762,7 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
     // Partner identity card
     const identity = `
       <div style="border:1px solid ${C.border};border-radius:10px;background:${C.softBg};padding:16px 20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">
-        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">اسم الشريك:</span><span style="color:${C.ink};font-size:16px;font-weight:800;">${input.partner.name}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">اسم الشريك:</span><span style="color:${C.ink};font-size:16px;font-weight:800;">${esc(input.partner.name)}</span></div>
         <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">النوع:</span><span style="color:${C.accent};font-size:13px;font-weight:700;">${typeLabel}</span></div>
         <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">حصة رأس المال:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${(Number(input.partner.capital_share) * 100).toFixed(2)}%</span></div>
         <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">حصة التشغيل:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${(Number(input.partner.operating_share) * 100).toFixed(2)}%</span></div>
@@ -1781,7 +1791,7 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 24px;margin-top:10px;">
           <div style="font-size:12px;color:${C.muted};">التاريخ: <span style="color:${C.ink};font-weight:700;">${fmtDate(input.lastProfit.date)}</span></div>
           <div style="font-size:12px;color:${C.muted};">عدد الأشهر: <span style="color:${C.ink};font-weight:700;">${input.lastProfit.monthsCount} شهر</span></div>
-          ${input.lastProfit.periodLabel ? `<div style="font-size:12px;color:${C.muted};">الفترة: <span style="color:${C.ink};font-weight:700;">${input.lastProfit.periodLabel}</span></div>` : ""}
+          ${input.lastProfit.periodLabel ? `<div style="font-size:12px;color:${C.muted};">الفترة: <span style="color:${C.ink};font-weight:700;">${esc(input.lastProfit.periodLabel)}</span></div>` : ""}
         </div>
       </div>
     ` : "";
@@ -1791,8 +1801,8 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
       const trs = chunk.map(({ t, debit, credit, running }) => `
         <tr>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtDate(t.created_at)}</td>
-          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};">${TX_LABEL[t.transaction_type] ?? t.transaction_type}</td>
-          <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${t.description || "-"}${t.month_year ? ` <span style="color:${C.muted};">(${t.month_year})</span>` : ""}</td>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};">${esc(TX_LABEL[t.transaction_type] ?? t.transaction_type)}</td>
+          <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(t.description || "-")}${t.month_year ? ` <span style="color:${C.muted};">(${esc(t.month_year)})</span>` : ""}</td>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${debit > 0 ? C.bad : C.muted};font-weight:${debit > 0 ? 700 : 400};white-space:nowrap;">${debit > 0 ? fmtNum(debit) : "-"}</td>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${credit > 0 ? C.good : C.muted};font-weight:${credit > 0 ? 700 : 400};white-space:nowrap;">${credit > 0 ? fmtNum(credit) : "-"}</td>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.ink};font-weight:700;white-space:nowrap;">${fmtNum(running)}</td>
@@ -1851,16 +1861,16 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
           <div style="text-align:center;">
             <div style="height:52px;border-bottom:1px solid ${C.ink};"></div>
             <div style="font-size:11px;color:${C.muted};margin-top:6px;">توقيع الشريك</div>
-            <div style="font-size:12px;color:${C.ink};font-weight:700;">${input.partner.name}</div>
+            <div style="font-size:12px;color:${C.ink};font-weight:700;">${esc(input.partner.name)}</div>
           </div>
           <div style="text-align:center;">
             <div style="height:52px;border-bottom:1px solid ${C.ink};"></div>
             <div style="font-size:11px;color:${C.muted};margin-top:6px;">توقيع المحاسب / المسؤول</div>
-            <div style="font-size:12px;color:${C.ink};font-weight:700;">${input.userName}</div>
+            <div style="font-size:12px;color:${C.ink};font-weight:700;">${esc(input.userName)}</div>
           </div>
           <div style="text-align:center;">
             <div style="width:104px;height:104px;margin:0 auto;border:2px solid ${C.accent};border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${C.accent};">
-              <div style="font-size:12px;font-weight:800;line-height:1.4;">${company}</div>
+              <div style="font-size:12px;font-weight:800;line-height:1.4;">${esc(company)}</div>
               <div style="font-size:9px;opacity:.8;margin-top:2px;">ختم الشركة</div>
             </div>
           </div>

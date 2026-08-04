@@ -6308,6 +6308,10 @@ export type Database = {
         Args: { p_amount: number; p_method: string }
         Returns: number
       }
+      can_access_employee_file: {
+        Args: { _object_name: string }
+        Returns: boolean
+      }
       can_manage_attendance_for: {
         Args: { _target_employee_id: string }
         Returns: boolean
