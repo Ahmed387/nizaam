@@ -101,6 +101,16 @@ const fmtDateTime = (d?: string | null) => {
   return `${fmtDate(d)} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
 };
 
+/** Escape user-controlled text before injecting into report HTML (prevents stored XSS). */
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const PAY_LABELS: Record<string, string> = {
   cash: "نقدي", transfer: "تحويل بنكي", card: "فيزا",
   wallet: "محفظة", instapay: "انستاباي", vodafone_cash: "فودافون كاش",
@@ -120,12 +130,12 @@ function headerHtml(opts: {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:14px;border-bottom:1px solid ${C.border};margin-bottom:22px;">
       <div style="font-size:11px;color:${C.muted};line-height:2;text-align:right;min-width:220px;">
         <div><b style="color:${C.text};">تاريخ التقرير:</b> ${fmtDateTime(new Date().toISOString())}</div>
-        <div><b style="color:${C.text};">المستخدم:</b> ${opts.userName}</div>
+        <div><b style="color:${C.text};">المستخدم:</b> ${esc(opts.userName)}</div>
         <div><b style="color:${C.text};">الفترة:</b> ${period}</div>
       </div>
       <div style="text-align:left;flex:1;">
-        <div style="font-size:24px;font-weight:800;color:${C.ink};letter-spacing:-0.3px;">${opts.title}</div>
-        <div style="font-size:13px;color:${C.accent};margin-top:6px;font-weight:600;">${opts.branchName}</div>
+        <div style="font-size:24px;font-weight:800;color:${C.ink};letter-spacing:-0.3px;">${esc(opts.title)}</div>
+        <div style="font-size:13px;color:${C.accent};margin-top:6px;font-weight:600;">${esc(opts.branchName)}</div>
       </div>
     </div>
   `;
@@ -135,7 +145,7 @@ function headerHtml(opts: {
 function sectionTitle(text: string) {
   return `
     <div style="text-align:center;margin:16px 0 18px;padding:12px 0;border-top:1px solid ${C.border};border-bottom:1px solid ${C.border};background:${C.softBg};">
-      <div style="font-size:20px;font-weight:800;color:${C.ink};letter-spacing:-0.2px;">${text}</div>
+      <div style="font-size:20px;font-weight:800;color:${C.ink};letter-spacing:-0.2px;">${esc(text)}</div>
       <div style="width:90px;height:3px;background:${C.accent};border-radius:2px;margin:8px auto 0;"></div>
     </div>
   `;
@@ -153,8 +163,8 @@ function kpiCardsHtml(cards: Card[]) {
           const valColor = c.color ?? (c.highlight ? C.accent : C.ink);
           return `
             <div style="border:1px solid ${border};background:${bg};border-radius:10px;padding:18px 14px;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-              <div style="font-size:12px;color:${C.muted};margin-bottom:10px;font-weight:600;line-height:1.3;">${c.label}</div>
-              <div style="font-size:19px;font-weight:800;color:${valColor};line-height:1.2;direction:ltr;unicode-bidi:isolate;">${c.value}</div>
+              <div style="font-size:12px;color:${C.muted};margin-bottom:10px;font-weight:600;line-height:1.3;">${esc(c.label)}</div>
+              <div style="font-size:19px;font-weight:800;color:${valColor};line-height:1.2;direction:ltr;unicode-bidi:isolate;">${esc(c.value)}</div>
             </div>`;
         })
         .join("")}
@@ -172,11 +182,11 @@ function invoiceCardHtml(r: {
 
   const headerCell = (label: string, value: string, valueColor = C.ink) => `
     <div style="display:flex;gap:6px;align-items:baseline;">
-      <span style="color:${C.muted};font-size:11px;">${label}:</span>
-      <span style="color:${valueColor};font-size:12px;font-weight:700;">${value}</span>
+      <span style="color:${C.muted};font-size:11px;">${esc(label)}:</span>
+      <span style="color:${valueColor};font-size:12px;font-weight:700;">${esc(value)}</span>
     </div>`;
 
-  const payPill = `<span style="background:${C.pill};color:${payColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${payLabel}</span>`;
+  const payPill = `<span style="background:${C.pill};color:${payColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${esc(payLabel)}</span>`;
 
   const itemsRows = r.items.map((it) => {
     const q = Number(it.quantity || 0);
@@ -189,7 +199,7 @@ function invoiceCardHtml(r: {
     const lpColor = lineProfit === null ? C.muted : lineProfit >= 0 ? C.good : C.bad;
     return `
       <tr>
-        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
+        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.product_name ?? "—")}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(up)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-weight:700;white-space:nowrap;">${fmtNum(tot)}</td>
@@ -443,8 +453,8 @@ function shipmentCardHtml(r: {
 
   const headerCell = (label: string, value: string, valueColor = C.ink) => `
     <div style="display:flex;gap:6px;align-items:baseline;">
-      <span style="color:${C.muted};font-size:11px;">${label}:</span>
-      <span style="color:${valueColor};font-size:12px;font-weight:700;">${value}</span>
+      <span style="color:${C.muted};font-size:11px;">${esc(label)}:</span>
+      <span style="color:${valueColor};font-size:12px;font-weight:700;">${esc(value)}</span>
     </div>`;
 
   const itemsRows = r.items.map((it) => {
@@ -453,7 +463,7 @@ function shipmentCardHtml(r: {
     const tot = Number(it.total || uc * q);
     return `
       <tr>
-        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
+        <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.product_name ?? "—")}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(uc)}</td>
         <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-weight:700;white-space:nowrap;">${fmtNum(tot)}</td>
@@ -494,7 +504,7 @@ function shipmentCardHtml(r: {
         </div>
         <div style="display:flex;gap:6px;align-items:center;justify-content:flex-start;">
           <span style="color:${C.muted};font-size:11px;">الحالة:</span>
-          <span style="background:${statusBg};color:${statusColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${statusLabel}</span>
+          <span style="background:${statusBg};color:${statusColor};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${esc(statusLabel)}</span>
         </div>
         ${headerCell("المستلم", r.sh.received_by ?? "—")}
         ${headerCell("المدفوع", fmtEGP(r.paid), C.good)}
@@ -514,7 +524,7 @@ function shipmentCardHtml(r: {
           ${totalsRows}
         </tbody>
       </table>
-      ${r.sh.notes ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">ملاحظات:</b> ${r.sh.notes}</div>` : ""}
+      ${r.sh.notes ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">ملاحظات:</b> ${esc(r.sh.notes)}</div>` : ""}
     </div>
   `;
 }
@@ -733,12 +743,12 @@ async function renderSectionsToPdf(opts: {
 // small reusable pieces for return/transfer cards
 function kv(label: string, value: string, color = C.ink) {
   return `<div style="display:flex;gap:6px;align-items:baseline;">
-    <span style="color:${C.muted};font-size:11px;">${label}:</span>
-    <span style="color:${color};font-size:12px;font-weight:700;">${value}</span>
+    <span style="color:${C.muted};font-size:11px;">${esc(label)}:</span>
+    <span style="color:${color};font-size:12px;font-weight:700;">${esc(value)}</span>
   </div>`;
 }
 function pill(text: string, color: string, bg: string) {
-  return `<span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${text}</span>`;
+  return `<span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:2px 10px;border-radius:10px;">${esc(text)}</span>`;
 }
 
 // ============================================================================
@@ -759,8 +769,8 @@ function saleReturnCardHtml(r: { ret: any; items: any[] }) {
     const tot = Number(it.refund || 0);
     const unit = q > 0 ? tot / q : 0;
     return `<tr>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.products?.name ?? "—"}</td>
-      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${it.products?.sku ?? "—"}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.products?.name ?? "—")}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${esc(it.products?.sku ?? "—")}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(unit)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.warn};white-space:nowrap;">${fmtNum(tot)}</td>
@@ -801,7 +811,7 @@ function saleReturnCardHtml(r: { ret: any; items: any[] }) {
           </tr>
         </tbody>
       </table>
-      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${r.ret.reason}</div>` : ""}
+      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${esc(r.ret.reason)}</div>` : ""}
     </div>
   `;
 }
@@ -878,8 +888,8 @@ function purchaseReturnCardHtml(r: { ret: any; items: any[] }) {
     const uc = Number(it.unit_cost || 0);
     const tot = Number(it.total || uc * q);
     return `<tr>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${it.product_name ?? "—"}</td>
-      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${it.products?.sku ?? "—"}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(it.product_name ?? "—")}</td>
+      <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${esc(it.products?.sku ?? "—")}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(uc)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;font-weight:700;color:${C.warn};white-space:nowrap;">${fmtNum(tot)}</td>
@@ -920,7 +930,7 @@ function purchaseReturnCardHtml(r: { ret: any; items: any[] }) {
           </tr>
         </tbody>
       </table>
-      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${r.ret.reason}</div>` : ""}
+      ${r.ret.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${esc(r.ret.reason)}</div>` : ""}
     </div>
   `;
 }
@@ -1013,7 +1023,7 @@ function transferGroupCardHtml(g: {
     const uc = Number(r.cost_price_at_transfer || 0);
     const val = Number(r.total_value_at_transfer ?? uc * q);
     return `<tr>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${r.products?.name ?? "—"}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(r.products?.name ?? "—")}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(q)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${rec === q ? C.good : rec === 0 ? C.bad : C.warn};font-weight:700;white-space:nowrap;">${r.status === "pending" ? "—" : fmtNum(rec)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${uc > 0 ? fmtNum(uc) : "—"}</td>
@@ -1055,7 +1065,7 @@ function transferGroupCardHtml(g: {
           </tr>
         </tbody>
       </table>
-      ${g.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${g.reason}</div>` : ""}
+      ${g.reason ? `<div style="padding:10px 16px;border-top:1px solid ${C.border};background:#fafbfc;font-size:11px;color:${C.muted};"><b style="color:${C.text};">السبب:</b> ${esc(g.reason)}</div>` : ""}
     </div>
   `;
 }
@@ -1187,7 +1197,7 @@ function profitBranchTableHtml(rows: ProfitWindow["perBranch"]) {
     const netColor = r.net >= 0 ? C.good : C.bad;
     return `<tr>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};">${i + 1}</td>
-      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:12px;font-weight:700;color:${C.ink};">${r.name}</td>
+      <td style="padding:10px 12px;border-top:1px solid ${C.border};text-align:right;font-size:12px;font-weight:700;color:${C.ink};">${esc(r.name)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(r.revenue)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(r.cost)}</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.warn};white-space:nowrap;">${fmtNum(r.expenses)}</td>
@@ -1325,12 +1335,12 @@ function voucherRowHtml(v: any, catName: string, branchName?: string, showBranch
   const amountSign = v.type === "receipt" ? "+" : "-";
   return `
     <tr style="${cancelled ? "opacity:0.55;text-decoration:line-through;" : ""}">
-      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-family:monospace;white-space:nowrap;">${v.voucher_number ?? "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};font-family:monospace;white-space:nowrap;">${esc(v.voucher_number ?? "—")}</td>
       <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtDate(v.voucher_date)}</td>
-      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${v.party_name || "—"}</td>
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(v.party_name || "—")}</td>
       <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${payLabel}</td>
-      ${showBranch ? `<td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${branchName ?? "—"}</td>` : ""}
-      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${v.description || "—"}</td>
+      ${showBranch ? `<td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.muted};white-space:nowrap;">${esc(branchName ?? "—")}</td>` : ""}
+      <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(v.description || "—")}</td>
       <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:center;font-size:12px;font-weight:800;color:${amountColor};white-space:nowrap;direction:ltr;">${amountSign} ${fmtNum(Number(v.amount || 0))}</td>
     </tr>
   `;
