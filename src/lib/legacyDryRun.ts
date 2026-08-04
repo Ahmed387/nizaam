@@ -22,6 +22,9 @@ export interface DryDocCheck {
   paid: number;
   status: "ok" | "warning" | "blocked" | "skip";
   issues: DryIssue[];
+  /** المخزن اللي في الملف والفرع اللي هيترحّل عليه */
+  warehouse?: string;
+  branchName?: string;
 }
 
 export interface DryRunReport {
@@ -173,6 +176,7 @@ export async function runLegacyDryRun(a: DryRunArgs): Promise<DryRunReport> {
       paid: doc.paid,
       status: blocked ? "blocked" : skip ? "skip" : issues.some((i) => i.level === "warning") ? "warning" : "ok",
       issues,
+      warehouse: doc.warehouse || "",
     });
   }
 

@@ -50,19 +50,57 @@ function LegacyPanel() {
   const [results, setResults] = useState<LegacyDocResult[] | null>(null);
   const [report, setReport] = useState<DryRunReport | null>(null);
   const [checking, setChecking] = useState(false);
+  /** ربط مخازن الملف بفروع النظام: اسم المخزن → id الفرع */
+  const [whMap, setWhMap] = useState<Record<string, string>>({});
 
   // أي تغيير في الإعدادات بيلغي الفحص السابق
-  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName]);
+  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap]);
+
+  // أول ما الملف يتقرا: نحاول نطابق كل مخزن بفرع بنفس الاسم
+  useEffect(() => {
+    if (!sheet) { setWhMap({}); return; }
+    const normalize = (s: string) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const next: Record<string, string> = {};
+    for (const w of sheet.warehouses) {
+      const nw = normalize(w);
+      const hit = (branches as any[]).find((b) => {
+        const nb = normalize(b.name);
+        return nb === nw || nb.includes(nw) || nw.includes(nb);
+      });
+      next[w] = hit?.id ?? "";
+    }
+    setWhMap(next);
+  }, [sheet, branches]);
 
   useEffect(() => {
     supabase.from("contacts").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []));
   }, []);
+
 
   const kind = (kindOverride || sheet?.kind || "") as LegacyKind | "";
   const needsSupplier = kind === "purchase" || kind === "purchase_return";
 
   const docs = sheet?.docs ?? [];
   const warned = useMemo(() => docs.filter((d) => d.warnings.length), [docs]);
+  const branchName = (id: string) => (branches as any[]).find((b) => b.id === id)?.name ?? "—";
+
+  /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
+  const unmappedWarehouses = useMemo(
+    () => (sheet?.warehouses ?? []).filter((w) => !whMap[w]),
+    [sheet, whMap],
+  );
+
+  /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الرئيسي المختار) */
+  const groups = useMemo(() => {
+    const m = new Map<string, { warehouse: string; branchId: string; docs: typeof docs }>();
+    for (const d of docs) {
+      const target = d.warehouse ? whMap[d.warehouse] || "" : branchId;
+      const k = `${d.warehouse}|${target}`;
+      if (!m.has(k)) m.set(k, { warehouse: d.warehouse || "", branchId: target, docs: [] });
+      m.get(k)!.docs.push(d);
+    }
+    return [...m.values()];
+  }, [docs, whMap, branchId]);
 
   const onFile = async (file: File) => {
     setResults(null);
@@ -83,11 +121,32 @@ function LegacyPanel() {
     if (!branchId) return toast.error("اختار الفرع الأول");
     if (!kind) return toast.error("حدّد نوع المستندات");
     if (!docs.length) return toast.error("مفيش مستندات للفحص");
+    if (unmappedWarehouses.length) {
+      return toast.error(`فيه مخزن في الملف مش موجود على النظام: ${unmappedWarehouses.join("، ")} — اختارله فرع الأول`);
+    }
     setChecking(true);
     try {
-      const rep = await runLegacyDryRun({
-        kind, branchId, docs, supplierId: needsSupplier ? supplierId || null : null, skipExisting,
-      });
+      const parts: DryRunReport[] = [];
+      for (const g of groups) {
+        const rep = await runLegacyDryRun({
+          kind, branchId: g.branchId || branchId, docs: g.docs,
+          supplierId: needsSupplier ? supplierId || null : null, skipExisting,
+        });
+        rep.docs.forEach((d) => { d.branchName = branchName(g.branchId || branchId); });
+        parts.push(rep);
+      }
+      const rep: DryRunReport = {
+        kind,
+        docs: parts.flatMap((p) => p.docs),
+        ok: parts.reduce((s, p) => s + p.ok, 0),
+        warnings: parts.reduce((s, p) => s + p.warnings, 0),
+        blocked: parts.reduce((s, p) => s + p.blocked, 0),
+        skipped: parts.reduce((s, p) => s + p.skipped, 0),
+        newContacts: [...new Set(parts.flatMap((p) => p.newContacts))],
+        newProducts: [...new Map(parts.flatMap((p) => p.newProducts).map((p) => [`${p.code}::${p.name}`, p])).values()],
+        missingProducts: [...new Map(parts.flatMap((p) => p.missingProducts).map((p) => [`${p.code}::${p.name}`, p])).values()],
+        total: parts.reduce((s, p) => s + p.total, 0),
+      };
       setReport(rep);
       if (rep.blocked) toast.warning(`الفحص خلص — فيه ${rep.blocked} مستند متوقف محتاج مراجعة`);
       else toast.success(`الفحص خلص — كله تمام (${rep.ok} سليم${rep.warnings ? ` · ${rep.warnings} فيه ملاحظات` : ""})`);
@@ -98,6 +157,7 @@ function LegacyPanel() {
     }
   };
 
+
   const exportReport = () => {
     if (!report) return;
     const ws = XLSX.utils.json_to_sheet(
@@ -105,12 +165,15 @@ function LegacyPanel() {
         "الرقم القديم": d.legacyNumber,
         "التاريخ": d.dateISO.replace("T", " "),
         "الحساب": d.account,
+        "المخزن في الملف": d.warehouse || "—",
+        "الفرع على النظام": d.branchName || "—",
         "أصناف": d.items,
         "الإجمالي": d.total,
         "المدفوع": d.paid,
         "الحالة": d.status === "ok" ? "سليم" : d.status === "warning" ? "ملاحظات" : d.status === "skip" ? "هيتخطى" : "متوقف",
         "التفاصيل": d.issues.map((i) => i.text).join(" | "),
       })),
+
     );
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "DryRun");
@@ -123,6 +186,9 @@ function LegacyPanel() {
     if (needsSupplier && !supplierId) return toast.error("اختار المورد");
     if (!docs.length) return toast.error("مفيش مستندات للترحيل");
     if (!report) return toast.error("لازم تعمل الفحص التجريبي الأول");
+    if (unmappedWarehouses.length) {
+      return toast.error(`لازم تختار فرع لكل مخزن: ${unmappedWarehouses.join("، ")}`);
+    }
 
     if (report.blocked) {
       const go = await confirmAlert({
@@ -139,6 +205,9 @@ function LegacyPanel() {
       title: `هترحّل ${docs.length} مستند (${LEGACY_KIND_LABEL[kind]})`,
       description:
         "الترحيل هيأثر على المخزن والخزنة وحسابات العملاء/الموردين زي أي فاتورة عادية. " +
+        (groups.length > 1
+          ? `المستندات هتتوزع على ${groups.length} فرع حسب المخزن اللي في الملف. `
+          : "") +
         "الترتيب الصح: شراء ← بيع ← مرتجعات. متأكد؟",
       confirmLabel: "أيوه، ابدأ الترحيل",
       cancelLabel: "لأ، استنى",
@@ -149,26 +218,34 @@ function LegacyPanel() {
     setBusy(true);
     setProgress({ done: 0, total: docs.length });
     try {
-      const out = await runLegacyMigration({
-        kind,
-        branchId,
-        userId: user!.id,
-        label: label.trim() || "ترحيل",
-        fileName,
-        supplierId: needsSupplier ? supplierId : null,
-        docs,
-        skipExisting,
-        onProgress: (done, total) => setProgress({ done, total }),
-      });
-      setResults(out.results);
+      const all: LegacyDocResult[] = [];
+      let inserted = 0, failed = 0, skipped = 0, base = 0;
+      for (const g of groups) {
+        const out = await runLegacyMigration({
+          kind,
+          branchId: g.branchId || branchId,
+          userId: user!.id,
+          label: (label.trim() || "ترحيل") + (g.warehouse ? ` — ${g.warehouse}` : ""),
+          fileName,
+          supplierId: needsSupplier ? supplierId : null,
+          docs: g.docs,
+          skipExisting,
+          onProgress: (done) => setProgress({ done: base + done, total: docs.length }),
+        });
+        all.push(...out.results);
+        inserted += out.inserted; failed += out.failed; skipped += out.skipped;
+        base += g.docs.length;
+      }
+      setResults(all);
       setReport(null);
-      if (out.failed === 0) toast.success(`تم ترحيل ${out.inserted} مستند بنجاح 🎉${out.skipped ? ` (${out.skipped} متخطي)` : ""}`);
-      else toast.warning(`تم ${out.inserted} — فشل ${out.failed} — متخطي ${out.skipped}`);
+      if (failed === 0) toast.success(`تم ترحيل ${inserted} مستند بنجاح 🎉${skipped ? ` (${skipped} متخطي)` : ""}`);
+      else toast.warning(`تم ${inserted} — فشل ${failed} — متخطي ${skipped}`);
     } catch (e: any) {
       toast.error(e.message ?? "فشل الترحيل");
     } finally {
       setBusy(false);
     }
+
   };
 
   const exportResults = () => {
@@ -267,11 +344,40 @@ function LegacyPanel() {
           </div>
 
           {sheet.warehouses.length > 0 && (
-            <div className="text-xs text-muted-foreground">
-              مخازن الملف: {sheet.warehouses.map((w) => <Badge key={w} variant="outline" className="mx-1">{w}</Badge>)}
-              — كلها هتترحّل على الفرع المختار.
+            <div className={`border rounded-lg p-3 space-y-2 ${unmappedWarehouses.length ? "border-warning bg-warning/5" : "bg-muted/30"}`}>
+              <div className="text-sm font-semibold flex items-center gap-1">
+                <AlertTriangle className={`w-4 h-4 ${unmappedWarehouses.length ? "text-warning" : "text-muted-foreground"}`} />
+                ربط مخازن الملف بفروع النظام
+              </div>
+              {unmappedWarehouses.length > 0 && (
+                <div className="text-xs text-warning">
+                  في مخزن (أو أكتر) في الملف مش موجود عندك على النظام: <b>{unmappedWarehouses.join("، ")}</b> —
+                  اختارله فرع من الفروع المتاحة تحت، أو اعمل الفرع الأول من صفحة الفروع وارجع هنا.
+                </div>
+              )}
+              <div className="grid md:grid-cols-2 gap-2">
+                {sheet.warehouses.map((w) => (
+                  <div key={w} className="flex items-center gap-2">
+                    <Badge variant="outline" className="shrink-0 max-w-[45%] truncate">{w}</Badge>
+                    <span className="text-muted-foreground text-xs">←</span>
+                    <Select value={whMap[w] || ""} onValueChange={(v) => setWhMap((m) => ({ ...m, [w]: v }))}>
+                      <SelectTrigger className={`h-9 ${!whMap[w] ? "border-warning" : ""}`}>
+                        <SelectValue placeholder="اختار الفرع" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                أي مستند مفيهوش مخزن هيترحّل على الفرع الرئيسي المختار فوق.
+                {groups.length > 1 && ` الملف ده هيتقسم على ${groups.length} مجموعة ترحيل.`}
+              </div>
             </div>
           )}
+
 
           {warned.length > 0 && (
             <div className="border rounded p-3 bg-warning/5 max-h-40 overflow-y-auto text-xs space-y-1">
