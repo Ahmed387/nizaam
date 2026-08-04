@@ -83,6 +83,9 @@ export default function NewShipment() {
   const [otherCost, setOtherCost] = useState(0);
   const [otherDesc, setOtherDesc] = useState("");
   const [admin, setAdmin] = useState(0);
+  const [invDiscType, setInvDiscType] = useState<"amount" | "percent">("amount");
+  const [invDiscValue, setInvDiscValue] = useState(0);
+
   const [notes, setNotes] = useState("");
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
   const [affectedBatches, setAffectedBatches] = useState(0);
