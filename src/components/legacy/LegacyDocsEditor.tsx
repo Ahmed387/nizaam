@@ -15,7 +15,10 @@ import { confirmAlert } from "@/components/ConfirmDialog";
 interface Props {
   docs: LegacyDoc[];
   onChange: (docs: LegacyDoc[]) => void;
+  /** الأعمدة الناقصة في الشيت — بتتعرض كخانات صفراء تعدّلها بإيدك قبل الاعتماد */
+  missing?: ColumnKey[];
 }
+
 
 const r2 = (n: number) => +(Number(n) || 0).toFixed(2);
 
