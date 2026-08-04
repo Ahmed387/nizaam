@@ -69,7 +69,7 @@ interface PaymentSplit {
 
 export default function NewSale() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { user, profile, isAdmin, hasRole } = useAuth();
+  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
   const prefillAppliedRef = useRef(false);
@@ -232,8 +232,11 @@ export default function NewSale() {
 
   const addNewCustomer = async () => {
     if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
+    if (!tenantId) return toast.error("مفيش حساب مرتبط — جرّب تعمل تسجيل خروج ودخول تاني");
     setSavingCust(true);
     const { data, error } = await supabase.from("contacts").insert({
+      tenant_id: tenantId,
+      type: "customer",
       name: newCust.name.trim(),
       phone: newCust.phone || null,
       address: newCust.address || null,
