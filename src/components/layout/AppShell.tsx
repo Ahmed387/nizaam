@@ -2,7 +2,7 @@ import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
 import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { useState, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -45,6 +45,14 @@ export function AppShell({
     else navigate(-1);
   };
   const isBackDisabled = !backTo && !canGoBack;
+
+  // Auto-collapse the sidebar on document forms (new/edit invoice, shipment, return, quote)
+  // so the user gets maximum width while filling it in.
+  const isDocumentForm = /\/(new|edit)(\/|$)/.test(loc.pathname);
+  useEffect(() => {
+    if (isDocumentForm) setCollapsed(true);
+  }, [isDocumentForm, loc.pathname]);
+
 
   // Group nav items by their optional `group` field, preserving insertion order
   const groupedNav = (() => {
