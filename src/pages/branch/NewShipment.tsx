@@ -275,11 +275,16 @@ export default function NewShipment() {
   // Real-time proportional distribution by line value
   const distribution = lines.map((l) => {
     const net = lineNet(l);
-    const baseUnit = (l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0) * discFactor;
+    const unitBefore = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+    const baseUnit = unitBefore * discFactor;
+    // نصيب الصنف من خصم الفاتورة (بالتناسب مع قيمة الصنف وكميته)
+    const invDiscShare = itemsNet > 0 ? (net / itemsNet) * invoiceDiscountAmount : 0;
+    const invDiscUnit = l.quantity > 0 ? invDiscShare / l.quantity : 0;
+    const invDiscPct = net > 0 ? (invDiscShare / net) * 100 : 0;
     const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
     const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
     const trueUnit = baseUnit + unitExtra;
-    return { line: l, baseUnit, unitExtra, lineShare, trueUnit };
+    return { line: l, net, unitBefore, baseUnit, invDiscShare, invDiscUnit, invDiscPct, unitExtra, lineShare, trueUnit };
   });
 
 
@@ -697,11 +702,14 @@ export default function NewShipment() {
           </div>
 
           {/* Live distribution preview */}
-          {lines.length > 0 && totalExtras > 0 && (
+          {lines.length > 0 && (totalExtras > 0 || invoiceDiscountAmount > 0) && (
             <div className="mt-5 border border-border rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between">
-                <span>توزيع المصاريف على المنتجات (تلقائي بالنسبة لقيمة كل صنف)</span>
-                <span className="text-muted-foreground">إجمالي للتوزيع: {formatEGP(totalExtras)}</span>
+              <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between flex-wrap gap-2">
+                <span>توزيع خصم الفاتورة والمصاريف على الأصناف (بالتناسب مع قيمة وكمية كل صنف)</span>
+                <span className="flex items-center gap-3">
+                  {invoiceDiscountAmount > 0 && <span className="text-destructive">خصم الفاتورة: − {formatEGP(invoiceDiscountAmount)}</span>}
+                  {totalExtras > 0 && <span className="text-muted-foreground">مصاريف للتوزيع: {formatEGP(totalExtras)}</span>}
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -709,7 +717,10 @@ export default function NewShipment() {
                     <tr>
                       <th className="px-3 py-2 text-right">المنتج</th>
                       <th className="px-3 py-2 text-right">الكمية</th>
-                      <th className="px-3 py-2 text-right">سعر الشراء/الوحدة</th>
+                      <th className="px-3 py-2 text-right">سعر الوحدة قبل الخصم</th>
+                      <th className="px-3 py-2 text-right">نصيب الصنف من الخصم</th>
+                      <th className="px-3 py-2 text-right">خصم الوحدة</th>
+                      <th className="px-3 py-2 text-right">سعر الوحدة بعد الخصم</th>
                       <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
                       <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
                       <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
@@ -720,7 +731,13 @@ export default function NewShipment() {
                       <tr key={i} className="border-t border-border">
                         <td className="px-3 py-2">{d.line.product_name || "—"}</td>
                         <td className="px-3 py-2">{d.line.quantity}</td>
-                        <td className="px-3 py-2">{formatEGP(d.baseUnit)}</td>
+                        <td className="px-3 py-2 text-muted-foreground line-through">{formatEGP(d.unitBefore)}</td>
+                        <td className="px-3 py-2 text-destructive">
+                          − {formatEGP(d.invDiscShare)}
+                          <span className="text-[10px] opacity-70"> ({d.invDiscPct.toFixed(1)}%)</span>
+                        </td>
+                        <td className="px-3 py-2 text-destructive">− {formatEGP(d.invDiscUnit)}</td>
+                        <td className="px-3 py-2 font-semibold">{formatEGP(d.baseUnit)}</td>
                         <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
                         <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
                         <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
@@ -893,16 +910,29 @@ export default function NewShipment() {
                   </div>
 
                   {/* Net summary footer */}
-                  <div className="flex items-center justify-between gap-3 px-3 py-2 bg-surface-2/60 border-t border-border/60 text-xs">
-                    <span className="text-muted-foreground font-semibold">الصافي</span>
-                    <div className="flex items-center gap-2">
-                      {(l.discount_percent > 0 || l.discount_amount > 0) && (
-                        <span className="text-[10px] text-muted-foreground line-through">{formatEGP(gross)}</span>
-                      )}
-                      <span className="font-bold text-primary text-sm">{formatEGP(net)}</span>
-                      <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setActiveLine(null)}>
-                        <ChevronUp className="w-3 h-3" />تم — اطوِ الصنف
-                      </Button>
+                  <div className="px-3 py-2 bg-surface-2/60 border-t border-border/60 text-xs space-y-1.5">
+                    {invoiceDiscountAmount > 0 && distribution[i] && (
+                      <div className="flex items-center justify-between gap-2 flex-wrap rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5">
+                        <span className="font-semibold text-destructive">
+                          نصيب الصنف من خصم الفاتورة: − {formatEGP(distribution[i].invDiscShare)} ({distribution[i].invDiscPct.toFixed(1)}%)
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-muted-foreground">سعر الوحدة: <b className="line-through">{formatEGP(distribution[i].unitBefore)}</b></span>
+                          <span className="text-primary font-bold">→ {formatEGP(distribution[i].baseUnit)}</span>
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground font-semibold">الصافي</span>
+                      <div className="flex items-center gap-2">
+                        {(l.discount_percent > 0 || l.discount_amount > 0) && (
+                          <span className="text-[10px] text-muted-foreground line-through">{formatEGP(gross)}</span>
+                        )}
+                        <span className="font-bold text-primary text-sm">{formatEGP(net)}</span>
+                        <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setActiveLine(null)}>
+                          <ChevronUp className="w-3 h-3" />تم — اطوِ الصنف
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
