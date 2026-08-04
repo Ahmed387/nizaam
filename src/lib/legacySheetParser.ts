@@ -316,5 +316,5 @@ export async function parseLegacyFile(file: File): Promise<ParsedLegacySheet> {
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, blankrows: true, defval: "" });
-  return parseLegacyRows(rows);
+  return parseLegacyRows(rows, kindFromFileName(file.name));
 }
