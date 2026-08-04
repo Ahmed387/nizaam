@@ -20,8 +20,10 @@ import {
   groupByDoc, runMigration,
 } from "@/lib/invoiceMigration";
 import {
-  parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL,
+  parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
+import { LegacyDocsEditor } from "@/components/legacy/LegacyDocsEditor";
+
 import { runLegacyMigration, LegacyDocResult } from "@/lib/legacyMigration";
 import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
 import { confirmAlert } from "@/components/ConfirmDialog";
@@ -52,25 +54,38 @@ function LegacyPanel() {
   const [checking, setChecking] = useState(false);
   /** ربط مخازن الملف بفروع النظام: اسم المخزن → id الفرع */
   const [whMap, setWhMap] = useState<Record<string, string>>({});
+  /** المستندات بعد التعديل اليدوي (دي اللي بتترحّل فعليًا) */
+  const [docs, setDocs] = useState<LegacyDoc[]>([]);
 
-  // أي تغيير في الإعدادات بيلغي الفحص السابق
-  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap]);
+  // أي تغيير في الإعدادات أو البيانات بيلغي الفحص السابق
+  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs]);
+
+  const warehouses = useMemo(
+    () => [...new Set(docs.map((d) => d.warehouse).filter(Boolean))],
+    [docs],
+  );
+  const fileAccounts = useMemo(
+    () => [...new Set(docs.map((d) => d.account.trim()).filter(Boolean))],
+    [docs],
+  );
 
   // أول ما الملف يتقرا: نحاول نطابق كل مخزن بفرع بنفس الاسم
   useEffect(() => {
-    if (!sheet) { setWhMap({}); return; }
     const normalize = (s: string) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
-    const next: Record<string, string> = {};
-    for (const w of sheet.warehouses) {
-      const nw = normalize(w);
-      const hit = (branches as any[]).find((b) => {
-        const nb = normalize(b.name);
-        return nb === nw || nb.includes(nw) || nw.includes(nb);
-      });
-      next[w] = hit?.id ?? "";
-    }
-    setWhMap(next);
-  }, [sheet, branches]);
+    setWhMap((prev) => {
+      const next: Record<string, string> = {};
+      for (const w of warehouses) {
+        if (prev[w]) { next[w] = prev[w]; continue; }
+        const nw = normalize(w);
+        const hit = (branches as any[]).find((b) => {
+          const nb = normalize(b.name);
+          return nb === nw || nb.includes(nw) || nw.includes(nb);
+        });
+        next[w] = hit?.id ?? "";
+      }
+      return next;
+    });
+  }, [warehouses, branches]);
 
   useEffect(() => {
     supabase.from("contacts").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []));
@@ -78,21 +93,27 @@ function LegacyPanel() {
 
 
   const kind = (kindOverride || sheet?.kind || "") as LegacyKind | "";
-  const needsSupplier = kind === "purchase" || kind === "purchase_return";
+  const isPurchase = kind === "purchase" || kind === "purchase_return";
+  /** المورد الافتراضي مطلوب بس لو فيه مستند مفيهوش اسم مورد في الملف */
+  const needsSupplier = isPurchase && docs.some((d) => !d.account.trim());
 
-  const docs = sheet?.docs ?? [];
+  const itemCount = useMemo(() => docs.reduce((s, d) => s + d.items.length, 0), [docs]);
+  const grandTotal = useMemo(() => docs.reduce((s, d) => s + d.headerTotal, 0), [docs]);
   const warned = useMemo(() => docs.filter((d) => d.warnings.length), [docs]);
   const branchName = (id: string) => (branches as any[]).find((b) => b.id === id)?.name ?? "—";
 
   /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
   const unmappedWarehouses = useMemo(
-    () => (sheet?.warehouses ?? []).filter((w) => !whMap[w]),
-    [sheet, whMap],
+    () => warehouses.filter((w) => !whMap[w]),
+    [warehouses, whMap],
   );
 
-  /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الرئيسي المختار) */
+  /** لازم نختار فرع افتراضي بس لو فيه مستند من غير مخزن */
+  const needsDefaultBranch = useMemo(() => docs.some((d) => !d.warehouse), [docs]);
+
+  /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الافتراضي المختار) */
   const groups = useMemo(() => {
-    const m = new Map<string, { warehouse: string; branchId: string; docs: typeof docs }>();
+    const m = new Map<string, { warehouse: string; branchId: string; docs: LegacyDoc[] }>();
     for (const d of docs) {
       const target = d.warehouse ? whMap[d.warehouse] || "" : branchId;
       const k = `${d.warehouse}|${target}`;
@@ -105,10 +126,13 @@ function LegacyPanel() {
   const onFile = async (file: File) => {
     setResults(null);
     setSheet(null);
+    setDocs([]);
+    setWhMap({});
     setFileName(file.name);
     try {
       const parsed = await parseLegacyFile(file);
       setSheet(parsed);
+      setDocs(parsed.docs);
       setKindOverride("");
       if (parsed.issues.length) parsed.issues.forEach((i) => toast.warning(i));
       else toast.success(`اتقرأ ${parsed.docs.length} مستند و ${parsed.itemCount} صنف`);
@@ -117,8 +141,10 @@ function LegacyPanel() {
     }
   };
 
+
   const dryRun = async () => {
-    if (!branchId) return toast.error("اختار الفرع الأول");
+    if (needsDefaultBranch && !branchId) return toast.error("فيه مستندات من غير مخزن — اختار الفرع الافتراضي");
+
     if (!kind) return toast.error("حدّد نوع المستندات");
     if (!docs.length) return toast.error("مفيش مستندات للفحص");
     if (unmappedWarehouses.length) {
@@ -130,7 +156,7 @@ function LegacyPanel() {
       for (const g of groups) {
         const rep = await runLegacyDryRun({
           kind, branchId: g.branchId || branchId, docs: g.docs,
-          supplierId: needsSupplier ? supplierId || null : null, skipExisting,
+          supplierId: isPurchase ? supplierId || null : null, skipExisting,
         });
         rep.docs.forEach((d) => { d.branchName = branchName(g.branchId || branchId); });
         parts.push(rep);
@@ -181,9 +207,10 @@ function LegacyPanel() {
   };
 
   const start = async () => {
-    if (!branchId) return toast.error("اختار الفرع الأول");
+    if (needsDefaultBranch && !branchId) return toast.error("فيه مستندات من غير مخزن — اختار الفرع الافتراضي");
     if (!kind) return toast.error("حدّد نوع المستندات");
-    if (needsSupplier && !supplierId) return toast.error("اختار المورد");
+    if (needsSupplier && !supplierId) return toast.error("فيه فواتير من غير مورد في الملف — اختار المورد الافتراضي");
+
     if (!docs.length) return toast.error("مفيش مستندات للترحيل");
     if (!report) return toast.error("لازم تعمل الفحص التجريبي الأول");
     if (unmappedWarehouses.length) {
@@ -227,7 +254,7 @@ function LegacyPanel() {
           userId: user!.id,
           label: (label.trim() || "ترحيل") + (g.warehouse ? ` — ${g.warehouse}` : ""),
           fileName,
-          supplierId: needsSupplier ? supplierId : null,
+          supplierId: isPurchase ? supplierId || null : null,
           docs: g.docs,
           skipExisting,
           onProgress: (done) => setProgress({ done: base + done, total: docs.length }),
@@ -269,16 +296,10 @@ function LegacyPanel() {
   return (
     <div className="space-y-4">
       <Card className="p-4 space-y-4">
-        <div className="grid md:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label>الفرع اللي هتترحّل عليه</Label>
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
-              <SelectContent>
-                {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="text-sm font-bold flex items-center gap-2">
+          <Badge className="bg-primary text-primary-foreground">١</Badge> ارفع ملف النظام القديم
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label>اسم دفعة الترحيل</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="مثال: داتا معرض عبد المنعم" />
@@ -294,8 +315,10 @@ function LegacyPanel() {
         </div>
 
         <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded p-3">
-          ارفع الملف زي ما هو من النظام القديم — النظام بيفهم شكل البلوكات (سطر الفاتورة ← عناوين الأصناف ← الأصناف ← الإجمالي).
-          <b> الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
+          خطوات العملية: <b>١ رفع الملف</b> ← <b>٢ تحديد النوع وربط المخازن بالفروع</b> ← <b>٣ مراجعة وتعديل البيانات</b> ← <b>٤ فحص تجريبي</b> ← <b>٥ اعتماد وترحيل</b>.
+          الفرع مش بيتحدد في الأول — بيتحدد من عمود <b>المخزن</b> اللي في الملف نفسه، وكل مخزن بتربطه بفرعه.
+          <br />
+          <b>الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
         </div>
       </Card>
 
@@ -308,9 +331,13 @@ function LegacyPanel() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
             <div className="p-3 rounded border"><div className="text-xs text-muted-foreground">مستندات</div><div className="text-xl font-bold">{docs.length}</div></div>
-            <div className="p-3 rounded border bg-primary/10"><div className="text-xs text-primary">أصناف</div><div className="text-xl font-bold text-primary">{sheet.itemCount}</div></div>
-            <div className="p-3 rounded border bg-success/10"><div className="text-xs text-success">الإجمالي</div><div className="text-lg font-bold text-success">{formatEGP(sheet.grandTotal)}</div></div>
+            <div className="p-3 rounded border bg-primary/10"><div className="text-xs text-primary">أصناف</div><div className="text-xl font-bold text-primary">{itemCount}</div></div>
+            <div className="p-3 rounded border bg-success/10"><div className="text-xs text-success">الإجمالي</div><div className="text-lg font-bold text-success">{formatEGP(grandTotal)}</div></div>
             <div className="p-3 rounded border bg-warning/10"><div className="text-xs text-warning">فيها ملاحظات</div><div className="text-xl font-bold text-warning">{warned.length}</div></div>
+          </div>
+
+          <div className="text-sm font-bold flex items-center gap-2 pt-1">
+            <Badge className="bg-primary text-primary-foreground">٢</Badge> النوع وربط المخازن بالفروع
           </div>
 
           <div className="grid md:grid-cols-3 gap-3">
@@ -323,11 +350,15 @@ function LegacyPanel() {
                 </SelectContent>
               </Select>
             </div>
-            {needsSupplier && (
+            {isPurchase && (
               <div className="space-y-1">
-                <Label>المورد الافتراضي (لو الملف مفيهوش عمود مورد)</Label>
+                <Label>
+                  المورد الافتراضي {needsSupplier ? "(مطلوب — فيه فواتير من غير مورد)" : "(اختياري — كل الفواتير فيها مورد)"}
+                </Label>
                 <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger><SelectValue placeholder="اختار المورد" /></SelectTrigger>
+                  <SelectTrigger className={needsSupplier && !supplierId ? "border-warning" : ""}>
+                    <SelectValue placeholder="اختار المورد" />
+                  </SelectTrigger>
                   <SelectContent>
                     {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
@@ -343,8 +374,23 @@ function LegacyPanel() {
             </div>
           </div>
 
-          {sheet.warehouses.length > 0 && (
-            <div className={`border rounded-lg p-3 space-y-2 ${unmappedWarehouses.length ? "border-warning bg-warning/5" : "bg-muted/30"}`}>
+          {fileAccounts.length > 0 && (
+            <div className="border rounded-lg p-3 bg-muted/30 space-y-1">
+              <div className="text-sm font-semibold">
+                {isPurchase ? "الموردين" : "العملاء"} اللي في الملف ({fileAccounts.length})
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {fileAccounts.slice(0, 40).map((a) => <Badge key={a} variant="outline" className="font-normal">{a}</Badge>)}
+                {fileAccounts.length > 40 && <Badge variant="outline">+{fileAccounts.length - 40}</Badge>}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                كل اسم بيتربط بحساب موجود بنفس الاسم، ولو مش موجود بيتعمل تلقائي — يعني الملف الواحد ممكن يكون فيه أكتر من مورد عادي.
+              </div>
+            </div>
+          )}
+
+          {(warehouses.length > 0 || needsDefaultBranch) && (
+            <div className={`border rounded-lg p-3 space-y-2 ${unmappedWarehouses.length || (needsDefaultBranch && !branchId) ? "border-warning bg-warning/5" : "bg-muted/30"}`}>
               <div className="text-sm font-semibold flex items-center gap-1">
                 <AlertTriangle className={`w-4 h-4 ${unmappedWarehouses.length ? "text-warning" : "text-muted-foreground"}`} />
                 ربط مخازن الملف بفروع النظام
@@ -356,7 +402,7 @@ function LegacyPanel() {
                 </div>
               )}
               <div className="grid md:grid-cols-2 gap-2">
-                {sheet.warehouses.map((w) => (
+                {warehouses.map((w) => (
                   <div key={w} className="flex items-center gap-2">
                     <Badge variant="outline" className="shrink-0 max-w-[45%] truncate">{w}</Badge>
                     <span className="text-muted-foreground text-xs">←</span>
@@ -370,13 +416,35 @@ function LegacyPanel() {
                     </Select>
                   </div>
                 ))}
+                {needsDefaultBranch && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="shrink-0 max-w-[45%] truncate">مستندات من غير مخزن</Badge>
+                    <span className="text-muted-foreground text-xs">←</span>
+                    <Select value={branchId} onValueChange={setBranchId}>
+                      <SelectTrigger className={`h-9 ${!branchId ? "border-warning" : ""}`}>
+                        <SelectValue placeholder="اختار الفرع الافتراضي" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                أي مستند مفيهوش مخزن هيترحّل على الفرع الرئيسي المختار فوق.
-                {groups.length > 1 && ` الملف ده هيتقسم على ${groups.length} مجموعة ترحيل.`}
+                {groups.length > 1
+                  ? `الملف ده هيتقسم على ${groups.length} مجموعة ترحيل — كل مجموعة على فرعها.`
+                  : "كل المستندات هتترحّل على فرع واحد."}
               </div>
             </div>
           )}
+
+          <div className="text-sm font-bold flex items-center gap-2 pt-1">
+            <Badge className="bg-primary text-primary-foreground">٣</Badge> راجع وعدّل البيانات قبل الاعتماد
+          </div>
+          <LegacyDocsEditor docs={docs} onChange={setDocs} />
+
+
 
 
           {warned.length > 0 && (
@@ -390,108 +458,10 @@ function LegacyPanel() {
             </div>
           )}
 
-          {docs[0] && (
-            <div className="border-2 border-primary/30 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-primary/10 text-sm font-bold">
-                معاينة تفصيلية لأول مستند — #{docs[0].legacyNumber || "بدون رقم"} (صف {docs[0].row} في الملف)
-              </div>
-
-              <div className="p-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                {[
-                  ["التاريخ / الوقت", docs[0].dateISO.replace("T", " ") || "—"],
-                  ["الحساب (عميل/مورد)", docs[0].account || "—"],
-                  ["المخزن", docs[0].warehouse || "—"],
-                  ["طريقة السداد", docs[0].paymentLabel || "—"],
-                  ["إجمالي الهيدر", formatEGP(docs[0].headerTotal)],
-                  ["مجموع السطور", formatEGP(docs[0].itemsTotal)],
-                  ["خصم الهيدر", formatEGP(docs[0].headerDiscount)],
-                  ["المدفوع", formatEGP(docs[0].paid)],
-                  ["الآجل", formatEGP(docs[0].credit)],
-                  ["المستحق", formatEGP(docs[0].due)],
-                  ["المستند الأصلي", docs[0].originalNumber ?? "—"],
-                  [
-                    "تفصيل الدفع",
-                    docs[0].payments.length
-                      ? docs[0].payments.map((p) => `${p.method}: ${formatEGP(p.amount)}`).join(" · ")
-                      : "—",
-                  ],
-                ].map(([k, v]) => (
-                  <div key={k as string} className="p-2 rounded border bg-muted/30">
-                    <div className="text-muted-foreground">{k}</div>
-                    <div className="font-semibold break-words">{v}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-2 py-1">#</th>
-                      <th className="px-2 py-1">كود الصنف</th>
-                      <th className="px-2 py-1">اسم الصنف</th>
-                      <th className="px-2 py-1">الكمية</th>
-                      <th className="px-2 py-1">السعر</th>
-                      <th className="px-2 py-1">الخصم</th>
-                      <th className="px-2 py-1">النهائي</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {docs[0].items.map((it, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-2 py-1">{i + 1}</td>
-                        <td className="px-2 py-1">{it.code || "—"}</td>
-                        <td className="px-2 py-1">{it.name}</td>
-                        <td className="px-2 py-1">{it.qty}</td>
-                        <td className="px-2 py-1">{formatEGP(it.price)}</td>
-                        <td className="px-2 py-1">{formatEGP(it.discount)}</td>
-                        <td className="px-2 py-1 font-semibold">{formatEGP(it.total)}</td>
-                      </tr>
-                    ))}
-                    {!docs[0].items.length && (
-                      <tr><td colSpan={7} className="px-2 py-3 text-center text-muted-foreground">مفيش أصناف اتقرت في المستند ده</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {docs[0].warnings.length > 0 && (
-                <div className="px-3 py-2 bg-warning/10 text-xs text-warning font-semibold">
-                  ملاحظات: {docs[0].warnings.join("، ")}
-                </div>
-              )}
-            </div>
-          )}
-
-
-          <div className="border rounded overflow-hidden">
-            <div className="px-3 py-2 bg-muted text-sm font-semibold">معاينة أول 10 مستندات</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-2 py-1">الرقم</th><th className="px-2 py-1">التاريخ</th>
-                    <th className="px-2 py-1">الحساب</th><th className="px-2 py-1">أصناف</th>
-                    <th className="px-2 py-1">الإجمالي</th><th className="px-2 py-1">المدفوع</th>
-                    <th className="px-2 py-1">مرتبط بـ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {docs.slice(0, 10).map((d) => (
-                    <tr key={d.legacyNumber + d.row} className="border-t">
-                      <td className="px-2 py-1 font-semibold">{d.legacyNumber}</td>
-                      <td className="px-2 py-1">{d.dateISO.replace("T", " ")}</td>
-                      <td className="px-2 py-1">{d.account || "—"}</td>
-                      <td className="px-2 py-1">{d.items.length}</td>
-                      <td className="px-2 py-1">{formatEGP(d.headerTotal)}</td>
-                      <td className="px-2 py-1">{formatEGP(d.paid)}</td>
-                      <td className="px-2 py-1">{d.originalNumber ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="text-sm font-bold flex items-center gap-2 pt-1">
+            <Badge className="bg-primary text-primary-foreground">٤</Badge> فحص تجريبي قبل الاعتماد
           </div>
+
 
           {report && (
             <div className="border-2 rounded-lg overflow-hidden">
@@ -566,13 +536,14 @@ function LegacyPanel() {
           <div className="grid md:grid-cols-2 gap-2">
             <Button onClick={dryRun} disabled={checking || busy || !docs.length} variant="outline" className="w-full">
               {checking ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 ml-2" />}
-              فحص تجريبي قبل الاعتماد (إجباري)
+              ٤ · فحص تجريبي قبل الاعتماد (إجباري)
             </Button>
             <Button onClick={start} disabled={busy || !docs.length || !report} className="w-full btn-gradient">
               {busy ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Boxes className="w-4 h-4 ml-2" />}
-              {report ? `اعتمد وارفع ${docs.length} مستند` : "اعمل الفحص الأول"}
+              {report ? `٥ · اعتمد وارفع ${docs.length} مستند` : "اعمل الفحص الأول"}
             </Button>
           </div>
+
         </Card>
       )}
 
