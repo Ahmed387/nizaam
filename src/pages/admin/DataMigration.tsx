@@ -17,6 +17,7 @@ import {
   parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
 import { LegacyDocsEditor } from "@/components/legacy/LegacyDocsEditor";
+import { LegacyAccountsMapper } from "@/components/legacy/LegacyAccountsMapper";
 
 import { runLegacyMigration, LegacyDocResult } from "@/lib/legacyMigration";
 import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
@@ -49,9 +50,11 @@ function LegacyPanel() {
   const [whMap, setWhMap] = useState<Record<string, string>>({});
   /** المستندات بعد التعديل اليدوي (دي اللي بتترحّل فعليًا) */
   const [docs, setDocs] = useState<LegacyDoc[]>([]);
+  /** ربط اسم الحساب في الملف بحساب موجود على النظام */
+  const [contactMap, setContactMap] = useState<Record<string, string>>({});
 
   // أي تغيير في الإعدادات أو البيانات بيلغي الفحص السابق
-  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs]);
+  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs, contactMap]);
 
   const warehouses = useMemo(
     () => [...new Set(docs.map((d) => d.warehouse).filter(Boolean))],
@@ -121,6 +124,7 @@ function LegacyPanel() {
     setSheet(null);
     setDocs([]);
     setWhMap({});
+    setContactMap({});
     setFileName(file.name);
     try {
       const parsed = await parseLegacyFile(file);
@@ -149,7 +153,7 @@ function LegacyPanel() {
       for (const g of groups) {
         const rep = await runLegacyDryRun({
           kind, branchId: g.branchId || branchId, docs: g.docs,
-          supplierId: isPurchase ? supplierId || null : null, skipExisting,
+          supplierId: isPurchase ? supplierId || null : null, skipExisting, contactMap,
         });
         rep.docs.forEach((d) => { d.branchName = branchName(g.branchId || branchId); });
         parts.push(rep);
@@ -248,6 +252,7 @@ function LegacyPanel() {
           label: (label.trim() || "ترحيل") + (g.warehouse ? ` — ${g.warehouse}` : ""),
           fileName,
           supplierId: isPurchase ? supplierId || null : null,
+          contactMap,
           docs: g.docs,
           skipExisting,
           onProgress: (done) => setProgress({ done: base + done, total: docs.length }),
@@ -368,18 +373,12 @@ function LegacyPanel() {
           </div>
 
           {fileAccounts.length > 0 && (
-            <div className="border rounded-lg p-3 bg-muted/30 space-y-1">
-              <div className="text-sm font-semibold">
-                {isPurchase ? "الموردين" : "العملاء"} اللي في الملف ({fileAccounts.length})
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {fileAccounts.slice(0, 40).map((a) => <Badge key={a} variant="outline" className="font-normal">{a}</Badge>)}
-                {fileAccounts.length > 40 && <Badge variant="outline">+{fileAccounts.length - 40}</Badge>}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                كل اسم بيتربط بحساب موجود بنفس الاسم، ولو مش موجود بيتعمل تلقائي — يعني الملف الواحد ممكن يكون فيه أكتر من مورد عادي.
-              </div>
-            </div>
+            <LegacyAccountsMapper
+              names={fileAccounts}
+              isPurchase={isPurchase}
+              value={contactMap}
+              onChange={setContactMap}
+            />
           )}
 
           {(warehouses.length > 0 || needsDefaultBranch) && (
