@@ -141,58 +141,85 @@ const pick = (map: Record<string, number>, row: any[], ...names: string[]) => {
 
 /* ------------------------------------------------------------------ */
 
-export function parseLegacyRows(rows: any[][]): ParsedLegacySheet {
+/** يستنتج نوع المستند من اسم الملف (مثلاً "فواتير_شراء-3.xlsx" → purchase). */
+export function kindFromFileName(fileName: string): LegacyKind | null {
+  const n = fileName.replace(/[_\-.]+/g, " ");
+  return KIND_FROM_TITLE.find((k) => n.includes(k.match))?.kind ?? null;
+}
+
+const isDateCell = (v: any) => {
+  if (v instanceof Date) return true;
+  const s = clean(v);
+  return /^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s) || /^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(s);
+};
+
+/** ترتيب الأعمدة الافتراضي لما الملف ميكونش فيه صف عناوين. */
+const POSITIONAL_DOC: Record<string, number> = {
+  "التاريخ": 0, "الوقت": 1, "رقم الفاتورة": 2, "المخزن": 3,
+  "طريقة السداد": 4, "كمية": 5, "الخصم": 6, "النهائى": 7,
+};
+const POSITIONAL_ITEM: Record<string, number> = {
+  "رقم الصنف": 0, "اسم الصنف": 1, "وحدة": 2, "المتاح": 3,
+  "كمية": 4, "السعر": 5, "الخصم": 6, "النهائى": 7,
+};
+
+export function parseLegacyRows(rows: any[][], fallbackKind: LegacyKind | null = null): ParsedLegacySheet {
   const issues: string[] = [];
   const docs: LegacyDoc[] = [];
 
-  // 1) نوع المستند من أول خلية غير فاضية
+  // 1) نوع المستند من أول خلية غير فاضية، وإلا من اسم الملف
   let rawKind = "";
   for (const r of rows.slice(0, 5)) {
     const c = clean(r?.[0]);
-    if (c) { rawKind = c; break; }
+    if (c && !isDateCell(c)) { rawKind = c; break; }
   }
-  const kind = KIND_FROM_TITLE.find((k) => rawKind.includes(k.match))?.kind ?? null;
-  if (!kind) issues.push(`مش عارف نوع المستند من عنوان الملف ("${rawKind || "فاضي"}") — اختاره يدوي.`);
+  const titleKind = KIND_FROM_TITLE.find((k) => rawKind.includes(k.match))?.kind ?? null;
+  const kind = titleKind ?? fallbackKind;
+  if (!titleKind && fallbackKind) issues.push(`مفيش عنوان جوه الملف — النوع اتحدد من اسم الملف: ${LEGACY_KIND_LABEL[fallbackKind]}.`);
+  if (!kind) issues.push(`مش عارف نوع المستند لا من عنوان الملف ولا من اسمه — اختاره يدوي.`);
 
-  // 2) صف عناوين المستند
+  // 2) صف عناوين المستند (لو موجود)
   let headIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 20); i++) {
     const cells = (rows[i] ?? []).map(clean);
     if (cells.includes("رقم الفاتورة") && cells.includes("التاريخ")) { headIdx = i; break; }
   }
-  if (headIdx < 0) {
-    issues.push("مش لاقي صف العناوين (التاريخ / رقم الفاتورة) — الملف شكله مختلف.");
-    return { kind, rawKind, docs: [], warehouses: [], accounts: [], itemCount: 0, grandTotal: 0, issues };
+  const headerless = headIdx < 0;
+  const H = headerless ? POSITIONAL_DOC : headerMap(rows[headIdx]);
+  if (headerless) {
+    issues.push("الملف مفيهوش صف عناوين — اتقرى بترتيب الأعمدة: التاريخ | الوقت | رقم الفاتورة | المخزن | طريقة السداد | كمية | خصم | الإجمالي. راجع المعاينة قبل الترحيل.");
   }
-  const H = headerMap(rows[headIdx]);
 
   // 3) المرور على البلوكات
-  let itemH: Record<string, number> | null = null;
+  let itemH: Record<string, number> | null = headerless ? POSITIONAL_ITEM : null;
   let cur: LegacyDoc | null = null;
+  let seq = 0;
   const push = () => { if (cur) { finalizeDoc(cur); docs.push(cur); cur = null; } };
 
-  for (let i = headIdx + 1; i < rows.length; i++) {
+  for (let i = headerless ? 0 : headIdx + 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
     const first = clean(row[0]);
 
+    // صف عناوين الأصناف (في أي عمود)
+    if (row.some((c) => clean(c) === "رقم الصنف")) { itemH = headerMap(row); continue; }
+
     // هيدر مستند جديد
-    if (isSeq(first)) {
+    const isDocHeader = headerless ? isDateCell(row[0]) : isSeq(first);
+    if (isDocHeader) {
       push();
-      cur = buildDoc(row, H, +first, i + 1, kind);
+      seq = headerless ? seq + 1 : +first;
+      cur = buildDoc(row, H, seq, i + 1, kind);
       continue;
     }
 
-    // صف عناوين الأصناف
-    if (clean(row[1]) === "رقم الصنف") { itemH = headerMap(row); continue; }
-
     if (!cur) continue;
 
-    const code = clean(row[1]);
-    const name = clean(row[2]);
+    const m = itemH ?? POSITIONAL_ITEM;
+    const code = clean(pick(m, row, "رقم الصنف", "كود الصنف"));
+    const name = clean(pick(m, row, "اسم الصنف", "الصنف"));
 
     // صف صنف حقيقي: لازم يكون فيه اسم صنف
     if (name) {
-      const m = itemH ?? { "كمية": 5, "السعر": 6, "الخصم": 7, "النهائى": 8 };
       const qty = Math.abs(num(pick(m, row, "كمية", "الكمية")));
       const price = Math.abs(num(pick(m, row, "السعر", "سعر")));
       const disc = Math.abs(num(pick(m, row, "الخصم", "خصم")));
@@ -214,7 +241,7 @@ export function parseLegacyRows(rows: any[][]): ParsedLegacySheet {
 
   return {
     kind,
-    rawKind,
+    rawKind: rawKind || (kind ? LEGACY_KIND_LABEL[kind] : ""),
     docs,
     warehouses,
     accounts,
@@ -223,6 +250,7 @@ export function parseLegacyRows(rows: any[][]): ParsedLegacySheet {
     issues,
   };
 }
+
 
 function buildDoc(row: any[], H: Record<string, number>, seq: number, rowNo: number, kind: LegacyKind | null): LegacyDoc {
   const total = Math.abs(num(pick(H, row, "النهائى", "الاجمالى", "الإجمالي")));
