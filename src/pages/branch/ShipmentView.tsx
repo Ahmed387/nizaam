@@ -21,6 +21,7 @@ import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ProductImage } from "@/components/ProductImage";
 import { VariantLine } from "@/components/VariantChips";
+import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -302,6 +303,8 @@ export default function ShipmentView() {
           </div>
         );
       })()}
+
+      <ShipmentPaymentsPanel shipmentId={ship.id} canEdit={canEdit} onChanged={loadShipment} />
 
 
       <div className="card-elevated overflow-hidden">

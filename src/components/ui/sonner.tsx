@@ -35,17 +35,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         unstyled: false,
         classNames: {
-          toast: `${base} group-[.toaster]:bg-background/70 group-[.toaster]:text-foreground group-[.toaster]:border-border/60`,
+          toast: `${base} group-[.toaster]:bg-card group-[.toaster]:text-foreground group-[.toaster]:border-border`,
           success:
-            "group-[.toaster]:bg-success/12 group-[.toaster]:border-success/30 group-[.toaster]:border-r-success group-[.toaster]:text-success-foreground",
+            "group-[.toaster]:bg-success/20 group-[.toaster]:border-success/50 group-[.toaster]:border-r-success group-[.toaster]:text-foreground",
           error:
-            "group-[.toaster]:bg-destructive/12 group-[.toaster]:border-destructive/30 group-[.toaster]:border-r-destructive",
+            "group-[.toaster]:bg-destructive/20 group-[.toaster]:border-destructive/50 group-[.toaster]:border-r-destructive group-[.toaster]:text-foreground",
           warning:
-            "group-[.toaster]:bg-warning/12 group-[.toaster]:border-warning/30 group-[.toaster]:border-r-warning",
+            "group-[.toaster]:bg-warning/20 group-[.toaster]:border-warning/50 group-[.toaster]:border-r-warning group-[.toaster]:text-foreground",
           info:
-            "group-[.toaster]:bg-primary/10 group-[.toaster]:border-primary/30 group-[.toaster]:border-r-primary",
-          title: "group-[.toast]:font-bold group-[.toast]:leading-6",
-          description: "group-[.toast]:text-muted-foreground group-[.toast]:text-xs group-[.toast]:leading-5",
+            "group-[.toaster]:bg-primary/15 group-[.toaster]:border-primary/50 group-[.toaster]:border-r-primary group-[.toaster]:text-foreground",
+          title: "group-[.toast]:font-bold group-[.toast]:leading-6 group-[.toast]:text-foreground",
+          description: "group-[.toast]:text-foreground/80 group-[.toast]:text-xs group-[.toast]:leading-5",
           icon: "group-[.toast]:shrink-0",
           actionButton:
             "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-lg group-[.toast]:font-bold",

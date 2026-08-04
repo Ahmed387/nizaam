@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Pencil } from "lucide-react";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
 
 interface Props {
   open: boolean;
@@ -94,7 +95,26 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
         });
         if (error) throw error;
       }
-      toast.success("تم تعديل الدفعة، الحسابات اتحدثت تلقائياً");
+      const before = target.row;
+      const label = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;
+      const changes: string[] = [];
+      if ((before.payment_method || "cash") !== method.method)
+        changes.push(`طريقة الدفع: ${label(before.payment_method || "cash")} ← ${label(method.method)}`);
+      if (Number(before.amount || 0) !== amt)
+        changes.push(`المبلغ: ${Number(before.amount || 0).toLocaleString()} ← ${amt.toLocaleString()} ج.م`);
+      if (Number(before.fee_amount || 0) !== Number(method.fee_amount || 0))
+        changes.push(`الرسوم: ${Number(before.fee_amount || 0).toLocaleString()} ← ${Number(method.fee_amount || 0).toLocaleString()} ج.م`);
+      if ((before.reference_number ?? "") !== (reference ?? ""))
+        changes.push(`الرقم المرجعي: ${before.reference_number || "—"} ← ${reference || "—"}`);
+      if ((before.received_by_name ?? "") !== (receivedBy ?? ""))
+        changes.push(`المستلم: ${before.received_by_name || "—"} ← ${receivedBy || "—"}`);
+
+      toast.success(changes.length ? "تم تعديل الدفعة ✅" : "تم الحفظ (مفيش تغيير يُذكر)", {
+        description: changes.length
+          ? `${changes.join(" • ")} — الخزنة وحساب الطرف اتظبطوا تلقائي`
+          : "الحسابات زي ما هي",
+        duration: 8000,
+      });
       onOpenChange(false);
       onSuccess();
     } catch (e: any) {
