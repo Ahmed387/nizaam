@@ -702,11 +702,14 @@ export default function NewShipment() {
           </div>
 
           {/* Live distribution preview */}
-          {lines.length > 0 && totalExtras > 0 && (
+          {lines.length > 0 && (totalExtras > 0 || invoiceDiscountAmount > 0) && (
             <div className="mt-5 border border-border rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between">
-                <span>توزيع المصاريف على المنتجات (تلقائي بالنسبة لقيمة كل صنف)</span>
-                <span className="text-muted-foreground">إجمالي للتوزيع: {formatEGP(totalExtras)}</span>
+              <div className="px-3 py-2 bg-surface-2 text-xs font-bold flex items-center justify-between flex-wrap gap-2">
+                <span>توزيع خصم الفاتورة والمصاريف على الأصناف (بالتناسب مع قيمة وكمية كل صنف)</span>
+                <span className="flex items-center gap-3">
+                  {invoiceDiscountAmount > 0 && <span className="text-destructive">خصم الفاتورة: − {formatEGP(invoiceDiscountAmount)}</span>}
+                  {totalExtras > 0 && <span className="text-muted-foreground">مصاريف للتوزيع: {formatEGP(totalExtras)}</span>}
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -714,7 +717,10 @@ export default function NewShipment() {
                     <tr>
                       <th className="px-3 py-2 text-right">المنتج</th>
                       <th className="px-3 py-2 text-right">الكمية</th>
-                      <th className="px-3 py-2 text-right">سعر الشراء/الوحدة</th>
+                      <th className="px-3 py-2 text-right">سعر الوحدة قبل الخصم</th>
+                      <th className="px-3 py-2 text-right">نصيب الصنف من الخصم</th>
+                      <th className="px-3 py-2 text-right">خصم الوحدة</th>
+                      <th className="px-3 py-2 text-right">سعر الوحدة بعد الخصم</th>
                       <th className="px-3 py-2 text-right">نصيب الشحن/الوحدة</th>
                       <th className="px-3 py-2 text-right">التكلفة الحقيقية/الوحدة</th>
                       <th className="px-3 py-2 text-right">سعر البيع المقترح (+30%)</th>
@@ -725,7 +731,13 @@ export default function NewShipment() {
                       <tr key={i} className="border-t border-border">
                         <td className="px-3 py-2">{d.line.product_name || "—"}</td>
                         <td className="px-3 py-2">{d.line.quantity}</td>
-                        <td className="px-3 py-2">{formatEGP(d.baseUnit)}</td>
+                        <td className="px-3 py-2 text-muted-foreground line-through">{formatEGP(d.unitBefore)}</td>
+                        <td className="px-3 py-2 text-destructive">
+                          − {formatEGP(d.invDiscShare)}
+                          <span className="text-[10px] opacity-70"> ({d.invDiscPct.toFixed(1)}%)</span>
+                        </td>
+                        <td className="px-3 py-2 text-destructive">− {formatEGP(d.invDiscUnit)}</td>
+                        <td className="px-3 py-2 font-semibold">{formatEGP(d.baseUnit)}</td>
                         <td className="px-3 py-2 text-amber-600">+ {formatEGP(d.unitExtra)}</td>
                         <td className="px-3 py-2 font-bold text-primary">{formatEGP(d.trueUnit)}</td>
                         <td className="px-3 py-2 text-emerald-600">{formatEGP(d.trueUnit * 1.3)}</td>
