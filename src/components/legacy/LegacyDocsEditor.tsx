@@ -7,6 +7,7 @@ import type { LegacyDoc, LegacyItem } from "@/lib/legacySheetParser";
 import type { ColumnKey } from "@/lib/legacyTemplate";
 import { formatEGP } from "@/lib/format";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { LegacyContactPicker } from "@/components/legacy/LegacyContactPicker";
 
 /**
  * محرر المستندات قبل الاعتماد.
