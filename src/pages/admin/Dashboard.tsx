@@ -250,21 +250,13 @@ export default function AdminDashboard() {
           loading={loading}
           rows={recent}
           empty="لا توجد فواتير"
-          onRowClick={(r: any) => window.open(`/branch/${r.branch_id}/sales/${r.id}`, "_blank")}
+          onRowClick={(r: any) => nav(`/branch/${r.branch_id}/sales/${r.id}`)}
           columns={[
             {
               key: "invoice_number",
               header: "رقم",
               render: (r: any) => (
-                <a
-                  href={`/branch/${r.branch_id}/sales/${r.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-primary font-medium hover:underline"
-                >
-                  {r.invoice_number}
-                </a>
+                <span className="text-primary font-medium hover:underline">{r.invoice_number}</span>
               ),
             },
             { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
