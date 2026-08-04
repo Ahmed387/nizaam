@@ -176,6 +176,7 @@ export async function runLegacyDryRun(a: DryRunArgs): Promise<DryRunReport> {
       paid: doc.paid,
       status: blocked ? "blocked" : skip ? "skip" : issues.some((i) => i.level === "warning") ? "warning" : "ok",
       issues,
+      warehouse: doc.warehouse || "",
     });
   }
 
