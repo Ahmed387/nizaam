@@ -133,8 +133,11 @@ export default function NewShipment() {
 
   const createSupplier = async () => {
     if (!newSup.name.trim()) return toast.error("اسم الشركة مطلوب");
+    if (!tenantId) return toast.error("مفيش حساب مرتبط — جرّب تعمل تسجيل خروج ودخول تاني");
     setSavingSup(true);
     const { data, error } = await supabase.from("contacts").insert({
+      tenant_id: tenantId,
+      type: "supplier",
       name: newSup.name.trim(),
       contact_person: newSup.contact_person.trim() || null,
       phone: newSup.phone.trim() || null,
@@ -148,6 +151,7 @@ export default function NewShipment() {
     setNewSup({ name: "", contact_person: "", phone: "", address: "" });
     toast.success("تمت إضافة المورد");
   };
+
 
   const loadProducts = () => {
     if (!branchId) return;
