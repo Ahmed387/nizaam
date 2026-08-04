@@ -119,7 +119,18 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
           <Loader2 className="w-4 h-4 animate-spin" /> بنحمّل الدفعات...
         </div>
       ) : !plan ? (
-        <div className="p-6 text-sm text-muted-foreground">مفيش خطة دفع مرتبطة بالشحنة دي.</div>
+        <div className="p-6 space-y-3">
+          <div className="text-sm text-destructive font-bold">مفيش خطة دفع مرتبطة بالشحنة دي</div>
+          <div className="text-xs text-muted-foreground">
+            الشحنة اتسجلت بس خطة الدفع مااتعملتش. اعمل خطة دفع دلوقتي عشان تقدر تسجّل المدفوع للمورد وتعدّل طريقة الدفع.
+          </div>
+          {canEdit && (
+            <Button size="sm" onClick={createPlan} disabled={creating} className="gap-1">
+              {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              إنشاء خطة الدفع
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3 p-4 text-sm">
