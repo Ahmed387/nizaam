@@ -49,6 +49,7 @@ import {
   Activity,
   Download,
   Package,
+  Percent,
 } from "lucide-react";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
