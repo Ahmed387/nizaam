@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronLeft, Trash2, Plus, Wand2, Search } from "lucide-react";
 import type { LegacyDoc, LegacyItem } from "@/lib/legacySheetParser";
 import type { ColumnKey } from "@/lib/legacyTemplate";
@@ -21,6 +22,10 @@ interface Props {
   missing?: ColumnKey[];
   /** نوع الطرف: مورد في الشراء، عميل في البيع */
   partyType?: "customer" | "supplier";
+  /** فروع النظام — لاختيار فرع مختلف لكل فاتورة */
+  branches?: { id: string; name: string }[];
+  /** الفرع الناتج من مابنج المخزن لكل مستند (fallback) */
+  resolveBranch?: (d: LegacyDoc) => string;
 }
 
 
@@ -35,7 +40,7 @@ function recalcDoc(d: LegacyDoc): LegacyDoc {
   return { ...d, items, itemsTotal: r2(items.reduce((s, i) => s + i.total, 0)) };
 }
 
-export function LegacyDocsEditor({ docs, onChange, missing = [], partyType = "customer" }: Props) {
+export function LegacyDocsEditor({ docs, onChange, missing = [], partyType = "customer", branches = [], resolveBranch }: Props) {
   const miss = useMemo(() => new Set(missing), [missing]);
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [q, setQ] = useState("");
@@ -134,6 +139,21 @@ export function LegacyDocsEditor({ docs, onChange, missing = [], partyType = "cu
                   <LegacyContactPicker value={d.account} type={partyType}
                     onChange={(name) => patchDoc(i, { account: name })} />
                 </div>
+                {branches.length > 0 && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select value={d.branchId || resolveBranch?.(d) || ""}
+                      onValueChange={(v) => patchDoc(i, { branchId: v })}>
+                      <SelectTrigger className={`h-8 w-40 text-xs ${!(d.branchId || resolveBranch?.(d)) ? "border-destructive border-2" : ""}`}>
+                        <SelectValue placeholder="الفرع" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id} className="text-xs">{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Badge variant="outline" className="shrink-0">{d.items.length} صنف</Badge>
                 <span className={`shrink-0 font-semibold ${diff > 1 ? "text-destructive" : ""}`}>{formatEGP(d.headerTotal)}</span>
                 <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removeDoc(i)}>
