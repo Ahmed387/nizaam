@@ -252,15 +252,29 @@ export default function NewShipment() {
 
   const totalExtras = Number(shipping || 0) + Number(customs || 0) + Number(otherCost || 0);
 
+  // خصم على إجمالي الفاتورة (بالجنيه أو بالنسبة) — يطبق على صافي البضاعة قبل المصاريف
+  const invoiceDiscountAmount = Math.min(
+    itemsNet,
+    Math.max(
+      0,
+      invDiscType === "percent"
+        ? (itemsNet * Math.min(100, Math.max(0, Number(invDiscValue) || 0))) / 100
+        : Number(invDiscValue) || 0,
+    ),
+  );
+  const netAfterInvoiceDiscount = Math.max(0, itemsNet - invoiceDiscountAmount);
+  const discFactor = itemsNet > 0 ? netAfterInvoiceDiscount / itemsNet : 1;
+
   // Real-time proportional distribution by line value
   const distribution = lines.map((l) => {
     const net = lineNet(l);
-    const baseUnit = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+    const baseUnit = (l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0) * discFactor;
     const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
     const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
     const trueUnit = baseUnit + unitExtra;
     return { line: l, baseUnit, unitExtra, lineShare, trueUnit };
   });
+
 
   const updateLine = (i: number, patch: Partial<Line>) => {
     const copy = [...lines];
