@@ -20,8 +20,10 @@ import {
   groupByDoc, runMigration,
 } from "@/lib/invoiceMigration";
 import {
-  parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL,
+  parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
+import { LegacyDocsEditor } from "@/components/legacy/LegacyDocsEditor";
+
 import { runLegacyMigration, LegacyDocResult } from "@/lib/legacyMigration";
 import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
 import { confirmAlert } from "@/components/ConfirmDialog";
