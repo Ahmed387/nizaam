@@ -1136,3 +1136,13 @@ export default function NewShipment() {
     </BranchLayout>
   );
 }
+
+function Metric({ label, value, hint, className, highlight }: { label: string; value: string; hint?: string; className?: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-lg border px-2.5 py-1.5 min-w-0", highlight ? "border-primary/40 bg-primary/5" : "border-border bg-surface-2/50")}>
+      <div className="text-[10px] text-muted-foreground leading-tight mb-0.5">{label}</div>
+      <div className={cn("text-xs whitespace-nowrap overflow-hidden text-ellipsis font-semibold", className)}>{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground whitespace-nowrap">{hint}</div>}
+    </div>
+  );
+}
