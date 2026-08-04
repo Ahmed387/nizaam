@@ -7,6 +7,7 @@ import type { LegacyDoc, LegacyItem } from "@/lib/legacySheetParser";
 import type { ColumnKey } from "@/lib/legacyTemplate";
 import { formatEGP } from "@/lib/format";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { LegacyContactPicker } from "@/components/legacy/LegacyContactPicker";
 
 /**
  * محرر المستندات قبل الاعتماد.
@@ -18,6 +19,8 @@ interface Props {
   onChange: (docs: LegacyDoc[]) => void;
   /** الأعمدة الناقصة في الشيت — بتتعرض كخانات صفراء تعدّلها بإيدك قبل الاعتماد */
   missing?: ColumnKey[];
+  /** نوع الطرف: مورد في الشراء، عميل في البيع */
+  partyType?: "customer" | "supplier";
 }
 
 
@@ -32,7 +35,7 @@ function recalcDoc(d: LegacyDoc): LegacyDoc {
   return { ...d, items, itemsTotal: r2(items.reduce((s, i) => s + i.total, 0)) };
 }
 
-export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
+export function LegacyDocsEditor({ docs, onChange, missing = [], partyType = "customer" }: Props) {
   const miss = useMemo(() => new Set(missing), [missing]);
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [q, setQ] = useState("");
@@ -127,8 +130,10 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
                 <Input type="datetime-local" value={d.dateISO ? d.dateISO.slice(0, 16) : ""}
                   onChange={(e) => patchDoc(i, { dateISO: e.target.value ? `${e.target.value}:00` : "" })}
                   className="h-8 w-44" />
-                <Input value={d.account} onChange={(e) => patchDoc(i, { account: e.target.value })}
-                  className="h-8 flex-1 min-w-[120px]" placeholder="العميل / المورد" />
+                <div className="flex-1 min-w-[160px]" onClick={(e) => e.stopPropagation()}>
+                  <LegacyContactPicker value={d.account} type={partyType}
+                    onChange={(name) => patchDoc(i, { account: name })} />
+                </div>
                 <Badge variant="outline" className="shrink-0">{d.items.length} صنف</Badge>
                 <span className={`shrink-0 font-semibold ${diff > 1 ? "text-destructive" : ""}`}>{formatEGP(d.headerTotal)}</span>
                 <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removeDoc(i)}>
