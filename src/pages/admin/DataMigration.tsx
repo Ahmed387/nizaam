@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet, Boxes, ShieldCheck, XCircle } from "lucide-react";
+import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet, Boxes, ShieldCheck, XCircle, BookOpen, Building2, Wallet, Banknote } from "lucide-react";
 import {
   parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
@@ -24,8 +24,28 @@ import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import * as XLSX from "xlsx";
 import { formatEGP } from "@/lib/format";
+import { downloadLegacyTemplate, COLUMN_HELP } from "@/lib/legacyTemplate";
 
 const LEGACY_ORDER: LegacyKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
+
+const METHOD_LABEL: Record<string, string> = {
+  cash: "الخزنة الكاش",
+  instapay: "إنستاباي",
+  vodafone: "فودافون كاش",
+  bank: "البنك / PayMob",
+};
+
+/** ملخص بعد الترحيل: كل فرع اتحطّ فيه إيه، وكل خزنة دخلها كام */
+interface BranchSummary {
+  branchName: string;
+  warehouse: string;
+  docs: number;
+  items: number;
+  total: number;
+  credit: number;
+  byMethod: Record<string, number>;
+}
+
 
 /* ==================================================================== */
 /*                    ترحيل ملفات النظام القديم (بلوكات)                 */
