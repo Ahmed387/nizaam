@@ -321,55 +321,62 @@ export default function ShipmentView() {
           المنتجات ({items.length})
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[980px] border-collapse">
             <thead>
-              <tr className="bg-surface-2 border-b border-border">
-                <th className="px-4 py-3 text-right">المنتج</th>
-                <th className="px-4 py-3 text-right">الكود</th>
-                <th className="px-4 py-3 text-right">الكمية</th>
-                <th className="px-4 py-3 text-right">سعر التكلفة</th>
-                {totalExtras > 0 && <th className="px-4 py-3 text-right">نصيب الشحن/الوحدة</th>}
-                {totalExtras > 0 && <th className="px-4 py-3 text-right">التكلفة الحقيقية/الوحدة</th>}
-                <th className="px-4 py-3 text-right">خصم %</th>
-                <th className="px-4 py-3 text-right">خصم مبلغ</th>
-                <th className="px-4 py-3 text-right">سعر البيع الحالي</th>
-                <th className="px-4 py-3 text-right">المخزون</th>
-                <th className="px-4 py-3 text-right">الصافي</th>
+              <tr className="bg-surface-2 border-b-2 border-border">
+                <th className="px-4 py-3 text-right font-bold text-xs text-muted-foreground uppercase tracking-wide w-[26%]">المنتج</th>
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide w-[12%]">الكود</th>
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide w-[7%]">الكمية</th>
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">سعر التكلفة</th>
+                {totalExtras > 0 && <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">نصيب الشحن/الوحدة</th>}
+                {totalExtras > 0 && <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">التكلفة الحقيقية/الوحدة</th>}
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">خصم %</th>
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">خصم مبلغ</th>
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">سعر البيع الحالي</th>
+                <th className="px-3 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide w-[8%]">المخزون</th>
+                <th className="px-4 py-3 text-center font-bold text-xs text-muted-foreground uppercase tracking-wide">الصافي</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => (
-                <tr key={it.id} className="border-b border-border hover:bg-surface-2/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+              {items.map((it, i) => (
+                <tr key={it.id} className={`border-b border-border/60 last:border-0 hover:bg-primary/5 transition-colors ${i % 2 === 1 ? "bg-surface-2/30" : ""}`}>
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-start gap-3">
                       {it.products?.image ? (
-                        <ProductImage src={it.products.image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border" />
+                        <ProductImage src={it.products.image} alt="" className="w-10 h-10 shrink-0 rounded-lg object-cover border border-border" />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">صورة</div>
+                        <div className="w-10 h-10 shrink-0 rounded-lg bg-muted flex items-center justify-center text-[10px] text-muted-foreground">صورة</div>
                       )}
-                      <div>
-                        <div className="font-medium flex items-center gap-1.5">{it.product_name}{it.color && <ColorChip name={it.color} />}</div>
+                      <div className="min-w-0 space-y-1 text-right">
+                        <div className="font-semibold leading-snug flex items-center gap-1.5 flex-wrap">
+                          <span className="break-words">{it.product_name}</span>
+                          {it.color && <ColorChip name={it.color} />}
+                        </div>
                         <VariantLine attrs={{ ...(it as any), color: null }} />
                         {it.products?.name && it.products.name !== it.product_name && (
-                          <div className="text-xs text-muted-foreground">{it.products.name}</div>
+                          <div className="text-xs text-muted-foreground break-words">{it.products.name}</div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{it.products?.sku ?? "—"}</td>
-                  <td className="px-4 py-3">{it.quantity}</td>
-                  <td className="px-4 py-3">{formatEGP(it.cost_price)}</td>
-                  {totalExtras > 0 && <td className="px-4 py-3 text-amber-600">+ {formatEGP(it.shipping_cost_per_unit ?? 0)}</td>}
-                  {totalExtras > 0 && <td className="px-4 py-3 font-bold text-primary">{formatEGP(it.true_unit_cost ?? it.cost_price)}</td>}
-                  <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_percent ?? 0) > 0 ? `${Number(it.discount_percent)}%` : "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{Number(it.discount_amount ?? 0) > 0 ? formatEGP(it.discount_amount) : "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{it.products?.selling_price ? formatEGP(it.products.selling_price) : "—"}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${(it.products?.quantity ?? 1) <= 0 ? 'bg-destructive/10 text-destructive' : (it.products?.quantity ?? 0) < (it.products?.low_stock_alert ?? 5) ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="font-mono text-xs text-muted-foreground bg-surface-2 border border-border rounded px-2 py-1 inline-block break-all">
+                      {it.products?.sku ?? "—"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle tabular-nums font-semibold">{it.quantity}</td>
+                  <td className="px-3 py-3 text-center align-middle tabular-nums whitespace-nowrap">{formatEGP(it.cost_price)}</td>
+                  {totalExtras > 0 && <td className="px-3 py-3 text-center align-middle tabular-nums whitespace-nowrap text-amber-600">+ {formatEGP(it.shipping_cost_per_unit ?? 0)}</td>}
+                  {totalExtras > 0 && <td className="px-3 py-3 text-center align-middle tabular-nums whitespace-nowrap font-bold text-primary">{formatEGP(it.true_unit_cost ?? it.cost_price)}</td>}
+                  <td className="px-3 py-3 text-center align-middle tabular-nums text-muted-foreground">{Number(it.discount_percent ?? 0) > 0 ? `${Number(it.discount_percent)}%` : "—"}</td>
+                  <td className="px-3 py-3 text-center align-middle tabular-nums whitespace-nowrap text-muted-foreground">{Number(it.discount_amount ?? 0) > 0 ? formatEGP(it.discount_amount) : "—"}</td>
+                  <td className="px-3 py-3 text-center align-middle tabular-nums whitespace-nowrap text-muted-foreground">{it.products?.selling_price ? formatEGP(it.products.selling_price) : "—"}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${(it.products?.quantity ?? 1) <= 0 ? 'bg-destructive/10 text-destructive' : (it.products?.quantity ?? 0) < (it.products?.low_stock_alert ?? 5) ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
                       {it.products?.quantity ?? 1}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-bold">{formatEGP(it.total)}</td>
+                  <td className="px-4 py-3 text-center align-middle font-bold tabular-nums whitespace-nowrap">{formatEGP(it.total)}</td>
                 </tr>
               ))}
             </tbody>
