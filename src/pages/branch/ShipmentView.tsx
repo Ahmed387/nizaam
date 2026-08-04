@@ -274,6 +274,12 @@ export default function ShipmentView() {
               <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
             )}
             <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
+            {invoiceDiscount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>خصم على الفاتورة{(ship as any).discount_type === "percent" ? ` (${Number((ship as any).discount_value)}%)` : ""}</span>
+                <b>− {formatEGP(invoiceDiscount)}</b>
+              </div>
+            )}
             <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(ship.shipping_cost)}</b></div>
             {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>}
             {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b>{formatEGP(otherCost)}</b></div>}
