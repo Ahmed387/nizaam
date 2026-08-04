@@ -144,6 +144,8 @@ function LegacyPanel() {
 
   const onFile = async (file: File) => {
     setResults(null);
+    setSummary(null);
+
     setSheet(null);
     setDocs([]);
     setWhMap({});
@@ -648,7 +650,54 @@ function LegacyPanel() {
         </Card>
       )}
 
+      {summary && summary.length > 0 && (
+        <Card className="p-4 space-y-3 border-success/40 bg-gradient-to-l from-success/5 to-transparent animate-fade-in">
+          <div className="flex items-center gap-2 font-bold">
+            <CheckCircle2 className="w-4 h-4 text-success" /> راح فين بالظبط؟ (بعد الاعتماد)
+          </div>
+          <p className="text-xs text-muted-foreground leading-6">
+            دي كل فاتورة اتسجلت فعلًا — اتحطت في أنهي فرع، والفلوس دخلت أنهي خزنة، والباقي على الحساب كام.
+          </p>
+          <div className="grid md:grid-cols-2 gap-3">
+            {summary.map((s, i) => (
+              <div key={i} className="rounded-xl border p-3 space-y-2 bg-surface-2/40 animate-fade-in" style={{ animationDelay: `${i * 70}ms` }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <Building2 className="w-4 h-4 text-primary" /> {s.branchName}
+                  </div>
+                  <Badge variant="outline" className="text-[11px]">مخزن الملف: {s.warehouse}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-lg border p-2"><div className="text-muted-foreground">مستندات</div><div className="text-lg font-bold">{s.docs}</div></div>
+                  <div className="rounded-lg border p-2 bg-primary/10"><div className="text-primary">أصناف</div><div className="text-lg font-bold text-primary">{s.items}</div></div>
+                  <div className="rounded-lg border p-2 bg-success/10"><div className="text-success">الإجمالي</div><div className="text-sm font-bold text-success">{formatEGP(s.total)}</div></div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold flex items-center gap-1"><Wallet className="w-3.5 h-3.5 text-primary" /> الخزن اللي اتأثرت</div>
+                  {Object.entries(s.byMethod).filter(([, v]) => v > 0).length === 0 && (
+                    <div className="text-xs text-muted-foreground">مفيش فلوس اتحصّلت — كله آجل.</div>
+                  )}
+                  {Object.entries(s.byMethod).filter(([, v]) => v > 0).map(([m, v]) => (
+                    <div key={m} className="flex items-center justify-between text-xs rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+                      <span className="flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5 text-success" /> {METHOD_LABEL[m] ?? m}</span>
+                      <b className="tabular-nums text-success">{formatEGP(v)}</b>
+                    </div>
+                  ))}
+                  {s.credit > 0.5 && (
+                    <div className="flex items-center justify-between text-xs rounded-lg bg-warning/10 border border-warning/30 px-2 py-1.5">
+                      <span>آجل على الحساب</span>
+                      <b className="tabular-nums text-warning">{formatEGP(s.credit)}</b>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {results && (
+
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-semibold">
