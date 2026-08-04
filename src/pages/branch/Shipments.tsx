@@ -206,6 +206,7 @@ export default function Shipments() {
               loading={loading}
               rows={filtered}
               empty="لا توجد شحنات بعد"
+              onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
         columns={[
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
           { key: "supplier", header: "المورد", render: (r: any) => r.contacts?.name ?? "—" },

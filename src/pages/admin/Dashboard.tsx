@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -19,6 +19,7 @@ import { KpiHealthAlert } from "@/components/KpiHealthAlert";
 import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
 
 export default function AdminDashboard() {
+  const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [salesToday, setSalesToday] = useState(0);
   const [invoicesToday, setInvoicesToday] = useState(0);
@@ -250,21 +251,13 @@ export default function AdminDashboard() {
           loading={loading}
           rows={recent}
           empty="لا توجد فواتير"
-          onRowClick={(r: any) => window.open(`/branch/${r.branch_id}/sales/${r.id}`, "_blank")}
+          onRowClick={(r: any) => nav(`/branch/${r.branch_id}/sales/${r.id}`)}
           columns={[
             {
               key: "invoice_number",
               header: "رقم",
               render: (r: any) => (
-                <a
-                  href={`/branch/${r.branch_id}/sales/${r.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-primary font-medium hover:underline"
-                >
-                  {r.invoice_number}
-                </a>
+                <span className="text-primary font-medium hover:underline">{r.invoice_number}</span>
               ),
             },
             { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
