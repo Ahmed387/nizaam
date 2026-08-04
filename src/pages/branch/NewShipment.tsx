@@ -303,6 +303,31 @@ export default function NewShipment() {
 
   const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0);
 
+  // ===== رصيد خزنة الفرع — الدفع النقدي مش مسموح لو الخزنة فاضية =====
+  const [treasuryBalance, setTreasuryBalance] = useState<number | null>(null);
+  const fetchTreasuryBalance = async (): Promise<number | null> => {
+    if (!branchId) return null;
+    const { data, error } = await (supabase as any)
+      .from("v_treasury_balances")
+      .select("current_balance")
+      .eq("branch_id", branchId)
+      .maybeSingle();
+    if (error) return null;
+    const bal = Number(data?.current_balance ?? 0);
+    setTreasuryBalance(bal);
+    return bal;
+  };
+  useEffect(() => { fetchTreasuryBalance(); }, [branchId]);
+
+  const plannedPaidNow = (() => {
+    if (plan.mode === "credit") return 0;
+    if (plan.mode === "full") return grandTotal;
+    const splitsSum = (plan.splits ?? []).reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
+    return Math.max(Number(plan.paidNow || 0), splitsSum);
+  })();
+  const overTreasury = treasuryBalance !== null && plannedPaidNow > treasuryBalance + 0.01;
+
+
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
     if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", brand: p.brand ?? "", model: p.model ?? "", color: p.color ?? "", product_type: p.product_type ?? "", capacity: p.capacity ?? "", size: p.size ?? "" });
@@ -422,8 +447,21 @@ export default function NewShipment() {
         return toast.error(`أدخل الماركة والموديل للصنف الجديد: ${l.product_name}`);
     }
 
+    // 🚫 امنع الدفع لو الخزنة مفيهاش رصيد كافي — متاح الآجل فقط
+    if (plannedPaidNow > 0) {
+      const bal = await fetchTreasuryBalance();
+      if (bal !== null && plannedPaidNow > bal + 0.01) {
+        toast.error("رصيد الخزنة مش كفاية 🚫", {
+          description: `الخزنة فيها ${formatEGP(bal)} بس، وانت بتحاول تدفع ${formatEGP(plannedPaidNow)}. غيّر طريقة الدفع لـ "آجل" أو قلّل المبلغ المدفوع لحد ${formatEGP(bal)}.`,
+          duration: 9000,
+        });
+        setOpenSections((s) => ({ ...s, payment: true }));
+        return;
+      }
+    }
 
     setBusy(true);
+
     try {
       // Single-RPC gateway: creates shipment + items + product_batches + updates quantities
       // atomically with shipping cost share calculation. Required because the guard
@@ -962,6 +1000,19 @@ export default function NewShipment() {
           onToggle={() => toggleSection("payment")}
         >
           <div className="p-5">
+            {treasuryBalance !== null && (
+              <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${overTreasury ? "border-destructive bg-destructive/10" : "border-border bg-surface-2"}`}>
+                <div className="text-sm">
+                  <div className="font-bold">رصيد خزنة الفرع دلوقتي</div>
+                  <div className={`text-xs ${overTreasury ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                    {overTreasury
+                      ? `مش هينفع تدفع ${formatEGP(plannedPaidNow)} — المتاح ${formatEGP(treasuryBalance)} بس. اختار "آجل" أو قلّل المبلغ.`
+                      : "أقصى مبلغ تقدر تدفعه نقدي دلوقتي هو الرصيد ده."}
+                  </div>
+                </div>
+                <b className={`text-lg whitespace-nowrap ${overTreasury ? "text-destructive" : "text-primary"}`}>{formatEGP(treasuryBalance)}</b>
+              </div>
+            )}
             <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
           </div>
         </CollapsibleSection>
