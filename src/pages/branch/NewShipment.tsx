@@ -1000,6 +1000,19 @@ export default function NewShipment() {
           onToggle={() => toggleSection("payment")}
         >
           <div className="p-5">
+            {treasuryBalance !== null && (
+              <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${overTreasury ? "border-destructive bg-destructive/10" : "border-border bg-surface-2"}`}>
+                <div className="text-sm">
+                  <div className="font-bold">رصيد خزنة الفرع دلوقتي</div>
+                  <div className={`text-xs ${overTreasury ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                    {overTreasury
+                      ? `مش هينفع تدفع ${formatEGP(plannedPaidNow)} — المتاح ${formatEGP(treasuryBalance)} بس. اختار "آجل" أو قلّل المبلغ.`
+                      : "أقصى مبلغ تقدر تدفعه نقدي دلوقتي هو الرصيد ده."}
+                  </div>
+                </div>
+                <b className={`text-lg whitespace-nowrap ${overTreasury ? "text-destructive" : "text-primary"}`}>{formatEGP(treasuryBalance)}</b>
+              </div>
+            )}
             <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
           </div>
         </CollapsibleSection>
