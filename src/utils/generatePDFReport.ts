@@ -1762,7 +1762,7 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
     // Partner identity card
     const identity = `
       <div style="border:1px solid ${C.border};border-radius:10px;background:${C.softBg};padding:16px 20px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">
-        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">اسم الشريك:</span><span style="color:${C.ink};font-size:16px;font-weight:800;">${input.partner.name}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">اسم الشريك:</span><span style="color:${C.ink};font-size:16px;font-weight:800;">${esc(input.partner.name)}</span></div>
         <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">النوع:</span><span style="color:${C.accent};font-size:13px;font-weight:700;">${typeLabel}</span></div>
         <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">حصة رأس المال:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${(Number(input.partner.capital_share) * 100).toFixed(2)}%</span></div>
         <div style="display:flex;gap:8px;align-items:baseline;"><span style="color:${C.muted};font-size:12px;">حصة التشغيل:</span><span style="color:${C.ink};font-size:13px;font-weight:700;">${(Number(input.partner.operating_share) * 100).toFixed(2)}%</span></div>
