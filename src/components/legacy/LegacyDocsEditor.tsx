@@ -106,8 +106,8 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
       </div>
 
       {miss.size > 0 && (
-        <div className="px-3 py-2 text-[11px] leading-5 bg-destructive/10 border-b border-destructive/30 text-destructive-foreground">
-          <b className="text-destructive">أعمدة ناقصة في الشيت:</b> النظام حطّ فيها قيمة افتراضية (٠ أو فاضي) وظلّلها بالأصفر تحت — عدّلها قبل الاعتماد.
+        <div className="px-3 py-2.5 text-xs font-medium leading-6 bg-destructive text-destructive-foreground border-b border-destructive">
+          <b className="font-extrabold">⚠ أعمدة ناقصة في الشيت:</b> النظام حطّ فيها قيمة افتراضية (٠ أو فاضي) وعلّمها بإطار أحمر تحت — عدّلها قبل الاعتماد.
         </div>
       )}
 
