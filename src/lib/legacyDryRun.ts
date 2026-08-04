@@ -45,6 +45,8 @@ export interface DryRunArgs {
   branchId: string;
   docs: LegacyDoc[];
   supplierId?: string | null;
+  /** ربط اسم الحساب في الملف بحساب موجود على النظام */
+  contactMap?: Record<string, string>;
   skipExisting?: boolean;
 }
 
@@ -76,6 +78,8 @@ export async function runLegacyDryRun(a: DryRunArgs): Promise<DryRunReport> {
     loadContactNames(),
     loadParents(a.kind, a.branchId),
   ]);
+
+  Object.entries(a.contactMap ?? {}).forEach(([name, id]) => { if (name && id) contactNames.add(name.trim()); });
 
   const seen = new Map<string, number>();
   const newContacts = new Set<string>();
