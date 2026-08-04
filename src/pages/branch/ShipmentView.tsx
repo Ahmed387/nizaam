@@ -184,6 +184,7 @@ export default function ShipmentView() {
           <div class="row"><span>قيمة البضاعة</span><b>${formatEGP(itemsGross)}</b></div>
           ${itemsDiscount > 0 ? `<div class="row"><span>الخصومات</span><b class="neg">− ${formatEGP(itemsDiscount)}</b></div>` : ""}
           <div class="row"><span>صافي البضاعة</span><b>${formatEGP(goodsValue)}</b></div>
+          ${invoiceDiscount > 0 ? `<div class="row"><span>خصم على الفاتورة${(ship as any).discount_type === "percent" ? ` (${Number((ship as any).discount_value)}%)` : ""}</span><b class="neg">− ${formatEGP(invoiceDiscount)}</b></div>` : ""}
           <div class="row"><span>الشحن</span><b>${formatEGP(ship.shipping_cost)}</b></div>
           <div class="row"><span>إدارية</span><b>${formatEGP(ship.admin_cost)}</b></div>
           <div class="row" style="border-top:1px solid #ddd;padding-top:6px;margin-top:6px"><span><b>الإجمالي</b></span><b style="color:#3b82f6;font-size:15px">${formatEGP(ship.total_cost)}</b></div>
