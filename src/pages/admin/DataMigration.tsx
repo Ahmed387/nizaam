@@ -582,7 +582,7 @@ function LegacyPanel() {
           <div className="text-sm font-bold flex items-center gap-2 pt-1">
             <Badge className="bg-primary text-primary-foreground">٣</Badge> راجع وعدّل البيانات قبل الاعتماد
           </div>
-          <LegacyDocsEditor docs={docs} onChange={setDocs} missing={colAudit.missingKeys} />
+          <LegacyDocsEditor docs={docs} onChange={setDocs} missing={colAudit.missingKeys} partyType={isPurchase ? "supplier" : "customer"} />
 
 
 
