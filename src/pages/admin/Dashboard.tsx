@@ -19,6 +19,7 @@ import { KpiHealthAlert } from "@/components/KpiHealthAlert";
 import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
 
 export default function AdminDashboard() {
+  const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [salesToday, setSalesToday] = useState(0);
   const [invoicesToday, setInvoicesToday] = useState(0);
