@@ -393,13 +393,13 @@ function LegacyPanel() {
           }`}>
             {!sheet ? <><BookOpen className="w-4 h-4" /> الأعمدة اللي النظام بيقراها</>
               : colAudit.missing.length
-                ? <><AlertTriangle className="w-4 h-4" /> ملفك ناقصه {colAudit.missing.length} عمود — تقدر تكمّلهم من شاشة المراجعة أو تستخدم قالب نظام</>
+                ? <><AlertTriangle className="w-4 h-4" /> ملفك ناقصه {colAudit.missing.length} عمود من {colAudit.total} ({colAudit.missingRequired.length} منهم مهمين للنوع ده) — اتعوّضوا بقيم افتراضية</>
                 : <><CheckCircle2 className="w-4 h-4" /> ملفك فيه كل الأعمدة اللي النظام محتاجها 👏</>}
           </div>
           <p className="text-xs leading-6 text-muted-foreground">
             {!sheet
               ? "دي كل الأعمدة اللي النظام بيشتغل بيها. ارفع الملف وهقولك على طول إيه الموجود فيه وإيه الناقص."
-              : "الفحص ده على الملف اللي رفعته بالظبط. أي عمود ناقص النظام بيقراه صفر/فاضي، وتقدر تعدّله من شاشة المراجعة قبل الاعتماد."}
+              : "قارنّا الشيت بتاعك بمتطلبات النظام للنوع ده. أي عمود ناقص النظام حطّ مكانه القيمة الافتراضية المكتوبة تحت، وظلّله بالأصفر في جدول المراجعة عشان تعدّله قبل الاعتماد."}
           </p>
 
           {sheet && colAudit.present.length > 0 && (
@@ -412,13 +412,33 @@ function LegacyPanel() {
             </div>
           )}
 
+          {sheet && colAudit.missingRequired.length > 0 && (
+            <div className="text-[11px] font-bold text-destructive">أعمدة مهمة ناقصة — راجعها كويس:</div>
+          )}
           <div className="grid md:grid-cols-2 gap-1.5">
-            {(sheet ? colAudit.missing : COLUMN_HELP).map((c) => (
-              <div key={c.key} className="text-[11px] leading-5 rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+            {(sheet ? colAudit.missingRequired : COLUMN_HELP).map((c) => (
+              <div key={c.key} className={`text-[11px] leading-5 rounded-lg px-2 py-1.5 border ${
+                sheet ? "border-destructive/40 bg-destructive/5" : "border-border/50 bg-background/60"}`}>
                 <b className="text-foreground">{c.col}</b> — {c.what}. <span className="text-muted-foreground">{c.need}</span>
+                {sheet && <div className="text-warning mt-0.5">القيمة الافتراضية: {c.fallback}</div>}
               </div>
             ))}
           </div>
+
+          {sheet && colAudit.missingOptional.length > 0 && (
+            <>
+              <div className="text-[11px] font-bold text-muted-foreground">ناقصة كمان بس مش حرجة للنوع ده:</div>
+              <div className="grid md:grid-cols-2 gap-1.5">
+                {colAudit.missingOptional.map((c) => (
+                  <div key={c.key} className="text-[11px] leading-5 rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+                    <b className="text-foreground">{c.col}</b> — {c.what}.
+                    <span className="text-muted-foreground"> القيمة الافتراضية: {c.fallback}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
 
           <Button variant="outline" size="sm" onClick={() => downloadLegacyTemplate(kindOverride || sheet?.kind || "")}>
             <Download className="w-4 h-4 ml-1" /> نزّل قالب نظام (بالأعمدة الكاملة + شرح)
