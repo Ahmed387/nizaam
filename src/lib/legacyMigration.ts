@@ -284,10 +284,12 @@ async function migrateSale(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductIndex, 
       product_name: it.name,
       quantity: it.qty,
       selling_price: it.price,
-      cost_price: p.cost_price,
+      // التكلفة من الشيت لو موجودة، وإلا تكلفة المنتج على النظام
+      cost_price: it.cost > 0 ? it.cost : p.cost_price,
       line_discount: it.discount,
     };
   });
+
 
   const subtotal = round2(items.reduce((s, i) => s + i.quantity * i.selling_price, 0));
   const lineDisc = round2(items.reduce((s, i) => s + i.line_discount, 0));
