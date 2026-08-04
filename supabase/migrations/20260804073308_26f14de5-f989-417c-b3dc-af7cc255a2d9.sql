@@ -1,0 +1,1 @@
+ALTER TABLE public.returns ALTER COLUMN invoice_id DROP NOT NULL;
