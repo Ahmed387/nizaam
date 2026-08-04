@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { focusSection } from "@/lib/sectionFocus";
 import { useNavigate, useParams } from "react-router-dom";
