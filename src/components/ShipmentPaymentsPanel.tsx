@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Wallet, Pencil, Loader2, RefreshCw } from "lucide-react";
+import { Wallet, Pencil, Loader2, RefreshCw, Plus } from "lucide-react";
 import { formatEGP, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface Props {
   shipmentId: string;
