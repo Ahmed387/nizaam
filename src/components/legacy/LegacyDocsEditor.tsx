@@ -106,8 +106,8 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
       </div>
 
       {miss.size > 0 && (
-        <div className="px-3 py-2 text-[11px] leading-5 bg-warning/10 border-b border-warning/30 text-warning-foreground">
-          <b className="text-warning">أعمدة ناقصة في الشيت:</b> النظام حطّ فيها قيمة افتراضية (٠ أو فاضي) وظلّلها بالأصفر تحت — عدّلها قبل الاعتماد.
+        <div className="px-3 py-2 text-[11px] leading-5 bg-destructive/10 border-b border-destructive/30 text-destructive-foreground">
+          <b className="text-destructive">أعمدة ناقصة في الشيت:</b> النظام حطّ فيها قيمة افتراضية (٠ أو فاضي) وظلّلها بالأصفر تحت — عدّلها قبل الاعتماد.
         </div>
       )}
 
@@ -130,7 +130,7 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
                 <Input value={d.account} onChange={(e) => patchDoc(i, { account: e.target.value })}
                   className="h-8 flex-1 min-w-[120px]" placeholder="العميل / المورد" />
                 <Badge variant="outline" className="shrink-0">{d.items.length} صنف</Badge>
-                <span className={`shrink-0 font-semibold ${diff > 1 ? "text-warning" : ""}`}>{formatEGP(d.headerTotal)}</span>
+                <span className={`shrink-0 font-semibold ${diff > 1 ? "text-destructive" : ""}`}>{formatEGP(d.headerTotal)}</span>
                 <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removeDoc(i)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -152,10 +152,10 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
                       const isMissing = !!mk && miss.has(mk as ColumnKey);
                       return (
                         <div key={key} className="space-y-1">
-                          <div className={isMissing ? "text-warning font-semibold" : "text-muted-foreground"}>
+                          <div className={isMissing ? "text-destructive font-semibold" : "text-muted-foreground"}>
                             {lbl}{isMissing ? " • ناقص" : ""}
                           </div>
-                          <Input type={type} className={`h-8 ${isMissing ? "border-warning bg-warning/5" : ""}`}
+                          <Input type={type} className={`h-8 ${isMissing ? "border-destructive/60 bg-destructive/10" : ""}`}
                             title={isMissing ? "العمود ده مش موجود في الشيت — القيمة دي افتراضية، عدّلها" : undefined}
                             value={(d as any)[key] ?? ""}
                             onChange={(e) => patchDoc(i, {
@@ -168,7 +168,7 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
 
 
                   {diff > 1 && (
-                    <div className="flex items-center gap-2 text-warning">
+                    <div className="flex items-center gap-2 text-destructive">
                       مجموع السطور {formatEGP(d.itemsTotal)} مش مطابق لإجمالي الفاتورة {formatEGP(d.headerTotal)}
                       <Button size="sm" variant="outline" className="h-7" onClick={() => matchTotal(i)}>
                         <Wand2 className="w-3 h-3 ml-1" /> طابق الإجمالي مع السطور
@@ -184,17 +184,17 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
                           <th className="px-2 py-2 font-extrabold text-center">اسم الصنف</th>
                           <th className="px-2 py-2 w-20 font-extrabold text-center">كمية</th>
                           <th className="px-2 py-2 w-24 font-extrabold text-center">السعر</th>
-                          <th className={`px-2 py-2 w-24 font-extrabold text-center ${miss.has("cost") ? "text-warning" : ""}`}>التكلفة{miss.has("cost") ? " • ناقص" : ""}</th>
-                          <th className={`px-2 py-2 w-24 font-extrabold text-center ${miss.has("marketPrice") ? "text-warning" : ""}`}>سعر السوق{miss.has("marketPrice") ? " • ناقص" : ""}</th>
+                          <th className={`px-2 py-2 w-24 font-extrabold text-center ${miss.has("cost") ? "text-destructive" : ""}`}>التكلفة{miss.has("cost") ? " • ناقص" : ""}</th>
+                          <th className={`px-2 py-2 w-24 font-extrabold text-center ${miss.has("marketPrice") ? "text-destructive" : ""}`}>سعر السوق{miss.has("marketPrice") ? " • ناقص" : ""}</th>
                           <th className="px-2 py-2 w-24 font-extrabold text-center">خصم</th>
-                          {miss.has("lineDiscount") && <th className="px-2 py-2 w-20 font-extrabold text-center text-warning">خصم % • ناقص</th>}
+                          {miss.has("lineDiscount") && <th className="px-2 py-2 w-20 font-extrabold text-center text-destructive">خصم % • ناقص</th>}
                           {miss.has("productInfo") && (
                             <>
-                              <th className="px-2 py-2 w-20 font-extrabold text-center text-warning">وحدة • ناقص</th>
-                              <th className="px-2 py-2 w-28 font-extrabold text-center text-warning">باركود • ناقص</th>
-                              <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">ماركة • ناقص</th>
-                              <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">موديل • ناقص</th>
-                              <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">تصنيف • ناقص</th>
+                              <th className="px-2 py-2 w-20 font-extrabold text-center text-destructive">وحدة • ناقص</th>
+                              <th className="px-2 py-2 w-28 font-extrabold text-center text-destructive">باركود • ناقص</th>
+                              <th className="px-2 py-2 w-24 font-extrabold text-center text-destructive">ماركة • ناقص</th>
+                              <th className="px-2 py-2 w-24 font-extrabold text-center text-destructive">موديل • ناقص</th>
+                              <th className="px-2 py-2 w-24 font-extrabold text-center text-destructive">تصنيف • ناقص</th>
                             </>
                           )}
                           <th className="px-2 py-2 w-24 font-extrabold text-center">النهائي</th>
@@ -210,19 +210,19 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
                             <td className="p-1"><Input type="number" className="h-8" value={it.price} onChange={(e) => patchItem(i, j, { price: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1">
                               <Input type="number" title="سعر التكلفة — لو صفر النظام هياخد آخر تكلفة للمنتج"
-                                className={`h-8 ${!it.cost ? "border-warning bg-warning/5" : ""}`}
+                                className={`h-8 ${!it.cost ? "border-destructive/60 bg-destructive/10" : ""}`}
                                 value={it.cost} onChange={(e) => patchItem(i, j, { cost: Number(e.target.value) || 0 })} />
                             </td>
-                            <td className="p-1"><Input type="number" className={`h-8 ${!it.marketPrice ? "border-warning bg-warning/5" : ""}`} value={it.marketPrice} onChange={(e) => patchItem(i, j, { marketPrice: Number(e.target.value) || 0 })} /></td>
+                            <td className="p-1"><Input type="number" className={`h-8 ${!it.marketPrice ? "border-destructive/60 bg-destructive/10" : ""}`} value={it.marketPrice} onChange={(e) => patchItem(i, j, { marketPrice: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.discount} onChange={(e) => patchItem(i, j, { discount: Number(e.target.value) || 0 })} /></td>
                             {miss.has("lineDiscount") && (
-                              <td className="p-1"><Input type="number" className="h-8 border-warning bg-warning/5" value={it.discountPercent} onChange={(e) => patchItem(i, j, { discountPercent: Number(e.target.value) || 0 })} /></td>
+                              <td className="p-1"><Input type="number" className="h-8 border-destructive/60 bg-destructive/10" value={it.discountPercent} onChange={(e) => patchItem(i, j, { discountPercent: Number(e.target.value) || 0 })} /></td>
                             )}
                             {miss.has("productInfo") && (
                               <>
                                 {(["unit", "barcode", "brand", "model", "category"] as const).map((f) => (
                                   <td key={f} className="p-1">
-                                    <Input className="h-8 border-warning bg-warning/5" value={(it as any)[f] ?? ""}
+                                    <Input className="h-8 border-destructive/60 bg-destructive/10" value={(it as any)[f] ?? ""}
                                       onChange={(e) => patchItem(i, j, { [f]: e.target.value } as any)} />
                                   </td>
                                 ))}
