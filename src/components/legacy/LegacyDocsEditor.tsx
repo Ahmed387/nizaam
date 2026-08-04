@@ -32,7 +32,8 @@ function recalcDoc(d: LegacyDoc): LegacyDoc {
   return { ...d, items, itemsTotal: r2(items.reduce((s, i) => s + i.total, 0)) };
 }
 
-export function LegacyDocsEditor({ docs, onChange }: Props) {
+export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
+  const miss = useMemo(() => new Set(missing), [missing]);
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [q, setQ] = useState("");
 
