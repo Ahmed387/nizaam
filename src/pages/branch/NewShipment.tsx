@@ -66,8 +66,9 @@ const genSku = () =>
 export default function NewShipment() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId?: string }>();
   const isEdit = !!shipmentId;
-  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
+  const { user, profile, isAdmin, isOwner, hasRole, tenantId } = useAuth();
   const isManager = hasRole("branch_manager");
+  const canEditPayments = isAdmin || isOwner || isManager;
   const nav = useNavigate();
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
