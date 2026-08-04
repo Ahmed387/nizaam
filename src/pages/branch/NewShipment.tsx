@@ -912,7 +912,7 @@ export default function NewShipment() {
           onToggle={() => toggleSection("payment")}
         >
           <div className="p-5">
-            <ShipmentPaymentsPanel shipmentId={shipmentId} canEdit={isAdmin} />
+            <ShipmentPaymentsPanel shipmentId={shipmentId} canEdit={canEditPayments} />
           </div>
         </CollapsibleSection>
       ) : null}
