@@ -72,6 +72,9 @@ function LegacyPanel() {
   const [docs, setDocs] = useState<LegacyDoc[]>([]);
   /** ربط اسم الحساب في الملف بحساب موجود على النظام */
   const [contactMap, setContactMap] = useState<Record<string, string>>({});
+  /** ملخص بعد الاعتماد: كل فرع وكل خزنة */
+  const [summary, setSummary] = useState<BranchSummary[] | null>(null);
+
 
   // أي تغيير في الإعدادات أو البيانات بيلغي الفحص السابق
   useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs, contactMap]);
