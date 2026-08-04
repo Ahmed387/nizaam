@@ -211,6 +211,8 @@ export default function NewShipment() {
       setOtherCost(Number((s as any).other_cost ?? 0));
       setOtherDesc((s as any).other_cost_description ?? "");
       setAdmin(Number(s.admin_cost ?? 0));
+      setInvDiscType(((s as any).discount_type === "percent" ? "percent" : "amount"));
+      setInvDiscValue(Number((s as any).discount_value ?? 0));
       setNotes(s.notes ?? "");
       setLines((it ?? []).map((r: any) => ({
         id: r.id,
@@ -291,7 +293,7 @@ export default function NewShipment() {
   };
 
 
-  const grandTotal = itemsNet + totalExtras + Number(admin || 0);
+  const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0);
 
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
