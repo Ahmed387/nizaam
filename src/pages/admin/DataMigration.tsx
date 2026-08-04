@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -14,11 +13,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet, Boxes, ShieldCheck, XCircle } from "lucide-react";
-import { downloadTemplate, parseExcelFile, ParsedRow } from "@/lib/excelImport";
-import {
-  DocKind, KIND_LABEL, MIGRATION_COLUMNS, MIGRATION_SAMPLE, DocResult,
-  groupByDoc, runMigration,
-} from "@/lib/invoiceMigration";
 import {
   parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
@@ -30,7 +24,6 @@ import { confirmAlert } from "@/components/ConfirmDialog";
 import * as XLSX from "xlsx";
 import { formatEGP } from "@/lib/format";
 
-const KINDS: DocKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
 const LEGACY_ORDER: LegacyKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
 
 /* ==================================================================== */
