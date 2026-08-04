@@ -105,6 +105,13 @@ export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
         </div>
       </div>
 
+      {miss.size > 0 && (
+        <div className="px-3 py-2 text-[11px] leading-5 bg-warning/10 border-b border-warning/30 text-warning-foreground">
+          <b className="text-warning">أعمدة ناقصة في الشيت:</b> النظام حطّ فيها قيمة افتراضية (٠ أو فاضي) وظلّلها بالأصفر تحت — عدّلها قبل الاعتماد.
+        </div>
+      )}
+
+
       <div className="max-h-[520px] overflow-y-auto divide-y animate-fade-in">
         {filtered.map(({ d, i }) => {
           const diff = Math.abs(r2(d.itemsTotal - d.headerTotal));
