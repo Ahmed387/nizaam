@@ -29,7 +29,17 @@ export interface LegacyItem {
   price: number;
   discount: number;
   total: number;
+  /** أعمدة قالب نظام الجديدة (اختيارية في الملفات القديمة) */
+  cost: number;
+  marketPrice: number;
+  discountPercent: number;
+  barcode: string;
+  unit: string;
+  brand: string;
+  model: string;
+  category: string;
 }
+
 
 export interface LegacyPayment {
   method: "cash" | "instapay" | "vodafone" | "bank";
@@ -54,7 +64,12 @@ export interface LegacyDoc {
   payments: LegacyPayment[];
   items: LegacyItem[];
   itemsTotal: number;
+  /** أعمدة قالب نظام الجديدة */
+  tax: number;
+  salesperson: string;
+  notes: string;
   warnings: string[];
+
 }
 
 export interface ParsedLegacySheet {
@@ -221,16 +236,29 @@ export function parseLegacyRows(rows: any[][], fallbackKind: LegacyKind | null =
     // صف صنف حقيقي: لازم يكون فيه اسم صنف
     if (name) {
       const qty = Math.abs(num(pick(m, row, "كمية", "الكمية")));
-      const price = Math.abs(num(pick(m, row, "السعر", "سعر")));
-      const disc = Math.abs(num(pick(m, row, "الخصم", "خصم")));
+      const price = Math.abs(num(pick(m, row, "السعر", "سعر", "سعر البيع")));
+      const discPct = Math.abs(num(pick(m, row, "خصم %", "نسبة الخصم", "الخصم %")));
+      const discAmt = Math.abs(num(pick(m, row, "الخصم", "خصم")));
+      const disc = discAmt || +(qty * price * (discPct / 100)).toFixed(2);
       const total = Math.abs(num(pick(m, row, "النهائى", "الاجمالى", "الإجمالي")));
       if (qty > 0) {
-        cur.items.push({ code, name, qty, price, discount: disc, total: total || qty * price - disc });
+        cur.items.push({
+          code, name, qty, price, discount: disc, total: total || qty * price - disc,
+          cost: Math.abs(num(pick(m, row, "التكلفة", "سعر التكلفة"))),
+          marketPrice: Math.abs(num(pick(m, row, "سعر السوق", "السعر الأساسي", "السعر الاساسي"))),
+          discountPercent: discPct,
+          barcode: clean(pick(m, row, "الباركود", "باركود")),
+          unit: clean(pick(m, row, "وحدة", "الوحدة")),
+          brand: clean(pick(m, row, "الماركة", "البراند")),
+          model: clean(pick(m, row, "الموديل", "موديل")),
+          category: clean(pick(m, row, "التصنيف", "الفئة")),
+        });
       } else {
         cur.warnings.push(`الصنف "${name}" كميته صفر — اتجاهل.`);
       }
       continue;
     }
+
 
     // صف إجمالي أو صف فاضي → نهاية البلوك (الهيدر الجاي هو اللي بيفتح مستند جديد)
   }
@@ -270,15 +298,20 @@ function buildDoc(row: any[], H: Record<string, number>, seq: number, rowNo: num
   };
   addPay("instapay", pick(H, row, "انستاباي", "إنستاباي"));
   addPay("vodafone", pick(H, row, "فودافون كاش"));
-  addPay("bank", pick(H, row, "PayMob", "paymob"));
+  addPay("bank", pick(H, row, "PayMob", "paymob", "بنك", "تحويل بنكي"));
 
   const digital = payments.reduce((s, p) => s + p.amount, 0);
   // المدفوع وقت إنشاء المستند = الإجمالي − الآجل (المستحق بيتغير مع التحصيلات اللاحقة)
   const paid = Math.max(0, Math.min(total, +(total - credit).toFixed(2)));
-  const cash = Math.max(0, +(paid - digital).toFixed(2));
+  const cashCol = Math.abs(num(pick(H, row, "كاش", "نقدي", "نقدى")));
+  const cash = cashCol || Math.max(0, +(paid - digital).toFixed(2));
   if (cash > 0) payments.unshift({ method: "cash", amount: cash });
 
   return {
+    tax: Math.abs(num(pick(H, row, "الضريبة", "ضريبة"))),
+    salesperson: clean(pick(H, row, "البائع", "الكاشير")),
+    notes: clean(pick(H, row, "ملاحظات", "ملاحظة")),
+
     seq,
     row: rowNo,
     legacyNumber: clean(pick(H, row, "رقم الفاتورة", "رقم المستند")),

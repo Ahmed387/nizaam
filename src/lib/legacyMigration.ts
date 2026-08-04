@@ -174,19 +174,21 @@ async function migratePurchase(
     return {
       product_id: null,
       product_name: it.name,
-      sku: it.code || null,
+      sku: it.code || it.barcode || null,
       quantity: it.qty,
       cost_price: it.price,
       discount_percent: 0,
       discount_amount: it.discount,
-      brand: attrs.brand || "غير محدد",
-      model: attrs.model || (it.code ? `كود ${it.code}` : "غير محدد"),
+      selling_price: it.marketPrice || undefined,
+      brand: it.brand || attrs.brand || "غير محدد",
+      model: it.model || attrs.model || (it.code ? `كود ${it.code}` : "غير محدد"),
       color: attrs.color || undefined,
       product_type: attrs.product_type || undefined,
       capacity: attrs.capacity || undefined,
       size: attrs.size || undefined,
     };
   });
+
 
   const total = round2(lines.reduce((s, l) => s + l.quantity * l.cost_price - (l.discount_amount || 0), 0));
 
@@ -282,10 +284,12 @@ async function migrateSale(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductIndex, 
       product_name: it.name,
       quantity: it.qty,
       selling_price: it.price,
-      cost_price: p.cost_price,
+      // التكلفة من الشيت لو موجودة، وإلا تكلفة المنتج على النظام
+      cost_price: it.cost > 0 ? it.cost : p.cost_price,
       line_discount: it.discount,
     };
   });
+
 
   const subtotal = round2(items.reduce((s, i) => s + i.quantity * i.selling_price, 0));
   const lineDisc = round2(items.reduce((s, i) => s + i.line_discount, 0));

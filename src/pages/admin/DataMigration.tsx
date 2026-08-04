@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet, Boxes, ShieldCheck, XCircle } from "lucide-react";
+import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, FileSpreadsheet, Boxes, ShieldCheck, XCircle, BookOpen, Building2, Wallet, Banknote } from "lucide-react";
 import {
   parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
@@ -24,8 +24,28 @@ import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import * as XLSX from "xlsx";
 import { formatEGP } from "@/lib/format";
+import { downloadLegacyTemplate, COLUMN_HELP } from "@/lib/legacyTemplate";
 
 const LEGACY_ORDER: LegacyKind[] = ["purchase", "sale", "sale_return", "purchase_return"];
+
+const METHOD_LABEL: Record<string, string> = {
+  cash: "الخزنة الكاش",
+  instapay: "إنستاباي",
+  vodafone: "فودافون كاش",
+  bank: "البنك / PayMob",
+};
+
+/** ملخص بعد الترحيل: كل فرع اتحطّ فيه إيه، وكل خزنة دخلها كام */
+interface BranchSummary {
+  branchName: string;
+  warehouse: string;
+  docs: number;
+  items: number;
+  total: number;
+  credit: number;
+  byMethod: Record<string, number>;
+}
+
 
 /* ==================================================================== */
 /*                    ترحيل ملفات النظام القديم (بلوكات)                 */
@@ -52,6 +72,9 @@ function LegacyPanel() {
   const [docs, setDocs] = useState<LegacyDoc[]>([]);
   /** ربط اسم الحساب في الملف بحساب موجود على النظام */
   const [contactMap, setContactMap] = useState<Record<string, string>>({});
+  /** ملخص بعد الاعتماد: كل فرع وكل خزنة */
+  const [summary, setSummary] = useState<BranchSummary[] | null>(null);
+
 
   // أي تغيير في الإعدادات أو البيانات بيلغي الفحص السابق
   useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs, contactMap]);
@@ -121,6 +144,8 @@ function LegacyPanel() {
 
   const onFile = async (file: File) => {
     setResults(null);
+    setSummary(null);
+
     setSheet(null);
     setDocs([]);
     setWhMap({});
@@ -243,6 +268,7 @@ function LegacyPanel() {
     setProgress({ done: 0, total: docs.length });
     try {
       const all: LegacyDocResult[] = [];
+      const sums: BranchSummary[] = [];
       let inserted = 0, failed = 0, skipped = 0, base = 0;
       for (const g of groups) {
         const out = await runLegacyMigration({
@@ -260,11 +286,32 @@ function LegacyPanel() {
         all.push(...out.results);
         inserted += out.inserted; failed += out.failed; skipped += out.skipped;
         base += g.docs.length;
+
+        // ملخص الفرع: المستندات اللي اتسجلت فعلًا بس
+        const done = new Set(out.results.filter((r) => r.ok && !r.skipped).map((r) => r.legacyNumber));
+        const s: BranchSummary = {
+          branchName: branchName(g.branchId || branchId),
+          warehouse: g.warehouse || "بدون مخزن في الملف",
+          docs: 0, items: 0, total: 0, credit: 0, byMethod: {},
+        };
+        for (const d of g.docs) {
+          if (!done.has(d.legacyNumber)) continue;
+          s.docs += 1;
+          s.items += d.items.length;
+          s.total += d.headerTotal;
+          s.credit += Math.max(0, d.headerTotal - d.paid);
+          for (const p of d.payments) {
+            s.byMethod[p.method] = (s.byMethod[p.method] ?? 0) + Math.min(p.amount, d.headerTotal);
+          }
+        }
+        if (s.docs) sums.push(s);
       }
       setResults(all);
+      setSummary(sums);
       setReport(null);
       if (failed === 0) toast.success(`تم ترحيل ${inserted} مستند بنجاح 🎉${skipped ? ` (${skipped} متخطي)` : ""}`);
       else toast.warning(`تم ${inserted} — فشل ${failed} — متخطي ${skipped}`);
+
     } catch (e: any) {
       toast.error(e.message ?? "فشل الترحيل");
     } finally {
@@ -293,9 +340,69 @@ function LegacyPanel() {
 
   return (
     <div className="space-y-4">
+      {/* ------------------------- الشرح بالعامية ------------------------- */}
+      <Card className="p-4 space-y-3 border-primary/30 bg-gradient-to-l from-primary/5 to-transparent animate-fade-in">
+        <div className="flex items-center gap-2 font-bold">
+          <BookOpen className="w-4 h-4 text-primary" /> الصفحة دي بتعمل إيه؟
+        </div>
+        <p className="text-sm leading-7 text-muted-foreground">
+          دي الصفحة اللي بترفع بيها فواتيرك القديمة (اللي على Excel) وتخليها فواتير حقيقية جوه نظام.
+          يعني الفاتورة مش بتتسجل «ورقة» — لأ، بتتحرّك في المخزن، وتدخّل فلوس الخزنة، وتقيّد على حساب العميل أو المورد،
+          وتعمل قيد يومية زي أي فاتورة بتعملها بإيدك من الشاشات العادية. عشان كده ركّز في المراجعة قبل ما تعتمد.
+        </p>
+
+        <div className="text-sm font-bold pt-1">ارفع بالترتيب ده — مهم جدًا 👇</div>
+        <div className="grid md:grid-cols-4 gap-2">
+          {[
+            { n: "١", t: "فواتير الشراء", d: "الأول خالص — منها بتتولد المنتجات نفسها وتكلفتها وأرصدة المخزن." },
+            { n: "٢", t: "فواتير البيع", d: "بعد الشراء — لأنها بتخصم من المخزون، ولو المنتج مش موجود الفاتورة هتقف." },
+            { n: "٣", t: "مرتجع البيع", d: "بعد البيع — بيتربط بالفاتورة الأصلية برقمها القديم." },
+            { n: "٤", t: "مرتجع الشراء", d: "آخر حاجة — بيتربط بفاتورة الشراء الأصلية." },
+          ].map((s, i) => (
+            <div key={s.n} className="rounded-xl border p-3 bg-surface-2/50 hover:border-primary/40 transition-colors animate-fade-in"
+              style={{ animationDelay: `${i * 60}ms` }}>
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <span className="w-6 h-6 rounded-full bg-primary/15 text-primary grid place-items-center text-xs">{s.n}</span>
+                {s.t}
+              </div>
+              <div className="text-xs text-muted-foreground leading-5 mt-1">{s.d}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded-lg p-3">
+          <b>خطوات الشغل:</b> ١ ترفع الملف ← ٢ تحدد النوع وتربط كل مخزن بفرعه وكل اسم بحسابه ← ٣ تراجع وتعدّل البيانات
+          (تمسح فاتورة، تظبط سعر أو تكلفة) ← ٤ فحص تجريبي (مبيسجّلش حاجة، بس بيقولك هيحصل إيه) ← ٥ تعتمد وترحّل.
+          <br />
+          الفرع مبتختروش من فوق — بيتحدد من عمود <b>المخزن</b> اللي جوه الملف، وانت بتربط كل مخزن بفرعه.
+        </div>
+
+        {/* أعمدة قالب نظام */}
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+          <div className="text-sm font-bold text-warning flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" /> الشيت القديم ناقصه أعمدة — استخدم قالب نظام
+          </div>
+          <p className="text-xs leading-6 text-muted-foreground">
+            شيت البيع القديم فيه <b>سعر البيع بس</b>، ومفيهوش التكلفة ولا سعر السوق ولا بيانات المنتج ولا الخزنة اللي دخلت فيها الفلوس.
+            القالب الجديد فيه كل الأعمدة اللي النظام بيشتغل بيها، فالفاتورة بتشبك على النظام على طول.
+            وأي عمود ناقص في ملفك القديم النظام بيقراه <b>صفر</b> وانت بتعدّله من شاشة المراجعة قبل الاعتماد.
+          </p>
+          <div className="grid md:grid-cols-2 gap-1.5">
+            {COLUMN_HELP.map((c) => (
+              <div key={c.col} className="text-[11px] leading-5 rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+                <b className="text-foreground">{c.col}</b> — {c.what}. <span className="text-muted-foreground">{c.need}</span>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => downloadLegacyTemplate(kindOverride || sheet?.kind || "")}>
+            <Download className="w-4 h-4 ml-1" /> نزّل قالب نظام (بالأعمدة الكاملة + شرح)
+          </Button>
+        </div>
+      </Card>
+
       <Card className="p-4 space-y-4">
         <div className="text-sm font-bold flex items-center gap-2">
-          <Badge className="bg-primary text-primary-foreground">١</Badge> ارفع ملف النظام القديم
+          <Badge className="bg-primary text-primary-foreground">١</Badge> ارفع الملف
         </div>
         <div className="grid md:grid-cols-2 gap-3">
           <div className="space-y-1">
@@ -303,7 +410,7 @@ function LegacyPanel() {
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="مثال: داتا معرض عبد المنعم" />
           </div>
           <div className="space-y-1">
-            <Label>ملف النظام القديم</Label>
+            <Label>ملف الفواتير (Excel)</Label>
             <label className="cursor-pointer block">
               <Button asChild className="w-full"><span><Upload className="w-4 h-4 ml-1" /> رفع Excel</span></Button>
               <input type="file" accept=".xlsx,.xls" className="hidden"
@@ -311,14 +418,8 @@ function LegacyPanel() {
             </label>
           </div>
         </div>
-
-        <div className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded p-3">
-          خطوات العملية: <b>١ رفع الملف</b> ← <b>٢ تحديد النوع وربط المخازن بالفروع</b> ← <b>٣ مراجعة وتعديل البيانات</b> ← <b>٤ فحص تجريبي</b> ← <b>٥ اعتماد وترحيل</b>.
-          الفرع مش بيتحدد في الأول — بيتحدد من عمود <b>المخزن</b> اللي في الملف نفسه، وكل مخزن بتربطه بفرعه.
-          <br />
-          <b>الترتيب المهم:</b> رحّل <b>فواتير الشراء</b> الأول (عشان المخزون والمنتجات تتعمل)، بعدين <b>البيع</b>، وبعدين <b>المرتجعات</b>.
-        </div>
       </Card>
+
 
       {sheet && (
         <Card className="p-4 space-y-3">
@@ -549,7 +650,54 @@ function LegacyPanel() {
         </Card>
       )}
 
+      {summary && summary.length > 0 && (
+        <Card className="p-4 space-y-3 border-success/40 bg-gradient-to-l from-success/5 to-transparent animate-fade-in">
+          <div className="flex items-center gap-2 font-bold">
+            <CheckCircle2 className="w-4 h-4 text-success" /> راح فين بالظبط؟ (بعد الاعتماد)
+          </div>
+          <p className="text-xs text-muted-foreground leading-6">
+            دي كل فاتورة اتسجلت فعلًا — اتحطت في أنهي فرع، والفلوس دخلت أنهي خزنة، والباقي على الحساب كام.
+          </p>
+          <div className="grid md:grid-cols-2 gap-3">
+            {summary.map((s, i) => (
+              <div key={i} className="rounded-xl border p-3 space-y-2 bg-surface-2/40 animate-fade-in" style={{ animationDelay: `${i * 70}ms` }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <Building2 className="w-4 h-4 text-primary" /> {s.branchName}
+                  </div>
+                  <Badge variant="outline" className="text-[11px]">مخزن الملف: {s.warehouse}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-lg border p-2"><div className="text-muted-foreground">مستندات</div><div className="text-lg font-bold">{s.docs}</div></div>
+                  <div className="rounded-lg border p-2 bg-primary/10"><div className="text-primary">أصناف</div><div className="text-lg font-bold text-primary">{s.items}</div></div>
+                  <div className="rounded-lg border p-2 bg-success/10"><div className="text-success">الإجمالي</div><div className="text-sm font-bold text-success">{formatEGP(s.total)}</div></div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold flex items-center gap-1"><Wallet className="w-3.5 h-3.5 text-primary" /> الخزن اللي اتأثرت</div>
+                  {Object.entries(s.byMethod).filter(([, v]) => v > 0).length === 0 && (
+                    <div className="text-xs text-muted-foreground">مفيش فلوس اتحصّلت — كله آجل.</div>
+                  )}
+                  {Object.entries(s.byMethod).filter(([, v]) => v > 0).map(([m, v]) => (
+                    <div key={m} className="flex items-center justify-between text-xs rounded-lg bg-background/60 border border-border/50 px-2 py-1.5">
+                      <span className="flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5 text-success" /> {METHOD_LABEL[m] ?? m}</span>
+                      <b className="tabular-nums text-success">{formatEGP(v)}</b>
+                    </div>
+                  ))}
+                  {s.credit > 0.5 && (
+                    <div className="flex items-center justify-between text-xs rounded-lg bg-warning/10 border border-warning/30 px-2 py-1.5">
+                      <span>آجل على الحساب</span>
+                      <b className="tabular-nums text-warning">{formatEGP(s.credit)}</b>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {results && (
+
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-semibold">

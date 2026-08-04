@@ -61,9 +61,16 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
   };
 
   const addItem = (di: number) => {
-    patchDoc(di, { items: [...docs[di].items, { code: "", name: "", qty: 1, price: 0, discount: 0, total: 0 }] });
+    patchDoc(di, {
+      items: [...docs[di].items, {
+        code: "", name: "", qty: 1, price: 0, discount: 0, total: 0,
+        cost: 0, marketPrice: 0, discountPercent: 0,
+        barcode: "", unit: "", brand: "", model: "", category: "",
+      }],
+    });
     setOpen((o) => ({ ...o, [di]: true }));
   };
+
 
   const removeDoc = async (di: number) => {
     const ok = await confirmAlert({
@@ -153,8 +160,12 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                         <tr className="border-b-2 border-border">
                           <th className="px-2 py-2 w-28 font-extrabold text-center">كود المنتج</th>
                           <th className="px-2 py-2 font-extrabold text-center">اسم الصنف</th>
-                          <th className="px-2 py-2 w-20 font-extrabold text-center">كمية</th><th className="px-2 py-2 w-24 font-extrabold text-center">السعر</th>
-                          <th className="px-2 py-2 w-24 font-extrabold text-center">خصم</th><th className="px-2 py-2 w-24 font-extrabold text-center">النهائي</th>
+                          <th className="px-2 py-2 w-20 font-extrabold text-center">كمية</th>
+                          <th className="px-2 py-2 w-24 font-extrabold text-center">السعر</th>
+                          <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">التكلفة</th>
+                          <th className="px-2 py-2 w-24 font-extrabold text-center">سعر السوق</th>
+                          <th className="px-2 py-2 w-24 font-extrabold text-center">خصم</th>
+                          <th className="px-2 py-2 w-24 font-extrabold text-center">النهائي</th>
                           <th className="px-2 py-2 w-10"></th>
                         </tr>
                       </thead>
@@ -165,6 +176,12 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                             <td className="p-1"><Input className="h-8" value={it.name} onChange={(e) => patchItem(i, j, { name: e.target.value })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.qty} onChange={(e) => patchItem(i, j, { qty: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.price} onChange={(e) => patchItem(i, j, { price: Number(e.target.value) || 0 })} /></td>
+                            <td className="p-1">
+                              <Input type="number" title="سعر التكلفة — لو صفر النظام هياخد آخر تكلفة للمنتج"
+                                className={`h-8 ${!it.cost ? "border-warning bg-warning/5" : ""}`}
+                                value={it.cost} onChange={(e) => patchItem(i, j, { cost: Number(e.target.value) || 0 })} />
+                            </td>
+                            <td className="p-1"><Input type="number" className="h-8" value={it.marketPrice} onChange={(e) => patchItem(i, j, { marketPrice: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.discount} onChange={(e) => patchItem(i, j, { discount: Number(e.target.value) || 0 })} /></td>
                             <td className="px-2 py-1 font-bold tabular-nums text-center whitespace-nowrap">{formatEGP(it.total)}</td>
                             <td className="p-1">
@@ -175,7 +192,7 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                           </tr>
                         ))}
                         {!d.items.length && (
-                          <tr><td colSpan={7} className="px-2 py-3 text-center text-muted-foreground">مفيش أصناف — ضيف صنف أو امسح المستند</td></tr>
+                          <tr><td colSpan={9} className="px-2 py-3 text-center text-muted-foreground">مفيش أصناف — ضيف صنف أو امسح المستند</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -184,6 +201,7 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                   <Button size="sm" variant="outline" className="h-7" onClick={() => addItem(i)}>
                     <Plus className="w-3 h-3 ml-1" /> ضيف صنف
                   </Button>
+
                 </div>
               )}
             </div>
