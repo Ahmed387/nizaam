@@ -284,6 +284,80 @@ function LegacyPanel() {
             </div>
           )}
 
+          {docs[0] && (
+            <div className="border-2 border-primary/30 rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-primary/10 text-sm font-bold">
+                معاينة تفصيلية لأول مستند — #{docs[0].legacyNumber || "بدون رقم"} (صف {docs[0].row} في الملف)
+              </div>
+
+              <div className="p-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                {[
+                  ["التاريخ / الوقت", docs[0].dateISO.replace("T", " ") || "—"],
+                  ["الحساب (عميل/مورد)", docs[0].account || "—"],
+                  ["المخزن", docs[0].warehouse || "—"],
+                  ["طريقة السداد", docs[0].paymentLabel || "—"],
+                  ["إجمالي الهيدر", formatEGP(docs[0].headerTotal)],
+                  ["مجموع السطور", formatEGP(docs[0].itemsTotal)],
+                  ["خصم الهيدر", formatEGP(docs[0].headerDiscount)],
+                  ["المدفوع", formatEGP(docs[0].paid)],
+                  ["الآجل", formatEGP(docs[0].credit)],
+                  ["المستحق", formatEGP(docs[0].due)],
+                  ["المستند الأصلي", docs[0].originalNumber ?? "—"],
+                  [
+                    "تفصيل الدفع",
+                    docs[0].payments.length
+                      ? docs[0].payments.map((p) => `${p.method}: ${formatEGP(p.amount)}`).join(" · ")
+                      : "—",
+                  ],
+                ].map(([k, v]) => (
+                  <div key={k as string} className="p-2 rounded border bg-muted/30">
+                    <div className="text-muted-foreground">{k}</div>
+                    <div className="font-semibold break-words">{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-2 py-1">#</th>
+                      <th className="px-2 py-1">كود الصنف</th>
+                      <th className="px-2 py-1">اسم الصنف</th>
+                      <th className="px-2 py-1">الكمية</th>
+                      <th className="px-2 py-1">السعر</th>
+                      <th className="px-2 py-1">الخصم</th>
+                      <th className="px-2 py-1">النهائي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {docs[0].items.map((it, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-2 py-1">{i + 1}</td>
+                        <td className="px-2 py-1">{it.code || "—"}</td>
+                        <td className="px-2 py-1">{it.name}</td>
+                        <td className="px-2 py-1">{it.qty}</td>
+                        <td className="px-2 py-1">{formatEGP(it.price)}</td>
+                        <td className="px-2 py-1">{formatEGP(it.discount)}</td>
+                        <td className="px-2 py-1 font-semibold">{formatEGP(it.total)}</td>
+                      </tr>
+                    ))}
+                    {!docs[0].items.length && (
+                      <tr><td colSpan={7} className="px-2 py-3 text-center text-muted-foreground">مفيش أصناف اتقرت في المستند ده</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {docs[0].warnings.length > 0 && (
+                <div className="px-3 py-2 bg-warning/10 text-xs text-warning font-semibold">
+                  ملاحظات: {docs[0].warnings.join("، ")}
+                </div>
+              )}
+            </div>
+          )}
+
+
           <div className="border rounded overflow-hidden">
             <div className="px-3 py-2 bg-muted text-sm font-semibold">معاينة أول 10 مستندات</div>
             <div className="overflow-x-auto">
