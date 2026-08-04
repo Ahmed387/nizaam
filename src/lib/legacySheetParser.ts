@@ -298,15 +298,20 @@ function buildDoc(row: any[], H: Record<string, number>, seq: number, rowNo: num
   };
   addPay("instapay", pick(H, row, "انستاباي", "إنستاباي"));
   addPay("vodafone", pick(H, row, "فودافون كاش"));
-  addPay("bank", pick(H, row, "PayMob", "paymob"));
+  addPay("bank", pick(H, row, "PayMob", "paymob", "بنك", "تحويل بنكي"));
 
   const digital = payments.reduce((s, p) => s + p.amount, 0);
   // المدفوع وقت إنشاء المستند = الإجمالي − الآجل (المستحق بيتغير مع التحصيلات اللاحقة)
   const paid = Math.max(0, Math.min(total, +(total - credit).toFixed(2)));
-  const cash = Math.max(0, +(paid - digital).toFixed(2));
+  const cashCol = Math.abs(num(pick(H, row, "كاش", "نقدي", "نقدى")));
+  const cash = cashCol || Math.max(0, +(paid - digital).toFixed(2));
   if (cash > 0) payments.unshift({ method: "cash", amount: cash });
 
   return {
+    tax: Math.abs(num(pick(H, row, "الضريبة", "ضريبة"))),
+    salesperson: clean(pick(H, row, "البائع", "الكاشير")),
+    notes: clean(pick(H, row, "ملاحظات", "ملاحظة")),
+
     seq,
     row: rowNo,
     legacyNumber: clean(pick(H, row, "رقم الفاتورة", "رقم المستند")),
