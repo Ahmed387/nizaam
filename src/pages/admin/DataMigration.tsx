@@ -82,6 +82,25 @@ function LegacyPanel() {
 
   const docs = sheet?.docs ?? [];
   const warned = useMemo(() => docs.filter((d) => d.warnings.length), [docs]);
+  const branchName = (id: string) => (branches as any[]).find((b) => b.id === id)?.name ?? "—";
+
+  /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
+  const unmappedWarehouses = useMemo(
+    () => (sheet?.warehouses ?? []).filter((w) => !whMap[w]),
+    [sheet, whMap],
+  );
+
+  /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الرئيسي المختار) */
+  const groups = useMemo(() => {
+    const m = new Map<string, { warehouse: string; branchId: string; docs: typeof docs }>();
+    for (const d of docs) {
+      const target = d.warehouse ? whMap[d.warehouse] || "" : branchId;
+      const k = `${d.warehouse}|${target}`;
+      if (!m.has(k)) m.set(k, { warehouse: d.warehouse || "", branchId: target, docs: [] });
+      m.get(k)!.docs.push(d);
+    }
+    return [...m.values()];
+  }, [docs, whMap, branchId]);
 
   const onFile = async (file: File) => {
     setResults(null);
@@ -102,11 +121,32 @@ function LegacyPanel() {
     if (!branchId) return toast.error("اختار الفرع الأول");
     if (!kind) return toast.error("حدّد نوع المستندات");
     if (!docs.length) return toast.error("مفيش مستندات للفحص");
+    if (unmappedWarehouses.length) {
+      return toast.error(`فيه مخزن في الملف مش موجود على النظام: ${unmappedWarehouses.join("، ")} — اختارله فرع الأول`);
+    }
     setChecking(true);
     try {
-      const rep = await runLegacyDryRun({
-        kind, branchId, docs, supplierId: needsSupplier ? supplierId || null : null, skipExisting,
-      });
+      const parts: DryRunReport[] = [];
+      for (const g of groups) {
+        const rep = await runLegacyDryRun({
+          kind, branchId: g.branchId || branchId, docs: g.docs,
+          supplierId: needsSupplier ? supplierId || null : null, skipExisting,
+        });
+        rep.docs.forEach((d) => { d.branchName = branchName(g.branchId || branchId); });
+        parts.push(rep);
+      }
+      const rep: DryRunReport = {
+        kind,
+        docs: parts.flatMap((p) => p.docs),
+        ok: parts.reduce((s, p) => s + p.ok, 0),
+        warnings: parts.reduce((s, p) => s + p.warnings, 0),
+        blocked: parts.reduce((s, p) => s + p.blocked, 0),
+        skipped: parts.reduce((s, p) => s + p.skipped, 0),
+        newContacts: [...new Set(parts.flatMap((p) => p.newContacts))],
+        newProducts: [...new Map(parts.flatMap((p) => p.newProducts).map((p) => [`${p.code}::${p.name}`, p])).values()],
+        missingProducts: [...new Map(parts.flatMap((p) => p.missingProducts).map((p) => [`${p.code}::${p.name}`, p])).values()],
+        total: parts.reduce((s, p) => s + p.total, 0),
+      };
       setReport(rep);
       if (rep.blocked) toast.warning(`الفحص خلص — فيه ${rep.blocked} مستند متوقف محتاج مراجعة`);
       else toast.success(`الفحص خلص — كله تمام (${rep.ok} سليم${rep.warnings ? ` · ${rep.warnings} فيه ملاحظات` : ""})`);
@@ -116,6 +156,7 @@ function LegacyPanel() {
       setChecking(false);
     }
   };
+
 
   const exportReport = () => {
     if (!report) return;
