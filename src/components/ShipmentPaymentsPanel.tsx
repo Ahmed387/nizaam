@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Wallet, Pencil, Loader2, RefreshCw } from "lucide-react";
+import { Wallet, Pencil, Loader2, RefreshCw, Plus } from "lucide-react";
 import { formatEGP, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface Props {
   shipmentId: string;
@@ -18,7 +20,9 @@ const methodLabel = (m: string) =>
 
 /** تعديل طريقة الدفع من جوه صفحة الشحنة نفسها */
 export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [plan, setPlan] = useState<any>(null);
   const [txs, setTxs] = useState<any[]>([]);
   const [editRow, setEditRow] = useState<any>(null);
@@ -53,7 +57,43 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
     load();
   }, [load]);
 
+  const createPlan = async () => {
+    setCreating(true);
+    try {
+      const { data: sh, error: se } = await supabase
+        .from("shipments")
+        .select("id, branch_id, contact_id, total_cost, contacts(name)")
+        .eq("id", shipmentId)
+        .single();
+      if (se) throw se;
+      const total = Number((sh as any).total_cost || 0);
+      const { error } = await supabase.from("payment_plans").insert({
+        branch_id: (sh as any).branch_id,
+        entity_type: "supplier",
+        entity_id: (sh as any).contact_id,
+        entity_name: (sh as any).contacts?.name ?? "مورد",
+        total_amount: total,
+        paid_amount: 0,
+        remaining_amount: total,
+        plan_type: "open",
+        reference_type: "shipment",
+        reference_id: shipmentId,
+        status: "active",
+        created_by: user!.id,
+      } as any);
+      if (error) throw error;
+      toast.success("تم إنشاء خطة الدفع ✅", { description: "دلوقتي تقدر تسجّل المدفوع وتعدّل طريقة الدفع" });
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل إنشاء خطة الدفع");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const active = txs.filter((t) => !t.voided_at);
+
 
   return (
     <div className="card-elevated overflow-hidden mb-6 animate-fade-in">
@@ -79,7 +119,18 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
           <Loader2 className="w-4 h-4 animate-spin" /> بنحمّل الدفعات...
         </div>
       ) : !plan ? (
-        <div className="p-6 text-sm text-muted-foreground">مفيش خطة دفع مرتبطة بالشحنة دي.</div>
+        <div className="p-6 space-y-3">
+          <div className="text-sm text-destructive font-bold">مفيش خطة دفع مرتبطة بالشحنة دي</div>
+          <div className="text-xs text-muted-foreground">
+            الشحنة اتسجلت بس خطة الدفع مااتعملتش. اعمل خطة دفع دلوقتي عشان تقدر تسجّل المدفوع للمورد وتعدّل طريقة الدفع.
+          </div>
+          {canEdit && (
+            <Button size="sm" onClick={createPlan} disabled={creating} className="gap-1">
+              {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              إنشاء خطة الدفع
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3 p-4 text-sm">

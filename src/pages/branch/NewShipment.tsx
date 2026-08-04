@@ -66,8 +66,9 @@ const genSku = () =>
 export default function NewShipment() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId?: string }>();
   const isEdit = !!shipmentId;
-  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
+  const { user, profile, isAdmin, isOwner, hasRole, tenantId } = useAuth();
   const isManager = hasRole("branch_manager");
+  const canEditPayments = isAdmin || isOwner || isManager;
   const nav = useNavigate();
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -480,7 +481,10 @@ export default function NewShipment() {
         }
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
-        docWarning({ title: "تم حفظ الشحنة", description: "لكن فشل إنشاء خطة الدفع — راجعها يدوياً" });
+        docWarning({
+          title: "الشحنة اتسجلت ✅ بس الدفع لسه",
+          description: `ماقدرناش نسجّل خطة الدفع دلوقتي (${planErr?.message ?? "خطأ غير معروف"}). افتح "تعديل الشحنة" → قسم "طريقة الدفع للمورد" وسجّل المدفوع من هناك.`,
+        });
       }
 
       try {
@@ -908,7 +912,7 @@ export default function NewShipment() {
           onToggle={() => toggleSection("payment")}
         >
           <div className="p-5">
-            <ShipmentPaymentsPanel shipmentId={shipmentId} canEdit={isAdmin} />
+            <ShipmentPaymentsPanel shipmentId={shipmentId} canEdit={canEditPayments} />
           </div>
         </CollapsibleSection>
       ) : null}
