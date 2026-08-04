@@ -303,6 +303,31 @@ export default function NewShipment() {
 
   const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0);
 
+  // ===== رصيد خزنة الفرع — الدفع النقدي مش مسموح لو الخزنة فاضية =====
+  const [treasuryBalance, setTreasuryBalance] = useState<number | null>(null);
+  const fetchTreasuryBalance = async (): Promise<number | null> => {
+    if (!branchId) return null;
+    const { data, error } = await (supabase as any)
+      .from("v_treasury_balances")
+      .select("current_balance")
+      .eq("branch_id", branchId)
+      .maybeSingle();
+    if (error) return null;
+    const bal = Number(data?.current_balance ?? 0);
+    setTreasuryBalance(bal);
+    return bal;
+  };
+  useEffect(() => { fetchTreasuryBalance(); }, [branchId]);
+
+  const plannedPaidNow = (() => {
+    if (plan.mode === "credit") return 0;
+    if (plan.mode === "full") return grandTotal;
+    const splitsSum = (plan.splits ?? []).reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
+    return Math.max(Number(plan.paidNow || 0), splitsSum);
+  })();
+  const overTreasury = treasuryBalance !== null && plannedPaidNow > treasuryBalance + 0.01;
+
+
   const handleProductChange = (i: number, productId: string) => {
     const p = products.find((x) => x.id === productId);
     if (p) updateLine(i, { product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", brand: p.brand ?? "", model: p.model ?? "", color: p.color ?? "", product_type: p.product_type ?? "", capacity: p.capacity ?? "", size: p.size ?? "" });
