@@ -20,7 +20,9 @@ const methodLabel = (m: string) =>
 
 /** تعديل طريقة الدفع من جوه صفحة الشحنة نفسها */
 export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [plan, setPlan] = useState<any>(null);
   const [txs, setTxs] = useState<any[]>([]);
   const [editRow, setEditRow] = useState<any>(null);
