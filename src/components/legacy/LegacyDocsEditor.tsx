@@ -19,6 +19,8 @@ interface Props {
   onChange: (docs: LegacyDoc[]) => void;
   /** الأعمدة الناقصة في الشيت — بتتعرض كخانات صفراء تعدّلها بإيدك قبل الاعتماد */
   missing?: ColumnKey[];
+  /** نوع الطرف: مورد في الشراء، عميل في البيع */
+  partyType?: "customer" | "supplier";
 }
 
 
@@ -33,7 +35,7 @@ function recalcDoc(d: LegacyDoc): LegacyDoc {
   return { ...d, items, itemsTotal: r2(items.reduce((s, i) => s + i.total, 0)) };
 }
 
-export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
+export function LegacyDocsEditor({ docs, onChange, missing = [], partyType = "customer" }: Props) {
   const miss = useMemo(() => new Set(missing), [missing]);
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [q, setQ] = useState("");
