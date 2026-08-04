@@ -68,6 +68,8 @@ export interface LegacyDoc {
   tax: number;
   salesperson: string;
   notes: string;
+  /** فرع محدد يدويًا لهذا المستند (يتجاوز مابنج المخزن) */
+  branchId?: string;
   warnings: string[];
 
 }

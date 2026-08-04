@@ -128,18 +128,18 @@ function LegacyPanel() {
 
   /** المخازن اللي في الملف ومالهاش فرع مطابق على النظام */
   const unmappedWarehouses = useMemo(
-    () => warehouses.filter((w) => !whMap[w]),
-    [warehouses, whMap],
+    () => warehouses.filter((w) => !whMap[w] && docs.some((d) => d.warehouse === w && !d.branchId)),
+    [warehouses, whMap, docs],
   );
 
   /** لازم نختار فرع افتراضي بس لو فيه مستند من غير مخزن */
-  const needsDefaultBranch = useMemo(() => docs.some((d) => !d.warehouse), [docs]);
+  const needsDefaultBranch = useMemo(() => docs.some((d) => !d.warehouse && !d.branchId), [docs]);
 
   /** تقسيم المستندات على الفروع حسب المخزن (المخزن الفاضي → الفرع الافتراضي المختار) */
   const groups = useMemo(() => {
     const m = new Map<string, { warehouse: string; branchId: string; docs: LegacyDoc[] }>();
     for (const d of docs) {
-      const target = d.warehouse ? whMap[d.warehouse] || "" : branchId;
+      const target = d.branchId || (d.warehouse ? whMap[d.warehouse] || "" : branchId);
       const k = `${d.warehouse}|${target}`;
       if (!m.has(k)) m.set(k, { warehouse: d.warehouse || "", branchId: target, docs: [] });
       m.get(k)!.docs.push(d);
@@ -582,7 +582,10 @@ function LegacyPanel() {
           <div className="text-sm font-bold flex items-center gap-2 pt-1">
             <Badge className="bg-primary text-primary-foreground">٣</Badge> راجع وعدّل البيانات قبل الاعتماد
           </div>
-          <LegacyDocsEditor docs={docs} onChange={setDocs} missing={colAudit.missingKeys} partyType={isPurchase ? "supplier" : "customer"} />
+          <LegacyDocsEditor docs={docs} onChange={setDocs} missing={colAudit.missingKeys}
+            partyType={isPurchase ? "supplier" : "customer"}
+            branches={branches.map((b: any) => ({ id: b.id, name: b.name }))}
+            resolveBranch={(d) => (d.warehouse ? whMap[d.warehouse] || "" : branchId)} />
 
 
 
