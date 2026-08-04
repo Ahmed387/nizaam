@@ -588,26 +588,12 @@ function LegacyPanel() {
 export default function DataMigration() {
   return (
     <AdminLayout>
-      <PageHeader title="ترحيل الفواتير القديمة" subtitle="رفع داتا الشركة القديمة (بيع / شراء / مرتجعات) من ملفات Excel" />
-      <Tabs defaultValue="legacy">
-        <TabsList className="w-full justify-center flex-wrap h-auto">
-          <TabsTrigger value="legacy" className="text-sm font-bold">ملفات النظام القديم</TabsTrigger>
-          <TabsTrigger value="templates" className="text-sm">قوالب Nizam الجاهزة</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="legacy" className="mt-4"><LegacyPanel /></TabsContent>
-
-        <TabsContent value="templates" className="mt-4">
-          <Tabs defaultValue="purchase">
-            <TabsList className="w-full justify-center flex-wrap h-auto">
-              {KINDS.map((k) => <TabsTrigger key={k} value={k} className="text-sm">{KIND_LABEL[k]}</TabsTrigger>)}
-            </TabsList>
-            {KINDS.map((k) => (
-              <TabsContent key={k} value={k} className="mt-4"><KindPanel kind={k} /></TabsContent>
-            ))}
-          </Tabs>
-        </TabsContent>
-      </Tabs>
+      <PageHeader
+        title="ترحيل الفواتير القديمة"
+        subtitle="ارفع ملفات الفواتير زي ما هي (بيع / شراء / مرتجع بيع / مرتجع شراء) — النوع بيتحدد تلقائيًا من اسم الملف أو محتواه"
+      />
+      <LegacyPanel />
     </AdminLayout>
   );
 }
+
