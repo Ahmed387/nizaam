@@ -61,9 +61,16 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
   };
 
   const addItem = (di: number) => {
-    patchDoc(di, { items: [...docs[di].items, { code: "", name: "", qty: 1, price: 0, discount: 0, total: 0 }] });
+    patchDoc(di, {
+      items: [...docs[di].items, {
+        code: "", name: "", qty: 1, price: 0, discount: 0, total: 0,
+        cost: 0, marketPrice: 0, discountPercent: 0,
+        barcode: "", unit: "", brand: "", model: "", category: "",
+      }],
+    });
     setOpen((o) => ({ ...o, [di]: true }));
   };
+
 
   const removeDoc = async (di: number) => {
     const ok = await confirmAlert({

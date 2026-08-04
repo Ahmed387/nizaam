@@ -64,7 +64,12 @@ export interface LegacyDoc {
   payments: LegacyPayment[];
   items: LegacyItem[];
   itemsTotal: number;
+  /** أعمدة قالب نظام الجديدة */
+  tax: number;
+  salesperson: string;
+  notes: string;
   warnings: string[];
+
 }
 
 export interface ParsedLegacySheet {
@@ -231,16 +236,29 @@ export function parseLegacyRows(rows: any[][], fallbackKind: LegacyKind | null =
     // صف صنف حقيقي: لازم يكون فيه اسم صنف
     if (name) {
       const qty = Math.abs(num(pick(m, row, "كمية", "الكمية")));
-      const price = Math.abs(num(pick(m, row, "السعر", "سعر")));
-      const disc = Math.abs(num(pick(m, row, "الخصم", "خصم")));
+      const price = Math.abs(num(pick(m, row, "السعر", "سعر", "سعر البيع")));
+      const discPct = Math.abs(num(pick(m, row, "خصم %", "نسبة الخصم", "الخصم %")));
+      const discAmt = Math.abs(num(pick(m, row, "الخصم", "خصم")));
+      const disc = discAmt || +(qty * price * (discPct / 100)).toFixed(2);
       const total = Math.abs(num(pick(m, row, "النهائى", "الاجمالى", "الإجمالي")));
       if (qty > 0) {
-        cur.items.push({ code, name, qty, price, discount: disc, total: total || qty * price - disc });
+        cur.items.push({
+          code, name, qty, price, discount: disc, total: total || qty * price - disc,
+          cost: Math.abs(num(pick(m, row, "التكلفة", "سعر التكلفة"))),
+          marketPrice: Math.abs(num(pick(m, row, "سعر السوق", "السعر الأساسي", "السعر الاساسي"))),
+          discountPercent: discPct,
+          barcode: clean(pick(m, row, "الباركود", "باركود")),
+          unit: clean(pick(m, row, "وحدة", "الوحدة")),
+          brand: clean(pick(m, row, "الماركة", "البراند")),
+          model: clean(pick(m, row, "الموديل", "موديل")),
+          category: clean(pick(m, row, "التصنيف", "الفئة")),
+        });
       } else {
         cur.warnings.push(`الصنف "${name}" كميته صفر — اتجاهل.`);
       }
       continue;
     }
+
 
     // صف إجمالي أو صف فاضي → نهاية البلوك (الهيدر الجاي هو اللي بيفتح مستند جديد)
   }
