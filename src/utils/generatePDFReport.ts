@@ -1587,7 +1587,7 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
       const totalExp = (input.expensesByType ?? []).reduce((s, e) => s + e.value, 0);
       const expRows = (input.expensesByType ?? [])
         .sort((a, b) => b.value - a.value)
-        .map((e) => [e.name, fmtEGP(e.value), totalExp ? fmtPct((e.value / totalExp) * 100) : "—"]);
+        .map((e) => [esc(e.name), fmtEGP(e.value), totalExp ? fmtPct((e.value / totalExp) * 100) : "—"]);
       sections.push(`<div data-pdf-section="exp">${simpleTable(["النوع", "المبلغ", "النسبة"], expRows)}</div>`);
     }
 
@@ -1605,7 +1605,7 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
         rows.map((r, i) => {
           const stock = r.stock ?? 0;
           const stockCell = `<b style="color:${stock <= 0 ? C.bad : stock <= 5 ? C.warn : C.text};">${fmtNum(stock)}</b>`;
-          return [String(i + 1), r.name, fmtNum(r.qty), stockCell, fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"];
+          return [String(i + 1), esc(r.name), fmtNum(r.qty), stockCell, fmtEGP(r.revenue), totalRev ? fmtPct((r.revenue / totalRev) * 100) : "—"];
         }),
         ["36px", "", "110px", "80px", "130px", "110px"],
       );
@@ -1633,7 +1633,7 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
       const listRows = rows
         .slice()
         .sort((a, b) => (a.date > b.date ? -1 : 1))
-        .map((e, i) => [String(i + 1), fmtDate(e.date), e.type, e.description || "—", fmtEGP(Number(e.amount || 0))]);
+        .map((e, i) => [String(i + 1), fmtDate(e.date), esc(e.type), esc(e.description || "—"), fmtEGP(Number(e.amount || 0))]);
       sections.push(`<div data-pdf-section="full">${simpleTable(
         ["#", "التاريخ", "النوع", "الوصف", "المبلغ"],
         listRows,
@@ -1654,8 +1654,8 @@ export async function generateBranchTabReport(input: BranchTabReportInput): Prom
         .sort((a, b) => a.quantity - b.quantity)
         .map((p, i) => [
           String(i + 1),
-          p.name,
-          p.sku || "—",
+          esc(p.name),
+          esc(p.sku || "—"),
           `<b style="color:${p.quantity === 0 ? C.bad : C.warn};">${fmtNum(p.quantity)}</b>`,
           fmtNum(p.low_stock_alert),
           fmtNum(Math.max(0, p.low_stock_alert - p.quantity)),
