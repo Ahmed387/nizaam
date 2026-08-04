@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Pencil } from "lucide-react";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
 
 interface Props {
   open: boolean;
