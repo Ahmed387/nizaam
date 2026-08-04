@@ -422,8 +422,21 @@ export default function NewShipment() {
         return toast.error(`أدخل الماركة والموديل للصنف الجديد: ${l.product_name}`);
     }
 
+    // 🚫 امنع الدفع لو الخزنة مفيهاش رصيد كافي — متاح الآجل فقط
+    if (plannedPaidNow > 0) {
+      const bal = await fetchTreasuryBalance();
+      if (bal !== null && plannedPaidNow > bal + 0.01) {
+        toast.error("رصيد الخزنة مش كفاية 🚫", {
+          description: `الخزنة فيها ${formatEGP(bal)} بس، وانت بتحاول تدفع ${formatEGP(plannedPaidNow)}. غيّر طريقة الدفع لـ "آجل" أو قلّل المبلغ المدفوع لحد ${formatEGP(bal)}.`,
+          duration: 9000,
+        });
+        setOpenSections((s) => ({ ...s, payment: true }));
+        return;
+      }
+    }
 
     setBusy(true);
+
     try {
       // Single-RPC gateway: creates shipment + items + product_batches + updates quantities
       // atomically with shipping cost share calculation. Required because the guard
