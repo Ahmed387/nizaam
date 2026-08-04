@@ -275,11 +275,16 @@ export default function NewShipment() {
   // Real-time proportional distribution by line value
   const distribution = lines.map((l) => {
     const net = lineNet(l);
-    const baseUnit = (l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0) * discFactor;
+    const unitBefore = l.quantity > 0 ? net / l.quantity : Number(l.cost_price) || 0;
+    const baseUnit = unitBefore * discFactor;
+    // نصيب الصنف من خصم الفاتورة (بالتناسب مع قيمة الصنف وكميته)
+    const invDiscShare = itemsNet > 0 ? (net / itemsNet) * invoiceDiscountAmount : 0;
+    const invDiscUnit = l.quantity > 0 ? invDiscShare / l.quantity : 0;
+    const invDiscPct = net > 0 ? (invDiscShare / net) * 100 : 0;
     const lineShare = itemsNet > 0 ? (net / itemsNet) * totalExtras : 0;
     const unitExtra = l.quantity > 0 ? lineShare / l.quantity : 0;
     const trueUnit = baseUnit + unitExtra;
-    return { line: l, baseUnit, unitExtra, lineShare, trueUnit };
+    return { line: l, net, unitBefore, baseUnit, invDiscShare, invDiscUnit, invDiscPct, unitExtra, lineShare, trueUnit };
   });
 
 
