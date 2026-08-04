@@ -103,7 +103,7 @@ export default function NewShipment() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   // ===== Local autosave (crash / accidental reload safety net) =====
-  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, notes, lines, plan };
+  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, invDiscType, invDiscValue, notes, lines, plan };
   const formDraft = useFormDraft<typeof draftSnapshot>(
     "purchase",
     [user?.id, branchId],
@@ -122,6 +122,8 @@ export default function NewShipment() {
     setOtherCost(d.otherCost ?? 0);
     setOtherDesc(d.otherDesc ?? "");
     setAdmin(d.admin ?? 0);
+    setInvDiscType(d.invDiscType ?? "amount");
+    setInvDiscValue(d.invDiscValue ?? 0);
     setNotes(d.notes ?? "");
     setLines(d.lines ?? []);
     if (d.plan) setPlan(d.plan);
