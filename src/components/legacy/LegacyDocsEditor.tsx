@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronLeft, Trash2, Plus, Wand2, Search } from "lucide-react";
 import type { LegacyDoc, LegacyItem } from "@/lib/legacySheetParser";
+import type { ColumnKey } from "@/lib/legacyTemplate";
 import { formatEGP } from "@/lib/format";
 import { confirmAlert } from "@/components/ConfirmDialog";
 
@@ -15,7 +16,10 @@ import { confirmAlert } from "@/components/ConfirmDialog";
 interface Props {
   docs: LegacyDoc[];
   onChange: (docs: LegacyDoc[]) => void;
+  /** الأعمدة الناقصة في الشيت — بتتعرض كخانات صفراء تعدّلها بإيدك قبل الاعتماد */
+  missing?: ColumnKey[];
 }
+
 
 const r2 = (n: number) => +(Number(n) || 0).toFixed(2);
 
@@ -28,7 +32,8 @@ function recalcDoc(d: LegacyDoc): LegacyDoc {
   return { ...d, items, itemsTotal: r2(items.reduce((s, i) => s + i.total, 0)) };
 }
 
-export function LegacyDocsEditor({ docs, onChange }: Props) {
+export function LegacyDocsEditor({ docs, onChange, missing = [] }: Props) {
+  const miss = useMemo(() => new Set(missing), [missing]);
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [q, setQ] = useState("");
 
@@ -100,6 +105,13 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
         </div>
       </div>
 
+      {miss.size > 0 && (
+        <div className="px-3 py-2 text-[11px] leading-5 bg-warning/10 border-b border-warning/30 text-warning-foreground">
+          <b className="text-warning">أعمدة ناقصة في الشيت:</b> النظام حطّ فيها قيمة افتراضية (٠ أو فاضي) وظلّلها بالأصفر تحت — عدّلها قبل الاعتماد.
+        </div>
+      )}
+
+
       <div className="max-h-[520px] overflow-y-auto divide-y animate-fade-in">
         {filtered.map(({ d, i }) => {
           const diff = Math.abs(r2(d.itemsTotal - d.headerTotal));
@@ -128,22 +140,32 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                 <div className="p-3 space-y-2 bg-background">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                     {([
-                      ["المخزن", "warehouse", "text"],
-                      ["إجمالي الفاتورة", "headerTotal", "number"],
-                      ["خصم الفاتورة", "headerDiscount", "number"],
-                      ["المدفوع", "paid", "number"],
-                      ["المستند الأصلي", "originalNumber", "text"],
-                    ] as const).map(([lbl, key, type]) => (
-                      <div key={key} className="space-y-1">
-                        <div className="text-muted-foreground">{lbl}</div>
-                        <Input type={type} className="h-8"
-                          value={(d as any)[key] ?? ""}
-                          onChange={(e) => patchDoc(i, {
-                            [key]: type === "number" ? Number(e.target.value) || 0 : e.target.value,
-                          } as any)} />
-                      </div>
-                    ))}
+                      ["المخزن", "warehouse", "text", "warehouse"],
+                      ["إجمالي الفاتورة", "headerTotal", "number", null],
+                      ["خصم الفاتورة", "headerDiscount", "number", "headerDiscount"],
+                      ["الضريبة", "tax", "number", "headerDiscount"],
+                      ["المدفوع", "paid", "number", "payments"],
+                      ["الآجل", "credit", "number", "credit"],
+                      ["المستند الأصلي", "originalNumber", "text", "original"],
+                      ["البائع", "salesperson", "text", "productInfo"],
+                    ] as const).map(([lbl, key, type, mk]) => {
+                      const isMissing = !!mk && miss.has(mk as ColumnKey);
+                      return (
+                        <div key={key} className="space-y-1">
+                          <div className={isMissing ? "text-warning font-semibold" : "text-muted-foreground"}>
+                            {lbl}{isMissing ? " • ناقص" : ""}
+                          </div>
+                          <Input type={type} className={`h-8 ${isMissing ? "border-warning bg-warning/5" : ""}`}
+                            title={isMissing ? "العمود ده مش موجود في الشيت — القيمة دي افتراضية، عدّلها" : undefined}
+                            value={(d as any)[key] ?? ""}
+                            onChange={(e) => patchDoc(i, {
+                              [key]: type === "number" ? Number(e.target.value) || 0 : e.target.value,
+                            } as any)} />
+                        </div>
+                      );
+                    })}
                   </div>
+
 
                   {diff > 1 && (
                     <div className="flex items-center gap-2 text-warning">
@@ -162,9 +184,19 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                           <th className="px-2 py-2 font-extrabold text-center">اسم الصنف</th>
                           <th className="px-2 py-2 w-20 font-extrabold text-center">كمية</th>
                           <th className="px-2 py-2 w-24 font-extrabold text-center">السعر</th>
-                          <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">التكلفة</th>
-                          <th className="px-2 py-2 w-24 font-extrabold text-center">سعر السوق</th>
+                          <th className={`px-2 py-2 w-24 font-extrabold text-center ${miss.has("cost") ? "text-warning" : ""}`}>التكلفة{miss.has("cost") ? " • ناقص" : ""}</th>
+                          <th className={`px-2 py-2 w-24 font-extrabold text-center ${miss.has("marketPrice") ? "text-warning" : ""}`}>سعر السوق{miss.has("marketPrice") ? " • ناقص" : ""}</th>
                           <th className="px-2 py-2 w-24 font-extrabold text-center">خصم</th>
+                          {miss.has("lineDiscount") && <th className="px-2 py-2 w-20 font-extrabold text-center text-warning">خصم % • ناقص</th>}
+                          {miss.has("productInfo") && (
+                            <>
+                              <th className="px-2 py-2 w-20 font-extrabold text-center text-warning">وحدة • ناقص</th>
+                              <th className="px-2 py-2 w-28 font-extrabold text-center text-warning">باركود • ناقص</th>
+                              <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">ماركة • ناقص</th>
+                              <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">موديل • ناقص</th>
+                              <th className="px-2 py-2 w-24 font-extrabold text-center text-warning">تصنيف • ناقص</th>
+                            </>
+                          )}
                           <th className="px-2 py-2 w-24 font-extrabold text-center">النهائي</th>
                           <th className="px-2 py-2 w-10"></th>
                         </tr>
@@ -181,8 +213,21 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                                 className={`h-8 ${!it.cost ? "border-warning bg-warning/5" : ""}`}
                                 value={it.cost} onChange={(e) => patchItem(i, j, { cost: Number(e.target.value) || 0 })} />
                             </td>
-                            <td className="p-1"><Input type="number" className="h-8" value={it.marketPrice} onChange={(e) => patchItem(i, j, { marketPrice: Number(e.target.value) || 0 })} /></td>
+                            <td className="p-1"><Input type="number" className={`h-8 ${!it.marketPrice ? "border-warning bg-warning/5" : ""}`} value={it.marketPrice} onChange={(e) => patchItem(i, j, { marketPrice: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.discount} onChange={(e) => patchItem(i, j, { discount: Number(e.target.value) || 0 })} /></td>
+                            {miss.has("lineDiscount") && (
+                              <td className="p-1"><Input type="number" className="h-8 border-warning bg-warning/5" value={it.discountPercent} onChange={(e) => patchItem(i, j, { discountPercent: Number(e.target.value) || 0 })} /></td>
+                            )}
+                            {miss.has("productInfo") && (
+                              <>
+                                {(["unit", "barcode", "brand", "model", "category"] as const).map((f) => (
+                                  <td key={f} className="p-1">
+                                    <Input className="h-8 border-warning bg-warning/5" value={(it as any)[f] ?? ""}
+                                      onChange={(e) => patchItem(i, j, { [f]: e.target.value } as any)} />
+                                  </td>
+                                ))}
+                              </>
+                            )}
                             <td className="px-2 py-1 font-bold tabular-nums text-center whitespace-nowrap">{formatEGP(it.total)}</td>
                             <td className="p-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(i, j)}>
@@ -191,6 +236,7 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                             </td>
                           </tr>
                         ))}
+
                         {!d.items.length && (
                           <tr><td colSpan={9} className="px-2 py-3 text-center text-muted-foreground">مفيش أصناف — ضيف صنف أو امسح المستند</td></tr>
                         )}
