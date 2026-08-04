@@ -18,6 +18,8 @@ export interface LegacyRunArgs {
   fileName?: string;
   /** المورد الافتراضي للشراء / مرتجع الشراء */
   supplierId?: string | null;
+  /** ربط اسم الحساب اللي في الملف بحساب موجود على النظام: الاسم → contact id */
+  contactMap?: Record<string, string>;
   docs: LegacyDoc[];
   /** يتخطى المستندات اللي رقمها القديم اتسجل قبل كده */
   skipExisting?: boolean;
@@ -506,7 +508,7 @@ export function findClosedPeriod(periods: ClosedPeriod[], dateISO: string): stri
 
 export async function runLegacyMigration(a: LegacyRunArgs): Promise<LegacyOutcome> {
   const results: LegacyDocResult[] = [];
-  const contacts = new Map<string, string>();
+  const contacts = new Map<string, string>(Object.entries(a.contactMap ?? {}).filter(([k, v]) => k && v));
   const idx = await loadProducts(a.branchId);
   const existing = a.skipExisting ? await loadExisting(a.kind, a.branchId) : new Set<string>();
 

@@ -71,6 +71,7 @@ export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_reports_hub", label: "التقارير (المركزية)", actions: ["view"] },
   { key: "admin_system_health", label: "فحص السيستم", actions: ["view"] },
   { key: "admin_approvals", label: "طلبات موافقة الأدمن", actions: ["view"] },
+  { key: "admin_data_migration", label: "ترحيل الفواتير القديمة (المالك فقط افتراضيًا)", actions: ["view"] },
   { key: "admin_settings", label: "الإعدادات", actions: ["view"] },
 ];
 

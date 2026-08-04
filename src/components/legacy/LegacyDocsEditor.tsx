@@ -93,12 +93,12 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
         </div>
       </div>
 
-      <div className="max-h-[520px] overflow-y-auto divide-y">
+      <div className="max-h-[520px] overflow-y-auto divide-y animate-fade-in">
         {filtered.map(({ d, i }) => {
           const diff = Math.abs(r2(d.itemsTotal - d.headerTotal));
           return (
             <div key={`${i}-${d.row}`} className="text-xs">
-              <div className="flex items-center gap-2 px-2 py-2 bg-muted/20">
+              <div className="flex items-center gap-2 px-2 py-2 bg-surface-2/50 hover:bg-primary/5 transition-colors">
                 <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"
                   onClick={() => setOpen((o) => ({ ...o, [i]: !o[i] }))}>
                   {open[i] ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -147,25 +147,26 @@ export function LegacyDocsEditor({ docs, onChange }: Props) {
                     </div>
                   )}
 
-                  <div className="overflow-x-auto border rounded">
-                    <table className="w-full">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="px-2 py-1">الكود</th><th className="px-2 py-1">اسم الصنف</th>
-                          <th className="px-2 py-1 w-20">كمية</th><th className="px-2 py-1 w-24">السعر</th>
-                          <th className="px-2 py-1 w-24">خصم</th><th className="px-2 py-1 w-24">النهائي</th>
-                          <th className="px-2 py-1 w-10"></th>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="w-full border-collapse">
+                      <thead className="bg-surface-2">
+                        <tr className="border-b-2 border-border">
+                          <th className="px-2 py-2 w-28 font-extrabold text-center">كود المنتج</th>
+                          <th className="px-2 py-2 font-extrabold text-center">اسم الصنف</th>
+                          <th className="px-2 py-2 w-20 font-extrabold text-center">كمية</th><th className="px-2 py-2 w-24 font-extrabold text-center">السعر</th>
+                          <th className="px-2 py-2 w-24 font-extrabold text-center">خصم</th><th className="px-2 py-2 w-24 font-extrabold text-center">النهائي</th>
+                          <th className="px-2 py-2 w-10"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {d.items.map((it, j) => (
-                          <tr key={j} className="border-t">
-                            <td className="p-1"><Input className="h-8 w-24" value={it.code} onChange={(e) => patchItem(i, j, { code: e.target.value })} /></td>
+                          <tr key={j} className={`border-b border-border/50 transition-colors hover:bg-primary/5 ${j % 2 ? "bg-surface-2/30" : ""}`}>
+                            <td className="p-1"><Input className="h-8 w-24 tabular-nums font-semibold text-center bg-primary/5 border-primary/20" placeholder="كود" value={it.code} onChange={(e) => patchItem(i, j, { code: e.target.value })} /></td>
                             <td className="p-1"><Input className="h-8" value={it.name} onChange={(e) => patchItem(i, j, { name: e.target.value })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.qty} onChange={(e) => patchItem(i, j, { qty: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.price} onChange={(e) => patchItem(i, j, { price: Number(e.target.value) || 0 })} /></td>
                             <td className="p-1"><Input type="number" className="h-8" value={it.discount} onChange={(e) => patchItem(i, j, { discount: Number(e.target.value) || 0 })} /></td>
-                            <td className="px-2 py-1 font-semibold">{formatEGP(it.total)}</td>
+                            <td className="px-2 py-1 font-bold tabular-nums text-center whitespace-nowrap">{formatEGP(it.total)}</td>
                             <td className="p-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(i, j)}>
                                 <Trash2 className="w-3.5 h-3.5" />

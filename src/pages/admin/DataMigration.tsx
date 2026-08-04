@@ -17,6 +17,7 @@ import {
   parseLegacyFile, ParsedLegacySheet, LegacyKind, LEGACY_KIND_LABEL, LegacyDoc,
 } from "@/lib/legacySheetParser";
 import { LegacyDocsEditor } from "@/components/legacy/LegacyDocsEditor";
+import { LegacyAccountsMapper } from "@/components/legacy/LegacyAccountsMapper";
 
 import { runLegacyMigration, LegacyDocResult } from "@/lib/legacyMigration";
 import { runLegacyDryRun, DryRunReport } from "@/lib/legacyDryRun";
@@ -49,9 +50,11 @@ function LegacyPanel() {
   const [whMap, setWhMap] = useState<Record<string, string>>({});
   /** المستندات بعد التعديل اليدوي (دي اللي بتترحّل فعليًا) */
   const [docs, setDocs] = useState<LegacyDoc[]>([]);
+  /** ربط اسم الحساب في الملف بحساب موجود على النظام */
+  const [contactMap, setContactMap] = useState<Record<string, string>>({});
 
   // أي تغيير في الإعدادات أو البيانات بيلغي الفحص السابق
-  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs]);
+  useEffect(() => { setReport(null); }, [branchId, kindOverride, supplierId, skipExisting, fileName, whMap, docs, contactMap]);
 
   const warehouses = useMemo(
     () => [...new Set(docs.map((d) => d.warehouse).filter(Boolean))],
@@ -121,6 +124,7 @@ function LegacyPanel() {
     setSheet(null);
     setDocs([]);
     setWhMap({});
+    setContactMap({});
     setFileName(file.name);
     try {
       const parsed = await parseLegacyFile(file);
@@ -149,7 +153,7 @@ function LegacyPanel() {
       for (const g of groups) {
         const rep = await runLegacyDryRun({
           kind, branchId: g.branchId || branchId, docs: g.docs,
-          supplierId: isPurchase ? supplierId || null : null, skipExisting,
+          supplierId: isPurchase ? supplierId || null : null, skipExisting, contactMap,
         });
         rep.docs.forEach((d) => { d.branchName = branchName(g.branchId || branchId); });
         parts.push(rep);
@@ -248,6 +252,7 @@ function LegacyPanel() {
           label: (label.trim() || "ترحيل") + (g.warehouse ? ` — ${g.warehouse}` : ""),
           fileName,
           supplierId: isPurchase ? supplierId || null : null,
+          contactMap,
           docs: g.docs,
           skipExisting,
           onProgress: (done) => setProgress({ done: base + done, total: docs.length }),
@@ -368,18 +373,12 @@ function LegacyPanel() {
           </div>
 
           {fileAccounts.length > 0 && (
-            <div className="border rounded-lg p-3 bg-muted/30 space-y-1">
-              <div className="text-sm font-semibold">
-                {isPurchase ? "الموردين" : "العملاء"} اللي في الملف ({fileAccounts.length})
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {fileAccounts.slice(0, 40).map((a) => <Badge key={a} variant="outline" className="font-normal">{a}</Badge>)}
-                {fileAccounts.length > 40 && <Badge variant="outline">+{fileAccounts.length - 40}</Badge>}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                كل اسم بيتربط بحساب موجود بنفس الاسم، ولو مش موجود بيتعمل تلقائي — يعني الملف الواحد ممكن يكون فيه أكتر من مورد عادي.
-              </div>
-            </div>
+            <LegacyAccountsMapper
+              names={fileAccounts}
+              isPurchase={isPurchase}
+              value={contactMap}
+              onChange={setContactMap}
+            />
           )}
 
           {(warehouses.length > 0 || needsDefaultBranch) && (
@@ -486,27 +485,37 @@ function LegacyPanel() {
                 )}
               </div>
 
-              <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/50"><tr>
-                    <th className="px-2 py-1">الرقم</th><th className="px-2 py-1">التاريخ</th>
-                    <th className="px-2 py-1">الحساب</th><th className="px-2 py-1">الإجمالي</th>
-                    <th className="px-2 py-1">الحالة</th><th className="px-2 py-1">التفاصيل</th>
-                  </tr></thead>
+              <div className="overflow-x-auto rounded-lg border border-border/60 m-3 mt-0">
+                <table className="w-full text-xs border-collapse">
+                  <thead className="bg-surface-2 sticky top-0 z-10">
+                    <tr className="border-b-2 border-border">
+                      {["الرقم القديم", "التاريخ", "الحساب", "الفرع", "الإجمالي", "الحالة", "التفاصيل"].map((h) => (
+                        <th key={h} className="px-2 py-2.5 font-extrabold text-center whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
                   <tbody>
                     {report.docs.map((d, i) => (
-                      <tr key={d.legacyNumber + i} className="border-t">
-                        <td className="px-2 py-1 font-semibold">{d.legacyNumber}</td>
-                        <td className="px-2 py-1">{d.dateISO.replace("T", " ")}</td>
-                        <td className="px-2 py-1">{d.account || "—"}</td>
-                        <td className="px-2 py-1">{formatEGP(d.total)}</td>
-                        <td className="px-2 py-1">
+                      <tr
+                        key={d.legacyNumber + i}
+                        className={`border-b border-border/50 transition-colors hover:bg-primary/5 animate-fade-in ${
+                          d.status === "blocked" ? "bg-destructive/5"
+                            : d.status === "warning" ? "bg-warning/5"
+                            : i % 2 ? "bg-surface-2/30" : ""
+                        }`}
+                      >
+                        <td className="px-2 py-2 text-center font-bold tabular-nums">{d.legacyNumber || "—"}</td>
+                        <td className="px-2 py-2 text-center whitespace-nowrap tabular-nums text-muted-foreground">{d.dateISO.replace("T", " ")}</td>
+                        <td className="px-2 py-2 text-right">{d.account || "—"}</td>
+                        <td className="px-2 py-2 text-center text-muted-foreground">{d.branchName || "—"}</td>
+                        <td className="px-2 py-2 text-center font-bold tabular-nums whitespace-nowrap">{formatEGP(d.total)}</td>
+                        <td className="px-2 py-2 text-center">
                           {d.status === "blocked" ? <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> متوقف</Badge>
                             : d.status === "warning" ? <Badge className="bg-warning/15 text-warning">ملاحظات</Badge>
                             : d.status === "skip" ? <Badge variant="outline">هيتخطى</Badge>
-                            : <Badge className="bg-success/15 text-success">سليم</Badge>}
+                            : <Badge className="bg-success/15 text-success gap-1"><CheckCircle2 className="w-3 h-3" /> سليم</Badge>}
                         </td>
-                        <td className="px-2 py-1 text-muted-foreground">
+                        <td className="px-2 py-2 text-right text-muted-foreground leading-5">
                           {d.issues.length ? d.issues.map((x, j) => (
                             <div key={j} className={x.level === "error" ? "text-destructive" : x.level === "warning" ? "text-warning" : ""}>• {x.text}</div>
                           )) : "—"}
@@ -548,25 +557,29 @@ function LegacyPanel() {
             </div>
             <Button variant="outline" size="sm" onClick={exportResults}><Download className="w-4 h-4 ml-1" /> تصدير النتيجة</Button>
           </div>
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/50"><tr>
-                <th className="px-2 py-1">الرقم القديم</th><th className="px-2 py-1">الحالة</th>
-                <th className="px-2 py-1">رقم النظام</th><th className="px-2 py-1">الإجمالي</th>
-                <th className="px-2 py-1">ملاحظة / خطأ</th>
-              </tr></thead>
+          <div className="overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full text-xs border-collapse">
+              <thead className="bg-surface-2 sticky top-0">
+                <tr className="border-b-2 border-border">
+                  {["الرقم القديم", "الحالة", "رقم النظام", "الإجمالي", "ملاحظة / خطأ"].map((h) => (
+                    <th key={h} className="px-2 py-2.5 font-extrabold text-center whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
                 {results.map((r, i) => (
-                  <tr key={r.legacyNumber + i} className="border-t">
-                    <td className="px-2 py-1">{r.legacyNumber}</td>
-                    <td className="px-2 py-1">
+                  <tr key={r.legacyNumber + i}
+                    className={`border-b border-border/50 transition-colors hover:bg-primary/5 animate-fade-in ${
+                      r.error ? "bg-destructive/5" : i % 2 ? "bg-surface-2/30" : ""}`}>
+                    <td className="px-2 py-2 text-center font-bold tabular-nums">{r.legacyNumber}</td>
+                    <td className="px-2 py-2 text-center">
                       {r.skipped
                         ? <Badge variant="outline">متخطي</Badge>
-                        : r.ok ? <Badge className="bg-success/15 text-success">تم</Badge> : <Badge variant="destructive">فشل</Badge>}
+                        : r.ok ? <Badge className="bg-success/15 text-success gap-1"><CheckCircle2 className="w-3 h-3" /> تم</Badge> : <Badge variant="destructive">فشل</Badge>}
                     </td>
-                    <td className="px-2 py-1">{r.number ?? "—"}</td>
-                    <td className="px-2 py-1">{formatEGP(r.total)}</td>
-                    <td className={`px-2 py-1 ${r.error ? "text-destructive" : "text-muted-foreground"}`}>{r.error ?? r.note ?? ""}</td>
+                    <td className="px-2 py-2 text-center tabular-nums">{r.number ?? "—"}</td>
+                    <td className="px-2 py-2 text-center font-bold tabular-nums whitespace-nowrap">{formatEGP(r.total)}</td>
+                    <td className={`px-2 py-2 text-right ${r.error ? "text-destructive" : "text-muted-foreground"}`}>{r.error ?? r.note ?? ""}</td>
                   </tr>
                 ))}
               </tbody>
