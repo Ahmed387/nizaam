@@ -1791,7 +1791,7 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 24px;margin-top:10px;">
           <div style="font-size:12px;color:${C.muted};">التاريخ: <span style="color:${C.ink};font-weight:700;">${fmtDate(input.lastProfit.date)}</span></div>
           <div style="font-size:12px;color:${C.muted};">عدد الأشهر: <span style="color:${C.ink};font-weight:700;">${input.lastProfit.monthsCount} شهر</span></div>
-          ${input.lastProfit.periodLabel ? `<div style="font-size:12px;color:${C.muted};">الفترة: <span style="color:${C.ink};font-weight:700;">${input.lastProfit.periodLabel}</span></div>` : ""}
+          ${input.lastProfit.periodLabel ? `<div style="font-size:12px;color:${C.muted};">الفترة: <span style="color:${C.ink};font-weight:700;">${esc(input.lastProfit.periodLabel)}</span></div>` : ""}
         </div>
       </div>
     ` : "";
@@ -1801,8 +1801,8 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
       const trs = chunk.map(({ t, debit, credit, running }) => `
         <tr>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtDate(t.created_at)}</td>
-          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};">${TX_LABEL[t.transaction_type] ?? t.transaction_type}</td>
-          <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${t.description || "-"}${t.month_year ? ` <span style="color:${C.muted};">(${t.month_year})</span>` : ""}</td>
+          <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.text};">${esc(TX_LABEL[t.transaction_type] ?? t.transaction_type)}</td>
+          <td style="padding:9px 10px;border-top:1px solid ${C.border};text-align:right;font-size:11px;color:${C.text};">${esc(t.description || "-")}${t.month_year ? ` <span style="color:${C.muted};">(${esc(t.month_year)})</span>` : ""}</td>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${debit > 0 ? C.bad : C.muted};font-weight:${debit > 0 ? 700 : 400};white-space:nowrap;">${debit > 0 ? fmtNum(debit) : "-"}</td>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${credit > 0 ? C.good : C.muted};font-weight:${credit > 0 ? 700 : 400};white-space:nowrap;">${credit > 0 ? fmtNum(credit) : "-"}</td>
           <td style="padding:9px 8px;border-top:1px solid ${C.border};text-align:center;font-size:11px;color:${C.ink};font-weight:700;white-space:nowrap;">${fmtNum(running)}</td>
@@ -1861,16 +1861,16 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
           <div style="text-align:center;">
             <div style="height:52px;border-bottom:1px solid ${C.ink};"></div>
             <div style="font-size:11px;color:${C.muted};margin-top:6px;">توقيع الشريك</div>
-            <div style="font-size:12px;color:${C.ink};font-weight:700;">${input.partner.name}</div>
+            <div style="font-size:12px;color:${C.ink};font-weight:700;">${esc(input.partner.name)}</div>
           </div>
           <div style="text-align:center;">
             <div style="height:52px;border-bottom:1px solid ${C.ink};"></div>
             <div style="font-size:11px;color:${C.muted};margin-top:6px;">توقيع المحاسب / المسؤول</div>
-            <div style="font-size:12px;color:${C.ink};font-weight:700;">${input.userName}</div>
+            <div style="font-size:12px;color:${C.ink};font-weight:700;">${esc(input.userName)}</div>
           </div>
           <div style="text-align:center;">
             <div style="width:104px;height:104px;margin:0 auto;border:2px solid ${C.accent};border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${C.accent};">
-              <div style="font-size:12px;font-weight:800;line-height:1.4;">${company}</div>
+              <div style="font-size:12px;font-weight:800;line-height:1.4;">${esc(company)}</div>
               <div style="font-size:9px;opacity:.8;margin-top:2px;">ختم الشركة</div>
             </div>
           </div>
