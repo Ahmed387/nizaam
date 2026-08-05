@@ -125,7 +125,6 @@ export default function Guide() {
                 <div className="p-4 md:p-6 space-y-3">
                   <p className="text-sm text-muted-foreground -mt-1">{s.hint}</p>
                   {s.steps
-                    .filter((st) => full || !st.perm || can(st.perm))
                     .map((st, idx) => {
                       const target = st.to?.(branchId) ?? null;
                       return (
