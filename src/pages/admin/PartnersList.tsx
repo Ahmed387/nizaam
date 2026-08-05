@@ -129,10 +129,13 @@ export default function PartnersList() {
   const autoNewShare = autoTotalCapital > 0 ? newAmount / autoTotalCapital : 0;
 
   /** إعادة احتساب نسب كل الشركاء من المبالغ (السيرفر بيظبط فروق التقريب) */
-  const applyAutoSharesToExisting = async () => {
-    const { error } = await supabase.rpc("rebalance_partner_shares" as any, { _tenant_id: tenantId });
+  const applyAutoSharesToExisting = async (pendingCapital = 0) => {
+    const { error } = await supabase.rpc("rebalance_partner_shares" as any, {
+      _tenant_id: tenantId, _pending_capital: pendingCapital,
+    });
     if (error) throw error;
   };
+
 
   const recalcShares = async () => {
     const total = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0);
