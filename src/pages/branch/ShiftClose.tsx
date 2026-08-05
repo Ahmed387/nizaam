@@ -86,6 +86,34 @@ export default function ShiftClose() {
           <div><div className="text-muted-foreground">المتوقع في الدرج</div><div className="font-bold text-primary text-lg">{formatEGP(expected)}</div></div>
         </div>
 
+        <div className="rounded-lg border border-border p-3">
+          <div className="font-bold text-sm mb-2">تحصيل الوردية حسب وسيلة الدفع</div>
+          {breakdown.length === 0 ? (
+            <div className="text-xs text-muted-foreground">مفيش تحصيلات في الوردية دي لحد دلوقتي</div>
+          ) : (
+            <div className="space-y-1.5">
+              {breakdown.map((b) => (
+                <div key={b.payment_method} className="flex items-center justify-between text-sm">
+                  <span>
+                    {(PAYMENT_METHOD_LABELS as Record<string, string>)[b.payment_method] ?? b.payment_method}
+                    <span className="text-muted-foreground text-xs"> ({b.payments_count} عملية)</span>
+                  </span>
+                  <span className="font-semibold">{formatEGP(b.total)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between text-sm border-t pt-1.5 font-bold">
+                <span>الإجمالي</span>
+                <span>{formatEGP(breakdown.reduce((s, b) => s + b.total, 0))}</span>
+              </div>
+              <div className="text-[11px] text-muted-foreground pt-1">
+                الكاش بس هو اللي بيتحسب في الدرج — باقي الوسائل بتروح للمحفظة بتاعتها.
+              </div>
+            </div>
+          )}
+        </div>
+
+
+
         <form onSubmit={submit} className="space-y-4 pt-2 border-t">
           <div>
             <Label>الرصيد الفعلي في الدرج (جنيه)</Label>
