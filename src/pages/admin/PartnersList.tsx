@@ -58,9 +58,12 @@ export default function PartnersList() {
     email: "", phone: "",
   });
   const [showPw, setShowPw] = useState(false);
+  const [autoShare, setAutoShare] = useState(true);
+  const [recalcing, setRecalcing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successCreds, setSuccessCreds] = useState<{ username: string; password: string } | null>(null);
   const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "taken" | "free">("idle");
+
 
   const [resetPartner, setResetPartner] = useState<Partner | null>(null);
   const [resetPw, setResetPw] = useState("");
