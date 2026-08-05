@@ -6382,6 +6382,10 @@ export type Database = {
         Args: { _invoice_id: string; _reason: string; _refund_method?: string }
         Returns: Json
       }
+      cancel_partner_advance: {
+        Args: { _advance_id: string; _reason?: string }
+        Returns: Json
+      }
       cancel_pre_order: {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
@@ -6974,6 +6978,10 @@ export type Database = {
         }
         Returns: string
       }
+      rebalance_partner_shares: {
+        Args: { _pending_capital?: number; _tenant_id?: string }
+        Returns: Json
+      }
       recalc_contact_balance: {
         Args: { p_contact_id: string }
         Returns: undefined
@@ -7143,6 +7151,10 @@ export type Database = {
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
+      set_partner_capital: {
+        Args: { _amount: number; _partner_id: string; _rebalance?: boolean }
+        Returns: Json
+      }
       set_scheduled_reports_cron: {
         Args: { _day: number; _hour: number }
         Returns: undefined

@@ -133,13 +133,11 @@ Deno.serve(async (req) => {
       await admin.from('profiles').upsert({
         id: userId, name: partner_name, username, tenant_id, is_active: true,
       });
-      // equity_partners — do NOT seed balance/totals; trigger on partner_transactions is the source of truth
+      // equity_partners — balances are derived from partner_transactions (v_partner_balances)
       const { data: partner, error: partErr } = await admin.from('equity_partners').insert({
         tenant_id, name: partner_name, partner_type,
         capital_share: capShare, operating_share: opShare,
         initial_capital: Number(initial_capital) || 0,
-        current_balance: 0,
-        total_contributions: 0,
       }).select('*').single();
       if (partErr) throw partErr;
 

@@ -19,6 +19,8 @@ const INST_STATUS: Record<string, { label: string; cls: string }> = {
   partially_paid: { label: "جزئي", cls: "bg-warning/15 text-warning" },
   paid: { label: "مسدد", cls: "bg-success/15 text-success" },
   overdue: { label: "متأخر", cls: "bg-destructive/15 text-destructive" },
+  cancelled: { label: "ملغي", cls: "bg-muted text-muted-foreground line-through" },
+
 };
 
 export default function PartnerAdvanceDetail() {
@@ -71,6 +73,23 @@ export default function PartnerAdvanceDetail() {
     setPay({ amount: "", payment_method: "treasury", payment_date: new Date().toISOString().slice(0, 10), notes: "" });
     load();
   };
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const doCancel = async () => {
+    setCancelling(true);
+    const { data, error } = await supabase.rpc("cancel_partner_advance" as any, {
+      _advance_id: id, _reason: cancelReason || null,
+    });
+    setCancelling(false);
+    if (error) return toast.error(error.message);
+    const conv = Number((data as any)?.converted_to_drawing || 0);
+    toast.success(conv > 0
+      ? `تم إلغاء السلفة — الباقي ${conv.toLocaleString("en-EG")} ج.م اتحوّل لمسحوبات على الشريك`
+      : "تم إلغاء السلفة");
+    setCancelOpen(false);
+    load();
+  };
 
   if (loading) return <AdminLayout><div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div></AdminLayout>;
   if (!adv) return <AdminLayout><div className="p-8 text-center">السلفة غير موجودة</div></AdminLayout>;
@@ -87,8 +106,37 @@ export default function PartnerAdvanceDetail() {
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link to="/admin/financial-position/advances">← السلف</Link></Button>
             {canPay && <Button onClick={() => setOpenPay(true)}><PlusCircle className="w-4 h-4 ml-2" />تسجيل دفعة</Button>}
+            {adv.status !== "cancelled" && (
+              <Button variant="destructive" onClick={() => setCancelOpen(true)}>إلغاء السلفة</Button>
+            )}
           </div>
         </div>
+
+        {adv.status === "cancelled" && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            🚫 السلفة دي ملغاة. أي مبلغ كان لسه متبقي اتحوّل لمسحوبات على الشريك.
+          </div>
+        )}
+
+        <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>إلغاء السلفة</DialogTitle></DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                الفلوس اللي اتصرفت وما اتسددتش ({fmt(adv.remaining_amount)} ج.م) هتتحوّل لمسحوبات على الشريك مع قيد محاسبي.
+                لو السلفة اتخصم منها من توزيع أرباح متسجل، النظام هيرفض الإلغاء.
+              </p>
+              <div><Label>سبب الإلغاء</Label><Input value={cancelReason} onChange={e => setCancelReason(e.target.value)} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCancelOpen(false)}>رجوع</Button>
+              <Button variant="destructive" onClick={doCancel} disabled={cancelling}>
+                {cancelling ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}تأكيد الإلغاء
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي السلفة</CardTitle></CardHeader><CardContent><div className="text-xl font-bold">{fmt(adv.amount)}</div></CardContent></Card>
