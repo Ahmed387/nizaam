@@ -64,7 +64,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
       const monthEnd = date;
       setMonthWorkingDays(countWorkingDays(schedules[branchId], closures, monthStart, monthEnd));
       const { data: mAtt } = await supabase
-        .from("attendance").select("employee_id,status,date")
+        .from("attendance").select("employee_id,status,date,check_in,check_out")
         .eq("branch_id", branchId).gte("date", monthStart).lte("date", monthEnd);
       if (!cancelled) setMonthAtt(mAtt ?? []);
     })();
