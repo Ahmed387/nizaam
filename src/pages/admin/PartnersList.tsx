@@ -198,7 +198,8 @@ export default function PartnersList() {
 
     setSubmitting(true);
     try {
-
+      // في الوضع الأوتوماتيك: نظبط نسب الشركاء الحاليين الأول ونسيب مساحة للشريك الجديد
+      if (autoShare && activePartners.length) await applyAutoSharesToExisting(newAmount);
       const { data, error } = await supabase.functions.invoke("admin-create-partner", {
 
         body: {
@@ -216,12 +217,15 @@ export default function PartnersList() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
+      // بعد الإضافة: إعادة احتساب نهائية عشان المجموع يبقى 100% بالظبط
+      if (autoShare) await applyAutoSharesToExisting(0).catch(() => {});
       setSuccessCreds({ username: form.username, password: form.password });
       setForm({ name: "", partner_type: "capital", capital_share: "", operating_share: "", initial_capital: "", username: "", password: "", confirm: "", email: "", phone: "" });
       setTab("data");
       load();
     } catch (e: any) {
       toast.error(e.message || "فشل إنشاء الشريك");
+
     } finally {
       setSubmitting(false);
     }
