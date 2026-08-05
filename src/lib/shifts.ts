@@ -54,3 +54,20 @@ export async function shiftCashSales(shiftId: string): Promise<number> {
   if (error) throw error;
   return Number(data ?? 0);
 }
+
+export interface ShiftPaymentLine {
+  payment_method: string;
+  total: number;
+  payments_count: number;
+}
+
+export async function shiftPaymentBreakdown(shiftId: string): Promise<ShiftPaymentLine[]> {
+  const { data, error } = await supabase.rpc("shift_payment_breakdown" as any, { p_shift_id: shiftId });
+  if (error) throw error;
+  return ((data ?? []) as any[]).map((r) => ({
+    payment_method: r.payment_method,
+    total: Number(r.total ?? 0),
+    payments_count: Number(r.payments_count ?? 0),
+  }));
+}
+
