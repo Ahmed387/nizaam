@@ -21,8 +21,10 @@ export default function ShiftClose() {
   const [busy, setBusy] = useState(false);
   const [shift, setShift] = useState<CashierShift | null>(null);
   const [cashSales, setCashSales] = useState<number>(0);
+  const [breakdown, setBreakdown] = useState<ShiftPaymentLine[]>([]);
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
+
 
   useEffect(() => {
     if (!branchId) return;
