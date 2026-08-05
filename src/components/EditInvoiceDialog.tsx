@@ -126,6 +126,8 @@ export function EditInvoiceDialog({
       _invoice_id: invoice.id,
       _customer_id: customerId,
       _items: clean as any,
+      _vat_rate: null,
+      _discount_amount: null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
