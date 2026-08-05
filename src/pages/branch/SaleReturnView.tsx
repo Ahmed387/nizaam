@@ -124,6 +124,28 @@ export default function SaleReturnView() {
             <span className="text-warning font-extrabold">{formatEGP(ret.total_refund)}</span>
           </div>
         </div>
+
+        {(() => {
+          const debt = Number((ret as any).refund_balance_amount ?? 0);
+          const cash = Number((ret as any).refund_cash_amount ?? 0);
+          const trans = Number((ret as any).refund_transfer_amount ?? 0);
+          const tot = Number(ret.total_refund ?? 0);
+          return (
+            <div className="mt-5 rounded-xl border border-border bg-surface-2 p-4">
+              <div className="font-extrabold mb-2">🧮 حصل إيه بالظبط في الفلوس؟</div>
+              <div className="text-sm space-y-1.5">
+                <div className="flex justify-between"><span>إجمالي قيمة البضاعة المرتجعة</span><span className="font-bold">{formatEGP(tot)}</span></div>
+                <div className="flex justify-between"><span>اتخصم من الديْن اللي على العميل</span><span className="font-bold">{formatEGP(debt)}</span></div>
+                <div className="flex justify-between"><span>خرج كاش من الخزنة للعميل</span><span className="font-bold">{formatEGP(cash)}</span></div>
+                <div className="flex justify-between"><span>رجع تحويل (محفظة/بنك/انستاباي)</span><span className="font-bold">{formatEGP(trans)}</span></div>
+                <div className="flex justify-between border-t border-border pt-1.5 mt-1.5"><span className="font-bold">مجموع اللي اتسوّى</span><span className="font-extrabold text-success">{formatEGP(debt + cash + trans)}</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                يعني إيه؟ لو العميل كان لسه عليه فلوس، المرتجع بيقفّل الديْن الأول، واللي يفضل بعد كده هو بس اللي بيخرج من الخزنة كفلوس.
+              </p>
+            </div>
+          );
+        })()}
       </div>
 
       <ThermalReceiptPrint
