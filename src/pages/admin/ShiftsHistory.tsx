@@ -152,33 +152,68 @@ export default function ShiftsHistory() {
                 <th className="p-3">الفرع</th>
                 <th className="p-3">الفتح</th>
                 <th className="p-3">القفل</th>
+                <th className="p-3">قفلها</th>
                 <th className="p-3">افتتاحي</th>
                 <th className="p-3">مبيعات نقدية</th>
                 <th className="p-3">متوقع</th>
                 <th className="p-3">فعلي</th>
                 <th className="p-3">الفرق</th>
                 <th className="p-3">الحالة</th>
+                <th className="p-3">تفاصيل</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">لا توجد ورديات</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">لا توجد ورديات</td></tr>}
               {rows.map((r) => (
-                <tr key={r.id} className="border-t border-border">
-                  <td className="p-3 font-semibold">{r.cashier_name ?? "—"}</td>
-                  <td className="p-3">{r.branch_name ?? "—"}</td>
-                  <td className="p-3 text-xs">{formatDateTime(r.opened_at)}</td>
-                  <td className="p-3 text-xs">{r.closed_at ? formatDateTime(r.closed_at) : "—"}</td>
-                  <td className="p-3">{formatEGP(r.opening_cash)}</td>
-                  <td className="p-3">{r.cash_sales != null ? formatEGP(r.cash_sales) : "—"}</td>
-                  <td className="p-3">{r.expected_cash != null ? formatEGP(r.expected_cash) : "—"}</td>
-                  <td className="p-3">{r.closing_cash != null ? formatEGP(r.closing_cash) : "—"}</td>
-                  <td className={`p-3 font-bold ${Number(r.variance ?? 0) < 0 ? "text-destructive" : Number(r.variance ?? 0) > 0 ? "text-success" : ""}`}>
-                    {r.variance != null ? formatEGP(r.variance) : "—"}
-                  </td>
-                  <td className="p-3">{statusBadge(r.status)}</td>
-                </tr>
+                <>
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="p-3 font-semibold">{r.cashier_name ?? "—"}</td>
+                    <td className="p-3">{r.branch_name ?? "—"}</td>
+                    <td className="p-3 text-xs">{formatDateTime(r.opened_at)}</td>
+                    <td className="p-3 text-xs">{r.closed_at ? formatDateTime(r.closed_at) : "—"}</td>
+                    <td className="p-3 text-xs">{r.closed_by_name ?? (r.status === "auto_closed" ? "النظام (تلقائي)" : "—")}</td>
+                    <td className="p-3">{formatEGP(r.opening_cash)}</td>
+                    <td className="p-3">{r.cash_sales != null ? formatEGP(r.cash_sales) : "—"}</td>
+                    <td className="p-3">{r.expected_cash != null ? formatEGP(r.expected_cash) : "—"}</td>
+                    <td className="p-3">{r.closing_cash != null ? formatEGP(r.closing_cash) : "—"}</td>
+                    <td className={`p-3 font-bold ${Number(r.variance ?? 0) < 0 ? "text-destructive" : Number(r.variance ?? 0) > 0 ? "text-success" : ""}`}>
+                      {r.variance != null ? formatEGP(r.variance) : "—"}
+                    </td>
+                    <td className="p-3">{statusBadge(r.status)}</td>
+                    <td className="p-3">
+                      <Button variant="ghost" size="sm" onClick={() => toggleRow(r.id)}>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
+                        وسائل الدفع
+                      </Button>
+                    </td>
+                  </tr>
+                  {expanded === r.id && (
+                    <tr key={`${r.id}-d`} className="bg-muted/30 border-t border-border">
+                      <td colSpan={12} className="p-3">
+                        {!breakdowns[r.id] ? (
+                          <div className="text-xs text-muted-foreground">جاري التحميل…</div>
+                        ) : breakdowns[r.id].length === 0 ? (
+                          <div className="text-xs text-muted-foreground">مفيش تحصيلات في الوردية دي</div>
+                        ) : (
+                          <div className="flex flex-wrap gap-3">
+                            {breakdowns[r.id].map((b) => (
+                              <div key={b.payment_method} className="rounded-lg border border-border bg-background px-3 py-2 text-xs">
+                                <div className="text-muted-foreground">
+                                  {(PAYMENT_METHOD_LABELS as Record<string, string>)[b.payment_method] ?? b.payment_method}
+                                  {" "}({b.payments_count})
+                                </div>
+                                <div className="font-bold text-sm">{formatEGP(b.total)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
+
           </table>
         )}
       </Card>
