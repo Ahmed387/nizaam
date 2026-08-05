@@ -52,6 +52,7 @@ import SetupWizard from "./pages/SetupWizard";
 import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
+import Guide from "./pages/Guide";
 import Suspended from "./pages/Suspended";
 
 
@@ -204,6 +205,8 @@ const App = () => (
             <Route path="/suspended" element={<Suspended />} />
             
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/guide" element={<ProtectedRoute><Guide /></ProtectedRoute>} />
+
 
             {/* Super Admin */}
             <Route path="/super/dashboard" element={<ProtectedRoute superAdminOnly><SuperDashboard /></ProtectedRoute>} />
