@@ -175,7 +175,10 @@ export default function PartnersList() {
 
     setSubmitting(true);
     try {
+      // في الوضع الأوتوماتيك: نظبط نسب الشركاء الحاليين الأول (تقليل) قبل إضافة الجديد
+      if (autoShare) await applyAutoSharesToExisting(autoTotalCapital);
       const { data, error } = await supabase.functions.invoke("admin-create-partner", {
+
         body: {
           tenant_id: tenantId,
           partner_name: form.name,
