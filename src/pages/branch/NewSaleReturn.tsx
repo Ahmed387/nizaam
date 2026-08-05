@@ -281,7 +281,7 @@ export default function NewSaleReturn() {
         _invoice_id: invoice.id,
         _reason: finalReason,
         _notes: notes.trim() || null,
-        _status: asDraft ? "draft" : "active",
+        _status: "active",
         _refund_method: refundMethodFinal,
         _refund_reference: refundRef.trim() || null,
         _refund_account: refundAccount.trim() || null,
@@ -296,6 +296,8 @@ export default function NewSaleReturn() {
       });
       if (error || !rr) throw error ?? new Error("فشل الحفظ");
       const number = (rr as any).return_number as string;
+      const appliedToDebt = Number((rr as any).applied_to_debt ?? 0);
+      const cashBack = Number((rr as any).cash_refund ?? 0) + Number((rr as any).transfer_refund ?? 0);
 
       // Persist invoice_date if backdated (DB trigger enforces admin-only)
       const today = new Date().toISOString().slice(0, 10);
@@ -307,31 +309,31 @@ export default function NewSaleReturn() {
         if (dErr) console.warn("invoice_date update blocked:", dErr.message);
       }
 
+      // Stock, treasury, invoice returned quantities and customer balance are updated atomically in the database.
+      // Redistribute installments if this invoice has a payment plan
+      try {
+        const { data: rd } = await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id });
+        const r = rd as any;
+        if (r?.cancelled_all) {
+          toast.message(`المرتجع تجاوز قيمة المتبقي — تم إلغاء كل الأقساط (فائض ${r.overpayment} ج.م)`);
+        } else if (r?.updated_installments > 0) {
+          toast.message(`تم إعادة توزيع ${r.updated_installments} قسط بعد المرتجع`);
+        }
+      } catch (e) { /* ignore if no plan */ }
 
-      if (!asDraft) {
-        // Stock, treasury, invoice returned quantities and customer balance are updated atomically in the database.
-        // Redistribute installments if this invoice has a payment plan
-        try {
-          const { data: rd } = await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id });
-          const r = rd as any;
-          if (r?.cancelled_all) {
-            toast.message(`المرتجع تجاوز قيمة المتبقي — تم إلغاء كل الأقساط (فائض ${r.overpayment} ج.م)`);
-          } else if (r?.updated_installments > 0) {
-            toast.message(`تم إعادة توزيع ${r.updated_installments} قسط بعد المرتجع`);
-          }
-        } catch (e) { /* ignore if no plan */ }
-      }
+      formDraft.clear();
+      docSuccess({
+        title: "تم تسجيل مرتجع البيع بنجاح",
+        docNumber: number,
+        amount: total,
+        description:
+          `عدد الأصناف: ${activeLines.length}` +
+          (appliedToDebt > 0 ? ` • اتخصم من الدين: ${formatEGP(appliedToDebt)}` : "") +
+          (cashBack > 0 ? ` • اترد كاش من الخزنة: ${formatEGP(cashBack)}` : ""),
+      });
+      setSavedNumber(number);
+      setPrintOpen(true);
 
-      if (asDraft) {
-        formDraft.clear();
-        docSuccess({ title: "تم حفظ المرتجع كمسودة", docNumber: number, amount: total });
-        nav(`/branch/${branchId}/invoices?tab=sale_return`);
-      } else {
-        formDraft.clear();
-        docSuccess({ title: "تم تسجيل مرتجع البيع بنجاح", docNumber: number, amount: total, description: `عدد الأصناف: ${activeLines.length}` });
-        setSavedNumber(number);
-        setPrintOpen(true);
-      }
     } catch (err: any) {
       docError({ title: "فشل حفظ مرتجع البيع", description: err.message ?? "خطأ غير متوقع" });
     } finally {
