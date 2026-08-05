@@ -259,7 +259,7 @@ export default function PartnersList() {
               {recalcing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}إعادة احتساب النسب من المبالغ
             </Button>
             <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
-              <Link to="/admin/partner-advances">سلف الشركاء</Link>
+              <Link to="/admin/financial-position/advances">سلف الشركاء</Link>
             </Button>
             <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
