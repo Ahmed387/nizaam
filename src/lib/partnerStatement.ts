@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { withPartnerBalance } from "@/lib/partnerBalances";
 import { generatePartnerStatementReport } from "@/utils/generatePDFReport";
 
 export async function downloadPartnerStatementPdf(opts: {
@@ -17,6 +18,7 @@ export async function downloadPartnerStatementPdf(opts: {
     .eq("id", partnerId)
     .maybeSingle();
   if (pErr || !partner) throw new Error("تعذّر تحميل بيانات الشريك");
+  const partnerWithBalance = await withPartnerBalance(partner as any);
 
   // Opening balance = sum of all txs strictly before "from" (drawings negative)
   let opening = 0;

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 
@@ -52,14 +53,15 @@ export default function FinancialPosition() {
     if (!tenantId) return;
     const { data } = await supabase
       .from("equity_partners" as any)
-      .select("initial_capital, current_balance, is_active")
+      .select("id, initial_capital, is_active")
       .eq("tenant_id", tenantId)
       .eq("is_active", true);
     const rows = (data ?? []) as any[];
+    const balances = await fetchPartnerBalances(tenantId);
     setStats({
       count: rows.length,
       capital: rows.reduce((s, r) => s + Number(r.initial_capital || 0), 0),
-      balance: rows.reduce((s, r) => s + Number(r.current_balance || 0), 0),
+      balance: rows.reduce((s, r) => s + (balances.get(r.id)?.current_balance ?? 0), 0),
     });
   };
   useEffect(() => { load(); }, [tenantId]);

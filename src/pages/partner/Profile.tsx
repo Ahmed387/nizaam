@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { withPartnerBalance } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { KeyRound, Loader2 } from "lucide-react";
@@ -32,7 +33,7 @@ export default function PartnerProfile() {
       const { data: link } = await supabase.from("partner_users" as any).select("partner_id").eq("user_id", user.id).maybeSingle();
       if (!link) return;
       const { data: p } = await supabase.from("equity_partners" as any).select("*").eq("id", (link as any).partner_id).maybeSingle();
-      setPartner(p);
+      setPartner(await withPartnerBalance(p as any));
     })();
   }, [user?.id]);
 
