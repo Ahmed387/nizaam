@@ -128,19 +128,10 @@ export default function PartnersList() {
     : [];
   const autoNewShare = autoTotalCapital > 0 ? newAmount / autoTotalCapital : 0;
 
-  /** يحدّث نسب الشركاء الحاليين حسب مبالغهم (بيقلّل الأول عشان الـ trigger ما يرفضش) */
-  const applyAutoSharesToExisting = async (totalIncludingNew: number) => {
-    const updates = activePartners.map(p => ({
-      id: p.id,
-      share: totalIncludingNew > 0 ? Number((Number(p.initial_capital || 0) / totalIncludingNew).toFixed(6)) : 0,
-    }));
-    // الأصغر أولاً (تقليل) لتفادي تجاوز 100% أثناء التحديث
-    updates.sort((a, b) => a.share - b.share);
-    for (const u of updates) {
-      const { error } = await supabase.from("equity_partners" as any)
-        .update({ capital_share: u.share }).eq("id", u.id);
-      if (error) throw error;
-    }
+  /** إعادة احتساب نسب كل الشركاء من المبالغ (السيرفر بيظبط فروق التقريب) */
+  const applyAutoSharesToExisting = async () => {
+    const { error } = await supabase.rpc("rebalance_partner_shares" as any, { _tenant_id: tenantId });
+    if (error) throw error;
   };
 
   const recalcShares = async () => {
@@ -148,13 +139,36 @@ export default function PartnersList() {
     if (total <= 0) return toast.error("مفيش رؤوس أموال مسجلة للشركاء");
     setRecalcing(true);
     try {
-      await applyAutoSharesToExisting(total);
+      await applyAutoSharesToExisting();
       toast.success("تم إعادة احتساب النسب من رؤوس الأموال");
       load();
     } catch (e: any) {
       toast.error(e.message || "فشل إعادة الاحتساب");
     } finally {
       setRecalcing(false);
+    }
+  };
+
+  /** تعديل المبلغ المدفوع لشريك موجود + إعادة توزيع النسب */
+  const [editCapital, setEditCapital] = useState<{ id: string; name: string; amount: string } | null>(null);
+  const [savingCapital, setSavingCapital] = useState(false);
+  const saveCapital = async () => {
+    if (!editCapital) return;
+    const amt = Number(editCapital.amount);
+    if (!(amt >= 0)) return toast.error("المبلغ غير صحيح");
+    setSavingCapital(true);
+    try {
+      const { error } = await supabase.rpc("set_partner_capital" as any, {
+        _partner_id: editCapital.id, _amount: amt, _rebalance: true,
+      });
+      if (error) throw error;
+      toast.success("تم تعديل رأس المال وإعادة احتساب نسب كل الشركاء");
+      setEditCapital(null);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "فشل التعديل");
+    } finally {
+      setSavingCapital(false);
     }
   };
 
@@ -165,6 +179,12 @@ export default function PartnersList() {
     const op = Number(form.operating_share) || 0;
     if (autoShare && newAmount <= 0) return toast.error("أدخل المبلغ المدفوع (رأس المال) عشان النظام يحسب النسبة");
     if (cap < 0 || cap > 1 || op < 0 || op > 1) return toast.error("النسب يجب أن تكون بين 0 و 1");
+    if (!autoShare) {
+      const manualTotal = activePartners.reduce((s, p) => s + Number(p.capital_share || 0), 0) + cap;
+      if (Math.abs(manualTotal - 1) > 0.0001) {
+        return toast.error(`مجموع نسب الشركاء لازم يكون 100% بالظبط — المجموع كده ${(manualTotal * 100).toFixed(2)}%`);
+      }
+    }
 
     if (!form.username.trim()) return toast.error("أدخل اسم المستخدم");
     if (usernameCheck === "taken") return toast.error("اسم المستخدم مستخدم بالفعل");
@@ -175,8 +195,7 @@ export default function PartnersList() {
 
     setSubmitting(true);
     try {
-      // في الوضع الأوتوماتيك: نظبط نسب الشركاء الحاليين الأول (تقليل) قبل إضافة الجديد
-      if (autoShare) await applyAutoSharesToExisting(autoTotalCapital);
+
       const { data, error } = await supabase.functions.invoke("admin-create-partner", {
 
         body: {
