@@ -38,6 +38,22 @@ export default function ShiftsHistory() {
   const [branchId, setBranchId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [breakdowns, setBreakdowns] = useState<Record<string, ShiftPaymentLine[]>>({});
+
+  const toggleRow = async (id: string) => {
+    if (expanded === id) return setExpanded(null);
+    setExpanded(id);
+    if (!breakdowns[id]) {
+      try {
+        const lines = await shiftPaymentBreakdown(id);
+        setBreakdowns((p) => ({ ...p, [id]: lines }));
+      } catch (e: any) {
+        toast.error(e.message ?? "تعذر تحميل تفاصيل الوردية");
+      }
+    }
+  };
+
 
   const load = async () => {
     setLoading(true);
