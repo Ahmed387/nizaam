@@ -10,6 +10,8 @@ import { ArrowRight, Printer } from "lucide-react";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { VariantLine } from "@/components/VariantChips";
+import { CancelReturnButton, CancelledReturnBanner } from "@/components/CancelReturnButton";
+
 
 export default function SaleReturnView() {
   const { id: branchId, returnId } = useParams<{ id: string; returnId: string }>();
