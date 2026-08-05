@@ -6978,7 +6978,12 @@ export type Database = {
         }
         Returns: string
       }
-      rebalance_partner_shares: { Args: { _tenant_id?: string }; Returns: Json }
+      rebalance_partner_shares:
+        | { Args: { _tenant_id?: string }; Returns: Json }
+        | {
+            Args: { _pending_capital?: number; _tenant_id?: string }
+            Returns: Json
+          }
       recalc_contact_balance: {
         Args: { p_contact_id: string }
         Returns: undefined
