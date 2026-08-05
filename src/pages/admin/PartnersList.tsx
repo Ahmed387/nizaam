@@ -116,12 +116,56 @@ export default function PartnersList() {
     return () => clearTimeout(t);
   }, [form.username, tenantId]);
 
+  /** حساب النسب أوتوماتيك من المبالغ المدفوعة (رأس المال) */
+  const activePartners = rows.filter(p => p.is_active);
+  const newAmount = Number(form.initial_capital) || 0;
+  const autoTotalCapital = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0) + newAmount;
+  const autoSharesPreview = autoTotalCapital > 0
+    ? [
+        ...activePartners.map(p => ({ id: p.id, name: p.name, amount: Number(p.initial_capital || 0), share: Number(p.initial_capital || 0) / autoTotalCapital })),
+        ...(newAmount > 0 ? [{ id: "__new__", name: form.name || "الشريك الجديد", amount: newAmount, share: newAmount / autoTotalCapital }] : []),
+      ]
+    : [];
+  const autoNewShare = autoTotalCapital > 0 ? newAmount / autoTotalCapital : 0;
+
+  /** يحدّث نسب الشركاء الحاليين حسب مبالغهم (بيقلّل الأول عشان الـ trigger ما يرفضش) */
+  const applyAutoSharesToExisting = async (totalIncludingNew: number) => {
+    const updates = activePartners.map(p => ({
+      id: p.id,
+      share: totalIncludingNew > 0 ? Number((Number(p.initial_capital || 0) / totalIncludingNew).toFixed(6)) : 0,
+    }));
+    // الأصغر أولاً (تقليل) لتفادي تجاوز 100% أثناء التحديث
+    updates.sort((a, b) => a.share - b.share);
+    for (const u of updates) {
+      const { error } = await supabase.from("equity_partners" as any)
+        .update({ capital_share: u.share }).eq("id", u.id);
+      if (error) throw error;
+    }
+  };
+
+  const recalcShares = async () => {
+    const total = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0);
+    if (total <= 0) return toast.error("مفيش رؤوس أموال مسجلة للشركاء");
+    setRecalcing(true);
+    try {
+      await applyAutoSharesToExisting(total);
+      toast.success("تم إعادة احتساب النسب من رؤوس الأموال");
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "فشل إعادة الاحتساب");
+    } finally {
+      setRecalcing(false);
+    }
+  };
+
   const submit = async () => {
     // validation
     if (!form.name.trim()) return toast.error("أدخل اسم الشريك");
-    const cap = Number(form.capital_share) || 0;
+    const cap = autoShare ? Number(autoNewShare.toFixed(6)) : (Number(form.capital_share) || 0);
     const op = Number(form.operating_share) || 0;
+    if (autoShare && newAmount <= 0) return toast.error("أدخل المبلغ المدفوع (رأس المال) عشان النظام يحسب النسبة");
     if (cap < 0 || cap > 1 || op < 0 || op > 1) return toast.error("النسب يجب أن تكون بين 0 و 1");
+
     if (!form.username.trim()) return toast.error("أدخل اسم المستخدم");
     if (usernameCheck === "taken") return toast.error("اسم المستخدم مستخدم بالفعل");
     if (form.password !== form.confirm) return toast.error("كلمة المرور غير متطابقة");
