@@ -58,9 +58,12 @@ export default function PartnersList() {
     email: "", phone: "",
   });
   const [showPw, setShowPw] = useState(false);
+  const [autoShare, setAutoShare] = useState(true);
+  const [recalcing, setRecalcing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successCreds, setSuccessCreds] = useState<{ username: string; password: string } | null>(null);
   const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "taken" | "free">("idle");
+
 
   const [resetPartner, setResetPartner] = useState<Partner | null>(null);
   const [resetPw, setResetPw] = useState("");
@@ -113,12 +116,56 @@ export default function PartnersList() {
     return () => clearTimeout(t);
   }, [form.username, tenantId]);
 
+  /** حساب النسب أوتوماتيك من المبالغ المدفوعة (رأس المال) */
+  const activePartners = rows.filter(p => p.is_active);
+  const newAmount = Number(form.initial_capital) || 0;
+  const autoTotalCapital = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0) + newAmount;
+  const autoSharesPreview = autoTotalCapital > 0
+    ? [
+        ...activePartners.map(p => ({ id: p.id, name: p.name, amount: Number(p.initial_capital || 0), share: Number(p.initial_capital || 0) / autoTotalCapital })),
+        ...(newAmount > 0 ? [{ id: "__new__", name: form.name || "الشريك الجديد", amount: newAmount, share: newAmount / autoTotalCapital }] : []),
+      ]
+    : [];
+  const autoNewShare = autoTotalCapital > 0 ? newAmount / autoTotalCapital : 0;
+
+  /** يحدّث نسب الشركاء الحاليين حسب مبالغهم (بيقلّل الأول عشان الـ trigger ما يرفضش) */
+  const applyAutoSharesToExisting = async (totalIncludingNew: number) => {
+    const updates = activePartners.map(p => ({
+      id: p.id,
+      share: totalIncludingNew > 0 ? Number((Number(p.initial_capital || 0) / totalIncludingNew).toFixed(6)) : 0,
+    }));
+    // الأصغر أولاً (تقليل) لتفادي تجاوز 100% أثناء التحديث
+    updates.sort((a, b) => a.share - b.share);
+    for (const u of updates) {
+      const { error } = await supabase.from("equity_partners" as any)
+        .update({ capital_share: u.share }).eq("id", u.id);
+      if (error) throw error;
+    }
+  };
+
+  const recalcShares = async () => {
+    const total = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0);
+    if (total <= 0) return toast.error("مفيش رؤوس أموال مسجلة للشركاء");
+    setRecalcing(true);
+    try {
+      await applyAutoSharesToExisting(total);
+      toast.success("تم إعادة احتساب النسب من رؤوس الأموال");
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "فشل إعادة الاحتساب");
+    } finally {
+      setRecalcing(false);
+    }
+  };
+
   const submit = async () => {
     // validation
     if (!form.name.trim()) return toast.error("أدخل اسم الشريك");
-    const cap = Number(form.capital_share) || 0;
+    const cap = autoShare ? Number(autoNewShare.toFixed(6)) : (Number(form.capital_share) || 0);
     const op = Number(form.operating_share) || 0;
+    if (autoShare && newAmount <= 0) return toast.error("أدخل المبلغ المدفوع (رأس المال) عشان النظام يحسب النسبة");
     if (cap < 0 || cap > 1 || op < 0 || op > 1) return toast.error("النسب يجب أن تكون بين 0 و 1");
+
     if (!form.username.trim()) return toast.error("أدخل اسم المستخدم");
     if (usernameCheck === "taken") return toast.error("اسم المستخدم مستخدم بالفعل");
     if (form.password !== form.confirm) return toast.error("كلمة المرور غير متطابقة");
@@ -128,7 +175,10 @@ export default function PartnersList() {
 
     setSubmitting(true);
     try {
+      // في الوضع الأوتوماتيك: نظبط نسب الشركاء الحاليين الأول (تقليل) قبل إضافة الجديد
+      if (autoShare) await applyAutoSharesToExisting(autoTotalCapital);
       const { data, error } = await supabase.functions.invoke("admin-create-partner", {
+
         body: {
           tenant_id: tenantId,
           partner_name: form.name,
@@ -205,9 +255,16 @@ export default function PartnersList() {
                 </Link>
               </Button>
             )}
+            <Button variant="outline" className="w-full sm:w-auto shadow-sm" onClick={recalcShares} disabled={recalcing}>
+              {recalcing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}إعادة احتساب النسب من المبالغ
+            </Button>
+            <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
+              <Link to="/admin/financial-position/advances">سلف الشركاء</Link>
+            </Button>
             <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
             </Button>
+
           </div>
         </div>
 
@@ -347,11 +404,35 @@ export default function PartnersList() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>حصة رأس المال (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
-                <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
-              </div>
-              <div><Label>رأس المال المبدئي (ج.م)</Label><Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} /></div>
+              <div><Label>المبلغ المدفوع / رأس المال المبدئي (ج.م) *</Label><Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} placeholder="مثال: 600000" /></div>
+
+              <label className="flex items-center gap-2 text-sm cursor-pointer bg-muted/40 rounded-md p-2">
+                <input type="checkbox" checked={autoShare} onChange={e => setAutoShare(e.target.checked)} className="accent-primary w-4 h-4" />
+                <span>احسب نسبة كل شريك أوتوماتيك من المبالغ المدفوعة</span>
+              </label>
+
+              {autoShare ? (
+                <div className="rounded-md border p-3 space-y-1.5 bg-primary/5">
+                  <div className="text-xs text-muted-foreground">إجمالي رأس المال بعد الإضافة: <span className="font-mono font-bold">{fmt(autoTotalCapital)}</span> ج.م</div>
+                  {autoSharesPreview.length === 0 && <div className="text-xs text-muted-foreground">أدخل المبلغ المدفوع علشان تظهر النسب</div>}
+                  {autoSharesPreview.map(s => (
+                    <div key={s.id} className={`flex items-center justify-between text-sm ${s.id === "__new__" ? "font-bold text-primary" : ""}`}>
+                      <span>{s.name}</span>
+                      <span className="font-mono">{fmt(s.amount)} ج.م — {(s.share * 100).toFixed(2)}%</span>
+                    </div>
+                  ))}
+                  <div className="text-[11px] text-muted-foreground pt-1">هتتحدث نسب الشركاء الحاليين تلقائيًا عند الحفظ.</div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>حصة رأس المال (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
+                  <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
+                </div>
+              )}
+              {autoShare && (
+                <div><Label>حصة التشغيل (0-1) — اختياري</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
+              )}
+
               <div className="flex justify-end">
                 <Button onClick={() => setTab("creds")}>التالي: بيانات الدخول</Button>
               </div>
