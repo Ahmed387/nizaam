@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Loader2, DoorClosed, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, closeShift, shiftCashSales, CashierShift } from "@/lib/shifts";
+import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, CashierShift, ShiftPaymentLine } from "@/lib/shifts";
+import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
 export default function ShiftClose() {
@@ -20,8 +21,10 @@ export default function ShiftClose() {
   const [busy, setBusy] = useState(false);
   const [shift, setShift] = useState<CashierShift | null>(null);
   const [cashSales, setCashSales] = useState<number>(0);
+  const [breakdown, setBreakdown] = useState<ShiftPaymentLine[]>([]);
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
+
 
   useEffect(() => {
     if (!branchId) return;
@@ -34,8 +37,9 @@ export default function ShiftClose() {
           return;
         }
         setShift(s);
-        const sales = await shiftCashSales(s.id);
+        const [sales, lines] = await Promise.all([shiftCashSales(s.id), shiftPaymentBreakdown(s.id)]);
         setCashSales(sales);
+        setBreakdown(lines);
         setClosingCash(Number(s.opening_cash) + sales);
       } catch (e: any) {
         toast.error(e.message ?? "خطأ");
@@ -81,6 +85,34 @@ export default function ShiftClose() {
           <div><div className="text-muted-foreground">مبيعات كاش خلال الوردية</div><div className="font-semibold">{formatEGP(cashSales)}</div></div>
           <div><div className="text-muted-foreground">المتوقع في الدرج</div><div className="font-bold text-primary text-lg">{formatEGP(expected)}</div></div>
         </div>
+
+        <div className="rounded-lg border border-border p-3">
+          <div className="font-bold text-sm mb-2">تحصيل الوردية حسب وسيلة الدفع</div>
+          {breakdown.length === 0 ? (
+            <div className="text-xs text-muted-foreground">مفيش تحصيلات في الوردية دي لحد دلوقتي</div>
+          ) : (
+            <div className="space-y-1.5">
+              {breakdown.map((b) => (
+                <div key={b.payment_method} className="flex items-center justify-between text-sm">
+                  <span>
+                    {(PAYMENT_METHOD_LABELS as Record<string, string>)[b.payment_method] ?? b.payment_method}
+                    <span className="text-muted-foreground text-xs"> ({b.payments_count} عملية)</span>
+                  </span>
+                  <span className="font-semibold">{formatEGP(b.total)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between text-sm border-t pt-1.5 font-bold">
+                <span>الإجمالي</span>
+                <span>{formatEGP(breakdown.reduce((s, b) => s + b.total, 0))}</span>
+              </div>
+              <div className="text-[11px] text-muted-foreground pt-1">
+                الكاش بس هو اللي بيتحسب في الدرج — باقي الوسائل بتروح للمحفظة بتاعتها.
+              </div>
+            </div>
+          )}
+        </div>
+
+
 
         <form onSubmit={submit} className="space-y-4 pt-2 border-t">
           <div>

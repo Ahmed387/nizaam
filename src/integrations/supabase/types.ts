@@ -6110,6 +6110,7 @@ export type Database = {
           close_notes: string | null
           closed_at: string | null
           closed_by: string | null
+          closed_by_name: string | null
           closing_cash: number | null
           created_at: string | null
           expected_cash: number | null
@@ -7165,6 +7166,14 @@ export type Database = {
       }
       shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
+      shift_payment_breakdown: {
+        Args: { p_shift_id: string }
+        Returns: {
+          payment_method: string
+          payments_count: number
+          total: number
+        }[]
+      }
       supplier_outstanding_payable: {
         Args: { _contact_id: string }
         Returns: number

@@ -17,6 +17,7 @@ import { Plus, LogIn, LogOut, ArrowRight, Zap, CalendarOff } from "lucide-react"
 import { fetchSchedules, fetchClosures, offDayReason, countWorkingDays } from "@/lib/branchSchedule";
 
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
+import { workedMinutes, formatHours, sumWorkedMinutes } from "@/lib/attendanceHours";
 
 const STATUS = {
   present: "حاضر",
@@ -63,7 +64,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
       const monthEnd = date;
       setMonthWorkingDays(countWorkingDays(schedules[branchId], closures, monthStart, monthEnd));
       const { data: mAtt } = await supabase
-        .from("attendance").select("employee_id,status,date")
+        .from("attendance").select("employee_id,status,date,check_in,check_out")
         .eq("branch_id", branchId).gte("date", monthStart).lte("date", monthEnd);
       if (!cancelled) setMonthAtt(mAtt ?? []);
     })();
@@ -112,6 +113,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     }
     return m;
   }, [monthAtt]);
+
+  // إجمالي ساعات العمل خلال الشهر لكل موظف (بيحسب الشيفت اللي بيعدي منتصف الليل صح)
+  const monthMinutesByEmployee = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const a of monthAtt) {
+      const grouped = m[a.employee_id] ?? 0;
+      m[a.employee_id] = grouped + (workedMinutes(a.check_in, a.check_out) ?? 0);
+    }
+    return m;
+  }, [monthAtt]);
+
 
   const upsert = async (employeeId: string, patch: any) => {
     const emp = employees.find((e) => e.id === employeeId);
@@ -222,6 +234,20 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             render: (e: any) => {
               const a = byEmployee.get(e.id);
               return a?.check_out ? <span dir="ltr" className="text-xs">{new Date(a.check_out).toLocaleTimeString("ar-EG")}</span> : "—";
+            },
+          },
+          {
+            key: "hours", header: "ساعات اليوم / الشهر",
+            render: (e: any) => {
+              const a = byEmployee.get(e.id);
+              const day = workedMinutes(a?.check_in, a?.check_out);
+              const month = monthMinutesByEmployee[e.id] ?? 0;
+              return (
+                <div className="text-xs leading-tight" dir="ltr">
+                  <div className="font-bold">{formatHours(day)}</div>
+                  <div className="text-muted-foreground">{formatHours(month)}</div>
+                </div>
+              );
             },
           },
           {
