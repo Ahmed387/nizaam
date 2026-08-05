@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { withPartnerBalance } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { Wallet, PieChart, TrendingUp, ArrowUpCircle, ArrowDownCircle, Gift, BookOpen, FileText } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
@@ -23,7 +24,7 @@ export default function PartnerDashboard() {
       supabase.from("equity_partners" as any).select("*").eq("id", (link as any).partner_id).maybeSingle(),
       supabase.from("partner_transactions" as any).select("*").eq("partner_id", (link as any).partner_id).order("created_at", { ascending: false }).limit(5),
     ]);
-    setPartner(p); setTxs((t ?? []) as any[]);
+    setPartner(await withPartnerBalance(p as any)); setTxs((t ?? []) as any[]);
   };
   useEffect(() => { load(); }, [user?.id]);
 

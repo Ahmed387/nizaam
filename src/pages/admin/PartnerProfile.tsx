@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { withPartnerBalance } from "@/lib/partnerBalances";
 import { toast } from "sonner";
 import { Loader2, PlusCircle, Wallet } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,7 +42,7 @@ export default function PartnerProfile() {
       supabase.from("partner_transactions" as any).select("*").eq("partner_id", id).order("created_at", { ascending: false }),
       supabase.from("partner_advances" as any).select("*").eq("partner_id", id).in("status", ["active", "partially_paid"]),
     ]);
-    setPartner(p);
+    setPartner(await withPartnerBalance(p as any));
     setTxs((t ?? []) as any[]);
     setAdvances((adv ?? []) as any[]);
     setLoading(false);
