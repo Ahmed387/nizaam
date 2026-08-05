@@ -57,12 +57,24 @@ export default function SaleReturnView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=sale_return`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
+            <CancelReturnButton
+              kind="sale"
+              returnId={ret.id}
+              returnNumber={ret.return_number}
+              total={Number(ret.total_refund ?? 0)}
+              status={ret.status ?? "active"}
+              onDone={() => window.location.reload()}
+            />
             <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة الفاتورة
             </Button>
           </div>
         }
       />
+
+      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /></div>
+
+
 
       <div className="max-w-3xl mx-auto card-elevated p-8 bg-card no-print">
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-border">
