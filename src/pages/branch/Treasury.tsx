@@ -204,6 +204,15 @@ export default function Treasury() {
       : []),
   ];
 
+  // تحويلات واردة لسه محصلش عليها تأكيد استلام — الفلوس دي مش مضافة للرصيد
+  const pendingIncoming = useMemo(
+    () => transfers.filter((t: any) => t.to_branch_id === branchId && !t.acknowledged_at && !t.rejected_at),
+    [transfers, branchId]
+  );
+  const pendingIncomingTotal = pendingIncoming.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+
+
+
   return (
     <BranchLayout>
       <PageHeader title="الخزينة" subtitle="عرض فقط — كل الحركات تتم عبر سندات القبض والصرف"
