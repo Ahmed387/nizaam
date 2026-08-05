@@ -19,6 +19,8 @@ const INST_STATUS: Record<string, { label: string; cls: string }> = {
   partially_paid: { label: "جزئي", cls: "bg-warning/15 text-warning" },
   paid: { label: "مسدد", cls: "bg-success/15 text-success" },
   overdue: { label: "متأخر", cls: "bg-destructive/15 text-destructive" },
+  cancelled: { label: "ملغي", cls: "bg-muted text-muted-foreground line-through" },
+
 };
 
 export default function PartnerAdvanceDetail() {
