@@ -114,6 +114,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     return m;
   }, [monthAtt]);
 
+  // إجمالي ساعات العمل خلال الشهر لكل موظف (بيحسب الشيفت اللي بيعدي منتصف الليل صح)
+  const monthMinutesByEmployee = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const a of monthAtt) {
+      const grouped = m[a.employee_id] ?? 0;
+      m[a.employee_id] = grouped + (workedMinutes(a.check_in, a.check_out) ?? 0);
+    }
+    return m;
+  }, [monthAtt]);
+
+
   const upsert = async (employeeId: string, patch: any) => {
     const emp = employees.find((e) => e.id === employeeId);
     if (!emp) return;
