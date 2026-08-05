@@ -18,13 +18,22 @@ export default function Guide() {
   const branchId = branches?.[0]?.id ?? null;
   const full = isAdmin || isOwner;
 
-  const sections = useMemo(
-    () => GUIDE_SECTIONS.filter((s) => full || !s.anyPerm || s.anyPerm.some((p) => can(p))),
-    [full, can],
-  );
+  // الأقسام والخطوات متفلترة لحظيًا على صلاحيات اليوزر.
+  // أي تغيير يعمله المالك في الصلاحيات بيوصل هنا فورًا (realtime في AuthContext)
+  // فالدليل بيزيد أو يقل من غير ما اليوزر يعمل خروج ودخول.
+  const sections = useMemo(() => {
+    return GUIDE_SECTIONS.map((s) => ({
+      ...s,
+      steps: s.steps.filter((st) => full || !st.perm || can(st.perm)),
+    })).filter((s) => {
+      if (!full && s.anyPerm && !s.anyPerm.some((p) => can(p))) return false;
+      return s.steps.length > 0;
+    });
+  }, [full, can]);
 
   const doneCount = sections.filter((s) => completed[s.key]).length;
   const pct = sections.length ? Math.round((doneCount / sections.length) * 100) : 0;
+  const stepsCount = sections.reduce((n, s) => n + s.steps.length, 0);
 
   const go = (to?: string | null) => {
     if (!to) {
