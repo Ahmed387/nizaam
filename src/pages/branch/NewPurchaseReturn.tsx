@@ -285,27 +285,10 @@ export default function NewPurchaseReturn() {
       if (e2) throw e2;
 
       if (!asDraft) {
-        // Inventory deduction (products + product_batches FIFO) is handled
-        // by DB trigger `apply_purchase_return_item` on purchase_return_items insert.
-        // No client-side quantity write — blocked by guard_products_quantity anyway.
-        const cashIn = cashPart + transferPart;
-        if (cashIn > 0) {
-          await supabase.from("treasury").insert({
-            branch_id: branchId!,
-            type: "income",
-            category: "purchase_return",
-            amount: cashIn,
-            description: `مرتجع شراء ${number} - ${supplier.name}`,
-            reference_id: (pr as any).id,
-            payment_method: refundMode === "mixed" && cashPart > 0 && transferPart > 0 ? "mixed" : refundMethodFinal,
-            reference_number: refundRef.trim() || null,
-            transfer_from_account: refundAccount.trim() || null,
-            created_by: user!.id,
-          } as any);
-        }
-        // Balance update is handled automatically by the DB trigger
-        // trg_balance_purchase_returns → recalc_contact_balance.
-        // No client-side write needed.
+        // Inventory deduction (products + product_batches FIFO, branch-scoped) and the
+        // treasury inflow for the cash/transfer portion are both handled atomically by
+        // DB triggers: `apply_purchase_return_item` and `process_purchase_return_refund`.
+        // Supplier balance comes from v_contact_balances. No client-side writes here.
       }
 
       if (asDraft) {

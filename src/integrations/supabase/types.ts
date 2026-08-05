@@ -6535,54 +6535,26 @@ export type Database = {
         }
         Returns: Json
       }
-      edit_invoice:
-        | {
-            Args: { _customer_id: string; _invoice_id: string; _items: Json }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _customer_id: string
-              _invoice_id: string
-              _items: Json
-              _vat_rate: number
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _customer_id: string
-              _discount_amount: number
-              _invoice_id: string
-              _items: Json
-              _vat_rate: number
-            }
-            Returns: undefined
-          }
-      edit_invoice__impl:
-        | {
-            Args: { _customer_id: string; _invoice_id: string; _items: Json }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _customer_id: string
-              _invoice_id: string
-              _items: Json
-              _vat_rate?: number
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _customer_id: string
-              _discount_amount?: number
-              _invoice_id: string
-              _items: Json
-              _vat_rate?: number
-            }
-            Returns: undefined
-          }
+      edit_invoice: {
+        Args: {
+          _customer_id: string
+          _discount_amount?: number
+          _invoice_id: string
+          _items: Json
+          _vat_rate?: number
+        }
+        Returns: undefined
+      }
+      edit_invoice__impl: {
+        Args: {
+          _customer_id: string
+          _discount_amount?: number
+          _invoice_id: string
+          _items: Json
+          _vat_rate?: number
+        }
+        Returns: undefined
+      }
       edit_invoice_payment: {
         Args: {
           p_amount: number
@@ -7031,16 +7003,6 @@ export type Database = {
       redistribute_installments_after_return__impl: {
         Args: { _invoice_id: string }
         Returns: Json
-      }
-      register_sale_return: {
-        Args: {
-          _invoice_id: string
-          _items: Json
-          _notes?: string
-          _reason?: string
-          _refund_method?: string
-        }
-        Returns: string
       }
       register_sale_return_full: {
         Args: {
