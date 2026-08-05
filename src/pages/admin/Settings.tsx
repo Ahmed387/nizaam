@@ -51,6 +51,7 @@ export default function Settings() {
   // === Discount policy ===
   const [discMode, setDiscMode] = useState<"global" | "per_branch">("global");
   const [discGlobalPct, setDiscGlobalPct] = useState<number>(10);
+  const [minPriceFloor, setMinPriceFloor] = useState<"cost" | "market" | "none">("cost");
   const [discBranchPct, setDiscBranchPct] = useState<Record<string, number>>({});
   const [savingDiscount, setSavingDiscount] = useState(false);
 
@@ -158,6 +159,7 @@ export default function Settings() {
         if (row.key === "discount_policy_global") {
           const v: any = row.value ?? {};
           if (typeof v.percent === "number") setDiscGlobalPct(v.percent);
+          if (v.min_price_floor) setMinPriceFloor(v.min_price_floor);
         }
         if (row.key === "discount_policy_branches") {
           const v: any = row.value ?? {};
@@ -186,12 +188,13 @@ export default function Settings() {
     setSavingDiscount(true);
     try {
       if (discMode === "global") {
-        await supabase.from("settings").upsert({ key: "discount_policy_global", value: { mode: "global", percent: Number(discGlobalPct) || 0 } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+        await supabase.from("settings").upsert({ key: "discount_policy_global", value: { mode: "global", percent: Number(discGlobalPct) || 0, min_price_floor: minPriceFloor } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
         await supabase.from("settings").upsert({ key: "discount_policy_branches", value: { mode: "global" } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
       } else {
         const cleaned: Record<string, number> = {};
         for (const b of branches) cleaned[b.id] = Number(discBranchPct[b.id] ?? 0) || 0;
         await supabase.from("settings").upsert({ key: "discount_policy_branches", value: { mode: "per_branch", branches: cleaned } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+        await supabase.from("settings").upsert({ key: "discount_policy_global", value: { mode: "per_branch", percent: Number(discGlobalPct) || 0, min_price_floor: minPriceFloor } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
       }
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "discount_policy", details: { mode: discMode, global: discGlobalPct, branches: discBranchPct } });
       toast.success("تم حفظ إعدادات الخصم");
@@ -385,6 +388,24 @@ export default function Settings() {
                 ))}
               </div>
             )}
+
+            <div className="max-w-md pt-2 border-t">
+              <Label>الحد الأدنى لسعر البيع (للكاشير)</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                الكاشير مش هيقدر يبيع بأقل من الحد ده حتى لو عمل خصم.
+              </p>
+              <RadioGroup value={minPriceFloor} onValueChange={(v) => setMinPriceFloor(v as any)} className="grid sm:grid-cols-3 gap-2 mt-2">
+                <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${minPriceFloor === "cost" ? "border-primary bg-primary/5" : ""}`}>
+                  <RadioGroupItem value="cost" /> <span className="text-sm">سعر التكلفة</span>
+                </label>
+                <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${minPriceFloor === "market" ? "border-primary bg-primary/5" : ""}`}>
+                  <RadioGroupItem value="market" /> <span className="text-sm">سعر السوق</span>
+                </label>
+                <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${minPriceFloor === "none" ? "border-primary bg-primary/5" : ""}`}>
+                  <RadioGroupItem value="none" /> <span className="text-sm">بدون حد</span>
+                </label>
+              </RadioGroup>
+            </div>
 
             <Button onClick={saveDiscountPolicy} disabled={savingDiscount} className="gap-2">
               {savingDiscount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

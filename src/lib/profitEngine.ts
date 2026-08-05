@@ -59,7 +59,10 @@ export function lineProfit(
     unitRev = sp - ld;
   }
 
-  const unitCost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
+  // unit_cost_at_sale بيتسجل 0 في حالات كتير (مش NULL) — لازم نرجع لـ cost_price
+  // وإلا التكلفة بتتحسب صفر والربح بيطلع مضخّم.
+  const snapCost = Number(it.unit_cost_at_sale ?? 0) || 0;
+  const unitCost = snapCost > 0 ? snapCost : Number(it.cost_price ?? 0) || 0;
   const costUnknown = unitCost <= 0 && !!opts.invoiceIsMigrated;
 
   const revenue = unitRev * netQty;
@@ -67,6 +70,52 @@ export function lineProfit(
   const profit = costUnknown ? 0 : revenue - cost;
 
   return { netQty, revenue, cost, profit, costUnknown };
+}
+
+export interface InvoiceLike {
+  is_migrated?: boolean | null;
+  discount_amount?: number | string | null;
+  invoice_items?: InvoiceItemLike[] | null;
+}
+
+export interface InvoiceProfit {
+  /** Revenue net of returns AND net of the invoice-level discount (excludes VAT). */
+  revenue: number;
+  cost: number;
+  profit: number;
+  /** Portion of the invoice-level discount attributed to the non-returned lines. */
+  discountShare: number;
+}
+
+/**
+ * Canonical per-invoice revenue.
+ *
+ * `lineProfit()` only sees line-level values, so an invoice-level discount
+ * (invoices.discount_amount — applied on the whole bill, not per line) used to be
+ * invisible in every report: sales and gross profit were both overstated by it.
+ * Here the discount is allocated proportionally over the lines that were NOT
+ * returned, so returns and bill discounts compose correctly.
+ *
+ * VAT is intentionally excluded (invoices.total includes it) — reports show
+ * revenue, not what the customer paid.
+ */
+export function invoiceProfit(inv: InvoiceLike): InvoiceProfit {
+  const items = inv.invoice_items ?? [];
+  let grossRevenue = 0; // full quantity, before invoice-level discount
+  let netRevenue = 0; // net of returns, before invoice-level discount
+  let cost = 0;
+  for (const it of items) {
+    const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
+    const qty = Number(it.quantity) || 0;
+    const unitRev = lp.netQty > 0 ? lp.revenue / lp.netQty : it.total != null && qty > 0 ? Number(it.total) / qty : 0;
+    grossRevenue += unitRev * qty;
+    netRevenue += lp.revenue;
+    cost += lp.cost;
+  }
+  const discount = Math.max(0, Number(inv.discount_amount ?? 0) || 0);
+  const discountShare = grossRevenue > 0 ? Math.min(discount, discount * (netRevenue / grossRevenue)) : 0;
+  const revenue = Math.max(0, netRevenue - discountShare);
+  return { revenue, cost, profit: revenue - cost, discountShare };
 }
 
 export interface ProfitTotals {
@@ -127,7 +176,7 @@ export async function fetchProfitWindow(params: {
   const prevToDate = range.prevTo.toISOString().slice(0, 10);
 
   const invSelect =
-    "id, branch_id, is_migrated, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)";
+    "id, branch_id, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)";
 
   // ملاحظة: PostgREST بيقص عند 1000 صف — بنستخدم fetchAllRows عشان الأرقام ما تنقصش
   const buildInv = (f: string, t: string) => {
@@ -173,11 +222,9 @@ export async function fetchProfitWindow(params: {
     let rev = 0,
       cost = 0;
     for (const inv of rows ?? []) {
-      for (const it of inv.invoice_items ?? []) {
-        const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
-        rev += lp.revenue;
-        cost += lp.cost;
-      }
+      const ip = invoiceProfit(inv);
+      rev += ip.revenue;
+      cost += ip.cost;
     }
     return { revenue: rev, cost };
   };
@@ -204,11 +251,9 @@ export async function fetchProfitWindow(params: {
     const b = inv.branch_id;
     if (!b) continue;
     if (!byBranch[b]) byBranch[b] = { revenue: 0, cost: 0, expenses: 0 };
-    for (const it of inv.invoice_items ?? []) {
-      const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
-      byBranch[b].revenue += lp.revenue;
-      byBranch[b].cost += lp.cost;
-    }
+    const ip = invoiceProfit(inv);
+    byBranch[b].revenue += ip.revenue;
+    byBranch[b].cost += ip.cost;
   }
   for (const v of (expRes.data ?? []) as any[]) {
     if (!v.branch_id) continue;

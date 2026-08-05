@@ -115,6 +115,8 @@ export default function NewSale() {
   const [settlementAmount, setSettlementAmount] = useState(0);
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
+  // لو المستخدم استرجع مسودة، منمسحش اختياره للضريبة بالإعداد الافتراضي
+  const restoredDraftRef = useRef(false);
   const [vatRate, setVatRate] = useState<number>(14);
   const [invoiceNotes, setInvoiceNotes] = useState<string>("");
   // Invoice-level discount
@@ -152,6 +154,7 @@ export default function NewSale() {
       setItems(kept);
       setCustomerId(d.customerId ?? "");
       setInvoiceDate(d.invoiceDate ?? invoiceDate);
+      restoredDraftRef.current = true;
       setVatEnabled(!!d.vatEnabled);
       setVatRate(d.vatRate ?? 14);
       setInvoiceNotes(d.invoiceNotes ?? "");
@@ -257,7 +260,10 @@ export default function NewSale() {
     // Load VAT default rate from settings
     supabase.from("settings").select("value").eq("key", "vat").maybeSingle().then(({ data }) => {
       const v: any = (data as any)?.value;
-      if (v && typeof v.rate === "number") setVatRate(Number(v.rate));
+      if (!v) return;
+      if (typeof v.rate === "number") setVatRate(Number(v.rate));
+      // الضريبة بتتفعّل افتراضيًا حسب الإعدادات (قبل كده كانت مقفولة دايمًا)
+      if (typeof v.enabled === "boolean" && !restoredDraftRef.current) setVatEnabled(v.enabled);
     });
   }, []);
 
@@ -893,7 +899,8 @@ export default function NewSale() {
     // Load price floor; allowed % is already tracked in state (allowedPct)
     let priceFloor: "cost" | "market" | "none" = "cost";
     try {
-      const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy").maybeSingle();
+      // المفتاح الصح هو discount_policy_global (اللي شاشة الإعدادات بتكتب فيه)
+      const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy_global").maybeSingle();
       const v: any = s?.value ?? {};
       if (v.min_price_floor) priceFloor = v.min_price_floor;
     } catch {}

@@ -13,7 +13,7 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP } from "@/lib/format";
-import { lineProfit } from "@/lib/profitEngine";
+import { lineProfit, invoiceProfit } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
 import { fetchSchedules, fetchClosures, countWorkingDays, type BranchSchedule, type BranchClosure } from "@/lib/branchSchedule";
 import {
@@ -175,14 +175,12 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   // ============ Aggregated KPIs for current scope ============
   // ⚠️ Single source of truth: src/lib/profitEngine.ts → lineProfit()
   const k = useMemo(() => {
-    const sales = activeInv.reduce((s, i) => s + Number(i.total), 0);
+    const sales = activeInv.reduce((s, i) => s + invoiceProfit(i).revenue, 0);
     let cost = 0, netRevenue = 0;
     for (const inv of activeInv) {
-      for (const it of inv.invoice_items) {
-        const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
-        cost += lp.cost;
-        netRevenue += lp.revenue;
-      }
+      const ip = invoiceProfit(inv);
+      cost += ip.cost;
+      netRevenue += ip.revenue;
     }
     const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
     const inventoryValue = scopedProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
@@ -218,13 +216,13 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
   const perBranch = useMemo(() => branches.map((b) => {
     const bInv = invoices.filter((i) => i.status === "active" && i.branch_id === b.id);
-    const sales = bInv.reduce((s, i) => s + Number(i.total), 0);
     let cost = 0, netRevenue = 0;
-    for (const i of bInv) for (const it of i.invoice_items) {
-      const lp = lineProfit(it, { invoiceIsMigrated: !!i.is_migrated });
-      cost += lp.cost;
-      netRevenue += lp.revenue;
+    for (const i of bInv) {
+      const ip = invoiceProfit(i);
+      cost += ip.cost;
+      netRevenue += ip.revenue;
     }
+    const sales = netRevenue;
     const profit = netRevenue - cost;
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
     const bProducts = products.filter((p) => p.branch_id === b.id);
