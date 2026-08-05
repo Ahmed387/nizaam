@@ -115,6 +115,8 @@ export default function NewSale() {
   const [settlementAmount, setSettlementAmount] = useState(0);
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
+  // لو المستخدم استرجع مسودة، منمسحش اختياره للضريبة بالإعداد الافتراضي
+  const restoredDraftRef = useRef(false);
   const [vatRate, setVatRate] = useState<number>(14);
   const [invoiceNotes, setInvoiceNotes] = useState<string>("");
   // Invoice-level discount
@@ -152,6 +154,7 @@ export default function NewSale() {
       setItems(kept);
       setCustomerId(d.customerId ?? "");
       setInvoiceDate(d.invoiceDate ?? invoiceDate);
+      restoredDraftRef.current = true;
       setVatEnabled(!!d.vatEnabled);
       setVatRate(d.vatRate ?? 14);
       setInvoiceNotes(d.invoiceNotes ?? "");
