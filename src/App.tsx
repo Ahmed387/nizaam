@@ -204,6 +204,8 @@ const App = () => (
             <Route path="/suspended" element={<Suspended />} />
             
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/guide" element={<ProtectedRoute><Guide /></ProtectedRoute>} />
+
 
             {/* Super Admin */}
             <Route path="/super/dashboard" element={<ProtectedRoute superAdminOnly><SuperDashboard /></ProtectedRoute>} />
