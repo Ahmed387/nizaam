@@ -582,15 +582,13 @@ export default function NewPurchaseReturn() {
                 <span>رصيد المورد هيتعدل من {formatEGP(supplier.balance ?? 0)} إلى {formatEGP(Number(supplier.balance ?? 0) - total)}</span>
               </div>
             )}
-            <div className="grid md:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Button onClick={() => submit(false)} disabled={busy || total === 0 || !shipment} className="w-full gap-2" size="lg">
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
                 حفظ مرتجع الشراء
               </Button>
-              <Button onClick={() => submit(true)} disabled={busy || total === 0 || !shipment} variant="outline" className="w-full gap-2" size="lg">
-                <Save className="w-4 h-4" /> حفظ كمسودة
-              </Button>
             </div>
+
             <p className="text-[11px] text-muted-foreground text-center">Ctrl+S للحفظ — Esc للإلغاء</p>
           </div>
         </CollapsibleSection>
