@@ -899,7 +899,8 @@ export default function NewSale() {
     // Load price floor; allowed % is already tracked in state (allowedPct)
     let priceFloor: "cost" | "market" | "none" = "cost";
     try {
-      const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy").maybeSingle();
+      // المفتاح الصح هو discount_policy_global (اللي شاشة الإعدادات بتكتب فيه)
+      const { data: s } = await supabase.from("settings").select("value").eq("key", "discount_policy_global").maybeSingle();
       const v: any = s?.value ?? {};
       if (v.min_price_floor) priceFloor = v.min_price_floor;
     } catch {}
