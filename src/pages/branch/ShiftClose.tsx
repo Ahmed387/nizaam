@@ -37,8 +37,9 @@ export default function ShiftClose() {
           return;
         }
         setShift(s);
-        const sales = await shiftCashSales(s.id);
+        const [sales, lines] = await Promise.all([shiftCashSales(s.id), shiftPaymentBreakdown(s.id)]);
         setCashSales(sales);
+        setBreakdown(lines);
         setClosingCash(Number(s.opening_cash) + sales);
       } catch (e: any) {
         toast.error(e.message ?? "خطأ");
