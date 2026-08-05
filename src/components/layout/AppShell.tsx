@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OfflineQueueIndicator } from "@/components/OfflineQueueIndicator";
+import { HelpButton } from "@/components/HelpButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface NavItem {
