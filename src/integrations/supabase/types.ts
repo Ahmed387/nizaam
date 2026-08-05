@@ -4235,6 +4235,9 @@ export type Database = {
       purchase_returns: {
         Row: {
           branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           contact_id: string
           created_at: string
           created_by: string
@@ -4258,6 +4261,9 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           contact_id: string
           created_at?: string
           created_by: string
@@ -4281,6 +4287,9 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           contact_id?: string
           created_at?: string
           created_by?: string
@@ -4567,6 +4576,9 @@ export type Database = {
       returns: {
         Row: {
           branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           created_by: string
           id: string
@@ -4589,6 +4601,9 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -4611,6 +4626,9 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -6362,6 +6380,14 @@ export type Database = {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
       }
+      cancel_purchase_return: {
+        Args: { _reason: string; _return_id: string }
+        Returns: Json
+      }
+      cancel_sale_return: {
+        Args: { _reason: string; _return_id: string }
+        Returns: Json
+      }
       cancel_voucher: {
         Args: { p_reason: string; p_voucher_id: string }
         Returns: undefined
@@ -6771,6 +6797,10 @@ export type Database = {
         | { Args: { _tenant_id: string; _user_id: string }; Returns: boolean }
       is_partner_owner: { Args: { _partner_id: string }; Returns: boolean }
       is_personal_owner: { Args: never; Returns: boolean }
+      is_return_canceller: {
+        Args: { _tenant: string; _uid: string }
+        Returns: boolean
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       map_treasury_to_category_key: {
         Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
