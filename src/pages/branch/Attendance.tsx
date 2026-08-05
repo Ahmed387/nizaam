@@ -237,6 +237,20 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             },
           },
           {
+            key: "hours", header: "ساعات اليوم / الشهر",
+            render: (e: any) => {
+              const a = byEmployee.get(e.id);
+              const day = workedMinutes(a?.check_in, a?.check_out);
+              const month = monthMinutesByEmployee[e.id] ?? 0;
+              return (
+                <div className="text-xs leading-tight" dir="ltr">
+                  <div className="font-bold">{formatHours(day)}</div>
+                  <div className="text-muted-foreground">{formatHours(month)}</div>
+                </div>
+              );
+            },
+          },
+          {
             key: "presence", header: "تواجد على السيستم (اليوم)",
             render: (e: any) => {
               if (!e.user_id) return <span className="text-xs text-muted-foreground">بدون دخول</span>;
