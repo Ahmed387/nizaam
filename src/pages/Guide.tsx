@@ -18,13 +18,22 @@ export default function Guide() {
   const branchId = branches?.[0]?.id ?? null;
   const full = isAdmin || isOwner;
 
-  const sections = useMemo(
-    () => GUIDE_SECTIONS.filter((s) => full || !s.anyPerm || s.anyPerm.some((p) => can(p))),
-    [full, can],
-  );
+  // الأقسام والخطوات متفلترة لحظيًا على صلاحيات اليوزر.
+  // أي تغيير يعمله المالك في الصلاحيات بيوصل هنا فورًا (realtime في AuthContext)
+  // فالدليل بيزيد أو يقل من غير ما اليوزر يعمل خروج ودخول.
+  const sections = useMemo(() => {
+    return GUIDE_SECTIONS.map((s) => ({
+      ...s,
+      steps: s.steps.filter((st) => full || !st.perm || can(st.perm)),
+    })).filter((s) => {
+      if (!full && s.anyPerm && !s.anyPerm.some((p) => can(p))) return false;
+      return s.steps.length > 0;
+    });
+  }, [full, can]);
 
   const doneCount = sections.filter((s) => completed[s.key]).length;
   const pct = sections.length ? Math.round((doneCount / sections.length) * 100) : 0;
+  const stepsCount = sections.reduce((n, s) => n + s.steps.length, 0);
 
   const go = (to?: string | null) => {
     if (!to) {
@@ -82,10 +91,14 @@ export default function Guide() {
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold">ابدأ من هنا</h1>
               <p className="text-muted-foreground text-sm mt-0.5">
-                دليل سريع يمشّيك على النظام خطوة خطوة. كل خطوة فيها زرار يوديك للشاشة على طول.
+                دليل كامل يمشّيك على النظام خطوة خطوة. كل خطوة فيها زرار يوديك للشاشة على طول.
               </p>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg p-3 mt-3 leading-relaxed">
+            الدليل ده متفصّل على صلاحياتك إنت: بتشوف {sections.length} قسم فيهم {stepsCount} خطوة. لو المالك زوّد أو قلّل
+            صلاحياتك، الأقسام هنا بتتغير على طول من غير ما تعمل خروج ودخول.
+          </p>
           <div className="mt-4">
             <div className="flex items-center justify-between text-sm font-bold mb-2">
               <span>خلّصت {doneCount} من {sections.length} قسم</span>
@@ -112,7 +125,6 @@ export default function Guide() {
                 <div className="p-4 md:p-6 space-y-3">
                   <p className="text-sm text-muted-foreground -mt-1">{s.hint}</p>
                   {s.steps
-                    .filter((st) => full || !st.perm || can(st.perm))
                     .map((st, idx) => {
                       const target = st.to?.(branchId) ?? null;
                       return (
