@@ -4121,6 +4121,8 @@ export type Database = {
           id: string
           journal_entry_id: string | null
           notes: string | null
+          period_from: string | null
+          period_to: string | null
           status: string
           tenant_id: string
           total_amount: number
@@ -4134,6 +4136,8 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           notes?: string | null
+          period_from?: string | null
+          period_to?: string | null
           status?: string
           tenant_id: string
           total_amount: number
@@ -4147,6 +4151,8 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           notes?: string | null
+          period_from?: string | null
+          period_to?: string | null
           status?: string
           tenant_id?: string
           total_amount?: number
@@ -6343,6 +6349,10 @@ export type Database = {
         Returns: undefined
       }
       assert_same_tenant: { Args: { p_tenant: string }; Returns: undefined }
+      available_to_distribute: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: Json
+      }
       backfill_missing_journals: { Args: never; Returns: Json }
       branch_cycle_count_status: {
         Args: { p_branch_id: string; p_stale_days?: number }
@@ -6556,6 +6566,8 @@ export type Database = {
           p_distribution_date?: string
           p_fiscal_period_id: string
           p_notes?: string
+          p_period_from?: string
+          p_period_to?: string
           p_tenant_id: string
           p_total_amount: number
         }
