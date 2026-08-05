@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers } from "lucide-react";
+import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { shiftPaymentBreakdown, ShiftPaymentLine } from "@/lib/shifts";
+import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 
 interface Row {
   id: string;
@@ -18,6 +20,7 @@ interface Row {
   branch_name: string | null;
   cashier_id: string;
   cashier_name: string | null;
+  closed_by_name: string | null;
   opened_at: string;
   closed_at: string | null;
   opening_cash: number;
