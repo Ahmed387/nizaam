@@ -17,6 +17,7 @@ import { Plus, LogIn, LogOut, ArrowRight, Zap, CalendarOff } from "lucide-react"
 import { fetchSchedules, fetchClosures, offDayReason, countWorkingDays } from "@/lib/branchSchedule";
 
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
+import { workedMinutes, formatHours, sumWorkedMinutes } from "@/lib/attendanceHours";
 
 const STATUS = {
   present: "حاضر",
