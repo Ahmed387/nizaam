@@ -180,12 +180,15 @@ export default function FiscalClosing() {
     const amt = Number(dForm.total_amount);
     if (!amt || amt <= 0) { toast.error("أدخل مبلغ التوزيع"); return; }
     if (partners.length === 0) { toast.error("لا يوجد شركاء نشطين"); return; }
+    const per = periods.find(p => p.id === dForm.fiscal_period_id);
     const { error } = await supabase.rpc("distribute_profits" as any, {
       p_tenant_id: tenantId,
       p_fiscal_period_id: dForm.fiscal_period_id || null,
       p_total_amount: amt,
       p_distribution_date: dForm.distribution_date,
       p_notes: dForm.notes || null,
+      p_period_from: per?.period_start || `${y}-01-01`,
+      p_period_to: per?.period_end || `${y}-12-31`,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("تم توزيع الأرباح");

@@ -121,6 +121,8 @@ export default function FlexibleDistribution() {
       p_total_amount: preview.distributable,
       p_distribution_date: toDate,
       p_notes: notes || `توزيع مرن للفترة ${fromDate} → ${toDate}`,
+      p_period_from: fromDate,
+      p_period_to: toDate,
     });
     setDistributing(false);
     if (error) {
