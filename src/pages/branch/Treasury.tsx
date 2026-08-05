@@ -204,6 +204,15 @@ export default function Treasury() {
       : []),
   ];
 
+  // تحويلات واردة لسه محصلش عليها تأكيد استلام — الفلوس دي مش مضافة للرصيد
+  const pendingIncoming = useMemo(
+    () => transfers.filter((t: any) => t.to_branch_id === branchId && !t.acknowledged_at && !t.rejected_at),
+    [transfers, branchId]
+  );
+  const pendingIncomingTotal = pendingIncoming.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+
+
+
   return (
     <BranchLayout>
       <PageHeader title="الخزينة" subtitle="عرض فقط — كل الحركات تتم عبر سندات القبض والصرف"
@@ -248,6 +257,21 @@ export default function Treasury() {
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
+
+      {pendingIncoming.length > 0 && (
+        <div className="card-elevated p-4 mb-6 border border-warning/40 bg-warning/5">
+          <div className="flex items-center gap-2 text-warning font-bold mb-1">
+            <AlertTriangle className="w-5 h-5" />
+            فيه {pendingIncoming.length} تحويل وارد لسه محتاج تأكيد استلام
+          </div>
+          <div className="text-sm text-muted-foreground">
+            إجمالي <span className="font-bold text-foreground">{formatEGP(pendingIncomingTotal)}</span> —
+            الفلوس دي <span className="font-bold">لسه مش مضافة لرصيد الخزنة</span>، هتتضاف أول ما تأكد الاستلام من تبويب «تحويلات بين الفروع».
+          </div>
+        </div>
+      )}
+
+
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams((p) => { p.set("tab", v); return p; }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="movements">حركات الخزنة</TabsTrigger>
