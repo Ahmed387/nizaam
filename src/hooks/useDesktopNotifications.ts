@@ -8,7 +8,10 @@ const PUSH_TYPES = [
   "shift_reminder",
   "shift_pre_close",
   "shift_open_blocked",
+  "sale_return_created",
+  "purchase_return_created",
 ];
+
 
 function beep() {
   try {

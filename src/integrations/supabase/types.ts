@@ -6761,6 +6761,10 @@ export type Database = {
           sku: string
         }[]
       }
+      invoice_outstanding_debt: {
+        Args: { _exclude_return_id?: string; _invoice_id: string }
+        Returns: number
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_owner:
         | { Args: { _user_id: string }; Returns: boolean }
@@ -7103,6 +7107,10 @@ export type Database = {
       }
       shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
+      supplier_outstanding_payable: {
+        Args: { _contact_id: string }
+        Returns: number
+      }
       sync_invoice_cash_treasury: {
         Args: { _invoice_id: string }
         Returns: undefined
