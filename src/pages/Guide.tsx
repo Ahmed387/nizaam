@@ -91,10 +91,14 @@ export default function Guide() {
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold">ابدأ من هنا</h1>
               <p className="text-muted-foreground text-sm mt-0.5">
-                دليل سريع يمشّيك على النظام خطوة خطوة. كل خطوة فيها زرار يوديك للشاشة على طول.
+                دليل كامل يمشّيك على النظام خطوة خطوة. كل خطوة فيها زرار يوديك للشاشة على طول.
               </p>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg p-3 mt-3 leading-relaxed">
+            الدليل ده متفصّل على صلاحياتك إنت: بتشوف {sections.length} قسم فيهم {stepsCount} خطوة. لو المالك زوّد أو قلّل
+            صلاحياتك، الأقسام هنا بتتغير على طول من غير ما تعمل خروج ودخول.
+          </p>
           <div className="mt-4">
             <div className="flex items-center justify-between text-sm font-bold mb-2">
               <span>خلّصت {doneCount} من {sections.length} قسم</span>
