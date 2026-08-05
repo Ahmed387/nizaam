@@ -53,13 +53,28 @@ export default function FlexibleDistribution() {
 
   const loadBalances = async () => {
     if (!tenantId) return;
-    const { data } = await supabase
-      .from("equity_partners")
-      .select("id,name,current_balance")
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .order("name");
-    setPartnersBalances((data as any) ?? []);
+    const [{ data: partners }, { data: bals }] = await Promise.all([
+      supabase
+        .from("equity_partners")
+        .select("id,name")
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("v_partner_balances" as any)
+        .select("partner_id,current_balance")
+        .eq("tenant_id", tenantId),
+    ]);
+    const map = new Map<string, number>(
+      ((bals as any[]) ?? []).map((b: any) => [b.partner_id, Number(b.current_balance || 0)]),
+    );
+    setPartnersBalances(
+      ((partners as any[]) ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        current_balance: map.get(p.id) ?? 0,
+      })),
+    );
   };
   useEffect(() => {
     loadBalances();
@@ -106,6 +121,8 @@ export default function FlexibleDistribution() {
       p_total_amount: preview.distributable,
       p_distribution_date: toDate,
       p_notes: notes || `توزيع مرن للفترة ${fromDate} → ${toDate}`,
+      p_period_from: fromDate,
+      p_period_to: toDate,
     });
     setDistributing(false);
     if (error) {
