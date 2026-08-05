@@ -52,6 +52,7 @@ import SetupWizard from "./pages/SetupWizard";
 import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
+import Guide from "./pages/Guide";
 import Suspended from "./pages/Suspended";
 
 
