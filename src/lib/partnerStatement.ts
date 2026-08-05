@@ -100,7 +100,7 @@ export async function downloadPartnerStatementPdf(opts: {
   } catch { /* stamp falls back to branch name */ }
 
   await generatePartnerStatementReport({
-    partner: partner as any,
+    partner: partnerWithBalance as any,
     transactions: (txs ?? []) as any[],
     openingBalance: opening,
     filters: { from, to },
