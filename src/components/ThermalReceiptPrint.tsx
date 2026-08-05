@@ -51,10 +51,13 @@ interface CompanyInfo {
   logo_url?: string;
   phone?: string;
   address?: string;
+  /** الإعدادات بتحفظ tax_number — tax_id متروك للتوافق مع بيانات قديمة */
+  tax_number?: string;
   tax_id?: string;
 }
 interface InvoiceSettingsRow {
   footer_note?: string;
+  show_logo?: boolean;
 }
 interface VatSettings {
   enabled?: boolean;
@@ -159,7 +162,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   return (
     <div id="invoice-print-area" className="thermal-print" dir="rtl">
       <div className="tr-header">
-        {company.logo_url ? (
+        {company.logo_url && invoiceSettings.show_logo !== false ? (
           <img
             src={company.logo_url}
             alt=""
@@ -170,7 +173,9 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
         ) : null}
         {companyName && <div className="tr-company-bar">{companyName}</div>}
         <div className="tr-title">{title}</div>
-        {company.tax_id && <div className="tr-tax">رقم ضريبى {company.tax_id}</div>}
+        {(company.tax_number || company.tax_id) && (
+          <div className="tr-tax">رقم ضريبى {company.tax_number || company.tax_id}</div>
+        )}
       </div>
 
       <table className="tr-meta-grid" dir="ltr">

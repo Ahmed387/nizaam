@@ -257,7 +257,10 @@ export default function NewSale() {
     // Load VAT default rate from settings
     supabase.from("settings").select("value").eq("key", "vat").maybeSingle().then(({ data }) => {
       const v: any = (data as any)?.value;
-      if (v && typeof v.rate === "number") setVatRate(Number(v.rate));
+      if (!v) return;
+      if (typeof v.rate === "number") setVatRate(Number(v.rate));
+      // الضريبة بتتفعّل افتراضيًا حسب الإعدادات (قبل كده كانت مقفولة دايمًا)
+      if (typeof v.enabled === "boolean" && !restoredDraftRef.current) setVatEnabled(v.enabled);
     });
   }, []);
 
