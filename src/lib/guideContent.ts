@@ -19,7 +19,7 @@ import {
   Sparkles,
   Paperclip,
   PiggyBank,
-  Bell,
+  
   Database,
 } from "lucide-react";
 
@@ -131,8 +131,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "الجرس والإشعارات",
         desc: "جرس فوق في الهيدر بيجيبلك الطلبات المستنية موافقتك، تنبيهات المخزون، والفواتير المستحقة.",
-        icon: Bell as any,
-      } as GuideStep,
+      },
       {
         title: "إنت داخل بإيه؟",
         desc: "اسمك ودورك (كاشير / مدير فرع / محاسب…) ظاهرين تحت في القايمة. الدور ده هو اللي بيحدد الشاشات اللي تشوفها. من صفحتك تقدر تغيّر باسوردك وبياناتك.",
