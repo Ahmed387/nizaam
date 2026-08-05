@@ -397,11 +397,35 @@ export default function PartnersList() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>حصة رأس المال (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
-                <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
-              </div>
-              <div><Label>رأس المال المبدئي (ج.م)</Label><Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} /></div>
+              <div><Label>المبلغ المدفوع / رأس المال المبدئي (ج.م) *</Label><Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} placeholder="مثال: 600000" /></div>
+
+              <label className="flex items-center gap-2 text-sm cursor-pointer bg-muted/40 rounded-md p-2">
+                <input type="checkbox" checked={autoShare} onChange={e => setAutoShare(e.target.checked)} className="accent-primary w-4 h-4" />
+                <span>احسب نسبة كل شريك أوتوماتيك من المبالغ المدفوعة</span>
+              </label>
+
+              {autoShare ? (
+                <div className="rounded-md border p-3 space-y-1.5 bg-primary/5">
+                  <div className="text-xs text-muted-foreground">إجمالي رأس المال بعد الإضافة: <span className="font-mono font-bold">{fmt(autoTotalCapital)}</span> ج.م</div>
+                  {autoSharesPreview.length === 0 && <div className="text-xs text-muted-foreground">أدخل المبلغ المدفوع علشان تظهر النسب</div>}
+                  {autoSharesPreview.map(s => (
+                    <div key={s.id} className={`flex items-center justify-between text-sm ${s.id === "__new__" ? "font-bold text-primary" : ""}`}>
+                      <span>{s.name}</span>
+                      <span className="font-mono">{fmt(s.amount)} ج.م — {(s.share * 100).toFixed(2)}%</span>
+                    </div>
+                  ))}
+                  <div className="text-[11px] text-muted-foreground pt-1">هتتحدث نسب الشركاء الحاليين تلقائيًا عند الحفظ.</div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>حصة رأس المال (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
+                  <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
+                </div>
+              )}
+              {autoShare && (
+                <div><Label>حصة التشغيل (0-1) — اختياري</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
+              )}
+
               <div className="flex justify-end">
                 <Button onClick={() => setTab("creds")}>التالي: بيانات الدخول</Button>
               </div>
