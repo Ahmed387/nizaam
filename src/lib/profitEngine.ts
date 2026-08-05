@@ -59,7 +59,10 @@ export function lineProfit(
     unitRev = sp - ld;
   }
 
-  const unitCost = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
+  // unit_cost_at_sale بيتسجل 0 في حالات كتير (مش NULL) — لازم نرجع لـ cost_price
+  // وإلا التكلفة بتتحسب صفر والربح بيطلع مضخّم.
+  const snapCost = Number(it.unit_cost_at_sale ?? 0) || 0;
+  const unitCost = snapCost > 0 ? snapCost : Number(it.cost_price ?? 0) || 0;
   const costUnknown = unitCost <= 0 && !!opts.invoiceIsMigrated;
 
   const revenue = unitRev * netQty;
