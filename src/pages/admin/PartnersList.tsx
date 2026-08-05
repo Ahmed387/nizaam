@@ -548,6 +548,29 @@ export default function PartnersList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit partner capital */}
+      <Dialog open={!!editCapital} onOpenChange={() => setEditCapital(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تعديل رأس المال — {editCapital?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>المبلغ المدفوع (ج.م)</Label>
+              <Input type="number" value={editCapital?.amount ?? ""} onChange={e => setEditCapital(c => c ? { ...c, amount: e.target.value } : c)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              هيتسجل الفرق في كشف حساب الشريك (إيداع أو تخفيض)، وهتتعاد نسب كل الشركاء أوتوماتيك من المبالغ ومجموعها 100% بالظبط.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCapital(null)}>إلغاء</Button>
+            <Button onClick={saveCapital} disabled={savingCapital}>
+              {savingCapital ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ وإعادة الاحتساب
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </AdminLayout>
   );
 }
