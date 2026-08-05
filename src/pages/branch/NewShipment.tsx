@@ -1027,9 +1027,14 @@ export default function NewShipment() {
           open={openSections.payment}
           onToggle={() => toggleSection("payment")}
         >
-          <div className="p-5">
+          <div className="p-5 space-y-3">
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed">
+              <b>خد بالك:</b> الدفعات دي بتتسجل فورًا في الخزنة وحساب المورد — يعني مش مربوطة بزرار «حفظ التعديلات» تحت.
+              أي دفعة تضيفها أو تعدلها هنا بتتحفظ لوحدها على طول.
+            </div>
             <ShipmentPaymentsPanel shipmentId={shipmentId} canEdit={canEditPayments} />
           </div>
+
         </CollapsibleSection>
       ) : null}
 
