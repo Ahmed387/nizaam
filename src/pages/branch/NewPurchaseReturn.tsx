@@ -261,7 +261,7 @@ export default function NewPurchaseReturn() {
         notes: notes.trim() || null,
         created_by: user!.id,
         total_amount: total,
-        status: asDraft ? "draft" : "active",
+        status: "active",
         refund_method: refundMethodFinal,
         refund_reference: refundRef.trim() || null,
         refund_account: refundAccount.trim() || null,
@@ -272,6 +272,9 @@ export default function NewPurchaseReturn() {
       } as any).select().single();
       if (error || !pr) throw error ?? new Error("فشل الحفظ");
       const number = (pr as any).return_number as string;
+      // The DB rewrites the settlement split (supplier debt first, surplus back as cash).
+      const appliedToDebt = Number((pr as any).refund_balance_amount ?? 0);
+      const cashBack = Number((pr as any).refund_cash_amount ?? 0) + Number((pr as any).refund_transfer_amount ?? 0);
 
       const items = activeLines.map((l) => ({
         purchase_return_id: (pr as any).id,
@@ -284,23 +287,24 @@ export default function NewPurchaseReturn() {
       const { error: e2 } = await supabase.from("purchase_return_items" as any).insert(items);
       if (e2) throw e2;
 
-      if (!asDraft) {
-        // Inventory deduction (products + product_batches FIFO, branch-scoped) and the
-        // treasury inflow for the cash/transfer portion are both handled atomically by
-        // DB triggers: `apply_purchase_return_item` and `process_purchase_return_refund`.
-        // Supplier balance comes from v_contact_balances. No client-side writes here.
-      }
+      // Inventory deduction (products + product_batches FIFO, branch-scoped) and the
+      // treasury inflow for the cash/transfer portion are both handled atomically by
+      // DB triggers: `apply_purchase_return_item` and `process_purchase_return_refund`.
+      // Supplier balance comes from v_contact_balances. No client-side writes here.
 
-      if (asDraft) {
-        formDraft.clear();
-        docSuccess({ title: "تم حفظ المرتجع كمسودة", docNumber: number, amount: total });
-        nav(`/branch/${branchId}/invoices?tab=purchase_return`);
-      } else {
-        formDraft.clear();
-        docSuccess({ title: "تم تسجيل مرتجع الشراء بنجاح", docNumber: number, amount: total, description: `عدد الأصناف: ${activeLines.length}` });
-        setSavedNumber(number);
-        setPrintOpen(true);
-      }
+      formDraft.clear();
+      docSuccess({
+        title: "تم تسجيل مرتجع الشراء بنجاح",
+        docNumber: number,
+        amount: total,
+        description:
+          `عدد الأصناف: ${activeLines.length}` +
+          (appliedToDebt > 0 ? ` • اتخصم من ذمة المورد: ${formatEGP(appliedToDebt)}` : "") +
+          (cashBack > 0 ? ` • دخل الخزنة كاش: ${formatEGP(cashBack)}` : ""),
+      });
+      setSavedNumber(number);
+      setPrintOpen(true);
+
     } catch (err: any) {
       docError({ title: "فشل حفظ مرتجع الشراء", description: err.message ?? "خطأ غير متوقع" });
     } finally {
