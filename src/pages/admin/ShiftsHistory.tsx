@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
@@ -165,8 +165,8 @@ export default function ShiftsHistory() {
             <tbody>
               {rows.length === 0 && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">لا توجد ورديات</td></tr>}
               {rows.map((r) => (
-                <>
-                  <tr key={r.id} className="border-t border-border">
+                <Fragment key={r.id}>
+                  <tr className="border-t border-border">
                     <td className="p-3 font-semibold">{r.cashier_name ?? "—"}</td>
                     <td className="p-3">{r.branch_name ?? "—"}</td>
                     <td className="p-3 text-xs">{formatDateTime(r.opened_at)}</td>
@@ -188,7 +188,7 @@ export default function ShiftsHistory() {
                     </td>
                   </tr>
                   {expanded === r.id && (
-                    <tr key={`${r.id}-d`} className="bg-muted/30 border-t border-border">
+                    <tr className="bg-muted/30 border-t border-border">
                       <td colSpan={12} className="p-3">
                         {!breakdowns[r.id] ? (
                           <div className="text-xs text-muted-foreground">جاري التحميل…</div>
@@ -210,7 +210,7 @@ export default function ShiftsHistory() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
 
