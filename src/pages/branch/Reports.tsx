@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { invoiceProfit } from "@/lib/profitEngine";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -97,9 +98,11 @@ export default function BranchReports() {
     const qty = Number(it.quantity) || 0;
     return qty > 0 ? Number(it.total ?? 0) * (netQty(it) / qty) : 0;
   };
-  const netInvoiceTotal = (i: any) => (i.invoice_items ?? []).reduce((s: number, it: any) => s + netLineTotal(it), 0);
+  // خصم الفاتورة ككل (discount_amount) بيتوزع على البنود غير المرتجعة — من غير كده
+  // المبيعات والربح بيطلعوا أعلى من الحقيقة.
+  const netInvoiceTotal = (i: any) => invoiceProfit(i).revenue;
   const totalSales = activeInv.reduce((s, i) => s + netInvoiceTotal(i), 0);
-  const totalCost = activeInv.reduce((s, i) => s + i.invoice_items.reduce((x: number, it: any) => x + Number(it.cost_price) * netQty(it), 0), 0);
+  const totalCost = activeInv.reduce((s, i) => s + invoiceProfit(i).cost, 0);
   const grossProfit = totalSales - totalCost;
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const netProfit = grossProfit - totalExpenses;
@@ -149,7 +152,7 @@ export default function BranchReports() {
       const d = inv.created_at.slice(0, 10);
       if (!dayMap[d]) dayMap[d] = { date: d, sales: 0, profit: 0 };
       dayMap[d].sales += netInvoiceTotal(inv);
-      const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * netQty(it), 0);
+      const cost = invoiceProfit(inv).cost;
       dayMap[d].profit += netInvoiceTotal(inv) - cost;
     }
     return Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
@@ -267,7 +270,7 @@ export default function BranchReports() {
               const d = inv.created_at.slice(0, 10);
               if (!dayMap[d]) dayMap[d] = { date: d.slice(5), sales: 0, profit: 0 };
               dayMap[d].sales += netInvoiceTotal(inv);
-              const cost = inv.invoice_items.reduce((s: number, it: any) => s + Number(it.cost_price) * netQty(it), 0);
+              const cost = invoiceProfit(inv).cost;
               dayMap[d].profit += netInvoiceTotal(inv) - cost;
             }
             const dailyData = Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));

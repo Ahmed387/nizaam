@@ -6713,6 +6713,7 @@ export type Database = {
           bank_balance: number
           cash_balance: number
           instapay_balance: number
+          other_balance: number
           total_balance: number
           vodafone_balance: number
         }[]

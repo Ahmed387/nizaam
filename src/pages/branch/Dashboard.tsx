@@ -6,6 +6,7 @@ import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
+import { invoiceProfit } from "@/lib/profitEngine";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
@@ -56,28 +57,25 @@ export default function BranchDashboard() {
       invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentDocs,
       invLast30, invItemsToday, invItemsMonth, invAll30, branchRow,
     ] = await Promise.all([
-      supabase.from("invoices").select("total, payment_method, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
-      supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
-      supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
-      supabase.from("invoices").select("total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
+      supabase.from("invoices").select("total, payment_method, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", today.toISOString()),
+      supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
+      supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", monthStart.toISOString()),
+      supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
       supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
       supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
       supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
       fetchRecentDocs(5, id),
-      supabase.from("invoices").select("created_at, total, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
+      supabase.from("invoices").select("created_at, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()),
       supabase.from("invoice_items").select("product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", today.toISOString()),
       supabase.from("invoice_items").select("quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").gte("invoices.created_at", monthStart.toISOString()),
-      supabase.from("invoices").select("contact_id, total, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
+      supabase.from("invoices").select("contact_id, total, discount_amount, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").gte("created_at", last30.toISOString()).not("contact_id", "is", null),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
     const netInvoiceTotal = (inv: any) => {
       const rows = inv.invoice_items ?? [];
       if (!rows.length) return Number(inv.total ?? 0);
-      return rows.reduce((sum: number, it: any) => {
-        const qty = Number(it.quantity) || 0;
-        const returned = Math.min(qty, Number(it.returned_quantity) || 0);
-        return sum + (qty > 0 ? Number(it.total ?? 0) * ((qty - returned) / qty) : 0);
-      }, 0);
+      // صافي المبيعات = بعد المرتجعات وبعد خصم الفاتورة ككل
+      return invoiceProfit(inv).revenue;
     };
     setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
 

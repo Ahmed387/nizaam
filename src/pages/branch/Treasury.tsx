@@ -30,6 +30,7 @@ interface WalletBalances {
   vodafone_balance: number;
   instapay_balance: number;
   bank_balance: number;
+  other_balance: number;
   total_balance: number;
 }
 
@@ -44,7 +45,7 @@ export default function Treasury() {
   const [rows, setRows] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [walletBalances, setWalletBalances] = useState<WalletBalances>({
-    cash_balance: 0, vodafone_balance: 0, instapay_balance: 0, bank_balance: 0, total_balance: 0,
+    cash_balance: 0, vodafone_balance: 0, instapay_balance: 0, bank_balance: 0, other_balance: 0, total_balance: 0,
   });
   const [lowThreshold, setLowThreshold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -197,6 +198,10 @@ export default function Treasury() {
     { key: "vodafone_balance" as const, label: "فودافون كاش", icon: Smartphone, color: "text-rose-500", method: "vodafone" as const },
     { key: "instapay_balance" as const, label: "انستاباي", icon: CreditCard, color: "text-violet-500", method: "instapay" as const },
     { key: "bank_balance" as const, label: "حساب بنكي", icon: Landmark, color: "text-blue-500", method: "bank" as const },
+    // وسائل الدفع المخصّصة — من غيرها مجموع المحافظ ما كانش بيساوي إجمالي الخزنة
+    ...(Number(walletBalances.other_balance ?? 0) !== 0
+      ? [{ key: "other_balance" as const, label: "وسائل أخرى", icon: Wallet, color: "text-amber-500", method: "other" as const }]
+      : []),
   ];
 
   return (
