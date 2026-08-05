@@ -323,6 +323,7 @@ export function AppShell({
             </div>
             <div className="flex items-center gap-1">
               <OfflineQueueIndicator />
+              <HelpButton />
               <ThemeToggle />
               <NotificationBell />
             </div>
