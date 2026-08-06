@@ -12,6 +12,7 @@ import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban
 import { toast } from "sonner";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { confirmAlert } from "@/components/ConfirmDialog";
 import { useMemo } from "react";
 
 export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
@@ -41,7 +42,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const attCounts = useAttachmentCounts("inventory_adjustment", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
   const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
-  const canCancelApproved = (r: any) => (isOwner || hasRole("owner")) && r.status === "closed";
+  const canCancelApproved = (r: any) => isOwner && r.status === "closed";
 
   const cancelSession = async (sessionId: string) => {
     const { error } = await supabase
@@ -54,11 +55,11 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   };
 
   const cancelApproved = async (sessionId: string) => {
-    const ok = await confirmDialog({
+    const ok = await confirmAlert({
       title: "إلغاء جرد معتمد؟",
       description: "هيتم إرجاع الكميات والدفعات لحالتها قبل الاعتماد وعكس القيد المحاسبي. لو حصلت أي حركة بيع أو شراء على نفس المنتجات بعد الاعتماد، العملية هتترفض.",
-      confirmText: "أيوه ألغي الجرد",
-      variant: "destructive",
+      confirmLabel: "أيوه ألغي الجرد",
+      tone: "danger",
     });
     if (!ok) return;
     const { data, error } = await supabase.rpc("cancel_inventory_session" as any, {
