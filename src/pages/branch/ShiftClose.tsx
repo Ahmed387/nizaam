@@ -24,6 +24,7 @@ export default function ShiftClose() {
   const [breakdown, setBreakdown] = useState<ShiftPaymentLine[]>([]);
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
+  const [autoCheckout, setAutoCheckout] = useState(true);
 
 
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function ShiftClose() {
     if (!shift) return;
     setBusy(true);
     try {
-      const closed = await closeShift(shift.id, Number(closingCash) || 0, notes || undefined);
+      const closed = await closeShift(shift.id, Number(closingCash) || 0, notes || undefined, autoCheckout);
       const v = Number(closed.variance ?? 0);
       if (Math.abs(v) < 0.01) toast.success("تم قفل الوردية — الدرج مطابق");
       else if (v > 0) toast.success(`تم قفل الوردية — زيادة ${formatEGP(v)}`);
@@ -142,6 +143,14 @@ export default function ShiftClose() {
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" placeholder="سبب العجز/الزيادة إن وُجد" />
           </div>
+
+          <label className="flex items-start gap-2 text-sm cursor-pointer rounded-lg border border-border p-3">
+            <input type="checkbox" className="mt-1" checked={autoCheckout} onChange={(e) => setAutoCheckout(e.target.checked)} />
+            <span>
+              <span className="font-semibold">سجّل انصرافي تلقائي بتوقيت قفل الوردية</span>
+              <span className="block text-xs text-muted-foreground">لو سجلت انصرافك يدوي النهارده، مش هيتغير.</span>
+            </span>
+          </label>
 
           <Button type="submit" disabled={busy} className="w-full h-11">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><DoorClosed className="w-4 h-4 me-2" />قفل الوردية</>)}

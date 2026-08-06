@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Loader2, DoorOpen, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, openShift } from "@/lib/shifts";
+import { getOpenShift, openShift, isMissingAttendanceError } from "@/lib/shifts";
 import { formatEGP } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { BranchSchedule, fetchClosures, fetchSchedules, offDayReason } from "@/lib/branchSchedule";
@@ -31,6 +31,7 @@ export default function ShiftOpen() {
   const [offReason, setOffReason] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<BranchSchedule | undefined>(undefined);
   const [ack, setAck] = useState(false);
+  const [needsAttendance, setNeedsAttendance] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
@@ -55,22 +56,31 @@ export default function ShiftOpen() {
 
   const blocked = !!offReason && !!schedule?.block_open_on_off_day && !ack;
 
+  const doOpen = async (autoAttendance: boolean) => {
+    setBusy(true);
+    try {
+      await openShift(branchId, Number(openingCash) || 0, notes || undefined, autoAttendance);
+      toast.success(autoAttendance ? "تم تسجيل حضورك وفتح الوردية" : "تم فتح الوردية");
+      nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
+    } catch (e: any) {
+      if (isMissingAttendanceError(e)) {
+        setNeedsAttendance(true);
+        toast.error("لازم تسجل حضورك الأول قبل ما تفتح الوردية");
+      } else {
+        toast.error(e.message ?? "فشل فتح الوردية");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (blocked) {
       toast.error("الفرع مقفول اليوم — تحتاج تأكيد المالك لفتح وردية");
       return;
     }
-    setBusy(true);
-    try {
-      await openShift(branchId, Number(openingCash) || 0, notes || undefined);
-      toast.success("تم فتح الوردية");
-      nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
-    } catch (e: any) {
-      toast.error(e.message ?? "فشل فتح الوردية");
-    } finally {
-      setBusy(false);
-    }
+    await doOpen(false);
   };
 
 
@@ -133,6 +143,21 @@ export default function ShiftOpen() {
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
           </div>
+          {needsAttendance && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-bold text-destructive">لازم تسجل حضورك الأول قبل ما تفتح الوردية</div>
+                  <div className="text-muted-foreground">تقدر تسجل حضورك وتفتح الوردية في خطوة واحدة من الزرار ده.</div>
+                </div>
+              </div>
+              <Button type="button" variant="secondary" className="w-full h-11" disabled={busy || blocked}
+                onClick={() => doOpen(true)}>
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "سجل حضوري وافتح الوردية دلوقتي"}
+              </Button>
+            </div>
+          )}
           <Button type="submit" disabled={busy || blocked} className="w-full h-11">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><DoorOpen className="w-4 h-4 me-2" />فتح الوردية</>)}
           </Button>

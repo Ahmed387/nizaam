@@ -12,11 +12,12 @@ import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban
 import { toast } from "sonner";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { confirmAlert } from "@/components/ConfirmDialog";
 import { useMemo } from "react";
 
 export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { hasRole, isAdmin } = useAuth();
+  const { hasRole, isAdmin, isOwner } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const attCounts = useAttachmentCounts("inventory_adjustment", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
   const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
+  const canCancelApproved = (r: any) => isOwner && r.status === "closed";
 
   const cancelSession = async (sessionId: string) => {
     const { error } = await supabase
@@ -51,6 +53,25 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
     toast.success("تم إلغاء الجلسة");
     load();
   };
+
+  const cancelApproved = async (sessionId: string) => {
+    const ok = await confirmAlert({
+      title: "إلغاء جرد معتمد؟",
+      description: "هيتم إرجاع الكميات والدفعات لحالتها قبل الاعتماد وعكس القيد المحاسبي. لو حصلت أي حركة بيع أو شراء على نفس المنتجات بعد الاعتماد، العملية هتترفض.",
+      confirmLabel: "أيوه ألغي الجرد",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const { data, error } = await supabase.rpc("cancel_inventory_session" as any, {
+      p_session_id: sessionId,
+      p_reason: "إلغاء بواسطة المالك",
+    });
+    if (error) return toast.error(error.message, { duration: 12000 });
+    const res = data as any;
+    toast.success(`تم إلغاء الجرد — رجعنا ${Number(res?.reverted_qty ?? 0)} وحدة وعكسنا قيد بقيمة ${Number(res?.reverted_value ?? 0).toLocaleString("en-EG")} ج.م`);
+    load();
+  };
+
 
   const actionFor = (r: any) => {
     if (isManager && (r.status === "pending_approval")) {
@@ -97,6 +118,11 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
                 {isManager && canCancel(r.status) && (
                   <Button size="sm" variant="outline" onClick={() => cancelSession(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
                     <Ban className="w-4 h-4" /> إلغاء
+                  </Button>
+                )}
+                {canCancelApproved(r) && (
+                  <Button size="sm" variant="outline" onClick={() => cancelApproved(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
+                    <Ban className="w-4 h-4" /> إلغاء الجرد المعتمد
                   </Button>
                 )}
                 {isAdmin && (

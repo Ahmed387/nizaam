@@ -26,23 +26,31 @@ export async function getOpenShift(branchId: string): Promise<CashierShift | nul
   return (row && (row as any).id) ? (row as CashierShift) : null;
 }
 
-export async function openShift(branchId: string, openingCash: number, notes?: string) {
+export async function openShift(branchId: string, openingCash: number, notes?: string, autoAttendance = false) {
   const { data, error } = await supabase.rpc("open_cashier_shift" as any, {
     p_branch_id: branchId,
     p_opening_cash: openingCash,
     p_notes: notes ?? null,
+    p_auto_attendance: autoAttendance,
   });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
   return row as CashierShift;
 }
 
-export async function closeShift(shiftId: string, closingCash: number, notes?: string) {
+/** الرسالة اللي بترجع من السيرفر لما الكاشير مسجلش حضور النهارده */
+export function isMissingAttendanceError(e: any) {
+  const msg = String(e?.message ?? "") + String(e?.hint ?? "");
+  return msg.includes("لازم تسجل حضورك") || msg.includes("NO_ATTENDANCE");
+}
+
+export async function closeShift(shiftId: string, closingCash: number, notes?: string, autoCheckout = true) {
   const { data, error } = await supabase.rpc("close_cashier_shift" as any, {
     p_shift_id: shiftId,
     p_closing_cash: closingCash,
     p_notes: notes ?? null,
     p_auto: false,
+    p_auto_checkout: autoCheckout,
   });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
