@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: "ملغاة", cls: "bg-muted text-muted-foreground" },
 };
 
-export default function PartnerAdvances() {
+export default function PartnerAdvances({ embedded }: { embedded?: boolean } = {}) {
   const { tenantId } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
@@ -89,10 +89,10 @@ export default function PartnerAdvances() {
   const activeCount = rows.filter(r => r.status !== "fully_paid" && r.status !== "cancelled").length;
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <div dir="rtl" className="text-right space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <PageHeader title="سلف الشركاء" subtitle="إدارة سلف الشركاء وأقساط السداد" />
+          {!embedded && <PageHeader title="سلف الشركاء" subtitle="إدارة سلف الشركاء وأقساط السداد" />}
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link to="/admin/financial-position">← الذمة المالية للشركاء</Link></Button>
             <Button onClick={() => setOpen(true)}><PlusCircle className="w-4 h-4 ml-2" />سلفة جديدة</Button>
@@ -190,6 +190,6 @@ export default function PartnerAdvances() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

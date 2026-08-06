@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
+import PartnersList from "./PartnersList";
+import PartnerTransactions from "./PartnerTransactions";
+import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
@@ -47,6 +51,8 @@ function ActionButton({
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") || "overview";
   const [stats, setStats] = useState({ count: 0, capital: 0, balance: 0 });
 
   const load = async () => {
@@ -72,6 +78,20 @@ export default function FinancialPosition() {
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
         <PageHeader title="الذمة المالية للشركاء" subtitle="كل حاجة عن فلوس الشركاء ورأس المال والأرباح — في مكان واحد" />
+
+        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
+          <TabsList className="flex flex-wrap h-auto">
+            <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+            <TabsTrigger value="partners">الشركاء</TabsTrigger>
+            <TabsTrigger value="transactions">الحركات</TabsTrigger>
+            <TabsTrigger value="advances">السلف</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
+          <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
+          <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
+
+          <TabsContent value="overview" className="mt-4 space-y-6">
 
         {/* Friendly intro */}
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
@@ -132,35 +152,35 @@ export default function FinancialPosition() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <ActionButton
-              to="/admin/financial-position/partners"
+              to="/admin/financial-position?tab=partners"
               icon={<PlusCircle className="w-4 h-4" />}
               title="إدارة الشركاء"
               note="ضيف شريك جديد، عدّل بياناته، أو شوف كشف حساب أي حد."
               variant="default"
             />
             <ActionButton
-              to="/admin/financial-position/advances"
+              to="/admin/financial-position?tab=advances"
               icon={<HandCoins className="w-4 h-4" />}
               title="سلف الشركاء"
               note="لما شريك ياخد فلوس مقدماً على حساب أرباحه الجاية."
               iconClass="text-warning"
             />
             <ActionButton
-              to="/admin/financial-position/transactions?type=contribution"
+              to="/admin/financial-position?tab=transactions&type=contribution"
               icon={<ArrowUpCircle className="w-4 h-4" />}
               title="تسجيل مساهمة"
               note="شريك دخّل فلوس جديدة في الشركة — سجّلها هنا."
               iconClass="text-success"
             />
             <ActionButton
-              to="/admin/financial-position/transactions?type=drawing"
+              to="/admin/financial-position?tab=transactions&type=drawing"
               icon={<ArrowDownCircle className="w-4 h-4" />}
               title="تسجيل مسحوبة"
               note="شريك سحب فلوس من الشركة لنفسه — سجّل السحب هنا."
               iconClass="text-destructive"
             />
             <ActionButton
-              to="/admin/financial-position/transactions?type=profit_share"
+              to="/admin/financial-position?tab=transactions&type=profit_share"
               icon={<Gift className="w-4 h-4" />}
               title="توزيع أرباح"
               note="وزّع أرباح فترة معينة على الشركاء حسب نسبة كل واحد."
@@ -286,6 +306,8 @@ export default function FinancialPosition() {
             />
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );

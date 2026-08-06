@@ -8,6 +8,7 @@ import { Loader2, CheckCircle2, XCircle, RefreshCcw, AlertTriangle, TrendingUp, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { fetchProfitWindow } from "@/lib/profitEngine";
+import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 
 type Health = any;
 type PartnerNet = { id: string; name: string; tenant_id: string; capital_pct: number; operating_pct: number; net_share: number };
@@ -34,7 +35,21 @@ export default function SystemHealth() {
   const [netByTenant, setNetByTenant] = useState<Record<string, number>>({});
   const [partnerNets, setPartnerNets] = useState<PartnerNet[]>([]);
   const [lastRun, setLastRun] = useState<Date | null>(null);
+  const [anomalyRunning, setAnomalyRunning] = useState(false);
+  const [anomalyCount, setAnomalyCount] = useState<number | null>(null);
   const runningRef = useRef(false);
+
+  const runAnomalies = async () => {
+    setAnomalyRunning(true);
+    const { data: n, error } = await supabase.rpc("detect_anomalies" as any);
+    setAnomalyRunning(false);
+    if (error) {
+      toast({ title: "مقدرناش نفحص الحركات", description: error.message, variant: "destructive" });
+      return;
+    }
+    setAnomalyCount(Number(n || 0));
+  };
+
 
   const loadPartnerNet = async () => {
     const from = new Date("2020-01-01");
@@ -477,6 +492,31 @@ export default function SystemHealth() {
             </table>
             <div className="p-3 text-xs text-muted-foreground border-t bg-muted/20">
               حصة الشريك = صافي ربح الشركة × نسبة التشغيل. صافي الربح = المبيعات − التكلفة − المصاريف.
+            </div>
+          </CardContent>
+        </Card>
+
+        <OrphanedBatchesCheck />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>كشف الحركات الغريبة (Anomalies)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              بيدوّر على أي حركة شكلها غريب (خصم كبير، سعر أقل من التكلفة، حركة خزنة مش طبيعية) وبيبعتلك إشعار بيها.
+              بيشتغل تلقائي كل يوم، وتقدر تشغّله دلوقتي من هنا.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="outline" onClick={runAnomalies} disabled={anomalyRunning}>
+                {anomalyRunning ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RefreshCcw className="w-4 h-4 ml-2" />}
+                افحص الحركات دلوقتي
+              </Button>
+              {anomalyCount !== null && (
+                <span className={`text-sm font-semibold ${anomalyCount > 0 ? "text-warning" : "text-success"}`}>
+                  {anomalyCount > 0 ? `لقينا ${anomalyCount} حركة محتاجة مراجعة` : "مفيش أي حركة غريبة ✓"}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>

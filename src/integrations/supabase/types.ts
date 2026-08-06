@@ -6463,7 +6463,6 @@ export type Database = {
         Args: { p_from: string; p_tenant_id: string; p_to: string }
         Returns: Json
       }
-      backfill_missing_journals: { Args: never; Returns: Json }
       branch_cycle_count_status: {
         Args: { p_branch_id: string; p_stale_days?: number }
         Returns: {
@@ -6557,9 +6556,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      close_fiscal_period:
-        | { Args: { p_period_id: string }; Returns: Json }
-        | { Args: { p_period_id: string; p_reason?: string }; Returns: Json }
+      close_fiscal_period: {
+        Args: { p_period_id: string; p_reason?: string }
+        Returns: Json
+      }
       complete_pre_order_sale: {
         Args: { p_payment_method?: string; p_pre_order_id: string }
         Returns: string
@@ -6943,9 +6943,7 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_owner:
-        | { Args: { _user_id: string }; Returns: boolean }
-        | { Args: { _tenant_id: string; _user_id: string }; Returns: boolean }
+      is_owner: { Args: { _user_id: string }; Returns: boolean }
       is_partner_owner: { Args: { _partner_id: string }; Returns: boolean }
       is_personal_owner: { Args: never; Returns: boolean }
       is_return_canceller: {

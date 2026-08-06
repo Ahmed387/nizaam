@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ function passwordStrength(pw: string): { level: "ضعيفة" | "متوسطة" | 
   return { level: "قوية", color: "text-success" };
 }
 
-export default function PartnersList() {
+export default function PartnersList({ embedded }: { embedded?: boolean } = {}) {
   const { tenantId, profile } = useAuth();
   const [rows, setRows] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(false);
@@ -269,10 +269,10 @@ export default function PartnersList() {
   const activeCount = rows.filter(p => p.is_active).length;
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <div dir="rtl" className="text-right space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />
+          {!embedded && <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />}
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {partnerCashBranchId && (
               <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
@@ -285,7 +285,7 @@ export default function PartnersList() {
               {recalcing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}إعادة احتساب النسب من المبالغ
             </Button>
             <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
-              <Link to="/admin/financial-position/advances">سلف الشركاء</Link>
+              <Link to="/admin/financial-position?tab=advances">سلف الشركاء</Link>
             </Button>
             <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
@@ -571,6 +571,6 @@ export default function PartnersList() {
         </DialogContent>
       </Dialog>
 
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }

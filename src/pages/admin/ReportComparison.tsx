@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,7 +95,7 @@ function DeltaCell({ curr, prev, invert }: { curr: number; prev: number; invert?
   );
 }
 
-export default function ReportComparison() {
+export default function ReportComparison({ embedded }: { embedded?: boolean } = {}) {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const { filterBranches } = useBranchScope();
   const [branchId, setBranchId] = useState("global");
@@ -146,8 +146,8 @@ export default function ReportComparison() {
   ];
 
   return (
-    <AdminLayout>
-      <PageHeader title="مقارنة الفترات" subtitle="قارن أداء فترتين زمنيتين جنباً إلى جنب" />
+    <ConditionalLayout variant="admin" embedded={embedded}>
+      {!embedded && <PageHeader title="مقارنة الفترات" subtitle="قارن أداء فترتين زمنيتين جنباً إلى جنب" />}
 
       <div className="card-elevated p-4 mb-6 space-y-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -250,7 +250,7 @@ export default function ReportComparison() {
           </tbody>
         </table>
       </div>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }
 

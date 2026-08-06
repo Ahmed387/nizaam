@@ -122,17 +122,14 @@ import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
 import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
-import CockpitPage from "./pages/admin/CockpitPage";
 import InsightsPage from "./pages/admin/InsightsPage";
 import FinanceHub from "./pages/admin/FinanceHub";
 import MainTreasury from "./pages/admin/MainTreasury";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
-import MonthlyProfitSummary from "./pages/admin/MonthlyProfitSummary";
 import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
 import FinancialDashboard from "./pages/admin/FinancialDashboard";
-import ReportComparison from "./pages/admin/ReportComparison";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
 import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
 import PendingVoidApprovals from "./pages/branch/PendingVoidApprovals";
@@ -149,10 +146,7 @@ import SuperTenants from "./pages/super/Tenants";
 import SuperUsers from "./pages/super/AllUsers";
 import AttachmentsHub from "./pages/AttachmentsHub";
 import FinancialPosition from "./pages/admin/FinancialPosition";
-import PartnersList from "./pages/admin/PartnersList";
 import AdminPartnerProfile from "./pages/admin/PartnerProfile";
-import PartnerTransactions from "./pages/admin/PartnerTransactions";
-import PartnerAdvances from "./pages/admin/PartnerAdvances";
 import PartnerAdvanceDetail from "./pages/admin/PartnerAdvanceDetail";
 import SystemHealth from "./pages/admin/SystemHealth";
 import PersonalExpenses from "./pages/admin/PersonalExpenses";
@@ -239,13 +233,13 @@ const App = () => (
             {/* Hubs */}
             <Route path="/admin/catalog" element={<ProtectedRoute perm="admin_catalog.view" adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><ReportsHub /></ProtectedRoute>} />
-            <Route path="/admin/cockpit" element={<ProtectedRoute perm="admin_cockpit.view" ownerOnly><CockpitPage /></ProtectedRoute>} />
-            <Route path="/admin/monthly-profit" element={<ProtectedRoute perm="admin_monthly_profit.view" ownerOnly><MonthlyProfitSummary /></ProtectedRoute>} />
+            <Route path="/admin/cockpit" element={<Navigate to="/admin/reports-hub?tab=owner" replace />} />
+            <Route path="/admin/monthly-profit" element={<Navigate to="/admin/reports-hub?tab=monthly" replace />} />
             <Route path="/admin/insights" element={<ProtectedRoute perm="admin_insights.view" ownerOnly><InsightsPage /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FinanceHub /></ProtectedRoute>} />
             <Route path="/admin/main-treasury" element={<ProtectedRoute perm="admin_main_treasury.view" adminOnly><MainTreasury /></ProtectedRoute>} />
             <Route path="/admin/financial-dashboard" element={<ProtectedRoute adminOnly><FinancialDashboard /></ProtectedRoute>} />
-            <Route path="/admin/report-comparison" element={<ProtectedRoute adminOnly><ReportComparison /></ProtectedRoute>} />
+            <Route path="/admin/report-comparison" element={<Navigate to="/admin/reports-hub?tab=comparison" replace />} />
 
             {/* Legacy redirects → hubs */}
             <Route path="/admin/branches" element={<Navigate to="/admin/catalog?tab=branches" replace />} />
@@ -262,10 +256,10 @@ const App = () => (
 
             {/* Financial Position (Partners) */}
             <Route path="/admin/financial-position" element={<ProtectedRoute perm="admin_financial_position.view" ownerOnly><FinancialPosition /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/partners" element={<ProtectedRoute ownerOnly><PartnersList /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/partners" element={<Navigate to="/admin/financial-position?tab=partners" replace />} />
             <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute ownerOnly><AdminPartnerProfile /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/transactions" element={<ProtectedRoute ownerOnly><PartnerTransactions /></ProtectedRoute>} />
-            <Route path="/admin/financial-position/advances" element={<ProtectedRoute ownerOnly><PartnerAdvances /></ProtectedRoute>} />
+            <Route path="/admin/financial-position/transactions" element={<Navigate to="/admin/financial-position?tab=transactions" replace />} />
+            <Route path="/admin/financial-position/advances" element={<Navigate to="/admin/financial-position?tab=advances" replace />} />
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
             <Route path="/admin/shifts" element={<ProtectedRoute perm="admin_shifts.view" roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute perm="admin_system_health.view" ownerOnly><SystemHealth /></ProtectedRoute>} />

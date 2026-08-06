@@ -56,8 +56,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const allAdminNav: (NavItem & { perm: string; ownerOnly?: boolean; adminOnly?: boolean })[] = [
     { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عام", perm: "admin_home.view" },
-    { to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عام", perm: "admin_cockpit.view", ownerOnly: true },
-    { to: "/admin/monthly-profit", label: "ملخص الأرباح الشهري", icon: <TrendingUp className="w-4 h-4" />, group: "عام", perm: "admin_monthly_profit.view", ownerOnly: true },
+    { to: "/admin/reports-hub?tab=owner", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عام", perm: "admin_cockpit.view", ownerOnly: true },
     { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عام", perm: "admin_ask_me.view" },
     { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عام", perm: "admin_insights.view", ownerOnly: true },
 
