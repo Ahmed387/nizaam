@@ -7088,6 +7088,10 @@ export type Database = {
         }
         Returns: Json
       }
+      post_voucher_journal: {
+        Args: { p_voucher_id: string }
+        Returns: undefined
+      }
       preview_flexible_distribution: {
         Args: {
           p_amount?: number
@@ -7312,6 +7316,10 @@ export type Database = {
       }
       sync_invoice_cash_treasury: {
         Args: { _invoice_id: string }
+        Returns: undefined
+      }
+      sync_shipment_journal: {
+        Args: { p_shipment_id: string }
         Returns: undefined
       }
       system_health_check: { Args: never; Returns: Json }
