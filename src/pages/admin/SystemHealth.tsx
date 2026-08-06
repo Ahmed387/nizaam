@@ -34,7 +34,21 @@ export default function SystemHealth() {
   const [netByTenant, setNetByTenant] = useState<Record<string, number>>({});
   const [partnerNets, setPartnerNets] = useState<PartnerNet[]>([]);
   const [lastRun, setLastRun] = useState<Date | null>(null);
+  const [anomalyRunning, setAnomalyRunning] = useState(false);
+  const [anomalyCount, setAnomalyCount] = useState<number | null>(null);
   const runningRef = useRef(false);
+
+  const runAnomalies = async () => {
+    setAnomalyRunning(true);
+    const { data: n, error } = await supabase.rpc("detect_anomalies" as any);
+    setAnomalyRunning(false);
+    if (error) {
+      toast({ title: "مقدرناش نفحص الحركات", description: error.message, variant: "destructive" });
+      return;
+    }
+    setAnomalyCount(Number(n || 0));
+  };
+
 
   const loadPartnerNet = async () => {
     const from = new Date("2020-01-01");
