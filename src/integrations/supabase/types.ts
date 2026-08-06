@@ -6402,6 +6402,7 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: undefined
       }
+      assert_can_import_opening_debt: { Args: never; Returns: undefined }
       assert_same_tenant: { Args: { p_tenant: string }; Returns: undefined }
       available_to_distribute: {
         Args: { p_from: string; p_tenant_id: string; p_to: string }
