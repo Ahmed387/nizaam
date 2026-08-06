@@ -16,7 +16,7 @@ import { useMemo } from "react";
 
 export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { hasRole, isAdmin } = useAuth();
+  const { hasRole, isAdmin, isOwner } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +41,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const attCounts = useAttachmentCounts("inventory_adjustment", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
   const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
+  const canCancelApproved = (r: any) => (isOwner || hasRole("owner")) && r.status === "closed";
 
   const cancelSession = async (sessionId: string) => {
     const { error } = await supabase
@@ -51,6 +52,25 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
     toast.success("تم إلغاء الجلسة");
     load();
   };
+
+  const cancelApproved = async (sessionId: string) => {
+    const ok = await confirmDialog({
+      title: "إلغاء جرد معتمد؟",
+      description: "هيتم إرجاع الكميات والدفعات لحالتها قبل الاعتماد وعكس القيد المحاسبي. لو حصلت أي حركة بيع أو شراء على نفس المنتجات بعد الاعتماد، العملية هتترفض.",
+      confirmText: "أيوه ألغي الجرد",
+      variant: "destructive",
+    });
+    if (!ok) return;
+    const { data, error } = await supabase.rpc("cancel_inventory_session" as any, {
+      p_session_id: sessionId,
+      p_reason: "إلغاء بواسطة المالك",
+    });
+    if (error) return toast.error(error.message, { duration: 12000 });
+    const res = data as any;
+    toast.success(`تم إلغاء الجرد — رجعنا ${Number(res?.reverted_qty ?? 0)} وحدة وعكسنا قيد بقيمة ${Number(res?.reverted_value ?? 0).toLocaleString("en-EG")} ج.م`);
+    load();
+  };
+
 
   const actionFor = (r: any) => {
     if (isManager && (r.status === "pending_approval")) {
