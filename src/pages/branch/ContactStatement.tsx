@@ -54,7 +54,7 @@ export default function ContactStatement() {
     if (isCustomer) {
       const [{ data: invs }, { data: pays }, { data: rets }] = await Promise.all([
         supabase.from("invoices")
-          .select("id, invoice_number, total, created_at, invoice_date, status, is_migrated")
+          .select("id, invoice_number, total, created_at, invoice_date, status, is_migrated, branch_id")
           .eq("contact_id", contactId)
           .eq("status", "active"),
         supabase.from("invoice_payments")
@@ -68,7 +68,7 @@ export default function ContactStatement() {
       (invs ?? []).forEach((r: any) => list.push({
         date: r.invoice_date ?? r.created_at, type: "فاتورة بيع", reference: r.invoice_number,
         description: r.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
-        debit: Number(r.total ?? 0), credit: 0, link: `/invoices/${r.id}`,
+        debit: Number(r.total ?? 0), credit: 0, link: r.branch_id ? `/branch/${r.branch_id}/sales/${r.id}` : undefined,
       }));
       (pays ?? []).forEach((p: any) => list.push({
         date: p.created_at, type: "تحصيل من عميل", reference: p.invoices?.invoice_number ?? "—",
@@ -86,7 +86,7 @@ export default function ContactStatement() {
     if (isSupplier) {
       const [{ data: ships }, { data: sp }, { data: prets }] = await Promise.all([
         supabase.from("shipments")
-          .select("id, shipment_number, total_cost, arrival_date, invoice_date, created_at, is_migrated")
+          .select("id, shipment_number, total_cost, arrival_date, invoice_date, created_at, is_migrated, branch_id")
           .eq("contact_id", contactId),
         supabase.from("supplier_payments" as any)
           .select("id, amount, paid_at, payment_method, reference_number")
@@ -99,7 +99,7 @@ export default function ContactStatement() {
       (ships ?? []).forEach((s: any) => list.push({
         date: s.invoice_date ?? s.arrival_date ?? s.created_at, type: "فاتورة شراء (شحنة)", reference: s.shipment_number ?? "—",
         description: s.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
-        debit: 0, credit: Number(s.total_cost ?? 0), link: `/shipments/${s.id}`,
+        debit: 0, credit: Number(s.total_cost ?? 0), link: s.branch_id ? `/branch/${s.branch_id}/shipments/${s.id}` : undefined,
       }));
       (sp as any[] ?? []).forEach((p: any) => list.push({
         date: p.paid_at, type: "دفع لمورد", reference: p.reference_number ?? "—",
