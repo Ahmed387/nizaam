@@ -267,7 +267,7 @@ const App = () => (
             <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
             <Route path="/admin/shifts" element={<ProtectedRoute perm="admin_shifts.view" roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute perm="admin_system_health.view" ownerOnly><SystemHealth /></ProtectedRoute>} />
-            <Route path="/admin/ask-me" element={<ProtectedRoute perm="admin_ask_me.view" ownerOnly><AskMe /></ProtectedRoute>} />
+            <Route path="/admin/ask-me" element={<ProtectedRoute perm="admin_ask_me.view"><AskMe /></ProtectedRoute>} />
             <Route path="/admin/personal-expenses" element={<ProtectedRoute><PersonalExpenses /></ProtectedRoute>} />
 
 

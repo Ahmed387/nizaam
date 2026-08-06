@@ -6440,6 +6440,15 @@ export type Database = {
         Returns: undefined
       }
       archive_product: { Args: { _product_id: string }; Returns: undefined }
+      ask_me_access_level: { Args: { _user_id: string }; Returns: string }
+      ask_me_allowed_tables: { Args: { _user_id: string }; Returns: string[] }
+      ask_me_schema: {
+        Args: never
+        Returns: {
+          columns: string
+          table_name: string
+        }[]
+      }
       assert_can_edit_invoice: {
         Args: { p_invoice_id: string }
         Returns: undefined
