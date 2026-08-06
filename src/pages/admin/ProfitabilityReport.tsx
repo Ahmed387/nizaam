@@ -261,7 +261,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         title="تقرير الربحية — المحاسبة الدقيقة"
         purpose="الجواب الرسمي على سؤال: 'كسبت كام فعلاً؟' محسوب بنظام FIFO على مستوى كل فاتورة ومنتج."
         shows={[
-          "الإيراد - التكلفة (FIFO) = صافي الربح + هامش %",
+          "المبيعات (Revenue) − تكلفة البضاعة المباعة (COGS) = صافي الربح (Net Profit) + هامش الربح (Profit Margin) %",
           "ربح كل فاتورة، كل منتج، وكل دفعة شراء (Drill-down)",
           "فلاتر بالفرع، الكاشير، الفئة، والفترة الزمنية",
           "أعلى/أقل 10 منتجات بالهامش (جودة الربح)",
@@ -312,9 +312,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       </div>
 
       <div className="grid md:grid-cols-4 gap-3 mb-4">
-        <StatCard label="الإيراد" value={formatEGP(totals.revenue)} icon={<DollarSign />} accent="primary" hint="إجمالي المبيعات بعد المرتجعات" />
-        <StatCard label="التكلفة" value={formatEGP(totals.cost)} icon={<Wallet />} accent="warning" hint="تكلفة البضاعة المباعة (FIFO)" />
-        <StatCard label="صافي الربح" value={formatEGP(totals.profit)} icon={<TrendingUp />} accent={totals.profit >= 0 ? "success" : "destructive"} hint="الإيراد − التكلفة" />
+        <StatCard label="المبيعات (Revenue)" value={formatEGP(totals.revenue)} icon={<DollarSign />} accent="primary" hint="إجمالي المبيعات بعد المرتجعات" />
+        <StatCard label="تكلفة البضاعة المباعة (COGS)" value={formatEGP(totals.cost)} icon={<Wallet />} accent="warning" hint="تكلفة البضاعة المباعة (FIFO)" />
+        <StatCard label="صافي الربح (Net Profit)" value={formatEGP(totals.profit)} icon={<TrendingUp />} accent={totals.profit >= 0 ? "success" : "destructive"} hint="الإيراد − التكلفة" />
         <div className={`rounded-2xl p-4 h-full border border-secondary/30 bg-secondary/10 flex flex-col items-center justify-center text-center`}>
           <div className="text-sm font-semibold text-muted-foreground mb-2">أعلى/أقل هامش</div>
           <div className="text-sm font-bold text-success truncate w-full">↑ {totals.best?.product_name ?? "—"} ({totals.best?.margin.toFixed(1) ?? 0}%)</div>
@@ -469,7 +469,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                             <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">التكلفة الحقيقية/الوحدة</span><b className="text-primary">{formatEGP(r.true_unit ?? 0)}</b></div>
                             <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">متوسط سعر البيع/الوحدة</span><b>{formatEGP(sellUnit)}</b></div>
                             <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">الربح الحقيقي/الوحدة</span><b className={profitUnit >= 0 ? "text-success" : "text-destructive"}>{formatEGP(profitUnit)}</b></div>
-                            <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">هامش الربح</span><b>{r.margin.toFixed(1)}%</b></div>
+                            <div className="flex justify-between border-b border-border/50 pb-1"><span className="text-muted-foreground">هامش الربح (Profit Margin)</span><b>{r.margin.toFixed(1)}%</b></div>
                           </div>
                         </td>
                       </tr>
@@ -511,7 +511,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         { key: "created_at", header: "التاريخ", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
         { key: "revenue", header: "الإيراد", render: (r: InvRow) => formatEGP(r.revenue) },
         { key: "cost", header: "التكلفة", render: (r: InvRow) => r.cost_unknown ? <span className="text-xs text-muted-foreground italic">غير متاح</span> : formatEGP(r.cost) },
-        { key: "profit", header: "صافي الربح", render: (r: InvRow) => r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
+        { key: "profit", header: "صافي الربح (Net Profit)", render: (r: InvRow) => r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
         { key: "margin", header: "الهامش %", render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
       ]} />
     </Wrapper>

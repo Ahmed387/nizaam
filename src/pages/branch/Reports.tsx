@@ -235,8 +235,8 @@ export default function BranchReports() {
         <StatCard label="المبيعات (صافي)" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} hint="بعد خصم المرتجعات" />
         <StatCard label="المرتجعات" value={formatEGP(totalReturns)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${returns.length} عملية`} />
         <StatCard label="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-        <StatCard label="المصروفات" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" hint="بدون مرتجعات / مشتريات" />
-        <StatCard label="صافي الربح" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
+        <StatCard label="المصاريف التشغيلية (OPEX)" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" hint="بدون مرتجعات / مشتريات" />
+        <StatCard label="صافي الربح (Net Profit)" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
         <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
 

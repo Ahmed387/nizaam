@@ -104,7 +104,7 @@ export default function BalanceSheet() {
             {showNI && (
               <TableRow>
                 <TableCell className="font-mono">—</TableCell>
-                <TableCell className="italic text-muted-foreground">صافي الربح للفترة (إيرادات − مصروفات)</TableCell>
+                <TableCell className="italic text-muted-foreground">صافي الربح (Net Profit) للفترة = المبيعات (Revenue) − المصروفات (Expenses)</TableCell>
                 <TableCell className={"font-mono " + (netIncome >= 0 ? "text-success" : "text-destructive")}>{fmt(netIncome)}</TableCell>
               </TableRow>
             )}
