@@ -75,7 +75,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة", perm: "admin_system_health.view", ownerOnly: true },
     { to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة", perm: "admin_approvals.view", adminOnly: true },
     { to: "/admin/data-migration", label: "ترحيل الفواتير القديمة", icon: <FileSpreadsheet className="w-4 h-4" />, group: "الإدارة", perm: "admin_data_migration.view", ownerOnly: true },
-    { to: "/admin/core-data-import", label: "استيراد البيانات الأساسية", icon: <FileSpreadsheet className="w-4 h-4" />, group: "الإدارة", adminOnly: true },
+    { to: "/admin/core-data-import", label: "استيراد البيانات الأساسية", icon: <FileSpreadsheet className="w-4 h-4" />, group: "الإدارة", perm: "admin_data_migration.view", adminOnly: true },
     { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة", perm: "admin_settings.view" },
   ];
 
