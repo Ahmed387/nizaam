@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LegacyDebtImport } from "@/components/legacy/LegacyDebtImport";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
@@ -796,7 +798,14 @@ export default function DataMigration() {
         title="ترحيل الفواتير القديمة"
         subtitle="ارفع ملفات الفواتير زي ما هي (بيع / شراء / مرتجع بيع / مرتجع شراء) — النوع بيتحدد تلقائيًا من اسم الملف أو محتواه"
       />
-      <LegacyPanel />
+      <Tabs defaultValue="docs">
+        <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="docs">الفواتير والمرتجعات</TabsTrigger>
+          <TabsTrigger value="debt">ترحيل الديون كفواتير</TabsTrigger>
+        </TabsList>
+        <TabsContent value="docs" className="mt-4"><LegacyPanel /></TabsContent>
+        <TabsContent value="debt" className="mt-4"><LegacyDebtImport /></TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 }
