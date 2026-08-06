@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-export default function PartnerTransactions() {
+export default function PartnerTransactions({ embedded }: { embedded?: boolean } = {}) {
   const [params] = useSearchParams();
   const { tenantId } = useAuth();
   const [partners, setPartners] = useState<any[]>([]);
@@ -58,9 +58,9 @@ export default function PartnerTransactions() {
   const fmt = (n: number) => Number(n).toLocaleString("en-EG");
 
   return (
-    <AdminLayout>
+    <ConditionalLayout variant="admin" embedded={embedded}>
       <div dir="rtl" className="text-right space-y-4">
-        <PageHeader title="حركات الشركاء" subtitle="تسجيل مساهمات، مسحوبات، وأرباح" />
+        {!embedded && <PageHeader title="حركات الشركاء" subtitle="تسجيل مساهمات، مسحوبات، وأرباح" />}
 
         <Card>
           <CardHeader><CardTitle>تسجيل حركة جديدة</CardTitle></CardHeader>
@@ -109,6 +109,6 @@ export default function PartnerTransactions() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ConditionalLayout>
   );
 }
