@@ -52,26 +52,33 @@ export default function ContactStatement() {
 
     // Customer flows
     if (isCustomer) {
-      const [{ data: invs }, { data: pays }, { data: rets }] = await Promise.all([
+      const [{ data: invs }, { data: rets }] = await Promise.all([
         supabase.from("invoices")
           .select("id, invoice_number, total, created_at, invoice_date, status, is_migrated, branch_id")
           .eq("contact_id", contactId)
           .eq("status", "active"),
-        supabase.from("invoice_payments")
-          .select("id, amount, payment_method, created_at, invoice_id, invoices!inner(contact_id, invoice_number)")
-          .eq("invoices.contact_id", contactId),
         supabase.from("returns")
           .select("id, return_number, total_refund, refund_method, created_at, invoice_id, invoices!inner(contact_id, invoice_number)")
           .eq("invoices.contact_id", contactId),
       ]);
+
+      const invIds = (invs ?? []).map((r: any) => r.id);
+      const invNumberById = new Map<string, string>((invs ?? []).map((r: any) => [r.id, r.invoice_number]));
+      let pays: any[] = [];
+      if (invIds.length) {
+        const { data } = await supabase.from("invoice_payments")
+          .select("id, amount, payment_method, created_at, invoice_id")
+          .in("invoice_id", invIds);
+        pays = data ?? [];
+      }
 
       (invs ?? []).forEach((r: any) => list.push({
         date: r.invoice_date ?? r.created_at, type: "فاتورة بيع", reference: r.invoice_number,
         description: r.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
         debit: Number(r.total ?? 0), credit: 0, link: r.branch_id ? `/branch/${r.branch_id}/sales/${r.id}` : undefined,
       }));
-      (pays ?? []).forEach((p: any) => list.push({
-        date: p.created_at, type: "تحصيل من عميل", reference: p.invoices?.invoice_number ?? "—",
+      pays.forEach((p: any) => list.push({
+        date: p.created_at, type: "تحصيل من عميل", reference: invNumberById.get(p.invoice_id) ?? "—",
         description: p.payment_method ?? "—",
         debit: 0, credit: Number(p.amount ?? 0),
       }));
@@ -89,7 +96,7 @@ export default function ContactStatement() {
           .select("id, shipment_number, total_cost, arrival_date, invoice_date, created_at, is_migrated, branch_id")
           .eq("contact_id", contactId),
         supabase.from("supplier_payments" as any)
-          .select("id, amount, paid_at, payment_method, reference_number")
+          .select("id, amount, paid_at, notes")
           .eq("contact_id", contactId),
         supabase.from("purchase_returns")
           .select("id, return_number, total_amount, created_at, refund_method")
@@ -102,8 +109,8 @@ export default function ContactStatement() {
         debit: 0, credit: Number(s.total_cost ?? 0), link: s.branch_id ? `/branch/${s.branch_id}/shipments/${s.id}` : undefined,
       }));
       (sp as any[] ?? []).forEach((p: any) => list.push({
-        date: p.paid_at, type: "دفع لمورد", reference: p.reference_number ?? "—",
-        description: p.payment_method ?? "—",
+        date: p.paid_at, type: "دفع لمورد", reference: "—",
+        description: p.notes ?? "—",
         debit: Number(p.amount ?? 0), credit: 0,
       }));
       (prets ?? []).forEach((r: any) => list.push({
