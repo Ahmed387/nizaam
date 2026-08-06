@@ -144,6 +144,14 @@ export default function ShiftClose() {
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" placeholder="سبب العجز/الزيادة إن وُجد" />
           </div>
 
+          <label className="flex items-start gap-2 text-sm cursor-pointer rounded-lg border border-border p-3">
+            <input type="checkbox" className="mt-1" checked={autoCheckout} onChange={(e) => setAutoCheckout(e.target.checked)} />
+            <span>
+              <span className="font-semibold">سجّل انصرافي تلقائي بتوقيت قفل الوردية</span>
+              <span className="block text-xs text-muted-foreground">لو سجلت انصرافك يدوي النهارده، مش هيتغير.</span>
+            </span>
+          </label>
+
           <Button type="submit" disabled={busy} className="w-full h-11">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><DoorClosed className="w-4 h-4 me-2" />قفل الوردية</>)}
           </Button>
