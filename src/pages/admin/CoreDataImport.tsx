@@ -143,7 +143,7 @@ export default function CoreDataImport() {
 
   /* ───────────────────────── 3) المنتجات ───────────────────────── */
   const productCols: CsvColumn[] = [
-    { key: "sku", ar: "كود الصنف/الباركود", en: "SKU / Barcode", required: true, note: "فريد لكل فرع" },
+    { key: "sku", ar: "كود الصنف/الباركود", en: "SKU / Barcode", required: true, note: "الكود ده هو نفسه الباركود — مفيش خانة تانية للباركود. فريد لكل فرع" },
     { key: "name", ar: "اسم الصنف", en: "Product Name", required: true },
     { key: "branch_code", ar: "كود الفرع", en: "Branch Code", required: true, note: "لازم الفرع يترفع الأول" },
     { key: "category", ar: "التصنيف", en: "Category", note: "لازم يكون موجود في جدول التصنيفات" },
@@ -162,7 +162,7 @@ export default function CoreDataImport() {
   /* ───────────────── 4) أرصدة المخزون الافتتاحية ───────────────── */
   const stockCols: CsvColumn[] = [
     { key: "branch_code", ar: "كود الفرع", en: "Branch Code", required: true },
-    { key: "sku", ar: "كود الصنف/الباركود", en: "SKU / Barcode", required: true, note: "لازم المنتج يكون مرفوع في نفس الفرع" },
+    { key: "sku", ar: "كود الصنف/الباركود", en: "SKU / Barcode", required: true, note: "نفس الباركود — لازم المنتج يكون مرفوع في نفس الفرع" },
     { key: "quantity", ar: "الكمية", en: "Quantity", required: true, type: "number" },
     { key: "unit_cost", ar: "تكلفة الوحدة", en: "Unit Cost", required: true, type: "number", note: "أساس الـ FIFO — مهم جدًا" },
   ];
@@ -172,6 +172,7 @@ export default function CoreDataImport() {
     { key: "name", ar: "الاسم", en: "Name", required: true, note: "ممنوع التكرار" },
     { key: "type", ar: "النوع", en: "Type", required: true, note: "عميل / مورد / الاتنين — customer/supplier/both" },
     { key: "phone", ar: "التليفون", en: "Phone", note: "لو مكرر هيترفض الصف" },
+    { key: "email", ar: "الإيميل", en: "Email", note: "اختياري — لإرسال الفواتير وكشف الحساب" },
     { key: "contact_person", ar: "الشخص المسؤول", en: "Contact Person" },
     { key: "address", ar: "العنوان", en: "Address" },
     { key: "branch_code", ar: "كود الفرع", en: "Branch Code", note: "اختياري — لو فاضي بيبقى على مستوى الشركة" },
@@ -426,7 +427,7 @@ export default function CoreDataImport() {
             description="الأرصدة مش بتتدخل هنا — دي في التبويب اللي بعده عشان الترحيل يفضل نظيف."
             templateName="05-contacts"
             columns={contactCols}
-            sample={{ name: "محمد السيد", type: "عميل", phone: "01000000000", contact_person: "", address: "طنطا", branch_code: "B01", notes: "" }}
+            sample={{ name: "محمد السيد", type: "عميل", phone: "01000000000", email: "customer@example.com", contact_person: "", address: "طنطا", branch_code: "B01", notes: "" }}
             validate={async (rows) => {
               const ref = await loadRef();
               const names = new Set(ref.contacts.map((c) => key(c.name)));
@@ -448,6 +449,7 @@ export default function CoreDataImport() {
                 if (r.data.phone && phones.has(key(r.data.phone))) e.push(`رقم التليفون «${r.data.phone}» متسجل لحساب تاني`);
                 if (r.data.phone && dupPhones.has(key(r.data.phone))) e.push("رقم التليفون مكرر داخل الملف");
                 if (r.data.branch_code && !branches.get(key(r.data.branch_code))) e.push(`كود الفرع «${r.data.branch_code}» مش موجود`);
+                if (r.data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(r.data.email).trim())) e.push(`الإيميل «${r.data.email}» شكله غلط`);
                 e.length ? bad.push({ index: r.index, errors: e }) : ok.push(r);
               });
               return { ok, bad };
@@ -457,6 +459,7 @@ export default function CoreDataImport() {
               const branches = new Map(ref.branches.map((b) => [key(b.code), b.id]));
               return insertRows("contacts", rows, (d) => ({
                 tenant_id: tenantId, name: d.name, type: d._type, phone: d.phone,
+                email: d.email ? String(d.email).trim().toLowerCase() : null,
                 contact_person: d.contact_person, address: d.address, notes: d.notes,
                 branch_id: d.branch_code ? branches.get(key(d.branch_code)) ?? null : null,
                 is_migrated: true,
@@ -469,7 +472,7 @@ export default function CoreDataImport() {
         <TabsContent value="arap">
           <CsvImportPanel
             title="الأرصدة الافتتاحية للعملاء والموردين / Opening AR & AP"
-            description="الدين القديم بيتسجل كـ «رصيد افتتاحي» على الحساب بتاريخ بداية التشغيل — ومنفصل تمامًا عن أي فاتورة جديدة."
+            description="الدين القديم بيتسجل كـ «رصيد افتتاحي» رقم واحد على الحساب. لو عايز الدين يتقسّم فواتير بأرقامها وتواريخها (عشان تقرير أعمار الديون يبقى مظبوط) استخدم تبويب «ترحيل الديون كفواتير» في صفحة ترحيل الفواتير القديمة."
             templateName="06-opening-ar-ap"
             columns={arApCols}
             sample={{ name: "محمد السيد", phone: "01000000000", amount: 5000 }}

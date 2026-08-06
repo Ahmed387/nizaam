@@ -112,7 +112,10 @@ export default function Profile() {
     if (pwd.next !== pwd.confirm) return toast.error("كلمتا المرور غير متطابقتين");
     setSavingPwd(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: pwd.next });
+      const { error } = await supabase.auth.updateUser({
+        password: pwd.next,
+        data: { must_change_password: false },
+      });
       if (error) throw error;
       // Sync employee login_password if linked (so cashier login keeps working)
       if (emp) {

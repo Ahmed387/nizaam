@@ -49,6 +49,7 @@ export default function Contacts() {
     type: "customer" as ContactType,
     contact_person: "",
     phone: "",
+    email: "",
     address: "",
     notes: "",
   });
@@ -134,6 +135,7 @@ export default function Contacts() {
       "الاسم": r.name,
       "النوع": TYPE_LABELS[(r.type ?? "customer") as ContactType],
       "التليفون": r.phone ?? "",
+      "الإيميل": r.email ?? "",
       "العنوان": r.address ?? "",
       "الرصيد": b,
       "الحالة": b > 0.01 ? "مستحق لنا" : b < -0.01 ? "علينا للجهة" : "متعادل",
@@ -171,7 +173,7 @@ export default function Contacts() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", type: "customer", contact_person: "", phone: "", address: "", notes: "" });
+    setForm({ name: "", type: "customer", contact_person: "", phone: "", email: "", address: "", notes: "" });
     setOpen(true);
   };
 
@@ -182,6 +184,7 @@ export default function Contacts() {
       type: (r.type ?? "customer") as ContactType,
       contact_person: r.contact_person ?? "",
       phone: r.phone ?? "",
+      email: r.email ?? "",
       address: r.address ?? "",
       notes: r.notes ?? "",
     });
@@ -198,6 +201,7 @@ export default function Contacts() {
         name: form.name,
         contact_person: form.contact_person || null,
         phone: form.phone || null,
+        email: form.email ? form.email.trim().toLowerCase() : null,
         address: form.address || null,
         notes: form.notes || null,
       };
@@ -229,6 +233,7 @@ export default function Contacts() {
       type: form.type,
       contact_person: form.contact_person || null,
       phone: form.phone || null,
+      email: form.email ? form.email.trim().toLowerCase() : null,
       address: form.address || null,
       notes: form.notes || null,
       branch_id: form.type === "supplier" ? null : branchId,
@@ -237,7 +242,7 @@ export default function Contacts() {
     if (error) return toast.error(error.message);
     toast.success("تمت الإضافة");
     setOpen(false);
-    setForm({ name: "", type: "customer", contact_person: "", phone: "", address: "", notes: "" });
+    setForm({ name: "", type: "customer", contact_person: "", phone: "", email: "", address: "", notes: "" });
     load();
   };
 
@@ -417,6 +422,7 @@ export default function Contacts() {
             },
           },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
+          { key: "email", header: "الإيميل", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
           { key: "address", header: "العنوان", render: (r: any) => r.address ?? "—" },
           {
             key: "balance",
@@ -491,6 +497,11 @@ export default function Contacts() {
             <div>
               <Label>التليفون</Label>
               <Input dir="ltr" className="text-right mt-1.5" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            </div>
+            <div>
+              <Label>الإيميل <span className="text-xs text-muted-foreground">(اختياري — لإرسال الفواتير وكشف الحساب)</span></Label>
+              <Input type="email" dir="ltr" className="text-right mt-1.5" placeholder="name@example.com"
+                value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
               <Label>العنوان</Label>
