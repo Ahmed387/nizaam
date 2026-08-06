@@ -77,6 +77,20 @@ export default function FinancialPosition() {
       <div dir="rtl" className="text-right space-y-6">
         <PageHeader title="الذمة المالية للشركاء" subtitle="كل حاجة عن فلوس الشركاء ورأس المال والأرباح — في مكان واحد" />
 
+        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
+          <TabsList className="flex flex-wrap h-auto">
+            <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+            <TabsTrigger value="partners">الشركاء</TabsTrigger>
+            <TabsTrigger value="transactions">الحركات</TabsTrigger>
+            <TabsTrigger value="advances">السلف</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
+          <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
+          <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
+
+          <TabsContent value="overview" className="mt-4 space-y-6">
+
         {/* Friendly intro */}
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
           <Lightbulb className="w-5 h-5 text-primary shrink-0 mt-0.5" />
