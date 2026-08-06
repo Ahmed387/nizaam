@@ -135,6 +135,7 @@ ${schemaText}`;
           question: history[history.length - 1]?.content ?? "",
           answer,
           rows_returned: steps.reduce((a, s) => a + s.rows, 0),
+          steps,
         });
         return json({ content: answer, steps });
       }
