@@ -129,6 +129,7 @@ import MainTreasury from "./pages/admin/MainTreasury";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
+import MonthlyProfitSummary from "./pages/admin/MonthlyProfitSummary";
 import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
 import FinancialDashboard from "./pages/admin/FinancialDashboard";
 import ReportComparison from "./pages/admin/ReportComparison";
@@ -239,6 +240,7 @@ const App = () => (
             <Route path="/admin/catalog" element={<ProtectedRoute perm="admin_catalog.view" adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><ReportsHub /></ProtectedRoute>} />
             <Route path="/admin/cockpit" element={<ProtectedRoute perm="admin_cockpit.view" ownerOnly><CockpitPage /></ProtectedRoute>} />
+            <Route path="/admin/monthly-profit" element={<ProtectedRoute perm="admin_monthly_profit.view" ownerOnly><MonthlyProfitSummary /></ProtectedRoute>} />
             <Route path="/admin/insights" element={<ProtectedRoute perm="admin_insights.view" ownerOnly><InsightsPage /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FinanceHub /></ProtectedRoute>} />
             <Route path="/admin/main-treasury" element={<ProtectedRoute perm="admin_main_treasury.view" adminOnly><MainTreasury /></ProtectedRoute>} />
