@@ -149,6 +149,17 @@ export default function Profile() {
           </Button>
         </div>
 
+        {(user as any)?.user_metadata?.must_change_password === true && (
+          <div className="mb-4 rounded-xl border border-warning/40 bg-warning/10 p-4">
+            <p className="font-bold text-warning-foreground">لازم تغيّر كلمة المرور الأول 🔐</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              حسابك اتعمل بكلمة مرور مؤقتة. غيّرها من تحت عشان تقدر تدخل باقي الشاشات.
+            </p>
+          </div>
+        )}
+
+
+
         {/* Header */}
         <Card className="p-5 mb-4">
           <div className="flex items-center gap-4">
