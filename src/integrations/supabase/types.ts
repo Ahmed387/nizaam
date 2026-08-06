@@ -1171,6 +1171,7 @@ export type Database = {
           contact_person: string | null
           created_at: string
           credit_balance: number
+          email: string | null
           id: string
           is_migrated: boolean
           name: string
@@ -1187,6 +1188,7 @@ export type Database = {
           contact_person?: string | null
           created_at?: string
           credit_balance?: number
+          email?: string | null
           id?: string
           is_migrated?: boolean
           name: string
@@ -1203,6 +1205,7 @@ export type Database = {
           contact_person?: string | null
           created_at?: string
           credit_balance?: number
+          email?: string | null
           id?: string
           is_migrated?: boolean
           name?: string
@@ -4978,8 +4981,10 @@ export type Database = {
           discount_value: number
           id: string
           invoice_date: string
+          is_migrated: boolean
           legacy_number: string | null
           migration_batch_id: string | null
+          migration_source: string | null
           notes: string | null
           other_cost: number
           other_cost_description: string | null
@@ -5004,8 +5009,10 @@ export type Database = {
           discount_value?: number
           id?: string
           invoice_date?: string
+          is_migrated?: boolean
           legacy_number?: string | null
           migration_batch_id?: string | null
+          migration_source?: string | null
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null
@@ -5030,8 +5037,10 @@ export type Database = {
           discount_value?: number
           id?: string
           invoice_date?: string
+          is_migrated?: boolean
           legacy_number?: string | null
           migration_batch_id?: string | null
+          migration_source?: string | null
           notes?: string | null
           other_cost?: number
           other_cost_description?: string | null
@@ -6857,6 +6866,20 @@ export type Database = {
           quantity_at_date: number
           sku: string
         }[]
+      }
+      import_opening_debt: {
+        Args: {
+          p_batch_id?: string
+          p_branch_id: string
+          p_contact_id: string
+          p_date: string
+          p_kind: string
+          p_legacy_number: string
+          p_notes?: string
+          p_paid: number
+          p_total: number
+        }
+        Returns: Json
       }
       invoice_outstanding_debt: {
         Args: { _exclude_return_id?: string; _invoice_id: string }
