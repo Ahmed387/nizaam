@@ -6390,6 +6390,10 @@ export type Database = {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
       }
+      admin_reset_branch_data_impl: {
+        Args: { p_branch_id: string; p_options: Json }
+        Returns: Json
+      }
       admin_reset_price_audit: { Args: { p_branch_id?: string }; Returns: Json }
       admin_reset_vouchers: { Args: { p_branch_id?: string }; Returns: Json }
       admin_set_product_quantity: {
@@ -7119,6 +7123,10 @@ export type Database = {
         Returns: string
       }
       purge_ai_ask_log: { Args: never; Returns: number }
+      purge_orphan_journal_entries: {
+        Args: { p_tenant: string }
+        Returns: number
+      }
       rebalance_partner_shares: {
         Args: { _pending_capital?: number; _tenant_id?: string }
         Returns: Json
@@ -7316,6 +7324,14 @@ export type Database = {
       }
       sync_invoice_cash_treasury: {
         Args: { _invoice_id: string }
+        Returns: undefined
+      }
+      sync_purchase_return_journal: {
+        Args: { p_return_id: string }
+        Returns: undefined
+      }
+      sync_sale_return_journal: {
+        Args: { p_return_id: string }
         Returns: undefined
       }
       sync_shipment_journal: {

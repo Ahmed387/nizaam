@@ -20,7 +20,7 @@ export function ProtectedRoute({
   /** Optional permission key (e.g. "sales.view"). When provided, takes precedence over `roles`. */
   perm?: string;
 }) {
-  const { user, loading, ctxReady, isAdmin, isSuperAdmin, isOwner, hasRole, tenant, signOut, can } = useAuth();
+  const { user, loading, ctxReady, isAdmin, isSuperAdmin, isOwner, hasRole, tenant, signOut, can, branches } = useAuth();
   const loc = useLocation();
 
   if (loading || (user && !ctxReady)) {
@@ -56,6 +56,14 @@ export function ProtectedRoute({
     !loc.pathname.startsWith("/profile")
   ) {
     return <Navigate to="/profile" replace state={{ mustChangePassword: true }} />;
+  }
+
+  // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them.
+  // Admins / super admins / the tenant owner keep access to every branch.
+  const branchMatch = loc.pathname.match(/^\/branch\/([^/]+)/);
+  if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner) {
+    const allowed = branches.some((b) => b.id === branchMatch[1]);
+    if (!allowed) return <Navigate to="/" replace />;
   }
 
   // Gates are OR-ed: an explicitly granted permission can unlock a page that is

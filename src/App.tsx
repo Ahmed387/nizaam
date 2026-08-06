@@ -274,24 +274,24 @@ const App = () => (
 
 
             {/* Accounting — General Ledger */}
-            <Route path="/admin/accounting/chart" element={<ProtectedRoute adminOnly><ChartOfAccounts /></ProtectedRoute>} />
-            <Route path="/admin/accounting/journal" element={<ProtectedRoute adminOnly><JournalEntriesPage /></ProtectedRoute>} />
-            <Route path="/admin/accounting/journal/:id" element={<ProtectedRoute adminOnly><JournalEntryDetail /></ProtectedRoute>} />
-            <Route path="/admin/accounting/ledger" element={<ProtectedRoute adminOnly><GeneralLedger /></ProtectedRoute>} />
-            <Route path="/admin/accounting/trial-balance" element={<ProtectedRoute adminOnly><TrialBalance /></ProtectedRoute>} />
-            <Route path="/admin/accounting/balance-sheet" element={<ProtectedRoute adminOnly><BalanceSheet /></ProtectedRoute>} />
-            <Route path="/admin/accounting/income-statement" element={<ProtectedRoute adminOnly><IncomeStatement /></ProtectedRoute>} />
-            <Route path="/admin/accounting/cash-flow" element={<ProtectedRoute adminOnly><CashFlowStatement /></ProtectedRoute>} />
-            <Route path="/admin/accounting/aging" element={<ProtectedRoute adminOnly><AgingReport /></ProtectedRoute>} />
-            <Route path="/admin/accounting/bank-reconciliation" element={<ProtectedRoute adminOnly><BankReconciliation /></ProtectedRoute>} />
-            <Route path="/admin/accounting/bank-reconciliation/:id" element={<ProtectedRoute adminOnly><BankReconciliationDetail /></ProtectedRoute>} />
-            <Route path="/admin/accounting/fiscal-closing" element={<ProtectedRoute adminOnly><FiscalClosing /></ProtectedRoute>} />
-            <Route path="/admin/accounting/opening-balances" element={<ProtectedRoute adminOnly><OpeningBalances /></ProtectedRoute>} />
-            <Route path="/admin/accounting/flexible-distribution" element={<ProtectedRoute adminOnly><FlexibleDistribution /></ProtectedRoute>} />
-            <Route path="/admin/accounting/budgets" element={<ProtectedRoute adminOnly><Budgets /></ProtectedRoute>} />
-            <Route path="/admin/accounting/kpis" element={<ProtectedRoute adminOnly><KpiDashboard /></ProtectedRoute>} />
-            <Route path="/admin/accounting/fixed-assets" element={<ProtectedRoute adminOnly><FixedAssets /></ProtectedRoute>} />
-            <Route path="/admin/accounting/branch-capital" element={<ProtectedRoute adminOnly><BranchCapital /></ProtectedRoute>} />
+            <Route path="/admin/accounting/chart" element={<ProtectedRoute perm="admin_finance.view" adminOnly><ChartOfAccounts /></ProtectedRoute>} />
+            <Route path="/admin/accounting/journal" element={<ProtectedRoute perm="admin_finance.view" adminOnly><JournalEntriesPage /></ProtectedRoute>} />
+            <Route path="/admin/accounting/journal/:id" element={<ProtectedRoute perm="admin_finance.view" adminOnly><JournalEntryDetail /></ProtectedRoute>} />
+            <Route path="/admin/accounting/ledger" element={<ProtectedRoute perm="admin_finance.view" adminOnly><GeneralLedger /></ProtectedRoute>} />
+            <Route path="/admin/accounting/trial-balance" element={<ProtectedRoute perm="admin_finance.view" adminOnly><TrialBalance /></ProtectedRoute>} />
+            <Route path="/admin/accounting/balance-sheet" element={<ProtectedRoute perm="admin_finance.view" adminOnly><BalanceSheet /></ProtectedRoute>} />
+            <Route path="/admin/accounting/income-statement" element={<ProtectedRoute perm="admin_finance.view" adminOnly><IncomeStatement /></ProtectedRoute>} />
+            <Route path="/admin/accounting/cash-flow" element={<ProtectedRoute perm="admin_finance.view" adminOnly><CashFlowStatement /></ProtectedRoute>} />
+            <Route path="/admin/accounting/aging" element={<ProtectedRoute perm="admin_finance.view" adminOnly><AgingReport /></ProtectedRoute>} />
+            <Route path="/admin/accounting/bank-reconciliation" element={<ProtectedRoute perm="admin_finance.view" adminOnly><BankReconciliation /></ProtectedRoute>} />
+            <Route path="/admin/accounting/bank-reconciliation/:id" element={<ProtectedRoute perm="admin_finance.view" adminOnly><BankReconciliationDetail /></ProtectedRoute>} />
+            <Route path="/admin/accounting/fiscal-closing" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FiscalClosing /></ProtectedRoute>} />
+            <Route path="/admin/accounting/opening-balances" element={<ProtectedRoute perm="admin_finance.view" adminOnly><OpeningBalances /></ProtectedRoute>} />
+            <Route path="/admin/accounting/flexible-distribution" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FlexibleDistribution /></ProtectedRoute>} />
+            <Route path="/admin/accounting/budgets" element={<ProtectedRoute perm="admin_finance.view" adminOnly><Budgets /></ProtectedRoute>} />
+            <Route path="/admin/accounting/kpis" element={<ProtectedRoute perm="admin_finance.view" adminOnly><KpiDashboard /></ProtectedRoute>} />
+            <Route path="/admin/accounting/fixed-assets" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FixedAssets /></ProtectedRoute>} />
+            <Route path="/admin/accounting/branch-capital" element={<ProtectedRoute perm="admin_finance.view" adminOnly><BranchCapital /></ProtectedRoute>} />
 
 
             {/* Partner portal */}
