@@ -21,6 +21,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { exportToExcel, printReport } from "@/lib/export";
+import { confirmAlert } from "@/components/ConfirmDialog";
+
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type ContactType = "customer" | "supplier" | "both";
