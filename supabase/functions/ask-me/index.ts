@@ -48,6 +48,14 @@ Deno.serve(async (req) => {
     });
     if (permissionError || !allowed) return json({ error: "ليس لديك صلاحية استخدام اسألني" }, 403);
 
+    // Data-layer gate mirror: only owner / super_admin may reach company-wide data (ai_sql enforces this too).
+    const { data: ownerOk } = await sb.rpc("has_role", { _user_id: user.id, _role: "owner" });
+    const { data: superOk } = await sb.rpc("has_role", { _user_id: user.id, _role: "super_admin" });
+    if (!ownerOk && !superOk) {
+      await sb.from("ai_ask_log").insert({ user_id: user.id, kind: "denied", question: null, error: "not owner" });
+      return json({ error: "المساعد ده متاح للمالك فقط — بياناته على مستوى الشركة كلها" }, 403);
+    }
+
     const body = await req.json().catch(() => ({}));
     const history: { role: string; content: string }[] = Array.isArray(body?.messages) ? body.messages : [];
     if (!history.length) return json({ error: "لا توجد رسائل" }, 400);
@@ -81,7 +89,8 @@ Deno.serve(async (req) => {
 3. لو الاستعلام رجع خطأ، صلّحه وجرّب تاني (بحد أقصى 3 محاولات لنفس الفكرة).
 4. الرد يكون بالعامية المصرية، مختصر وواضح، وبصيغة Markdown. استخدم جداول Markdown لما تعرض أكتر من صف، وخلي الأرقام منسّقة بفواصل وبوحدة "ج.م".
 5. لو النتيجة فاضية، قول بوضوح "مفيش بيانات للفترة/الشرط ده" ومتفبركش.
-6. في آخر الرد ممكن تقترح سؤال متابعة مفيد سطر واحد.
+6. ممنوع تماماً أي تعديل على البيانات (حذف/تحديث/إضافة) — الأداة للقراءة فقط، ولو المستخدم طلب تعديل قول له إن ده مش من صلاحياتك هنا.
+7. في آخر الرد ممكن تقترح سؤال متابعة مفيد سطر واحد.
 
 معلومات مهمة عن قاعدة البيانات:
 - تاريخ النهارده: ${today}
@@ -118,7 +127,17 @@ ${schemaText}`;
 
       const calls = msg.tool_calls ?? [];
       if (!calls.length) {
-        return json({ content: msg.content ?? "", steps });
+        const answer = msg.content ?? "";
+        // Audit trail: who asked what, and what the assistant answered.
+        await sb.from("ai_ask_log").insert({
+          user_id: user.id,
+          kind: "question",
+          question: history[history.length - 1]?.content ?? "",
+          answer,
+          rows_returned: steps.reduce((a, s) => a + s.rows, 0),
+          steps,
+        });
+        return json({ content: answer, steps });
       }
 
       messages.push(msg);

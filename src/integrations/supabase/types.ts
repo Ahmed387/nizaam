@@ -170,6 +170,48 @@ export type Database = {
           },
         ]
       }
+      ai_ask_log: {
+        Row: {
+          answer: string | null
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          question: string | null
+          rows_returned: number | null
+          sql_text: string | null
+          steps: Json | null
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          question?: string | null
+          rows_returned?: number | null
+          sql_text?: string | null
+          steps?: Json | null
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          question?: string | null
+          rows_returned?: number | null
+          sql_text?: string | null
+          steps?: Json | null
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       approval_requests: {
         Row: {
           action: Database["public"]["Enums"]["approval_action"]
