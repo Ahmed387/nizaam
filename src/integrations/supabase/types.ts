@@ -7314,6 +7314,10 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: undefined
       }
+      sync_shipment_journal: {
+        Args: { p_shipment_id: string }
+        Returns: undefined
+      }
       system_health_check: { Args: never; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
