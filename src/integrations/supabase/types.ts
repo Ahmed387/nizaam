@@ -7326,6 +7326,14 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: undefined
       }
+      sync_purchase_return_journal: {
+        Args: { p_return_id: string }
+        Returns: undefined
+      }
+      sync_sale_return_journal: {
+        Args: { p_return_id: string }
+        Returns: undefined
+      }
       sync_shipment_journal: {
         Args: { p_shipment_id: string }
         Returns: undefined
