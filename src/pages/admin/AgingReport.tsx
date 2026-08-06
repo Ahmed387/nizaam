@@ -222,7 +222,7 @@ export default function AgingReport() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="تقرير الأعمار" subtitle="أرصدة مستحقة على العملاء والموردين حسب فترات التأخير" />
+        <PageHeader title="تقرير أعمار الديون (Aging Report)" subtitle="الذمم المدينة (Accounts Receivable) على العملاء والذمم الدائنة (Accounts Payable) للموردين حسب فترات التأخير" />
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap gap-4 items-end">

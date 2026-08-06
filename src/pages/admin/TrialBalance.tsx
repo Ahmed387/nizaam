@@ -50,7 +50,7 @@ export default function TrialBalance() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="ميزان المراجعة" subtitle="أرصدة كل الحسابات" />
+        <PageHeader title="ميزان المراجعة (Trial Balance)" subtitle="أرصدة كل الحسابات — المدين (Debit) لازم يساوي الدائن (Credit)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

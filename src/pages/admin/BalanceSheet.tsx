@@ -121,7 +121,7 @@ export default function BalanceSheet() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الميزانية العمومية" subtitle="الأصول = الخصوم + حقوق الملكية" />
+        <PageHeader title="الميزانية العمومية (Balance Sheet)" subtitle="الأصول (Assets) = الخصوم (Liabilities) + حقوق الملكية (Equity)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
