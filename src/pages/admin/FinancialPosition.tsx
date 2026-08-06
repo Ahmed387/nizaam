@@ -152,35 +152,35 @@ export default function FinancialPosition() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <ActionButton
-              to="/admin/financial-position/partners"
+              to="/admin/financial-position?tab=partners"
               icon={<PlusCircle className="w-4 h-4" />}
               title="إدارة الشركاء"
               note="ضيف شريك جديد، عدّل بياناته، أو شوف كشف حساب أي حد."
               variant="default"
             />
             <ActionButton
-              to="/admin/financial-position/advances"
+              to="/admin/financial-position?tab=advances"
               icon={<HandCoins className="w-4 h-4" />}
               title="سلف الشركاء"
               note="لما شريك ياخد فلوس مقدماً على حساب أرباحه الجاية."
               iconClass="text-warning"
             />
             <ActionButton
-              to="/admin/financial-position/transactions?type=contribution"
+              to="/admin/financial-position?tab=transactions&type=contribution"
               icon={<ArrowUpCircle className="w-4 h-4" />}
               title="تسجيل مساهمة"
               note="شريك دخّل فلوس جديدة في الشركة — سجّلها هنا."
               iconClass="text-success"
             />
             <ActionButton
-              to="/admin/financial-position/transactions?type=drawing"
+              to="/admin/financial-position?tab=transactions&type=drawing"
               icon={<ArrowDownCircle className="w-4 h-4" />}
               title="تسجيل مسحوبة"
               note="شريك سحب فلوس من الشركة لنفسه — سجّل السحب هنا."
               iconClass="text-destructive"
             />
             <ActionButton
-              to="/admin/financial-position/transactions?type=profit_share"
+              to="/admin/financial-position?tab=transactions&type=profit_share"
               icon={<Gift className="w-4 h-4" />}
               title="توزيع أرباح"
               note="وزّع أرباح فترة معينة على الشركاء حسب نسبة كل واحد."
