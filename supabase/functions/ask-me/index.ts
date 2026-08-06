@@ -43,11 +43,12 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: "غير مصرح" }, 401);
 
     // Single source of truth for access — same gate the database enforces inside ai_sql().
-    const { data: canUse, error: gateError } = await sb.rpc("can_use_ask_me", { _user_id: user.id });
-    if (gateError || !canUse) {
-      await sb.from("ai_ask_log").insert({ user_id: user.id, kind: "denied", question: null, error: "not owner" });
-      return json({ error: "المساعد ده متاح للمالك فقط — بياناته على مستوى الشركة كلها" }, 403);
+    const { data: level, error: gateError } = await sb.rpc("ask_me_access_level", { _user_id: user.id });
+    if (gateError || !level || level === "none") {
+      await sb.from("ai_ask_log").insert({ user_id: user.id, kind: "denied", question: null, error: "no access" });
+      return json({ error: "معندكش صلاحية استخدام اسألني — كلّم المالك عشان يفعّلها لك" }, 403);
     }
+    const scoped = level === "scoped";
 
     const body = await req.json().catch(() => ({}));
     const history: { role: string; content: string }[] = Array.isArray(body?.messages) ? body.messages : [];
@@ -56,14 +57,8 @@ Deno.serve(async (req) => {
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) return json({ error: "مفتاح الذكاء الاصطناعي غير مكوّن" }, 500);
 
-    // ── schema snapshot (respects the caller's own permissions when queried later) ──
-    const { data: schemaRows, error: schemaErr } = await sb.rpc("ai_sql", {
-      query: `select table_name, string_agg(column_name || ':' || data_type, ', ' order by ordinal_position) as columns
-              from information_schema.columns
-              where table_schema = 'public'
-              group by table_name
-              order by table_name`,
-    });
+    // ── schema snapshot limited to the tables this user is allowed to query ──
+    const { data: schemaRows, error: schemaErr } = await sb.rpc("ask_me_schema");
     if (schemaErr) return json({ error: schemaErr.message }, 400);
 
     const schemaText = (schemaRows as any[] ?? [])
@@ -72,9 +67,9 @@ Deno.serve(async (req) => {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    const system = `أنت "اسألني" — المساعد الذكي لنظام Nizam ERP، وبتتكلم مع صاحب الشركة نفسه.
+    const system = `أنت "اسألني" — المساعد الذكي لنظام Nizam ERP.
 
-مهمتك: تجاوب على أي سؤال عن الشركة (مبيعات، أرباح، تكاليف، مصروفات، مخزون، منتجات، عملاء، موردين، موظفين، مرتبات، حضور، خزنة، محاسبة، شركاء، ورديات… أي حاجة) بأرقام حقيقية من قاعدة البيانات.
+مهمتك: تجاوب على أسئلة المستخدم بأرقام حقيقية من قاعدة البيانات، في حدود الجداول المتاحة له تحت.
 
 قواعد صارمة:
 1. أي سؤال فيه أرقام أو بيانات → لازم تستدعي أداة run_sql الأول. ممنوع تخمّن أو تخترع رقم أبداً.
@@ -82,19 +77,20 @@ Deno.serve(async (req) => {
 3. لو الاستعلام رجع خطأ، صلّحه وجرّب تاني (بحد أقصى 3 محاولات لنفس الفكرة).
 4. الرد يكون بالعامية المصرية، مختصر وواضح، وبصيغة Markdown. استخدم جداول Markdown لما تعرض أكتر من صف، وخلي الأرقام منسّقة بفواصل وبوحدة "ج.م".
 5. لو النتيجة فاضية، قول بوضوح "مفيش بيانات للفترة/الشرط ده" ومتفبركش.
-6. ممنوع تماماً أي تعديل على البيانات (حذف/تحديث/إضافة) — الأداة للقراءة فقط، ولو المستخدم طلب تعديل قول له إن ده مش من صلاحياتك هنا.
-7. في آخر الرد ممكن تقترح سؤال متابعة مفيد سطر واحد.
-
+6. ممنوع تماماً أي تعديل على البيانات (حذف/تحديث/إضافة) — الأداة للقراءة فقط.
+7. استخدم بس الجداول الموجودة في المخطط تحت. لو السؤال محتاج جدول مش موجود، قول للمستخدم: "المعلومة دي خارج صلاحياتك" ومتحاولش تلتف عليها.
+8. في آخر الرد ممكن تقترح سؤال متابعة مفيد سطر واحد.
+${scoped ? "\n⚠️ المستخدم ده صلاحياته محدودة: الأرقام اللي هترجع بتخص فرعه/نطاقه فقط، والبيانات الحساسة (المرتبات، الشركاء، الأرباح الموزعة، مصروفات المالك) مش متاحة له إطلاقاً. لو سأل عنها اعتذر بأدب.\n" : ""}
 معلومات مهمة عن قاعدة البيانات:
 - تاريخ النهارده: ${today}
-- الفواتير في invoices (invoice_date, total, paid_amount, status='active' يعني سارية، و'cancelled' ملغية) والأصناف في invoice_items (quantity, unit_price, cost_price, discount…).
-- المرتجعات في returns/return_items، المشتريات/الشحنات في shipments/shipment_items، المصروفات في expenses، الخزنة في treasury، القيود في journal_entries/journal_entry_lines، شجرة الحسابات chart_of_accounts.
-- المنتجات في products (name, brand, model, quantity, cost_price, selling_price…) والفروع في branches والموظفين في employees والمرتبات في salaries والحضور في attendance.
+- الفواتير في invoices (invoice_date, total, paid_amount, status='active' سارية و'cancelled' ملغية) والأصناف في invoice_items.
+- المرتجعات في returns/return_items، الشحنات في shipments/shipment_items، المصروفات في expenses، الخزنة في treasury.
 - استخدم دايماً joins لجلب أسماء مفهومة (اسم الفرع، اسم المنتج، اسم الموظف) بدل الـ id.
 - فلترة الشهر: date_trunc('month', invoice_date) = date_trunc('month', date '2026-07-01') مثلاً.
 
-مخطط الجداول المتاحة:
+مخطط الجداول المتاحة لك:
 ${schemaText}`;
+
 
     const messages: any[] = [
       { role: "system", content: system },
