@@ -120,6 +120,11 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
                     <Ban className="w-4 h-4" /> إلغاء
                   </Button>
                 )}
+                {canCancelApproved(r) && (
+                  <Button size="sm" variant="outline" onClick={() => cancelApproved(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
+                    <Ban className="w-4 h-4" /> إلغاء الجرد المعتمد
+                  </Button>
+                )}
                 {isAdmin && (
                   <Link to={`/branch/${branchId}/inventory-count/${r.id}/snapshot`}>
                     <Button size="sm" variant="outline" className="gap-1">
