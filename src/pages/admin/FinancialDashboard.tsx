@@ -128,7 +128,7 @@ export default function FinancialDashboard() {
         subtitle="نظرة شاملة — كاش، مديونيات، أقساط، أرباح"
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/admin/report-comparison"><BarChart3 className="w-4 h-4" /> مقارنة الفترات</Link>
+            <Link to="/admin/reports-hub?tab=comparison"><BarChart3 className="w-4 h-4" /> مقارنة الفترات</Link>
           </Button>
         }
       />
