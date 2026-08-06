@@ -51,6 +51,8 @@ function ActionButton({
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") || "overview";
   const [stats, setStats] = useState({ count: 0, capital: 0, balance: 0 });
 
   const load = async () => {
