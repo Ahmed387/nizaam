@@ -48,6 +48,14 @@ Deno.serve(async (req) => {
     });
     if (permissionError || !allowed) return json({ error: "ليس لديك صلاحية استخدام اسألني" }, 403);
 
+    // Data-layer gate mirror: only owner / super_admin may reach company-wide data (ai_sql enforces this too).
+    const { data: ownerOk } = await sb.rpc("has_role", { _user_id: user.id, _role: "owner" });
+    const { data: superOk } = await sb.rpc("has_role", { _user_id: user.id, _role: "super_admin" });
+    if (!ownerOk && !superOk) {
+      await sb.from("ai_ask_log").insert({ user_id: user.id, kind: "denied", question: null, error: "not owner" });
+      return json({ error: "المساعد ده متاح للمالك فقط — بياناته على مستوى الشركة كلها" }, 403);
+    }
+
     const body = await req.json().catch(() => ({}));
     const history: { role: string; content: string }[] = Array.isArray(body?.messages) ? body.messages : [];
     if (!history.length) return json({ error: "لا توجد رسائل" }, 400);
