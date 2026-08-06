@@ -120,7 +120,7 @@ export default function IncomeStatement() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="قائمة الدخل" subtitle="الإيرادات − المصروفات = صافي الربح" />
+        <PageHeader title="قائمة الدخل (Income Statement / P&L)" subtitle="المبيعات (Revenue) − المصروفات (Expenses) = صافي الربح (Net Profit)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -133,11 +133,11 @@ export default function IncomeStatement() {
             <div><Label>من</Label><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
             <div><Label>إلى</Label><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
             <div className="p-3 rounded-lg bg-muted/40">
-              <div className="text-xs text-muted-foreground">صافي الربح</div>
+              <div className="text-xs text-muted-foreground">صافي الربح (Net Profit)</div>
               <div className={"text-2xl font-bold " + (net >= 0 ? "text-success" : "text-destructive")}>{fmt(net)} <span className="text-sm">ج.م</span></div>
             </div>
             <div className="p-3 rounded-lg bg-muted/40">
-              <div className="text-xs text-muted-foreground">هامش الربح</div>
+              <div className="text-xs text-muted-foreground">هامش الربح (Profit Margin)</div>
               <div className="text-2xl font-bold">{margin.toFixed(1)}%</div>
             </div>
           </CardContent>
@@ -147,14 +147,14 @@ export default function IncomeStatement() {
           <div className="text-center text-muted-foreground py-8">جاري التحميل...</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Section title="الإيرادات" rows={revenues} total={totalRev} tone="success" />
-            <Section title="المصروفات" rows={expenses} total={totalExp} tone="destructive" />
+            <Section title="الإيرادات (Revenue)" rows={revenues} total={totalRev} tone="success" />
+            <Section title="المصروفات (Expenses)" rows={expenses} total={totalExp} tone="destructive" />
           </div>
         )}
 
         <Card>
           <CardContent className="py-4 flex items-center justify-between text-lg">
-            <span className="font-semibold">صافي الربح للفترة</span>
+            <span className="font-semibold">صافي الربح للفترة (Net Profit)</span>
             <span className={"font-mono font-bold " + (net >= 0 ? "text-success" : "text-destructive")}>{fmt(net)} ج.م</span>
           </CardContent>
         </Card>

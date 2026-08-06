@@ -86,6 +86,7 @@ export const ADMIN_SUBSECTION_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_finance_vouchers", label: "المالية ← السندات المالية", actions: ["view"] },
   { key: "admin_finance_receivables", label: "المالية ← ذمم العملاء والموردين", actions: ["view"] },
   // التقارير
+  { key: "admin_monthly_profit", label: "ملخص الأرباح الشهري", actions: ["view"] },
   { key: "admin_reports_owner", label: "التقارير ← نظرة المالك", actions: ["view"] },
   { key: "admin_reports_central", label: "التقارير ← العمليات (مركزية)", actions: ["view"] },
   { key: "admin_reports_profitability", label: "التقارير ← الربحية", actions: ["view"] },

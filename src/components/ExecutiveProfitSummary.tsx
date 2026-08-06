@@ -101,7 +101,7 @@ export function ExecutiveProfitSummary() {
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {deltaPct === null ? "صافي الربح الإجمالي للفترة" : "مقارنة بالفترة السابقة"}
+              {deltaPct === null ? "صافي الربح (Net Profit) للفترة" : "مقارنة بالفترة السابقة"}
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export function ExecutiveProfitSummary() {
         <div className="flex-1 w-full lg:-mr-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="p-5 rounded-xl bg-primary/5 border border-primary/25 relative overflow-hidden">
-              <p className="text-foreground/80 text-sm mb-2 font-bold">إجمالي المبيعات</p>
+              <p className="text-foreground/80 text-sm mb-2 font-bold">المبيعات (Revenue)</p>
               <p className="text-2xl lg:text-3xl font-extrabold text-primary tabular-nums truncate" dir="ltr" title={formatEGP(sales)}>
                 {formatEGP(sales)}
               </p>
@@ -134,7 +134,7 @@ export function ExecutiveProfitSummary() {
           <div className="mt-3 flex items-center justify-center gap-4">
             <div className="h-px flex-1 bg-border" />
             <span className="text-[10px] font-bold text-muted-foreground tracking-widest">
-              المبيعات − التكلفة − المصروفات = صافي الربح
+              المبيعات (Revenue) − تكلفة البضاعة (COGS) − المصاريف (OPEX) = صافي الربح (Net Profit)
             </span>
             <div className="h-px flex-1 bg-border" />
           </div>

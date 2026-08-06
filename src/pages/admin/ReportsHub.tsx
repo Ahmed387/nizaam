@@ -10,6 +10,7 @@ import PriceAuditLog from "./PriceAuditLog";
 import ProfitabilityReport from "./ProfitabilityReport";
 import ExecutiveInsights from "./ExecutiveInsights";
 import OwnerCockpit from "./OwnerCockpit";
+import MonthlyProfitSummary from "./MonthlyProfitSummary";
 import ReturnOverrides from "./ReturnOverrides";
 
 export default function ReportsHub() {
@@ -17,6 +18,7 @@ export default function ReportsHub() {
   const { isOwner, can } = useAuth();
   const show = {
     owner: isOwner || can("admin_reports_owner.view"),
+    monthly: isOwner || can("admin_monthly_profit.view"),
     central: can("admin_reports_central.view"),
     profitability: isOwner || can("admin_reports_profitability.view"),
     insights: isOwner || can("admin_reports_insights.view"),
@@ -34,6 +36,7 @@ export default function ReportsHub() {
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
         <TabsList className="flex-wrap h-auto">
           {show.owner && <TabsTrigger value="owner">👑 نظرة المالك</TabsTrigger>}
+          {show.monthly && <TabsTrigger value="monthly">💰 ملخص الأرباح الشهري</TabsTrigger>}
           {show.central && <TabsTrigger value="central">🏢 العمليات (مركزية)</TabsTrigger>}
           {show.profitability && <TabsTrigger value="profitability">📊 الربحية</TabsTrigger>}
           {show.insights && <TabsTrigger value="insights">🎯 الرؤى التنفيذية</TabsTrigger>}
@@ -43,6 +46,7 @@ export default function ReportsHub() {
           {show["return-overrides"] && <TabsTrigger value="return-overrides">↩️ تجاوزات المرتجعات</TabsTrigger>}
         </TabsList>
         {show.owner && <TabsContent value="owner" className="mt-4"><OwnerCockpit embedded /></TabsContent>}
+        {show.monthly && <TabsContent value="monthly" className="mt-4"><MonthlyProfitSummary embedded /></TabsContent>}
         {show.central && <TabsContent value="central" className="mt-4"><AdminReports embedded /></TabsContent>}
         {show.profitability && <TabsContent value="profitability" className="mt-4"><ProfitabilityReport embedded /></TabsContent>}
         {show.insights && <TabsContent value="insights" className="mt-4"><ExecutiveInsights embedded /></TabsContent>}

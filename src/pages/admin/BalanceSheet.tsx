@@ -104,7 +104,7 @@ export default function BalanceSheet() {
             {showNI && (
               <TableRow>
                 <TableCell className="font-mono">—</TableCell>
-                <TableCell className="italic text-muted-foreground">صافي الربح للفترة (إيرادات − مصروفات)</TableCell>
+                <TableCell className="italic text-muted-foreground">صافي الربح (Net Profit) للفترة = المبيعات (Revenue) − المصروفات (Expenses)</TableCell>
                 <TableCell className={"font-mono " + (netIncome >= 0 ? "text-success" : "text-destructive")}>{fmt(netIncome)}</TableCell>
               </TableRow>
             )}
@@ -121,7 +121,7 @@ export default function BalanceSheet() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الميزانية العمومية" subtitle="الأصول = الخصوم + حقوق الملكية" />
+        <PageHeader title="الميزانية العمومية (Balance Sheet)" subtitle="الأصول (Assets) = الخصوم (Liabilities) + حقوق الملكية (Equity)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

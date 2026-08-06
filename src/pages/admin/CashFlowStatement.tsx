@@ -183,7 +183,7 @@ export default function CashFlowStatement() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="قائمة التدفقات النقدية" subtitle="التشغيلي / الاستثماري / التمويلي" />
+        <PageHeader title="قائمة التدفقات النقدية (Cash Flow Statement)" subtitle="التشغيلي (Operating) / الاستثماري (Investing) / التمويلي (Financing)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

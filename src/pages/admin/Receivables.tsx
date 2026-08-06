@@ -190,7 +190,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="text-2xl font-bold text-success mt-1">{formatEGP(totals.due)}</div>
           </Card>
           <Card className="p-4">
-            <div className="text-sm text-muted-foreground">صافي الربح</div>
+            <div className="text-sm text-muted-foreground">صافي الربح (Net Profit)</div>
             <div className={`text-2xl font-bold mt-1 ${totals.due - totals.owe >= 0 ? "text-success" : "text-destructive"}`}>
               {formatEGP(totals.due - totals.owe)}
             </div>
