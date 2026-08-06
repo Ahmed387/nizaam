@@ -50,6 +50,14 @@ export function ProtectedRoute({
     return <Navigate to="/setup-wizard" replace />;
   }
 
+  // Bulk-created logins must change their password before using the system.
+  if (
+    (user as any)?.user_metadata?.must_change_password === true &&
+    !loc.pathname.startsWith("/profile")
+  ) {
+    return <Navigate to="/profile" replace state={{ mustChangePassword: true }} />;
+  }
+
   // Gates are OR-ed: an explicitly granted permission can unlock a page that is
   // otherwise owner/admin/role gated.
   const gates: boolean[] = [];
