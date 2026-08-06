@@ -14,7 +14,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { edgeErrorMessage } from "@/lib/edgeError";
-import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, Clock, HandCoins } from "lucide-react";
+import { Plus, ArrowRight, Eye, EyeOff, FileSpreadsheet, Users, Clock, HandCoins, KeyRound } from "lucide-react";
+import { BulkLoginsDialog } from "@/components/BulkLoginsDialog";
 import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,6 +41,7 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -138,6 +140,7 @@ export default function Employees() {
         <TabsContent value="list" className="mt-4">
           <div className="flex gap-2 flex-wrap justify-end mb-3">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
+            <Button variant="outline" onClick={() => setBulkOpen(true)}><KeyRound className="w-4 h-4 ml-1" /> إنشاء حسابات دخول جماعية</Button>
             <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>
           </div>
           <DataTable
@@ -289,6 +292,8 @@ export default function Employees() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkLoginsDialog open={bulkOpen} onOpenChange={setBulkOpen} branchId={branchId} onDone={load} />
 
       <ExcelImportDialog
         open={importOpen}
