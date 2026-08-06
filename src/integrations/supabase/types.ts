@@ -180,6 +180,7 @@ export type Database = {
           question: string | null
           rows_returned: number | null
           sql_text: string | null
+          steps: Json | null
           tenant_id: string | null
           user_id: string
         }
@@ -192,6 +193,7 @@ export type Database = {
           question?: string | null
           rows_returned?: number | null
           sql_text?: string | null
+          steps?: Json | null
           tenant_id?: string | null
           user_id?: string
         }
@@ -204,6 +206,7 @@ export type Database = {
           question?: string | null
           rows_returned?: number | null
           sql_text?: string | null
+          steps?: Json | null
           tenant_id?: string | null
           user_id?: string
         }
