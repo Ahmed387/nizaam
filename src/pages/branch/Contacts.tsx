@@ -192,8 +192,29 @@ export default function Contacts() {
     setOpen(true);
   };
 
+  // تحذير لو نفس رقم التليفون موجود قبل كده (مسموح بالتأكيد فقط)
+  const phoneDuplicateOk = async () => {
+    const phone = (form.phone || "").trim();
+    if (!phone) return true;
+    let q = supabase.from("contacts").select("id,name,type").eq("phone", phone).limit(3);
+    if (editing) q = q.neq("id", editing.id);
+    const { data } = await q;
+    if (!data?.length) return true;
+    return confirmAlert({
+      title: "الرقم ده مستخدم قبل كده 📞",
+      description: `فيه ${data.length === 1 ? "" : data.length + " "}${data.length === 1 ? "حساب" : "حسابات"} بنفس التليفون: ${data
+        .map((c: any) => `${c.name} (${c.type === "supplier" ? "مورد" : "عميل"})`)
+        .join("، ")}. تحب تكمّل الحفظ برضه؟`,
+      confirmLabel: "أيوه، كمّل",
+      cancelLabel: "لأ، هعدّله",
+      tone: "warning",
+    });
+  };
+
   const submit = async () => {
     if (!form.name) return toast.error("الاسم مطلوب");
+    if (!(await phoneDuplicateOk())) return;
+
 
     // EDIT
     if (editing) {
