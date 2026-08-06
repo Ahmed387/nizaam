@@ -42,16 +42,9 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (!user) return json({ error: "غير مصرح" }, 401);
 
-    const { data: allowed, error: permissionError } = await sb.rpc("has_permission", {
-      _user_id: user.id,
-      _key: "admin_ask_me.view",
-    });
-    if (permissionError || !allowed) return json({ error: "ليس لديك صلاحية استخدام اسألني" }, 403);
-
-    // Data-layer gate mirror: only owner / super_admin may reach company-wide data (ai_sql enforces this too).
-    const { data: ownerOk } = await sb.rpc("has_role", { _user_id: user.id, _role: "owner" });
-    const { data: superOk } = await sb.rpc("has_role", { _user_id: user.id, _role: "super_admin" });
-    if (!ownerOk && !superOk) {
+    // Single source of truth for access — same gate the database enforces inside ai_sql().
+    const { data: canUse, error: gateError } = await sb.rpc("can_use_ask_me", { _user_id: user.id });
+    if (gateError || !canUse) {
       await sb.from("ai_ask_log").insert({ user_id: user.id, kind: "denied", question: null, error: "not owner" });
       return json({ error: "المساعد ده متاح للمالك فقط — بياناته على مستوى الشركة كلها" }, 403);
     }

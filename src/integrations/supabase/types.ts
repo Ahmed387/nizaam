@@ -6471,6 +6471,7 @@ export type Database = {
         Args: { _target_employee_id: string }
         Returns: boolean
       }
+      can_use_ask_me: { Args: { _user_id: string }; Returns: boolean }
       cancel_inventory_session: {
         Args: { p_reason?: string; p_session_id: string }
         Returns: Json
@@ -7104,6 +7105,7 @@ export type Database = {
         }
         Returns: string
       }
+      purge_ai_ask_log: { Args: never; Returns: number }
       rebalance_partner_shares: {
         Args: { _pending_capital?: number; _tenant_id?: string }
         Returns: Json
