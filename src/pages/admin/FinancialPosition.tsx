@@ -304,6 +304,8 @@ export default function FinancialPosition() {
             />
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );
