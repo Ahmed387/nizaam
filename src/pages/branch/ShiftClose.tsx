@@ -24,6 +24,7 @@ export default function ShiftClose() {
   const [breakdown, setBreakdown] = useState<ShiftPaymentLine[]>([]);
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
+  const [autoCheckout, setAutoCheckout] = useState(true);
 
 
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function ShiftClose() {
     if (!shift) return;
     setBusy(true);
     try {
-      const closed = await closeShift(shift.id, Number(closingCash) || 0, notes || undefined);
+      const closed = await closeShift(shift.id, Number(closingCash) || 0, notes || undefined, autoCheckout);
       const v = Number(closed.variance ?? 0);
       if (Math.abs(v) < 0.01) toast.success("تم قفل الوردية — الدرج مطابق");
       else if (v > 0) toast.success(`تم قفل الوردية — زيادة ${formatEGP(v)}`);
