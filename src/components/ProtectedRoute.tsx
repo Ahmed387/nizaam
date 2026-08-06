@@ -58,6 +58,14 @@ export function ProtectedRoute({
     return <Navigate to="/profile" replace state={{ mustChangePassword: true }} />;
   }
 
+  // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them.
+  // Admins / super admins / the tenant owner keep access to every branch.
+  const branchMatch = loc.pathname.match(/^\/branch\/([^/]+)/);
+  if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner) {
+    const allowed = branches.some((b) => b.id === branchMatch[1]);
+    if (!allowed) return <Navigate to="/" replace />;
+  }
+
   // Gates are OR-ed: an explicitly granted permission can unlock a page that is
   // otherwise owner/admin/role gated.
   const gates: boolean[] = [];
