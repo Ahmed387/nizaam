@@ -1886,6 +1886,47 @@ export type Database = {
           },
         ]
       }
+      inventory_count_batch_moves: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_batch: boolean
+          delta: number
+          id: string
+          product_id: string
+          session_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_batch?: boolean
+          delta: number
+          id?: string
+          product_id: string
+          session_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_batch?: boolean
+          delta?: number
+          id?: string
+          product_id?: string
+          session_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_count_batch_moves_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_reservations: {
         Row: {
           branch_id: string
@@ -6378,6 +6419,10 @@ export type Database = {
         Args: { _target_employee_id: string }
         Returns: boolean
       }
+      cancel_inventory_session: {
+        Args: { p_reason?: string; p_session_id: string }
+        Returns: Json
+      }
       cancel_invoice_with_refund: {
         Args: { _invoice_id: string; _reason: string; _refund_method?: string }
         Returns: Json
@@ -6410,41 +6455,78 @@ export type Database = {
         Args: { p_reason: string; p_voucher_id: string }
         Returns: undefined
       }
-      close_cashier_shift: {
-        Args: {
-          p_auto?: boolean
-          p_closing_cash: number
-          p_notes?: string
-          p_shift_id: string
-        }
-        Returns: {
-          branch_id: string
-          cash_sales: number | null
-          cashier_id: string
-          close_notes: string | null
-          closed_at: string | null
-          closed_by: string | null
-          closing_cash: number | null
-          created_at: string
-          expected_cash: number | null
-          id: string
-          open_notes: string | null
-          opened_at: string
-          opening_cash: number
-          pre_close_warned_at: string | null
-          reminder_sent_at: string | null
-          status: string
-          tenant_id: string
-          updated_at: string
-          variance: number | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "cashier_shifts"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      close_cashier_shift:
+        | {
+            Args: {
+              p_auto?: boolean
+              p_closing_cash: number
+              p_notes?: string
+              p_shift_id: string
+            }
+            Returns: {
+              branch_id: string
+              cash_sales: number | null
+              cashier_id: string
+              close_notes: string | null
+              closed_at: string | null
+              closed_by: string | null
+              closing_cash: number | null
+              created_at: string
+              expected_cash: number | null
+              id: string
+              open_notes: string | null
+              opened_at: string
+              opening_cash: number
+              pre_close_warned_at: string | null
+              reminder_sent_at: string | null
+              status: string
+              tenant_id: string
+              updated_at: string
+              variance: number | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "cashier_shifts"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_auto?: boolean
+              p_auto_checkout?: boolean
+              p_closing_cash: number
+              p_notes?: string
+              p_shift_id: string
+            }
+            Returns: {
+              branch_id: string
+              cash_sales: number | null
+              cashier_id: string
+              close_notes: string | null
+              closed_at: string | null
+              closed_by: string | null
+              closing_cash: number | null
+              created_at: string
+              expected_cash: number | null
+              id: string
+              open_notes: string | null
+              opened_at: string
+              opening_cash: number
+              pre_close_warned_at: string | null
+              reminder_sent_at: string | null
+              status: string
+              tenant_id: string
+              updated_at: string
+              variance: number | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "cashier_shifts"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       close_fiscal_period:
         | { Args: { p_period_id: string }; Returns: Json }
         | { Args: { p_period_id: string; p_reason?: string }; Returns: Json }
@@ -6687,6 +6769,10 @@ export type Database = {
         Returns: Json
       }
       enforce_cycle_counts: { Args: { p_stale_days?: number }; Returns: number }
+      ensure_count_variance_accounts: {
+        Args: { p_tenant: string }
+        Returns: undefined
+      }
       expire_old_reservations: { Args: never; Returns: number }
       generate_alerts: {
         Args: never
@@ -6864,36 +6950,76 @@ export type Database = {
         }
         Returns: number
       }
-      open_cashier_shift: {
-        Args: { p_branch_id: string; p_notes?: string; p_opening_cash: number }
-        Returns: {
-          branch_id: string
-          cash_sales: number | null
-          cashier_id: string
-          close_notes: string | null
-          closed_at: string | null
-          closed_by: string | null
-          closing_cash: number | null
-          created_at: string
-          expected_cash: number | null
-          id: string
-          open_notes: string | null
-          opened_at: string
-          opening_cash: number
-          pre_close_warned_at: string | null
-          reminder_sent_at: string | null
-          status: string
-          tenant_id: string
-          updated_at: string
-          variance: number | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "cashier_shifts"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      open_cashier_shift:
+        | {
+            Args: {
+              p_branch_id: string
+              p_notes?: string
+              p_opening_cash: number
+            }
+            Returns: {
+              branch_id: string
+              cash_sales: number | null
+              cashier_id: string
+              close_notes: string | null
+              closed_at: string | null
+              closed_by: string | null
+              closing_cash: number | null
+              created_at: string
+              expected_cash: number | null
+              id: string
+              open_notes: string | null
+              opened_at: string
+              opening_cash: number
+              pre_close_warned_at: string | null
+              reminder_sent_at: string | null
+              status: string
+              tenant_id: string
+              updated_at: string
+              variance: number | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "cashier_shifts"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_auto_attendance?: boolean
+              p_branch_id: string
+              p_notes?: string
+              p_opening_cash: number
+            }
+            Returns: {
+              branch_id: string
+              cash_sales: number | null
+              cashier_id: string
+              close_notes: string | null
+              closed_at: string | null
+              closed_by: string | null
+              closing_cash: number | null
+              created_at: string
+              expected_cash: number | null
+              id: string
+              open_notes: string | null
+              opened_at: string
+              opening_cash: number
+              pre_close_warned_at: string | null
+              reminder_sent_at: string | null
+              status: string
+              tenant_id: string
+              updated_at: string
+              variance: number | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "cashier_shifts"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       partial_confirm_transfer: {
         Args: { p_received: number; p_transfer_id: string }
         Returns: Json
