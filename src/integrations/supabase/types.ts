@@ -7088,6 +7088,10 @@ export type Database = {
         }
         Returns: Json
       }
+      post_voucher_journal: {
+        Args: { p_voucher_id: string }
+        Returns: undefined
+      }
       preview_flexible_distribution: {
         Args: {
           p_amount?: number
