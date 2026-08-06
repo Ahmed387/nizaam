@@ -143,6 +143,21 @@ export default function ShiftOpen() {
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
           </div>
+          {needsAttendance && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-bold text-destructive">لازم تسجل حضورك الأول قبل ما تفتح الوردية</div>
+                  <div className="text-muted-foreground">تقدر تسجل حضورك وتفتح الوردية في خطوة واحدة من الزرار ده.</div>
+                </div>
+              </div>
+              <Button type="button" variant="secondary" className="w-full h-11" disabled={busy || blocked}
+                onClick={() => doOpen(true)}>
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "سجل حضوري وافتح الوردية دلوقتي"}
+              </Button>
+            </div>
+          )}
           <Button type="submit" disabled={busy || blocked} className="w-full h-11">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><DoorOpen className="w-4 h-4 me-2" />فتح الوردية</>)}
           </Button>
