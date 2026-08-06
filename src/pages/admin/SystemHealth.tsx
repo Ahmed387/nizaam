@@ -481,6 +481,31 @@ export default function SystemHealth() {
           </CardContent>
         </Card>
 
+        <OrphanedBatchesCheck />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>كشف الحركات الغريبة (Anomalies)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              بيدوّر على أي حركة شكلها غريب (خصم كبير، سعر أقل من التكلفة، حركة خزنة مش طبيعية) وبيبعتلك إشعار بيها.
+              بيشتغل تلقائي كل يوم، وتقدر تشغّله دلوقتي من هنا.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="outline" onClick={runAnomalies} disabled={anomalyRunning}>
+                {anomalyRunning ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RefreshCcw className="w-4 h-4 ml-2" />}
+                افحص الحركات دلوقتي
+              </Button>
+              {anomalyCount !== null && (
+                <span className={`text-sm font-semibold ${anomalyCount > 0 ? "text-warning" : "text-success"}`}>
+                  {anomalyCount > 0 ? `لقينا ${anomalyCount} حركة محتاجة مراجعة` : "مفيش أي حركة غريبة ✓"}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
           <span>التحديث بيحصل تلقائي كل 30 ثانية، وكمان أول ما تحصل حركة في السيستم.</span>
           {lastRun && <span>آخر فحص: {lastRun.toLocaleTimeString("ar-EG")}</span>}
