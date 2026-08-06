@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Loader2, DoorOpen, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, openShift } from "@/lib/shifts";
+import { getOpenShift, openShift, isMissingAttendanceError } from "@/lib/shifts";
 import { formatEGP } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { BranchSchedule, fetchClosures, fetchSchedules, offDayReason } from "@/lib/branchSchedule";
@@ -31,6 +31,7 @@ export default function ShiftOpen() {
   const [offReason, setOffReason] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<BranchSchedule | undefined>(undefined);
   const [ack, setAck] = useState(false);
+  const [needsAttendance, setNeedsAttendance] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
