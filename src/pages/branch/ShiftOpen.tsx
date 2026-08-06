@@ -55,22 +55,31 @@ export default function ShiftOpen() {
 
   const blocked = !!offReason && !!schedule?.block_open_on_off_day && !ack;
 
+  const doOpen = async (autoAttendance: boolean) => {
+    setBusy(true);
+    try {
+      await openShift(branchId, Number(openingCash) || 0, notes || undefined, autoAttendance);
+      toast.success(autoAttendance ? "تم تسجيل حضورك وفتح الوردية" : "تم فتح الوردية");
+      nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
+    } catch (e: any) {
+      if (isMissingAttendanceError(e)) {
+        setNeedsAttendance(true);
+        toast.error("لازم تسجل حضورك الأول قبل ما تفتح الوردية");
+      } else {
+        toast.error(e.message ?? "فشل فتح الوردية");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (blocked) {
       toast.error("الفرع مقفول اليوم — تحتاج تأكيد المالك لفتح وردية");
       return;
     }
-    setBusy(true);
-    try {
-      await openShift(branchId, Number(openingCash) || 0, notes || undefined);
-      toast.success("تم فتح الوردية");
-      nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
-    } catch (e: any) {
-      toast.error(e.message ?? "فشل فتح الوردية");
-    } finally {
-      setBusy(false);
-    }
+    await doOpen(false);
   };
 
 
