@@ -147,7 +147,9 @@ Deno.serve(async (req) => {
         id: userId, name, username: email.split('@')[0], tenant_id: tenantId, is_active: true,
       });
 
-      const role = e.role ?? 'cashier';
+      const ALLOWED = ['admin', 'owner', 'branch_manager', 'accountant', 'cashier',
+        'warehouse', 'supervisor', 'worker', 'driver', 'viewer', 'partner'];
+      const role = ALLOWED.includes(String(e.role)) ? e.role : 'cashier';
       await admin.from('user_roles').upsert(
         { user_id: userId, role, tenant_id: tenantId },
         { onConflict: 'user_id,role' },
