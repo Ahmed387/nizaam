@@ -1,5 +1,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+/** Roles a tenant admin/owner may ever assign from the employees screen. */
+const ALLOWED_EMPLOYEE_ROLES = [
+  'admin', 'owner', 'branch_manager', 'accountant', 'cashier',
+  'warehouse', 'supervisor', 'worker', 'driver', 'viewer', 'partner',
+];
+
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -52,6 +58,14 @@ Deno.serve(async (req) => {
     } = body ?? {};
 
     if (!name || !job_title || !branch_id || !role) return json({ error: 'بيانات ناقصة' }, 400);
+
+    // Hard allow-list: this endpoint may NEVER assign platform-level roles.
+    if (!ALLOWED_EMPLOYEE_ROLES.includes(String(role))) {
+      return json(
+        { error: 'الدور غير مسموح من هذه الشاشة — لا يمكن منح صلاحيات على مستوى النظام' },
+        403,
+      );
+    }
 
     // Branches must belong to caller tenant
     const branchIds: string[] = Array.from(new Set([
