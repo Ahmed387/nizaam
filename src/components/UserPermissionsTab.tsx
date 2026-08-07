@@ -17,6 +17,7 @@ import {
   MANAGED_ROLES,
   ROLE_LABELS,
   DEFAULT_ROLE_PERMISSIONS,
+  PERM_HELP,
   AppRole,
 } from "@/lib/roles";
 
@@ -94,17 +95,30 @@ export function UserPermissionsTab() {
 
   /** Owners / admins / super admins / partners are never managed here — they hold full company access. */
   const FULL_ACCESS_ROLES = ["owner", "admin", "super_admin", "partner"];
-  /** Only real, active employee records of this tenant appear here (deleted employees never show). */
+  /**
+   * Anyone in this tenant who isn't a full-access role can be managed here.
+   * (We no longer require an `employees` record — after a data reset the employees
+   * table can be empty while real logins still exist, which used to hide everybody.)
+   */
   const selectableUsers = useMemo(
     () =>
       users.filter((u) => {
-        if (!employeeUserIds.has(u.id)) return false;
         const rs = rolesByUser[u.id] ?? [];
         return !rs.some((r) => FULL_ACCESS_ROLES.includes(r));
       }),
     // eslint-disable-next-line
     [users, rolesByUser, employeeUserIds],
   );
+
+  /** Users with a working role but no branch link — they'd be stuck with no branch to open. */
+  const unassigned = useMemo(
+    () =>
+      selectableUsers.filter(
+        (u) => (rolesByUser[u.id] ?? []).length > 0 && !(branchIdsByUser[u.id] ?? []).length,
+      ),
+    [selectableUsers, rolesByUser, branchIdsByUser],
+  );
+
 
 
   /** Load saved overrides for the selected user (source of truth = DB). */
@@ -357,9 +371,17 @@ export function UserPermissionsTab() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-xs bg-primary/10 border border-primary/30 rounded p-2">
-          💡 الشجرة بتوضح كل صفحة والأقسام المتفرعة منها. لو القسم الفرعي على «افتراضي» فهو بيورّث صلاحية الصفحة الأم.
+          💡 الشجرة بتوضح كل صفحة والأقسام المتفرعة منها، وتحت كل صلاحية مكتوب بالعامية <b>هي بتفتح إيه بالظبط</b>.
+          لو القسم الفرعي على «افتراضي» فهو بيورّث صلاحية الصفحة الأم.
           الاستثناء هنا بيتفوّق على صلاحيات الدور. أما <b>الفروع اللي يشوفها</b> فبتتحدد من الفروع المربوطة بالموظف تحت.
         </div>
+
+        {!!unassigned.length && (
+          <div className="text-xs bg-amber-500/10 border border-amber-500/30 rounded p-2">
+            ⚠️ في {unassigned.length} مستخدم بدور شغّال ومش مربوط بأي فرع، فمش هيعرف يفتح أي شاشة فرع:
+            <b> {unassigned.map((u) => u.name || u.username).join("، ")}</b> — اختاره من القايمة واربطه بفرع من التلاتة.
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-3">
           <div>
@@ -595,6 +617,12 @@ export function UserPermissionsTab() {
                           </div>
                         </div>
 
+                        {PERM_HELP[node.group.key] && (
+                          <div className="px-3 pb-2 -mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                            {PERM_HELP[node.group.key]}
+                          </div>
+                        )}
+
                         {/* Children — real tree with connector lines + animated expand */}
                         {hasKids && (
                           <div
@@ -621,7 +649,12 @@ export function UserPermissionsTab() {
                                     <span className="absolute top-1/2 right-[2px] -mt-[3px] w-[7px] h-[7px] rounded-full bg-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]" />
                                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 mr-6 hover:border-primary/50 hover:bg-primary/[0.03] transition-all duration-200">
                                       <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                                      <span className="text-sm font-medium">{childLabel(c.label)}</span>
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-medium">{childLabel(c.label)}</div>
+                                        {PERM_HELP[c.key] && (
+                                          <div className="text-[11px] leading-relaxed text-muted-foreground">{PERM_HELP[c.key]}</div>
+                                        )}
+                                      </div>
                                       <div className="ms-auto"><ActionsRow group={c} /></div>
                                     </div>
                                   </div>
