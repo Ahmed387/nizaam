@@ -98,7 +98,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       },
       {
         title: "لوحة الإدارة",
-        desc: "لو معاك صلاحية إدارة، فيه لوحة تانية بتجمّع كل الفروع في مكان واحد: مبيعات كل فرع، الخزنة الرئيسية، والربحية.",
+        desc: "لو معاك صلاحية إدارة، فيه لوحة تانية بتجمّع كل الفروع في مكان واحد: مبيعات كل فرع، ملخص الخزائن، والربحية.",
         to: a("/admin"),
         perm: "admin_home.view",
       },
@@ -476,7 +476,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         perm: "treasury.view",
       },
       {
-        title: "الخزنة الرئيسية",
+        title: "ملخص الخزائن",
         desc: "بتجمّع أرصدة كل الفروع + الخزنة المركزية في مكان واحد، وبتوريك التحويلات المعلقة.",
         to: a("/admin/main-treasury"),
         perm: "admin_main_treasury.view",

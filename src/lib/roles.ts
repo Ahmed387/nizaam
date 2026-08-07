@@ -65,7 +65,7 @@ export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_employees", label: "الموظفين (إدارة)", actions: ["view"] },
   { key: "admin_presence", label: "تتبع المستخدمين", actions: ["view"] },
   { key: "admin_shifts", label: "سجل الورديات", actions: ["view"] },
-  { key: "admin_main_treasury", label: "الخزنة الرئيسية", actions: ["view"] },
+  { key: "admin_main_treasury", label: "ملخص الخزائن", actions: ["view"] },
   { key: "admin_finance", label: "المالية", actions: ["view"] },
   { key: "admin_financial_position", label: "الذمة المالية للشركاء", actions: ["view"] },
   { key: "admin_reports_hub", label: "التقارير (المركزية)", actions: ["view"] },
