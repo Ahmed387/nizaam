@@ -239,8 +239,8 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
   return (
     <Wrapper>
       <PageHeader
-        title={`تقرير الربحية (Profitability)`}
-        subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع"
+        title="تقرير الربحية (Profitability)"
+        subtitle={`ربح فعلي محسوب من تكلفة FIFO وقت البيع — ${fin("grossProfit")} و${fin("margin")}`}
         actions={
           <Button
             onClick={() => tenantId && generateProfitReport({
