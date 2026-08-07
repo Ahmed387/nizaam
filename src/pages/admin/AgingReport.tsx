@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -222,7 +223,7 @@ export default function AgingReport() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="تقرير أعمار الديون (Aging Report)" subtitle="الذمم المدينة (Accounts Receivable) على العملاء والذمم الدائنة (Accounts Payable) للموردين حسب فترات التأخير" />
+        <PageHeader title={fin("aging")} subtitle={`${fin("receivables")} على العملاء و${fin("payables")} للموردين حسب فترات التأخير`} />
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap gap-4 items-end">

@@ -37,12 +37,11 @@ export default function MainTreasury() {
   const load = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    // Only real operational branches — exclude the system partner-cash branch
+    // كل الخزائن الحقيقية: الفروع + خزينة الشركاء (النظامية)
     const { data: brs } = await supabase
       .from("branches")
       .select("id,name,code")
       .eq("tenant_id", tenantId)
-      .neq("code", "PARTNER-CASH")
       .order("name");
     const branchList = (brs ?? []) as BranchRow[];
     setBranches(branchList);
@@ -104,9 +103,15 @@ export default function MainTreasury() {
   return (
     <AdminLayout>
       <PageHeader
-        title="الخزنة الرئيسية"
-        subtitle="تجميع الوارد والصادر من الفروع الـ 3 — للعرض فقط (لا تُسجَّل فيها حركات)"
+        title="ملخص الخزائن (Treasury Overview)"
+        subtitle="نظرة عامة على أرصدة وحركات كل الخزائن — للعرض فقط"
       />
+
+      <div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">
+        الصفحة دي <b>للعرض بس</b>، وبتجمّعلك أرصدة كل الخزائن الحقيقية (الفروع + خزينة الشركاء) في مكان واحد.
+        <b> لتحويل فلوس فعلي</b>، روح لخزينة الشركاء أو خزنة الفرع نفسه.
+      </div>
+
 
       {/* Filters */}
       <div className="card-elevated p-4 mb-6 flex flex-wrap items-end gap-3">

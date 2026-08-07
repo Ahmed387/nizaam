@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +51,7 @@ export default function TrialBalance() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="ميزان المراجعة (Trial Balance)" subtitle="أرصدة كل الحسابات — المدين (Debit) لازم يساوي الدائن (Credit)" />
+        <PageHeader title={fin("trialBalance")} subtitle="أرصدة كل الحسابات — المدين (Debit) لازم يساوي الدائن (Credit)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

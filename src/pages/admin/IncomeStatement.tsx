@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -120,7 +121,7 @@ export default function IncomeStatement() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="قائمة الدخل (Income Statement / P&L)" subtitle="المبيعات (Revenue) − المصروفات (Expenses) = صافي الربح (Net Profit)" />
+        <PageHeader title={fin("incomeStatement")} subtitle={`${fin("revenue")} − ${fin("expenses")} = ${fin("netProfit")}`} />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -147,8 +148,8 @@ export default function IncomeStatement() {
           <div className="text-center text-muted-foreground py-8">جاري التحميل...</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Section title="الإيرادات (Revenue)" rows={revenues} total={totalRev} tone="success" />
-            <Section title="المصروفات (Expenses)" rows={expenses} total={totalExp} tone="destructive" />
+            <Section title={fin("revenue")} rows={revenues} total={totalRev} tone="success" />
+            <Section title={fin("expenses")} rows={expenses} total={totalExp} tone="destructive" />
           </div>
         )}
 

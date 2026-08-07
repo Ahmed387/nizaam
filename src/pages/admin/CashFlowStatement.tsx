@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -183,7 +184,7 @@ export default function CashFlowStatement() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="قائمة التدفقات النقدية (Cash Flow Statement)" subtitle="التشغيلي (Operating) / الاستثماري (Investing) / التمويلي (Financing)" />
+        <PageHeader title={fin("cashFlow")} subtitle="التشغيلي (Operating) / الاستثماري (Investing) / التمويلي (Financing)" />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

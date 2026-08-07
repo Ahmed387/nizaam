@@ -67,7 +67,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_presence.view" },
     { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_shifts.view" },
 
-    { to: "/admin/main-treasury", label: "الخزنة الرئيسية", icon: <Wallet className="w-4 h-4" />, group: "المالية", perm: "admin_main_treasury.view", adminOnly: true },
+    { to: "/admin/main-treasury", label: "ملخص الخزائن", icon: <Wallet className="w-4 h-4" />, group: "المالية", perm: "admin_main_treasury.view", adminOnly: true },
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية", perm: "admin_finance.view" },
     { to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" />, group: "المالية", perm: "admin_financial_position.view", ownerOnly: true },
     { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية", perm: "admin_reports_hub.view" },

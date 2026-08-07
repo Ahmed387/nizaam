@@ -1,6 +1,7 @@
 import { VariantLine } from "@/components/VariantChips";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Input } from "@/components/ui/input";
@@ -238,8 +239,8 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
   return (
     <Wrapper>
       <PageHeader
-        title="تقرير الربحية"
-        subtitle="ربح فعلي محسوب من تكلفة FIFO وقت البيع"
+        title="تقرير الربحية (Profitability)"
+        subtitle={`ربح فعلي محسوب من تكلفة FIFO وقت البيع — ${fin("grossProfit")} و${fin("margin")}`}
         actions={
           <Button
             onClick={() => tenantId && generateProfitReport({
