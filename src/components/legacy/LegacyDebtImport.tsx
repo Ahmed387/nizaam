@@ -28,7 +28,7 @@ export function LegacyDebtImport() {
     const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
     setTenantId(prof?.tenant_id ?? null);
     const [{ data: branches }, { data: contacts }] = await Promise.all([
-      supabase.from("branches").select("id, code, name"),
+      supabase.from("branches").select("id, code, name").eq("is_system" as any, false),
       supabase.from("contacts").select("id, name, phone, type"),
     ]);
     return { branches: branches ?? [], contacts: contacts ?? [] };
