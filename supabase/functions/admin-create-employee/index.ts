@@ -59,6 +59,11 @@ Deno.serve(async (req) => {
 
     if (!name || !job_title || !branch_id || !role) return json({ error: 'بيانات ناقصة' }, 400);
 
+    const salaryNum = Number(base_salary ?? 0);
+    if (!Number.isFinite(salaryNum) || salaryNum < 0) {
+      return json({ error: 'الراتب لازم يكون رقم موجب' }, 400);
+    }
+
     // Hard allow-list: this endpoint may NEVER assign platform-level roles.
     if (!ALLOWED_EMPLOYEE_ROLES.includes(String(role))) {
       return json(
