@@ -53,6 +53,14 @@ Deno.serve(async (req) => {
 
     if (!name || !job_title || !branch_id || !role) return json({ error: 'بيانات ناقصة' }, 400);
 
+    // Hard allow-list: this endpoint may NEVER assign platform-level roles.
+    if (!ALLOWED_EMPLOYEE_ROLES.includes(String(role))) {
+      return json(
+        { error: 'الدور غير مسموح من هذه الشاشة — لا يمكن منح صلاحيات على مستوى النظام' },
+        403,
+      );
+    }
+
     // Branches must belong to caller tenant
     const branchIds: string[] = Array.from(new Set([
       ...(Array.isArray(allowed_branch_ids) ? allowed_branch_ids : []),
