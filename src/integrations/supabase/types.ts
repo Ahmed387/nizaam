@@ -852,6 +852,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_system: boolean
           low_balance_threshold: number
           monthly_sales_target: number
           name: string
@@ -864,6 +865,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_system?: boolean
           low_balance_threshold?: number
           monthly_sales_target?: number
           name: string
@@ -876,6 +878,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_system?: boolean
           low_balance_threshold?: number
           monthly_sales_target?: number
           name?: string

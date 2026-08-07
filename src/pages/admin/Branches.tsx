@@ -31,7 +31,7 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
   const load = async () => {
     setLoading(true);
     const { data } = await supabase.from("branches").select("*").order("created_at", { ascending: false });
-    setRows((data ?? []).filter((b: any) => b.code !== "PARTNER-CASH"));
+    setRows((data ?? []).filter((b: any) => !b.is_system && b.code !== "PARTNER-CASH"));
     setLoading(false);
   };
   useEffect(() => { load(); }, []);

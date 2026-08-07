@@ -70,7 +70,7 @@ export function UserPermissionsTab() {
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("branch_users").select("user_id, branch_id"),
-      supabase.from("branches").select("id, name").eq("tenant_id", tenantId).order("name"),
+      (supabase.from("branches") as any).select("id, name").eq("tenant_id", tenantId).eq("is_system", false).order("name"),
       supabase.from("employees").select("user_id").eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
       supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
     ]);
