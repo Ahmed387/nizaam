@@ -6583,6 +6583,7 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: Json
       }
+      contact_has_legacy_docs: { Args: { p_contact: string }; Returns: boolean }
       create_inventory_session: {
         Args: { p_branch_id: string; p_notes?: string }
         Returns: string
