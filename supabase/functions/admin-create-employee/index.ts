@@ -1,5 +1,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+/** Roles a tenant admin/owner may ever assign from the employees screen. */
+const ALLOWED_EMPLOYEE_ROLES = [
+  'admin', 'owner', 'branch_manager', 'accountant', 'cashier',
+  'warehouse', 'supervisor', 'worker', 'driver', 'viewer', 'partner',
+];
+
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
