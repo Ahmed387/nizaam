@@ -120,9 +120,19 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
         actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة تصنيف</Button>}
       />
 
+      <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 mb-4 text-sm leading-relaxed">
+        <div className="font-semibold mb-1">إزاي تبني الشجرة؟</div>
+        <p className="text-muted-foreground">
+          الشجرة مستويين بس: <b>تصنيف رئيسي</b> وتحته <b>تصنيفات فرعية</b>. اضغط «إضافة تصنيف» وسيب خانة
+          «تصنيف رئيسي» على «— تصنيف رئيسي —» علشان تعمل الرئيسي (مثال: <b>تكييفات</b>)، وبعدين ضيف تاني
+          واختار «تكييفات» كأب علشان تعمل الفرعي (<b>سبليت</b> / <b>شباك</b>). التصنيفات دي مشتركة بين كل الفروع —
+          بتتعرّف مرة واحدة للشركة كلها.
+        </p>
+      </div>
+
       <div className="card-elevated p-5 space-y-2">
         {tree.length === 0 && <div className="text-muted-foreground text-center py-8">لا توجد تصنيفات بعد</div>}
-        {tree.map((c) => (
+        {tree.map((c, ci) => (
           <div key={c.id}>
             <div className="flex items-center justify-between p-2 rounded hover:bg-surface-2 group cursor-pointer" onClick={() => openView(c)}>
               <div className="flex items-center gap-2">
@@ -130,25 +140,37 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                 <span className="font-semibold">{c.name}</span>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="ghost" disabled={ci === 0} onClick={() => move(c, -1)} aria-label="تحريك لأعلى">
+                  <ChevronUp className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" disabled={ci === tree.length - 1} onClick={() => move(c, 1)} aria-label="تحريك لأسفل">
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                   <Pencil className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => remove(c.id)}>
+                <Button size="sm" variant="ghost" onClick={() => remove(c)}>
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
             </div>
-            {cats.filter((x) => x.parent_id === c.id).map((child) => (
+            {sortSibs(cats.filter((x) => x.parent_id === c.id)).map((child, xi, arr) => (
               <div key={child.id} className="flex items-center justify-between p-2 mr-8 rounded hover:bg-surface-2 group cursor-pointer" onClick={() => openView(child)}>
                 <div className="flex items-center gap-2">
                   <Folder className="w-4 h-4 text-muted-foreground" />
                   <span>{child.name}</span>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" disabled={xi === 0} onClick={() => move(child, -1)} aria-label="تحريك لأعلى">
+                    <ChevronUp className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={xi === arr.length - 1} onClick={() => move(child, 1)} aria-label="تحريك لأسفل">
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => openEdit(child)}>
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(child.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => remove(child)}>
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
@@ -157,6 +179,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
           </div>
         ))}
       </div>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
