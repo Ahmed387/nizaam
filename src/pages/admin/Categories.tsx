@@ -63,28 +63,54 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const submit = async () => {
     if (!form.name.trim()) return toast.error("الاسم مطلوب");
     if (editing) {
-      const { error } = await supabase.from("categories").update({ name: form.name, parent_id: form.parent_id || null }).eq("id", editing.id);
-      if (error) return toast.error(error.message);
+      const { error } = await supabase.from("categories").update({ name: form.name.trim(), parent_id: form.parent_id || null }).eq("id", editing.id);
+      if (error) return toast.error(error.message.includes("categories_unique_name_per_parent") ? "الاسم ده موجود بالفعل تحت نفس التصنيف" : error.message);
       toast.success("تم التعديل");
     } else {
-      const { error } = await supabase.from("categories").insert({ name: form.name, parent_id: form.parent_id || null });
-      if (error) return toast.error(error.message);
+      const siblings = cats.filter((c) => (c.parent_id ?? null) === (form.parent_id || null));
+      const nextOrder = siblings.reduce((m, c) => Math.max(m, c.sort_order ?? 0), 0) + 1;
+      const { error } = await supabase.from("categories").insert({ name: form.name.trim(), parent_id: form.parent_id || null, sort_order: nextOrder } as any);
+      if (error) return toast.error(error.message.includes("categories_unique_name_per_parent") ? "الاسم ده موجود بالفعل تحت نفس التصنيف" : error.message);
       toast.success("تمت الإضافة");
     }
     setOpen(false); setEditing(null); setForm({ name: "", parent_id: "" }); load();
   };
 
-  const remove = async (id: string) => {
-    if (!(await confirmAlert({ title: "تأكيد الحذف؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { count } = await supabase.from("products").select("id", { head: true, count: "exact" }).eq("category_id", id);
-    if ((count ?? 0) > 0) return toast.error("لا يمكن الحذف، يوجد منتجات بهذا التصنيف");
-    const { error } = await supabase.from("categories").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+  const remove = async (c: any) => {
+    const kids = cats.filter((x) => x.parent_id === c.id).length;
+    if (kids > 0) return toast.error(`مينفعش تمسح "${c.name}" لأن تحته ${kids} تصنيف فرعي — امسحهم الأول`);
+    const { count } = await supabase.from("products").select("id", { head: true, count: "exact" }).eq("category_id", c.id);
+    if ((count ?? 0) > 0) return toast.error(`مينفعش تمسح "${c.name}" لأن فيه ${count} منتج مربوط بيه`);
+    if (!(await confirmAlert({ title: `تمسح تصنيف "${c.name}"؟`, description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
+    const { error } = await supabase.from("categories").delete().eq("id", c.id);
+    if (error) return toast.error(error.message.replace(/^.*?:\s*/, ""));
     toast.success("تم الحذف");
     load();
   };
 
-  const tree = cats.filter((c) => !c.parent_id);
+  /** Move a category up/down among its siblings (products stay linked — only display order changes). */
+  const move = async (c: any, dir: -1 | 1) => {
+    const siblings = cats
+      .filter((x) => (x.parent_id ?? null) === (c.parent_id ?? null))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+    const i = siblings.findIndex((x) => x.id === c.id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= siblings.length) return;
+    const other = siblings[j];
+    const a = siblings[i].sort_order ?? i;
+    const b = other.sort_order ?? j;
+    const [r1, r2] = await Promise.all([
+      supabase.from("categories").update({ sort_order: b === a ? j : b } as any).eq("id", c.id),
+      supabase.from("categories").update({ sort_order: b === a ? i : a } as any).eq("id", other.id),
+    ]);
+    if (r1.error || r2.error) return toast.error(r1.error?.message || r2.error?.message || "تعذر الترتيب");
+    load();
+  };
+
+  const sortSibs = (list: any[]) =>
+    [...list].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+
+  const tree = sortSibs(cats.filter((c) => !c.parent_id));
 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
