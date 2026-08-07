@@ -99,8 +99,6 @@ import AdminReports from "./pages/admin/Reports";
 import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
-import DataMigration from "./pages/admin/DataMigration";
-import CoreDataImport from "./pages/admin/CoreDataImport";
 import DataSetupWizard from "./pages/admin/DataSetupWizard";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
