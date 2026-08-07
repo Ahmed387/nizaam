@@ -31,7 +31,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
 
   const load = async () => {
     const [{ data: c }, { data: b }] = await Promise.all([
-      supabase.from("categories").select("*").order("name"),
+      supabase.from("categories").select("*").order("sort_order" as any).order("name"),
       supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").order("name"),
     ]);
     setCats(c ?? []);
