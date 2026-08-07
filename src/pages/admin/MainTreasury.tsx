@@ -42,7 +42,6 @@ export default function MainTreasury() {
       .from("branches")
       .select("id,name,code")
       .eq("tenant_id", tenantId)
-      .neq("code", "PARTNER-CASH")
       .order("name");
     const branchList = (brs ?? []) as BranchRow[];
     setBranches(branchList);
