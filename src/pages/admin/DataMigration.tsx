@@ -791,13 +791,14 @@ function LegacyPanel() {
   );
 }
 
-export default function DataMigration() {
+export default function DataMigration({ embedded = false }: { embedded?: boolean }) {
+  const Wrap: any = embedded ? (({ children }: any) => <div>{children}</div>) : AdminLayout;
   return (
-    <AdminLayout>
-      <PageHeader
+    <Wrap>
+      {!embedded && <PageHeader
         title="ترحيل الفواتير القديمة"
         subtitle="ارفع ملفات الفواتير زي ما هي (بيع / شراء / مرتجع بيع / مرتجع شراء) — النوع بيتحدد تلقائيًا من اسم الملف أو محتواه"
-      />
+      />}
       <Tabs defaultValue="docs">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="docs">الفواتير والمرتجعات</TabsTrigger>
@@ -806,7 +807,7 @@ export default function DataMigration() {
         <TabsContent value="docs" className="mt-4"><LegacyPanel /></TabsContent>
         <TabsContent value="debt" className="mt-4"><LegacyDebtImport /></TabsContent>
       </Tabs>
-    </AdminLayout>
+    </Wrap>
   );
 }
 
