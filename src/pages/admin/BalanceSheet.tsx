@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -121,7 +122,7 @@ export default function BalanceSheet() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الميزانية العمومية (Balance Sheet)" subtitle="الأصول (Assets) = الخصوم (Liabilities) + حقوق الملكية (Equity)" />
+        <PageHeader title={fin("balanceSheet")} subtitle={`الأصول (Assets) = الخصوم (Liabilities) + ${fin("equity")}`} />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
