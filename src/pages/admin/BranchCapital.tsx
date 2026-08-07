@@ -51,7 +51,7 @@ export default function BranchCapital() {
     if (!tenantId) return;
     setLoading(true);
     const [{ data: br }, { data: al }] = await Promise.all([
-      supabase.from("branches").select("id,name,code").eq("tenant_id", tenantId).eq("is_active", true).eq("is_system" as any, false).order("code"),
+      (supabase.from("branches") as any).select("id,name,code").eq("tenant_id", tenantId).eq("is_active", true).eq("is_system", false).order("code"),
       supabase.from("branch_capital_allocations" as any).select("*").eq("tenant_id", tenantId).order("allocation_date", { ascending: false }),
     ]);
     const brs = (br ?? []) as Branch[];
