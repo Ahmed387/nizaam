@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       job_title,
       phone: phone ? String(phone).trim() : null,
       national_id: national_id ? String(national_id).trim() : null,
-      base_salary: Number(base_salary) || 0,
+      base_salary: salaryNum,
       hire_date: hire_date ?? new Date().toISOString().slice(0, 10),
       branch_id,
       role,
