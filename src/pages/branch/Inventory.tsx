@@ -899,8 +899,20 @@ export default function Inventory() {
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="بدون" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— بدون —</SelectItem>
-                  {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {[...cats]
+                    .filter((c: any) => !c.parent_id)
+                    .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+                    .flatMap((p: any) => [
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>,
+                      ...cats
+                        .filter((c: any) => c.parent_id === p.id)
+                        .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+                        .map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{`${p.name} › ${c.name}`}</SelectItem>
+                        )),
+                    ])}
                 </SelectContent>
+
               </Select>
             </div>
             <div><Label>سعر الشراء</Label><Input type="number" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} className="mt-1.5" /></div>

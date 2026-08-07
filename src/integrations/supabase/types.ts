@@ -1089,25 +1089,28 @@ export type Database = {
           id: string
           name: string
           parent_id: string | null
-          tenant_id: string | null
+          sort_order: number
+          tenant_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           parent_id?: string | null
-          tenant_id?: string | null
+          sort_order?: number
+          tenant_id?: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           parent_id?: string | null
-          tenant_id?: string | null
+          sort_order?: number
+          tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "categories_parent_id_fkey"
+            foreignKeyName: "categories_parent_fk"
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "categories"

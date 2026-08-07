@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, FolderTree, Folder, Trash2, Pencil, Loader2, Package, Search } from "lucide-react";
+import { Plus, FolderTree, Folder, Trash2, Pencil, Loader2, Package, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { formatEGP } from "@/lib/format";
 import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip } from "@/components/AttributePicker";
@@ -31,7 +31,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
 
   const load = async () => {
     const [{ data: c }, { data: b }] = await Promise.all([
-      supabase.from("categories").select("*").order("name"),
+      supabase.from("categories").select("*").order("sort_order" as any).order("name"),
       supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").order("name"),
     ]);
     setCats(c ?? []);
@@ -63,28 +63,54 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
   const submit = async () => {
     if (!form.name.trim()) return toast.error("الاسم مطلوب");
     if (editing) {
-      const { error } = await supabase.from("categories").update({ name: form.name, parent_id: form.parent_id || null }).eq("id", editing.id);
-      if (error) return toast.error(error.message);
+      const { error } = await supabase.from("categories").update({ name: form.name.trim(), parent_id: form.parent_id || null }).eq("id", editing.id);
+      if (error) return toast.error(error.message.includes("categories_unique_name_per_parent") ? "الاسم ده موجود بالفعل تحت نفس التصنيف" : error.message);
       toast.success("تم التعديل");
     } else {
-      const { error } = await supabase.from("categories").insert({ name: form.name, parent_id: form.parent_id || null });
-      if (error) return toast.error(error.message);
+      const siblings = cats.filter((c) => (c.parent_id ?? null) === (form.parent_id || null));
+      const nextOrder = siblings.reduce((m, c) => Math.max(m, c.sort_order ?? 0), 0) + 1;
+      const { error } = await supabase.from("categories").insert({ name: form.name.trim(), parent_id: form.parent_id || null, sort_order: nextOrder } as any);
+      if (error) return toast.error(error.message.includes("categories_unique_name_per_parent") ? "الاسم ده موجود بالفعل تحت نفس التصنيف" : error.message);
       toast.success("تمت الإضافة");
     }
     setOpen(false); setEditing(null); setForm({ name: "", parent_id: "" }); load();
   };
 
-  const remove = async (id: string) => {
-    if (!(await confirmAlert({ title: "تأكيد الحذف؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { count } = await supabase.from("products").select("id", { head: true, count: "exact" }).eq("category_id", id);
-    if ((count ?? 0) > 0) return toast.error("لا يمكن الحذف، يوجد منتجات بهذا التصنيف");
-    const { error } = await supabase.from("categories").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+  const remove = async (c: any) => {
+    const kids = cats.filter((x) => x.parent_id === c.id).length;
+    if (kids > 0) return toast.error(`مينفعش تمسح "${c.name}" لأن تحته ${kids} تصنيف فرعي — امسحهم الأول`);
+    const { count } = await supabase.from("products").select("id", { head: true, count: "exact" }).eq("category_id", c.id);
+    if ((count ?? 0) > 0) return toast.error(`مينفعش تمسح "${c.name}" لأن فيه ${count} منتج مربوط بيه`);
+    if (!(await confirmAlert({ title: `تمسح تصنيف "${c.name}"؟`, description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
+    const { error } = await supabase.from("categories").delete().eq("id", c.id);
+    if (error) return toast.error(error.message.replace(/^.*?:\s*/, ""));
     toast.success("تم الحذف");
     load();
   };
 
-  const tree = cats.filter((c) => !c.parent_id);
+  /** Move a category up/down among its siblings (products stay linked — only display order changes). */
+  const move = async (c: any, dir: -1 | 1) => {
+    const siblings = cats
+      .filter((x) => (x.parent_id ?? null) === (c.parent_id ?? null))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+    const i = siblings.findIndex((x) => x.id === c.id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= siblings.length) return;
+    const other = siblings[j];
+    const a = siblings[i].sort_order ?? i;
+    const b = other.sort_order ?? j;
+    const [r1, r2] = await Promise.all([
+      supabase.from("categories").update({ sort_order: b === a ? j : b } as any).eq("id", c.id),
+      supabase.from("categories").update({ sort_order: b === a ? i : a } as any).eq("id", other.id),
+    ]);
+    if (r1.error || r2.error) return toast.error(r1.error?.message || r2.error?.message || "تعذر الترتيب");
+    load();
+  };
+
+  const sortSibs = (list: any[]) =>
+    [...list].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+
+  const tree = sortSibs(cats.filter((c) => !c.parent_id));
 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
@@ -94,9 +120,19 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
         actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة تصنيف</Button>}
       />
 
+      <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 mb-4 text-sm leading-relaxed">
+        <div className="font-semibold mb-1">إزاي تبني الشجرة؟</div>
+        <p className="text-muted-foreground">
+          الشجرة مستويين بس: <b>تصنيف رئيسي</b> وتحته <b>تصنيفات فرعية</b>. اضغط «إضافة تصنيف» وسيب خانة
+          «تصنيف رئيسي» على «— تصنيف رئيسي —» علشان تعمل الرئيسي (مثال: <b>تكييفات</b>)، وبعدين ضيف تاني
+          واختار «تكييفات» كأب علشان تعمل الفرعي (<b>سبليت</b> / <b>شباك</b>). التصنيفات دي مشتركة بين كل الفروع —
+          بتتعرّف مرة واحدة للشركة كلها.
+        </p>
+      </div>
+
       <div className="card-elevated p-5 space-y-2">
         {tree.length === 0 && <div className="text-muted-foreground text-center py-8">لا توجد تصنيفات بعد</div>}
-        {tree.map((c) => (
+        {tree.map((c, ci) => (
           <div key={c.id}>
             <div className="flex items-center justify-between p-2 rounded hover:bg-surface-2 group cursor-pointer" onClick={() => openView(c)}>
               <div className="flex items-center gap-2">
@@ -104,25 +140,37 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
                 <span className="font-semibold">{c.name}</span>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="ghost" disabled={ci === 0} onClick={() => move(c, -1)} aria-label="تحريك لأعلى">
+                  <ChevronUp className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" disabled={ci === tree.length - 1} onClick={() => move(c, 1)} aria-label="تحريك لأسفل">
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                   <Pencil className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => remove(c.id)}>
+                <Button size="sm" variant="ghost" onClick={() => remove(c)}>
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
             </div>
-            {cats.filter((x) => x.parent_id === c.id).map((child) => (
+            {sortSibs(cats.filter((x) => x.parent_id === c.id)).map((child, xi, arr) => (
               <div key={child.id} className="flex items-center justify-between p-2 mr-8 rounded hover:bg-surface-2 group cursor-pointer" onClick={() => openView(child)}>
                 <div className="flex items-center gap-2">
                   <Folder className="w-4 h-4 text-muted-foreground" />
                   <span>{child.name}</span>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" disabled={xi === 0} onClick={() => move(child, -1)} aria-label="تحريك لأعلى">
+                    <ChevronUp className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={xi === arr.length - 1} onClick={() => move(child, 1)} aria-label="تحريك لأسفل">
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => openEdit(child)}>
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(child.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => remove(child)}>
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
@@ -131,6 +179,7 @@ export default function Categories({ embedded }: { embedded?: boolean } = {}) {
           </div>
         ))}
       </div>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
