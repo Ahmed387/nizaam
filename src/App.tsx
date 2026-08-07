@@ -99,8 +99,7 @@ import AdminReports from "./pages/admin/Reports";
 import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
 import SeedData from "./pages/admin/SeedData";
-import DataMigration from "./pages/admin/DataMigration";
-import CoreDataImport from "./pages/admin/CoreDataImport";
+import DataSetupWizard from "./pages/admin/DataSetupWizard";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
 import Presence from "./pages/admin/Presence";
@@ -223,8 +222,10 @@ const App = () => (
             <Route path="/admin/approval-requests" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=approvals" replace /></ProtectedRoute>} />
             <Route path="/admin/approvals-hub" element={<ProtectedRoute perm="admin_approvals.view" adminOnly><AdminApprovalsHub /></ProtectedRoute>} />
             <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
-            <Route path="/admin/data-migration" element={<ProtectedRoute ownerOnly perm="admin_data_migration.view"><DataMigration /></ProtectedRoute>} />
-            <Route path="/admin/core-data-import" element={<ProtectedRoute adminOnly><CoreDataImport /></ProtectedRoute>} />
+            <Route path="/admin/data-setup" element={<ProtectedRoute adminOnly perm="admin_data_migration.view"><DataSetupWizard /></ProtectedRoute>} />
+            <Route path="/admin/data-migration" element={<Navigate to="/admin/data-setup" replace />} />
+            <Route path="/admin/core-data-import" element={<Navigate to="/admin/data-setup" replace />} />
+            <Route path="/admin/core-import" element={<Navigate to="/admin/data-setup" replace />} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
             <Route path="/admin/presence" element={<ProtectedRoute perm="admin_presence.view" roles={["admin", "supervisor", "viewer"]}><Presence /></ProtectedRoute>} />
             <Route path="/admin/attachments" element={<ProtectedRoute adminOnly><AttachmentsHub scope="admin" /></ProtectedRoute>} />

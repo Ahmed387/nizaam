@@ -39,7 +39,8 @@ type Ref = {
   products: { id: string; sku: string; name: string; branch_id: string }[];
 };
 
-export default function CoreDataImport() {
+export default function CoreDataImport({ embedded = false }: { embedded?: boolean }) {
+  const Wrap = embedded ? (({ children }: any) => <div>{children}</div>) : AdminLayout;
   const { tenantId, isOwner, isAdmin, user } = useAuth() as any;
   const allowed = Boolean(isOwner || isAdmin);
   const [openingDate, setOpeningDate] = useState(`${new Date().getFullYear()}-01-01`);
@@ -113,15 +114,15 @@ export default function CoreDataImport() {
 
   if (!allowed) {
     return (
-      <AdminLayout>
-        <PageHeader title="استيراد البيانات الأساسية" />
+      <Wrap>
+        {!embedded && <PageHeader title="استيراد البيانات الأساسية" />}
         <Card className="border-destructive/40">
           <CardContent className="p-8 text-center space-y-2">
             <ShieldAlert className="h-10 w-10 mx-auto text-destructive" />
             <p className="font-semibold">الشاشة دي للمالك أو المدير بس.</p>
           </CardContent>
         </Card>
-      </AdminLayout>
+      </Wrap>
     );
   }
 
@@ -208,11 +209,11 @@ export default function CoreDataImport() {
   ];
 
   return (
-    <AdminLayout>
-      <PageHeader
+    <Wrap>
+      {!embedded && <PageHeader
         title="استيراد البيانات الأساسية (ترحيل من نظام قديم)"
         subtitle="ارفع بيانات نظامك القديم بالترتيب الصح — كل شاشة بتفحص الملف الأول وترفض الصف الغلط وتقوللك السبب."
-      />
+      />}
 
       <Card className="mb-4 border-primary/40 bg-primary/5">
         <CardHeader className="pb-2">
@@ -626,6 +627,6 @@ export default function CoreDataImport() {
           />
         </TabsContent>
       </Tabs>
-    </AdminLayout>
+    </Wrap>
   );
 }
