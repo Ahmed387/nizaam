@@ -37,7 +37,7 @@ export default function MainTreasury() {
   const load = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    // Only real operational branches — exclude the system partner-cash branch
+    // كل الخزائن الحقيقية: الفروع + خزينة الشركاء (النظامية)
     const { data: brs } = await supabase
       .from("branches")
       .select("id,name,code")
