@@ -15,6 +15,7 @@ import {
   ADMIN_NAV_PERMISSION_GROUPS,
   ROLE_LABELS,
   DEFAULT_ROLE_PERMISSIONS,
+  PERM_HELP,
 } from "@/lib/roles";
 
 const SECTIONS = [
@@ -156,7 +157,12 @@ export function RolePermissionsTab() {
                         </tr>
                         {section.groups.map((g) => (
                           <tr key={g.key} className="border-t">
-                            <td className="p-2 font-medium">{g.label}</td>
+                            <td className="p-2 font-medium max-w-[420px]">
+                              <div>{g.label}</div>
+                              {PERM_HELP[g.key] && (
+                                <div className="text-[11px] font-normal leading-relaxed text-muted-foreground">{PERM_HELP[g.key]}</div>
+                              )}
+                            </td>
                             {(["view", "create", "update", "delete"] as const).map((a) => {
                               const key = `${g.key}.${a}`;
                               const supported = g.actions.includes(a);
