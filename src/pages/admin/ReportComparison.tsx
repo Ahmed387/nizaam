@@ -63,10 +63,10 @@ async function loadStats(p: Period, branchId: string): Promise<Stats> {
   for (const i of (inv.data ?? []) as any[]) {
     if (i.status !== "active") continue;
     s.invoiceCount++;
-    s.sales += Number(i.total);
-    for (const it of i.invoice_items ?? []) {
-      s.cost += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity);
-    }
+    // مصدر موحّد: profitEngine
+    const ip = invoiceProfit(i);
+    s.sales += ip.revenue;
+    s.cost += ip.cost;
   }
   s.profit = s.sales - s.cost;
   s.expenses = (exp.data ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
