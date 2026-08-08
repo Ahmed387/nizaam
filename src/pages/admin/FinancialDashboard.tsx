@@ -59,6 +59,7 @@ export default function FinancialDashboard() {
       supabase
         .from("invoices")
         .select("created_at, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+        .eq("status", "active")
         .gte("created_at", daysAgo(180)),
     ]);
 
