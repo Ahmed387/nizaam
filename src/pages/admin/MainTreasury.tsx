@@ -105,11 +105,18 @@ export default function MainTreasury() {
       <PageHeader
         title="ملخص الخزائن (Treasury Overview)"
         subtitle="نظرة عامة على أرصدة وحركات كل الخزائن — للعرض فقط"
+        actions={
+          <Button asChild className="btn-gradient">
+            <Link to="/admin/accounting/branch-capital">
+              <Building2 className="w-4 h-4 ml-1" /> تحويل فلوس من خزنة الشركاء للفروع
+            </Link>
+          </Button>
+        }
       />
 
       <div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">
         الصفحة دي <b>للعرض بس</b>، وبتجمّعلك أرصدة كل الخزائن الحقيقية (الفروع + خزينة الشركاء) في مكان واحد.
-        <b> لتحويل فلوس فعلي</b>، روح لخزينة الشركاء أو خزنة الفرع نفسه.
+        <b> لتحويل فلوس فعلي</b>، استخدم زرار <b>«تحويل فلوس من خزنة الشركاء للفروع»</b> فوق، أو روح لخزنة الفرع نفسه.
       </div>
 
 
