@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
+import { invoiceProfit } from "@/lib/profitEngine";
 import {
   Wallet, HandCoins, TrendingDown, TrendingUp, AlertTriangle, Calendar,
   ArrowDownCircle, ArrowUpCircle, BarChart3,
@@ -57,7 +58,7 @@ export default function FinancialDashboard() {
         .limit(20),
       supabase
         .from("invoices")
-        .select("created_at, total, invoice_items(quantity, unit_cost_at_sale, cost_price)")
+        .select("created_at, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
         .eq("status", "active")
         .gte("created_at", daysAgo(180)),
     ]);
@@ -99,14 +100,10 @@ export default function FinancialDashboard() {
     for (const i of (inv90.data ?? []) as any[]) {
       const k = i.created_at.slice(0, 7);
       if (!months[k]) months[k] = { month: k, sales: 0, profit: 0 };
-      const sales = Number(i.total);
-      let cost = 0;
-      for (const it of i.invoice_items ?? []) {
-        const c = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
-        cost += c * Number(it.quantity);
-      }
-      months[k].sales += sales;
-      months[k].profit += sales - cost;
+      // مصدر موحّد: profitEngine (صافي المرتجعات + خصم الفاتورة + بدون ضريبة)
+      const ip = invoiceProfit(i);
+      months[k].sales += ip.revenue;
+      months[k].profit += ip.profit;
     }
     setMonthlyTrend(Object.values(months).sort((a, b) => a.month.localeCompare(b.month)));
 

@@ -9,6 +9,7 @@ import { StatCard } from "@/components/StatCard";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { invoiceProfit } from "@/lib/profitEngine";
 import { TrendingUp, TrendingDown, ShoppingCart, Wallet, ArrowRight } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -39,7 +40,7 @@ async function loadStats(p: Period, branchId: string): Promise<Stats> {
 
   let invQ = supabase
     .from("invoices")
-    .select("total, status, branch_id, invoice_items(quantity, unit_cost_at_sale, cost_price)")
+    .select("total, status, branch_id, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
     .gte("created_at", fromIso).lte("created_at", toIso);
   let expQ = supabase
     .from("vouchers").select("amount, branch_id, voucher_categories!inner(is_deductible_from_profit)")
@@ -62,10 +63,10 @@ async function loadStats(p: Period, branchId: string): Promise<Stats> {
   for (const i of (inv.data ?? []) as any[]) {
     if (i.status !== "active") continue;
     s.invoiceCount++;
-    s.sales += Number(i.total);
-    for (const it of i.invoice_items ?? []) {
-      s.cost += Number(it.unit_cost_at_sale ?? it.cost_price ?? 0) * Number(it.quantity);
-    }
+    // مصدر موحّد: profitEngine
+    const ip = invoiceProfit(i);
+    s.sales += ip.revenue;
+    s.cost += ip.cost;
   }
   s.profit = s.sales - s.cost;
   s.expenses = (exp.data ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
