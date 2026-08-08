@@ -290,7 +290,7 @@ export default function BranchCapital() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-              <Button className="btn-gradient" onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
+              <Button className="btn-gradient" onClick={submit} disabled={saving || (partnerCash !== null && Number(form.amount) > partnerCash)}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
