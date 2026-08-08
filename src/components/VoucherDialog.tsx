@@ -387,7 +387,19 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Receipt className="w-4 h-4 text-primary" /> طريقة الدفع
             </h3>
+            {type === "payment" && !isEdit && (
+              <div className="rounded-lg border-r-4 border-primary bg-primary/5 p-3 text-sm leading-7">
+                بتصرف من <b>خزنة {branchName}</b> — وعاء <b>{PAYMENT_METHOD_LABELS[pm.method]}</b> المتاح فيه:{" "}
+                <b className="tabular-nums">{availableForMethod === null ? "..." : formatEGP(availableForMethod)}</b>
+                {availableForMethod !== null && Number(form.amount) + Number(pm.fee_amount || 0) > availableForMethod && (
+                  <div className="text-xs text-destructive font-semibold mt-1">
+                    المبلغ أكبر من المتاح في الوعاء ده — قلّل المبلغ أو غيّر طريقة الدفع.
+                  </div>
+                )}
+              </div>
+            )}
             <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom />
+
           </section>
 
           {/* 3. Party */}
