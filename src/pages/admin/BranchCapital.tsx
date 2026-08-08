@@ -91,6 +91,14 @@ export default function BranchCapital() {
     if (!form.branch_id) return toast.error("اختر الفرع");
     const amt = Number(form.amount);
     if (!amt) return toast.error("أدخل المبلغ");
+    if (amt < 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
+    if (partnerCash !== null && amt > partnerCash) {
+      return toast.error(`المبلغ أكبر من اللي موجود في خزينة الشركاء`, {
+        description: `المتاح دلوقتي ${fmt(partnerCash)} ج بس. اكتب مبلغ أقل أو ساوي المتاح.`,
+        duration: 7000,
+      });
+    }
+    const targetName = branches.find((b) => b.id === form.branch_id)?.name ?? "الفرع";
     setSaving(true);
     const { error } = await supabase.rpc("allocate_capital_to_branch" as any, {
       _branch_id: form.branch_id,
@@ -100,11 +108,15 @@ export default function BranchCapital() {
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("تم تسجيل التخصيص");
+    toast.success(`اتحوّل ${fmt(amt)} ج من خزينة الشركاء لفرع ${targetName}`, {
+      description: "المبلغ اتخصم من خزينة الشركاء واتسجّل في خزنة الفرع، وهيظهر في المركز المالي للفرع على طول.",
+      duration: 8000,
+    });
     setOpen(false);
     setForm({ branch_id: "", amount: "", allocation_date: new Date().toISOString().slice(0, 10), notes: "" });
     load();
   };
+
 
   const totalAllocated = Object.values(positions).reduce((s, p) => s + Number(p?.allocated_capital || 0), 0);
   const totalNetProfit = Object.values(positions).reduce((s, p) => s + Number(p?.net_profit || 0), 0);
