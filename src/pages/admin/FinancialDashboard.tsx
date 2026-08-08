@@ -100,14 +100,10 @@ export default function FinancialDashboard() {
     for (const i of (inv90.data ?? []) as any[]) {
       const k = i.created_at.slice(0, 7);
       if (!months[k]) months[k] = { month: k, sales: 0, profit: 0 };
-      const sales = Number(i.total);
-      let cost = 0;
-      for (const it of i.invoice_items ?? []) {
-        const c = Number(it.unit_cost_at_sale ?? it.cost_price ?? 0);
-        cost += c * Number(it.quantity);
-      }
-      months[k].sales += sales;
-      months[k].profit += sales - cost;
+      // مصدر موحّد: profitEngine (صافي المرتجعات + خصم الفاتورة + بدون ضريبة)
+      const ip = invoiceProfit(i);
+      months[k].sales += ip.revenue;
+      months[k].profit += ip.profit;
     }
     setMonthlyTrend(Object.values(months).sort((a, b) => a.month.localeCompare(b.month)));
 
