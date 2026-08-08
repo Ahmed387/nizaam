@@ -9,6 +9,7 @@ import { StatCard } from "@/components/StatCard";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { invoiceProfit } from "@/lib/profitEngine";
 import { TrendingUp, TrendingDown, ShoppingCart, Wallet, ArrowRight } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
