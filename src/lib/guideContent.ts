@@ -105,7 +105,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "لوحة المالك",
         desc: "شاشة مختصرة جدًا للمالك: كاش داخل وخارج، صافي الربح، وأهم الانحرافات في الفترة.",
-        to: a("/admin/cockpit"),
+        to: a("/admin/reports-hub?tab=owner"),
         perm: "admin_cockpit.view",
       },
     ],
