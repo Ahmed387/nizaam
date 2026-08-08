@@ -252,6 +252,14 @@ export default function BranchCapital() {
           <DialogContent dir="rtl">
             <DialogHeader><DialogTitle>تخصيص رأس مال لفرع</DialogTitle></DialogHeader>
             <div className="space-y-3">
+              <div className="rounded-lg border-r-4 border-primary bg-primary/5 p-3 text-sm leading-7">
+                بتحوّل من <b>خزينة الشركاء</b> (الرصيد المتاح:{" "}
+                <b className="tabular-nums">{partnerCash === null ? "..." : fmt(partnerCash)}</b> ج) لفرع{" "}
+                <b>{branches.find((b) => b.id === form.branch_id)?.name ?? "— اختر الفرع —"}</b>.
+                <div className="text-xs text-muted-foreground mt-1">
+                  الفلوس بتتخصم من خزينة الشركاء وتتحط في خزنة الفرع اللي هتختاره.
+                </div>
+              </div>
               <div>
                 <Label>الفرع *</Label>
                 <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
@@ -262,9 +270,15 @@ export default function BranchCapital() {
                 </Select>
               </div>
               <div>
-                <Label>المبلغ (ج.م) * — استخدم سالب للسحب من التخصيص</Label>
-                <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1.5" dir="ltr" />
+                <Label>المبلغ (ج.م) *</Label>
+                <Input type="number" step="0.01" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1.5" dir="ltr" />
+                {partnerCash !== null && Number(form.amount) > partnerCash && (
+                  <div className="mt-1.5 text-xs text-destructive font-semibold">
+                    المبلغ أكبر من رصيد خزينة الشركاء — المتاح {fmt(partnerCash)} ج بس.
+                  </div>
+                )}
               </div>
+
               <div>
                 <Label>التاريخ</Label>
                 <Input type="date" value={form.allocation_date} onChange={(e) => setForm({ ...form, allocation_date: e.target.value })} className="mt-1.5" />
