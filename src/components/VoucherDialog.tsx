@@ -47,11 +47,12 @@ const FIELD_LABELS_AR: Record<string, string> = {
 interface PartyOption { id: string; name: string; }
 
 export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher }: Props) {
-  const { user } = useAuth();
+  const { user, branches } = useAuth();
   const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
   const [editReason, setEditReason] = useState("");
+  const [wallets, setWallets] = useState<Record<string, number> | null>(null);
   const [form, setForm] = useState({
     category_id: "",
     amount: "",
@@ -67,6 +68,21 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   const [partyBalance, setPartyBalance] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const branchName = branches.find((b) => b.id === branchId)?.name ?? "الفرع";
+
+  // رصيد خزنة الفرع (المصدر) — مهم في سند الصرف عشان اليوزر يعرف بيصرف من فين وقد إيه المتاح
+  useEffect(() => {
+    if (!open || type !== "payment" || !branchId) { setWallets(null); return; }
+    (async () => {
+      const { data } = await supabase.rpc("get_branch_wallet_balances" as any, { p_branch_id: branchId });
+      const row = Array.isArray(data) ? (data as any[])[0] : (data as any);
+      setWallets(row ?? null);
+    })();
+  }, [open, type, branchId]);
+
+  const availableForMethod = wallets ? Number((wallets as any)[`${pm.method}_balance`] ?? 0) : null;
+
 
   useEffect(() => {
     if (!open) return;
