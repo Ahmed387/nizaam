@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
+import { invoiceProfit } from "@/lib/profitEngine";
 import {
   Wallet, HandCoins, TrendingDown, TrendingUp, AlertTriangle, Calendar,
   ArrowDownCircle, ArrowUpCircle, BarChart3,
