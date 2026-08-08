@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
-import { validateTransferPayment } from "@/lib/paymentMethods";
+import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,11 +47,12 @@ const FIELD_LABELS_AR: Record<string, string> = {
 interface PartyOption { id: string; name: string; }
 
 export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher }: Props) {
-  const { user } = useAuth();
+  const { user, branches } = useAuth();
   const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
   const [editReason, setEditReason] = useState("");
+  const [wallets, setWallets] = useState<Record<string, number> | null>(null);
   const [form, setForm] = useState({
     category_id: "",
     amount: "",
@@ -67,6 +68,21 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   const [partyBalance, setPartyBalance] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const branchName = branches.find((b) => b.id === branchId)?.name ?? "الفرع";
+
+  // رصيد خزنة الفرع (المصدر) — مهم في سند الصرف عشان اليوزر يعرف بيصرف من فين وقد إيه المتاح
+  useEffect(() => {
+    if (!open || type !== "payment" || !branchId) { setWallets(null); return; }
+    (async () => {
+      const { data } = await supabase.rpc("get_branch_wallet_balances" as any, { p_branch_id: branchId });
+      const row = Array.isArray(data) ? (data as any[])[0] : (data as any);
+      setWallets(row ?? null);
+    })();
+  }, [open, type, branchId]);
+
+  const availableForMethod = wallets ? Number((wallets as any)[`${pm.method}_balance`] ?? 0) : null;
+
 
   useEffect(() => {
     if (!open) return;
@@ -182,6 +198,13 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     if (!form.category_id) return toast.error("اختر التصنيف");
     if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
     const vErr = validateTransferPayment(pm);
+    if (!isEdit && type === "payment" && availableForMethod !== null && amt + Number(pm.fee_amount || 0) > availableForMethod) {
+      return toast.error("الفلوس اللي في الخزنة مش مكفية", {
+        description: `بتصرف من خزنة ${branchName} — وعاء ${PAYMENT_METHOD_LABELS[pm.method]} فيه ${formatEGP(availableForMethod)} بس، وإنت طالب ${formatEGP(amt + Number(pm.fee_amount || 0))} (بالعمولة).`,
+        duration: 8000,
+      });
+    }
+
     if (vErr) return toast.error(vErr);
     if (isEdit && !editReason.trim()) return toast.error("سبب التعديل مطلوب");
     setBusy(true);
@@ -364,7 +387,19 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Receipt className="w-4 h-4 text-primary" /> طريقة الدفع
             </h3>
+            {type === "payment" && !isEdit && (
+              <div className="rounded-lg border-r-4 border-primary bg-primary/5 p-3 text-sm leading-7">
+                بتصرف من <b>خزنة {branchName}</b> — وعاء <b>{PAYMENT_METHOD_LABELS[pm.method]}</b> المتاح فيه:{" "}
+                <b className="tabular-nums">{availableForMethod === null ? "..." : formatEGP(availableForMethod)}</b>
+                {availableForMethod !== null && Number(form.amount) + Number(pm.fee_amount || 0) > availableForMethod && (
+                  <div className="text-xs text-destructive font-semibold mt-1">
+                    المبلغ أكبر من المتاح في الوعاء ده — قلّل المبلغ أو غيّر طريقة الدفع.
+                  </div>
+                )}
+              </div>
+            )}
             <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom />
+
           </section>
 
           {/* 3. Party */}

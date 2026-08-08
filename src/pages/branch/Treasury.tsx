@@ -382,12 +382,21 @@ export default function Treasury() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>تحويل لفرع آخر</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <div className="rounded-lg border-r-4 border-primary bg-primary/5 p-3 text-sm leading-7">
+              بتحوّل من <b>خزنة {branches.find((b) => b.id === branchId)?.name ?? "الفرع الحالي"}</b> (وعاء{" "}
+              <b>{PAYMENT_METHOD_LABELS[tPayment.method]}</b>
+              {canSeeBalances && <> — المتاح: <b className="tabular-nums">{formatEGP(walletBalances[`${tPayment.method}_balance` as keyof WalletBalances])}</b></>})
+              {" "}لفرع <b>{branches.find((b) => b.id === tForm.to)?.name ?? "— اختر الفرع —"}</b>.
+              <div className="text-xs text-muted-foreground mt-1">
+                الفلوس بتتخصم من خزنتك على طول، ومش بتدخل خزنة الفرع التاني غير لما يأكّد الاستلام.
+              </div>
+            </div>
             {canSeeBalances && (
               <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-0.5">
-                <div>وعاء {PAYMENT_METHOD_LABELS[tPayment.method]}: <span className="font-bold">{formatEGP(walletBalances[`${tPayment.method}_balance` as keyof WalletBalances])}</span></div>
-                <div>الإجمالي الكلي: <span className="font-bold">{formatEGP(walletBalances.total_balance)}</span></div>
+                <div>الإجمالي الكلي في خزنتك: <span className="font-bold">{formatEGP(walletBalances.total_balance)}</span></div>
               </div>
             )}
+
             <div>
               <Label>الفرع المستهدف *</Label>
               <select className="w-full bg-input border border-border rounded-lg p-2 mt-1.5" value={tForm.to} onChange={(e) => setTForm({...tForm, to: e.target.value})}>

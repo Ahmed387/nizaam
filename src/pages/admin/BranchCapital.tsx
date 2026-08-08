@@ -46,6 +46,20 @@ export default function BranchCapital() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ branch_id: "", amount: "", allocation_date: new Date().toISOString().slice(0, 10), notes: "" });
   const [saving, setSaving] = useState(false);
+  const [partnerCash, setPartnerCash] = useState<number | null>(null);
+
+  // رصيد خزينة الشركاء المتاح فعليًا للتحويل (نقدي) — نفس الحساب المستخدم في التحقق بالسيرفر
+  const loadPartnerCash = async () => {
+    if (!tenantId) return;
+    const { data: pb } = await (supabase.from("branches") as any)
+      .select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle();
+    if (!pb?.id) { setPartnerCash(0); return; }
+    const { data: tx } = await (supabase.from("treasury") as any)
+      .select("type,amount").eq("branch_id", pb.id).eq("payment_method", "cash").limit(20000);
+    const bal = ((tx ?? []) as any[]).reduce(
+      (s, r) => s + (r.type === "income" ? Number(r.amount || 0) : -Number(r.amount || 0)), 0);
+    setPartnerCash(bal);
+  };
 
   const load = async () => {
     if (!tenantId) return;
@@ -57,6 +71,7 @@ export default function BranchCapital() {
     const brs = (br ?? []) as Branch[];
     setBranches(filterBranches((brs) as any) as any);
     setAllocations((al ?? []) as any);
+    loadPartnerCash();
 
     // load positions in parallel
     const results = await Promise.all(
@@ -71,10 +86,19 @@ export default function BranchCapital() {
 
   useEffect(() => { load(); }, [tenantId]);
 
+
   const submit = async () => {
     if (!form.branch_id) return toast.error("اختر الفرع");
     const amt = Number(form.amount);
     if (!amt) return toast.error("أدخل المبلغ");
+    if (amt < 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
+    if (partnerCash !== null && amt > partnerCash) {
+      return toast.error(`المبلغ أكبر من اللي موجود في خزينة الشركاء`, {
+        description: `المتاح دلوقتي ${fmt(partnerCash)} ج بس. اكتب مبلغ أقل أو ساوي المتاح.`,
+        duration: 7000,
+      });
+    }
+    const targetName = branches.find((b) => b.id === form.branch_id)?.name ?? "الفرع";
     setSaving(true);
     const { error } = await supabase.rpc("allocate_capital_to_branch" as any, {
       _branch_id: form.branch_id,
@@ -84,11 +108,15 @@ export default function BranchCapital() {
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("تم تسجيل التخصيص");
+    toast.success(`اتحوّل ${fmt(amt)} ج من خزينة الشركاء لفرع ${targetName}`, {
+      description: "المبلغ اتخصم من خزينة الشركاء واتسجّل في خزنة الفرع، وهيظهر في المركز المالي للفرع على طول.",
+      duration: 8000,
+    });
     setOpen(false);
     setForm({ branch_id: "", amount: "", allocation_date: new Date().toISOString().slice(0, 10), notes: "" });
     load();
   };
+
 
   const totalAllocated = Object.values(positions).reduce((s, p) => s + Number(p?.allocated_capital || 0), 0);
   const totalNetProfit = Object.values(positions).reduce((s, p) => s + Number(p?.net_profit || 0), 0);
@@ -224,6 +252,14 @@ export default function BranchCapital() {
           <DialogContent dir="rtl">
             <DialogHeader><DialogTitle>تخصيص رأس مال لفرع</DialogTitle></DialogHeader>
             <div className="space-y-3">
+              <div className="rounded-lg border-r-4 border-primary bg-primary/5 p-3 text-sm leading-7">
+                بتحوّل من <b>خزينة الشركاء</b> (الرصيد المتاح:{" "}
+                <b className="tabular-nums">{partnerCash === null ? "..." : fmt(partnerCash)}</b> ج) لفرع{" "}
+                <b>{branches.find((b) => b.id === form.branch_id)?.name ?? "— اختر الفرع —"}</b>.
+                <div className="text-xs text-muted-foreground mt-1">
+                  الفلوس بتتخصم من خزينة الشركاء وتتحط في خزنة الفرع اللي هتختاره.
+                </div>
+              </div>
               <div>
                 <Label>الفرع *</Label>
                 <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
@@ -234,9 +270,15 @@ export default function BranchCapital() {
                 </Select>
               </div>
               <div>
-                <Label>المبلغ (ج.م) * — استخدم سالب للسحب من التخصيص</Label>
-                <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1.5" dir="ltr" />
+                <Label>المبلغ (ج.م) *</Label>
+                <Input type="number" step="0.01" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1.5" dir="ltr" />
+                {partnerCash !== null && Number(form.amount) > partnerCash && (
+                  <div className="mt-1.5 text-xs text-destructive font-semibold">
+                    المبلغ أكبر من رصيد خزينة الشركاء — المتاح {fmt(partnerCash)} ج بس.
+                  </div>
+                )}
               </div>
+
               <div>
                 <Label>التاريخ</Label>
                 <Input type="date" value={form.allocation_date} onChange={(e) => setForm({ ...form, allocation_date: e.target.value })} className="mt-1.5" />
@@ -248,7 +290,7 @@ export default function BranchCapital() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-              <Button className="btn-gradient" onClick={submit} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
+              <Button className="btn-gradient" onClick={submit} disabled={saving || (partnerCash !== null && Number(form.amount) > partnerCash)}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
