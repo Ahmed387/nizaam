@@ -198,6 +198,13 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     if (!form.category_id) return toast.error("اختر التصنيف");
     if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
     const vErr = validateTransferPayment(pm);
+    if (!isEdit && type === "payment" && availableForMethod !== null && amt + Number(pm.fee_amount || 0) > availableForMethod) {
+      return toast.error("الفلوس اللي في الخزنة مش مكفية", {
+        description: `بتصرف من خزنة ${branchName} — وعاء ${PAYMENT_METHOD_LABELS[pm.method]} فيه ${formatEGP(availableForMethod)} بس، وإنت طالب ${formatEGP(amt + Number(pm.fee_amount || 0))} (بالعمولة).`,
+        duration: 8000,
+      });
+    }
+
     if (vErr) return toast.error(vErr);
     if (isEdit && !editReason.trim()) return toast.error("سبب التعديل مطلوب");
     setBusy(true);
