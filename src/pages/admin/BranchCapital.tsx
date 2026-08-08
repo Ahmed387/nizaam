@@ -46,6 +46,20 @@ export default function BranchCapital() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ branch_id: "", amount: "", allocation_date: new Date().toISOString().slice(0, 10), notes: "" });
   const [saving, setSaving] = useState(false);
+  const [partnerCash, setPartnerCash] = useState<number | null>(null);
+
+  // رصيد خزينة الشركاء المتاح فعليًا للتحويل (نقدي) — نفس الحساب المستخدم في التحقق بالسيرفر
+  const loadPartnerCash = async () => {
+    if (!tenantId) return;
+    const { data: pb } = await (supabase.from("branches") as any)
+      .select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle();
+    if (!pb?.id) { setPartnerCash(0); return; }
+    const { data: tx } = await (supabase.from("treasury") as any)
+      .select("type,amount").eq("branch_id", pb.id).eq("payment_method", "cash").limit(20000);
+    const bal = ((tx ?? []) as any[]).reduce(
+      (s, r) => s + (r.type === "income" ? Number(r.amount || 0) : -Number(r.amount || 0)), 0);
+    setPartnerCash(bal);
+  };
 
   const load = async () => {
     if (!tenantId) return;
@@ -57,6 +71,7 @@ export default function BranchCapital() {
     const brs = (br ?? []) as Branch[];
     setBranches(filterBranches((brs) as any) as any);
     setAllocations((al ?? []) as any);
+    loadPartnerCash();
 
     // load positions in parallel
     const results = await Promise.all(
@@ -70,6 +85,7 @@ export default function BranchCapital() {
   };
 
   useEffect(() => { load(); }, [tenantId]);
+
 
   const submit = async () => {
     if (!form.branch_id) return toast.error("اختر الفرع");
