@@ -417,6 +417,10 @@ export default function PersonalExpenses() {
   );
 
   const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
+  const grandTotalAllLabel = useMemo(
+    () => rows.reduce((s, r) => s + Number(r.amount), 0).toLocaleString("ar-EG", { maximumFractionDigits: 0 }) + " ج.م",
+    [rows]
+  );
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
   /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
@@ -1065,6 +1069,94 @@ export default function PersonalExpenses() {
         )}
       </Card>
 
+      {/* تحليل سريع — رسومات أساسية بتجاوب على الأسئلة المهمة (بتتبع الشهر المختار) */}
+      {(rows.length > 0 || deposits.length > 0) && (
+        <div className="mb-6 space-y-4 animate-fade-in">
+          <div className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            تحليل سريع {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
+          </div>
+
+          {/* ١) استهلاك الميزانية — صرفت قد إيه من اللي أودعته؟ */}
+          {balDeposited > 0 && (() => {
+            const pct = Math.min(100, (balSpent / balDeposited) * 100);
+            const over = balRemaining < 0;
+            return (
+              <Card className="p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                  <div className="text-sm font-bold">قد إيه صرفت من ميزانيتك؟</div>
+                  <div className={`text-xs font-extrabold ${over ? "text-red-600 dark:text-red-300" : pct >= 80 ? "text-amber-600 dark:text-amber-300" : "text-emerald-600 dark:text-emerald-300"}`}>
+                    {over ? `اتجاوزت الميزانية بـ ${EGP(Math.abs(balRemaining))}` : `استهلكت ${pct.toFixed(0)}% — فاضل ${EGP(balRemaining)}`}
+                  </div>
+                </div>
+                <div className="h-4 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${over ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                    style={{ width: `${over ? 100 : Math.max(2, pct)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+                  <span>أودعت: {EGP(balDeposited)}</span>
+                  <span>صرفت: {EGP(balSpent)}</span>
+                </div>
+              </Card>
+            );
+          })()}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* ٢) فلوسك راحت فين؟ — حسب التصنيف */}
+            {categoryBreakdown.length > 0 && (
+              <Card className="p-4">
+                <div className="text-sm font-bold mb-3">فلوسك راحت فين؟ (حسب التصنيف)</div>
+                <ShareBreakdown items={categoryBreakdown} format={(v) => EGP(v)} />
+              </Card>
+            )}
+            {/* ٣) أكبر مصروفاتك */}
+            {topExpenses.length > 0 && (
+              <Card className="p-4">
+                <div className="text-sm font-bold mb-3">أكبر مصروفاتك</div>
+                <RankBars items={topExpenses} tone="destructive" format={(v) => EGP(v)} />
+              </Card>
+            )}
+          </div>
+
+          {/* ٤) بتوفر ولا بتسحب من مدخراتك؟ — إيداع مقابل صرف آخر ٦ شهور */}
+          {monthlyCompare.length > 1 && (() => {
+            const maxV = Math.max(...monthlyCompare.map(m => Math.max(m.dep, m.spent)), 1);
+            return (
+              <Card className="p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                  <div className="text-sm font-bold">بتوفر ولا بتسحب من مدخراتك؟ (آخر {monthlyCompare.length} شهور)</div>
+                  <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> أودعت</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> صرفت</span>
+                  </div>
+                </div>
+                <div className="flex items-end justify-around gap-2">
+                  {monthlyCompare.map(m => (
+                    <div key={m.key} className="flex-1 max-w-[90px] flex flex-col items-center gap-1.5">
+                      <div className="flex items-end justify-center gap-1.5 w-full" style={{ height: 130 }}>
+                        <div
+                          className="w-5 rounded-t-md bg-emerald-500/80 transition-all duration-500"
+                          style={{ height: `${m.dep > 0 ? Math.max(3, (m.dep / maxV) * 100) : 0}%` }}
+                          title={`أودعت: ${EGP(m.dep)}`}
+                        />
+                        <div
+                          className="w-5 rounded-t-md bg-rose-500/80 transition-all duration-500"
+                          style={{ height: `${m.spent > 0 ? Math.max(3, (m.spent / maxV) * 100) : 0}%` }}
+                          title={`صرفت: ${EGP(m.spent)}`}
+                        />
+                      </div>
+                      <div className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1130,7 +1222,7 @@ export default function PersonalExpenses() {
                       const rem = dep - m.total;
                       return (
                         <div className="mt-2 space-y-0.5 text-[11px] font-bold">
-                          <div className="opacity-80 flex items-center gap-1"><PiggyBank className="w-3 h-3" /> أودعت: {dep.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                          <div className="opacity-80 flex items-center gap-1"><ArrowDownToLine className="w-3 h-3" /> أودعت: {dep.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
                           <div className={rem < 0 ? "text-red-600 dark:text-red-300" : "opacity-90"}>الباقي: {rem.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
                         </div>
                       );
@@ -1266,6 +1358,7 @@ export default function PersonalExpenses() {
               <tr className="text-right">
                 <th className="p-3 font-bold">التاريخ والوقت</th>
                 <th className="p-3 font-bold">الوصف</th>
+                <th className="p-3 font-bold">التصنيف</th>
                 <th className="p-3 font-bold">المبلغ</th>
                 <th className="p-3 font-bold">ملاحظات</th>
                 {canEdit && <th className="p-3 font-bold text-center">إجراءات</th>}
@@ -1273,11 +1366,11 @@ export default function PersonalExpenses() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
               ) : visibleDeposits.length === 0 ? (
-                <tr><td colSpan={5} className="p-10 text-center">
+                <tr><td colSpan={6} className="p-10 text-center">
                   <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
-                    <PiggyBank className="w-10 h-10 opacity-40" />
+                    <ArrowDownToLine className="w-10 h-10 opacity-40" />
                     <div>لا توجد إيداعات مسجلة</div>
                     {canEdit && <Button size="sm" variant="outline" onClick={openAddDep}><Plus className="w-4 h-4 ml-1" />سجّل أول إيداع</Button>}
                   </div>
@@ -1286,6 +1379,11 @@ export default function PersonalExpenses() {
                 <tr key={d.id} className="border-t hover:bg-emerald-500/5 transition-colors">
                   <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(d.deposit_datetime)}</td>
                   <td className="p-3 font-semibold">{d.description || "إيداع"}</td>
+                  <td className="p-3">
+                    {d.category
+                      ? <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shadow-sm ${categoryColor(d.category)}`}><Tag className="w-3 h-3" />{d.category}</span>
+                      : <span className="text-muted-foreground text-xs">—</span>}
+                  </td>
                   <td className="p-3 font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{Number(d.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={d.notes || ""}>{d.notes || "—"}</td>
                   {canEdit && (
@@ -1323,6 +1421,21 @@ export default function PersonalExpenses() {
           </div>
 
           <div className="p-5 space-y-4 animate-fade-in">
+            {/* تنبيه الحقول الناقصة */}
+            {formErrors.length > 0 && (
+              <div className="rounded-xl border border-red-400/60 bg-gradient-to-l from-red-500/15 to-red-500/5 p-3.5 animate-fade-in shadow-sm">
+                <div className="flex items-center gap-2 font-extrabold text-red-700 dark:text-red-300 text-sm">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> ناقصك شوية حاجات قبل الحفظ:
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {formErrors.map(e => (
+                    <li key={e} className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" /> {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {/* Amount + Date */}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3 bg-rose-500/5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
@@ -1332,8 +1445,8 @@ export default function PersonalExpenses() {
                 <Input
                   type="number" step="0.01" inputMode="decimal"
                   value={form.amount}
-                  onChange={e => setForm({ ...form, amount: e.target.value })}
-                  className="mt-1.5 h-11 text-lg font-bold border-rose-300/50 focus-visible:ring-rose-400 bg-background"
+                  onChange={e => { setForm({ ...form, amount: e.target.value }); setFormErrors(p => p.filter(x => !x.startsWith("المبلغ"))); }}
+                  className={`mt-1.5 h-11 text-lg font-bold bg-background ${formErrors.some(x => x.startsWith("المبلغ")) ? "border-red-500 ring-1 ring-red-500" : "border-rose-300/50 focus-visible:ring-rose-400"}`}
                   placeholder="0.00"
                 />
               </div>
@@ -1357,23 +1470,23 @@ export default function PersonalExpenses() {
               </Label>
               <Input
                 value={form.description}
-                onChange={e => setForm({ ...form, description: e.target.value })}
+                onChange={e => { setForm({ ...form, description: e.target.value }); setFormErrors(p => p.filter(x => !x.startsWith("الوصف"))); }}
                 placeholder="مثال: عشاء عائلة"
-                className="mt-1.5 h-11 border-primary/30 focus-visible:ring-primary bg-background"
+                className={`mt-1.5 h-11 bg-background ${formErrors.some(x => x.startsWith("الوصف")) ? "border-red-500 ring-1 ring-red-500" : "border-primary/30 focus-visible:ring-primary"}`}
               />
             </div>
 
             {/* Category */}
             <div className="rounded-xl p-3 bg-violet-500/5 border border-violet-400/30 hover:border-violet-400/60 transition-colors">
               <Label className="text-xs font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5" /> التصنيف
+                <Tag className="w-3.5 h-3.5" /> التصنيف *
               </Label>
               <Input
                 list="ope-categories"
                 value={form.category}
-                onChange={e => setForm({ ...form, category: e.target.value })}
+                onChange={e => { setForm({ ...form, category: e.target.value }); setFormErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
                 placeholder="اكتب تصنيف جديد أو اختر من السابق"
-                className="mt-1.5 h-11 border-violet-300/50 focus-visible:ring-violet-400 bg-background"
+                className={`mt-1.5 h-11 bg-background ${formErrors.some(x => x.startsWith("التصنيف")) ? "border-red-500 ring-1 ring-red-500" : "border-violet-300/50 focus-visible:ring-violet-400"}`}
               />
               <datalist id="ope-categories">
                 {allCategories.map(c => <option key={c} value={c} />)}
@@ -1385,7 +1498,7 @@ export default function PersonalExpenses() {
                     return (
                       <button
                         key={c} type="button"
-                        onClick={() => setForm({ ...form, category: c })}
+                        onClick={() => { setForm({ ...form, category: c }); setFormErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
                         className={`text-xs px-2.5 py-1 rounded-full border font-bold transition-all hover-scale ${
                           active ? categoryColor(c) + " shadow" : "bg-background hover:bg-muted border-border text-foreground"
                         }`}
@@ -1451,7 +1564,7 @@ export default function PersonalExpenses() {
             <DialogHeader className="relative">
               <DialogTitle className="flex items-center gap-3 text-xl">
                 <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md ${editingDep ? "bg-gradient-to-br from-sky-500 to-sky-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
-                  {editingDep ? <Pencil className="w-5 h-5 text-white" /> : <PiggyBank className="w-5 h-5 text-white" />}
+                  {editingDep ? <Pencil className="w-5 h-5 text-white" /> : <ArrowDownToLine className="w-5 h-5 text-white" />}
                 </div>
                 <div>
                   <div>{editingDep ? "تعديل إيداع" : "إيداع جديد"}</div>
@@ -1462,16 +1575,31 @@ export default function PersonalExpenses() {
           </div>
 
           <div className="p-5 space-y-4 animate-fade-in">
+            {/* تنبيه الحقول الناقصة */}
+            {depErrors.length > 0 && (
+              <div className="rounded-xl border border-red-400/60 bg-gradient-to-l from-red-500/15 to-red-500/5 p-3.5 animate-fade-in shadow-sm">
+                <div className="flex items-center gap-2 font-extrabold text-red-700 dark:text-red-300 text-sm">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> ناقصك شوية حاجات قبل الحفظ:
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {depErrors.map(e => (
+                    <li key={e} className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" /> {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3 bg-emerald-500/5 border border-emerald-400/30 hover:border-emerald-400/60 transition-colors">
                 <Label className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
-                  <PiggyBank className="w-3.5 h-3.5" /> مبلغ الإيداع (ج.م) *
+                  <ArrowDownToLine className="w-3.5 h-3.5" /> مبلغ الإيداع (ج.م) *
                 </Label>
                 <Input
                   type="number" step="0.01" inputMode="decimal"
                   value={depForm.amount}
-                  onChange={e => setDepForm({ ...depForm, amount: e.target.value })}
-                  className="mt-1.5 h-11 text-lg font-bold border-emerald-300/50 focus-visible:ring-emerald-400 bg-background"
+                  onChange={e => { setDepForm({ ...depForm, amount: e.target.value }); setDepErrors(p => p.filter(x => !x.startsWith("مبلغ الإيداع"))); }}
+                  className={`mt-1.5 h-11 text-lg font-bold bg-background ${depErrors.some(x => x.startsWith("مبلغ الإيداع")) ? "border-red-500 ring-1 ring-red-500" : "border-emerald-300/50 focus-visible:ring-emerald-400"}`}
                   placeholder="0.00"
                 />
               </div>
@@ -1498,6 +1626,41 @@ export default function PersonalExpenses() {
                 placeholder="مثال: ميزانية شهر رمضان"
                 className="mt-1.5 h-11 border-primary/30 focus-visible:ring-primary bg-background"
               />
+            </div>
+
+            {/* تصنيف الإيداع — زي تصنيف المصروف بالظبط */}
+            <div className="rounded-xl p-3 bg-violet-500/5 border border-violet-400/30 hover:border-violet-400/60 transition-colors">
+              <Label className="text-xs font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5" /> التصنيف *
+              </Label>
+              <Input
+                list="opd-categories"
+                value={depForm.category}
+                onChange={e => { setDepForm({ ...depForm, category: e.target.value }); setDepErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
+                placeholder="مثال: ميزانية شهرية، راتب، أرباح..."
+                className={`mt-1.5 h-11 bg-background ${depErrors.some(x => x.startsWith("التصنيف")) ? "border-red-500 ring-1 ring-red-500" : "border-violet-300/50 focus-visible:ring-violet-400"}`}
+              />
+              <datalist id="opd-categories">
+                {allDepCategories.map(c => <option key={c} value={c} />)}
+              </datalist>
+              {allDepCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {allDepCategories.slice(0, 12).map(c => {
+                    const active = depForm.category === c;
+                    return (
+                      <button
+                        key={c} type="button"
+                        onClick={() => { setDepForm({ ...depForm, category: c }); setDepErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-bold transition-all hover-scale ${
+                          active ? categoryColor(c) + " shadow" : "bg-background hover:bg-muted border-border text-foreground"
+                        }`}
+                      >
+                        <Tag className="w-3 h-3 inline ml-1" />{c}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl p-3 bg-amber-500/5 border border-amber-400/30 hover:border-amber-400/60 transition-colors">
