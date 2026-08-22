@@ -498,6 +498,7 @@ export default function PersonalExpenses() {
 
   const openAdd = () => {
     setEditing(null);
+    setFormErrors([]);
     // Prefill with the currently opened month tab (now if it's the current month)
     const now = new Date();
     let dt = now;
@@ -529,9 +530,14 @@ export default function PersonalExpenses() {
   const save = async () => {
     if (!ownerId) return;
     const amt = Number(form.amount);
-    if (!amt || amt < 0) return toast.error("أدخل مبلغ صحيح");
-    if (!form.description.trim()) return toast.error("أدخل وصف");
-    if (!form.expense_datetime) return toast.error("أدخل التاريخ والوقت");
+    // تجميع كل الحقول الناقصة مرة واحدة في Alert شيك
+    const missing: string[] = [];
+    if (!amt || amt <= 0) missing.push("المبلغ — اكتب مبلغ صحيح أكبر من صفر");
+    if (!form.category.trim()) missing.push("التصنيف — اختر تصنيف من اللي تحت أو اكتب تصنيف جديد");
+    if (!form.description.trim()) missing.push("الوصف — اكتب وصف مختصر للمصروف");
+    if (!form.expense_datetime) missing.push("التاريخ والوقت");
+    if (missing.length) { setFormErrors(missing); return; }
+    setFormErrors([]);
     setSaving(true);
     const payload: any = {
       owner_user_id: ownerId,
@@ -587,6 +593,7 @@ export default function PersonalExpenses() {
       owner_user_id: ownerId,
       amount: amt,
       description: depForm.description.trim() || "إيداع",
+      category: depForm.category.trim() || null,
       deposit_datetime: new Date(depForm.deposit_datetime).toISOString(),
       notes: depForm.notes.trim() || null,
       updated_at: new Date().toISOString(),
@@ -684,6 +691,33 @@ export default function PersonalExpenses() {
     return { prevKey, prev, cur, diff, pct };
   };
 
+  // ===== تحليلات ورسومات أساسية (بتتبع الشهر المختار أو الإجمالي) =====
+  // الصفوف المعروضة في الرسومات (من غير فلاتر البحث عشان تبقى الصورة كاملة)
+  const chartRows = useMemo(
+    () => activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab),
+    [rows, activeTab]
+  );
+  // ١) فلوسك راحت فين؟ — توزيع حسب التصنيف
+  const categoryBreakdown = useMemo(() => {
+    const m = new Map<string, number>();
+    chartRows.forEach(r => {
+      const c = (r.category || "بدون تصنيف").trim();
+      m.set(c, (m.get(c) || 0) + Number(r.amount));
+    });
+    return Array.from(m.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [chartRows]);
+  // ٢) أكبر ٥ مصروفات
+  const topExpenses = useMemo(
+    () => [...chartRows].sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 5)
+      .map(r => ({ name: r.description, value: Number(r.amount), sub: r.category || undefined })),
+    [chartRows]
+  );
+  // ٣) إيداع مقابل صرف — آخر ٦ شهور
+  const monthlyCompare = useMemo(() => {
+    const keys = monthTabs.map(m => m.key).slice(0, 6).reverse();
+    return keys.map(k => ({ key: k, label: monthShort(k), dep: depositMonthTotals.get(k) || 0, spent: rawMonthTotals.get(k) || 0 }));
+  }, [monthTabs, depositMonthTotals, rawMonthTotals]);
+
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
     try {
@@ -724,7 +758,7 @@ export default function PersonalExpenses() {
 
       // ٢) حركة المحفظة — إيداعات ومصاريف مرتبة بالتاريخ مع الباقي بعد كل حركة
       const moves = [
-        ...depSorted.map(d => ({ dt: d.deposit_datetime, kind: "dep" as const, desc: d.description || "إيداع", amount: Number(d.amount) })),
+        ...depSorted.map(d => ({ dt: d.deposit_datetime, kind: "dep" as const, desc: `${d.description || "إيداع"}${d.category ? ` (${d.category})` : ""}`, amount: Number(d.amount) })),
         ...expSorted.map(r => ({ dt: r.expense_datetime, kind: "exp" as const, desc: `${r.description || ""}${r.category ? ` (${r.category})` : ""}`, amount: Number(r.amount) })),
       ].sort((a, b) => a.dt.localeCompare(b.dt));
 
@@ -749,10 +783,10 @@ export default function PersonalExpenses() {
 
       // ٣) الإيداعات
       const depAoa: (string | number)[][] = [
-        ["التاريخ", "الوقت", "الوصف", "المبلغ (ج.م)", "ملاحظات"],
-        ...depSorted.map(d => [fmtD(d.deposit_datetime), fmtT(d.deposit_datetime), d.description || "إيداع", Number(d.amount), d.notes || ""]),
+        ["التاريخ", "الوقت", "الوصف", "التصنيف", "المبلغ (ج.م)", "ملاحظات"],
+        ...depSorted.map(d => [fmtD(d.deposit_datetime), fmtT(d.deposit_datetime), d.description || "إيداع", d.category || "بدون تصنيف", Number(d.amount), d.notes || ""]),
         [],
-        ["", "", "الإجمالي", totDep, ""],
+        ["", "", "", "الإجمالي", totDep, ""],
       ];
 
       // ٤) المصروفات
@@ -773,7 +807,7 @@ export default function PersonalExpenses() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, mkSheet(summaryAoa, [40, 18, 14]), "الملخص");
       XLSX.utils.book_append_sheet(wb, mkSheet(walletAoa, [14, 10, 12, 36, 14, 14, 20]), "حركة المحفظة");
-      XLSX.utils.book_append_sheet(wb, mkSheet(depAoa, [14, 10, 34, 14, 30]), "الإيداعات");
+      XLSX.utils.book_append_sheet(wb, mkSheet(depAoa, [14, 10, 34, 18, 14, 30]), "الإيداعات");
       XLSX.utils.book_append_sheet(wb, mkSheet(expAoa, [14, 10, 34, 18, 14, 30]), "المصروفات");
       XLSX.writeFile(wb, `personal-wallet-${mkey || "all"}.xlsx`);
       toast.success("تم تصدير ملف Excel");
