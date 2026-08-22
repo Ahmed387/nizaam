@@ -14,13 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus, PiggyBank, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, BarChart3 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
 
 
 interface Row {
@@ -38,6 +39,7 @@ interface Deposit {
   owner_user_id: string;
   amount: number;
   description: string | null;
+  category: string | null;
   deposit_datetime: string;
   notes: string | null;
 }
@@ -131,6 +133,11 @@ function monthLabel(key: string) {
   const d = new Date(Number(y), Number(m) - 1, 1);
   return d.toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
 }
+function monthShort(key: string) {
+  const [y, m] = key.split("-");
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return d.toLocaleDateString("ar-EG", { month: "short" });
+}
 
 const CATEGORY_PALETTES = [
   "bg-rose-500 text-white border-rose-600",
@@ -187,9 +194,12 @@ export default function PersonalExpenses() {
   // deposits dialog
   const [depDialogOpen, setDepDialogOpen] = useState(false);
   const [editingDep, setEditingDep] = useState<Deposit | null>(null);
-  const [depForm, setDepForm] = useState({ amount: "", description: "", deposit_datetime: toLocalInput(new Date().toISOString()), notes: "" });
+  const [depForm, setDepForm] = useState({ amount: "", description: "", category: "", deposit_datetime: toLocalInput(new Date().toISOString()), notes: "" });
   const [savingDep, setSavingDep] = useState(false);
   const [delDep, setDelDep] = useState<Deposit | null>(null);
+  // حقول ناقصة في الفورم (بتتعرض في Alert شيك جوه الديالوج)
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [depErrors, setDepErrors] = useState<string[]>([]);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
@@ -312,6 +322,12 @@ export default function PersonalExpenses() {
     rows.forEach(r => { if (r.category && r.category.trim()) s.add(r.category.trim()); });
     return Array.from(s).sort((a, b) => a.localeCompare(b, "ar"));
   }, [rows]);
+
+  const allDepCategories = useMemo(() => {
+    const s = new Set<string>(["ميزانية شهرية", "راتب", "أرباح", "هدية", "مدخرات"]);
+    deposits.forEach(d => { if (d.category && d.category.trim()) s.add(d.category.trim()); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ar"));
+  }, [deposits]);
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
