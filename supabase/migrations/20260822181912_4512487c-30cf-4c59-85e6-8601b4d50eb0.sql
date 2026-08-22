@@ -1,0 +1,1 @@
+ALTER TABLE public.owner_personal_deposits ADD COLUMN IF NOT EXISTS category text;

@@ -14,13 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus, PiggyBank, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, BarChart3 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
 
 
 interface Row {
@@ -38,6 +39,7 @@ interface Deposit {
   owner_user_id: string;
   amount: number;
   description: string | null;
+  category: string | null;
   deposit_datetime: string;
   notes: string | null;
 }
@@ -131,6 +133,11 @@ function monthLabel(key: string) {
   const d = new Date(Number(y), Number(m) - 1, 1);
   return d.toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
 }
+function monthShort(key: string) {
+  const [y, m] = key.split("-");
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return d.toLocaleDateString("ar-EG", { month: "short" });
+}
 
 const CATEGORY_PALETTES = [
   "bg-rose-500 text-white border-rose-600",
@@ -187,9 +194,12 @@ export default function PersonalExpenses() {
   // deposits dialog
   const [depDialogOpen, setDepDialogOpen] = useState(false);
   const [editingDep, setEditingDep] = useState<Deposit | null>(null);
-  const [depForm, setDepForm] = useState({ amount: "", description: "", deposit_datetime: toLocalInput(new Date().toISOString()), notes: "" });
+  const [depForm, setDepForm] = useState({ amount: "", description: "", category: "", deposit_datetime: toLocalInput(new Date().toISOString()), notes: "" });
   const [savingDep, setSavingDep] = useState(false);
   const [delDep, setDelDep] = useState<Deposit | null>(null);
+  // حقول ناقصة في الفورم (بتتعرض في Alert شيك جوه الديالوج)
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [depErrors, setDepErrors] = useState<string[]>([]);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
@@ -312,6 +322,12 @@ export default function PersonalExpenses() {
     rows.forEach(r => { if (r.category && r.category.trim()) s.add(r.category.trim()); });
     return Array.from(s).sort((a, b) => a.localeCompare(b, "ar"));
   }, [rows]);
+
+  const allDepCategories = useMemo(() => {
+    const s = new Set<string>(["ميزانية شهرية", "راتب", "أرباح", "هدية", "مدخرات"]);
+    deposits.forEach(d => { if (d.category && d.category.trim()) s.add(d.category.trim()); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ar"));
+  }, [deposits]);
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
@@ -482,6 +498,7 @@ export default function PersonalExpenses() {
 
   const openAdd = () => {
     setEditing(null);
+    setFormErrors([]);
     // Prefill with the currently opened month tab (now if it's the current month)
     const now = new Date();
     let dt = now;
@@ -500,6 +517,7 @@ export default function PersonalExpenses() {
   };
   const openEdit = (r: Row) => {
     setEditing(r);
+    setFormErrors([]);
     setForm({
       amount: String(r.amount),
       description: r.description,
@@ -513,9 +531,14 @@ export default function PersonalExpenses() {
   const save = async () => {
     if (!ownerId) return;
     const amt = Number(form.amount);
-    if (!amt || amt < 0) return toast.error("أدخل مبلغ صحيح");
-    if (!form.description.trim()) return toast.error("أدخل وصف");
-    if (!form.expense_datetime) return toast.error("أدخل التاريخ والوقت");
+    // تجميع كل الحقول الناقصة مرة واحدة في Alert شيك
+    const missing: string[] = [];
+    if (!amt || amt <= 0) missing.push("المبلغ — اكتب مبلغ صحيح أكبر من صفر");
+    if (!form.category.trim()) missing.push("التصنيف — اختر تصنيف من اللي تحت أو اكتب تصنيف جديد");
+    if (!form.description.trim()) missing.push("الوصف — اكتب وصف مختصر للمصروف");
+    if (!form.expense_datetime) missing.push("التاريخ والوقت");
+    if (missing.length) { setFormErrors(missing); return; }
+    setFormErrors([]);
     setSaving(true);
     const payload: any = {
       owner_user_id: ownerId,
@@ -547,30 +570,37 @@ export default function PersonalExpenses() {
   // ===== الإيداعات =====
   const openAddDep = () => {
     setEditingDep(null);
+    setDepErrors([]);
     const now = new Date();
     let dt = now;
     if (activeTab !== "__all__" && activeTab !== monthKey(now.toISOString())) {
       const [y, m] = activeTab.split("-").map(Number);
       dt = new Date(y, m - 1, 1, now.getHours(), now.getMinutes());
     }
-    setDepForm({ amount: "", description: "", deposit_datetime: toLocalInput(dt.toISOString()), notes: "" });
+    setDepForm({ amount: "", description: "", category: "", deposit_datetime: toLocalInput(dt.toISOString()), notes: "" });
     setDepDialogOpen(true);
   };
   const openEditDep = (d: Deposit) => {
     setEditingDep(d);
-    setDepForm({ amount: String(d.amount), description: d.description ?? "", deposit_datetime: toLocalInput(d.deposit_datetime), notes: d.notes ?? "" });
+    setDepErrors([]);
+    setDepForm({ amount: String(d.amount), description: d.description ?? "", category: d.category ?? "", deposit_datetime: toLocalInput(d.deposit_datetime), notes: d.notes ?? "" });
     setDepDialogOpen(true);
   };
   const saveDep = async () => {
     if (!ownerId) return;
     const amt = Number(depForm.amount);
-    if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
-    if (!depForm.deposit_datetime) return toast.error("أدخل التاريخ والوقت");
+    const missing: string[] = [];
+    if (!amt || amt <= 0) missing.push("مبلغ الإيداع — اكتب مبلغ صحيح أكبر من صفر");
+    if (!depForm.category.trim()) missing.push("التصنيف — حدد مصدر الإيداع (مثلاً: ميزانية شهرية)");
+    if (!depForm.deposit_datetime) missing.push("التاريخ والوقت");
+    if (missing.length) { setDepErrors(missing); return; }
+    setDepErrors([]);
     setSavingDep(true);
     const payload: any = {
       owner_user_id: ownerId,
       amount: amt,
       description: depForm.description.trim() || "إيداع",
+      category: depForm.category.trim() || null,
       deposit_datetime: new Date(depForm.deposit_datetime).toISOString(),
       notes: depForm.notes.trim() || null,
       updated_at: new Date().toISOString(),
@@ -668,6 +698,33 @@ export default function PersonalExpenses() {
     return { prevKey, prev, cur, diff, pct };
   };
 
+  // ===== تحليلات ورسومات أساسية (بتتبع الشهر المختار أو الإجمالي) =====
+  // الصفوف المعروضة في الرسومات (من غير فلاتر البحث عشان تبقى الصورة كاملة)
+  const chartRows = useMemo(
+    () => activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab),
+    [rows, activeTab]
+  );
+  // ١) فلوسك راحت فين؟ — توزيع حسب التصنيف
+  const categoryBreakdown = useMemo(() => {
+    const m = new Map<string, number>();
+    chartRows.forEach(r => {
+      const c = (r.category || "بدون تصنيف").trim();
+      m.set(c, (m.get(c) || 0) + Number(r.amount));
+    });
+    return Array.from(m.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [chartRows]);
+  // ٢) أكبر ٥ مصروفات
+  const topExpenses = useMemo(
+    () => [...chartRows].sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 5)
+      .map(r => ({ name: r.description, value: Number(r.amount), sub: r.category || undefined })),
+    [chartRows]
+  );
+  // ٣) إيداع مقابل صرف — آخر ٦ شهور
+  const monthlyCompare = useMemo(() => {
+    const keys = monthTabs.map(m => m.key).slice(0, 6).reverse();
+    return keys.map(k => ({ key: k, label: monthShort(k), dep: depositMonthTotals.get(k) || 0, spent: rawMonthTotals.get(k) || 0 }));
+  }, [monthTabs, depositMonthTotals, rawMonthTotals]);
+
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
     try {
@@ -708,7 +765,7 @@ export default function PersonalExpenses() {
 
       // ٢) حركة المحفظة — إيداعات ومصاريف مرتبة بالتاريخ مع الباقي بعد كل حركة
       const moves = [
-        ...depSorted.map(d => ({ dt: d.deposit_datetime, kind: "dep" as const, desc: d.description || "إيداع", amount: Number(d.amount) })),
+        ...depSorted.map(d => ({ dt: d.deposit_datetime, kind: "dep" as const, desc: `${d.description || "إيداع"}${d.category ? ` (${d.category})` : ""}`, amount: Number(d.amount) })),
         ...expSorted.map(r => ({ dt: r.expense_datetime, kind: "exp" as const, desc: `${r.description || ""}${r.category ? ` (${r.category})` : ""}`, amount: Number(r.amount) })),
       ].sort((a, b) => a.dt.localeCompare(b.dt));
 
@@ -733,10 +790,10 @@ export default function PersonalExpenses() {
 
       // ٣) الإيداعات
       const depAoa: (string | number)[][] = [
-        ["التاريخ", "الوقت", "الوصف", "المبلغ (ج.م)", "ملاحظات"],
-        ...depSorted.map(d => [fmtD(d.deposit_datetime), fmtT(d.deposit_datetime), d.description || "إيداع", Number(d.amount), d.notes || ""]),
+        ["التاريخ", "الوقت", "الوصف", "التصنيف", "المبلغ (ج.م)", "ملاحظات"],
+        ...depSorted.map(d => [fmtD(d.deposit_datetime), fmtT(d.deposit_datetime), d.description || "إيداع", d.category || "بدون تصنيف", Number(d.amount), d.notes || ""]),
         [],
-        ["", "", "الإجمالي", totDep, ""],
+        ["", "", "", "الإجمالي", totDep, ""],
       ];
 
       // ٤) المصروفات
@@ -757,7 +814,7 @@ export default function PersonalExpenses() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, mkSheet(summaryAoa, [40, 18, 14]), "الملخص");
       XLSX.utils.book_append_sheet(wb, mkSheet(walletAoa, [14, 10, 12, 36, 14, 14, 20]), "حركة المحفظة");
-      XLSX.utils.book_append_sheet(wb, mkSheet(depAoa, [14, 10, 34, 14, 30]), "الإيداعات");
+      XLSX.utils.book_append_sheet(wb, mkSheet(depAoa, [14, 10, 34, 18, 14, 30]), "الإيداعات");
       XLSX.utils.book_append_sheet(wb, mkSheet(expAoa, [14, 10, 34, 18, 14, 30]), "المصروفات");
       XLSX.writeFile(wb, `personal-wallet-${mkey || "all"}.xlsx`);
       toast.success("تم تصدير ملف Excel");
@@ -881,7 +938,7 @@ export default function PersonalExpenses() {
             )}
             {canEdit && (
               <Button onClick={openAddDep} size="lg" variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 shadow-md hover:scale-105 transition-transform">
-                <PiggyBank className="w-5 h-5 ml-1" /> إيداع جديد
+                <ArrowDownToLine className="w-5 h-5 ml-1" /> إيداع جديد
               </Button>
             )}
             {canEdit && (
@@ -894,37 +951,26 @@ export default function PersonalExpenses() {
       </div>
 
 
-      {/* Month tabs — تبويب لكل شهر/سنة + تبويب الإجمالي */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab("__all__")}
-          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
-            activeTab === "__all__"
-              ? "bg-gradient-to-l from-primary to-primary/80 text-primary-foreground border-primary shadow-md"
-              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
-          }`}
-        >
-          الإجمالي
-        </button>
-        {monthTabs.map((m, idx) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => setActiveTab(m.key)}
-            className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
-              activeTab === m.key
-                ? `bg-gradient-to-br shadow-md ${monthColors[idx % monthColors.length]} ring-2 ring-primary/40`
-                : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
-            }`}
-          >
-            <CalendarDays className="w-4 h-4 opacity-70" />
-            {monthLabel(m.key)}
-            <span className="text-xs font-extrabold tabular-nums opacity-90">
-              {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
-            </span>
-          </button>
-        ))}
+      {/* اختيار الفترة — «الإجمالي» افتراضياً + قائمة منسدلة بالشهور */}
+      <div className="mb-4 flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+          <CalendarDays className="w-4 h-4 text-primary" /> عرض بيانات:
+        </div>
+        <Select value={activeTab} onValueChange={setActiveTab}>
+          <SelectTrigger className="w-[280px] h-11 font-bold rounded-xl border-primary/30 bg-background shadow-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__" className="font-bold">
+              الإجمالي (كل الشهور) — {grandTotalAllLabel}
+            </SelectItem>
+            {monthTabs.map((m) => (
+              <SelectItem key={m.key} value={m.key}>
+                {monthLabel(m.key)} — {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Grand total (respects active filters + month tab) */}
@@ -986,7 +1032,7 @@ export default function PersonalExpenses() {
       {/* رصيد المحفظة الشخصية */}
       <Card className="p-5 mb-6 border-emerald-400/40 bg-gradient-to-l from-emerald-500/15 via-emerald-500/5 to-transparent animate-fade-in">
         <div className="flex items-center gap-2 mb-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
-          <PiggyBank className="w-4 h-4" />
+          <Wallet className="w-4 h-4" />
           محفظتك الشخصية {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
