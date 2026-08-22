@@ -1343,6 +1343,106 @@ export default function PersonalExpenses() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Add/Edit Deposit Dialog */}
+      <Dialog open={depDialogOpen} onOpenChange={setDepDialogOpen}>
+        <DialogContent className="max-w-xl p-0 overflow-hidden gap-0" dir="rtl">
+          <div className="relative p-5 bg-gradient-to-l from-emerald-500/25 via-emerald-500/10 to-teal-500/15 border-b">
+            <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full bg-emerald-500/20 blur-2xl" />
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-teal-500/20 blur-2xl" />
+            <DialogHeader className="relative">
+              <DialogTitle className="flex items-center gap-3 text-xl">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md ${editingDep ? "bg-gradient-to-br from-sky-500 to-sky-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
+                  {editingDep ? <Pencil className="w-5 h-5 text-white" /> : <PiggyBank className="w-5 h-5 text-white" />}
+                </div>
+                <div>
+                  <div>{editingDep ? "تعديل إيداع" : "إيداع جديد"}</div>
+                  <div className="text-xs font-normal text-muted-foreground mt-0.5">ميزانية المحفظة الشخصية — منفصلة عن حسابات النظام</div>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+
+          <div className="p-5 space-y-4 animate-fade-in">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl p-3 bg-emerald-500/5 border border-emerald-400/30 hover:border-emerald-400/60 transition-colors">
+                <Label className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                  <PiggyBank className="w-3.5 h-3.5" /> مبلغ الإيداع (ج.م) *
+                </Label>
+                <Input
+                  type="number" step="0.01" inputMode="decimal"
+                  value={depForm.amount}
+                  onChange={e => setDepForm({ ...depForm, amount: e.target.value })}
+                  className="mt-1.5 h-11 text-lg font-bold border-emerald-300/50 focus-visible:ring-emerald-400 bg-background"
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="rounded-xl p-3 bg-sky-500/5 border border-sky-400/30 hover:border-sky-400/60 transition-colors">
+                <Label className="text-xs font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1">
+                  <CalendarDays className="w-3.5 h-3.5" /> التاريخ والوقت *
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={depForm.deposit_datetime}
+                  onChange={e => setDepForm({ ...depForm, deposit_datetime: e.target.value })}
+                  className="mt-1.5 h-11 border-sky-300/50 focus-visible:ring-sky-400 bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl p-3 bg-primary/5 border border-primary/25 hover:border-primary/50 transition-colors">
+              <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                <Receipt className="w-3.5 h-3.5" /> الوصف
+              </Label>
+              <Input
+                value={depForm.description}
+                onChange={e => setDepForm({ ...depForm, description: e.target.value })}
+                placeholder="مثال: ميزانية شهر رمضان"
+                className="mt-1.5 h-11 border-primary/30 focus-visible:ring-primary bg-background"
+              />
+            </div>
+
+            <div className="rounded-xl p-3 bg-amber-500/5 border border-amber-400/30 hover:border-amber-400/60 transition-colors">
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">ملاحظات</Label>
+              <Textarea
+                rows={2}
+                value={depForm.notes}
+                onChange={e => setDepForm({ ...depForm, notes: e.target.value })}
+                className="mt-1.5 border-amber-300/50 focus-visible:ring-amber-400 bg-background resize-none"
+                placeholder="أي تفاصيل إضافية..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 bg-muted/30 border-t gap-2">
+            <Button variant="outline" onClick={() => setDepDialogOpen(false)} className="min-w-[100px]">
+              <X className="w-4 h-4 ml-1" /> إلغاء
+            </Button>
+            <Button
+              onClick={saveDep} disabled={savingDep}
+              className={`min-w-[140px] shadow-md ${editingDep ? "bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700" : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"} text-white`}
+            >
+              {savingDep ? "جاري الحفظ..." : (editingDep ? <><Pencil className="w-4 h-4 ml-1" />حفظ التعديل</> : <><Plus className="w-4 h-4 ml-1" />إيداع</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete deposit confirm */}
+      <AlertDialog open={!!delDep} onOpenChange={o => !o && setDelDep(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الإيداع؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              هيتم حذف "{delDep?.description || "إيداع"}" بمبلغ {delDep ? Number(delDep.amount).toLocaleString("ar-EG") : ""} ج.م. الحذف نهائي.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={removeDep} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Offscreen PDF template */}
       <div style={{ position: "fixed", left: -99999, top: 0, width: 800 }}>
         {pdfMonth && (
@@ -1356,12 +1456,20 @@ export default function PersonalExpenses() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div style={{ background: "#e6f4f1", border: "1px solid #99d3c9", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 12, color: "#0f766e" }}>إجمالي الشهر</div>
+                <div style={{ fontSize: 12, color: "#0f766e" }}>إجمالي مصروفات الشهر</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#0f2c3f" }}>{pdfMonthTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</div>
               </div>
               <div style={{ background: "#f8fafc", border: "1px solid #e2e8ee", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 12, color: "#6b7a86" }}>عدد المصاريف</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#0f2c3f" }}>{pdfMonthRows.length.toLocaleString("ar-EG")}</div>
+              </div>
+              <div style={{ background: "#e8f6ee", border: "1px solid #a7dcc0", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 12, color: "#15803d" }}>إيداعات الشهر</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#0f2c3f" }}>{pdfMonthDep.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</div>
+              </div>
+              <div style={{ background: pdfMonthDep - pdfMonthTotal < 0 ? "#fdecec" : "#eef4fb", border: `1px solid ${pdfMonthDep - pdfMonthTotal < 0 ? "#f2b6b6" : "#b9d2ea"}`, borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 12, color: pdfMonthDep - pdfMonthTotal < 0 ? "#b91c1c" : "#1d4ed8" }}>الباقي من الشهر</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: pdfMonthDep - pdfMonthTotal < 0 ? "#b91c1c" : "#0f2c3f" }}>{(pdfMonthDep - pdfMonthTotal).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</div>
               </div>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
