@@ -1498,7 +1498,7 @@ export default function PersonalExpenses() {
                     return (
                       <button
                         key={c} type="button"
-                        onClick={() => setForm({ ...form, category: c })}
+                        onClick={() => { setForm({ ...form, category: c }); setFormErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
                         className={`text-xs px-2.5 py-1 rounded-full border font-bold transition-all hover-scale ${
                           active ? categoryColor(c) + " shadow" : "bg-background hover:bg-muted border-border text-foreground"
                         }`}
