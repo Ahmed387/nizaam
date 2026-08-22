@@ -183,6 +183,13 @@ export default function PersonalExpenses() {
   });
   const [saving, setSaving] = useState(false);
   const [delRow, setDelRow] = useState<Row | null>(null);
+
+  // deposits dialog
+  const [depDialogOpen, setDepDialogOpen] = useState(false);
+  const [editingDep, setEditingDep] = useState<Deposit | null>(null);
+  const [depForm, setDepForm] = useState({ amount: "", description: "", deposit_datetime: toLocalInput(new Date().toISOString()), notes: "" });
+  const [savingDep, setSavingDep] = useState(false);
+  const [delDep, setDelDep] = useState<Deposit | null>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
@@ -221,13 +228,14 @@ export default function PersonalExpenses() {
   const load = async () => {
     if (!ownerId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("owner_personal_expenses" as any)
-      .select("*")
-      .eq("owner_user_id", ownerId)
-      .order("expense_datetime", { ascending: false });
-    if (error) toast.error(error.message);
-    else setRows((data || []) as any);
+    const [expRes, depRes] = await Promise.all([
+      supabase.from("owner_personal_expenses" as any).select("*").eq("owner_user_id", ownerId).order("expense_datetime", { ascending: false }),
+      supabase.from("owner_personal_deposits" as any).select("*").eq("owner_user_id", ownerId).order("deposit_datetime", { ascending: false }),
+    ]);
+    if (expRes.error) toast.error(expRes.error.message);
+    else setRows((expRes.data || []) as any);
+    if (depRes.error) toast.error(depRes.error.message);
+    else setDeposits((depRes.data || []) as any);
     setLoading(false);
   };
 
@@ -272,7 +280,29 @@ export default function PersonalExpenses() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const ch2 = supabase
+      .channel(`opd-${ownerId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "owner_personal_deposits", filter: `owner_user_id=eq.${ownerId}` },
+        (payload: any) => {
+          if (isPersonalOwner) {
+            const rec: any = payload.new || payload.old;
+            setBellRing(true);
+            setTimeout(() => setBellRing(false), 1200);
+            if (payload.eventType === "INSERT") {
+              fancyToast.success(`إيداع جديد: ${EGP(Number(rec?.amount || 0))}`, rec?.description || undefined);
+            } else if (payload.eventType === "UPDATE") {
+              fancyToast.info("تم تعديل إيداع", rec?.description || undefined);
+            } else if (payload.eventType === "DELETE") {
+              fancyToast.warn("تم حذف إيداع", rec?.description || undefined);
+            }
+          }
+          load();
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); supabase.removeChannel(ch2); };
     // eslint-disable-next-line
   }, [ownerId, isPersonalOwner]);
 
@@ -330,10 +360,39 @@ export default function PersonalExpenses() {
       v.count += 1;
       map.set(k, v);
     });
+    deposits.forEach(d => {
+      const k = monthKey(d.deposit_datetime);
+      if (!map.has(k)) map.set(k, { total: 0, count: 0 });
+    });
     return Array.from(map.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([k, v]) => ({ key: k, ...v }));
-  }, [rows]);
+  }, [rows, deposits]);
+
+  // إيداعات كل شهر
+  const depositMonthTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    deposits.forEach(d => {
+      const k = monthKey(d.deposit_datetime);
+      m.set(k, (m.get(k) || 0) + Number(d.amount));
+    });
+    return m;
+  }, [deposits]);
+
+  // رصيد المحفظة (مش متأثر بالفلاتر — بيتبع تبويب الشهر بس)
+  const balSpent = useMemo(() => {
+    const list = activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab);
+    return list.reduce((s, r) => s + Number(r.amount), 0);
+  }, [rows, activeTab]);
+  const balDeposited = activeTab === "__all__"
+    ? deposits.reduce((s, d) => s + Number(d.amount), 0)
+    : (depositMonthTotals.get(activeTab) || 0);
+  const balRemaining = balDeposited - balSpent;
+
+  const visibleDeposits = useMemo(
+    () => activeTab === "__all__" ? deposits : deposits.filter(d => monthKey(d.deposit_datetime) === activeTab),
+    [deposits, activeTab]
+  );
 
   // Rows shown in the table = filters + active month tab
   const visible = useMemo(
@@ -386,8 +445,22 @@ export default function PersonalExpenses() {
       const t = today.reduce((s, r) => s + Number(r.amount), 0);
       out.push({ id: `today-${todayStr}-${today.length}`, tone: "info", title: `صرفت النهارده ${EGP(t)}`, body: `${today.length} عملية مسجّلة اليوم` });
     }
+    // تنبيهات الإيداعات والرصيد
+    const totDep = deposits.reduce((s, d) => s + Number(d.amount), 0);
+    if (totDep > 0) {
+      const allSpent = rows.reduce((s, r) => s + Number(r.amount), 0);
+      const rem = totDep - allSpent;
+      if (rem < 0) out.push({ id: `dep-neg-${Math.round(rem)}`, tone: "hot", title: "صرفت أكتر من اللي أودعته 😅", body: `إيداعاتك ${EGP(totDep)} وصرفت ${EGP(allSpent)} — عليك ${EGP(Math.abs(rem))}` });
+      else if (rem <= totDep * 0.1) out.push({ id: `dep-low-${Math.round(rem)}`, tone: "warn", title: "رصيدك الشخصي قرب يخلص", body: `باقيلك ${EGP(rem)} بس من إجمالي ${EGP(totDep)}` });
+    }
+    const curDep = depositMonthTotals.get(curKey) || 0;
+    if (curDep > 0 && curT > curDep) {
+      out.push({ id: `dep-over-${curKey}`, tone: "warn", title: "اتجاوزت ميزانية الشهر", body: `أودعت ${EGP(curDep)} وصرفت ${EGP(curT)} لحد دلوقتي` });
+    } else if (curDep > 0) {
+      out.push({ id: `dep-rem-${curKey}-${Math.round(curDep - curT)}`, tone: "good", title: `باقيلك ${EGP(curDep - curT)} من ميزانية الشهر`, body: `أودعت ${EGP(curDep)} وصرفت ${EGP(curT)}` });
+    }
     return out;
-  }, [rows, isPersonalOwner]);
+  }, [rows, deposits, depositMonthTotals, isPersonalOwner]);
 
   const unseenAlerts = useMemo(() => alerts.filter(a => !seenAlerts.includes(a.id)), [alerts, seenAlerts]);
 
