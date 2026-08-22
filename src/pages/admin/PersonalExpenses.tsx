@@ -938,7 +938,7 @@ export default function PersonalExpenses() {
             )}
             {canEdit && (
               <Button onClick={openAddDep} size="lg" variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 shadow-md hover:scale-105 transition-transform">
-                <PiggyBank className="w-5 h-5 ml-1" /> إيداع جديد
+                <ArrowDownToLine className="w-5 h-5 ml-1" /> إيداع جديد
               </Button>
             )}
             {canEdit && (
@@ -951,37 +951,26 @@ export default function PersonalExpenses() {
       </div>
 
 
-      {/* Month tabs — تبويب لكل شهر/سنة + تبويب الإجمالي */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab("__all__")}
-          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
-            activeTab === "__all__"
-              ? "bg-gradient-to-l from-primary to-primary/80 text-primary-foreground border-primary shadow-md"
-              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
-          }`}
-        >
-          الإجمالي
-        </button>
-        {monthTabs.map((m, idx) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => setActiveTab(m.key)}
-            className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
-              activeTab === m.key
-                ? `bg-gradient-to-br shadow-md ${monthColors[idx % monthColors.length]} ring-2 ring-primary/40`
-                : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
-            }`}
-          >
-            <CalendarDays className="w-4 h-4 opacity-70" />
-            {monthLabel(m.key)}
-            <span className="text-xs font-extrabold tabular-nums opacity-90">
-              {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
-            </span>
-          </button>
-        ))}
+      {/* اختيار الفترة — «الإجمالي» افتراضياً + قائمة منسدلة بالشهور */}
+      <div className="mb-4 flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+          <CalendarDays className="w-4 h-4 text-primary" /> عرض بيانات:
+        </div>
+        <Select value={activeTab} onValueChange={setActiveTab}>
+          <SelectTrigger className="w-[280px] h-11 font-bold rounded-xl border-primary/30 bg-background shadow-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__" className="font-bold">
+              الإجمالي (كل الشهور) — {grandTotalAllLabel}
+            </SelectItem>
+            {monthTabs.map((m) => (
+              <SelectItem key={m.key} value={m.key}>
+                {monthLabel(m.key)} — {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Grand total (respects active filters + month tab) */}
@@ -1043,7 +1032,7 @@ export default function PersonalExpenses() {
       {/* رصيد المحفظة الشخصية */}
       <Card className="p-5 mb-6 border-emerald-400/40 bg-gradient-to-l from-emerald-500/15 via-emerald-500/5 to-transparent animate-fade-in">
         <div className="flex items-center gap-2 mb-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
-          <PiggyBank className="w-4 h-4" />
+          <Wallet className="w-4 h-4" />
           محفظتك الشخصية {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
