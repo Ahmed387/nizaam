@@ -544,6 +544,55 @@ export default function PersonalExpenses() {
     load();
   };
 
+  // ===== الإيداعات =====
+  const openAddDep = () => {
+    setEditingDep(null);
+    const now = new Date();
+    let dt = now;
+    if (activeTab !== "__all__" && activeTab !== monthKey(now.toISOString())) {
+      const [y, m] = activeTab.split("-").map(Number);
+      dt = new Date(y, m - 1, 1, now.getHours(), now.getMinutes());
+    }
+    setDepForm({ amount: "", description: "", deposit_datetime: toLocalInput(dt.toISOString()), notes: "" });
+    setDepDialogOpen(true);
+  };
+  const openEditDep = (d: Deposit) => {
+    setEditingDep(d);
+    setDepForm({ amount: String(d.amount), description: d.description ?? "", deposit_datetime: toLocalInput(d.deposit_datetime), notes: d.notes ?? "" });
+    setDepDialogOpen(true);
+  };
+  const saveDep = async () => {
+    if (!ownerId) return;
+    const amt = Number(depForm.amount);
+    if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
+    if (!depForm.deposit_datetime) return toast.error("أدخل التاريخ والوقت");
+    setSavingDep(true);
+    const payload: any = {
+      owner_user_id: ownerId,
+      amount: amt,
+      description: depForm.description.trim() || "إيداع",
+      deposit_datetime: new Date(depForm.deposit_datetime).toISOString(),
+      notes: depForm.notes.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    let res;
+    if (editingDep) res = await supabase.from("owner_personal_deposits" as any).update(payload).eq("id", editingDep.id);
+    else res = await supabase.from("owner_personal_deposits" as any).insert(payload);
+    setSavingDep(false);
+    if (res.error) return toast.error(res.error.message);
+    if (!isPersonalOwner) toast.success(editingDep ? "تم تعديل الإيداع" : "تم تسجيل الإيداع");
+    setDepDialogOpen(false);
+    load();
+  };
+  const removeDep = async () => {
+    if (!delDep) return;
+    const { error } = await supabase.from("owner_personal_deposits" as any).delete().eq("id", delDep.id);
+    if (error) return toast.error(error.message);
+    if (!isPersonalOwner) toast.success("تم حذف الإيداع");
+    setDelDep(null);
+    load();
+  };
+
   const exportMonthPDF = async (mkey: string) => {
     setPdfMonth(mkey);
     // wait for offscreen render
@@ -772,6 +821,11 @@ export default function PersonalExpenses() {
               </Popover>
             )}
             {canEdit && (
+              <Button onClick={openAddDep} size="lg" variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 shadow-md hover:scale-105 transition-transform">
+                <PiggyBank className="w-5 h-5 ml-1" /> إيداع جديد
+              </Button>
+            )}
+            {canEdit && (
               <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-fuchsia-600 shadow-md hover:scale-105 transition-transform">
                 <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
               </Button>
@@ -870,6 +924,42 @@ export default function PersonalExpenses() {
 
 
 
+      {/* رصيد المحفظة الشخصية */}
+      <Card className="p-5 mb-6 border-emerald-400/40 bg-gradient-to-l from-emerald-500/15 via-emerald-500/5 to-transparent animate-fade-in">
+        <div className="flex items-center gap-2 mb-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+          <PiggyBank className="w-4 h-4" />
+          محفظتك الشخصية {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-3">
+            <div className="text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-1"><ArrowDownToLine className="w-3.5 h-3.5" /> أودعت</div>
+            <div className="text-2xl font-extrabold mt-1 text-emerald-700 dark:text-emerald-200 tabular-nums">
+              {balDeposited.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-sm font-semibold opacity-70">ج.م</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-3">
+            <div className="text-xs text-rose-700 dark:text-rose-300 flex items-center gap-1"><ArrowUpFromLine className="w-3.5 h-3.5" /> صرفت</div>
+            <div className="text-2xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
+              {balSpent.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-sm font-semibold opacity-70">ج.م</span>
+            </div>
+          </div>
+          <div className={`rounded-xl border p-3 ${balRemaining < 0 ? "border-red-500/50 bg-red-500/10" : "border-sky-400/40 bg-sky-500/10"}`}>
+            <div className={`text-xs flex items-center gap-1 ${balRemaining < 0 ? "text-red-700 dark:text-red-300" : "text-sky-700 dark:text-sky-300"}`}><Wallet className="w-3.5 h-3.5" /> الباقي في جيبك</div>
+            <div className={`text-2xl font-extrabold mt-1 tabular-nums ${balRemaining < 0 ? "text-red-700 dark:text-red-200" : "text-sky-700 dark:text-sky-200"}`}>
+              {balRemaining.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-sm font-semibold opacity-70">ج.م</span>
+            </div>
+          </div>
+        </div>
+        {balRemaining < 0 && (
+          <div className="mt-3 text-xs font-bold text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+            ⚠️ صرفت أكتر من اللي أودعته بـ {EGP(Math.abs(balRemaining))} {activeTab !== "__all__" ? "في الشهر ده" : "إجمالاً"}
+          </div>
+        )}
+        {balDeposited === 0 && (
+          <div className="mt-3 text-xs text-muted-foreground">لسه مسجلتش أي إيداع — دوس «إيداع جديد» وسجّل ميزانية الشهر 👆</div>
+        )}
+      </Card>
+
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -929,6 +1019,17 @@ export default function PersonalExpenses() {
                     <div className="text-xs opacity-80">{monthLabel(m.key)}</div>
                     <div className="text-2xl font-extrabold mt-1">{m.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}<span className="text-sm mr-1">ج.م</span></div>
                     <div className="text-xs mt-1 opacity-70">{m.count} مصروف</div>
+                    {(() => {
+                      const dep = depositMonthTotals.get(m.key) || 0;
+                      if (dep <= 0) return null;
+                      const rem = dep - m.total;
+                      return (
+                        <div className="mt-2 space-y-0.5 text-[11px] font-bold">
+                          <div className="opacity-80 flex items-center gap-1"><PiggyBank className="w-3 h-3" /> أودعت: {dep.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                          <div className={rem < 0 ? "text-red-600 dark:text-red-300" : "opacity-90"}>الباقي: {rem.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                        </div>
+                      );
+                    })()}
                     {(() => {
                       const d = monthDelta(m.key);
                       if (!d) return null;
