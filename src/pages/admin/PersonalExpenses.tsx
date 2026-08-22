@@ -1069,6 +1069,94 @@ export default function PersonalExpenses() {
         )}
       </Card>
 
+      {/* تحليل سريع — رسومات أساسية بتجاوب على الأسئلة المهمة (بتتبع الشهر المختار) */}
+      {(rows.length > 0 || deposits.length > 0) && (
+        <div className="mb-6 space-y-4 animate-fade-in">
+          <div className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            تحليل سريع {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
+          </div>
+
+          {/* ١) استهلاك الميزانية — صرفت قد إيه من اللي أودعته؟ */}
+          {balDeposited > 0 && (() => {
+            const pct = Math.min(100, (balSpent / balDeposited) * 100);
+            const over = balRemaining < 0;
+            return (
+              <Card className="p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                  <div className="text-sm font-bold">قد إيه صرفت من ميزانيتك؟</div>
+                  <div className={`text-xs font-extrabold ${over ? "text-red-600 dark:text-red-300" : pct >= 80 ? "text-amber-600 dark:text-amber-300" : "text-emerald-600 dark:text-emerald-300"}`}>
+                    {over ? `اتجاوزت الميزانية بـ ${EGP(Math.abs(balRemaining))}` : `استهلكت ${pct.toFixed(0)}% — فاضل ${EGP(balRemaining)}`}
+                  </div>
+                </div>
+                <div className="h-4 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${over ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                    style={{ width: `${over ? 100 : Math.max(2, pct)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+                  <span>أودعت: {EGP(balDeposited)}</span>
+                  <span>صرفت: {EGP(balSpent)}</span>
+                </div>
+              </Card>
+            );
+          })()}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* ٢) فلوسك راحت فين؟ — حسب التصنيف */}
+            {categoryBreakdown.length > 0 && (
+              <Card className="p-4">
+                <div className="text-sm font-bold mb-3">فلوسك راحت فين؟ (حسب التصنيف)</div>
+                <ShareBreakdown items={categoryBreakdown} format={(v) => EGP(v)} />
+              </Card>
+            )}
+            {/* ٣) أكبر مصروفاتك */}
+            {topExpenses.length > 0 && (
+              <Card className="p-4">
+                <div className="text-sm font-bold mb-3">أكبر مصروفاتك</div>
+                <RankBars items={topExpenses} tone="destructive" format={(v) => EGP(v)} />
+              </Card>
+            )}
+          </div>
+
+          {/* ٤) بتوفر ولا بتسحب من مدخراتك؟ — إيداع مقابل صرف آخر ٦ شهور */}
+          {monthlyCompare.length > 1 && (() => {
+            const maxV = Math.max(...monthlyCompare.map(m => Math.max(m.dep, m.spent)), 1);
+            return (
+              <Card className="p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                  <div className="text-sm font-bold">بتوفر ولا بتسحب من مدخراتك؟ (آخر {monthlyCompare.length} شهور)</div>
+                  <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> أودعت</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> صرفت</span>
+                  </div>
+                </div>
+                <div className="flex items-end justify-around gap-2">
+                  {monthlyCompare.map(m => (
+                    <div key={m.key} className="flex-1 max-w-[90px] flex flex-col items-center gap-1.5">
+                      <div className="flex items-end justify-center gap-1.5 w-full" style={{ height: 130 }}>
+                        <div
+                          className="w-5 rounded-t-md bg-emerald-500/80 transition-all duration-500"
+                          style={{ height: `${m.dep > 0 ? Math.max(3, (m.dep / maxV) * 100) : 0}%` }}
+                          title={`أودعت: ${EGP(m.dep)}`}
+                        />
+                        <div
+                          className="w-5 rounded-t-md bg-rose-500/80 transition-all duration-500"
+                          style={{ height: `${m.spent > 0 ? Math.max(3, (m.spent / maxV) * 100) : 0}%` }}
+                          title={`صرفت: ${EGP(m.spent)}`}
+                        />
+                      </div>
+                      <div className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1270,6 +1358,7 @@ export default function PersonalExpenses() {
               <tr className="text-right">
                 <th className="p-3 font-bold">التاريخ والوقت</th>
                 <th className="p-3 font-bold">الوصف</th>
+                <th className="p-3 font-bold">التصنيف</th>
                 <th className="p-3 font-bold">المبلغ</th>
                 <th className="p-3 font-bold">ملاحظات</th>
                 {canEdit && <th className="p-3 font-bold text-center">إجراءات</th>}
@@ -1277,9 +1366,9 @@ export default function PersonalExpenses() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
               ) : visibleDeposits.length === 0 ? (
-                <tr><td colSpan={5} className="p-10 text-center">
+                <tr><td colSpan={6} className="p-10 text-center">
                   <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
                     <ArrowDownToLine className="w-10 h-10 opacity-40" />
                     <div>لا توجد إيداعات مسجلة</div>
