@@ -183,6 +183,13 @@ export default function PersonalExpenses() {
   });
   const [saving, setSaving] = useState(false);
   const [delRow, setDelRow] = useState<Row | null>(null);
+
+  // deposits dialog
+  const [depDialogOpen, setDepDialogOpen] = useState(false);
+  const [editingDep, setEditingDep] = useState<Deposit | null>(null);
+  const [depForm, setDepForm] = useState({ amount: "", description: "", deposit_datetime: toLocalInput(new Date().toISOString()), notes: "" });
+  const [savingDep, setSavingDep] = useState(false);
+  const [delDep, setDelDep] = useState<Deposit | null>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
 
@@ -221,13 +228,14 @@ export default function PersonalExpenses() {
   const load = async () => {
     if (!ownerId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("owner_personal_expenses" as any)
-      .select("*")
-      .eq("owner_user_id", ownerId)
-      .order("expense_datetime", { ascending: false });
-    if (error) toast.error(error.message);
-    else setRows((data || []) as any);
+    const [expRes, depRes] = await Promise.all([
+      supabase.from("owner_personal_expenses" as any).select("*").eq("owner_user_id", ownerId).order("expense_datetime", { ascending: false }),
+      supabase.from("owner_personal_deposits" as any).select("*").eq("owner_user_id", ownerId).order("deposit_datetime", { ascending: false }),
+    ]);
+    if (expRes.error) toast.error(expRes.error.message);
+    else setRows((expRes.data || []) as any);
+    if (depRes.error) toast.error(depRes.error.message);
+    else setDeposits((depRes.data || []) as any);
     setLoading(false);
   };
 
@@ -272,7 +280,29 @@ export default function PersonalExpenses() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const ch2 = supabase
+      .channel(`opd-${ownerId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "owner_personal_deposits", filter: `owner_user_id=eq.${ownerId}` },
+        (payload: any) => {
+          if (isPersonalOwner) {
+            const rec: any = payload.new || payload.old;
+            setBellRing(true);
+            setTimeout(() => setBellRing(false), 1200);
+            if (payload.eventType === "INSERT") {
+              fancyToast.success(`إيداع جديد: ${EGP(Number(rec?.amount || 0))}`, rec?.description || undefined);
+            } else if (payload.eventType === "UPDATE") {
+              fancyToast.info("تم تعديل إيداع", rec?.description || undefined);
+            } else if (payload.eventType === "DELETE") {
+              fancyToast.warn("تم حذف إيداع", rec?.description || undefined);
+            }
+          }
+          load();
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); supabase.removeChannel(ch2); };
     // eslint-disable-next-line
   }, [ownerId, isPersonalOwner]);
 
@@ -330,10 +360,39 @@ export default function PersonalExpenses() {
       v.count += 1;
       map.set(k, v);
     });
+    deposits.forEach(d => {
+      const k = monthKey(d.deposit_datetime);
+      if (!map.has(k)) map.set(k, { total: 0, count: 0 });
+    });
     return Array.from(map.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([k, v]) => ({ key: k, ...v }));
-  }, [rows]);
+  }, [rows, deposits]);
+
+  // إيداعات كل شهر
+  const depositMonthTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    deposits.forEach(d => {
+      const k = monthKey(d.deposit_datetime);
+      m.set(k, (m.get(k) || 0) + Number(d.amount));
+    });
+    return m;
+  }, [deposits]);
+
+  // رصيد المحفظة (مش متأثر بالفلاتر — بيتبع تبويب الشهر بس)
+  const balSpent = useMemo(() => {
+    const list = activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab);
+    return list.reduce((s, r) => s + Number(r.amount), 0);
+  }, [rows, activeTab]);
+  const balDeposited = activeTab === "__all__"
+    ? deposits.reduce((s, d) => s + Number(d.amount), 0)
+    : (depositMonthTotals.get(activeTab) || 0);
+  const balRemaining = balDeposited - balSpent;
+
+  const visibleDeposits = useMemo(
+    () => activeTab === "__all__" ? deposits : deposits.filter(d => monthKey(d.deposit_datetime) === activeTab),
+    [deposits, activeTab]
+  );
 
   // Rows shown in the table = filters + active month tab
   const visible = useMemo(
@@ -386,8 +445,22 @@ export default function PersonalExpenses() {
       const t = today.reduce((s, r) => s + Number(r.amount), 0);
       out.push({ id: `today-${todayStr}-${today.length}`, tone: "info", title: `صرفت النهارده ${EGP(t)}`, body: `${today.length} عملية مسجّلة اليوم` });
     }
+    // تنبيهات الإيداعات والرصيد
+    const totDep = deposits.reduce((s, d) => s + Number(d.amount), 0);
+    if (totDep > 0) {
+      const allSpent = rows.reduce((s, r) => s + Number(r.amount), 0);
+      const rem = totDep - allSpent;
+      if (rem < 0) out.push({ id: `dep-neg-${Math.round(rem)}`, tone: "hot", title: "صرفت أكتر من اللي أودعته 😅", body: `إيداعاتك ${EGP(totDep)} وصرفت ${EGP(allSpent)} — عليك ${EGP(Math.abs(rem))}` });
+      else if (rem <= totDep * 0.1) out.push({ id: `dep-low-${Math.round(rem)}`, tone: "warn", title: "رصيدك الشخصي قرب يخلص", body: `باقيلك ${EGP(rem)} بس من إجمالي ${EGP(totDep)}` });
+    }
+    const curDep = depositMonthTotals.get(curKey) || 0;
+    if (curDep > 0 && curT > curDep) {
+      out.push({ id: `dep-over-${curKey}`, tone: "warn", title: "اتجاوزت ميزانية الشهر", body: `أودعت ${EGP(curDep)} وصرفت ${EGP(curT)} لحد دلوقتي` });
+    } else if (curDep > 0) {
+      out.push({ id: `dep-rem-${curKey}-${Math.round(curDep - curT)}`, tone: "good", title: `باقيلك ${EGP(curDep - curT)} من ميزانية الشهر`, body: `أودعت ${EGP(curDep)} وصرفت ${EGP(curT)}` });
+    }
     return out;
-  }, [rows, isPersonalOwner]);
+  }, [rows, deposits, depositMonthTotals, isPersonalOwner]);
 
   const unseenAlerts = useMemo(() => alerts.filter(a => !seenAlerts.includes(a.id)), [alerts, seenAlerts]);
 
@@ -471,6 +544,55 @@ export default function PersonalExpenses() {
     load();
   };
 
+  // ===== الإيداعات =====
+  const openAddDep = () => {
+    setEditingDep(null);
+    const now = new Date();
+    let dt = now;
+    if (activeTab !== "__all__" && activeTab !== monthKey(now.toISOString())) {
+      const [y, m] = activeTab.split("-").map(Number);
+      dt = new Date(y, m - 1, 1, now.getHours(), now.getMinutes());
+    }
+    setDepForm({ amount: "", description: "", deposit_datetime: toLocalInput(dt.toISOString()), notes: "" });
+    setDepDialogOpen(true);
+  };
+  const openEditDep = (d: Deposit) => {
+    setEditingDep(d);
+    setDepForm({ amount: String(d.amount), description: d.description ?? "", deposit_datetime: toLocalInput(d.deposit_datetime), notes: d.notes ?? "" });
+    setDepDialogOpen(true);
+  };
+  const saveDep = async () => {
+    if (!ownerId) return;
+    const amt = Number(depForm.amount);
+    if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
+    if (!depForm.deposit_datetime) return toast.error("أدخل التاريخ والوقت");
+    setSavingDep(true);
+    const payload: any = {
+      owner_user_id: ownerId,
+      amount: amt,
+      description: depForm.description.trim() || "إيداع",
+      deposit_datetime: new Date(depForm.deposit_datetime).toISOString(),
+      notes: depForm.notes.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    let res;
+    if (editingDep) res = await supabase.from("owner_personal_deposits" as any).update(payload).eq("id", editingDep.id);
+    else res = await supabase.from("owner_personal_deposits" as any).insert(payload);
+    setSavingDep(false);
+    if (res.error) return toast.error(res.error.message);
+    if (!isPersonalOwner) toast.success(editingDep ? "تم تعديل الإيداع" : "تم تسجيل الإيداع");
+    setDepDialogOpen(false);
+    load();
+  };
+  const removeDep = async () => {
+    if (!delDep) return;
+    const { error } = await supabase.from("owner_personal_deposits" as any).delete().eq("id", delDep.id);
+    if (error) return toast.error(error.message);
+    if (!isPersonalOwner) toast.success("تم حذف الإيداع");
+    setDelDep(null);
+    load();
+  };
+
   const exportMonthPDF = async (mkey: string) => {
     setPdfMonth(mkey);
     // wait for offscreen render
@@ -521,6 +643,7 @@ export default function PersonalExpenses() {
 
   const pdfMonthRows = useMemo(() => pdfMonth ? filtered.filter(r => monthKey(r.expense_datetime) === pdfMonth) : [], [pdfMonth, filtered]);
   const pdfMonthTotal = useMemo(() => pdfMonthRows.reduce((s, r) => s + Number(r.amount), 0), [pdfMonthRows]);
+  const pdfMonthDep = pdfMonth ? (depositMonthTotals.get(pdfMonth) || 0) : 0;
 
   /** إجماليات كل شهر من كل البيانات (بدون فلاتر) — لمقارنة شهر بشهر */
   const rawMonthTotals = useMemo(() => {
@@ -570,6 +693,11 @@ export default function PersonalExpenses() {
       aoa.push(["", "", "", "الإجمالي", total, ""]);
 
       if (mkey) {
+        const depTotal = depositMonthTotals.get(mkey) || 0;
+        if (depTotal > 0) {
+          aoa.push(["", "", "", "إجمالي الإيداعات", depTotal, ""]);
+          aoa.push(["", "", "", "الباقي من الشهر", Number((depTotal - total).toFixed(2)), depTotal - total < 0 ? "صرفت أكتر من إيداعك" : ""]);
+        }
         const d = monthDelta(mkey);
         if (d) aoa.push(["", "", "", `مقارنة بـ ${monthLabel(d.prevKey)}`, Number(d.diff.toFixed(2)), `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(1)}%`]);
       }
@@ -699,6 +827,11 @@ export default function PersonalExpenses() {
               </Popover>
             )}
             {canEdit && (
+              <Button onClick={openAddDep} size="lg" variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 shadow-md hover:scale-105 transition-transform">
+                <PiggyBank className="w-5 h-5 ml-1" /> إيداع جديد
+              </Button>
+            )}
+            {canEdit && (
               <Button onClick={openAdd} size="lg" className="bg-gradient-to-r from-primary to-fuchsia-600 shadow-md hover:scale-105 transition-transform">
                 <Plus className="w-5 h-5 ml-1" /> إضافة مصروف
               </Button>
@@ -797,6 +930,42 @@ export default function PersonalExpenses() {
 
 
 
+      {/* رصيد المحفظة الشخصية */}
+      <Card className="p-5 mb-6 border-emerald-400/40 bg-gradient-to-l from-emerald-500/15 via-emerald-500/5 to-transparent animate-fade-in">
+        <div className="flex items-center gap-2 mb-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+          <PiggyBank className="w-4 h-4" />
+          محفظتك الشخصية {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-3">
+            <div className="text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-1"><ArrowDownToLine className="w-3.5 h-3.5" /> أودعت</div>
+            <div className="text-2xl font-extrabold mt-1 text-emerald-700 dark:text-emerald-200 tabular-nums">
+              {balDeposited.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-sm font-semibold opacity-70">ج.م</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-3">
+            <div className="text-xs text-rose-700 dark:text-rose-300 flex items-center gap-1"><ArrowUpFromLine className="w-3.5 h-3.5" /> صرفت</div>
+            <div className="text-2xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
+              {balSpent.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-sm font-semibold opacity-70">ج.م</span>
+            </div>
+          </div>
+          <div className={`rounded-xl border p-3 ${balRemaining < 0 ? "border-red-500/50 bg-red-500/10" : "border-sky-400/40 bg-sky-500/10"}`}>
+            <div className={`text-xs flex items-center gap-1 ${balRemaining < 0 ? "text-red-700 dark:text-red-300" : "text-sky-700 dark:text-sky-300"}`}><Wallet className="w-3.5 h-3.5" /> الباقي في جيبك</div>
+            <div className={`text-2xl font-extrabold mt-1 tabular-nums ${balRemaining < 0 ? "text-red-700 dark:text-red-200" : "text-sky-700 dark:text-sky-200"}`}>
+              {balRemaining.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-sm font-semibold opacity-70">ج.م</span>
+            </div>
+          </div>
+        </div>
+        {balRemaining < 0 && (
+          <div className="mt-3 text-xs font-bold text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+            ⚠️ صرفت أكتر من اللي أودعته بـ {EGP(Math.abs(balRemaining))} {activeTab !== "__all__" ? "في الشهر ده" : "إجمالاً"}
+          </div>
+        )}
+        {balDeposited === 0 && (
+          <div className="mt-3 text-xs text-muted-foreground">لسه مسجلتش أي إيداع — دوس «إيداع جديد» وسجّل ميزانية الشهر 👆</div>
+        )}
+      </Card>
+
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -857,6 +1026,17 @@ export default function PersonalExpenses() {
                     <div className="text-2xl font-extrabold mt-1">{m.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}<span className="text-sm mr-1">ج.م</span></div>
                     <div className="text-xs mt-1 opacity-70">{m.count} مصروف</div>
                     {(() => {
+                      const dep = depositMonthTotals.get(m.key) || 0;
+                      if (dep <= 0) return null;
+                      const rem = dep - m.total;
+                      return (
+                        <div className="mt-2 space-y-0.5 text-[11px] font-bold">
+                          <div className="opacity-80 flex items-center gap-1"><PiggyBank className="w-3 h-3" /> أودعت: {dep.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                          <div className={rem < 0 ? "text-red-600 dark:text-red-300" : "opacity-90"}>الباقي: {rem.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                        </div>
+                      );
+                    })()}
+                    {(() => {
                       const d = monthDelta(m.key);
                       if (!d) return null;
                       const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
@@ -888,7 +1068,36 @@ export default function PersonalExpenses() {
         </div>
       )}
 
-      {/* Table */}
+      {/* تبديل العرض: مصروفات / إيداعات */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setView("expenses")}
+          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+            view === "expenses"
+              ? "bg-gradient-to-l from-rose-500 to-rose-600 text-white border-rose-500 shadow-md"
+              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
+          }`}
+        >
+          <ArrowUpFromLine className="w-4 h-4" /> المصروفات
+          <span className="text-xs opacity-80 tabular-nums">{visible.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("deposits")}
+          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+            view === "deposits"
+              ? "bg-gradient-to-l from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-md"
+              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
+          }`}
+        >
+          <ArrowDownToLine className="w-4 h-4" /> الإيداعات
+          <span className="text-xs opacity-80 tabular-nums">{visibleDeposits.length}</span>
+        </button>
+      </div>
+
+      {/* Expenses table */}
+      {view === "expenses" && (
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -947,6 +1156,52 @@ export default function PersonalExpenses() {
           </table>
         </div>
       </Card>
+      )}
+
+      {/* Deposits table */}
+      {view === "deposits" && (
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gradient-to-l from-emerald-500/15 to-emerald-500/5">
+              <tr className="text-right">
+                <th className="p-3 font-bold">التاريخ والوقت</th>
+                <th className="p-3 font-bold">الوصف</th>
+                <th className="p-3 font-bold">المبلغ</th>
+                <th className="p-3 font-bold">ملاحظات</th>
+                {canEdit && <th className="p-3 font-bold text-center">إجراءات</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
+              ) : visibleDeposits.length === 0 ? (
+                <tr><td colSpan={5} className="p-10 text-center">
+                  <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
+                    <PiggyBank className="w-10 h-10 opacity-40" />
+                    <div>لا توجد إيداعات مسجلة</div>
+                    {canEdit && <Button size="sm" variant="outline" onClick={openAddDep}><Plus className="w-4 h-4 ml-1" />سجّل أول إيداع</Button>}
+                  </div>
+                </td></tr>
+              ) : visibleDeposits.map(d => (
+                <tr key={d.id} className="border-t hover:bg-emerald-500/5 transition-colors">
+                  <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(d.deposit_datetime)}</td>
+                  <td className="p-3 font-semibold">{d.description || "إيداع"}</td>
+                  <td className="p-3 font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{Number(d.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                  <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={d.notes || ""}>{d.notes || "—"}</td>
+                  {canEdit && (
+                    <td className="p-3 text-center whitespace-nowrap">
+                      <Button size="icon" variant="ghost" onClick={() => openEditDep(d)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDelDep(d)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
