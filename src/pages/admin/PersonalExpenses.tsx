@@ -1379,6 +1379,11 @@ export default function PersonalExpenses() {
                 <tr key={d.id} className="border-t hover:bg-emerald-500/5 transition-colors">
                   <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(d.deposit_datetime)}</td>
                   <td className="p-3 font-semibold">{d.description || "إيداع"}</td>
+                  <td className="p-3">
+                    {d.category
+                      ? <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shadow-sm ${categoryColor(d.category)}`}><Tag className="w-3 h-3" />{d.category}</span>
+                      : <span className="text-muted-foreground text-xs">—</span>}
+                  </td>
                   <td className="p-3 font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{Number(d.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={d.notes || ""}>{d.notes || "—"}</td>
                   {canEdit && (
@@ -1416,6 +1421,21 @@ export default function PersonalExpenses() {
           </div>
 
           <div className="p-5 space-y-4 animate-fade-in">
+            {/* تنبيه الحقول الناقصة */}
+            {formErrors.length > 0 && (
+              <div className="rounded-xl border border-red-400/60 bg-gradient-to-l from-red-500/15 to-red-500/5 p-3.5 animate-fade-in shadow-sm">
+                <div className="flex items-center gap-2 font-extrabold text-red-700 dark:text-red-300 text-sm">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> ناقصك شوية حاجات قبل الحفظ:
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {formErrors.map(e => (
+                    <li key={e} className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" /> {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {/* Amount + Date */}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3 bg-rose-500/5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
@@ -1425,8 +1445,8 @@ export default function PersonalExpenses() {
                 <Input
                   type="number" step="0.01" inputMode="decimal"
                   value={form.amount}
-                  onChange={e => setForm({ ...form, amount: e.target.value })}
-                  className="mt-1.5 h-11 text-lg font-bold border-rose-300/50 focus-visible:ring-rose-400 bg-background"
+                  onChange={e => { setForm({ ...form, amount: e.target.value }); setFormErrors(p => p.filter(x => !x.startsWith("المبلغ"))); }}
+                  className={`mt-1.5 h-11 text-lg font-bold bg-background ${formErrors.some(x => x.startsWith("المبلغ")) ? "border-red-500 ring-1 ring-red-500" : "border-rose-300/50 focus-visible:ring-rose-400"}`}
                   placeholder="0.00"
                 />
               </div>
@@ -1450,23 +1470,23 @@ export default function PersonalExpenses() {
               </Label>
               <Input
                 value={form.description}
-                onChange={e => setForm({ ...form, description: e.target.value })}
+                onChange={e => { setForm({ ...form, description: e.target.value }); setFormErrors(p => p.filter(x => !x.startsWith("الوصف"))); }}
                 placeholder="مثال: عشاء عائلة"
-                className="mt-1.5 h-11 border-primary/30 focus-visible:ring-primary bg-background"
+                className={`mt-1.5 h-11 bg-background ${formErrors.some(x => x.startsWith("الوصف")) ? "border-red-500 ring-1 ring-red-500" : "border-primary/30 focus-visible:ring-primary"}`}
               />
             </div>
 
             {/* Category */}
             <div className="rounded-xl p-3 bg-violet-500/5 border border-violet-400/30 hover:border-violet-400/60 transition-colors">
               <Label className="text-xs font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5" /> التصنيف
+                <Tag className="w-3.5 h-3.5" /> التصنيف *
               </Label>
               <Input
                 list="ope-categories"
                 value={form.category}
-                onChange={e => setForm({ ...form, category: e.target.value })}
+                onChange={e => { setForm({ ...form, category: e.target.value }); setFormErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
                 placeholder="اكتب تصنيف جديد أو اختر من السابق"
-                className="mt-1.5 h-11 border-violet-300/50 focus-visible:ring-violet-400 bg-background"
+                className={`mt-1.5 h-11 bg-background ${formErrors.some(x => x.startsWith("التصنيف")) ? "border-red-500 ring-1 ring-red-500" : "border-violet-300/50 focus-visible:ring-violet-400"}`}
               />
               <datalist id="ope-categories">
                 {allCategories.map(c => <option key={c} value={c} />)}
