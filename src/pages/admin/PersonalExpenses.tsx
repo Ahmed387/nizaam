@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus } from "lucide-react";
+import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus, PiggyBank, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -30,6 +30,15 @@ interface Row {
   description: string;
   category: string | null;
   expense_datetime: string;
+  notes: string | null;
+}
+
+interface Deposit {
+  id: string;
+  owner_user_id: string;
+  amount: number;
+  description: string | null;
+  deposit_datetime: string;
   notes: string | null;
 }
 
@@ -148,6 +157,8 @@ export default function PersonalExpenses() {
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [view, setView] = useState<"expenses" | "deposits">("expenses");
 
   // filters
   const [q, setQ] = useState("");
