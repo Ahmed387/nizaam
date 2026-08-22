@@ -2852,6 +2852,42 @@ export type Database = {
         }
         Relationships: []
       }
+      owner_personal_deposits: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          deposit_datetime: string
+          description: string
+          id: string
+          notes: string | null
+          owner_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string
+          deposit_datetime?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          owner_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          deposit_datetime?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          owner_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       owner_personal_expenses: {
         Row: {
           amount: number
