@@ -417,6 +417,10 @@ export default function PersonalExpenses() {
   );
 
   const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
+  const grandTotalAllLabel = useMemo(
+    () => rows.reduce((s, r) => s + Number(r.amount), 0).toLocaleString("ar-EG", { maximumFractionDigits: 0 }) + " ج.م",
+    [rows]
+  );
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
   /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
@@ -1130,7 +1134,7 @@ export default function PersonalExpenses() {
                       const rem = dep - m.total;
                       return (
                         <div className="mt-2 space-y-0.5 text-[11px] font-bold">
-                          <div className="opacity-80 flex items-center gap-1"><PiggyBank className="w-3 h-3" /> أودعت: {dep.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                          <div className="opacity-80 flex items-center gap-1"><ArrowDownToLine className="w-3 h-3" /> أودعت: {dep.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
                           <div className={rem < 0 ? "text-red-600 dark:text-red-300" : "opacity-90"}>الباقي: {rem.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
                         </div>
                       );
@@ -1277,7 +1281,7 @@ export default function PersonalExpenses() {
               ) : visibleDeposits.length === 0 ? (
                 <tr><td colSpan={5} className="p-10 text-center">
                   <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
-                    <PiggyBank className="w-10 h-10 opacity-40" />
+                    <ArrowDownToLine className="w-10 h-10 opacity-40" />
                     <div>لا توجد إيداعات مسجلة</div>
                     {canEdit && <Button size="sm" variant="outline" onClick={openAddDep}><Plus className="w-4 h-4 ml-1" />سجّل أول إيداع</Button>}
                   </div>
@@ -1451,7 +1455,7 @@ export default function PersonalExpenses() {
             <DialogHeader className="relative">
               <DialogTitle className="flex items-center gap-3 text-xl">
                 <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md ${editingDep ? "bg-gradient-to-br from-sky-500 to-sky-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
-                  {editingDep ? <Pencil className="w-5 h-5 text-white" /> : <PiggyBank className="w-5 h-5 text-white" />}
+                  {editingDep ? <Pencil className="w-5 h-5 text-white" /> : <ArrowDownToLine className="w-5 h-5 text-white" />}
                 </div>
                 <div>
                   <div>{editingDep ? "تعديل إيداع" : "إيداع جديد"}</div>
@@ -1465,7 +1469,7 @@ export default function PersonalExpenses() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3 bg-emerald-500/5 border border-emerald-400/30 hover:border-emerald-400/60 transition-colors">
                 <Label className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
-                  <PiggyBank className="w-3.5 h-3.5" /> مبلغ الإيداع (ج.م) *
+                  <ArrowDownToLine className="w-3.5 h-3.5" /> مبلغ الإيداع (ج.م) *
                 </Label>
                 <Input
                   type="number" step="0.01" inputMode="decimal"
