@@ -2855,6 +2855,7 @@ export type Database = {
       owner_personal_deposits: {
         Row: {
           amount: number
+          category: string | null
           created_at: string
           created_by: string
           deposit_datetime: string
@@ -2866,6 +2867,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          category?: string | null
           created_at?: string
           created_by?: string
           deposit_datetime?: string
@@ -2877,6 +2879,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          category?: string | null
           created_at?: string
           created_by?: string
           deposit_datetime?: string
