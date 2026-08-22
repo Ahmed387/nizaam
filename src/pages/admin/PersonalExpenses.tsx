@@ -668,45 +668,98 @@ export default function PersonalExpenses() {
     return { prevKey, prev, cur, diff, pct };
   };
 
-  /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة */
+  /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
     try {
-      const data = mkey ? filtered.filter(r => monthKey(r.expense_datetime) === mkey) : visible;
-      if (data.length === 0) return toast.error("مفيش بيانات للتصدير");
-      const sorted = [...data].sort((a, b) => a.expense_datetime.localeCompare(b.expense_datetime));
-      const aoa: (string | number)[][] = [
-        ["التاريخ", "الوقت", "الوصف", "التصنيف", "المبلغ (ج.م)", "ملاحظات"],
-        ...sorted.map(r => {
-          const d = new Date(r.expense_datetime);
-          return [
-            d.toLocaleDateString("ar-EG"),
-            d.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }),
-            r.description || "",
-            r.category || "بدون تصنيف",
-            Number(r.amount),
-            r.notes || "",
-          ];
-        }),
-      ];
-      const total = sorted.reduce((s, r) => s + Number(r.amount), 0);
-      aoa.push([]);
-      aoa.push(["", "", "", "الإجمالي", total, ""]);
+      const expData = mkey ? filtered.filter(r => monthKey(r.expense_datetime) === mkey) : visible;
+      const depData = (mkey ? deposits.filter(d => monthKey(d.deposit_datetime) === mkey) : deposits);
+      if (expData.length === 0 && depData.length === 0) return toast.error("مفيش بيانات للتصدير");
 
+      const fmtD = (iso: string) => new Date(iso).toLocaleDateString("ar-EG");
+      const fmtT = (iso: string) => new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+
+      const expSorted = [...expData].sort((a, b) => a.expense_datetime.localeCompare(b.expense_datetime));
+      const depSorted = [...depData].sort((a, b) => a.deposit_datetime.localeCompare(b.deposit_datetime));
+      const totExp = expSorted.reduce((s, r) => s + Number(r.amount), 0);
+      const totDep = depSorted.reduce((s, d) => s + Number(d.amount), 0);
+
+      // رصيد أول الفترة (لو التصدير لشهر محدد): كل اللي اتودع واتصرف قبل بداية الشهر
+      let opening = 0;
       if (mkey) {
-        const depTotal = depositMonthTotals.get(mkey) || 0;
-        if (depTotal > 0) {
-          aoa.push(["", "", "", "إجمالي الإيداعات", depTotal, ""]);
-          aoa.push(["", "", "", "الباقي من الشهر", Number((depTotal - total).toFixed(2)), depTotal - total < 0 ? "صرفت أكتر من إيداعك" : ""]);
-        }
-        const d = monthDelta(mkey);
-        if (d) aoa.push(["", "", "", `مقارنة بـ ${monthLabel(d.prevKey)}`, Number(d.diff.toFixed(2)), `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(1)}%`]);
+        const startIso = `${mkey}-01T00:00:00`;
+        opening =
+          deposits.filter(d => d.deposit_datetime < startIso).reduce((s, d) => s + Number(d.amount), 0) -
+          rows.filter(r => r.expense_datetime < startIso).reduce((s, r) => s + Number(r.amount), 0);
       }
 
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws["!cols"] = [{ wch: 14 }, { wch: 10 }, { wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 30 }];
+      // ١) الملخص
+      const summaryAoa: (string | number)[][] = [
+        ["البند", "القيمة (ج.م)"],
+        ["الفترة", mkey ? monthLabel(mkey) : "كل الفترة"],
+        ...(mkey ? [["رصيد أول الشهر (الباقي من الشهور اللي قبلها)", Number(opening.toFixed(2))]] : []),
+        ["إجمالي اللي أودعته", totDep],
+        ["إجمالي اللي صرفته", totExp],
+        ["الباقي في المحفظة", Number((opening + totDep - totExp).toFixed(2))],
+      ];
+      if (mkey) {
+        const d = monthDelta(mkey);
+        if (d) summaryAoa.push([`مقارنة مصروفات الشهر بـ ${monthLabel(d.prevKey)}`, Number(d.diff.toFixed(2)), `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(1)}%`]);
+      }
+
+      // ٢) حركة المحفظة — إيداعات ومصاريف مرتبة بالتاريخ مع الباقي بعد كل حركة
+      const moves = [
+        ...depSorted.map(d => ({ dt: d.deposit_datetime, kind: "dep" as const, desc: d.description || "إيداع", amount: Number(d.amount) })),
+        ...expSorted.map(r => ({ dt: r.expense_datetime, kind: "exp" as const, desc: `${r.description || ""}${r.category ? ` (${r.category})` : ""}`, amount: Number(r.amount) })),
+      ].sort((a, b) => a.dt.localeCompare(b.dt));
+
+      let balance = opening;
+      const walletAoa: (string | number)[][] = [
+        ["التاريخ", "الوقت", "النوع", "البيان", "أودعت (ج.م)", "صرفت (ج.م)", "الباقي بعد الحركة (ج.م)"],
+      ];
+      if (mkey && opening !== 0) walletAoa.push([`01/${mkey.split("-")[1]}/${mkey.split("-")[0]}`, "", "رصيد سابق", "الباقي من الشهور اللي قبلها", "", "", Number(opening.toFixed(2))]);
+      for (const mv of moves) {
+        balance += mv.kind === "dep" ? mv.amount : -mv.amount;
+        walletAoa.push([
+          fmtD(mv.dt), fmtT(mv.dt),
+          mv.kind === "dep" ? "إيداع 💰" : "مصروف 💸",
+          mv.desc,
+          mv.kind === "dep" ? mv.amount : "",
+          mv.kind === "exp" ? mv.amount : "",
+          Number(balance.toFixed(2)),
+        ]);
+      }
+      walletAoa.push([]);
+      walletAoa.push(["", "", "", "الإجمالي", totDep, totExp, Number(balance.toFixed(2))]);
+
+      // ٣) الإيداعات
+      const depAoa: (string | number)[][] = [
+        ["التاريخ", "الوقت", "الوصف", "المبلغ (ج.م)", "ملاحظات"],
+        ...depSorted.map(d => [fmtD(d.deposit_datetime), fmtT(d.deposit_datetime), d.description || "إيداع", Number(d.amount), d.notes || ""]),
+        [],
+        ["", "", "الإجمالي", totDep, ""],
+      ];
+
+      // ٤) المصروفات
+      const expAoa: (string | number)[][] = [
+        ["التاريخ", "الوقت", "الوصف", "التصنيف", "المبلغ (ج.م)", "ملاحظات"],
+        ...expSorted.map(r => [fmtD(r.expense_datetime), fmtT(r.expense_datetime), r.description || "", r.category || "بدون تصنيف", Number(r.amount), r.notes || ""]),
+        [],
+        ["", "", "", "الإجمالي", totExp, ""],
+      ];
+
+      const mkSheet = (aoa: (string | number)[][], cols: number[]) => {
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws["!views"] = [{ RTL: true }];
+        ws["!cols"] = cols.map(wch => ({ wch }));
+        return ws;
+      };
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, mkey ? mkey : "الكل");
-      XLSX.writeFile(wb, `personal-expenses-${mkey || "all"}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, mkSheet(summaryAoa, [40, 18, 14]), "الملخص");
+      XLSX.utils.book_append_sheet(wb, mkSheet(walletAoa, [14, 10, 12, 36, 14, 14, 20]), "حركة المحفظة");
+      XLSX.utils.book_append_sheet(wb, mkSheet(depAoa, [14, 10, 34, 14, 30]), "الإيداعات");
+      XLSX.utils.book_append_sheet(wb, mkSheet(expAoa, [14, 10, 34, 18, 14, 30]), "المصروفات");
+      XLSX.writeFile(wb, `personal-wallet-${mkey || "all"}.xlsx`);
       toast.success("تم تصدير ملف Excel");
     } catch (e: any) {
       toast.error("فشل تصدير Excel: " + (e?.message || ""));
