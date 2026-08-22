@@ -517,6 +517,7 @@ export default function PersonalExpenses() {
   };
   const openEdit = (r: Row) => {
     setEditing(r);
+    setFormErrors([]);
     setForm({
       amount: String(r.amount),
       description: r.description,
@@ -569,25 +570,31 @@ export default function PersonalExpenses() {
   // ===== الإيداعات =====
   const openAddDep = () => {
     setEditingDep(null);
+    setDepErrors([]);
     const now = new Date();
     let dt = now;
     if (activeTab !== "__all__" && activeTab !== monthKey(now.toISOString())) {
       const [y, m] = activeTab.split("-").map(Number);
       dt = new Date(y, m - 1, 1, now.getHours(), now.getMinutes());
     }
-    setDepForm({ amount: "", description: "", deposit_datetime: toLocalInput(dt.toISOString()), notes: "" });
+    setDepForm({ amount: "", description: "", category: "", deposit_datetime: toLocalInput(dt.toISOString()), notes: "" });
     setDepDialogOpen(true);
   };
   const openEditDep = (d: Deposit) => {
     setEditingDep(d);
-    setDepForm({ amount: String(d.amount), description: d.description ?? "", deposit_datetime: toLocalInput(d.deposit_datetime), notes: d.notes ?? "" });
+    setDepErrors([]);
+    setDepForm({ amount: String(d.amount), description: d.description ?? "", category: d.category ?? "", deposit_datetime: toLocalInput(d.deposit_datetime), notes: d.notes ?? "" });
     setDepDialogOpen(true);
   };
   const saveDep = async () => {
     if (!ownerId) return;
     const amt = Number(depForm.amount);
-    if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
-    if (!depForm.deposit_datetime) return toast.error("أدخل التاريخ والوقت");
+    const missing: string[] = [];
+    if (!amt || amt <= 0) missing.push("مبلغ الإيداع — اكتب مبلغ صحيح أكبر من صفر");
+    if (!depForm.category.trim()) missing.push("التصنيف — حدد مصدر الإيداع (مثلاً: ميزانية شهرية)");
+    if (!depForm.deposit_datetime) missing.push("التاريخ والوقت");
+    if (missing.length) { setDepErrors(missing); return; }
+    setDepErrors([]);
     setSavingDep(true);
     const payload: any = {
       owner_user_id: ownerId,
