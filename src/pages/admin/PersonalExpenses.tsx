@@ -643,6 +643,7 @@ export default function PersonalExpenses() {
 
   const pdfMonthRows = useMemo(() => pdfMonth ? filtered.filter(r => monthKey(r.expense_datetime) === pdfMonth) : [], [pdfMonth, filtered]);
   const pdfMonthTotal = useMemo(() => pdfMonthRows.reduce((s, r) => s + Number(r.amount), 0), [pdfMonthRows]);
+  const pdfMonthDep = pdfMonth ? (depositMonthTotals.get(pdfMonth) || 0) : 0;
 
   /** إجماليات كل شهر من كل البيانات (بدون فلاتر) — لمقارنة شهر بشهر */
   const rawMonthTotals = useMemo(() => {
@@ -692,6 +693,11 @@ export default function PersonalExpenses() {
       aoa.push(["", "", "", "الإجمالي", total, ""]);
 
       if (mkey) {
+        const depTotal = depositMonthTotals.get(mkey) || 0;
+        if (depTotal > 0) {
+          aoa.push(["", "", "", "إجمالي الإيداعات", depTotal, ""]);
+          aoa.push(["", "", "", "الباقي من الشهر", Number((depTotal - total).toFixed(2)), depTotal - total < 0 ? "صرفت أكتر من إيداعك" : ""]);
+        }
         const d = monthDelta(mkey);
         if (d) aoa.push(["", "", "", `مقارنة بـ ${monthLabel(d.prevKey)}`, Number(d.diff.toFixed(2)), `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(1)}%`]);
       }
@@ -1062,7 +1068,36 @@ export default function PersonalExpenses() {
         </div>
       )}
 
-      {/* Table */}
+      {/* تبديل العرض: مصروفات / إيداعات */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setView("expenses")}
+          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+            view === "expenses"
+              ? "bg-gradient-to-l from-rose-500 to-rose-600 text-white border-rose-500 shadow-md"
+              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
+          }`}
+        >
+          <ArrowUpFromLine className="w-4 h-4" /> المصروفات
+          <span className="text-xs opacity-80 tabular-nums">{visible.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("deposits")}
+          className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+            view === "deposits"
+              ? "bg-gradient-to-l from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-md"
+              : "bg-muted/40 hover:bg-muted border-border text-muted-foreground"
+          }`}
+        >
+          <ArrowDownToLine className="w-4 h-4" /> الإيداعات
+          <span className="text-xs opacity-80 tabular-nums">{visibleDeposits.length}</span>
+        </button>
+      </div>
+
+      {/* Expenses table */}
+      {view === "expenses" && (
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -1121,6 +1156,52 @@ export default function PersonalExpenses() {
           </table>
         </div>
       </Card>
+      )}
+
+      {/* Deposits table */}
+      {view === "deposits" && (
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gradient-to-l from-emerald-500/15 to-emerald-500/5">
+              <tr className="text-right">
+                <th className="p-3 font-bold">التاريخ والوقت</th>
+                <th className="p-3 font-bold">الوصف</th>
+                <th className="p-3 font-bold">المبلغ</th>
+                <th className="p-3 font-bold">ملاحظات</th>
+                {canEdit && <th className="p-3 font-bold text-center">إجراءات</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">جاري التحميل...</td></tr>
+              ) : visibleDeposits.length === 0 ? (
+                <tr><td colSpan={5} className="p-10 text-center">
+                  <div className="inline-flex flex-col items-center gap-2 text-muted-foreground">
+                    <PiggyBank className="w-10 h-10 opacity-40" />
+                    <div>لا توجد إيداعات مسجلة</div>
+                    {canEdit && <Button size="sm" variant="outline" onClick={openAddDep}><Plus className="w-4 h-4 ml-1" />سجّل أول إيداع</Button>}
+                  </div>
+                </td></tr>
+              ) : visibleDeposits.map(d => (
+                <tr key={d.id} className="border-t hover:bg-emerald-500/5 transition-colors">
+                  <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(d.deposit_datetime)}</td>
+                  <td className="p-3 font-semibold">{d.description || "إيداع"}</td>
+                  <td className="p-3 font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{Number(d.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                  <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={d.notes || ""}>{d.notes || "—"}</td>
+                  {canEdit && (
+                    <td className="p-3 text-center whitespace-nowrap">
+                      <Button size="icon" variant="ghost" onClick={() => openEditDep(d)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDelDep(d)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
