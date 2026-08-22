@@ -1575,6 +1575,21 @@ export default function PersonalExpenses() {
           </div>
 
           <div className="p-5 space-y-4 animate-fade-in">
+            {/* تنبيه الحقول الناقصة */}
+            {depErrors.length > 0 && (
+              <div className="rounded-xl border border-red-400/60 bg-gradient-to-l from-red-500/15 to-red-500/5 p-3.5 animate-fade-in shadow-sm">
+                <div className="flex items-center gap-2 font-extrabold text-red-700 dark:text-red-300 text-sm">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> ناقصك شوية حاجات قبل الحفظ:
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {depErrors.map(e => (
+                    <li key={e} className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" /> {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3 bg-emerald-500/5 border border-emerald-400/30 hover:border-emerald-400/60 transition-colors">
                 <Label className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
@@ -1583,8 +1598,8 @@ export default function PersonalExpenses() {
                 <Input
                   type="number" step="0.01" inputMode="decimal"
                   value={depForm.amount}
-                  onChange={e => setDepForm({ ...depForm, amount: e.target.value })}
-                  className="mt-1.5 h-11 text-lg font-bold border-emerald-300/50 focus-visible:ring-emerald-400 bg-background"
+                  onChange={e => { setDepForm({ ...depForm, amount: e.target.value }); setDepErrors(p => p.filter(x => !x.startsWith("مبلغ الإيداع"))); }}
+                  className={`mt-1.5 h-11 text-lg font-bold bg-background ${depErrors.some(x => x.startsWith("مبلغ الإيداع")) ? "border-red-500 ring-1 ring-red-500" : "border-emerald-300/50 focus-visible:ring-emerald-400"}`}
                   placeholder="0.00"
                 />
               </div>
@@ -1611,6 +1626,41 @@ export default function PersonalExpenses() {
                 placeholder="مثال: ميزانية شهر رمضان"
                 className="mt-1.5 h-11 border-primary/30 focus-visible:ring-primary bg-background"
               />
+            </div>
+
+            {/* تصنيف الإيداع — زي تصنيف المصروف بالظبط */}
+            <div className="rounded-xl p-3 bg-violet-500/5 border border-violet-400/30 hover:border-violet-400/60 transition-colors">
+              <Label className="text-xs font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5" /> التصنيف *
+              </Label>
+              <Input
+                list="opd-categories"
+                value={depForm.category}
+                onChange={e => { setDepForm({ ...depForm, category: e.target.value }); setDepErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
+                placeholder="مثال: ميزانية شهرية، راتب، أرباح..."
+                className={`mt-1.5 h-11 bg-background ${depErrors.some(x => x.startsWith("التصنيف")) ? "border-red-500 ring-1 ring-red-500" : "border-violet-300/50 focus-visible:ring-violet-400"}`}
+              />
+              <datalist id="opd-categories">
+                {allDepCategories.map(c => <option key={c} value={c} />)}
+              </datalist>
+              {allDepCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {allDepCategories.slice(0, 12).map(c => {
+                    const active = depForm.category === c;
+                    return (
+                      <button
+                        key={c} type="button"
+                        onClick={() => { setDepForm({ ...depForm, category: c }); setDepErrors(p => p.filter(x => !x.startsWith("التصنيف"))); }}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-bold transition-all hover-scale ${
+                          active ? categoryColor(c) + " shadow" : "bg-background hover:bg-muted border-border text-foreground"
+                        }`}
+                      >
+                        <Tag className="w-3 h-3 inline ml-1" />{c}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl p-3 bg-amber-500/5 border border-amber-400/30 hover:border-amber-400/60 transition-colors">
