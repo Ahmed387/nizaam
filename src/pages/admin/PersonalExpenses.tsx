@@ -1471,6 +1471,109 @@ export default function PersonalExpenses() {
       </Card>
       )}
 
+      {/* Category Detail Dialog — كل مصاريف تصنيف معين + فلترة حرة بالتاريخ */}
+      <Dialog open={catDetail !== null} onOpenChange={(o) => { if (!o) setCatDetail(null); }}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0" dir="rtl">
+          {/* Header */}
+          <div className="relative p-5 bg-gradient-to-l from-violet-500/15 via-primary/10 to-sky-500/10 border-b overflow-hidden">
+            <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full bg-violet-500/20 blur-2xl" />
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-sky-500/20 blur-2xl" />
+            <DialogHeader className="relative">
+              <DialogTitle className="flex items-center gap-3 text-xl">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md border ${catDetail ? categoryColor(catDetail) : "bg-muted text-muted-foreground border-border"}`}>
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <div>{catDetail || "بدون تصنيف"}</div>
+                  <div className="text-xs font-normal text-muted-foreground mt-0.5">كل مصاريف التصنيف ده من أول يوم — فلتر بالتاريخ براحتك</div>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+
+          {/* ملخص سريع: صرفت كام؟ */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 pb-2">
+            <Card className="p-3 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">إجمالي اللي اتصرف</div>
+              <div className="text-lg font-extrabold text-rose-600 dark:text-rose-400 mt-0.5 tabular-nums">{catStats.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-xs">ج.م</span></div>
+            </Card>
+            <Card className="p-3 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">عدد العمليات</div>
+              <div className="text-lg font-extrabold text-sky-600 dark:text-sky-400 mt-0.5 tabular-nums">{catStats.count}</div>
+            </Card>
+            <Card className="p-3 bg-gradient-to-br from-amber-500/15 to-amber-500/5 border-amber-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">متوسط العملية</div>
+              <div className="text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">{catStats.avg.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
+            </Card>
+            <Card className="p-3 bg-gradient-to-br from-violet-500/15 to-violet-500/5 border-violet-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">أكبر مصروف</div>
+              <div className="text-lg font-extrabold text-violet-600 dark:text-violet-400 mt-0.5 tabular-nums">{catStats.max.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
+            </Card>
+          </div>
+
+          {/* فلتر التاريخ */}
+          <div className="px-4 pb-3 flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <Label className="text-[11px] text-muted-foreground">من تاريخ</Label>
+              <Input type="date" value={catFrom} onChange={e => setCatFrom(e.target.value)} className="h-9 w-36" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-[11px] text-muted-foreground">إلى تاريخ</Label>
+              <Input type="date" value={catTo} onChange={e => setCatTo(e.target.value)} className="h-9 w-36" />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              <Button size="sm" variant="outline" className="h-9 text-xs" onClick={catPresetThisMonth}>الشهر ده</Button>
+              <Button size="sm" variant="outline" className="h-9 text-xs" onClick={catPresetLast3M}>آخر ٣ شهور</Button>
+              <Button size="sm" variant={!catFrom && !catTo ? "default" : "ghost"} className="h-9 text-xs" onClick={catPresetAll}>كل التواريخ</Button>
+            </div>
+            <div className="flex-1" />
+            <Button size="sm" variant="outline" className="h-9 text-xs gap-1" onClick={exportCategoryExcel} disabled={!catRows.length}>
+              <FileSpreadsheet className="w-3.5 h-3.5" /> تصدير Excel
+            </Button>
+          </div>
+
+          {/* جدول العمليات */}
+          <div className="px-4 pb-4">
+            <div className="max-h-[42vh] overflow-y-auto rounded-xl border">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-muted/95 backdrop-blur z-10">
+                  <tr className="text-right border-b">
+                    <th className="p-2.5 font-bold">التاريخ والوقت</th>
+                    <th className="p-2.5 font-bold">الوصف</th>
+                    <th className="p-2.5 font-bold">المبلغ</th>
+                    <th className="p-2.5 font-bold">ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catRows.length === 0 ? (
+                    <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">
+                      <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      مفيش مصاريف في الفترة دي للتصنيف ده
+                    </td></tr>
+                  ) : catRows.map(r => (
+                    <tr key={r.id} className="border-b last:border-0 hover:bg-primary/5 transition-colors">
+                      <td className="p-2.5 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
+                      <td className="p-2.5 font-semibold">{r.description}</td>
+                      <td className="p-2.5 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap tabular-nums">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                      <td className="p-2.5 text-muted-foreground text-xs max-w-[200px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {catRows.length > 0 && (
+                  <tfoot className="sticky bottom-0 bg-muted/95 backdrop-blur border-t-2">
+                    <tr>
+                      <td colSpan={2} className="p-2.5 font-extrabold">الإجمالي {(catFrom || catTo) ? "في الفترة المختارة" : "(كل التواريخ)"}</td>
+                      <td className="p-2.5 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap tabular-nums">{catStats.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                      <td className="p-2.5 text-xs text-muted-foreground tabular-nums">{catStats.count} عملية</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-xl p-0 overflow-hidden gap-0" dir="rtl">
