@@ -124,6 +124,10 @@ function toLocalInput(iso: string) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function toDateInput(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 function monthKey(iso: string) {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -202,6 +206,11 @@ export default function PersonalExpenses() {
   const [depErrors, setDepErrors] = useState<string[]>([]);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
+
+  // عرض تفاصيل تصنيف معين (يفتح بالضغط على أي صف في جدول المصروفات) — "" تعني "بدون تصنيف"
+  const [catDetail, setCatDetail] = useState<string | null>(null);
+  const [catFrom, setCatFrom] = useState("");
+  const [catTo, setCatTo] = useState("");
 
   // تخصيص صاحب الشركة
   // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
@@ -421,6 +430,64 @@ export default function PersonalExpenses() {
     () => rows.reduce((s, r) => s + Number(r.amount), 0).toLocaleString("ar-EG", { maximumFractionDigits: 0 }) + " ج.م",
     [rows]
   );
+
+  // ===== تفاصيل تصنيف معين: كل العمليات (كل التواريخ) + فلتر حر بالتاريخ =====
+  const openCategory = (cat: string | null) => {
+    setCatDetail((cat ?? "").trim());
+    setCatFrom("");
+    setCatTo("");
+  };
+
+  const catRows = useMemo(() => {
+    if (catDetail === null) return [] as Row[];
+    const from = catFrom ? new Date(catFrom + "T00:00:00").getTime() : null;
+    const to = catTo ? new Date(catTo + "T23:59:59").getTime() : null;
+    return rows
+      .filter(r => (r.category?.trim() || "") === catDetail)
+      .filter(r => {
+        const t = new Date(r.expense_datetime).getTime();
+        if (from !== null && t < from) return false;
+        if (to !== null && t > to) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.expense_datetime).getTime() - new Date(a.expense_datetime).getTime());
+  }, [rows, catDetail, catFrom, catTo]);
+
+  const catStats = useMemo(() => {
+    const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
+    const max = catRows.reduce((m, r) => Math.max(m, Number(r.amount)), 0);
+    return { total, count: catRows.length, avg: catRows.length ? total / catRows.length : 0, max };
+  }, [catRows]);
+
+  // اختصارات فترات جاهزة للفلتر
+  const catPresetThisMonth = () => {
+    const d = new Date();
+    setCatFrom(toDateInput(new Date(d.getFullYear(), d.getMonth(), 1)));
+    setCatTo(toDateInput(new Date(d.getFullYear(), d.getMonth() + 1, 0)));
+  };
+  const catPresetLast3M = () => {
+    const d = new Date();
+    setCatFrom(toDateInput(new Date(d.getFullYear(), d.getMonth() - 2, 1)));
+    setCatTo(toDateInput(d));
+  };
+  const catPresetAll = () => { setCatFrom(""); setCatTo(""); };
+
+  const exportCategoryExcel = () => {
+    if (catDetail === null || !catRows.length) return;
+    const name = catDetail || "بدون تصنيف";
+    const data = catRows.map(r => ({
+      "التاريخ والوقت": fmtDT(r.expense_datetime),
+      "الوصف": r.description,
+      "المبلغ (ج.م)": Number(r.amount),
+      "ملاحظات": r.notes || "",
+    }));
+    data.push({ "التاريخ والوقت": "", "الوصف": "الإجمالي", "المبلغ (ج.م)": catStats.total, "ملاحظات": `${catStats.count} عملية` });
+    const ws = XLSX.utils.json_to_sheet(data);
+    (ws as any)["!cols"] = [{ wch: 22 }, { wch: 40 }, { wch: 14 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 28));
+    XLSX.writeFile(wb, `مصاريف-${name}.xlsx`);
+  };
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
   /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
@@ -1315,18 +1382,18 @@ export default function PersonalExpenses() {
                   </div>
                 </td></tr>
               ) : visible.map(r => (
-                <tr key={r.id} className="border-t hover:bg-primary/5 transition-colors">
+                <tr key={r.id} onClick={() => openCategory(r.category)} title="دوس عشان تشوف كل مصاريف التصنيف ده" className="border-t hover:bg-primary/5 transition-colors cursor-pointer">
                   <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
                   <td className="p-3 font-semibold">{r.description}</td>
                   <td className="p-3">
                     {r.category
                       ? <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shadow-sm ${categoryColor(r.category)}`}><Tag className="w-3 h-3" />{r.category}</span>
-                      : <span className="text-muted-foreground text-xs">—</span>}
+                      : <span className="text-muted-foreground text-xs">بدون تصنيف</span>}
                   </td>
 
                   <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
-                  <td className="p-3 text-center">
+                  <td className="p-3 text-center" onClick={e => e.stopPropagation()}>
                     <AttachmentsDialogButton
                       recordType="personal_expense"
                       recordId={r.id}
@@ -1336,7 +1403,7 @@ export default function PersonalExpenses() {
                     />
                   </td>
                   {canEdit && (
-                    <td className="p-3 text-center whitespace-nowrap">
+                    <td className="p-3 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </td>
@@ -1345,6 +1412,10 @@ export default function PersonalExpenses() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 py-2.5 text-[11px] text-muted-foreground border-t bg-muted/30 flex items-center gap-1.5">
+          <Tag className="w-3.5 h-3.5 shrink-0" />
+          دوس على أي صف عشان تفتح كل مصاريف التصنيف ده وتفلترها بالتاريخ براحتك
         </div>
       </Card>
       )}
@@ -1399,6 +1470,109 @@ export default function PersonalExpenses() {
         </div>
       </Card>
       )}
+
+      {/* Category Detail Dialog — كل مصاريف تصنيف معين + فلترة حرة بالتاريخ */}
+      <Dialog open={catDetail !== null} onOpenChange={(o) => { if (!o) setCatDetail(null); }}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0" dir="rtl">
+          {/* Header */}
+          <div className="relative p-5 bg-gradient-to-l from-violet-500/15 via-primary/10 to-sky-500/10 border-b overflow-hidden">
+            <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full bg-violet-500/20 blur-2xl" />
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-sky-500/20 blur-2xl" />
+            <DialogHeader className="relative">
+              <DialogTitle className="flex items-center gap-3 text-xl">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md border ${catDetail ? categoryColor(catDetail) : "bg-muted text-muted-foreground border-border"}`}>
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <div>{catDetail || "بدون تصنيف"}</div>
+                  <div className="text-xs font-normal text-muted-foreground mt-0.5">كل مصاريف التصنيف ده من أول يوم — فلتر بالتاريخ براحتك</div>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+
+          {/* ملخص سريع: صرفت كام؟ */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 pb-2">
+            <Card className="p-3 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">إجمالي اللي اتصرف</div>
+              <div className="text-lg font-extrabold text-rose-600 dark:text-rose-400 mt-0.5 tabular-nums">{catStats.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-xs">ج.م</span></div>
+            </Card>
+            <Card className="p-3 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">عدد العمليات</div>
+              <div className="text-lg font-extrabold text-sky-600 dark:text-sky-400 mt-0.5 tabular-nums">{catStats.count}</div>
+            </Card>
+            <Card className="p-3 bg-gradient-to-br from-amber-500/15 to-amber-500/5 border-amber-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">متوسط العملية</div>
+              <div className="text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">{catStats.avg.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
+            </Card>
+            <Card className="p-3 bg-gradient-to-br from-violet-500/15 to-violet-500/5 border-violet-400/30">
+              <div className="text-[11px] text-muted-foreground font-bold">أكبر مصروف</div>
+              <div className="text-lg font-extrabold text-violet-600 dark:text-violet-400 mt-0.5 tabular-nums">{catStats.max.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
+            </Card>
+          </div>
+
+          {/* فلتر التاريخ */}
+          <div className="px-4 pb-3 flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <Label className="text-[11px] text-muted-foreground">من تاريخ</Label>
+              <Input type="date" value={catFrom} onChange={e => setCatFrom(e.target.value)} className="h-9 w-36" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-[11px] text-muted-foreground">إلى تاريخ</Label>
+              <Input type="date" value={catTo} onChange={e => setCatTo(e.target.value)} className="h-9 w-36" />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              <Button size="sm" variant="outline" className="h-9 text-xs" onClick={catPresetThisMonth}>الشهر ده</Button>
+              <Button size="sm" variant="outline" className="h-9 text-xs" onClick={catPresetLast3M}>آخر ٣ شهور</Button>
+              <Button size="sm" variant={!catFrom && !catTo ? "default" : "ghost"} className="h-9 text-xs" onClick={catPresetAll}>كل التواريخ</Button>
+            </div>
+            <div className="flex-1" />
+            <Button size="sm" variant="outline" className="h-9 text-xs gap-1" onClick={exportCategoryExcel} disabled={!catRows.length}>
+              <FileSpreadsheet className="w-3.5 h-3.5" /> تصدير Excel
+            </Button>
+          </div>
+
+          {/* جدول العمليات */}
+          <div className="px-4 pb-4">
+            <div className="max-h-[42vh] overflow-y-auto rounded-xl border">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-muted/95 backdrop-blur z-10">
+                  <tr className="text-right border-b">
+                    <th className="p-2.5 font-bold">التاريخ والوقت</th>
+                    <th className="p-2.5 font-bold">الوصف</th>
+                    <th className="p-2.5 font-bold">المبلغ</th>
+                    <th className="p-2.5 font-bold">ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catRows.length === 0 ? (
+                    <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">
+                      <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      مفيش مصاريف في الفترة دي للتصنيف ده
+                    </td></tr>
+                  ) : catRows.map(r => (
+                    <tr key={r.id} className="border-b last:border-0 hover:bg-primary/5 transition-colors">
+                      <td className="p-2.5 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
+                      <td className="p-2.5 font-semibold">{r.description}</td>
+                      <td className="p-2.5 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap tabular-nums">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                      <td className="p-2.5 text-muted-foreground text-xs max-w-[200px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {catRows.length > 0 && (
+                  <tfoot className="sticky bottom-0 bg-muted/95 backdrop-blur border-t-2">
+                    <tr>
+                      <td colSpan={2} className="p-2.5 font-extrabold">الإجمالي {(catFrom || catTo) ? "في الفترة المختارة" : "(كل التواريخ)"}</td>
+                      <td className="p-2.5 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap tabular-nums">{catStats.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
+                      <td className="p-2.5 text-xs text-muted-foreground tabular-nums">{catStats.count} عملية</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
