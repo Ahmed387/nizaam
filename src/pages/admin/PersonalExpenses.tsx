@@ -124,6 +124,10 @@ function toLocalInput(iso: string) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function toDateInput(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 function monthKey(iso: string) {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -202,6 +206,11 @@ export default function PersonalExpenses() {
   const [depErrors, setDepErrors] = useState<string[]>([]);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [pdfMonth, setPdfMonth] = useState<string | null>(null);
+
+  // عرض تفاصيل تصنيف معين (يفتح بالضغط على أي صف في جدول المصروفات) — "" تعني "بدون تصنيف"
+  const [catDetail, setCatDetail] = useState<string | null>(null);
+  const [catFrom, setCatFrom] = useState("");
+  const [catTo, setCatTo] = useState("");
 
   // تخصيص صاحب الشركة
   // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
