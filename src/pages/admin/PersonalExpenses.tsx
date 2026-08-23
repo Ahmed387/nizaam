@@ -430,6 +430,64 @@ export default function PersonalExpenses() {
     () => rows.reduce((s, r) => s + Number(r.amount), 0).toLocaleString("ar-EG", { maximumFractionDigits: 0 }) + " ج.م",
     [rows]
   );
+
+  // ===== تفاصيل تصنيف معين: كل العمليات (كل التواريخ) + فلتر حر بالتاريخ =====
+  const openCategory = (cat: string | null) => {
+    setCatDetail((cat ?? "").trim());
+    setCatFrom("");
+    setCatTo("");
+  };
+
+  const catRows = useMemo(() => {
+    if (catDetail === null) return [] as Row[];
+    const from = catFrom ? new Date(catFrom + "T00:00:00").getTime() : null;
+    const to = catTo ? new Date(catTo + "T23:59:59").getTime() : null;
+    return rows
+      .filter(r => (r.category?.trim() || "") === catDetail)
+      .filter(r => {
+        const t = new Date(r.expense_datetime).getTime();
+        if (from !== null && t < from) return false;
+        if (to !== null && t > to) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.expense_datetime).getTime() - new Date(a.expense_datetime).getTime());
+  }, [rows, catDetail, catFrom, catTo]);
+
+  const catStats = useMemo(() => {
+    const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
+    const max = catRows.reduce((m, r) => Math.max(m, Number(r.amount)), 0);
+    return { total, count: catRows.length, avg: catRows.length ? total / catRows.length : 0, max };
+  }, [catRows]);
+
+  // اختصارات فترات جاهزة للفلتر
+  const catPresetThisMonth = () => {
+    const d = new Date();
+    setCatFrom(toDateInput(new Date(d.getFullYear(), d.getMonth(), 1)));
+    setCatTo(toDateInput(new Date(d.getFullYear(), d.getMonth() + 1, 0)));
+  };
+  const catPresetLast3M = () => {
+    const d = new Date();
+    setCatFrom(toDateInput(new Date(d.getFullYear(), d.getMonth() - 2, 1)));
+    setCatTo(toDateInput(d));
+  };
+  const catPresetAll = () => { setCatFrom(""); setCatTo(""); };
+
+  const exportCategoryExcel = () => {
+    if (catDetail === null || !catRows.length) return;
+    const name = catDetail || "بدون تصنيف";
+    const data = catRows.map(r => ({
+      "التاريخ والوقت": fmtDT(r.expense_datetime),
+      "الوصف": r.description,
+      "المبلغ (ج.م)": Number(r.amount),
+      "ملاحظات": r.notes || "",
+    }));
+    data.push({ "التاريخ والوقت": "", "الوصف": "الإجمالي", "المبلغ (ج.م)": catStats.total, "ملاحظات": `${catStats.count} عملية` });
+    const ws = XLSX.utils.json_to_sheet(data);
+    (ws as any)["!cols"] = [{ wch: 22 }, { wch: 40 }, { wch: 14 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 28));
+    XLSX.writeFile(wb, `مصاريف-${name}.xlsx`);
+  };
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
 
   /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
