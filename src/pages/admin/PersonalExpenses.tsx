@@ -1382,18 +1382,18 @@ export default function PersonalExpenses() {
                   </div>
                 </td></tr>
               ) : visible.map(r => (
-                <tr key={r.id} className="border-t hover:bg-primary/5 transition-colors">
+                <tr key={r.id} onClick={() => openCategory(r.category)} title="دوس عشان تشوف كل مصاريف التصنيف ده" className="border-t hover:bg-primary/5 transition-colors cursor-pointer">
                   <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDT(r.expense_datetime)}</td>
                   <td className="p-3 font-semibold">{r.description}</td>
                   <td className="p-3">
                     {r.category
                       ? <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shadow-sm ${categoryColor(r.category)}`}><Tag className="w-3 h-3" />{r.category}</span>
-                      : <span className="text-muted-foreground text-xs">—</span>}
+                      : <span className="text-muted-foreground text-xs">بدون تصنيف</span>}
                   </td>
 
                   <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[240px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
-                  <td className="p-3 text-center">
+                  <td className="p-3 text-center" onClick={e => e.stopPropagation()}>
                     <AttachmentsDialogButton
                       recordType="personal_expense"
                       recordId={r.id}
@@ -1403,7 +1403,7 @@ export default function PersonalExpenses() {
                     />
                   </td>
                   {canEdit && (
-                    <td className="p-3 text-center whitespace-nowrap">
+                    <td className="p-3 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </td>
@@ -1412,6 +1412,10 @@ export default function PersonalExpenses() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 py-2.5 text-[11px] text-muted-foreground border-t bg-muted/30 flex items-center gap-1.5">
+          <Tag className="w-3.5 h-3.5 shrink-0" />
+          دوس على أي صف عشان تفتح كل مصاريف التصنيف ده وتفلترها بالتاريخ براحتك
         </div>
       </Card>
       )}
