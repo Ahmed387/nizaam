@@ -1214,7 +1214,7 @@ export default function PersonalExpenses() {
       <Card className="p-5 mb-6 border-emerald-400/40 bg-gradient-to-l from-emerald-500/15 via-emerald-500/5 to-transparent animate-fade-in">
         <div className="flex items-center gap-2 mb-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
           <Wallet className="w-4 h-4" />
-          محفظتك الشخصية {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
+          محفظتك الشخصية {isAll ? "(كل الشهور)" : `— ${periodLabel}`}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-3">
@@ -1238,7 +1238,7 @@ export default function PersonalExpenses() {
         </div>
         {balRemaining < 0 && (
           <div className="mt-3 text-xs font-bold text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
-            ⚠️ صرفت أكتر من اللي أودعته بـ {EGP(Math.abs(balRemaining))} {activeTab !== "__all__" ? "في الشهر ده" : "إجمالاً"}
+            ⚠️ صرفت أكتر من اللي أودعته بـ {EGP(Math.abs(balRemaining))} {isAll ? "إجمالاً" : "في الفترة دي"}
           </div>
         )}
         {balDeposited === 0 && (
@@ -1251,7 +1251,7 @@ export default function PersonalExpenses() {
         <div className="mb-6 space-y-4 animate-fade-in">
           <div className="text-sm font-semibold flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-primary" />
-            تحليل سريع {activeTab === "__all__" ? "(كل الشهور)" : `— ${monthLabel(activeTab)}`}
+            تحليل سريع {isAll ? "(كل الشهور)" : `— ${periodLabel}`}
           </div>
 
           {/* ١) استهلاك الميزانية — صرفت قد إيه من اللي أودعته؟ */}
@@ -1297,40 +1297,46 @@ export default function PersonalExpenses() {
             )}
           </div>
 
-          {/* ٤) بتوفر ولا بتسحب من مدخراتك؟ — إيداع مقابل صرف آخر ٦ شهور */}
-          {monthlyCompare.length > 1 && (() => {
-            const maxV = Math.max(...monthlyCompare.map(m => Math.max(m.dep, m.spent)), 1);
-            return (
-              <Card className="p-4">
-                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-                  <div className="text-sm font-bold">بتوفر ولا بتسحب من مدخراتك؟ (آخر {monthlyCompare.length} شهور)</div>
-                  <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> أودعت</span>
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> صرفت</span>
-                  </div>
-                </div>
-                <div className="flex items-end justify-around gap-2">
-                  {monthlyCompare.map(m => (
-                    <div key={m.key} className="flex-1 max-w-[90px] flex flex-col items-center gap-1.5">
-                      <div className="flex items-end justify-center gap-1.5 w-full" style={{ height: 130 }}>
-                        <div
-                          className="w-5 rounded-t-md bg-emerald-500/80 transition-all duration-500"
-                          style={{ height: `${m.dep > 0 ? Math.max(3, (m.dep / maxV) * 100) : 0}%` }}
-                          title={`أودعت: ${EGP(m.dep)}`}
-                        />
-                        <div
-                          className="w-5 rounded-t-md bg-rose-500/80 transition-all duration-500"
-                          style={{ height: `${m.spent > 0 ? Math.max(3, (m.spent / maxV) * 100) : 0}%` }}
-                          title={`صرفت: ${EGP(m.spent)}`}
-                        />
-                      </div>
-                      <div className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">{m.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            );
-          })()}
+          {/* ٤) ملخص الأرقام + أعمدة مجمّعة (Financial Highlights) */}
+          {monthlyCompare.length > 0 && (
+            <Card className="p-5">
+              <div className="text-sm font-bold mb-4">ملخص أرقامك</div>
+
+              <HighlightTiles
+                tiles={[
+                  { label: `أودعت — ${periodLabel}`, value: EGP(balDeposited), tone: "primary", up: true },
+                  { label: `صرفت — ${periodLabel}`, value: EGP(balSpent), tone: "accent", up: false },
+                  {
+                    label: balRemaining < 0 ? "متجاوز الميزانية" : "الباقي في جيبك",
+                    value: EGP(balRemaining),
+                    tone: balRemaining < 0 ? "destructive" : "success",
+                    up: balRemaining >= 0,
+                  },
+                ]}
+                className="mb-6"
+              />
+
+              <div className="text-xs font-bold text-muted-foreground mb-2">
+                {isAll ? `آخر ${monthlyCompare.length} شهور` : "الشهور المختارة"} — الإيداع مقسوم بين المصروف والباقي
+              </div>
+              <StackedBars
+                bars={monthlyCompare.map(m => {
+                  const spent = Math.min(m.spent, m.dep);
+                  const over = Math.max(0, m.spent - m.dep);
+                  const rest = Math.max(0, m.dep - m.spent);
+                  return {
+                    label: m.label,
+                    segments: [
+                      { name: "صرفت", value: spent, tone: "accent" as const },
+                      { name: "الباقي", value: rest, tone: "success" as const },
+                      { name: "فوق الميزانية", value: over, tone: "destructive" as const },
+                    ],
+                  };
+                })}
+                format={(v) => EGP(v)}
+              />
+            </Card>
+          )}
         </div>
       )}
 
