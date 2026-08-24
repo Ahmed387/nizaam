@@ -22,6 +22,8 @@ import * as XLSX from "xlsx";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
+import { HighlightTiles, StackedBars } from "@/components/charts/HighlightPanel";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 interface Row {
@@ -179,8 +181,16 @@ export default function PersonalExpenses() {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
-  // month tab ("__all__" = الإجمالي)
-  const [activeTab, setActiveTab] = useState<string>("__all__");
+  // اختيار الشهور — فاضية = كل الشهور (الإجمالي). ممكن تختار أكتر من شهر وأكتر من سنة
+  const [selMonths, setSelMonths] = useState<string[]>([]);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const isAll = selMonths.length === 0;
+  const singleMonth = selMonths.length === 1 ? selMonths[0] : null;
+  /** للتوافق مع باقي الشاشة: شهر واحد مختار أو "__all__" */
+  const activeTab = singleMonth ?? "__all__";
+  const inSel = (iso: string) => isAll || selMonths.includes(monthKey(iso));
+  const toggleMonth = (k: string) =>
+    setSelMonths(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k].sort((a, b) => b.localeCompare(a)));
 
   // dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -404,25 +414,26 @@ export default function PersonalExpenses() {
     return m;
   }, [deposits]);
 
-  // رصيد المحفظة (مش متأثر بالفلاتر — بيتبع تبويب الشهر بس)
-  const balSpent = useMemo(() => {
-    const list = activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab);
-    return list.reduce((s, r) => s + Number(r.amount), 0);
-  }, [rows, activeTab]);
-  const balDeposited = activeTab === "__all__"
-    ? deposits.reduce((s, d) => s + Number(d.amount), 0)
-    : (depositMonthTotals.get(activeTab) || 0);
+  // رصيد المحفظة (مش متأثر بالفلاتر — بيتبع الشهور المختارة)
+  const balSpent = useMemo(
+    () => rows.filter(r => inSel(r.expense_datetime)).reduce((s, r) => s + Number(r.amount), 0),
+    [rows, selMonths]
+  );
+  const balDeposited = useMemo(
+    () => deposits.filter(d => inSel(d.deposit_datetime)).reduce((s, d) => s + Number(d.amount), 0),
+    [deposits, selMonths]
+  );
   const balRemaining = balDeposited - balSpent;
 
   const visibleDeposits = useMemo(
-    () => activeTab === "__all__" ? deposits : deposits.filter(d => monthKey(d.deposit_datetime) === activeTab),
-    [deposits, activeTab]
+    () => deposits.filter(d => inSel(d.deposit_datetime)),
+    [deposits, selMonths]
   );
 
-  // Rows shown in the table = filters + active month tab
+  // Rows shown in the table = filters + الشهور المختارة
   const visible = useMemo(
-    () => activeTab === "__all__" ? filtered : filtered.filter(r => monthKey(r.expense_datetime) === activeTab),
-    [filtered, activeTab]
+    () => filtered.filter(r => inSel(r.expense_datetime)),
+    [filtered, selMonths]
   );
 
   const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
@@ -769,11 +780,18 @@ export default function PersonalExpenses() {
     return { prevKey, prev, cur, diff, pct };
   };
 
-  // ===== تحليلات ورسومات أساسية (بتتبع الشهر المختار أو الإجمالي) =====
+  /** اسم الفترة المختارة بالعامية */
+  const periodLabel = isAll
+    ? "كل الشهور"
+    : singleMonth
+      ? monthLabel(singleMonth)
+      : `${selMonths.length.toLocaleString("ar-EG")} شهور مختارة`;
+
+  // ===== تحليلات ورسومات أساسية (بتتبع الشهور المختارة أو الإجمالي) =====
   // الصفوف المعروضة في الرسومات (من غير فلاتر البحث عشان تبقى الصورة كاملة)
   const chartRows = useMemo(
-    () => activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab),
-    [rows, activeTab]
+    () => rows.filter(r => inSel(r.expense_datetime)),
+    [rows, selMonths]
   );
   // ١) فلوسك راحت فين؟ — توزيع حسب التصنيف
   const categoryBreakdown = useMemo(() => {
@@ -790,20 +808,20 @@ export default function PersonalExpenses() {
       .map(r => ({ name: r.description, value: Number(r.amount), sub: r.category || undefined })),
     [chartRows]
   );
-  // ٣) إيداع مقابل صرف — آخر ٦ شهور
+  // ٣) إيداع مقابل صرف — الشهور المختارة أو آخر ٦ شهور
   const monthlyCompare = useMemo(() => {
-    const keys = monthTabs.map(m => m.key).slice(0, 6).reverse();
+    const keys = (isAll ? monthTabs.map(m => m.key).slice(0, 6) : [...selMonths]).sort((a, b) => a.localeCompare(b));
     return keys.map(k => ({ key: k, label: monthShort(k), dep: depositMonthTotals.get(k) || 0, spent: rawMonthTotals.get(k) || 0 }));
-  }, [monthTabs, depositMonthTotals, rawMonthTotals]);
+  }, [monthTabs, depositMonthTotals, rawMonthTotals, selMonths, isAll]);
 
-  // إحصائيات الشهر المختار (للكارت الكبير)
+  // إحصائيات الفترة المختارة (للكارت الكبير)
   const selectedMonthStats = useMemo(() => {
-    if (activeTab === "__all__") return null;
-    const spent = rawMonthTotals.get(activeTab) || 0;
-    const count = rows.filter(r => monthKey(r.expense_datetime) === activeTab).length;
-    const dep = depositMonthTotals.get(activeTab) || 0;
+    if (isAll) return null;
+    const spent = selMonths.reduce((s, k) => s + (rawMonthTotals.get(k) || 0), 0);
+    const count = rows.filter(r => selMonths.includes(monthKey(r.expense_datetime))).length;
+    const dep = selMonths.reduce((s, k) => s + (depositMonthTotals.get(k) || 0), 0);
     return { spent, count, dep, remaining: dep - spent };
-  }, [activeTab, rawMonthTotals, rows, depositMonthTotals]);
+  }, [isAll, selMonths, rawMonthTotals, rows, depositMonthTotals]);
 
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
@@ -1031,26 +1049,109 @@ export default function PersonalExpenses() {
       </div>
 
 
-      {/* اختيار الفترة — «الإجمالي» افتراضياً + قائمة منسدلة بالشهور */}
+      {/* اختيار الفترة — تقدر تختار شهر أو أكتر ومن أكتر من سنة */}
       <div className="mb-4 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
           <CalendarDays className="w-4 h-4 text-primary" /> عرض بيانات:
         </div>
-        <Select value={activeTab} onValueChange={setActiveTab}>
-          <SelectTrigger className="w-[280px] h-11 font-bold rounded-xl border-primary/30 bg-background shadow-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__" className="font-bold">
-              الإجمالي (كل الشهور) — {grandTotalAllLabel}
-            </SelectItem>
-            {monthTabs.map((m) => (
-              <SelectItem key={m.key} value={m.key}>
-                {monthLabel(m.key)} — {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
-              </SelectItem>
+
+        <Popover open={periodOpen} onOpenChange={setPeriodOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="min-w-[280px] h-11 font-bold rounded-xl border-primary/30 justify-between">
+              <span className="truncate">
+                {isAll ? `الإجمالي (كل الشهور) — ${grandTotalAllLabel}` : periodLabel}
+              </span>
+              <CalendarDays className="w-4 h-4 opacity-60 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[320px] p-0 pointer-events-auto">
+            {/* اختيارات سريعة */}
+            <div className="p-3 border-b flex flex-wrap gap-2">
+              <Button size="sm" variant={isAll ? "default" : "outline"} className="h-8 text-xs" onClick={() => setSelMonths([])}>
+                كل الشهور
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelMonths(monthTabs.map(m => m.key).slice(0, 3))}>
+                آخر ٣ شهور
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelMonths(monthTabs.map(m => m.key).slice(0, 6))}>
+                آخر ٦ شهور
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => {
+                  const y = String(new Date().getFullYear());
+                  setSelMonths(monthTabs.filter(m => m.key.startsWith(y)).map(m => m.key));
+                }}
+              >
+                السنة الحالية
+              </Button>
+            </div>
+
+            {/* الشهور مجمّعة بالسنة */}
+            <div className="max-h-[300px] overflow-y-auto p-2">
+              {Array.from(new Set(monthTabs.map(m => m.key.slice(0, 4)))).map(year => {
+                const months = monthTabs.filter(m => m.key.startsWith(year));
+                const allYear = months.every(m => selMonths.includes(m.key));
+                return (
+                  <div key={year} className="mb-2">
+                    <div className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-muted/60">
+                      <span className="text-xs font-extrabold">{Number(year).toLocaleString("ar-EG", { useGrouping: false })}</span>
+                      <button
+                        type="button"
+                        className="text-[11px] font-bold text-primary hover:underline"
+                        onClick={() =>
+                          setSelMonths(prev =>
+                            allYear
+                              ? prev.filter(k => !k.startsWith(year))
+                              : Array.from(new Set([...prev, ...months.map(m => m.key)])).sort((a, b) => b.localeCompare(a))
+                          )
+                        }
+                      >
+                        {allYear ? "إلغاء السنة" : "اختار السنة كلها"}
+                      </button>
+                    </div>
+                    {months.map(m => (
+                      <label
+                        key={m.key}
+                        className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/30 cursor-pointer"
+                      >
+                        <Checkbox checked={selMonths.includes(m.key)} onCheckedChange={() => toggleMonth(m.key)} />
+                        <span className="text-[13px] font-semibold flex-1 min-w-0 truncate">{monthLabel(m.key)}</span>
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                          {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-2 border-t flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">
+                {isAll ? "مفيش شهور محددة = الإجمالي" : `${selMonths.length.toLocaleString("ar-EG")} شهر مختار`}
+              </span>
+              <Button size="sm" className="h-8 text-xs" onClick={() => setPeriodOpen(false)}>تم</Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* شيبس الشهور المختارة */}
+        {!isAll && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {selMonths.map(k => (
+              <Badge key={k} variant="secondary" className="gap-1 py-1">
+                {monthLabel(k)}
+                <button type="button" onClick={() => toggleMonth(k)} className="hover:text-destructive" aria-label={`شيل ${monthLabel(k)}`}>
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
             ))}
-          </SelectContent>
-        </Select>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelMonths([])}>مسح الكل</Button>
+          </div>
+        )}
       </div>
 
       {/* Grand total (respects active filters + month tab) */}

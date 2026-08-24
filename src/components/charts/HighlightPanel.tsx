@@ -1,0 +1,134 @@
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type Tone = "primary" | "accent" | "success" | "destructive" | "info";
+
+const TILE: Record<Tone, string> = {
+  primary: "bg-primary text-primary-foreground",
+  accent: "bg-accent text-accent-foreground",
+  success: "bg-success text-success-foreground",
+  destructive: "bg-destructive text-destructive-foreground",
+  info: "bg-secondary text-secondary-foreground",
+};
+
+const SEG: Record<Tone, string> = {
+  primary: "bg-primary",
+  accent: "bg-accent",
+  success: "bg-success",
+  destructive: "bg-destructive",
+  info: "bg-secondary",
+};
+
+export type HighlightTile = {
+  label: string;
+  value: string;
+  tone: Tone;
+  /** true = سهم لأعلى، false = سهم لأسفل، undefined = بدون سهم */
+  up?: boolean;
+};
+
+export type StackedBar = {
+  label: string;
+  segments: { name: string; value: number; tone: Tone }[];
+};
+
+/** كروت أرقام كبيرة (Highlights) — نفس روح الشكل المطلوب */
+export function HighlightTiles({ tiles, className }: { tiles: HighlightTile[]; className?: string }) {
+  if (tiles.length === 0) return null;
+  return (
+    <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4", className)}>
+      {tiles.map((t, i) => (
+        <div key={`${t.label}-${i}`} className={cn("relative rounded-2xl p-5 min-h-[132px] flex flex-col justify-between overflow-hidden", TILE[t.tone])}>
+          {t.up !== undefined && (
+            <div className="absolute top-4 left-4 opacity-90">
+              {t.up ? <ArrowUpRight className="w-8 h-8" /> : <ArrowDownRight className="w-8 h-8" />}
+            </div>
+          )}
+          <div className="text-3xl md:text-4xl font-extrabold tabular-nums leading-none" dir="ltr">
+            {t.value}
+          </div>
+          <div className="text-xs md:text-sm font-bold opacity-90 mt-3">{t.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** أعمدة مجمّعة (Stacked) بمحور أرقام على الشمال — بديل الرسم القديم */
+export function StackedBars({
+  bars,
+  format = (v: number) => String(v),
+  height = 220,
+  className,
+}: {
+  bars: StackedBar[];
+  format?: (v: number) => string;
+  height?: number;
+  className?: string;
+}) {
+  const totals = bars.map((b) => b.segments.reduce((s, g) => s + Math.max(0, g.value), 0));
+  const max = Math.max(...totals, 1);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
+  const legend = bars[0]?.segments.map((s) => ({ name: s.name, tone: s.tone })) ?? [];
+
+  return (
+    <div className={cn("w-full", className)}>
+      <div className="flex items-center justify-end gap-3 text-[11px] font-bold text-muted-foreground mb-3">
+        {legend.map((l) => (
+          <span key={l.name} className="flex items-center gap-1">
+            <span className={cn("w-2.5 h-2.5 rounded-sm", SEG[l.tone])} /> {l.name}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex gap-2" dir="ltr">
+        {/* محور الأرقام */}
+        <div className="flex flex-col justify-between text-[10px] text-muted-foreground tabular-nums shrink-0" style={{ height }}>
+          {[...ticks].reverse().map((t, i) => (
+            <span key={i}>{Math.round(t).toLocaleString("en-US")}</span>
+          ))}
+        </div>
+
+        <div className="relative flex-1 min-w-0" style={{ height }}>
+          {/* خطوط الشبكة */}
+          {ticks.map((_, i) => (
+            <div key={i} className="absolute inset-x-0 border-t border-border/60" style={{ bottom: `${(i / (ticks.length - 1)) * 100}%` }} />
+          ))}
+          <div className="absolute inset-0 flex items-end justify-around gap-2 px-1">
+            {bars.map((b, bi) => {
+              const total = totals[bi];
+              return (
+                <div key={`${b.label}-${bi}`} className="flex-1 max-w-[64px] h-full flex flex-col justify-end">
+                  <div
+                    className="w-full rounded-t-md overflow-hidden flex flex-col-reverse transition-all duration-500"
+                    style={{ height: `${total > 0 ? Math.max(2, (total / max) * 100) : 0}%` }}
+                    title={`${b.label} — ${b.segments.map((s) => `${s.name}: ${format(s.value)}`).join(" · ")}`}
+                  >
+                    {b.segments.map((s, si) => (
+                      <div
+                        key={`${s.name}-${si}`}
+                        className={SEG[s.tone]}
+                        style={{ height: total > 0 ? `${(Math.max(0, s.value) / total) * 100}%` : 0 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mt-2" dir="ltr">
+        <div className="shrink-0 invisible text-[10px]">{Math.round(max).toLocaleString("en-US")}</div>
+        <div className="flex-1 flex items-start justify-around gap-2 px-1">
+          {bars.map((b, i) => (
+            <div key={`${b.label}-lbl-${i}`} className="flex-1 max-w-[64px] text-center text-[10px] font-bold text-muted-foreground whitespace-nowrap">
+              {b.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
