@@ -257,6 +257,36 @@ export default function NewShipment() {
     });
   };
 
+  // ===== إضافة/تنظيف الأصناف تلقائياً (بدون زرار إضافة) =====
+  const isLineBlank = (l: Line) =>
+    !l.product_name.trim() && !l.product_id && !(Number(l.cost_price) > 0) && !l.brand?.trim() && !l.model?.trim();
+
+  const isLineComplete = (l: Line) =>
+    !!l.product_name.trim() &&
+    Number(l.quantity) > 0 &&
+    Number(l.cost_price) > 0 &&
+    (!!l.product_id || (!!l.brand?.trim() && !!l.model?.trim()));
+
+  // 1) أول ما قسم المنتجات يفتح: لازم يكون فيه صنف فاضي جاهز
+  // 2) وأول ما كل الأصناف تتملّى: يضيف صنف فاضي جديد تلقائي
+  useEffect(() => {
+    if (isEdit || !openSections.products) return;
+    const hasBlank = lines.some(isLineBlank);
+    if (hasBlank) return;
+    if (lines.length === 0 || lines.every(isLineComplete)) addLine();
+  }, [isEdit, openSections.products, lines]);
+
+  // 3) لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
+  useEffect(() => {
+    if (isEdit || openSections.products) return;
+    setLines((prev) => {
+      const clean = prev.filter((l) => !isLineBlank(l));
+      return clean.length === prev.length ? prev : clean;
+    });
+  }, [isEdit, openSections.products]);
+
+
+
 
   const itemsGross = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
   const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
@@ -443,7 +473,16 @@ export default function NewShipment() {
     if (isEdit) return submitEdit();
     if (!supplierId) return toast.error("اختر المورد");
     if (!receivedBy.trim()) return toast.error("أدخل اسم المستلم");
+    // تجاهُل الأصناف الفاضية (اللي اتضافت تلقائي ومحدش ملّاها)
+    if (lines.some(isLineBlank)) {
+      const clean = lines.filter((l) => !isLineBlank(l));
+      setLines(clean);
+      setActiveLine(null);
+      if (!clean.length) return toast.error("املأ بيانات منتج واحد على الأقل");
+      return toast.info("شيلنا الأصناف الفاضية — اضغط حفظ تاني ✅");
+    }
     if (!lines.length) return toast.error("أضف منتجاً واحداً على الأقل");
+
     for (const l of lines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
@@ -809,15 +848,18 @@ export default function NewShipment() {
         open={openSections.products}
         onToggle={() => toggleSection("products")}
       >
-        <div className="flex items-center justify-end p-4 border-b border-border">
-          <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
-        </div>
+        {isEdit && (
+          <div className="flex items-center justify-end p-4 border-b border-border">
+            <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
+          </div>
+        )}
 
         {lines.length === 0 ? (
           <div className="text-center text-muted-foreground py-12 px-4">
             <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">اضغط "إضافة صنف" لبدء تسجيل المنتجات</p>
+            <p className="text-sm">جاري تحضير صنف جديد…</p>
           </div>
+
         ) : (
           <div className="p-4 space-y-3">
             {lines.map((l, i) => {
@@ -986,9 +1028,12 @@ export default function NewShipment() {
                 </div>
               );
             })}
-            <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
-              <Plus className="w-4 h-4" />إضافة صنف جديد
-            </Button>
+            {isEdit && (
+              <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
+                <Plus className="w-4 h-4" />إضافة صنف جديد
+              </Button>
+            )}
+
           </div>
         )}
 
