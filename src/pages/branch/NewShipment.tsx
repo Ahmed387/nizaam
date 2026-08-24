@@ -473,7 +473,16 @@ export default function NewShipment() {
     if (isEdit) return submitEdit();
     if (!supplierId) return toast.error("اختر المورد");
     if (!receivedBy.trim()) return toast.error("أدخل اسم المستلم");
+    // تجاهُل الأصناف الفاضية (اللي اتضافت تلقائي ومحدش ملّاها)
+    if (lines.some(isLineBlank)) {
+      const clean = lines.filter((l) => !isLineBlank(l));
+      setLines(clean);
+      setActiveLine(null);
+      if (!clean.length) return toast.error("املأ بيانات منتج واحد على الأقل");
+      return toast.info("شيلنا الأصناف الفاضية — اضغط حفظ تاني ✅");
+    }
     if (!lines.length) return toast.error("أضف منتجاً واحداً على الأقل");
+
     for (const l of lines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
