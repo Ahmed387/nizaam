@@ -1398,6 +1398,8 @@ export default function NewSale() {
                     onChange={(e) => setSearch(e.target.value)}
                     className="pr-10 h-12 text-base"
                     autoFocus
+                    ref={searchInputRef}
+
                   />
                 </div>
               </TabsContent>
