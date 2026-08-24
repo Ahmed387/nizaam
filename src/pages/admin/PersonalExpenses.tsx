@@ -363,7 +363,7 @@ export default function PersonalExpenses() {
         const hay = `${r.description} ${r.category ?? ""} ${r.notes ?? ""}`.toLowerCase();
         if (!hay.includes(qq)) return false;
       }
-      if (filterCategory !== "__all__" && (r.category ?? "") !== filterCategory) return false;
+      if (filterCats.length > 0 && !filterCats.includes(r.category ?? "")) return false;
       const t = new Date(r.expense_datetime).getTime();
       if (from !== null && t < from) return false;
       if (to !== null && t > to) return false;
@@ -371,7 +371,7 @@ export default function PersonalExpenses() {
       if (max !== null && r.amount > max) return false;
       return true;
     });
-  }, [rows, q, fromDate, toDate, filterCategory, minAmount, maxAmount]);
+  }, [rows, q, fromDate, toDate, filterCats, minAmount, maxAmount]);
 
   const monthlyTotals = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
@@ -926,7 +926,7 @@ export default function PersonalExpenses() {
   };
 
   const clearFilters = () => {
-    setQ(""); setFromDate(""); setToDate(""); setFilterCategory("__all__"); setMinAmount(""); setMaxAmount("");
+    setQ(""); setFromDate(""); setToDate(""); setFilterCats([]); setMinAmount(""); setMaxAmount("");
   };
 
   if (!user) return null;
@@ -1169,7 +1169,7 @@ export default function PersonalExpenses() {
               <div>
                 <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">
                   {isAll ? "إجمالي كل الشهور" : `مصاريف ${periodLabel}`}
-                  {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? " (بعد الفلاتر)" : ""}
+                  {(q || fromDate || toDate || filterCats.length > 0 || minAmount || maxAmount) ? " (بعد الفلاتر)" : ""}
                 </div>
                 <div className="text-4xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
                   {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
