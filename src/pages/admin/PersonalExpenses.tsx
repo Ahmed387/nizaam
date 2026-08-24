@@ -1049,26 +1049,109 @@ export default function PersonalExpenses() {
       </div>
 
 
-      {/* اختيار الفترة — «الإجمالي» افتراضياً + قائمة منسدلة بالشهور */}
+      {/* اختيار الفترة — تقدر تختار شهر أو أكتر ومن أكتر من سنة */}
       <div className="mb-4 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
           <CalendarDays className="w-4 h-4 text-primary" /> عرض بيانات:
         </div>
-        <Select value={activeTab} onValueChange={setActiveTab}>
-          <SelectTrigger className="w-[280px] h-11 font-bold rounded-xl border-primary/30 bg-background shadow-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__" className="font-bold">
-              الإجمالي (كل الشهور) — {grandTotalAllLabel}
-            </SelectItem>
-            {monthTabs.map((m) => (
-              <SelectItem key={m.key} value={m.key}>
-                {monthLabel(m.key)} — {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
-              </SelectItem>
+
+        <Popover open={periodOpen} onOpenChange={setPeriodOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="min-w-[280px] h-11 font-bold rounded-xl border-primary/30 justify-between">
+              <span className="truncate">
+                {isAll ? `الإجمالي (كل الشهور) — ${grandTotalAllLabel}` : periodLabel}
+              </span>
+              <CalendarDays className="w-4 h-4 opacity-60 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[320px] p-0 pointer-events-auto">
+            {/* اختيارات سريعة */}
+            <div className="p-3 border-b flex flex-wrap gap-2">
+              <Button size="sm" variant={isAll ? "default" : "outline"} className="h-8 text-xs" onClick={() => setSelMonths([])}>
+                كل الشهور
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelMonths(monthTabs.map(m => m.key).slice(0, 3))}>
+                آخر ٣ شهور
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelMonths(monthTabs.map(m => m.key).slice(0, 6))}>
+                آخر ٦ شهور
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => {
+                  const y = String(new Date().getFullYear());
+                  setSelMonths(monthTabs.filter(m => m.key.startsWith(y)).map(m => m.key));
+                }}
+              >
+                السنة الحالية
+              </Button>
+            </div>
+
+            {/* الشهور مجمّعة بالسنة */}
+            <div className="max-h-[300px] overflow-y-auto p-2">
+              {Array.from(new Set(monthTabs.map(m => m.key.slice(0, 4)))).map(year => {
+                const months = monthTabs.filter(m => m.key.startsWith(year));
+                const allYear = months.every(m => selMonths.includes(m.key));
+                return (
+                  <div key={year} className="mb-2">
+                    <div className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-muted/60">
+                      <span className="text-xs font-extrabold">{Number(year).toLocaleString("ar-EG", { useGrouping: false })}</span>
+                      <button
+                        type="button"
+                        className="text-[11px] font-bold text-primary hover:underline"
+                        onClick={() =>
+                          setSelMonths(prev =>
+                            allYear
+                              ? prev.filter(k => !k.startsWith(year))
+                              : Array.from(new Set([...prev, ...months.map(m => m.key)])).sort((a, b) => b.localeCompare(a))
+                          )
+                        }
+                      >
+                        {allYear ? "إلغاء السنة" : "اختار السنة كلها"}
+                      </button>
+                    </div>
+                    {months.map(m => (
+                      <label
+                        key={m.key}
+                        className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/30 cursor-pointer"
+                      >
+                        <Checkbox checked={selMonths.includes(m.key)} onCheckedChange={() => toggleMonth(m.key)} />
+                        <span className="text-[13px] font-semibold flex-1 min-w-0 truncate">{monthLabel(m.key)}</span>
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                          {m.total.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-2 border-t flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">
+                {isAll ? "مفيش شهور محددة = الإجمالي" : `${selMonths.length.toLocaleString("ar-EG")} شهر مختار`}
+              </span>
+              <Button size="sm" className="h-8 text-xs" onClick={() => setPeriodOpen(false)}>تم</Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* شيبس الشهور المختارة */}
+        {!isAll && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {selMonths.map(k => (
+              <Badge key={k} variant="secondary" className="gap-1 py-1">
+                {monthLabel(k)}
+                <button type="button" onClick={() => toggleMonth(k)} className="hover:text-destructive" aria-label={`شيل ${monthLabel(k)}`}>
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
             ))}
-          </SelectContent>
-        </Select>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelMonths([])}>مسح الكل</Button>
+          </div>
+        )}
       </div>
 
       {/* Grand total (respects active filters + month tab) */}
