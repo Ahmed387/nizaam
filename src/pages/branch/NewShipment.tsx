@@ -839,15 +839,18 @@ export default function NewShipment() {
         open={openSections.products}
         onToggle={() => toggleSection("products")}
       >
-        <div className="flex items-center justify-end p-4 border-b border-border">
-          <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
-        </div>
+        {isEdit && (
+          <div className="flex items-center justify-end p-4 border-b border-border">
+            <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
+          </div>
+        )}
 
         {lines.length === 0 ? (
           <div className="text-center text-muted-foreground py-12 px-4">
             <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">اضغط "إضافة صنف" لبدء تسجيل المنتجات</p>
+            <p className="text-sm">جاري تحضير صنف جديد…</p>
           </div>
+
         ) : (
           <div className="p-4 space-y-3">
             {lines.map((l, i) => {
