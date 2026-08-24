@@ -504,6 +504,7 @@ export default function PersonalExpenses() {
     XLSX.writeFile(wb, `مصاريف-${name}.xlsx`);
   };
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
+  const catAttachmentCounts = useAttachmentCounts("personal_expense", catRows.map(r => r.id));
 
   /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
   const alerts = useMemo(() => {
