@@ -808,20 +808,20 @@ export default function PersonalExpenses() {
       .map(r => ({ name: r.description, value: Number(r.amount), sub: r.category || undefined })),
     [chartRows]
   );
-  // ٣) إيداع مقابل صرف — آخر ٦ شهور
+  // ٣) إيداع مقابل صرف — الشهور المختارة أو آخر ٦ شهور
   const monthlyCompare = useMemo(() => {
-    const keys = monthTabs.map(m => m.key).slice(0, 6).reverse();
+    const keys = (isAll ? monthTabs.map(m => m.key).slice(0, 6) : [...selMonths]).sort((a, b) => a.localeCompare(b));
     return keys.map(k => ({ key: k, label: monthShort(k), dep: depositMonthTotals.get(k) || 0, spent: rawMonthTotals.get(k) || 0 }));
-  }, [monthTabs, depositMonthTotals, rawMonthTotals]);
+  }, [monthTabs, depositMonthTotals, rawMonthTotals, selMonths, isAll]);
 
-  // إحصائيات الشهر المختار (للكارت الكبير)
+  // إحصائيات الفترة المختارة (للكارت الكبير)
   const selectedMonthStats = useMemo(() => {
-    if (activeTab === "__all__") return null;
-    const spent = rawMonthTotals.get(activeTab) || 0;
-    const count = rows.filter(r => monthKey(r.expense_datetime) === activeTab).length;
-    const dep = depositMonthTotals.get(activeTab) || 0;
+    if (isAll) return null;
+    const spent = selMonths.reduce((s, k) => s + (rawMonthTotals.get(k) || 0), 0);
+    const count = rows.filter(r => selMonths.includes(monthKey(r.expense_datetime))).length;
+    const dep = selMonths.reduce((s, k) => s + (depositMonthTotals.get(k) || 0), 0);
     return { spent, count, dep, remaining: dep - spent };
-  }, [activeTab, rawMonthTotals, rows, depositMonthTotals]);
+  }, [isAll, selMonths, rawMonthTotals, rows, depositMonthTotals]);
 
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
