@@ -1019,9 +1019,12 @@ export default function NewShipment() {
                 </div>
               );
             })}
-            <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
-              <Plus className="w-4 h-4" />إضافة صنف جديد
-            </Button>
+            {isEdit && (
+              <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
+                <Plus className="w-4 h-4" />إضافة صنف جديد
+              </Button>
+            )}
+
           </div>
         )}
 
