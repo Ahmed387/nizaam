@@ -1678,8 +1678,23 @@ export default function NewSale() {
                   const effUnit = lineTotal / Math.max(1, i.quantity);
                   const isLoss = i.cost_price > 0 && effUnit < i.cost_price;
                   const lineProfit = (i.selling_price - i.cost_price) * i.quantity - i.line_discount;
+                  const collapsed = expandedKey !== null && k !== expandedKey;
+                  if (collapsed) {
+                    return (
+                      <div key={`m-${k}`} className="p-3 flex items-center gap-2 cursor-pointer" onClick={() => setExpandedKey(k)}>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="font-medium text-sm flex-1 truncate">{i.product_name}</div>
+                        <div className="text-xs text-muted-foreground shrink-0">×{i.quantity}</div>
+                        <div className="font-bold text-sm shrink-0">{formatEGP(lineTotal)}</div>
+                        <Button variant="ghost" size="sm" className="shrink-0" onClick={(e) => { e.stopPropagation(); updateQty(k, 0); }}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    );
+                  }
                   return (
                     <div key={`m-${k}`} className={`p-3 space-y-3 ${isLoss ? "bg-destructive/5" : ""}`}>
+
                       <div className="flex items-start gap-2">
                         <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold border border-primary/20">
                           {(i.product_name || "?").trim().charAt(0)}
