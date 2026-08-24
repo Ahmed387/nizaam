@@ -186,6 +186,28 @@ export default function NewPurchaseReturn() {
   const updateLine = (i: number, patch: Partial<Line>) =>
     setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
 
+  // ===== تسهيل إدخال الكميات: فوكس تلقائي + انتقال للصنف اللي بعده =====
+  const qtyRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const [showAllLines, setShowAllLines] = useState(false);
+
+  const focusNextQty = (from: number) => {
+    for (let j = from + 1; j < lines.length; j++) {
+      const el = qtyRefs.current[j];
+      if (el && !el.disabled) { el.focus(); el.select?.(); return; }
+    }
+  };
+
+  useEffect(() => {
+    if (!openSections.products || lines.length === 0) return;
+    const t = setTimeout(() => {
+      const el = qtyRefs.current.find((x) => x && !x.disabled);
+      el?.focus();
+      el?.select?.();
+    }, 120);
+    return () => clearTimeout(t);
+  }, [openSections.products, lines.length]);
+
+
   // ===== Local autosave (crash / accidental reload safety net) =====
   const draftSnapshot = {
     shipmentId: shipment?.id ?? null,
