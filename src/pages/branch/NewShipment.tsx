@@ -257,6 +257,36 @@ export default function NewShipment() {
     });
   };
 
+  // ===== إضافة/تنظيف الأصناف تلقائياً (بدون زرار إضافة) =====
+  const isLineBlank = (l: Line) =>
+    !l.product_name.trim() && !l.product_id && !(Number(l.cost_price) > 0) && !l.brand?.trim() && !l.model?.trim();
+
+  const isLineComplete = (l: Line) =>
+    !!l.product_name.trim() &&
+    Number(l.quantity) > 0 &&
+    Number(l.cost_price) > 0 &&
+    (!!l.product_id || (!!l.brand?.trim() && !!l.model?.trim()));
+
+  // 1) أول ما قسم المنتجات يفتح: لازم يكون فيه صنف فاضي جاهز
+  // 2) وأول ما كل الأصناف تتملّى: يضيف صنف فاضي جديد تلقائي
+  useEffect(() => {
+    if (isEdit || !openSections.products) return;
+    const hasBlank = lines.some(isLineBlank);
+    if (hasBlank) return;
+    if (lines.length === 0 || lines.every(isLineComplete)) addLine();
+  }, [isEdit, openSections.products, lines]);
+
+  // 3) لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
+  useEffect(() => {
+    if (isEdit || openSections.products) return;
+    setLines((prev) => {
+      const clean = prev.filter((l) => !isLineBlank(l));
+      return clean.length === prev.length ? prev : clean;
+    });
+  }, [isEdit, openSections.products]);
+
+
+
 
   const itemsGross = lines.reduce((s, l) => s + l.quantity * l.cost_price, 0);
   const itemsDiscount = lines.reduce((s, l) => s + (l.quantity * l.cost_price - lineNet(l)), 0);
