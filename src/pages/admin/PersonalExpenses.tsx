@@ -504,6 +504,7 @@ export default function PersonalExpenses() {
     XLSX.writeFile(wb, `مصاريف-${name}.xlsx`);
   };
   const attachmentCounts = useAttachmentCounts("personal_expense", visible.map(r => r.id));
+  const catAttachmentCounts = useAttachmentCounts("personal_expense", catRows.map(r => r.id));
 
   /** إشعارات ذكية لصاحب الشركة (محسوبة من نفس البيانات — من غير أي تغيير في المنطق المالي) */
   const alerts = useMemo(() => {
@@ -1715,11 +1716,13 @@ export default function PersonalExpenses() {
                     <th className="p-2.5 font-bold">الوصف</th>
                     <th className="p-2.5 font-bold">المبلغ</th>
                     <th className="p-2.5 font-bold">ملاحظات</th>
+                    <th className="p-2.5 font-bold text-center">مرفقات</th>
+                    {canEdit && <th className="p-2.5 font-bold text-center">إجراءات</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {catRows.length === 0 ? (
-                    <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">
+                    <tr><td colSpan={canEdit ? 6 : 5} className="p-8 text-center text-muted-foreground">
                       <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                       مفيش مصاريف في الفترة دي للتصنيف ده
                     </td></tr>
@@ -1729,6 +1732,21 @@ export default function PersonalExpenses() {
                       <td className="p-2.5 font-semibold">{r.description}</td>
                       <td className="p-2.5 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap tabular-nums">{Number(r.amount).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                       <td className="p-2.5 text-muted-foreground text-xs max-w-[200px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                      <td className="p-2.5 text-center">
+                        <AttachmentsDialogButton
+                          recordType="personal_expense"
+                          recordId={r.id}
+                          canEdit={canEdit}
+                          count={catAttachmentCounts[r.id] || 0}
+                          label={`مرفقات — ${r.description}`}
+                        />
+                      </td>
+                      {canEdit && (
+                        <td className="p-2.5 text-center whitespace-nowrap">
+                          <Button size="icon" variant="ghost" onClick={() => { setCatDetail(null); openEdit(r); }} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1738,9 +1756,11 @@ export default function PersonalExpenses() {
                       <td colSpan={2} className="p-2.5 font-extrabold">الإجمالي {(catFrom || catTo) ? "في الفترة المختارة" : "(كل التواريخ)"}</td>
                       <td className="p-2.5 font-extrabold text-rose-600 dark:text-rose-400 whitespace-nowrap tabular-nums">{catStats.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م</td>
                       <td className="p-2.5 text-xs text-muted-foreground tabular-nums">{catStats.count} عملية</td>
+                      <td colSpan={canEdit ? 2 : 1} />
                     </tr>
                   </tfoot>
                 )}
+
               </table>
             </div>
           </div>
