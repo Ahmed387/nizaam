@@ -1164,15 +1164,15 @@ export default function PersonalExpenses() {
               </div>
               <div>
                 <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">
-                  {activeTab === "__all__" ? "إجمالي كل الشهور" : `مصاريف ${monthLabel(activeTab)}`}
+                  {isAll ? "إجمالي كل الشهور" : `مصاريف ${periodLabel}`}
                   {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? " (بعد الفلاتر)" : ""}
                 </div>
                 <div className="text-4xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
                   {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
                   <span className="text-lg font-semibold opacity-70 mr-1">ج.م</span>
                 </div>
-                {activeTab !== "__all__" && (() => {
-                  const d = monthDelta(activeTab);
+                {singleMonth && (() => {
+                  const d = monthDelta(singleMonth);
                   if (!d) return null;
                   const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
                   return (
@@ -1191,15 +1191,15 @@ export default function PersonalExpenses() {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="text-xs text-muted-foreground">
                 {visible.length.toLocaleString("ar-EG")} مصروف
-                {activeTab === "__all__" ? ` · ${monthlyTotals.length} شهر` : ""}
+                {isAll ? ` · ${monthlyTotals.length} شهر` : ` · ${selMonths.length.toLocaleString("ar-EG")} شهر`}
               </div>
-              {activeTab !== "__all__" && (
-                <Button size="sm" variant="outline" onClick={() => exportMonthPDF(activeTab)}>
+              {singleMonth && (
+                <Button size="sm" variant="outline" onClick={() => exportMonthPDF(singleMonth)}>
                   <FileDown className="w-4 h-4 ml-1" /> PDF الشهر
                 </Button>
               )}
-              <Button size="sm" variant="outline" onClick={() => exportExcel(activeTab === "__all__" ? null : activeTab)}>
-                <FileSpreadsheet className="w-4 h-4 ml-1" /> {activeTab === "__all__" ? "Excel (الكل)" : "Excel الشهر"}
+              <Button size="sm" variant="outline" onClick={() => exportExcel(singleMonth)}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> {singleMonth ? "Excel الشهر" : "Excel (الظاهر)"}
               </Button>
             </div>
 
