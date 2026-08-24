@@ -38,16 +38,22 @@ export function HighlightTiles({ tiles, className }: { tiles: HighlightTile[]; c
   return (
     <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4", className)}>
       {tiles.map((t, i) => (
-        <div key={`${t.label}-${i}`} className={cn("relative rounded-2xl p-5 min-h-[132px] flex flex-col justify-between overflow-hidden", TILE[t.tone])}>
-          {t.up !== undefined && (
-            <div className="absolute top-4 left-4 opacity-90">
-              {t.up ? <ArrowUpRight className="w-8 h-8" /> : <ArrowDownRight className="w-8 h-8" />}
-            </div>
-          )}
-          <div className="text-3xl md:text-4xl font-extrabold tabular-nums leading-none" dir="ltr">
+        <div
+          key={`${t.label}-${i}`}
+          className={cn("rounded-2xl p-5 min-h-[140px] flex flex-col gap-3 overflow-hidden", TILE[t.tone])}
+        >
+          {/* الأيقونة في دايرة لوحدها فوق — مش فوق الأرقام */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-extrabold opacity-95 min-w-0 truncate">{t.label}</span>
+            {t.up !== undefined && (
+              <span className="shrink-0 w-9 h-9 rounded-full bg-background/20 flex items-center justify-center">
+                {t.up ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+              </span>
+            )}
+          </div>
+          <div className="mt-auto text-3xl md:text-4xl font-extrabold tabular-nums leading-tight" dir="rtl">
             {t.value}
           </div>
-          <div className="text-xs md:text-sm font-bold opacity-90 mt-3">{t.label}</div>
         </div>
       ))}
     </div>
