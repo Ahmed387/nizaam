@@ -780,11 +780,18 @@ export default function PersonalExpenses() {
     return { prevKey, prev, cur, diff, pct };
   };
 
-  // ===== تحليلات ورسومات أساسية (بتتبع الشهر المختار أو الإجمالي) =====
+  /** اسم الفترة المختارة بالعامية */
+  const periodLabel = isAll
+    ? "كل الشهور"
+    : singleMonth
+      ? monthLabel(singleMonth)
+      : `${selMonths.length.toLocaleString("ar-EG")} شهور مختارة`;
+
+  // ===== تحليلات ورسومات أساسية (بتتبع الشهور المختارة أو الإجمالي) =====
   // الصفوف المعروضة في الرسومات (من غير فلاتر البحث عشان تبقى الصورة كاملة)
   const chartRows = useMemo(
-    () => activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab),
-    [rows, activeTab]
+    () => rows.filter(r => inSel(r.expense_datetime)),
+    [rows, selMonths]
   );
   // ١) فلوسك راحت فين؟ — توزيع حسب التصنيف
   const categoryBreakdown = useMemo(() => {
