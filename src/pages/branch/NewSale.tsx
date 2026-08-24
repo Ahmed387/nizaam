@@ -1552,8 +1552,27 @@ export default function NewSale() {
                     const isProfit = i.cost_price > 0 && effUnit >= i.cost_price;
                     const lineProfit = (i.selling_price - i.cost_price) * i.quantity - i.line_discount;
                     const linePct = i.cost_price > 0 ? ((effUnit - i.cost_price) / i.cost_price) * 100 : 0;
+                    const collapsed = expandedKey !== null && k !== expandedKey;
+                    if (collapsed) {
+                      return (
+                        <tr key={k} className="border-t border-border hover:bg-surface-2/60 cursor-pointer" onClick={() => setExpandedKey(k)}>
+                          <td className="p-2" colSpan={showCost ? 7 : 6}>
+                            <div className="flex items-center gap-3">
+                              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <div className="font-medium flex-1 truncate">{i.product_name}</div>
+                              <div className="text-xs text-muted-foreground shrink-0">×{i.quantity}</div>
+                              <div className="font-bold shrink-0">{formatEGP(lineTotal)}</div>
+                              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); updateQty(k, 0); }}>
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
                     return (
                       <tr key={k} className={`border-t border-border ${isLoss ? "bg-destructive/5" : ""}`}>
+
                         <td className="p-2 font-medium">
                           <div className="flex items-start gap-2">
                             <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold border border-primary/20">
