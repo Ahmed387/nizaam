@@ -649,7 +649,18 @@ export default function NewSale() {
       }]);
     }
     setSearch("");
+    // افتح الصنف الجديد واطوِ اللي قبله + رجّع الفوكس للبحث
+    setExpandedKey(p.id);
+    if (!scannerMode) setTimeout(() => searchInputRef.current?.focus(), 60);
   };
+
+  // فوكس تلقائي على البحث أول ما يفتح قسم المنتجات
+  useEffect(() => {
+    if (!openSections.products || scannerMode) return;
+    const t = setTimeout(() => searchInputRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, [openSections.products, scannerMode]);
+
 
   const handleScan = (code: string) => {
     const trimmed = code.trim();
