@@ -461,7 +461,15 @@ export default function NewPurchaseReturn() {
               <div className="text-center text-sm text-muted-foreground py-8">لا توجد منتجات قابلة للإرجاع في هذه الفاتورة</div>
             ) : (
               <div className="space-y-2">
-                {lines.map((l, i) => (
+                {(() => {
+                  const anyPicked = lines.some((l) => (l.quantity ?? 0) > 0);
+                  const hiddenCount = anyPicked && !showAllLines ? lines.filter((l) => (l.quantity ?? 0) <= 0).length : 0;
+                  const visible = lines
+                    .map((l, i) => ({ l, i }))
+                    .filter(({ l }) => !anyPicked || showAllLines || (l.quantity ?? 0) > 0);
+                  return (
+                    <>
+                      {visible.map(({ l, i }) => (
                   <div key={l.shipment_item_id ?? i} className="grid grid-cols-12 gap-2 items-center p-2 border rounded">
                     <div className="col-span-5 text-sm">
                       <div className="font-medium">{l.product_name}</div>
@@ -474,11 +482,13 @@ export default function NewPurchaseReturn() {
                     </div>
                     <div className="col-span-2">
                       <Input
+                        ref={(el) => { qtyRefs.current[i] = el; }}
                         type="number"
                         min={0}
                         max={l.max_qty}
                         value={l.quantity}
                         disabled={l.max_qty === 0}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusNextQty(i); } }}
                         onChange={(e) => {
                           const v = Math.max(0, Math.min(l.max_qty, Number(e.target.value)));
                           updateLine(i, { quantity: v });
@@ -492,8 +502,17 @@ export default function NewPurchaseReturn() {
                       {formatEGP(l.quantity * l.unit_cost)}
                     </div>
                   </div>
-                ))}
+                      ))}
+                      {(hiddenCount > 0 || showAllLines) && (
+                        <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setShowAllLines((s) => !s)}>
+                          {showAllLines ? "إخفاء الأصناف اللي كميتها صفر" : `إظهار باقي الأصناف (${hiddenCount})`}
+                        </Button>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
+
             )}
           </div>
         </CollapsibleSection>
