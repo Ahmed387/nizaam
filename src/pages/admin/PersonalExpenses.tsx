@@ -177,7 +177,11 @@ export default function PersonalExpenses() {
   const [q, setQ] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string>("__all__");
+  /** فلتر التصنيفات — فاضي = كل التصنيفات، وممكن تختار أكتر من تصنيف */
+  const [filterCats, setFilterCats] = useState<string[]>([]);
+  const [catFilterOpen, setCatFilterOpen] = useState(false);
+  const toggleFilterCat = (c: string) =>
+    setFilterCats(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
@@ -359,7 +363,7 @@ export default function PersonalExpenses() {
         const hay = `${r.description} ${r.category ?? ""} ${r.notes ?? ""}`.toLowerCase();
         if (!hay.includes(qq)) return false;
       }
-      if (filterCategory !== "__all__" && (r.category ?? "") !== filterCategory) return false;
+      if (filterCats.length > 0 && !filterCats.includes(r.category ?? "")) return false;
       const t = new Date(r.expense_datetime).getTime();
       if (from !== null && t < from) return false;
       if (to !== null && t > to) return false;
@@ -367,7 +371,7 @@ export default function PersonalExpenses() {
       if (max !== null && r.amount > max) return false;
       return true;
     });
-  }, [rows, q, fromDate, toDate, filterCategory, minAmount, maxAmount]);
+  }, [rows, q, fromDate, toDate, filterCats, minAmount, maxAmount]);
 
   const monthlyTotals = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
@@ -922,7 +926,7 @@ export default function PersonalExpenses() {
   };
 
   const clearFilters = () => {
-    setQ(""); setFromDate(""); setToDate(""); setFilterCategory("__all__"); setMinAmount(""); setMaxAmount("");
+    setQ(""); setFromDate(""); setToDate(""); setFilterCats([]); setMinAmount(""); setMaxAmount("");
   };
 
   if (!user) return null;
@@ -1165,7 +1169,7 @@ export default function PersonalExpenses() {
               <div>
                 <div className="text-sm text-rose-700 dark:text-rose-300 font-semibold">
                   {isAll ? "إجمالي كل الشهور" : `مصاريف ${periodLabel}`}
-                  {(q || fromDate || toDate || filterCategory !== "__all__" || minAmount || maxAmount) ? " (بعد الفلاتر)" : ""}
+                  {(q || fromDate || toDate || filterCats.length > 0 || minAmount || maxAmount) ? " (بعد الفلاتر)" : ""}
                 </div>
                 <div className="text-4xl font-extrabold mt-1 text-rose-700 dark:text-rose-200 tabular-nums">
                   {grandTotal.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}
@@ -1367,14 +1371,57 @@ export default function PersonalExpenses() {
             <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="h-10" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">التصنيف</Label>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">كل التصنيفات</SelectItem>
-                {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Label className="text-xs text-muted-foreground">التصنيف (تقدر تختار أكتر من واحد)</Label>
+            <Popover open={catFilterOpen} onOpenChange={setCatFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-10 justify-between font-semibold">
+                  <span className="truncate">
+                    {filterCats.length === 0
+                      ? "كل التصنيفات"
+                      : filterCats.length === 1
+                        ? filterCats[0]
+                        : `${filterCats.length.toLocaleString("ar-EG")} تصنيفات`}
+                  </span>
+                  <Tag className="w-4 h-4 opacity-60 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[260px] p-0 pointer-events-auto">
+                <div className="p-2 border-b flex items-center justify-between">
+                  <Button size="sm" variant={filterCats.length === 0 ? "default" : "outline"} className="h-8 text-xs" onClick={() => setFilterCats([])}>
+                    كل التصنيفات
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setFilterCats([...allCategories])}>
+                    اختار الكل
+                  </Button>
+                </div>
+                <div className="max-h-[280px] overflow-y-auto p-2">
+                  {allCategories.length === 0 && (
+                    <div className="text-xs text-muted-foreground p-2">مفيش تصنيفات لسه</div>
+                  )}
+                  {allCategories.map(c => (
+                    <label key={c} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/30 cursor-pointer">
+                      <Checkbox checked={filterCats.includes(c)} onCheckedChange={() => toggleFilterCat(c)} />
+                      <span className="text-[13px] font-semibold flex-1 min-w-0 truncate">{c}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="p-2 border-t flex justify-end">
+                  <Button size="sm" className="h-8 text-xs" onClick={() => setCatFilterOpen(false)}>تم</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            {filterCats.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                {filterCats.map(c => (
+                  <Badge key={c} variant="secondary" className="gap-1 py-1">
+                    {c}
+                    <button type="button" onClick={() => toggleFilterCat(c)} className="hover:text-destructive" aria-label={`شيل ${c}`}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">من مبلغ</Label>

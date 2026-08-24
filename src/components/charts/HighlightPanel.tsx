@@ -38,16 +38,22 @@ export function HighlightTiles({ tiles, className }: { tiles: HighlightTile[]; c
   return (
     <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4", className)}>
       {tiles.map((t, i) => (
-        <div key={`${t.label}-${i}`} className={cn("relative rounded-2xl p-5 min-h-[132px] flex flex-col justify-between overflow-hidden", TILE[t.tone])}>
-          {t.up !== undefined && (
-            <div className="absolute top-4 left-4 opacity-90">
-              {t.up ? <ArrowUpRight className="w-8 h-8" /> : <ArrowDownRight className="w-8 h-8" />}
-            </div>
-          )}
-          <div className="text-3xl md:text-4xl font-extrabold tabular-nums leading-none" dir="ltr">
+        <div
+          key={`${t.label}-${i}`}
+          className={cn("rounded-2xl p-5 min-h-[140px] flex flex-col gap-3 overflow-hidden", TILE[t.tone])}
+        >
+          {/* الأيقونة في دايرة لوحدها فوق — مش فوق الأرقام */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-extrabold opacity-95 min-w-0 truncate">{t.label}</span>
+            {t.up !== undefined && (
+              <span className="shrink-0 w-9 h-9 rounded-full bg-background/20 flex items-center justify-center">
+                {t.up ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+              </span>
+            )}
+          </div>
+          <div className="mt-auto text-3xl md:text-4xl font-extrabold tabular-nums leading-tight" dir="rtl">
             {t.value}
           </div>
-          <div className="text-xs md:text-sm font-bold opacity-90 mt-3">{t.label}</div>
         </div>
       ))}
     </div>
@@ -58,7 +64,7 @@ export function HighlightTiles({ tiles, className }: { tiles: HighlightTile[]; c
 export function StackedBars({
   bars,
   format = (v: number) => String(v),
-  height = 220,
+  height = 260,
   className,
 }: {
   bars: StackedBar[];
@@ -73,17 +79,17 @@ export function StackedBars({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex items-center justify-end gap-3 text-[11px] font-bold text-muted-foreground mb-3">
+      <div className="flex items-center justify-end gap-4 text-sm font-bold text-foreground mb-4 flex-wrap">
         {legend.map((l) => (
-          <span key={l.name} className="flex items-center gap-1">
-            <span className={cn("w-2.5 h-2.5 rounded-sm", SEG[l.tone])} /> {l.name}
+          <span key={l.name} className="flex items-center gap-1.5">
+            <span className={cn("w-3.5 h-3.5 rounded-sm", SEG[l.tone])} /> {l.name}
           </span>
         ))}
       </div>
 
-      <div className="flex gap-2" dir="ltr">
+      <div className="flex gap-3" dir="ltr">
         {/* محور الأرقام */}
-        <div className="flex flex-col justify-between text-[10px] text-muted-foreground tabular-nums shrink-0" style={{ height }}>
+        <div className="flex flex-col justify-between text-xs font-bold text-muted-foreground tabular-nums shrink-0" style={{ height }}>
           {[...ticks].reverse().map((t, i) => (
             <span key={i}>{Math.round(t).toLocaleString("en-US")}</span>
           ))}
@@ -94,11 +100,11 @@ export function StackedBars({
           {ticks.map((_, i) => (
             <div key={i} className="absolute inset-x-0 border-t border-border/60" style={{ bottom: `${(i / (ticks.length - 1)) * 100}%` }} />
           ))}
-          <div className="absolute inset-0 flex items-end justify-around gap-2 px-1">
+          <div className="absolute inset-0 flex items-end justify-around gap-3 px-1">
             {bars.map((b, bi) => {
               const total = totals[bi];
               return (
-                <div key={`${b.label}-${bi}`} className="flex-1 max-w-[64px] h-full flex flex-col justify-end">
+                <div key={`${b.label}-${bi}`} className="flex-1 max-w-[72px] h-full flex flex-col justify-end">
                   <div
                     className="w-full rounded-t-md overflow-hidden flex flex-col-reverse transition-all duration-500"
                     style={{ height: `${total > 0 ? Math.max(2, (total / max) * 100) : 0}%` }}
@@ -119,11 +125,11 @@ export function StackedBars({
         </div>
       </div>
 
-      <div className="flex gap-2 mt-2" dir="ltr">
-        <div className="shrink-0 invisible text-[10px]">{Math.round(max).toLocaleString("en-US")}</div>
-        <div className="flex-1 flex items-start justify-around gap-2 px-1">
+      <div className="flex gap-3 mt-3" dir="ltr">
+        <div className="shrink-0 invisible text-xs font-bold">{Math.round(max).toLocaleString("en-US")}</div>
+        <div className="flex-1 flex items-start justify-around gap-3 px-1">
           {bars.map((b, i) => (
-            <div key={`${b.label}-lbl-${i}`} className="flex-1 max-w-[64px] text-center text-[10px] font-bold text-muted-foreground whitespace-nowrap">
+            <div key={`${b.label}-lbl-${i}`} className="flex-1 max-w-[72px] text-center text-sm font-bold text-foreground whitespace-nowrap">
               {b.label}
             </div>
           ))}
