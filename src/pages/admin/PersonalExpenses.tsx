@@ -177,7 +177,11 @@ export default function PersonalExpenses() {
   const [q, setQ] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string>("__all__");
+  /** فلتر التصنيفات — فاضي = كل التصنيفات، وممكن تختار أكتر من تصنيف */
+  const [filterCats, setFilterCats] = useState<string[]>([]);
+  const [catFilterOpen, setCatFilterOpen] = useState(false);
+  const toggleFilterCat = (c: string) =>
+    setFilterCats(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
