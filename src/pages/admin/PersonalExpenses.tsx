@@ -22,6 +22,8 @@ import * as XLSX from "xlsx";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
+import { HighlightTiles, StackedBars } from "@/components/charts/HighlightPanel";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 interface Row {
@@ -179,8 +181,16 @@ export default function PersonalExpenses() {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
-  // month tab ("__all__" = الإجمالي)
-  const [activeTab, setActiveTab] = useState<string>("__all__");
+  // اختيار الشهور — فاضية = كل الشهور (الإجمالي). ممكن تختار أكتر من شهر وأكتر من سنة
+  const [selMonths, setSelMonths] = useState<string[]>([]);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const isAll = selMonths.length === 0;
+  const singleMonth = selMonths.length === 1 ? selMonths[0] : null;
+  /** للتوافق مع باقي الشاشة: شهر واحد مختار أو "__all__" */
+  const activeTab = singleMonth ?? "__all__";
+  const inSel = (iso: string) => isAll || selMonths.includes(monthKey(iso));
+  const toggleMonth = (k: string) =>
+    setSelMonths(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k].sort((a, b) => b.localeCompare(a)));
 
   // dialog
   const [dialogOpen, setDialogOpen] = useState(false);
