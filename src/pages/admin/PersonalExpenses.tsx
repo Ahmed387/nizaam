@@ -1387,19 +1387,21 @@ export default function PersonalExpenses() {
         </div>
       </Card>
 
-      {/* ملخص الشهر المختار — كارت واحد كبير بدل الكروت الصغيرة المتراصة */}
-      {activeTab !== "__all__" && selectedMonthStats && (
+      {/* ملخص الفترة المختارة — كارت واحد كبير بدل الكروت الصغيرة المتراصة */}
+      {!isAll && selectedMonthStats && (
         <Card className="p-5 mb-6 border-primary/30 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent animate-fade-in">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 text-sm font-bold text-primary">
               <CalendarDays className="w-4 h-4" />
-              ملخص {monthLabel(activeTab)}
+              ملخص {periodLabel}
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => exportMonthPDF(activeTab)}>
-                <FileDown className="w-4 h-4 ml-1" /> PDF
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => exportExcel(activeTab)}>
+              {singleMonth && (
+                <Button size="sm" variant="outline" onClick={() => exportMonthPDF(singleMonth)}>
+                  <FileDown className="w-4 h-4 ml-1" /> PDF
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => exportExcel(singleMonth)}>
                 <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
               </Button>
             </div>
