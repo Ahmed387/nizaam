@@ -414,25 +414,26 @@ export default function PersonalExpenses() {
     return m;
   }, [deposits]);
 
-  // رصيد المحفظة (مش متأثر بالفلاتر — بيتبع تبويب الشهر بس)
-  const balSpent = useMemo(() => {
-    const list = activeTab === "__all__" ? rows : rows.filter(r => monthKey(r.expense_datetime) === activeTab);
-    return list.reduce((s, r) => s + Number(r.amount), 0);
-  }, [rows, activeTab]);
-  const balDeposited = activeTab === "__all__"
-    ? deposits.reduce((s, d) => s + Number(d.amount), 0)
-    : (depositMonthTotals.get(activeTab) || 0);
+  // رصيد المحفظة (مش متأثر بالفلاتر — بيتبع الشهور المختارة)
+  const balSpent = useMemo(
+    () => rows.filter(r => inSel(r.expense_datetime)).reduce((s, r) => s + Number(r.amount), 0),
+    [rows, selMonths]
+  );
+  const balDeposited = useMemo(
+    () => deposits.filter(d => inSel(d.deposit_datetime)).reduce((s, d) => s + Number(d.amount), 0),
+    [deposits, selMonths]
+  );
   const balRemaining = balDeposited - balSpent;
 
   const visibleDeposits = useMemo(
-    () => activeTab === "__all__" ? deposits : deposits.filter(d => monthKey(d.deposit_datetime) === activeTab),
-    [deposits, activeTab]
+    () => deposits.filter(d => inSel(d.deposit_datetime)),
+    [deposits, selMonths]
   );
 
-  // Rows shown in the table = filters + active month tab
+  // Rows shown in the table = filters + الشهور المختارة
   const visible = useMemo(
-    () => activeTab === "__all__" ? filtered : filtered.filter(r => monthKey(r.expense_datetime) === activeTab),
-    [filtered, activeTab]
+    () => filtered.filter(r => inSel(r.expense_datetime)),
+    [filtered, selMonths]
   );
 
   const grandTotal = useMemo(() => visible.reduce((s, r) => s + Number(r.amount), 0), [visible]);
