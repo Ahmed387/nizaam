@@ -796,6 +796,15 @@ export default function PersonalExpenses() {
     return keys.map(k => ({ key: k, label: monthShort(k), dep: depositMonthTotals.get(k) || 0, spent: rawMonthTotals.get(k) || 0 }));
   }, [monthTabs, depositMonthTotals, rawMonthTotals]);
 
+  // إحصائيات الشهر المختار (للكارت الكبير)
+  const selectedMonthStats = useMemo(() => {
+    if (activeTab === "__all__") return null;
+    const spent = rawMonthTotals.get(activeTab) || 0;
+    const count = rows.filter(r => monthKey(r.expense_datetime) === activeTab).length;
+    const dep = depositMonthTotals.get(activeTab) || 0;
+    return { spent, count, dep, remaining: dep - spent };
+  }, [activeTab, rawMonthTotals, rows, depositMonthTotals]);
+
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
     try {
