@@ -77,6 +77,10 @@ export default function NewSale() {
   const showCost = isAdmin || hasRole("branch_manager") || hasRole("accountant");
 
   const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // الصنف المفتوح حاليًا — اللي قبله بيتطوى تلقائي
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
   const [products, setProducts] = useState<any[]>([]);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
