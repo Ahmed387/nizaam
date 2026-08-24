@@ -1432,8 +1432,8 @@ export default function PersonalExpenses() {
               <div className="text-xs text-primary flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> مقارنة بالشهر اللي فات</div>
               <div className="mt-2">
                 {(() => {
-                  const d = monthDelta(activeTab);
-                  if (!d) return <div className="text-sm text-muted-foreground">مفيش بيانات للشهر اللي فات</div>;
+                  const d = singleMonth ? monthDelta(singleMonth) : null;
+                  if (!d) return <div className="text-sm text-muted-foreground">المقارنة بتظهر لما تختار شهر واحد</div>;
                   const up = d.diff > 0, flat = Math.abs(d.diff) < 0.005;
                   return (
                     <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
