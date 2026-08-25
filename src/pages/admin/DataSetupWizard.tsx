@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import CoreDataImport from "./CoreDataImport";
 import DataMigration from "./DataMigration";
+import { StepIntro, SheetGuideList, CORE_SHEETS, LEGACY_SHEET } from "@/components/data-setup/SetupGuide";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -293,10 +294,18 @@ export default function DataSetupWizard() {
         })}
       </div>
 
-      {step === 1 && <CoreDataImport embedded />}
+      {step === 1 && (
+        <div key="s1" className="animate-fade-in">
+          <StepIntro step={1} />
+          <SheetGuideList sheets={CORE_SHEETS} />
+          <CoreDataImport embedded />
+        </div>
+      )}
 
       {step === 2 && (
-        <div className="space-y-4">
+        <div key="s2" className="space-y-4 animate-fade-in">
+          <StepIntro step={2} />
+          <SheetGuideList sheets={[LEGACY_SHEET]} />
           <OpeningStep onGoLegacy={() => { setShowLegacy(true); setTimeout(() => document.getElementById("legacy-block")?.scrollIntoView({ behavior: "smooth" }), 100); }} />
           <div id="legacy-block">
             {showLegacy ? (
@@ -317,7 +326,8 @@ export default function DataSetupWizard() {
         </div>
       )}
 
-      {step === 3 && <LockStep />}
+      {step === 3 && <div key="s3" className="animate-fade-in"><StepIntro step={3} /><LockStep /></div>}
+
 
       <div className="flex items-center justify-between mt-6 pt-4 border-t">
         <Button variant="outline" disabled={step === 1} onClick={() => setStep((s) => (s - 1) as any)}>
