@@ -1,9 +1,11 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ListOrdered, Wallet, Lock, Lightbulb, AlertTriangle, Target, TableProperties, Sparkles,
+  FileSpreadsheet, Rocket, CheckCircle2,
 } from "lucide-react";
+
 
 /* ============================================================
    دليل الاستخدام بالعامية لشاشة «تأسيس وترحيل البيانات»
