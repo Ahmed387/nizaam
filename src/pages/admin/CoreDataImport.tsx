@@ -249,7 +249,7 @@ export default function CoreDataImport({ embedded = false }: { embedded?: boolea
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="branches">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="branches">1 الفروع</TabsTrigger>
           <TabsTrigger value="categories">2 التصنيفات</TabsTrigger>
