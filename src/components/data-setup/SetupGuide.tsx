@@ -225,7 +225,7 @@ export const LEGACY_SHEET: SheetGuide = {
 /* ───────────────── مقدمة كل خطوة ───────────────── */
 
 const STEP_INTRO: Record<1 | 2 | 3, {
-  icon: any; title: string; job: string; bullets: string[]; mistakes: { wrong: string; avoid: string }[];
+  icon: any; title: string; job: string; bullets: string[];
   tone: string; ring: string;
 }> = {
   1: {
