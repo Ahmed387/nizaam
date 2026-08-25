@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import CoreDataImport from "./CoreDataImport";
 import DataMigration from "./DataMigration";
-import { StepIntro, SheetGuideList, CORE_SHEETS, LEGACY_SHEET } from "@/components/data-setup/SetupGuide";
+import { StepIntro, SheetGuideList, TabPurpose, CORE_SHEETS, LEGACY_SHEET } from "@/components/data-setup/SetupGuide";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -273,7 +273,10 @@ export default function DataSetupWizard() {
         subtitle="3 خطوات: القوائم الأساسية → الأرصدة الافتتاحية → القفل التلقائي عشان الدين ميتحسبش مرتين."
       />
 
+      <TabPurpose />
+
       <div className="flex items-center gap-2 mb-4 overflow-x-auto">
+
         {STEPS.map((s, i) => {
           const Icon = s.icon;
           const done = step > s.n;
