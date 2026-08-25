@@ -339,7 +339,7 @@ function ExampleTable({ example }: { example: Record<string, string> }) {
   );
 }
 
-export function SheetGuide({ sheets, defaultOpen }: { sheets: SheetGuide[]; defaultOpen?: string }) {
+export function SheetGuideList({ sheets, defaultOpen }: { sheets: SheetGuide[]; defaultOpen?: string }) {
   return (
     <Card className="mb-4 animate-fade-in">
       <CardContent className="p-3 sm:p-4">
