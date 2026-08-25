@@ -46,6 +46,8 @@ export default function CoreDataImport({ embedded = false }: { embedded?: boolea
   const [openingDate, setOpeningDate] = useState(`${new Date().getFullYear()}-01-01`);
   const [treasuryExpected, setTreasuryExpected] = useState("");
   const [branchCount, setBranchCount] = useState<number | null>(null);
+  const [tab, setTab] = useState("branches");
+
 
   useEffect(() => {
     if (!tenantId) return;
