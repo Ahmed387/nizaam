@@ -3,7 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Upload, AlertTriangle, CheckCircle2, Loader2, FileWarning, RotateCcw } from "lucide-react";
+import {
+  Download, Upload, AlertTriangle, CheckCircle2, Loader2, FileWarning, RotateCcw,
+  ArrowLeft, FileSpreadsheet, Pencil, MousePointerClick,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   CsvColumn, ParsedCsvRow, downloadCsvTemplate, downloadCsvRows, headerOf, readImportFile,
