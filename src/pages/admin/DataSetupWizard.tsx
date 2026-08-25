@@ -273,7 +273,10 @@ export default function DataSetupWizard() {
         subtitle="3 خطوات: القوائم الأساسية → الأرصدة الافتتاحية → القفل التلقائي عشان الدين ميتحسبش مرتين."
       />
 
+      <TabPurpose />
+
       <div className="flex items-center gap-2 mb-4 overflow-x-auto">
+
         {STEPS.map((s, i) => {
           const Icon = s.icon;
           const done = step > s.n;
