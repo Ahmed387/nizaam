@@ -323,80 +323,257 @@ function Mistakes({ items }: { items: { wrong: string; avoid: string }[] }) {
   );
 }
 
-function ExampleTable({ example }: { example: Record<string, string> }) {
-  const keys = Object.keys(example);
+/* ───────────────── شكل الشيت نفسه (زي إكسل) ───────────────── */
+
+const COL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+function expandCols(cols: SheetGuide["cols"]) {
+  const out: { name: string; must?: boolean }[] = [];
+  cols.forEach((c) => {
+    c.name.split(" / ").forEach((n) => out.push({ name: n.trim(), must: c.must }));
+  });
+  return out;
+}
+
+function SheetMock({ sheet }: { sheet: SheetGuide }) {
+  const cols = expandCols(sheet.cols);
+  const row1 = cols.map((c) => sheet.example[c.name] ?? "");
   return (
-    <div className="rounded-xl border border-border/60 overflow-x-auto">
-      <table className="w-full text-xs">
-        <thead className="bg-muted/50">
-          <tr>{keys.map((k) => <th key={k} className="px-3 py-2 whitespace-nowrap text-center font-semibold">{k}</th>)}</tr>
-        </thead>
-        <tbody>
-          <tr>{keys.map((k) => <td key={k} className="px-3 py-2 whitespace-nowrap text-center border-t">{example[k] || "—"}</td>)}</tr>
-        </tbody>
-      </table>
+    <div className="rounded-xl border-2 border-emerald-500/30 overflow-hidden animate-fade-in">
+      <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-2 border-b border-emerald-500/20">
+        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+          {sheet.title}.xlsx — الصف الأول عناوين، ومن الصف التاني بياناتك
+        </span>
+      </div>
+      <div className="overflow-x-auto bg-background">
+        <table className="w-full text-xs border-collapse" dir="rtl">
+          <thead>
+            <tr className="bg-muted/60 text-muted-foreground">
+              <th className="w-8 px-2 py-1 border border-border/60"> </th>
+              {cols.map((c, i) => (
+                <th key={i} className="px-3 py-1 border border-border/60 font-mono font-normal text-center">
+                  {COL_LETTERS[i] ?? i + 1}
+                </th>
+              ))}
+            </tr>
+            <tr>
+              <th className="px-2 py-2 border border-border/60 bg-muted/60 text-muted-foreground font-mono">1</th>
+              {cols.map((c, i) => (
+                <th
+                  key={i}
+                  className={`px-3 py-2 border border-border/60 whitespace-nowrap text-center font-bold ${
+                    c.must
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted/40 text-foreground/80"
+                  }`}
+                >
+                  {c.name}
+                  {c.must && <span className="text-destructive"> *</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="bg-emerald-500/5">
+              <td className="px-2 py-2 border border-border/60 bg-muted/60 text-muted-foreground font-mono text-center">2</td>
+              {row1.map((v, i) => (
+                <td key={i} className="px-3 py-2 border border-border/60 whitespace-nowrap text-center">
+                  {v || <span className="text-muted-foreground/60">(سيبه فاضي)</span>}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="px-2 py-2 border border-border/60 bg-muted/60 text-muted-foreground font-mono text-center">3</td>
+              {row1.map((_, i) => (
+                <td key={i} className="px-3 py-2 border border-border/60 text-center text-muted-foreground/50">…</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap gap-3 px-3 py-2 bg-muted/30 border-t border-border/60 text-[11px]">
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-primary/25 border border-primary/40" /> عمود إجباري (*)</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-muted border border-border" /> عمود اختياري</span>
+        <span className="text-muted-foreground">اكتب العناوين بالحرف زي ما هي، ومتغيّرش ترتيبها.</span>
+      </div>
     </div>
   );
 }
 
-export function SheetGuideList({ sheets, defaultOpen }: { sheets: SheetGuide[]; defaultOpen?: string }) {
+/* ───────────────── الغرض من التابة كلها ───────────────── */
+
+export function TabPurpose() {
   return (
-    <Card className="mb-4 animate-fade-in">
-      <CardContent className="p-3 sm:p-4">
-        <div className="flex items-center gap-2 mb-3">
+    <Card className="mb-4 overflow-hidden border-primary/30 animate-fade-in">
+      <div className="bg-gradient-to-l from-primary/15 via-accent/5 to-transparent">
+        <CardContent className="p-4 sm:p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <span className="shrink-0 w-11 h-11 rounded-2xl bg-background/70 backdrop-blur border border-primary/30 flex items-center justify-center shadow-sm animate-pop-in">
+              <Rocket className="w-5 h-5 text-primary" />
+            </span>
+            <div className="space-y-1 min-w-0">
+              <h3 className="font-bold text-base">التابة دي بتعمل إيه؟ — «تأسيس وترحيل البيانات»</h3>
+              <p className="text-sm text-muted-foreground">
+                دي شاشة البداية بتاعة الشركة. هدفها إنك تنقل شغلك القديم (اللي في الإكسل أو الدفاتر) جوه النظام
+                <b> مرة واحدة صح</b>، فتقدر تبدأ تبيع وتشتري وتطلّع تقارير من أول يوم وتلاقي أرقامك مظبوطة.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            {[
+              {
+                icon: ListOrdered,
+                head: "1) القوائم الأساسية",
+                body: "بترفع 8 شيتات: الفروع، التصنيفات، المنتجات، المخزون، العملاء/الموردين، أرصدتهم، الموظفين، الخزنة.",
+                cls: "border-primary/30 bg-primary/5 text-primary",
+              },
+              {
+                icon: Wallet,
+                head: "2) الأرصدة الافتتاحية",
+                body: "بتحدد لكل عميل/مورد ديونه القديمة: رقم مجمّع واحد، أو فواتيره القديمة بالتفصيل.",
+                cls: "border-success/30 bg-success/5 text-success",
+              },
+              {
+                icon: Lock,
+                head: "3) القفل التلقائي",
+                body: "مراجعة بس: النظام بيقفل الطريقة التانية لكل حساب عشان الدين ميتحسبش مرتين.",
+                cls: "border-warning/30 bg-warning/5 text-warning",
+              },
+            ].map((c, i) => {
+              const I = c.icon;
+              return (
+                <div key={i} style={{ animationDelay: `${80 * i}ms` }}
+                  className={`animate-scale-in rounded-xl border p-3 space-y-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${c.cls}`}>
+                  <div className="flex items-center gap-2 font-bold text-sm"><I className="w-4 h-4" /> {c.head}</div>
+                  <p className="text-xs text-foreground/80">{c.body}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm space-y-1">
+              <div className="font-bold flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" /> اللي هيترتب على الشاشة دي
+              </div>
+              <p className="text-xs text-muted-foreground">
+                مخزونك وتكلفته تبدأ صح (يعني الربح صح)، ديون العملاء والموردين تبقى ظاهرة، الخزنة تبدأ بأرقامها الحقيقية،
+                والتقارير (الأرباح، الأعمار، المركز المالي) تطلع مطابقة للواقع.
+              </p>
+            </div>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm space-y-1">
+              <div className="font-bold flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-4 h-4" /> هل لازم بالترتيب؟
+              </div>
+              <p className="text-xs text-muted-foreground">
+                أيوه — <b>الترتيب إجباري</b>: خطوة 1 قبل 2، وجوه خطوة 1 الشيتات من 1 لـ 8 بالترتيب (المنتج مش هيترفع
+                من غير فرع وتصنيف). خطوة 3 مراجعة بس، تفتحها في أي وقت. ينفع ترجع لأي خطوة بعدين وتزوّد، بس ابدأ بالترتيب.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </div>
+    </Card>
+  );
+}
+
+/* ───────────────── تبويبات الشيتات ───────────────── */
+
+const HOW_TO = [
+  "نزّل القالب من تبويب الشيت في الجدول اللي تحت.",
+  "املا بياناتك في القالب من غير ما تغيّر عناوين الأعمدة.",
+  "ارفع الملف — النظام هيفحصه ويوريك الصفوف الغلط وسببها.",
+  "صلّح الغلط وارفع تاني — بيتم رفع الصح بس.",
+];
+
+export function SheetGuideList({ sheets, defaultOpen }: { sheets: SheetGuide[]; defaultOpen?: string }) {
+  const [active, setActive] = useState(defaultOpen ?? sheets[0]?.id);
+  const s = sheets.find((x) => x.id === active) ?? sheets[0];
+  if (!s) return null;
+
+  return (
+    <Card className="mb-4 animate-fade-in border-accent/30">
+      <CardContent className="p-3 sm:p-4 space-y-4">
+        <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-accent" />
-          <h4 className="font-bold text-sm">شكل الشيتات المطلوبة — دوس على أي واحد وشوف الأعمدة بالترتيب ومثال جاهز</h4>
+          <h4 className="font-bold text-sm">اختار الشيت من هنا وشوف شكله بالظبط قبل ما ترفعه</h4>
         </div>
-        <Accordion type="single" collapsible defaultValue={defaultOpen} className="space-y-2">
-          {sheets.map((s) => (
-            <AccordionItem
-              key={s.id}
-              value={s.id}
-              className="border border-border/60 rounded-xl px-3 overflow-hidden transition-colors hover:border-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-primary/[0.03]"
-            >
-              <AccordionTrigger className="hover:no-underline py-3">
-                <div className="flex items-center gap-2 text-right">
-                  <Badge className="bg-primary/15 text-primary border-primary/30 shrink-0">{s.order}</Badge>
-                  <span className="font-semibold text-sm">{s.title}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-4">
-                <div className="rounded-xl bg-muted/40 border border-border/50 p-3 text-sm flex gap-2">
-                  <Lightbulb className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
-                  <span><b>ليه بترفعه؟</b> {s.why}</span>
-                </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <TableProperties className="w-4 h-4 text-primary" /> ترتيب الأعمدة في الشيت
+        {sheets.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+            {sheets.map((x, i) => {
+              const on = x.id === s.id;
+              return (
+                <button
+                  key={x.id}
+                  onClick={() => setActive(x.id)}
+                  style={{ animationDelay: `${40 * i}ms` }}
+                  className={`animate-scale-in flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all hover:-translate-y-0.5 ${
+                    on
+                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                      : "bg-background border-border/70 hover:border-primary/50 hover:bg-primary/5"
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                    on ? "bg-primary-foreground/20" : "bg-primary/15 text-primary"
+                  }`}>{x.order}</span>
+                  {x.title}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div key={s.id} className="space-y-4 animate-fade-in">
+          <div className="rounded-xl bg-warning/5 border border-warning/30 p-3 text-sm flex gap-2">
+            <Lightbulb className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
+            <span><b>ليه بترفعه؟</b> {s.why}</span>
+          </div>
+
+          <SheetMock sheet={s} />
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <TableProperties className="w-4 h-4 text-primary" /> تفاصيل الأعمدة
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {s.cols.map((c, i) => (
+                <div key={c.name} className={`rounded-xl border px-3 py-2 text-sm transition-all hover:-translate-y-0.5 hover:shadow-sm ${
+                  c.must ? "border-primary/30 bg-primary/5" : "border-border/60 bg-background"
+                }`}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">عمود {i + 1}</span>
+                    <span className="font-medium">{c.name}</span>
+                    {c.must
+                      ? <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">إجباري</Badge>
+                      : <Badge variant="outline" className="text-[10px]">اختياري</Badge>}
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {s.cols.map((c, i) => (
-                      <div key={c.name} className="rounded-xl border border-border/60 bg-background px-3 py-2 text-sm transition-all hover:-translate-y-0.5 hover:shadow-sm">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-muted-foreground">عمود {i + 1}</span>
-                          <span className="font-medium">{c.name}</span>
-                          {c.must
-                            ? <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">إجباري</Badge>
-                            : <Badge variant="outline" className="text-[10px]">اختياري</Badge>}
-                        </div>
-                        {c.hint && <p className="text-xs text-muted-foreground mt-1">{c.hint}</p>}
-                      </div>
-                    ))}
-                  </div>
+                  {c.hint && <p className="text-xs text-muted-foreground mt-1">{c.hint}</p>}
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold">مثال لصف واحد صحيح</div>
-                  <ExampleTable example={s.example} />
-                </div>
+          <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 space-y-2">
+            <div className="text-sm font-bold text-sky-700 dark:text-sky-400 flex items-center gap-2">
+              <Target className="w-4 h-4" /> الخطوات اللي هتعملها للشيت ده
+            </div>
+            <ol className="space-y-1">
+              {HOW_TO.map((h, i) => (
+                <li key={i} className="flex gap-2 text-xs">
+                  <span className="w-5 h-5 shrink-0 rounded-full bg-sky-500/20 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold">{i + 1}</span>
+                  <span className="text-muted-foreground">{h}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
 
-                <Mistakes items={s.mistakes} />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+          <Mistakes items={s.mistakes} />
+        </div>
       </CardContent>
     </Card>
   );
 }
+
