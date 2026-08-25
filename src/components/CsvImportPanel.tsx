@@ -101,21 +101,71 @@ export function CsvImportPanel({ title, description, templateName, columns, samp
         <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button variant="outline" onClick={() => downloadCsvTemplate(templateName, columns, sample)}>
-            <Download className="h-4 w-4 me-1" /> تحميل القالب (CSV)
-          </Button>
-          <label>
-            <Button asChild>
-              <span className="cursor-pointer"><Upload className="h-4 w-4 me-1" /> رفع ملف</span>
-            </Button>
-            <input type="file" accept=".csv,.xlsx,.xls" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
-          </label>
-          {parsed && (
-            <Button variant="ghost" onClick={reset}><RotateCcw className="h-4 w-4 me-1" /> ابدأ من جديد</Button>
-          )}
-          {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        <div className="rounded-xl border border-primary/20 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent p-4 space-y-3 animate-fade-in">
+          <div className="flex items-center gap-2 text-sm font-bold text-primary">
+            <MousePointerClick className="h-4 w-4" />
+            مسار واحد للرفع: القالب هو نفس الملف اللي هترفعه
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1 rounded-lg border border-border/70 bg-background/80 p-3 text-center space-y-2">
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">1</span>
+                حمّل القالب
+              </div>
+              <Button variant="ghost" size="sm" className="h-auto py-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                onClick={() => downloadCsvTemplate(templateName, columns, sample)}>
+                <Download className="h-3.5 w-3.5 me-1" /> ملف Excel/CSV جاهز
+              </Button>
+            </div>
+
+            <div className="hidden sm:flex flex-col items-center text-muted-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-[10px]">نفس الملف</span>
+            </div>
+
+            <div className="flex-1 rounded-lg border border-border/70 bg-background/80 p-3 text-center space-y-2">
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">2</span>
+                املأ بياناتك
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Pencil className="h-3.5 w-3.5" /> امسح المثال واكتب بياناتك
+              </div>
+            </div>
+
+            <div className="hidden sm:flex flex-col items-center text-muted-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-[10px]">نفس الملف</span>
+            </div>
+
+            <div className="flex-1 rounded-lg border border-primary/30 bg-primary/5 p-3 text-center space-y-2">
+              <div className="text-xs text-primary font-semibold flex items-center justify-center gap-1">
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">3</span>
+                رفع الملف
+              </div>
+              <label className="block">
+                <Button asChild size="sm" className="w-full">
+                  <span className="cursor-pointer"><Upload className="h-3.5 w-3.5 me-1" /> رفع الملف</span>
+                </Button>
+                <input type="file" accept=".csv,.xlsx,.xls" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              القالب مش طريقة تانية — هو نفس الملف بس النظام جهّزهولك عشان الأعمدة تطلع صح.
+            </span>
+            <div className="flex items-center gap-2">
+              {parsed && (
+                <Button variant="ghost" size="sm" onClick={reset}><RotateCcw className="h-3.5 w-3.5 me-1" /> ابدأ من جديد</Button>
+              )}
+              {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+          </div>
         </div>
 
         {extra}
