@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import CoreDataImport from "./CoreDataImport";
 import DataMigration from "./DataMigration";
+import { StepIntro, SheetGuideList, CORE_SHEETS, LEGACY_SHEET } from "@/components/data-setup/SetupGuide";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
