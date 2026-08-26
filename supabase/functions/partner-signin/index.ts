@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       const authEmail = authRecord.user.email.toLowerCase();
       const verifier = createClient(url, anonKey, { auth: { persistSession: false } });
       const { error: signInErr } = await verifier.auth.signInWithPassword({ email: authEmail, password });
-      if (!signInErr) return json({ ok: true, email: authEmail, password });
+      if (!signInErr) return json({ ok: true, email: authEmail });
     }
 
     return json({ error: 'بيانات الدخول غير صحيحة' }, 403);

@@ -72,7 +72,7 @@ export default function Login() {
 
       const { error: signErr } = await supabase.auth.signInWithPassword({
         email: resolvedCredentials.email,
-        password: resolvedCredentials.password,
+        password,
       });
       if (signErr) {
         toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
