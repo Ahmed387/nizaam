@@ -658,33 +658,34 @@ export default function NewShipment() {
         icon={<UserIcon className="w-5 h-5" />}
         open={openSections.supplier}
         onToggle={() => toggleSection("supplier")}
+        accent="blue"
       >
         <div className="p-5 space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" /> المورد *
+              <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> المورد *
               </Label>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <PartyCombobox type="supplier" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
                 </div>
-                <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-primary/40 text-primary hover:bg-primary/10">
+                <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500/10 hover:text-sky-700">
                   <UserPlus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" /> اسم المستلم
+              <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> اسم المستلم
               </Label>
-              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" />
+              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" className="border-sky-500/20 focus-visible:ring-sky-500/30" />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" /> تاريخ الوصول
+              <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> تاريخ الوصول
               </Label>
-              <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
+              <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} className="border-sky-500/20 focus-visible:ring-sky-500/30" />
             </div>
             <div className="space-y-2">
               <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ فاتورة الشراء" />
@@ -692,7 +693,7 @@ export default function NewShipment() {
           </div>
           {suppliers.length === 0 && (
             <button type="button" onClick={() => setSupplierDlg(true)}
-              className="w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
+              className="w-full p-3 border-2 border-dashed border-sky-500/40 rounded-xl text-sm text-sky-700 dark:text-sky-300 hover:bg-sky-500/10 flex items-center justify-center gap-2 font-bold bg-gradient-to-l from-sky-500/5 to-transparent">
               <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
             </button>
           )}
@@ -706,13 +707,14 @@ export default function NewShipment() {
         icon={<Wallet className="w-5 h-5" />}
         open={openSections.extras}
         onToggle={() => toggleSection("extras")}
+        accent="amber"
       >
         <div className="p-5">
           <div className="flex items-center justify-end mb-4">
             <button
               type="button"
               onClick={() => setShowExtrasBreakdown((v) => !v)}
-              className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+              className="text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline inline-flex items-center gap-1 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20"
             >
               {showExtrasBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               {showExtrasBreakdown ? "إخفاء التفصيل" : "تفصيل المصاريف"}
@@ -722,9 +724,9 @@ export default function NewShipment() {
           {/* Default compact view: total shipping + admin + grand extras */}
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">إجمالي مصاريف الشحن (ج.م)</Label>
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">إجمالي مصاريف الشحن (ج.م)</Label>
               {showExtrasBreakdown ? (
-                <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+                <div className="h-10 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 flex items-center font-bold text-amber-700 dark:text-amber-300">
                   {formatEGP(totalExtras)}
                 </div>
               ) : (
@@ -735,18 +737,19 @@ export default function NewShipment() {
                     value={shipping}
                     onChange={(e) => { setShipping(Number(e.target.value)); setCustoms(0); setOtherCost(0); }}
                     placeholder="0"
+                    className="border-amber-500/20 focus-visible:ring-amber-500/30"
                   />
                   <p className="text-[10px] text-muted-foreground">شامل الشحن والجمارك والمصاريف الأخرى</p>
                 </>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
-              <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف إدارية (ج.م)</Label>
+              <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" className="border-amber-500/20 focus-visible:ring-amber-500/30" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">الإجمالي الإضافي</Label>
-              <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">الإجمالي الإضافي</Label>
+              <div className="h-10 rounded-md border border-amber-500/20 bg-gradient-to-l from-amber-500/10 to-transparent px-3 flex items-center font-bold text-amber-700 dark:text-amber-300">
                 {formatEGP(totalExtras + Number(admin || 0))}
               </div>
             </div>
@@ -754,58 +757,58 @@ export default function NewShipment() {
 
           {/* Breakdown (collapsible) */}
           {showExtrasBreakdown && (
-            <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
+            <div className="mt-4 pt-4 border-t border-dashed border-amber-500/20 grid md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م){lastShipping !== null && lastShipping > 0 && !isEdit ? ` — آخر مرة: ${lastShipping}` : ""}</Label>
-                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder={lastShipping ? String(lastShipping) : "0"} />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف الشحن (ج.م){lastShipping !== null && lastShipping > 0 && !isEdit ? ` — آخر مرة: ${lastShipping}` : ""}</Label>
+                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder={lastShipping ? String(lastShipping) : "0"} className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م){lastCustoms !== null && lastCustoms > 0 && !isEdit ? ` — آخر مرة: ${lastCustoms}` : ""}</Label>
-                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder={lastCustoms ? String(lastCustoms) : "0"} />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف الجمارك (ج.م){lastCustoms !== null && lastCustoms > 0 && !isEdit ? ` — آخر مرة: ${lastCustoms}` : ""}</Label>
+                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder={lastCustoms ? String(lastCustoms) : "0"} className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
-                <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف أخرى (ج.م)</Label>
+                <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
               <div className="space-y-1.5 md:col-span-3">
-                <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
-                <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">وصف المصاريف الأخرى</Label>
+                <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
             </div>
           )}
 
           {/* Notes — own row */}
           <div className="mt-4 space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
+            <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">ملاحظات</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none border-amber-500/20 focus-visible:ring-amber-500/30" />
           </div>
 
           {/* Live distribution preview */}
           {lines.length > 0 && (totalExtras > 0 || invoiceDiscountAmount > 0) && (
-            <div className="mt-5 rounded-xl border border-border overflow-hidden bg-card">
-              <div className="px-4 py-3 bg-surface-2 border-b border-border flex items-center justify-between flex-wrap gap-2">
-                <span className="text-sm font-bold">توزيع الخصم والمصاريف على الأصناف</span>
+            <div className="mt-5 rounded-xl border border-amber-500/20 overflow-hidden bg-gradient-to-b from-amber-500/[0.03] to-transparent">
+              <div className="px-4 py-3 bg-amber-500/5 border-b border-amber-500/15 flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-bold text-amber-800 dark:text-amber-200">توزيع الخصم والمصاريف على الأصناف</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   {invoiceDiscountAmount > 0 && (
-                    <span className="px-2.5 py-1 rounded-md bg-destructive/10 text-destructive text-[11px] font-bold whitespace-nowrap">
+                    <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] font-bold whitespace-nowrap border border-rose-500/15">
                       خصم الفاتورة − {formatEGP(invoiceDiscountAmount)}
                     </span>
                   )}
                   {totalExtras > 0 && (
-                    <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-600 text-[11px] font-bold whitespace-nowrap">
+                    <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px] font-bold whitespace-nowrap border border-amber-500/15">
                       مصاريف {formatEGP(totalExtras)}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-amber-500/10">
                 {distribution.map((d, i) => (
                   <div key={i} className="p-3 space-y-2.5">
                     {/* Header: product + qty */}
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-sm font-semibold leading-snug">{d.line.product_name || "— صنف بدون اسم —"}</span>
-                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-surface-2 text-[11px] font-bold whitespace-nowrap">
+                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/15 text-[11px] font-bold whitespace-nowrap">
                         الكمية: {d.line.quantity}
                       </span>
                     </div>
@@ -817,11 +820,11 @@ export default function NewShipment() {
                         label={`نصيبه من الخصم (${d.invDiscPct.toFixed(1)}%)`}
                         value={`− ${formatEGP(d.invDiscUnit)} / وحدة`}
                         hint={`إجمالي − ${formatEGP(d.invDiscShare)}`}
-                        className="text-destructive"
+                        className="text-rose-600"
                       />
                       <Metric label="سعر الوحدة بعد الخصم" value={formatEGP(d.baseUnit)} className="text-foreground font-bold" />
                       <Metric label="نصيب الشحن/الوحدة" value={`+ ${formatEGP(d.unitExtra)}`} className="text-amber-600" />
-                      <Metric label="التكلفة الحقيقية/الوحدة" value={formatEGP(d.trueUnit)} className="text-primary font-bold" highlight />
+                      <Metric label="التكلفة الحقيقية/الوحدة" value={formatEGP(d.trueUnit)} className="text-emerald-600 font-bold" highlight />
                     </div>
 
                     <div className="text-[11px] text-emerald-600 font-semibold">
@@ -844,14 +847,15 @@ export default function NewShipment() {
         icon={<Package className="w-5 h-5" />}
         open={openSections.products}
         onToggle={() => toggleSection("products")}
+        accent="emerald"
       >
         {lines.length === 0 ? (
           <div className="text-center py-12 px-4">
-            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
-              <Package className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-500/25 to-sky-500/20 flex items-center justify-center shadow-inner">
+              <Package className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className="text-sm text-muted-foreground mb-3">مفيش أصناف لسه — ابدأ بإضافة أول منتج</p>
-            <Button onClick={addAnother} className="gap-2"><Plus className="w-4 h-4" />إضافة منتج</Button>
+            <Button onClick={addAnother} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"><Plus className="w-4 h-4" />إضافة منتج</Button>
           </div>
 
 
@@ -870,27 +874,27 @@ export default function NewShipment() {
                     key={i}
                     type="button"
                     onClick={() => setActiveLine(i)}
-                    className="w-full text-right rounded-xl border border-emerald-500/30 bg-gradient-to-l from-emerald-500/10 via-primary/5 to-transparent hover:border-primary/60 hover:shadow-sm transition-all flex items-center gap-3 p-2.5"
+                    className="group w-full text-right rounded-2xl border border-emerald-500/25 bg-gradient-to-l from-emerald-500/[0.12] via-sky-500/[0.05] to-transparent hover:border-emerald-500/60 hover:shadow-md hover:shadow-emerald-500/10 transition-all flex items-center gap-3 p-3"
                   >
-                    <span className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-primary to-emerald-500 text-primary-foreground text-[11px] font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
+                    <span className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
                     {l.image
-                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded-lg object-cover border border-border shrink-0" />
-                      : <span className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><ImageIcon className="w-4 h-4 text-primary" /></span>}
+                      ? <ProductImage src={l.image} alt="" className="w-10 h-10 rounded-xl object-cover border-2 border-emerald-500/20 shrink-0 shadow-sm" />
+                      : <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-sky-100 dark:from-emerald-950 dark:to-sky-950 flex items-center justify-center border border-emerald-500/20 shrink-0"><ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></span>}
                     <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-sm truncate">{l.product_name || "صنف بدون اسم"}</span>
+                      <span className="block font-bold text-sm truncate text-foreground">{l.product_name || "صنف بدون اسم"}</span>
                       <span className="block text-[11px] text-muted-foreground truncate">
                         {[l.brand, l.model, l.color].filter(Boolean).join(" · ") || l.sku}
                       </span>
                     </span>
-                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400">×{l.quantity}</span>
-                    <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400 text-sm">{formatEGP(net)}</span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/15">× {l.quantity}</span>
+                    <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-500/10 px-2 py-1 rounded-lg">{formatEGP(net)}</span>
+                    <ChevronDown className="w-4 h-4 text-emerald-500/70 group-hover:text-emerald-600 shrink-0" />
 
                     <span
                       role="button"
                       tabIndex={-1}
                       onClick={(e) => { e.stopPropagation(); removeLine(i); }}
-                      className="shrink-0 text-destructive hover:bg-destructive/10 rounded p-1"
+                      className="shrink-0 text-rose-500 hover:bg-rose-500/10 rounded-lg p-1.5 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </span>
@@ -899,26 +903,26 @@ export default function NewShipment() {
               }
 
               return (
-                <div key={i} className="rounded-lg border-2 border-primary/40 bg-surface-1/30 shadow-sm transition-colors">
+                <div key={i} className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-500/[0.04] to-sky-500/[0.02] shadow-md shadow-emerald-500/5 transition-colors overflow-hidden">
                   {/* Header: image + product picker + delete */}
-                  <div className="flex items-start gap-3 p-3 border-b border-border/60">
+                  <div className="flex items-start gap-3 p-4 border-b border-emerald-500/15 bg-gradient-to-l from-emerald-500/5 to-transparent">
                     <button
                       type="button"
                       onClick={() => setActiveLine(null)}
-                      className="shrink-0 mt-1 text-muted-foreground hover:text-foreground"
+                      className="shrink-0 mt-1 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                       title="طي الصنف"
                     >
-                      <ChevronUp className="w-4 h-4" />
+                      <ChevronUp className="w-5 h-5" />
                     </button>
                     <div className="shrink-0">
 
                       <div className="relative">
                         {l.image
-                          ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-md object-cover border border-border" />
-                          : <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center border border-border"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
+                          ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500/25 shadow-sm" />
+                          : <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-100 to-sky-100 dark:from-emerald-950 dark:to-sky-950 flex items-center justify-center border border-emerald-500/20"><ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
                         }
                         {l.product_id === null && (
-                          <label className="absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-pointer inline-flex items-center gap-0.5 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full shadow hover:bg-primary/90 whitespace-nowrap">
+                          <label className="absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-pointer inline-flex items-center gap-0.5 text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow hover:bg-emerald-700 whitespace-nowrap">
                             {l.uploadingImg ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
                             <span>{l.image ? "تغيير" : "رفع"}</span>
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
@@ -945,42 +949,42 @@ export default function NewShipment() {
                         })}
                       />
                     </div>
-                    <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-destructive shrink-0 -mt-1">
+                    <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 shrink-0 -mt-1">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
 
                   {/* Numeric fields row */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3">
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3 p-4">
                     <div className="space-y-1 md:col-span-2">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">الكود (SKU)</Label>
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">الكود (SKU)</Label>
                       <Input
                         value={l.sku}
                         onChange={(e) => updateLine(i, { sku: e.target.value })}
                         readOnly={l.product_id !== null}
-                        className={l.product_id !== null ? "bg-surface-2 font-mono text-xs h-9" : "font-mono text-xs h-9"}
+                        className={l.product_id !== null ? "bg-surface-2 font-mono text-xs h-9 border-emerald-500/20" : "font-mono text-xs h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30"}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">الكمية</Label>
-                      <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">الكمية</Label>
+                      <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">سعر التكلفة</Label>
-                      <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">سعر التكلفة</Label>
+                      <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">خصم %</Label>
-                      <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">خصم %</Label>
+                      <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">خصم مبلغ</Label>
-                      <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">خصم مبلغ</Label>
+                      <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                   </div>
 
                   {/* Variant attributes row */}
-                  <div className="px-3 pb-3">
+                  <div className="px-4 pb-4">
                     <VariantAttributesFields
                       compact
                       subtitle="سجّل خصائص الصنف عشان يتميز في المخزن والفواتير"
@@ -998,26 +1002,26 @@ export default function NewShipment() {
                   </div>
 
                   {/* Net summary footer */}
-                  <div className="px-3 py-2 bg-surface-2/60 border-t border-border/60 text-xs space-y-1.5">
+                  <div className="px-4 py-3 bg-gradient-to-l from-emerald-500/5 via-sky-500/[0.02] to-transparent border-t border-emerald-500/10 text-xs space-y-2">
                     {invoiceDiscountAmount > 0 && distribution[i] && (
-                      <div className="flex items-center justify-between gap-2 flex-wrap rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5">
-                        <span className="font-semibold text-destructive">
+                      <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-rose-500/30 bg-rose-500/5 px-3 py-2">
+                        <span className="font-bold text-rose-600 dark:text-rose-400">
                           نصيب الصنف من خصم الفاتورة: − {formatEGP(distribution[i].invDiscShare)} ({distribution[i].invDiscPct.toFixed(1)}%)
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="text-muted-foreground">سعر الوحدة: <b className="line-through">{formatEGP(distribution[i].unitBefore)}</b></span>
-                          <span className="text-primary font-bold">→ {formatEGP(distribution[i].baseUnit)}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">→ {formatEGP(distribution[i].baseUnit)}</span>
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground font-semibold">الصافي</span>
+                      <span className="text-emerald-800 dark:text-emerald-200 font-bold">الصافي</span>
                       <div className="flex items-center gap-2">
                         {(l.discount_percent > 0 || l.discount_amount > 0) && (
                           <span className="text-[10px] text-muted-foreground line-through">{formatEGP(gross)}</span>
                         )}
-                        <span className="font-bold text-primary text-sm">{formatEGP(net)}</span>
-                        <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setActiveLine(null)}>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-500/10 px-2 py-1 rounded-lg">{formatEGP(net)}</span>
+                        <Button size="sm" variant="outline" className="h-8 text-[11px] gap-1 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10" onClick={() => setActiveLine(null)}>
                           <ChevronUp className="w-3 h-3" />تم — اطوِ الصنف
                         </Button>
                       </div>
@@ -1026,21 +1030,21 @@ export default function NewShipment() {
                 </div>
               );
             })}
-            {/* شريط «منتج آخر» — يظهر لما كل الأصناف تكون مكتملة */}
+            {/* شريط «منتج آخر» — يظهر لما كل الأصناف تكون مكتملة ويفتح تلقائيًا بالـ hover */}
             {canAddAnother ? (
               <button
                 type="button"
-                onClick={addAnother}
-                onFocus={addAnother}
-                className="w-full rounded-xl border-2 border-dashed border-primary/40 bg-gradient-to-l from-primary/10 via-emerald-500/10 to-transparent hover:from-primary/20 hover:border-primary transition-all p-3 flex items-center justify-center gap-2 text-primary font-semibold text-sm"
+                onMouseEnter={addAnother}
+                className="group w-full rounded-2xl border-2 border-dashed border-emerald-500/40 bg-gradient-to-l from-emerald-500/15 via-sky-500/10 to-amber-500/5 hover:from-emerald-500/25 hover:via-sky-500/20 hover:to-amber-500/10 hover:border-emerald-500 transition-all p-4 flex items-center justify-center gap-3 text-emerald-700 dark:text-emerald-300 font-bold text-base shadow-sm hover:shadow-md hover:shadow-emerald-500/10"
               >
-                <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  <Plus className="w-4 h-4" />
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 text-white flex items-center justify-center shadow group-hover:scale-110 transition-transform">
+                  <Plus className="w-5 h-5" />
                 </span>
-                منتج آخر
+                <span>منتج آخر</span>
+                <span className="text-[11px] font-normal text-muted-foreground hidden sm:inline">— وقف هنا بالماوس يفتح صنف جديد</span>
               </button>
             ) : (
-              <div className="w-full rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-3 text-center text-[12px] text-amber-600 dark:text-amber-400 font-medium">
+              <div className="w-full rounded-2xl border border-dashed border-amber-500/40 bg-gradient-to-l from-amber-500/10 to-transparent p-4 text-center text-[12px] text-amber-700 dark:text-amber-300 font-semibold">
                 كمّل بيانات الصنف الحالي (الاسم + الكمية + السعر + الماركة والموديل) وهيظهرلك «منتج آخر»
               </div>
             )}
@@ -1059,19 +1063,20 @@ export default function NewShipment() {
           icon={<CreditCard className="w-5 h-5" />}
           open={openSections.payment}
           onToggle={() => toggleSection("payment")}
+          accent="violet"
         >
           <div className="p-5">
             {treasuryBalance !== null && (
-              <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${overTreasury ? "border-destructive bg-destructive/10" : "border-border bg-surface-2"}`}>
+              <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${overTreasury ? "border-rose-500 bg-rose-500/10" : "border-violet-500/20 bg-gradient-to-l from-violet-500/10 to-transparent"}`}>
                 <div className="text-sm">
-                  <div className="font-bold">رصيد خزنة الفرع دلوقتي</div>
-                  <div className={`text-xs ${overTreasury ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                  <div className={`font-bold ${overTreasury ? "text-rose-700 dark:text-rose-300" : "text-violet-700 dark:text-violet-300"}`}>رصيد خزنة الفرع دلوقتي</div>
+                  <div className={`text-xs ${overTreasury ? "text-rose-600 font-semibold" : "text-muted-foreground"}`}>
                     {overTreasury
                       ? `مش هينفع تدفع ${formatEGP(plannedPaidNow)} — المتاح ${formatEGP(treasuryBalance)} بس. اختار "آجل" أو قلّل المبلغ.`
                       : "أقصى مبلغ تقدر تدفعه نقدي دلوقتي هو الرصيد ده."}
                   </div>
                 </div>
-                <b className={`text-lg whitespace-nowrap ${overTreasury ? "text-destructive" : "text-primary"}`}>{formatEGP(treasuryBalance)}</b>
+                <b className={`text-lg whitespace-nowrap ${overTreasury ? "text-rose-600" : "text-violet-600 dark:text-violet-400"}`}>{formatEGP(treasuryBalance)}</b>
               </div>
             )}
             <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
@@ -1083,9 +1088,10 @@ export default function NewShipment() {
           icon={<CreditCard className="w-5 h-5" />}
           open={openSections.payment}
           onToggle={() => toggleSection("payment")}
+          accent="violet"
         >
           <div className="p-5 space-y-3">
-            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed">
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-3 text-xs leading-relaxed text-violet-800 dark:text-violet-200">
               <b>خد بالك:</b> الدفعات دي بتتسجل فورًا في الخزنة وحساب المورد — يعني مش مربوطة بزرار «حفظ التعديلات» تحت.
               أي دفعة تضيفها أو تعدلها هنا بتتحفظ لوحدها على طول.
             </div>
@@ -1115,43 +1121,92 @@ export default function NewShipment() {
         icon={<FileText className="w-5 h-5" />}
         open={openSections.summary}
         onToggle={() => toggleSection("summary")}
+        accent="indigo"
       >
         <div className="p-5">
-        <div className="grid md:grid-cols-2 gap-4 items-end">
-          <div className="space-y-3 text-sm">
+          {/* Grand total hero */}
+          <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-l from-indigo-600/15 via-violet-500/10 to-emerald-500/5 p-5 mb-5 shadow-lg shadow-indigo-500/10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-indigo-800/80 dark:text-indigo-200/80 mb-1">الإجمالي المستحق للمورد</div>
+                <div className="text-3xl md:text-4xl font-black text-indigo-700 dark:text-indigo-300 tracking-tight">{formatEGP(grandTotal)}</div>
+                <div className="text-xs text-muted-foreground mt-1">{lines.length} صنف · {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة</div>
+              </div>
+              {(() => {
+                const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
+                const paidNow = plan.mode === "credit" ? 0 : Number(plan.paidNow || 0);
+                const effectivePaid = plan.mode === "full" ? grandTotal : Math.max(paidNow, splitsSum);
+                const remaining = Math.max(0, grandTotal - effectivePaid);
+                const over = effectivePaid > grandTotal + 0.01;
+                const status = remaining < 0.01 ? "مدفوعة بالكامل" : effectivePaid > 0 ? "دفع جزئي" : "غير مدفوعة";
+                const statusClass = remaining < 0.01
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                  : effectivePaid > 0
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                    : "bg-slate-500/10 text-muted-foreground border-slate-500/20";
+                return (
+                  <div className="flex flex-col gap-2 min-w-[180px]">
+                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold text-center ${statusClass}`}>{status}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-background/60 border border-border px-2 py-1.5 text-center">
+                        <div className="text-muted-foreground">مدفوع</div>
+                        <b className="text-emerald-600">{formatEGP(effectivePaid)}</b>
+                      </div>
+                      <div className="rounded-lg bg-background/60 border border-border px-2 py-1.5 text-center">
+                        <div className="text-muted-foreground">متبقي</div>
+                        <b className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>{formatEGP(remaining)}</b>
+                      </div>
+                    </div>
+                    {over && (
+                      <div className="text-[11px] text-rose-600 font-semibold text-center">
+                        زيادة {formatEGP(effectivePaid - grandTotal)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
 
-            {/* 1) البضاعة */}
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="px-3 py-1.5 bg-surface-2 text-[11px] font-bold text-muted-foreground">١ — قيمة البضاعة</div>
-              <div className="p-3 space-y-1.5">
-                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف ({lines.length} صنف / {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة)</span><b>{formatEGP(itemsGross)}</b></div>
+          {/* Detail grid */}
+          <div className="grid md:grid-cols-3 gap-3 mb-5">
+            {/* Goods */}
+            <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-l from-indigo-500/[0.05] to-transparent p-3 space-y-2">
+              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-indigo-500/15 flex items-center justify-center text-[10px]">١</span>
+                قيمة البضاعة
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">إجمالي الأصناف</span><b>{formatEGP(itemsGross)}</b></div>
                 {itemsDiscount > 0 && (
-                  <div className="flex justify-between text-destructive"><span>− خصومات على الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
+                  <div className="flex justify-between text-rose-600 text-xs"><span>خصومات الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
                 )}
-                <div className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
+                <div className="flex justify-between border-t border-dashed border-indigo-500/20 pt-1"><span className="text-muted-foreground text-xs">صافي البضاعة</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(itemsNet)}</b></div>
               </div>
             </div>
 
-            {/* 2) خصم على الفاتورة كلها */}
-            <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+            {/* Invoice discount */}
+            <div className="rounded-xl border border-dashed border-rose-400/40 bg-rose-500/[0.04] p-3 space-y-2">
+              <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-rose-500/15 flex items-center justify-center text-[10px]">٢</span>
+                خصم على الفاتورة
+              </div>
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-semibold text-primary">٢ — خصم على الفاتورة كلها</Label>
-                <div className="inline-flex rounded-md overflow-hidden border border-input">
+                <div className="inline-flex rounded-md overflow-hidden border border-rose-500/30 shrink-0">
                   <button
                     type="button"
                     onClick={() => setInvDiscType("amount")}
-                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "amount" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
-                  >
-                    ج.م
-                  </button>
+                    className={`px-3 h-8 text-xs font-bold ${invDiscType === "amount" ? "bg-rose-600 text-white" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}
+                  >ج.م</button>
                   <button
                     type="button"
                     onClick={() => setInvDiscType("percent")}
-                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "percent" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
-                  >
-                    %
-                  </button>
+                    className={`px-3 h-8 text-xs font-bold ${invDiscType === "percent" ? "bg-rose-600 text-white" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}
+                  >%</button>
                 </div>
+                {invoiceDiscountAmount > 0 && (
+                  <span className="text-xs font-bold text-rose-600">− {formatEGP(invoiceDiscountAmount)}</span>
+                )}
               </div>
               <Input
                 type="number"
@@ -1161,71 +1216,33 @@ export default function NewShipment() {
                 value={invDiscValue}
                 onChange={(e) => setInvDiscValue(Number(e.target.value))}
                 placeholder="0"
-                className="h-9"
+                className="h-9 border-rose-500/20 focus-visible:ring-rose-500/30"
               />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                الخصم بيتوزّع على الأصناف بالتناسب مع قيمة كل صنف، وبينزّل تكلفة الوحدة في المخزن.
+                بيتوزّع على الأصناف بالتناسب وينزّل تكلفة الوحدة.
               </p>
-              {invoiceDiscountAmount > 0 && (
-                <>
-                  <div className="flex justify-between text-destructive text-xs font-semibold">
-                    <span>قيمة الخصم</span><b>− {formatEGP(invoiceDiscountAmount)}</b>
-                  </div>
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-muted-foreground">صافي البضاعة بعد الخصم</span><b>{formatEGP(netAfterInvoiceDiscount)}</b>
-                  </div>
-                </>
-              )}
             </div>
 
-            {/* 3) المصاريف */}
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="px-3 py-1.5 bg-surface-2 text-[11px] font-bold text-muted-foreground flex items-center justify-between">
-                <span>٣ — المصاريف الإضافية</span>
-                <span className="text-amber-600">{formatEGP(totalExtras + Number(admin || 0))}</span>
+            {/* Expenses */}
+            <div className="rounded-xl border border-amber-500/20 bg-gradient-to-l from-amber-500/[0.05] to-transparent p-3 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-amber-500/15 flex items-center justify-center text-[10px]">٣</span>
+                المصاريف الإضافية
               </div>
-              <div className="p-3 space-y-1.5">
-                <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى{otherDesc ? ` (${otherDesc})` : ""}</span><b>{formatEGP(otherCost)}</b></div>
-                <div className="text-[10px] text-muted-foreground">↑ التلاتة دول بيتوزّعوا على تكلفة الوحدة</div>
-                <div className="flex justify-between border-t border-dashed border-border pt-1.5">
-                  <span className="text-muted-foreground">مصاريف إدارية <span className="text-[10px]">(مش بتدخل في تكلفة الوحدة)</span></span>
-                  <b>{formatEGP(admin)}</b>
-                </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">الشحن</span><b>{formatEGP(shipping)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">الجمارك</span><b>{formatEGP(customs)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
+                <div className="flex justify-between border-t border-dashed border-amber-500/20 pt-1"><span className="text-muted-foreground text-xs">إدارية</span><b>{formatEGP(admin)}</b></div>
               </div>
             </div>
-
-            {/* 4) الإجمالي */}
-            <div className="rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5 flex justify-between items-center text-lg">
-              <span className="font-bold">٤ — الإجمالي المستحق للمورد</span>
-              <b className="text-primary">{formatEGP(grandTotal)}</b>
-            </div>
-            {(() => {
-              const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
-              const paidNow = plan.mode === "credit" ? 0 : Number(plan.paidNow || 0);
-              const effectivePaid = plan.mode === "full" ? grandTotal : Math.max(paidNow, splitsSum);
-              const remaining = Math.max(0, grandTotal - effectivePaid);
-              const over = effectivePaid > grandTotal + 0.01;
-              const status = remaining < 0.01 ? "مدفوعة بالكامل" : effectivePaid > 0 ? "دفع جزئي" : "غير مدفوعة";
-              const statusColor = remaining < 0.01 ? "text-success" : effectivePaid > 0 ? "text-warning" : "text-muted-foreground";
-              return (
-                <div className="mt-2 space-y-1 border-t border-dashed border-border pt-2">
-                  <div className="flex justify-between"><span className="text-muted-foreground">المدفوع الآن</span><b className="text-success">{formatEGP(effectivePaid)}</b></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">المتبقي</span><b className={remaining > 0 ? "text-warning" : "text-success"}>{formatEGP(remaining)}</b></div>
-                  {over && (
-                    <div className="flex justify-between text-destructive"><span>زيادة عن الإجمالي</span><b>{formatEGP(effectivePaid - grandTotal)}</b></div>
-                  )}
-                  <div className="flex justify-between"><span className="text-muted-foreground">الحالة</span><b className={statusColor}>{status}</b></div>
-                </div>
-              );
-            })()}
           </div>
-          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2">
-            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+
+          {/* Save button */}
+          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/20 h-14 text-lg font-bold rounded-xl">
+            {busy && <Loader2 className="w-5 h-5 animate-spin" />}
             {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
           </Button>
-        </div>
         </div>
       </CollapsibleSection>
       </div>
