@@ -1384,26 +1384,62 @@ export default function PersonalExpenses() {
               <div className="text-xs text-muted-foreground mb-4">
                 بنقسم إجمالي مصاريف السنة على عدد الشهور اللي فيها حركة فعلاً
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {yearlyAverages.map(y => (
-                  <div key={y.year} className="rounded-xl border bg-muted/30 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold">سنة {y.year}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {y.months.toLocaleString("ar-EG")} شهر · {y.count.toLocaleString("ar-EG")} مصروف
-                      </span>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {yearlyAverages.map(y => {
+                  const rest = y.dep - y.total;
+                  const pct = y.dep > 0 ? Math.min(100, (y.total / y.dep) * 100) : 0;
+                  return (
+                    <div
+                      key={y.year}
+                      className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="rounded-lg bg-primary/15 px-2.5 py-1 text-xs font-extrabold text-primary">
+                          سنة {y.year}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground text-end leading-4">
+                          {y.months.toLocaleString("ar-EG")} شهر
+                          <br />
+                          {y.count.toLocaleString("ar-EG")} مصروف
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="text-[11px] font-semibold text-muted-foreground">متوسط الشهر</div>
+                        <div className="text-2xl font-extrabold text-primary leading-tight">{EGP(y.avg)}</div>
+                      </div>
+
+                      <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-warning to-destructive transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        صرفت {pct.toFixed(0)}% من اللي أودعته السنة دي
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <div className="text-[10px] text-muted-foreground">أودعت</div>
+                          <div className="text-xs font-bold text-success">{EGP(y.dep)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground">صرفت</div>
+                          <div className="text-xs font-bold text-destructive">{EGP(y.total)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground">الباقي</div>
+                          <div className={`text-xs font-bold ${rest >= 0 ? "text-primary" : "text-destructive"}`}>{EGP(rest)}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xl font-extrabold text-accent">{EGP(y.avg)}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">متوسط الشهر</div>
-                    <div className="mt-3 pt-3 border-t text-[11px] flex items-center justify-between text-muted-foreground">
-                      <span>إجمالي السنة: <b className="text-foreground">{EGP(y.total)}</b></span>
-                      <span>أودعت: <b className="text-foreground">{EGP(y.dep)}</b></span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           )}
+
         </div>
       )}
 
