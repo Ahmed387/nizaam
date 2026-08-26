@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { withPartnerBalance } from "@/lib/partnerBalances";
 import { toast } from "sonner";
-import { Loader2, PlusCircle, Wallet } from "lucide-react";
+import { Loader2, Pencil, PlusCircle, Wallet } from "lucide-react";
+import { EditPartnerTxDialog } from "@/components/EditPartnerTxDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,8 @@ export default function PartnerProfile() {
   const [openWd, setOpenWd] = useState(false);
   const [wd, setWd] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
   const [wdLoading, setWdLoading] = useState(false);
+  const [editTx, setEditTx] = useState<any | null>(null);
+  const [openEdit, setOpenEdit] = useState(false);
 
   const load = async () => {
     if (!id) return;
