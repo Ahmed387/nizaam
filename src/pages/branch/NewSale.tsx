@@ -1194,15 +1194,15 @@ export default function NewSale() {
           <button
             type="button"
             onClick={() => toggleSection("customer")}
-            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-sky-500/10 via-sky-400/5 to-transparent border-b border-border hover:brightness-105 transition-all"
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-500/30 shrink-0">
               <UserIcon className="w-5 h-5" />
             </div>
-            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+            <div className="flex-1 text-center text-xl font-extrabold text-sky-700 dark:text-sky-300 tracking-tight">
               بيانات العميل والفاتورة
             </div>
-            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
               {openSections.customer ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </button>
@@ -1328,15 +1328,15 @@ export default function NewSale() {
           <button
             type="button"
             onClick={() => toggleSection("products")}
-            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-emerald-500/10 via-emerald-400/5 to-transparent border-b border-border hover:brightness-105 transition-all"
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
               <ShoppingCart className="w-5 h-5" />
             </div>
-            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+            <div className="flex-1 text-center text-xl font-extrabold text-emerald-700 dark:text-emerald-300 tracking-tight">
               اختيار المنتجات وعناصر الفاتورة
             </div>
-            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
               {openSections.products ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </button>
@@ -1807,15 +1807,15 @@ export default function NewSale() {
           <button
             type="button"
             onClick={() => toggleSection("payment")}
-            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-violet-500/10 via-violet-400/5 to-transparent border-b border-border hover:brightness-105 transition-all"
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/30 shrink-0">
               <CreditCard className="w-5 h-5" />
             </div>
-            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+            <div className="flex-1 text-center text-xl font-extrabold text-violet-700 dark:text-violet-300 tracking-tight">
               طرق الدفع
             </div>
-            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
               {openSections.payment ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </button>
@@ -2066,15 +2066,15 @@ export default function NewSale() {
           <button
             type="button"
             onClick={() => toggleSection("summary")}
-            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent border-b border-border hover:from-primary/15 transition-all"
+            className="w-full flex items-center gap-3 px-6 py-4 bg-gradient-to-l from-indigo-500/10 via-indigo-400/5 to-transparent border-b border-border hover:brightness-105 transition-all"
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30 shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/30 shrink-0">
               <FileText className="w-5 h-5" />
             </div>
-            <div className="flex-1 text-center text-xl font-extrabold text-primary tracking-tight">
+            <div className="flex-1 text-center text-xl font-extrabold text-indigo-700 dark:text-indigo-300 tracking-tight">
               الفاتورة والإجمالي
             </div>
-            <div className="w-10 h-10 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
               {openSections.summary ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </button>
