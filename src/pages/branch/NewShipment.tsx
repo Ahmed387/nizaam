@@ -844,14 +844,15 @@ export default function NewShipment() {
         icon={<Package className="w-5 h-5" />}
         open={openSections.products}
         onToggle={() => toggleSection("products")}
+        accent="emerald"
       >
         {lines.length === 0 ? (
           <div className="text-center py-12 px-4">
-            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
-              <Package className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-500/25 to-sky-500/20 flex items-center justify-center shadow-inner">
+              <Package className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className="text-sm text-muted-foreground mb-3">مفيش أصناف لسه — ابدأ بإضافة أول منتج</p>
-            <Button onClick={addAnother} className="gap-2"><Plus className="w-4 h-4" />إضافة منتج</Button>
+            <Button onClick={addAnother} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"><Plus className="w-4 h-4" />إضافة منتج</Button>
           </div>
 
 
