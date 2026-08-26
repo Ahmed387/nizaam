@@ -846,24 +846,15 @@ export default function NewShipment() {
         open={openSections.products}
         onToggle={() => toggleSection("products")}
       >
-        {branchId && (
-          <div className="p-4 border-b border-border bg-surface-1/40 space-y-2">
-            <ShipmentQuickAddBar branchId={branchId} onPick={quickAdd} />
-            <p className="text-[11px] text-muted-foreground">
-              اكتب اسم المنتج أو كوده → اختار من النتائج (مخزون الفرع / قائمة الأسعار) وهيتضاف على طول في الجدول تحت.
-              لو المنتج جديد خالص، هيظهرلك خيار «إضافة … كصنف جديد». لو اخترت نفس المنتج تاني هنزوّد كميته.
-            </p>
-            {isEdit && (
-              <Button size="sm" variant="outline" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />سطر فاضي</Button>
-            )}
-          </div>
-        )}
-
         {lines.length === 0 ? (
-          <div className="text-center text-muted-foreground py-12 px-4">
-            <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">مفيش أصناف لسه — ابدأ من شريط البحث فوق</p>
+          <div className="text-center py-12 px-4">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
+              <Package className="w-7 h-7 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">مفيش أصناف لسه — ابدأ بإضافة أول منتج</p>
+            <Button onClick={addAnother} className="gap-2"><Plus className="w-4 h-4" />إضافة منتج</Button>
           </div>
+
 
 
 
