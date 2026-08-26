@@ -255,7 +255,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   },
   worker: {},
   driver: {},
-  viewer: Object.fromEntries(BRANCH_PERMISSION_GROUPS.flatMap(g => g.actions.filter(a => a === "view").map(a => [`${g.key}.${a}`, true]))),
+  // المراقب: يشوف كل حاجة المالك بيشوفها (عرض فقط) — من غير الإعدادات وترحيل البيانات
+  viewer: Object.fromEntries(
+    [...BRANCH_PERMISSION_GROUPS, ...ADMIN_NAV_PERMISSION_GROUPS, ...ADMIN_SUBSECTION_PERMISSION_GROUPS]
+      .filter((g) => g.key !== "admin_settings" && g.key !== "admin_data_migration")
+      .flatMap((g) => g.actions.filter((a) => a === "view").map((a) => [`${g.key}.${a}`, true])),
+  ),
 };
 
 /**
