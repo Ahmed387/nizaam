@@ -1124,41 +1124,89 @@ export default function NewShipment() {
         accent="indigo"
       >
         <div className="p-5">
-        <div className="grid md:grid-cols-2 gap-4 items-end">
-          <div className="space-y-3 text-sm">
+          {/* Grand total hero */}
+          <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-l from-indigo-600/15 via-violet-500/10 to-emerald-500/5 p-5 mb-5 shadow-lg shadow-indigo-500/10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-indigo-800/80 dark:text-indigo-200/80 mb-1">الإجمالي المستحق للمورد</div>
+                <div className="text-3xl md:text-4xl font-black text-indigo-700 dark:text-indigo-300 tracking-tight">{formatEGP(grandTotal)}</div>
+                <div className="text-xs text-muted-foreground mt-1">{lines.length} صنف · {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة</div>
+              </div>
+              {(() => {
+                const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
+                const paidNow = plan.mode === "credit" ? 0 : Number(plan.paidNow || 0);
+                const effectivePaid = plan.mode === "full" ? grandTotal : Math.max(paidNow, splitsSum);
+                const remaining = Math.max(0, grandTotal - effectivePaid);
+                const over = effectivePaid > grandTotal + 0.01;
+                const status = remaining < 0.01 ? "مدفوعة بالكامل" : effectivePaid > 0 ? "دفع جزئي" : "غير مدفوعة";
+                const statusClass = remaining < 0.01
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                  : effectivePaid > 0
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                    : "bg-slate-500/10 text-muted-foreground border-slate-500/20";
+                return (
+                  <div className="flex flex-col gap-2 min-w-[180px]">
+                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold text-center ${statusClass}`}>{status}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-background/60 border border-border px-2 py-1.5 text-center">
+                        <div className="text-muted-foreground">مدفوع</div>
+                        <b className="text-emerald-600">{formatEGP(effectivePaid)}</b>
+                      </div>
+                      <div className="rounded-lg bg-background/60 border border-border px-2 py-1.5 text-center">
+                        <div className="text-muted-foreground">متبقي</div>
+                        <b className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>{formatEGP(remaining)}</b>
+                      </div>
+                    </div>
+                    {over && (
+                      <div className="text-[11px] text-rose-600 font-semibold text-center">
+                        زيادة {formatEGP(effectivePaid - grandTotal)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
 
-            {/* 1) البضاعة */}
-            <div className="rounded-xl border border-indigo-500/20 overflow-hidden bg-gradient-to-l from-indigo-500/[0.04] to-transparent">
-              <div className="px-3 py-2 bg-indigo-500/10 text-[11px] font-bold text-indigo-800 dark:text-indigo-200">١ — قيمة البضاعة</div>
-              <div className="p-3 space-y-1.5">
-                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف ({lines.length} صنف / {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة)</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(itemsGross)}</b></div>
+          {/* Detail grid */}
+          <div className="grid md:grid-cols-3 gap-3 mb-5">
+            {/* Goods */}
+            <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-l from-indigo-500/[0.05] to-transparent p-3 space-y-2">
+              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-indigo-500/15 flex items-center justify-center text-[10px]">١</span>
+                قيمة البضاعة
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">إجمالي الأصناف</span><b>{formatEGP(itemsGross)}</b></div>
                 {itemsDiscount > 0 && (
-                  <div className="flex justify-between text-rose-600"><span>− خصومات على الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
+                  <div className="flex justify-between text-rose-600 text-xs"><span>خصومات الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
                 )}
-                <div className="flex justify-between border-t border-dashed border-indigo-500/20 pt-1.5"><span className="text-muted-foreground">صافي البضاعة</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(itemsNet)}</b></div>
+                <div className="flex justify-between border-t border-dashed border-indigo-500/20 pt-1"><span className="text-muted-foreground text-xs">صافي البضاعة</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(itemsNet)}</b></div>
               </div>
             </div>
 
-            {/* 2) خصم على الفاتورة كلها */}
-            <div className="rounded-xl border border-dashed border-rose-400/40 bg-rose-500/5 p-3 space-y-2">
+            {/* Invoice discount */}
+            <div className="rounded-xl border border-dashed border-rose-400/40 bg-rose-500/[0.04] p-3 space-y-2">
+              <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-rose-500/15 flex items-center justify-center text-[10px]">٢</span>
+                خصم على الفاتورة
+              </div>
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-bold text-rose-700 dark:text-rose-300">٢ — خصم على الفاتورة كلها</Label>
-                <div className="inline-flex rounded-md overflow-hidden border border-rose-500/30">
+                <div className="inline-flex rounded-md overflow-hidden border border-rose-500/30 shrink-0">
                   <button
                     type="button"
                     onClick={() => setInvDiscType("amount")}
                     className={`px-3 h-8 text-xs font-bold ${invDiscType === "amount" ? "bg-rose-600 text-white" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}
-                  >
-                    ج.م
-                  </button>
+                  >ج.م</button>
                   <button
                     type="button"
                     onClick={() => setInvDiscType("percent")}
                     className={`px-3 h-8 text-xs font-bold ${invDiscType === "percent" ? "bg-rose-600 text-white" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}
-                  >
-                    %
-                  </button>
+                  >%</button>
                 </div>
+                {invoiceDiscountAmount > 0 && (
+                  <span className="text-xs font-bold text-rose-600">− {formatEGP(invoiceDiscountAmount)}</span>
+                )}
               </div>
               <Input
                 type="number"
@@ -1171,68 +1219,30 @@ export default function NewShipment() {
                 className="h-9 border-rose-500/20 focus-visible:ring-rose-500/30"
               />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                الخصم بيتوزّع على الأصناف بالتناسب مع قيمة كل صنف، وبينزّل تكلفة الوحدة في المخزن.
+                بيتوزّع على الأصناف بالتناسب وينزّل تكلفة الوحدة.
               </p>
-              {invoiceDiscountAmount > 0 && (
-                <>
-                  <div className="flex justify-between text-rose-600 text-xs font-bold">
-                    <span>قيمة الخصم</span><b>− {formatEGP(invoiceDiscountAmount)}</b>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-muted-foreground">صافي البضاعة بعد الخصم</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(netAfterInvoiceDiscount)}</b>
-                  </div>
-                </>
-              )}
             </div>
 
-            {/* 3) المصاريف */}
-            <div className="rounded-xl border border-amber-500/20 overflow-hidden bg-gradient-to-l from-amber-500/[0.04] to-transparent">
-              <div className="px-3 py-2 bg-amber-500/10 text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center justify-between">
-                <span>٣ — المصاريف الإضافية</span>
-                <span className="text-amber-700 dark:text-amber-300">{formatEGP(totalExtras + Number(admin || 0))}</span>
+            {/* Expenses */}
+            <div className="rounded-xl border border-amber-500/20 bg-gradient-to-l from-amber-500/[0.05] to-transparent p-3 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-amber-500/15 flex items-center justify-center text-[10px]">٣</span>
+                المصاريف الإضافية
               </div>
-              <div className="p-3 space-y-1.5">
-                <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى{otherDesc ? ` (${otherDesc})` : ""}</span><b>{formatEGP(otherCost)}</b></div>
-                <div className="text-[10px] text-muted-foreground">↑ التلاتة دول بيتوزّعوا على تكلفة الوحدة</div>
-                <div className="flex justify-between border-t border-dashed border-amber-500/20 pt-1.5">
-                  <span className="text-muted-foreground">مصاريف إدارية <span className="text-[10px]">(مش بتدخل في تكلفة الوحدة)</span></span>
-                  <b>{formatEGP(admin)}</b>
-                </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">الشحن</span><b>{formatEGP(shipping)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">الجمارك</span><b>{formatEGP(customs)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground text-xs">مصاريف أخرى</span><b>{formatEGP(otherCost)}</b></div>
+                <div className="flex justify-between border-t border-dashed border-amber-500/20 pt-1"><span className="text-muted-foreground text-xs">إدارية</span><b>{formatEGP(admin)}</b></div>
               </div>
             </div>
-
-            {/* 4) الإجمالي */}
-            <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-l from-indigo-500/15 via-violet-500/10 to-transparent px-3 py-3 flex justify-between items-center text-lg shadow-sm shadow-indigo-500/5">
-              <span className="font-bold text-indigo-800 dark:text-indigo-200">٤ — الإجمالي المستحق للمورد</span>
-              <b className="text-indigo-600 dark:text-indigo-400 text-xl">{formatEGP(grandTotal)}</b>
-            </div>
-            {(() => {
-              const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
-              const paidNow = plan.mode === "credit" ? 0 : Number(plan.paidNow || 0);
-              const effectivePaid = plan.mode === "full" ? grandTotal : Math.max(paidNow, splitsSum);
-              const remaining = Math.max(0, grandTotal - effectivePaid);
-              const over = effectivePaid > grandTotal + 0.01;
-              const status = remaining < 0.01 ? "مدفوعة بالكامل" : effectivePaid > 0 ? "دفع جزئي" : "غير مدفوعة";
-              const statusColor = remaining < 0.01 ? "text-emerald-600" : effectivePaid > 0 ? "text-amber-600" : "text-muted-foreground";
-              return (
-                <div className="mt-2 space-y-1 border-t border-dashed border-indigo-500/20 pt-2">
-                  <div className="flex justify-between"><span className="text-muted-foreground">المدفوع الآن</span><b className="text-emerald-600">{formatEGP(effectivePaid)}</b></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">المتبقي</span><b className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>{formatEGP(remaining)}</b></div>
-                  {over && (
-                    <div className="flex justify-between text-rose-600"><span>زيادة عن الإجمالي</span><b>{formatEGP(effectivePaid - grandTotal)}</b></div>
-                  )}
-                  <div className="flex justify-between"><span className="text-muted-foreground">الحالة</span><b className={statusColor}>{status}</b></div>
-                </div>
-              );
-            })()}
           </div>
-          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/20">
-            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+
+          {/* Save button */}
+          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/20 h-14 text-lg font-bold rounded-xl">
+            {busy && <Loader2 className="w-5 h-5 animate-spin" />}
             {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
           </Button>
-        </div>
         </div>
       </CollapsibleSection>
       </div>
