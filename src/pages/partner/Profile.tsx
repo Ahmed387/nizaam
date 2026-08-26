@@ -80,6 +80,35 @@ export default function PartnerProfile() {
         </Card>
 
         <Card>
+          <CardHeader><CardTitle>نِسب الشركاء</CardTitle></CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-right">
+                  <th className="p-2">الشريك</th>
+                  <th className="p-2">نسبة رأس المال</th>
+                  <th className="p-2">نسبة التشغيل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allPartners.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">لا يوجد</td></tr>}
+                {allPartners.map((p) => (
+                  <tr key={p.id} className={`border-t ${p.id === partner?.id ? "bg-primary/5 font-semibold" : ""}`}>
+                    <td className="p-2">{p.name}{p.id === partner?.id ? " (أنا)" : ""}</td>
+                    <td className="p-2 font-mono">{(Number(p.capital_share) * 100).toFixed(2)}%</td>
+                    <td className="p-2 font-mono">{(Number(p.operating_share) * 100).toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="p-3 text-xs text-muted-foreground">
+              نسبة التشغيل بتتاخد من صافي الربح مقابل إدارة الشغل قبل ما الباقي يتقسم بنِسب رأس المال — معروضة لكل الشركاء للشفافية.
+            </p>
+          </CardContent>
+        </Card>
+
+
+        <Card>
           <CardHeader><CardTitle>الأمان</CardTitle></CardHeader>
           <CardContent>
             <Button onClick={() => setOpen(true)}><KeyRound className="w-4 h-4 ml-2" />تغيير كلمة المرور</Button>
