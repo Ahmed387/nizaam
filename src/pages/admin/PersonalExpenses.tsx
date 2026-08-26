@@ -869,56 +869,6 @@ export default function PersonalExpenses() {
     [rows]
   );
 
-  /**
-   * متوسط التصنيفات — بيتحسب من فلاتر البحث المتقدم نفسها (تصنيف/سنة/بحث/تاريخ/مبلغ)
-   * ملاحظة: اختيار الشهور فوق مش بيأثر هنا عشان يبقى فيه مصدر فلتر واحد.
-   */
-  const catYearAvg = useMemo(() => {
-    // الصفوف المطلوبة = اللي عدت من فلاتر البحث المتقدم
-    const catRows = filtered;
-    if (catRows.length === 0) return null;
-
-    const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
-    const count = catRows.length;
-
-    // الشهور اللي فيها صرف فعلي (من الصفوف المفلترة)
-    const perMonth = new Map<string, number>();
-    catRows.forEach(r => {
-      const k = monthKey(r.expense_datetime);
-      perMonth.set(k, (perMonth.get(k) || 0) + Number(r.amount));
-    });
-    const activeMonths = perMonth.size;
-
-    // مدى الحساب: لو سنة مختارة = ١٢ شهر، لو لأ = عدد الشهور الفريدة في الداتا المفلترة
-    const monthsSpan = filterYear
-      ? 12
-      : Math.max(1, perMonth.size);
-
-    // إجمالي كل المصاريف في نفس السنة (أو كل السنين لو مفيش سنة مختارة) — مقياس النسبة
-    const scopeRows = filterYear
-      ? rows.filter(r => monthKey(r.expense_datetime).startsWith(filterYear))
-      : rows;
-    const scopeTotal = scopeRows.reduce((s, r) => s + Number(r.amount), 0);
-
-    const top = Array.from(perMonth.entries()).sort((a, b) => b[1] - a[1])[0];
-
-    return {
-      total,
-      count,
-      activeMonths,
-      avgActive: activeMonths > 0 ? total / activeMonths : 0,
-      avg12: total / monthsSpan,
-      avg12Label: filterYear ? "متوسط شهري على ١٢ شهر" : "متوسط شهري على الشهور اللي فيها داتا",
-      share: scopeTotal > 0 ? (total / scopeTotal) * 100 : 0,
-      shareLabel: filterYear ? "نسبته من مصاريف السنة" : "نسبته من كل المصاريف",
-      maxMonthLabel: top ? `${monthLabel(top[0])} (${EGP(top[1])})` : "—",
-      scopeLabel: [
-        filterCats.length === 0 ? "كل التصنيفات" : filterCats.join("، "),
-        filterYear || "كل السنين",
-      ].join(" — "),
-      monthsSpan,
-    };
-  }, [rows, filtered, filterYear, filterCats]);
 
 
 
@@ -1605,71 +1555,6 @@ export default function PersonalExpenses() {
               </div>
             </Card>
           )}
-
-          {/* ٦) متوسط التصنيفات — حسب فلاتر البحث المتقدم */}
-          <Card className="p-5">
-            <div className="text-sm font-bold mb-1 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-primary" /> متوسط التصنيفات
-            </div>
-            <div className="text-xs text-muted-foreground mb-4 leading-relaxed">
-              بيتحسب على طول من <span className="font-semibold text-foreground">البحث المتقدم</span> فوق — غيّر التصنيف أو السنة من هناك والأرقام هنا هتتغير.
-              <span className="block mt-1">الفلتر الحالي: <span className="font-semibold text-foreground">{catYearAvg?.scopeLabel ?? "—"}</span></span>
-            </div>
-
-            {catYearAvg ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* إجمالي */}
-                  <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-4">
-                    <div className="text-[11px] font-semibold text-muted-foreground">إجمالي المصروفات</div>
-                    <div className="text-2xl font-extrabold text-rose-700 dark:text-rose-200 leading-tight mt-1">{EGP(catYearAvg.total)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-1">{catYearAvg.count.toLocaleString("ar-EG")} عملية مصروف</div>
-                  </div>
-
-                  {/* متوسط شهري فعلي */}
-                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
-                    <div className="text-[11px] font-semibold text-muted-foreground">متوسط شهري (فعلي)</div>
-                    <div className="text-2xl font-extrabold text-primary leading-tight mt-1">{EGP(catYearAvg.avgActive)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
-                      {catYearAvg.activeMonths.toLocaleString("ar-EG")} شهر فيهم صرف فعلي
-                    </div>
-                  </div>
-
-                  {/* متوسط شهري على المدة */}
-                  <div className="rounded-xl border p-4">
-                    <div className="text-[11px] font-semibold text-muted-foreground">{catYearAvg.avg12Label}</div>
-                    <div className="text-2xl font-extrabold leading-tight mt-1">{EGP(catYearAvg.avg12)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
-                      {filterYear ? "الإجمالي ÷ ١٢ شهر" : `الإجمالي ÷ ${catYearAvg.monthsSpan.toLocaleString("ar-EG")} شهر فيهم داتا`}
-                    </div>
-                  </div>
-
-                  {/* نسبة + أعلى شهر */}
-                  <div className="rounded-xl border p-4">
-                    <div className="text-[11px] font-semibold text-muted-foreground">{catYearAvg.shareLabel}</div>
-                    <div className="text-2xl font-extrabold leading-tight mt-1">{catYearAvg.share.toFixed(1)}%</div>
-                    <div className="text-[10px] text-muted-foreground mt-1 truncate" title={catYearAvg.maxMonthLabel}>
-                      أعلى شهر: {catYearAvg.maxMonthLabel}
-                    </div>
-                  </div>
-                </div>
-
-                {/* شرح مبسط لليوزر */}
-                <div className="mt-4 rounded-lg bg-muted/50 p-3 text-[11px] text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">شرح سريع:</strong>{" "}
-                  الإجمالي هو مجموع المصروفات اللي طلعت من البحث المتقدم. "المتوسط الشهري (الفعلي)" بيقسم الإجمالي على عدد الشهور اللي فعلاً صرفت فيها تحت التصنيف ده.
-                  {" "}
-                  "{catYearAvg.avg12Label}" بيقسم الإجمالي على {filterYear ? "١٢ شهر" : "نفس عدد الشهور اللي فيها داتا"}، حتى لو فيه شهور مفيش فيها صرف.
-                  {" "}
-                  النسبة بتقول التصنيف ده واخد كام % من كل مصاريفك {filterYear ? `في سنة ${filterYear}` : "على كل الفترة"}.
-                </div>
-              </>
-            ) : (
-              <div className="text-xs text-muted-foreground">مفيش مصاريف مطابقة للفلاتر الحالية</div>
-            )}
-          </Card>
-
-
 
         </div>
       )}
