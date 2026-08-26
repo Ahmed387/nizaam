@@ -269,7 +269,7 @@ export default function Employees() {
                       value={form.login_password}
                       onChange={(e) => setForm({ ...form, login_password: e.target.value })}
                       className="pl-10"
-                      placeholder="6 أحرف على الأقل"
+                      placeholder="8 أحرف على الأقل، منها حرف ورقم"
                     />
                     <button type="button" onClick={() => setShowPwd((v) => !v)}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
