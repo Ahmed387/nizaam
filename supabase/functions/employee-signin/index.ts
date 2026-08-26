@@ -59,10 +59,11 @@ Deno.serve(async (req) => {
 
     if (!orderedCandidates.length) {
       return new Response(
-        JSON.stringify({ error: "Access Denied — البريد أو كلمة المرور غير صحيحة" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ ok: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
 
     let emp: any = null;
     for (const candidate of orderedCandidates) {
