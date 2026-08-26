@@ -1778,8 +1778,23 @@ export default function NewSale() {
               </div>
             )}
 
+            {/* شريط «منتج آخر» — وقف عليه بالماوس يجهّزلك بحث صنف جديد */}
+            {items.length > 0 && (
+              <div className="p-4 pt-0">
+                <AddAnotherBar
+                  onActivate={() => {
+                    setExpandedKey(null);
+                    setSearch("");
+                    searchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    setTimeout(() => searchInputRef.current?.focus(), 120);
+                  }}
+                  hint="— وقف هنا بالماوس وابحث عن الصنف الجديد"
+                />
+              </div>
+            )}
 
           </div>
+
 
           </div>
           )}
