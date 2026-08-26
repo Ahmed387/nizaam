@@ -20,7 +20,7 @@ import { logAudit } from "@/lib/roles";
 import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
+import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
 import { summarizeMonth, AttendanceSummary } from "@/lib/salaryCalc";
 import { confirmAlert } from "@/components/ConfirmDialog";
 
@@ -43,6 +43,7 @@ export default function EmployeeProfile() {
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [showEditPwd, setShowEditPwd] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", job_title: "", phone: "", email: "", login_password: "", base_salary: "", hire_date: "", notes: "", national_id: "" });
   const [editShift, setEditShift] = useState<ShiftValue>(emptyShift());
   const [delOpen, setDelOpen] = useState(false);
@@ -623,7 +624,13 @@ export default function EmployeeProfile() {
                     <Label className="text-sm font-semibold flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-muted-foreground" /> كلمة المرور (للدخول كموظف)
                     </Label>
-                    <Input type="password" dir="ltr" className="text-right mt-2" value={editForm.login_password} onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })} placeholder="اتركه فارغاً إذا لا تريد تغييره" />
+                    <div className="relative mt-2">
+                      <Input type={showEditPwd ? "text" : "password"} dir="ltr" autoComplete="new-password" data-lpignore="true" data-form-type="other" className="text-right pl-10" value={editForm.login_password} onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })} placeholder="اتركه فارغاً إذا لا تريد تغييره" />
+                      <button type="button" onClick={() => setShowEditPwd((v) => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" title={showEditPwd ? "إخفاء" : "إظهار"}>
+                        {showEditPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">كلمة المرور الحالية متشفّرة ومش ممكن تتعرض — اكتب كلمة جديدة واضغط على العين للتأكد منها قبل الحفظ.</p>
                   </div>
                 </div>
               </div>
