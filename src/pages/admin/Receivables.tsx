@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatEGP } from "@/lib/format";
-import { AlertCircle, Search, RefreshCw, Calendar } from "lucide-react";
+import { AlertCircle, Search, RefreshCw, Calendar, Info, ArrowDownLeft, ArrowUpRight, Users, Scale } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useNavigate } from "react-router-dom";
 import { useBranchScope } from "@/lib/branchScope";
