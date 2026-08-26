@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { friendlyAuthError } from '../_shared/authErrors.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
     if (vErr) return new Response(JSON.stringify({ error: 'كلمة المرور الحالية غير صحيحة' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const { error: uErr } = await admin.auth.admin.updateUserById(userId, { password: new_password });
-    if (uErr) return new Response(JSON.stringify({ error: uErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (uErr) return new Response(JSON.stringify({ error: friendlyAuthError(uErr.message) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     await admin.from('audit_log').insert({
       user_id: userId, user_name: 'partner', action: 'UPDATE', entity: 'own_password', details: {},

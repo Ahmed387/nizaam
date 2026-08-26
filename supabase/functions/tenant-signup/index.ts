@@ -1,6 +1,7 @@
 // Public edge function: creates a new tenant + admin user atomically.
 // No auth required (verify_jwt = false).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { friendlyAuthError } from '../_shared/authErrors.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
     });
     if (uErr || !userRes?.user) {
       await supabase.from("tenants").delete().eq("id", tenant.id);
-      return json({ error: "فشل إنشاء المستخدم: " + (uErr?.message ?? "") }, 500);
+      return json({ error: friendlyAuthError(uErr?.message) }, 400);
     }
 
     const userId = userRes.user.id;
