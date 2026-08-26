@@ -29,6 +29,8 @@ interface AuthCtx {
   branchScope: string[] | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  /** حساب مراقب — قراءة فقط لكل شاشات المالك */
+  isViewer: boolean;
   isOwner: boolean;
   hasRole: (r: AppRole) => boolean;
   can: (key: string) => boolean;
@@ -180,11 +182,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     ctxReady,
     branchScope:
-      roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner") || (!!user?.id && user.id === tenant?.owner_user_id)
+      roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner") || roles.includes("viewer") || (!!user?.id && user.id === tenant?.owner_user_id)
         ? null
         : branches.map((b) => b.id),
     isAdmin: roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner"),
     isSuperAdmin: roles.includes("super_admin"),
+    isViewer: roles.includes("viewer"),
     isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
     hasRole: (r) => roles.includes(r),
     can: (key) => checkPermission(roles, permsByRole, key, userPerms),
