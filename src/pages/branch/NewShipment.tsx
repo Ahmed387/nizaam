@@ -269,39 +269,15 @@ export default function NewShipment() {
     Number(l.cost_price) > 0 &&
     (!!l.product_id || (!!l.brand?.trim() && !!l.model?.trim()));
 
-  /** إضافة صنف من شريط البحث السريع — لو الصنف موجود بالفعل بنزوّد الكمية بدل التكرار */
-  const quickAdd = (p: QuickAddPick) => {
-    setLines((prev) => {
-      const existing = p.product_id
-        ? prev.findIndex((l) => l.product_id === p.product_id)
-        : prev.findIndex((l) => !l.product_id && l.product_name.trim() === p.product_name.trim());
-      if (existing >= 0) {
-        const copy = [...prev];
-        copy[existing] = { ...copy[existing], quantity: Number(copy[existing].quantity || 0) + 1 };
-        toast.success(`زوّدنا كمية ${p.product_name} — دلوقتي ${copy[existing].quantity}`);
-        setActiveLine(existing);
-        return copy;
-      }
-      const next = [...prev, {
-        product_id: p.product_id,
-        product_name: p.product_name,
-        sku: p.sku || genSku(),
-        quantity: 1,
-        cost_price: Number(p.cost_price) || 0,
-        discount_percent: 0,
-        discount_amount: 0,
-        image: p.image || "",
-        brand: p.brand ?? "",
-        model: p.model ?? "",
-        color: p.color ?? "",
-        product_type: p.product_type ?? "",
-        capacity: p.capacity ?? "",
-        size: p.size ?? "",
-      }];
-      setActiveLine(next.length - 1);
-      return next;
-    });
+  /** آخر صنف اتملى بالكامل؟ يبقى نعرض شريط «منتج آخر» */
+  const canAddAnother = lines.length === 0 || lines.every(isLineComplete);
+
+  /** طي الصنف الحالي وفتح صنف جديد فاضي */
+  const addAnother = () => {
+    setActiveLine(null);
+    addLine();
   };
+
 
   // لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
   useEffect(() => {
