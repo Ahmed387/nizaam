@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Pencil } from "lucide-react";
+import { EditPartnerTxDialog } from "@/components/EditPartnerTxDialog";
 
 export default function PartnerTransactions({ embedded }: { embedded?: boolean } = {}) {
   const [params] = useSearchParams();
@@ -22,6 +24,8 @@ export default function PartnerTransactions({ embedded }: { embedded?: boolean }
     month_year: new Date().toISOString().slice(0, 7),
   });
   const [recent, setRecent] = useState<any[]>([]);
+  const [editTx, setEditTx] = useState<any | null>(null);
+  const [openEdit, setOpenEdit] = useState(false);
 
   const loadPartners = async () => {
     if (!tenantId) return;
