@@ -871,21 +871,22 @@ export default function NewShipment() {
                     key={i}
                     type="button"
                     onClick={() => setActiveLine(i)}
-                    className="w-full text-right rounded-lg border border-border bg-surface-1/40 hover:bg-surface-1/80 hover:border-primary/50 transition-all flex items-center gap-3 p-2.5"
+                    className="w-full text-right rounded-xl border border-emerald-500/30 bg-gradient-to-l from-emerald-500/10 via-primary/5 to-transparent hover:border-primary/60 hover:shadow-sm transition-all flex items-center gap-3 p-2.5"
                   >
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center justify-center">{i + 1}</span>
+                    <span className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-primary to-emerald-500 text-primary-foreground text-[11px] font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
                     {l.image
-                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded object-cover border border-border shrink-0" />
-                      : <span className="w-9 h-9 rounded bg-muted flex items-center justify-center border border-border shrink-0"><ImageIcon className="w-4 h-4 text-muted-foreground" /></span>}
+                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded-lg object-cover border border-border shrink-0" />
+                      : <span className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><ImageIcon className="w-4 h-4 text-primary" /></span>}
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-sm truncate">{l.product_name || "صنف بدون اسم"}</span>
                       <span className="block text-[11px] text-muted-foreground truncate">
                         {[l.brand, l.model, l.color].filter(Boolean).join(" · ") || l.sku}
                       </span>
                     </span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">×{l.quantity}</span>
-                    <span className="shrink-0 font-bold text-primary text-sm">{formatEGP(net)}</span>
+                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400">×{l.quantity}</span>
+                    <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400 text-sm">{formatEGP(net)}</span>
                     <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+
                     <span
                       role="button"
                       tabIndex={-1}
