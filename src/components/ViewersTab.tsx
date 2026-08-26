@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Trash2, Eye, KeyRound } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -46,14 +47,16 @@ export function ViewersTab() {
   const create = async () => {
     const email = form.email.trim().toLowerCase();
     if (!email || !form.password) return toast.error("ادخل الإيميل وكلمة المرور");
-    if (form.password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/[0-9]/.test(form.password))
+      return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وفيها حرف ورقم");
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return toast.error("اكتب إيميل صحيح زي name@company.com");
     setSaving(true);
     const { data, error } = await supabase.functions.invoke("manage-viewer", {
       body: { action: "create", email, password: form.password, name: form.name.trim() || email.split("@")[0] },
     });
     setSaving(false);
     if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error ?? error?.message ?? "فشل الإنشاء");
+      return toast.error((await edgeErrorMessage(error, data)) ?? "فشل الإنشاء");
     }
     toast.success("تم إنشاء حساب المراقب");
     setForm({ name: "", email: "", password: "" });
@@ -66,19 +69,20 @@ export function ViewersTab() {
       body: { action: "delete", user_id: userId },
     });
     if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error ?? error?.message ?? "فشل الحذف");
+      return toast.error((await edgeErrorMessage(error, data)) ?? "فشل الحذف");
     }
     toast.success("تم الحذف");
     load();
   };
 
   const changePwd = async () => {
-    if (pwdDialog.password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (pwdDialog.password.length < 8 || !/[A-Za-z]/.test(pwdDialog.password) || !/[0-9]/.test(pwdDialog.password))
+      return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وفيها حرف ورقم");
     const { data, error } = await supabase.functions.invoke("manage-viewer", {
       body: { action: "update_password", user_id: pwdDialog.userId, password: pwdDialog.password },
     });
     if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error ?? error?.message ?? "فشل التحديث");
+      return toast.error((await edgeErrorMessage(error, data)) ?? "فشل التحديث");
     }
     toast.success("تم تغيير كلمة المرور");
     setPwdDialog({ open: false, userId: "", name: "", password: "" });
@@ -108,7 +112,7 @@ export function ViewersTab() {
         </div>
         <div>
           <Label>كلمة المرور *</Label>
-          <Input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-1.5" placeholder="6 أحرف على الأقل" />
+          <Input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-1.5" placeholder="8 أحرف على الأقل + حرف ورقم" />
         </div>
         <div className="md:col-span-3">
           <Button onClick={create} disabled={saving} className="gap-2 w-full md:w-auto">
@@ -163,7 +167,7 @@ export function ViewersTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>تغيير كلمة مرور: {pwdDialog.name}</DialogTitle>
-            <DialogDescription>اكتب كلمة المرور الجديدة (6 أحرف على الأقل)</DialogDescription>
+            <DialogDescription>اكتب كلمة المرور الجديدة (8 أحرف على الأقل وفيها حرف ورقم)</DialogDescription>
           </DialogHeader>
           <Input
             type="text"
