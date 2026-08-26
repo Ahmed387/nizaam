@@ -29,6 +29,8 @@ interface AuthCtx {
   branchScope: string[] | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  /** حساب مراقب — قراءة فقط لكل شاشات المالك */
+  isViewer: boolean;
   isOwner: boolean;
   hasRole: (r: AppRole) => boolean;
   can: (key: string) => boolean;
