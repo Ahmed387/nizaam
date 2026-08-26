@@ -19,10 +19,7 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/co
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
-import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { RecordAttachments } from "@/components/RecordAttachments";
-import { VoucherViewDialog } from "@/components/VoucherViewDialog";
-import { VoucherDialog } from "@/components/VoucherDialog";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
 interface WalletBalances {
@@ -58,8 +55,6 @@ export default function Treasury() {
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
-  const [viewVoucher, setViewVoucher] = useState<any | null>(null);
-  const [editVoucher, setEditVoucher] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -175,7 +170,6 @@ export default function Treasury() {
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
   const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
-  const voucherAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.reference_id).filter(Boolean), [rows]));
 
   const wallets = [
     { key: "cash_balance" as const, label: "نقدي", icon: Wallet, color: "text-success", method: "cash" as const },
@@ -291,7 +285,6 @@ export default function Treasury() {
           </div>
 
           <DataTable loading={loading} rows={filtered}
-            onRowClick={(r: any) => r.reference_id && setViewVoucher(r)}
             columns={[
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "type", header: "النوع", render: (r: any) => (
@@ -311,13 +304,6 @@ export default function Treasury() {
                 <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
                 </span>
-              )},
-              { key: "actions", header: "الإجراءات", render: (r: any) => (
-                <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                  {r.reference_id ? (
-                    <AttachmentsDialogButton recordType="voucher" recordId={r.reference_id} count={voucherAttCounts[r.reference_id] ?? 0} />
-                  ) : <span className="text-muted-foreground">—</span>}
-                </div>
               )},
             ]} />
         </TabsContent>
@@ -479,24 +465,6 @@ export default function Treasury() {
         </DialogContent>
       </Dialog>
 
-      <VoucherViewDialog
-        voucher={null}
-        open={!!viewVoucher}
-        onOpenChange={(o) => !o && setViewVoucher(null)}
-        categoryName={viewVoucher?._category_name}
-        onEdit={(v) => { setViewVoucher(null); setEditVoucher(v); }}
-      />
-
-      {editVoucher && (
-        <VoucherDialog
-          open={!!editVoucher}
-          onOpenChange={(o) => !o && setEditVoucher(null)}
-          branchId={editVoucher.branch_id}
-          type={editVoucher.type}
-          editingVoucher={editVoucher}
-          onSuccess={load}
-        />
-      )}
     </BranchLayout>
   );
 }
