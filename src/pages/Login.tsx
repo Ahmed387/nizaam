@@ -55,7 +55,8 @@ export default function Login() {
         body: { email: mail, password },
       });
       if (fnErr || !data?.ok) {
-        toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        const fallbackMessage = data?.error;
+        toast.error(fallbackMessage || "البريد الإلكتروني أو كلمة المرور غير صحيحة");
         return;
       }
       const { error: signErr } = await supabase.auth.signInWithPassword({

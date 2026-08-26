@@ -38,7 +38,12 @@ Deno.serve(async (req) => {
     }
 
     const { error: uErr } = await admin.auth.admin.updateUserById(link.user_id, { password: new_password });
-    if (uErr) return new Response(JSON.stringify({ error: uErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (uErr) {
+      const friendly = /weak|guess|pwned/i.test(String(uErr.message))
+        ? 'كلمة المرور ضعيفة أو مستخدمة بكثرة. اختار كلمة أقوى فيها حروف كبيرة وصغيرة وأرقام ورمز.'
+        : uErr.message;
+      return new Response(JSON.stringify({ error: friendly }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     await admin.from('audit_log').insert({
       user_id: callerId, user_name: 'admin', tenant_id: link.tenant_id,

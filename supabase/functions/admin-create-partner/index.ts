@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     // Verify caller is admin/super_admin
     const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', callerId);
     const rolesList = (roles ?? []).map((r: any) => r.role);
-    const isAdmin = rolesList.includes('admin') || rolesList.includes('super_admin');
+    const isAdmin = rolesList.includes('admin') || rolesList.includes('owner') || rolesList.includes('super_admin');
     const isSuperAdmin = rolesList.includes('super_admin');
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden — admin only' }), {
@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!partner_name || !partner_type || !username || !password) {
+    const normalizedEmail = String(email ?? '').trim().toLowerCase();
+    if (!partner_name || !partner_type || !username || !password || !normalizedEmail) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -113,11 +114,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create auth user (email required by supabase; synthesize if not given).
-    // NOTE: Supabase Auth rejects non-routable TLDs like `.local`, so we use a real TLD
-    // and sanitize the username to keep the local-part valid.
-    const localPart = `${String(username).toLowerCase().replace(/[^a-z0-9._-]/g, '') || 'partner'}.partner.${tenant_id.slice(0, 8)}`;
-    const authEmail = email || `${localPart}@partners.nizaam.app`;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return new Response(JSON.stringify({ error: 'أدخل بريد إلكتروني صحيح للشريك' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // A real email is mandatory because the unified login screen authenticates by email.
+    const authEmail = normalizedEmail;
     const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
       email: authEmail,
       password,
@@ -125,8 +129,12 @@ Deno.serve(async (req) => {
       user_metadata: { name: partner_name, username, phone },
     });
     if (authErr || !authUser?.user) {
-      return new Response(JSON.stringify({ error: authErr?.message ?? 'Failed to create user' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      const message = String(authErr?.message ?? 'Failed to create user');
+      const friendly = /weak|guess|pwned/i.test(message)
+        ? 'كلمة المرور ضعيفة أو مستخدمة بكثرة. اختار كلمة أقوى فيها حروف كبيرة وصغيرة وأرقام ورمز.'
+        : message;
+      return new Response(JSON.stringify({ error: friendly }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     const userId = authUser.user.id;
@@ -149,7 +157,7 @@ Deno.serve(async (req) => {
         tenant_id, user_id: userId, partner_id: partner.id, created_by: callerId,
       });
       // role
-      await admin.from('user_roles').insert({ user_id: userId, role: 'partner' });
+      await admin.from('user_roles').insert({ user_id: userId, role: 'partner', tenant_id });
       // initial share history
       await admin.from('partner_share_history').insert({
         tenant_id, partner_id: partner.id,
@@ -169,7 +177,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({
-        ok: true, partner_id: partner.id, user_id: userId, username, temp_password: password,
+        ok: true, partner_id: partner.id, user_id: userId, email: authEmail,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
       // rollback auth user on failure
