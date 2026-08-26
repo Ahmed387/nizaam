@@ -177,11 +177,16 @@ export default function EmployeeProfile() {
   };
 
   const remove = async () => {
-    const { error } = await supabase.from("employees").delete().eq("id", emp.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم حذف الموظف");
+    const { data, error } = await supabase.functions.invoke("admin-delete-employee", {
+      body: { employee_id: emp.id },
+    });
+    const errMsg = (data as any)?.error ?? error?.message;
+    if (errMsg) return toast.error(errMsg);
+    if ((data as any)?.warning) toast.warning((data as any).warning);
+    else toast.success("تم حذف الموظف نهائياً (مع حساب الدخول)");
     nav("/admin/employees");
   };
+
 
   const submitAdvance = async () => {
     const amt = Number(advForm.amount);
