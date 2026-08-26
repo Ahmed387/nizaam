@@ -63,8 +63,7 @@ export function ProtectedRoute({
   if (isViewer && !isAdmin && !isSuperAdmin && VIEWER_BLOCKED.some((p) => loc.pathname.startsWith(p))) {
     return <Navigate to="/" replace />;
   }
-
-
+  // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them.
   // Admins / super admins / the tenant owner / viewers (read-only) keep access to every branch.
   const branchMatch = loc.pathname.match(/^\/branch\/([^/]+)/);
   if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner && !isViewer) {
