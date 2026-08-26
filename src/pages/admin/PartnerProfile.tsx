@@ -187,11 +187,11 @@ export default function PartnerProfile() {
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">التاريخ</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th>
-                  <th className="p-2">الشهر</th><th className="p-2">الوصف</th><th className="p-2">الرصيد الجاري</th>
+                  <th className="p-2">الشهر</th><th className="p-2">الوصف</th><th className="p-2">الرصيد الجاري</th><th className="p-2">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
-                {txs.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا توجد حركات</td></tr>}
+                {txs.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا توجد حركات</td></tr>}
                 {txs.map(t => {
                   const cfg = TX_LABEL[t.transaction_type];
                   const signed = t.transaction_type === "drawing" ? -Number(t.amount) : Number(t.amount);
@@ -203,6 +203,11 @@ export default function PartnerProfile() {
                       <td className="p-2">{t.month_year || "-"}</td>
                       <td className="p-2">{t.description || "-"}</td>
                       <td className="p-2 font-mono">{fmt(runningBalances[t.id] ?? 0)}</td>
+                      <td className="p-2">
+                        <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setEditTx(t); setOpenEdit(true); }}>
+                          <Pencil className="w-3.5 h-3.5 ml-1" />تعديل
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -211,6 +216,8 @@ export default function PartnerProfile() {
           </CardContent>
         </Card>
       </div>
+
+      <EditPartnerTxDialog tx={editTx} open={openEdit} onOpenChange={setOpenEdit} onSaved={load} />
 
       <Dialog open={openTx} onOpenChange={setOpenTx}>
         <DialogContent dir="rtl">
