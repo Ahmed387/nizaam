@@ -658,33 +658,34 @@ export default function NewShipment() {
         icon={<UserIcon className="w-5 h-5" />}
         open={openSections.supplier}
         onToggle={() => toggleSection("supplier")}
+        accent="blue"
       >
         <div className="p-5 space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" /> المورد *
+              <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> المورد *
               </Label>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <PartyCombobox type="supplier" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
                 </div>
-                <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-primary/40 text-primary hover:bg-primary/10">
+                <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500/10 hover:text-sky-700">
                   <UserPlus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" /> اسم المستلم
+              <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> اسم المستلم
               </Label>
-              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" />
+              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" className="border-sky-500/20 focus-visible:ring-sky-500/30" />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" /> تاريخ الوصول
+              <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> تاريخ الوصول
               </Label>
-              <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} />
+              <Input type="date" value={arrival} onChange={(e) => setArrival(e.target.value)} className="border-sky-500/20 focus-visible:ring-sky-500/30" />
             </div>
             <div className="space-y-2">
               <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ فاتورة الشراء" />
@@ -692,7 +693,7 @@ export default function NewShipment() {
           </div>
           {suppliers.length === 0 && (
             <button type="button" onClick={() => setSupplierDlg(true)}
-              className="w-full p-3 border-2 border-dashed border-primary/40 rounded-lg text-sm text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-semibold">
+              className="w-full p-3 border-2 border-dashed border-sky-500/40 rounded-xl text-sm text-sky-700 dark:text-sky-300 hover:bg-sky-500/10 flex items-center justify-center gap-2 font-bold bg-gradient-to-l from-sky-500/5 to-transparent">
               <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد
             </button>
           )}
