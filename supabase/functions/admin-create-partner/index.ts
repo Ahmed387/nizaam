@@ -113,8 +113,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create auth user (email required by supabase; synthesize if not given)
-    const authEmail = email || `${username}.partner.${tenant_id.slice(0, 8)}@partner.nizam.local`;
+    // Create auth user (email required by supabase; synthesize if not given).
+    // NOTE: Supabase Auth rejects non-routable TLDs like `.local`, so we use a real TLD
+    // and sanitize the username to keep the local-part valid.
+    const localPart = `${String(username).toLowerCase().replace(/[^a-z0-9._-]/g, '') || 'partner'}.partner.${tenant_id.slice(0, 8)}`;
+    const authEmail = email || `${localPart}@partners.nizaam.app`;
     const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
       email: authEmail,
       password,
