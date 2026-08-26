@@ -128,23 +128,23 @@ Deno.serve(async (req) => {
         if (rolesErr) return j({ error: "تعذر فحص صلاحيات الحساب الموجود" }, 500);
         const roleNames = (existingRoles ?? []).map((row: { role: string }) => row.role);
 
-        const protectedRoles = roleNames.filter((role) =>
-          ["admin", "owner", "super_admin"].includes(role)
-        );
-        const incompatibleRoles = roleNames.filter((role) =>
-          !["viewer", "partner"].includes(role)
-        );
-        if (protectedRoles.length > 0 || incompatibleRoles.length > 0) {
-          return businessError("الإيميل ده مرتبط بحساب إداري أو موظف. استخدم إيميل مختلف لحساب المراقبة.");
+        const { data: authRecord, error: authLookupErr } = await admin.auth.admin.getUserById(usernameProfile.id);
+        if (authLookupErr || !authRecord.user) {
+          return businessError("حساب الدخول المرتبط غير موجود. أعد إنشاء الحساب من شاشة الموظفين أو الشركاء.");
         }
 
-        const { error: updateErr } = await admin.auth.admin.updateUserById(usernameProfile.id, {
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { viewer_for_tenant: tenantId },
-        });
-        if (updateErr) return businessError(friendlyAuthError(updateErr.message));
+        // Existing employees/partners keep their established login credentials.
+        // Adding viewer is an extra permission only; silently replacing their email
+        // or password here can break legacy partner accounts that use an internal
+        // Auth address behind the visible profile email.
+        if (roleNames.length === 0 || roleNames.every((role) => role === "viewer")) {
+          const { error: updateErr } = await admin.auth.admin.updateUserById(usernameProfile.id, {
+            password,
+            email_confirm: true,
+            user_metadata: { ...authRecord.user.user_metadata, viewer_for_tenant: tenantId },
+          });
+          if (updateErr) return businessError(friendlyAuthError(updateErr.message));
+        }
 
         const { error: profileUpdateErr } = await admin
           .from("profiles")
@@ -159,7 +159,12 @@ Deno.serve(async (req) => {
             { onConflict: "user_id,role" },
           );
         if (viewerRoleErr) return businessError(viewerRoleErr.message);
-        return j({ ok: true, user_id: usernameProfile.id, reused: true });
+        return j({
+          ok: true,
+          user_id: usernameProfile.id,
+          reused: true,
+          kept_existing_password: roleNames.some((role) => role !== "viewer"),
+        });
       }
 
       // Does an auth user with this email already exist?
@@ -190,11 +195,8 @@ Deno.serve(async (req) => {
         const hasForeignTenantRole = (authRoles ?? []).some((row: { tenant_id: string | null }) =>
           Boolean(row.tenant_id && row.tenant_id !== tenantId)
         );
-        const hasIncompatibleRole = (authRoles ?? []).some((row: { role: string }) =>
-          !["viewer", "partner"].includes(row.role)
-        );
-        if (hasForeignTenantRole || hasIncompatibleRole) {
-          return businessError("الإيميل ده مرتبط بالفعل بحساب أو صلاحيات أخرى. استخدم إيميل مختلف لحساب المراقبة.");
+        if (hasForeignTenantRole) {
+          return businessError("الإيميل ده مرتبط بالفعل بشركة تانية. استخدم إيميل مختلف لحساب المراقبة.");
         }
         const { error: upErr } = await admin.auth.admin.updateUserById(existingId, { password, email_confirm: true });
         if (upErr) return businessError(friendlyAuthError(upErr.message));
