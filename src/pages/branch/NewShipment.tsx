@@ -257,7 +257,7 @@ export default function NewShipment() {
     });
   };
 
-  // ===== إضافة/تنظيف الأصناف تلقائياً (بدون زرار إضافة) =====
+  // ===== تنظيف الأصناف الفاضية =====
   const isLineBlank = (l: Line) =>
     !l.product_name.trim() && !l.product_id && !(Number(l.cost_price) > 0) && !l.brand?.trim() && !l.model?.trim();
 
@@ -267,16 +267,41 @@ export default function NewShipment() {
     Number(l.cost_price) > 0 &&
     (!!l.product_id || (!!l.brand?.trim() && !!l.model?.trim()));
 
-  // 1) أول ما قسم المنتجات يفتح: لازم يكون فيه صنف فاضي جاهز
-  // 2) وأول ما كل الأصناف تتملّى: يضيف صنف فاضي جديد تلقائي
-  useEffect(() => {
-    if (isEdit || !openSections.products) return;
-    const hasBlank = lines.some(isLineBlank);
-    if (hasBlank) return;
-    if (lines.length === 0 || lines.every(isLineComplete)) addLine();
-  }, [isEdit, openSections.products, lines]);
+  /** إضافة صنف من شريط البحث السريع — لو الصنف موجود بالفعل بنزوّد الكمية بدل التكرار */
+  const quickAdd = (p: QuickAddPick) => {
+    setLines((prev) => {
+      const existing = p.product_id
+        ? prev.findIndex((l) => l.product_id === p.product_id)
+        : prev.findIndex((l) => !l.product_id && l.product_name.trim() === p.product_name.trim());
+      if (existing >= 0) {
+        const copy = [...prev];
+        copy[existing] = { ...copy[existing], quantity: Number(copy[existing].quantity || 0) + 1 };
+        toast.success(`زوّدنا كمية ${p.product_name} — دلوقتي ${copy[existing].quantity}`);
+        setActiveLine(existing);
+        return copy;
+      }
+      const next = [...prev, {
+        product_id: p.product_id,
+        product_name: p.product_name,
+        sku: p.sku || genSku(),
+        quantity: 1,
+        cost_price: Number(p.cost_price) || 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        image: p.image || "",
+        brand: p.brand ?? "",
+        model: p.model ?? "",
+        color: p.color ?? "",
+        product_type: p.product_type ?? "",
+        capacity: p.capacity ?? "",
+        size: p.size ?? "",
+      }];
+      setActiveLine(next.length - 1);
+      return next;
+    });
+  };
 
-  // 3) لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
+  // لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
   useEffect(() => {
     if (isEdit || openSections.products) return;
     setLines((prev) => {
@@ -284,6 +309,7 @@ export default function NewShipment() {
       return clean.length === prev.length ? prev : clean;
     });
   }, [isEdit, openSections.products]);
+
 
 
 
