@@ -552,7 +552,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
               </div>
               <div><Label>تأكيد كلمة المرور *</Label><Input type={showPw ? "text" : "password"} value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>البريد (اختياري)</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+                <div><Label>البريد الإلكتروني للدخول *</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
                 <div><Label>الهاتف (اختياري)</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
               </div>
             </TabsContent>
