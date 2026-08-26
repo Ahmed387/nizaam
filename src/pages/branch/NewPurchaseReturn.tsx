@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { docSuccess, docError } from "@/lib/docToast";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Loader2, Link2, Printer, AlertTriangle, FileText, User as UserIcon, Package, CreditCard } from "lucide-react";
+import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 
