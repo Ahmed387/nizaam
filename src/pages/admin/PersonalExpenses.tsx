@@ -797,11 +797,12 @@ export default function PersonalExpenses() {
       : `${selMonths.length.toLocaleString("ar-EG")} شهور مختارة`;
 
   // ===== تحليلات ورسومات أساسية (بتتبع الشهور المختارة أو الإجمالي) =====
-  // الصفوف المعروضة في الرسومات (من غير فلاتر البحث عشان تبقى الصورة كاملة)
+  // الصفوف المعروضة في الرسومات — بتتأثر بالبحث المتقدم عشان الصفحة كلها تبقى على نفس الفلترة
   const chartRows = useMemo(
-    () => rows.filter(r => inSel(r.expense_datetime)),
-    [rows, selMonths]
+    () => filtered.filter(r => inSel(r.expense_datetime)),
+    [filtered, selMonths]
   );
+
   // ١) فلوسك راحت فين؟ — توزيع حسب التصنيف
   const categoryBreakdown = useMemo(() => {
     const m = new Map<string, number>();
