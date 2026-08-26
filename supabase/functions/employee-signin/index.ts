@@ -81,8 +81,8 @@ Deno.serve(async (req) => {
 
     if (!emp) {
       return new Response(
-        JSON.stringify({ error: "Access Denied — البريد أو كلمة المرور غير صحيحة" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ ok: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -102,12 +102,14 @@ Deno.serve(async (req) => {
         // that would allow taking over an unrelated (possibly other-tenant) account.
         return new Response(
           JSON.stringify({
+            ok: false,
             error:
               "هذا البريد مرتبط بحساب موجود بالفعل. يجب على مدير الشركة ربط الحساب بالموظف أولاً.",
           }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       } else {
+
         authUserId = created.user!.id;
       }
 
