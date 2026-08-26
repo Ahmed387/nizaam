@@ -195,13 +195,18 @@ export default function AllEmployees() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await supabase.from("employees").delete().eq("id", deleteTarget.id);
+    const { data, error } = await supabase.functions.invoke("admin-delete-employee", {
+      body: { employee_id: deleteTarget.id },
+    });
     setDeleting(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم حذف الموظف");
+    const errMsg = (data as any)?.error ?? error?.message;
+    if (errMsg) return toast.error(errMsg);
+    if ((data as any)?.warning) toast.warning((data as any).warning);
+    else toast.success("تم حذف الموظف نهائياً");
     setDeleteTarget(null);
     load();
   };
+
 
   const exportExcel = () => {
     const data = filtered.map((e) => ({

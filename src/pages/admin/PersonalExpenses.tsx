@@ -828,6 +828,37 @@ export default function PersonalExpenses() {
     return { spent, count, dep, remaining: dep - spent };
   }, [isAll, selMonths, rawMonthTotals, rows, depositMonthTotals]);
 
+  /** متوسط المصاريف الشهرية لكل سنة — إجمالي السنة ÷ عدد الشهور اللي فيها حركة */
+  const yearlyAverages = useMemo(() => {
+    const perYear = new Map<string, { total: number; months: Set<string>; count: number; dep: number }>();
+    rows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      const y = k.slice(0, 4);
+      const e = perYear.get(y) ?? { total: 0, months: new Set<string>(), count: 0, dep: 0 };
+      e.total += Number(r.amount);
+      e.count += 1;
+      e.months.add(k);
+      perYear.set(y, e);
+    });
+    deposits.forEach(d => {
+      const y = monthKey(d.deposit_datetime).slice(0, 4);
+      const e = perYear.get(y) ?? { total: 0, months: new Set<string>(), count: 0, dep: 0 };
+      e.dep += Number(d.amount);
+      perYear.set(y, e);
+    });
+    return Array.from(perYear.entries())
+      .map(([year, e]) => ({
+        year,
+        total: e.total,
+        dep: e.dep,
+        months: e.months.size,
+        count: e.count,
+        avg: e.months.size > 0 ? e.total / e.months.size : 0,
+      }))
+      .sort((a, b) => b.year.localeCompare(a.year));
+  }, [rows, deposits]);
+
+
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
     try {
@@ -1345,8 +1376,37 @@ export default function PersonalExpenses() {
               />
             </Card>
           )}
+
+          {/* ٥) متوسط المصاريف الشهرية لكل سنة */}
+          {yearlyAverages.length > 0 && (
+            <Card className="p-5">
+              <div className="text-sm font-bold mb-1">متوسط المصاريف الشهرية — لكل سنة</div>
+              <div className="text-xs text-muted-foreground mb-4">
+                بنقسم إجمالي مصاريف السنة على عدد الشهور اللي فيها حركة فعلاً
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {yearlyAverages.map(y => (
+                  <div key={y.year} className="rounded-xl border bg-muted/30 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold">سنة {y.year}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {y.months.toLocaleString("ar-EG")} شهر · {y.count.toLocaleString("ar-EG")} مصروف
+                      </span>
+                    </div>
+                    <div className="text-xl font-extrabold text-accent">{EGP(y.avg)}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">متوسط الشهر</div>
+                    <div className="mt-3 pt-3 border-t text-[11px] flex items-center justify-between text-muted-foreground">
+                      <span>إجمالي السنة: <b className="text-foreground">{EGP(y.total)}</b></span>
+                      <span>أودعت: <b className="text-foreground">{EGP(y.dep)}</b></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       )}
+
 
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">

@@ -14,8 +14,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2 } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
+import { confirmAlert } from "@/components/ConfirmDialog";
+
 
 type Partner = {
   id: string; name: string; partner_type: string;
@@ -238,6 +240,25 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
     else { toast.success(p.is_active ? "تم تعطيل الشريك" : "تم تفعيل الشريك"); load(); }
   };
 
+  const removePartner = async (p: Partner) => {
+    const ok = await confirmAlert({
+      title: `حذف الشريك "${p.name}" نهائياً؟`,
+      description: "هيتم مسح الشريك وحساب دخوله من قاعدة البيانات خالص. لو عليه أي حركات مالية (رأس مال / سلف / أرباح) الحذف هيترفض وتقدر تعطّله بدل الحذف.",
+      confirmLabel: "أيوه، احذف",
+      cancelLabel: "لأ، سيبه",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-partner", {
+      body: { partner_id: p.id },
+    });
+    const errMsg = (data as any)?.error ?? error?.message;
+    if (errMsg) return toast.error(errMsg);
+    toast.success("تم حذف الشريك نهائياً");
+    load();
+  };
+
+
   const doReset = async () => {
     if (!resetPartner) return;
     if (resetPw !== resetConfirm) return toast.error("كلمة المرور غير متطابقة");
@@ -407,7 +428,11 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
                     <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}>
                       <Power className={`w-4 h-4 ${p.is_active ? "text-success" : "text-muted-foreground"}`} />
                     </Button>
+                    <Button size="sm" variant="outline" className="border-destructive/30" onClick={() => removePartner(p)} title="حذف نهائي">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
                   </div>
+
                 </CardContent>
               </Card>
             ))}
