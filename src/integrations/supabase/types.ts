@@ -6789,6 +6789,17 @@ export type Database = {
         }
         Returns: string
       }
+      edit_partner_transaction: {
+        Args: {
+          _amount: number
+          _created_at?: string
+          _description?: string
+          _month_year?: string
+          _transaction_type: string
+          _tx_id: string
+        }
+        Returns: undefined
+      }
       edit_payment_transaction: {
         Args: {
           p_amount: number
