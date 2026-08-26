@@ -268,7 +268,7 @@ function friendlyAuthError(message: string): string {
   return message || 'فشل تحديث كلمة المرور في حساب الدخول';
 }
 
-/** Employee has exactly ONE role: insert the new one and drop any other stale roles. */
+/** Keep independently assigned viewer/partner access while replacing the employee role. */
 async function setRole(admin: any, userId: string, tenantId: string, role: string) {
   await admin.from('user_roles').upsert(
     { user_id: userId, role, tenant_id: tenantId },
@@ -277,7 +277,7 @@ async function setRole(admin: any, userId: string, tenantId: string, role: strin
   const { data: existing } = await admin.from('user_roles').select('role').eq('user_id', userId);
   const stale = (existing ?? [])
     .map((r: any) => r.role)
-    .filter((r: string) => r !== role && r !== 'super_admin' && r !== 'owner');
+    .filter((r: string) => r !== role && !['super_admin', 'owner', 'viewer', 'partner'].includes(r));
   if (stale.length) {
     await admin.from('user_roles').delete().eq('user_id', userId).in('role', stale);
   }
