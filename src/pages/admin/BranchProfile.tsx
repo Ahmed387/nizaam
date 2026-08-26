@@ -59,7 +59,7 @@ export default function BranchProfile() {
       supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
       supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).limit(200),
       supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).limit(200),
-      supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("status", "active").order("voucher_date", { ascending: false }).limit(500),
+      supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
       supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200),
     ]);
     const cashierIds = [...new Set((invs ?? []).map((r: any) => r.cashier_id).filter(Boolean))];
@@ -74,14 +74,7 @@ export default function BranchProfile() {
     setInvoices((invs ?? []).map((r: any) => ({ ...r, cashier_name: cashierMap.get(r.cashier_id) ?? "—" })));
     setShipments(ships ?? []);
     setExpenses((exps ?? []).map((v: any) => ({ id: v.id, date: v.voucher_date, amount: v.amount, type: v.voucher_categories?.name ?? "أخرى", description: v.description ?? v.voucher_number })));
-    setTreasury((trs ?? []).map((v: any) => ({
-      id: v.id,
-      created_at: v.voucher_date ?? v.created_at,
-      type: v.type === "receipt" ? "income" : "expense",
-      category: v.voucher_categories?.name ?? "—",
-      description: v.description ?? v.voucher_number,
-      amount: v.amount,
-    })));
+    setTreasury(trs ?? []);
     setReturns(rets ?? []);
     setLoading(false);
   };

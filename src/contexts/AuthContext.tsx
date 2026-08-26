@@ -180,12 +180,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     ctxReady,
     branchScope:
-      roles.includes("admin") || roles.includes("super_admin") || (!!user?.id && user.id === tenant?.owner_user_id)
+      roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner") || (!!user?.id && user.id === tenant?.owner_user_id)
         ? null
         : branches.map((b) => b.id),
-    isAdmin: roles.includes("admin") || roles.includes("super_admin"),
+    isAdmin: roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner"),
     isSuperAdmin: roles.includes("super_admin"),
-    isOwner: !!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id,
+    isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
     hasRole: (r) => roles.includes(r),
     can: (key) => checkPermission(roles, permsByRole, key, userPerms),
     signOut: async () => {
