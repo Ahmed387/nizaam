@@ -25,7 +25,6 @@ import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
-import { ShipmentQuickAddBar, QuickAddPick } from "@/components/ShipmentQuickAddBar";
 
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
