@@ -96,9 +96,9 @@ export default function PartnerTransactions({ embedded }: { embedded?: boolean }
           <CardHeader><CardTitle>آخر 20 حركة</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">الشريك</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th><th className="p-2">الوصف</th></tr></thead>
+              <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">الشريك</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th><th className="p-2">الوصف</th><th className="p-2 w-14">إجراءات</th></tr></thead>
               <tbody>
-                {recent.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا يوجد</td></tr>}
+                {recent.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا يوجد</td></tr>}
                 {recent.map(t => (
                   <tr key={t.id} className="border-t">
                     <td className="p-2">{new Date(t.created_at).toLocaleDateString("en-EG")}</td>
@@ -106,12 +106,25 @@ export default function PartnerTransactions({ embedded }: { embedded?: boolean }
                     <td className="p-2">{t.transaction_type}</td>
                     <td className="p-2 font-mono">{fmt(t.amount)}</td>
                     <td className="p-2">{t.description || "-"}</td>
+                    <td className="p-2">
+                      <button type="button" title="تعديل الحركة"
+                        onClick={() => { setEditTx(t); setOpenEdit(true); }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </CardContent>
         </Card>
+        <EditPartnerTxDialog
+          open={openEdit}
+          onOpenChange={setOpenEdit}
+          tx={editTx}
+          onSaved={() => { loadRecent(); setEditTx(null); }}
+        />
       </div>
     </ConditionalLayout>
   );
