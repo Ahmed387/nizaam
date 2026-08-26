@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Wallet, Plus, Search, Pencil, Trash2, FileDown, FileSpreadsheet, CalendarDays, Tag, TrendingUp, TrendingDown, Filter, X, Sparkles, Receipt, Bell, PartyPopper, Flame, Crown, Minus, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, BarChart3 } from "lucide-react";
+import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -476,6 +477,26 @@ export default function PersonalExpenses() {
     const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
     const max = catRows.reduce((m, r) => Math.max(m, Number(r.amount)), 0);
     return { total, count: catRows.length, avg: catRows.length ? total / catRows.length : 0, max };
+  }, [catRows]);
+
+  // رسمة بيانية: إجمالي ومتوسط كل شهر — بتتغير مع فلاتر التاريخ تلقائيًا
+  const catMonthlyChart = useMemo(() => {
+    const byMonth = new Map<string, { total: number; count: number }>();
+    for (const r of catRows) {
+      const d = new Date(r.expense_datetime);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const cur = byMonth.get(key) || { total: 0, count: 0 };
+      cur.total += Number(r.amount);
+      cur.count += 1;
+      byMonth.set(key, cur);
+    }
+    return [...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, v]) => ({
+        month: key,
+        "إجمالي الشهر": Math.round(v.total * 100) / 100,
+        "متوسط العملية": v.count ? Math.round((v.total / v.count) * 100) / 100 : 0,
+      }));
   }, [catRows]);
 
   // اختصارات فترات جاهزة للفلتر
@@ -1811,6 +1832,32 @@ export default function PersonalExpenses() {
               <div className="text-lg font-extrabold text-violet-600 dark:text-violet-400 mt-0.5 tabular-nums">{catStats.max.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
             </Card>
           </div>
+
+          {/* رسمة بيانية: الإجمالي والمتوسط لكل شهر — تتغير مع الفلاتر */}
+          {catMonthlyChart.length > 0 && (
+            <div className="px-4 pb-3">
+              <Card className="p-3 border-primary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <div className="text-xs font-bold">إجمالي ومتوسط كل شهر {(catFrom || catTo) ? "في الفترة المختارة" : "(كل التواريخ)"}</div>
+                </div>
+                <div className="h-44" dir="ltr">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={catMonthlyChart} margin={{ top: 5, right: 8, left: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                      <YAxis yAxisId="total" tick={{ fontSize: 10 }} width={48} />
+                      <YAxis yAxisId="avg" orientation="right" tick={{ fontSize: 10 }} width={48} />
+                      <Tooltip formatter={(v: number) => `${Number(v).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar yAxisId="total" dataKey="إجمالي الشهر" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      <Line yAxisId="avg" type="monotone" dataKey="متوسط العملية" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+          )}
 
           {/* فلتر التاريخ */}
           <div className="px-4 pb-3 flex flex-wrap items-end gap-2">
