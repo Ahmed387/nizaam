@@ -86,7 +86,7 @@ export function LegacyAccountsMapper({ names, isPurchase, value, onChange }: Pro
             <div key={n} className="flex flex-wrap items-center gap-2 px-3 py-2 hover:bg-primary/5 transition-colors">
               <div className="min-w-[130px] flex-1 text-xs font-semibold truncate">{n}</div>
               <span className="text-muted-foreground text-xs">←</span>
-              <div className="w-[240px]">
+              <div className="w-full sm:w-[240px]">
                 <ContactPicker
                   contacts={contacts}
                   value={id}

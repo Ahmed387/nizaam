@@ -287,7 +287,7 @@ export function AppShell({
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="relative">
             {renderSidebar(false, true)}
-            <button onClick={() => setOpen(false)} className="absolute -left-12 top-4 p-2 rounded-lg bg-sidebar text-sidebar-foreground">
+            <button onClick={() => setOpen(false)} className="absolute left-2 top-4 p-2 rounded-lg bg-sidebar text-sidebar-foreground">
               <X className="w-5 h-5" />
             </button>
           </div>

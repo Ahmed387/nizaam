@@ -76,7 +76,7 @@ export function BudgetAlertsWidget() {
             const excess = Number(r.actual_amount) - Number(r.planned_amount);
             toast.custom((t) => (
               <div
-                className="w-[360px] rounded-xl overflow-hidden shadow-2xl border border-destructive/40 cursor-pointer"
+                className="w-[360px] max-w-[92vw] rounded-xl overflow-hidden shadow-2xl border border-destructive/40 cursor-pointer"
                 onClick={() => toast.dismiss(t)}
                 style={{
                   background:
