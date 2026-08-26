@@ -25,6 +25,8 @@ import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
+import { ShipmentQuickAddBar, QuickAddPick } from "@/components/ShipmentQuickAddBar";
+
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
@@ -257,7 +259,7 @@ export default function NewShipment() {
     });
   };
 
-  // ===== إضافة/تنظيف الأصناف تلقائياً (بدون زرار إضافة) =====
+  // ===== تنظيف الأصناف الفاضية =====
   const isLineBlank = (l: Line) =>
     !l.product_name.trim() && !l.product_id && !(Number(l.cost_price) > 0) && !l.brand?.trim() && !l.model?.trim();
 
@@ -267,16 +269,41 @@ export default function NewShipment() {
     Number(l.cost_price) > 0 &&
     (!!l.product_id || (!!l.brand?.trim() && !!l.model?.trim()));
 
-  // 1) أول ما قسم المنتجات يفتح: لازم يكون فيه صنف فاضي جاهز
-  // 2) وأول ما كل الأصناف تتملّى: يضيف صنف فاضي جديد تلقائي
-  useEffect(() => {
-    if (isEdit || !openSections.products) return;
-    const hasBlank = lines.some(isLineBlank);
-    if (hasBlank) return;
-    if (lines.length === 0 || lines.every(isLineComplete)) addLine();
-  }, [isEdit, openSections.products, lines]);
+  /** إضافة صنف من شريط البحث السريع — لو الصنف موجود بالفعل بنزوّد الكمية بدل التكرار */
+  const quickAdd = (p: QuickAddPick) => {
+    setLines((prev) => {
+      const existing = p.product_id
+        ? prev.findIndex((l) => l.product_id === p.product_id)
+        : prev.findIndex((l) => !l.product_id && l.product_name.trim() === p.product_name.trim());
+      if (existing >= 0) {
+        const copy = [...prev];
+        copy[existing] = { ...copy[existing], quantity: Number(copy[existing].quantity || 0) + 1 };
+        toast.success(`زوّدنا كمية ${p.product_name} — دلوقتي ${copy[existing].quantity}`);
+        setActiveLine(existing);
+        return copy;
+      }
+      const next = [...prev, {
+        product_id: p.product_id,
+        product_name: p.product_name,
+        sku: p.sku || genSku(),
+        quantity: 1,
+        cost_price: Number(p.cost_price) || 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        image: p.image || "",
+        brand: p.brand ?? "",
+        model: p.model ?? "",
+        color: p.color ?? "",
+        product_type: p.product_type ?? "",
+        capacity: p.capacity ?? "",
+        size: p.size ?? "",
+      }];
+      setActiveLine(next.length - 1);
+      return next;
+    });
+  };
 
-  // 3) لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
+  // لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
   useEffect(() => {
     if (isEdit || openSections.products) return;
     setLines((prev) => {
@@ -284,6 +311,7 @@ export default function NewShipment() {
       return clean.length === prev.length ? prev : clean;
     });
   }, [isEdit, openSections.products]);
+
 
 
 
@@ -842,17 +870,26 @@ export default function NewShipment() {
         open={openSections.products}
         onToggle={() => toggleSection("products")}
       >
-        {isEdit && (
-          <div className="flex items-center justify-end p-4 border-b border-border">
-            <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
+        {branchId && (
+          <div className="p-4 border-b border-border bg-surface-1/40 space-y-2">
+            <ShipmentQuickAddBar branchId={branchId} onPick={quickAdd} />
+            <p className="text-[11px] text-muted-foreground">
+              اكتب اسم المنتج أو كوده → اختار من النتائج (مخزون الفرع / قائمة الأسعار) وهيتضاف على طول في الجدول تحت.
+              لو المنتج جديد خالص، هيظهرلك خيار «إضافة … كصنف جديد». لو اخترت نفس المنتج تاني هنزوّد كميته.
+            </p>
+            {isEdit && (
+              <Button size="sm" variant="outline" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />سطر فاضي</Button>
+            )}
           </div>
         )}
 
         {lines.length === 0 ? (
           <div className="text-center text-muted-foreground py-12 px-4">
             <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">جاري تحضير صنف جديد…</p>
+            <p className="text-sm">مفيش أصناف لسه — ابدأ من شريط البحث فوق</p>
           </div>
+
+
 
         ) : (
           <div className="p-4 space-y-3">
