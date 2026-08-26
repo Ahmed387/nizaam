@@ -1027,21 +1027,21 @@ export default function NewShipment() {
                 </div>
               );
             })}
-            {/* شريط «منتج آخر» — يظهر لما كل الأصناف تكون مكتملة */}
+            {/* شريط «منتج آخر» — يظهر لما كل الأصناف تكون مكتملة ويفتح تلقائيًا بالـ hover */}
             {canAddAnother ? (
               <button
                 type="button"
-                onClick={addAnother}
-                onFocus={addAnother}
-                className="w-full rounded-xl border-2 border-dashed border-primary/40 bg-gradient-to-l from-primary/10 via-emerald-500/10 to-transparent hover:from-primary/20 hover:border-primary transition-all p-3 flex items-center justify-center gap-2 text-primary font-semibold text-sm"
+                onMouseEnter={addAnother}
+                className="group w-full rounded-2xl border-2 border-dashed border-emerald-500/40 bg-gradient-to-l from-emerald-500/15 via-sky-500/10 to-amber-500/5 hover:from-emerald-500/25 hover:via-sky-500/20 hover:to-amber-500/10 hover:border-emerald-500 transition-all p-4 flex items-center justify-center gap-3 text-emerald-700 dark:text-emerald-300 font-bold text-base shadow-sm hover:shadow-md hover:shadow-emerald-500/10"
               >
-                <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  <Plus className="w-4 h-4" />
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 text-white flex items-center justify-center shadow group-hover:scale-110 transition-transform">
+                  <Plus className="w-5 h-5" />
                 </span>
-                منتج آخر
+                <span>منتج آخر</span>
+                <span className="text-[11px] font-normal text-muted-foreground hidden sm:inline">— وقف هنا بالماوس يفتح صنف جديد</span>
               </button>
             ) : (
-              <div className="w-full rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-3 text-center text-[12px] text-amber-600 dark:text-amber-400 font-medium">
+              <div className="w-full rounded-2xl border border-dashed border-amber-500/40 bg-gradient-to-l from-amber-500/10 to-transparent p-4 text-center text-[12px] text-amber-700 dark:text-amber-300 font-semibold">
                 كمّل بيانات الصنف الحالي (الاسم + الكمية + السعر + الماركة والموديل) وهيظهرلك «منتج آخر»
               </div>
             )}
