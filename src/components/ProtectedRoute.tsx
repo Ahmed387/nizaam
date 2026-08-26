@@ -20,7 +20,7 @@ export function ProtectedRoute({
   /** Optional permission key (e.g. "sales.view"). When provided, takes precedence over `roles`. */
   perm?: string;
 }) {
-  const { user, loading, ctxReady, isAdmin, isSuperAdmin, isOwner, hasRole, tenant, signOut, can, branches } = useAuth();
+  const { user, loading, ctxReady, isAdmin, isSuperAdmin, isOwner, isViewer, hasRole, tenant, signOut, can, branches } = useAuth();
   const loc = useLocation();
 
   if (loading || (user && !ctxReady)) {
