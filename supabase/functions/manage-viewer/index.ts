@@ -128,22 +128,27 @@ Deno.serve(async (req) => {
         if (rolesErr) return j({ error: "تعذر فحص صلاحيات الحساب الموجود" }, 500);
         const roleNames = (existingRoles ?? []).map((row: { role: string }) => row.role);
 
-        if (!roleNames.includes("viewer") && roleNames.length > 0) {
-          const roleLabel = roleNames.includes("partner") ? "شريك" : "مستخدم آخر";
-          return businessError(`الإيميل ده مرتبط بالفعل بحساب ${roleLabel}. استخدم إيميل مختلف لحساب المراقبة.`);
+        const protectedRoles = roleNames.filter((role) =>
+          ["admin", "owner", "super_admin"].includes(role)
+        );
+        const incompatibleRoles = roleNames.filter((role) =>
+          !["viewer", "partner"].includes(role)
+        );
+        if (protectedRoles.length > 0 || incompatibleRoles.length > 0) {
+          return businessError("الإيميل ده مرتبط بحساب إداري أو موظف. استخدم إيميل مختلف لحساب المراقبة.");
         }
 
         const { error: updateErr } = await admin.auth.admin.updateUserById(usernameProfile.id, {
           email,
           password,
           email_confirm: true,
-          user_metadata: { name, viewer_for_tenant: tenantId },
+          user_metadata: { viewer_for_tenant: tenantId },
         });
         if (updateErr) return businessError(friendlyAuthError(updateErr.message));
 
         const { error: profileUpdateErr } = await admin
           .from("profiles")
-          .update({ name, is_active: true })
+          .update({ is_active: true })
           .eq("id", usernameProfile.id);
         if (profileUpdateErr) return businessError(profileUpdateErr.message);
 
@@ -185,8 +190,10 @@ Deno.serve(async (req) => {
         const hasForeignTenantRole = (authRoles ?? []).some((row: { tenant_id: string | null }) =>
           Boolean(row.tenant_id && row.tenant_id !== tenantId)
         );
-        const hasNonViewerRole = (authRoles ?? []).some((row: { role: string }) => row.role !== "viewer");
-        if (hasForeignTenantRole || hasNonViewerRole) {
+        const hasIncompatibleRole = (authRoles ?? []).some((row: { role: string }) =>
+          !["viewer", "partner"].includes(row.role)
+        );
+        if (hasForeignTenantRole || hasIncompatibleRole) {
           return businessError("الإيميل ده مرتبط بالفعل بحساب أو صلاحيات أخرى. استخدم إيميل مختلف لحساب المراقبة.");
         }
         const { error: upErr } = await admin.auth.admin.updateUserById(existingId, { password, email_confirm: true });
@@ -228,8 +235,18 @@ Deno.serve(async (req) => {
       if (!tProf || tProf.tenant_id !== tenantId) return j({ error: "الحساب ده مش في شركتك" }, 403);
       const { data: tRoles } = await admin.from("user_roles").select("role").eq("user_id", userId);
       const tRoleNames = (tRoles ?? []).map((r: any) => r.role);
-      if (!tRoleNames.includes("viewer") || tRoleNames.includes("admin") || tRoleNames.includes("super_admin")) {
+      if (!tRoleNames.includes("viewer") || tRoleNames.includes("admin") || tRoleNames.includes("owner") || tRoleNames.includes("super_admin")) {
         return businessError("الحسابات اللي ممكن تتمسح من هنا هي حسابات المراقبة بس");
+      }
+      const otherRoles = tRoleNames.filter((role) => role !== "viewer");
+      if (otherRoles.length > 0) {
+        const { error: roleDeleteErr } = await admin
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId)
+          .eq("role", "viewer");
+        if (roleDeleteErr) return businessError(roleDeleteErr.message);
+        return j({ ok: true, viewer_role_removed: true });
       }
       const { error: dErr } = await admin.auth.admin.deleteUser(userId);
       if (dErr) return businessError(friendlyAuthError(dErr.message));
