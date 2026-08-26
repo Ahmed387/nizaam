@@ -23,6 +23,7 @@ function pwStrength(pw: string) {
 export default function PartnerProfile() {
   const { user, profile } = useAuth();
   const [partner, setPartner] = useState<any>(null);
+  const [allPartners, setAllPartners] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [cur, setCur] = useState(""); const [np, setNp] = useState(""); const [conf, setConf] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,8 +35,13 @@ export default function PartnerProfile() {
       if (!link) return;
       const { data: p } = await supabase.from("equity_partners" as any).select("*").eq("id", (link as any).partner_id).maybeSingle();
       setPartner(await withPartnerBalance(p as any));
+      const { data: list } = await supabase.from("equity_partners" as any)
+        .select("id,name,partner_type,capital_share,operating_share,is_active")
+        .eq("is_active", true).order("created_at");
+      setAllPartners((list ?? []) as any[]);
     })();
   }, [user?.id]);
+
 
   const submit = async () => {
     if (np !== conf) return toast.error("كلمة المرور غير متطابقة");
