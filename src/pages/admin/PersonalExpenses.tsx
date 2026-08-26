@@ -184,6 +184,10 @@ export default function PersonalExpenses() {
     setFilterCats(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
+  /** كارت "متوسط تصنيف في سنة" */
+  const [catAvgCat, setCatAvgCat] = useState("");
+  const [catAvgYear, setCatAvgYear] = useState("");
+
 
   // اختيار الشهور — فاضية = كل الشهور (الإجمالي). ممكن تختار أكتر من شهر وأكتر من سنة
   const [selMonths, setSelMonths] = useState<string[]>([]);
