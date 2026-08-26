@@ -188,7 +188,6 @@ export default function NewPurchaseReturn() {
 
   // ===== تسهيل إدخال الكميات: فوكس تلقائي + انتقال للصنف اللي بعده =====
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const [showAllLines, setShowAllLines] = useState(false);
 
   const focusNextQty = (from: number) => {
     for (let j = from + 1; j < lines.length; j++) {
