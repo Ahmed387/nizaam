@@ -636,30 +636,51 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
 
       {/* Edit partner shares */}
       <Dialog open={!!editShares} onOpenChange={() => setEditShares(null)}>
-        <DialogContent dir="rtl">
-          <DialogHeader><DialogTitle>تعديل النسب — {editShares?.name}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>نسبة رأس المال (%)</Label>
-              <Input type="number" step="0.01" value={editShares?.cap ?? ""} onChange={e => setEditShares(c => c ? { ...c, cap: e.target.value } : c)} />
+        <DialogContent dir="rtl" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">تعديل النسب</DialogTitle>
+            <p className="text-sm text-muted-foreground truncate">{editShares?.name}</p>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-2">
+              <Label className="text-xs font-bold text-primary">نسبة رأس المال</Label>
+              <div className="relative">
+                <Input
+                  type="number" step="0.01" inputMode="decimal"
+                  className="pe-10 text-lg font-bold h-11 bg-background"
+                  value={editShares?.cap ?? ""}
+                  onChange={e => setEditShares(c => c ? { ...c, cap: e.target.value } : c)}
+                />
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm font-bold text-primary">%</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">نصيبه من الأرباح حسب مساهمته — مجموع كل الشركاء لازم ميعديش 100%.</p>
             </div>
-            <div>
-              <Label>نسبة التشغيل (%)</Label>
-              <Input type="number" step="0.01" value={editShares?.op ?? ""} onChange={e => setEditShares(c => c ? { ...c, op: e.target.value } : c)} />
+
+            <div className="rounded-xl border border-success/25 bg-success/5 p-4 space-y-2">
+              <Label className="text-xs font-bold text-success">نسبة التشغيل</Label>
+              <div className="relative">
+                <Input
+                  type="number" step="0.01" inputMode="decimal"
+                  className="pe-10 text-lg font-bold h-11 bg-background"
+                  value={editShares?.op ?? ""}
+                  onChange={e => setEditShares(c => c ? { ...c, op: e.target.value } : c)}
+                />
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm font-bold text-success">%</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">مقابل إدارة الشغل، بتتخصم من صافي الربح قبل التوزيع — وكل الشركاء بيشوفوها.</p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              نسبة رأس المال بتحدد نصيبه من الأرباح حسب مساهمته، ومجموع نسب كل الشركاء لازم ميعديش 100%.
-              نسبة التشغيل دي مقابل إدارة الشغل وبتتخصم من صافي الربح قبل التوزيع — وكل الشركاء بيشوفوها في صفحاتهم.
-            </p>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditShares(null)}>إلغاء</Button>
             <Button onClick={saveShares} disabled={savingShares}>
-              {savingShares ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ
+              {savingShares ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ النسب
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
     </ConditionalLayout>
   );
