@@ -900,26 +900,26 @@ export default function NewShipment() {
               }
 
               return (
-                <div key={i} className="rounded-lg border-2 border-primary/40 bg-surface-1/30 shadow-sm transition-colors">
+                <div key={i} className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-500/[0.04] to-sky-500/[0.02] shadow-md shadow-emerald-500/5 transition-colors overflow-hidden">
                   {/* Header: image + product picker + delete */}
-                  <div className="flex items-start gap-3 p-3 border-b border-border/60">
+                  <div className="flex items-start gap-3 p-4 border-b border-emerald-500/15 bg-gradient-to-l from-emerald-500/5 to-transparent">
                     <button
                       type="button"
                       onClick={() => setActiveLine(null)}
-                      className="shrink-0 mt-1 text-muted-foreground hover:text-foreground"
+                      className="shrink-0 mt-1 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                       title="طي الصنف"
                     >
-                      <ChevronUp className="w-4 h-4" />
+                      <ChevronUp className="w-5 h-5" />
                     </button>
                     <div className="shrink-0">
 
                       <div className="relative">
                         {l.image
-                          ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-md object-cover border border-border" />
-                          : <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center border border-border"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
+                          ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500/25 shadow-sm" />
+                          : <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-100 to-sky-100 dark:from-emerald-950 dark:to-sky-950 flex items-center justify-center border border-emerald-500/20"><ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
                         }
                         {l.product_id === null && (
-                          <label className="absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-pointer inline-flex items-center gap-0.5 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full shadow hover:bg-primary/90 whitespace-nowrap">
+                          <label className="absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-pointer inline-flex items-center gap-0.5 text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow hover:bg-emerald-700 whitespace-nowrap">
                             {l.uploadingImg ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
                             <span>{l.image ? "تغيير" : "رفع"}</span>
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
@@ -946,42 +946,42 @@ export default function NewShipment() {
                         })}
                       />
                     </div>
-                    <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-destructive shrink-0 -mt-1">
+                    <Button size="sm" variant="ghost" onClick={() => removeLine(i)} className="text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 shrink-0 -mt-1">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
 
                   {/* Numeric fields row */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3">
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3 p-4">
                     <div className="space-y-1 md:col-span-2">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">الكود (SKU)</Label>
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">الكود (SKU)</Label>
                       <Input
                         value={l.sku}
                         onChange={(e) => updateLine(i, { sku: e.target.value })}
                         readOnly={l.product_id !== null}
-                        className={l.product_id !== null ? "bg-surface-2 font-mono text-xs h-9" : "font-mono text-xs h-9"}
+                        className={l.product_id !== null ? "bg-surface-2 font-mono text-xs h-9 border-emerald-500/20" : "font-mono text-xs h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30"}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">الكمية</Label>
-                      <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">الكمية</Label>
+                      <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">سعر التكلفة</Label>
-                      <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">سعر التكلفة</Label>
+                      <Input type="number" min={0} step="0.01" value={l.cost_price} onChange={(e) => updateLine(i, { cost_price: Number(e.target.value) })} className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">خصم %</Label>
-                      <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">خصم %</Label>
+                      <Input type="number" min={0} max={100} step="0.01" value={l.discount_percent} onChange={(e) => updateLine(i, { discount_percent: Number(e.target.value) })} placeholder="0" className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-semibold text-muted-foreground">خصم مبلغ</Label>
-                      <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" className="h-9" />
+                      <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">خصم مبلغ</Label>
+                      <Input type="number" min={0} step="0.01" value={l.discount_amount} onChange={(e) => updateLine(i, { discount_amount: Number(e.target.value) })} placeholder="0" className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
                     </div>
                   </div>
 
                   {/* Variant attributes row */}
-                  <div className="px-3 pb-3">
+                  <div className="px-4 pb-4">
                     <VariantAttributesFields
                       compact
                       subtitle="سجّل خصائص الصنف عشان يتميز في المخزن والفواتير"
@@ -999,26 +999,26 @@ export default function NewShipment() {
                   </div>
 
                   {/* Net summary footer */}
-                  <div className="px-3 py-2 bg-surface-2/60 border-t border-border/60 text-xs space-y-1.5">
+                  <div className="px-4 py-3 bg-gradient-to-l from-emerald-500/5 via-sky-500/[0.02] to-transparent border-t border-emerald-500/10 text-xs space-y-2">
                     {invoiceDiscountAmount > 0 && distribution[i] && (
-                      <div className="flex items-center justify-between gap-2 flex-wrap rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5">
-                        <span className="font-semibold text-destructive">
+                      <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-rose-500/30 bg-rose-500/5 px-3 py-2">
+                        <span className="font-bold text-rose-600 dark:text-rose-400">
                           نصيب الصنف من خصم الفاتورة: − {formatEGP(distribution[i].invDiscShare)} ({distribution[i].invDiscPct.toFixed(1)}%)
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="text-muted-foreground">سعر الوحدة: <b className="line-through">{formatEGP(distribution[i].unitBefore)}</b></span>
-                          <span className="text-primary font-bold">→ {formatEGP(distribution[i].baseUnit)}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">→ {formatEGP(distribution[i].baseUnit)}</span>
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground font-semibold">الصافي</span>
+                      <span className="text-emerald-800 dark:text-emerald-200 font-bold">الصافي</span>
                       <div className="flex items-center gap-2">
                         {(l.discount_percent > 0 || l.discount_amount > 0) && (
                           <span className="text-[10px] text-muted-foreground line-through">{formatEGP(gross)}</span>
                         )}
-                        <span className="font-bold text-primary text-sm">{formatEGP(net)}</span>
-                        <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setActiveLine(null)}>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-500/10 px-2 py-1 rounded-lg">{formatEGP(net)}</span>
+                        <Button size="sm" variant="outline" className="h-8 text-[11px] gap-1 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10" onClick={() => setActiveLine(null)}>
                           <ChevronUp className="w-3 h-3" />تم — اطوِ الصنف
                         </Button>
                       </div>
