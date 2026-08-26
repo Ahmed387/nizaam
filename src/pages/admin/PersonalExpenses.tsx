@@ -858,6 +858,40 @@ export default function PersonalExpenses() {
       .sort((a, b) => b.year.localeCompare(a.year));
   }, [rows, deposits]);
 
+  /** السنين المتاحة في الداتا */
+  const availableYears = useMemo(
+    () => Array.from(new Set(rows.map(r => monthKey(r.expense_datetime).slice(0, 4)))).sort((a, b) => b.localeCompare(a)),
+    [rows]
+  );
+
+  /** متوسط تصنيف معيّن في سنة معيّنة */
+  const catYearAvg = useMemo(() => {
+    if (!catAvgCat || !catAvgYear) return null;
+    const yearRows = rows.filter(r => monthKey(r.expense_datetime).startsWith(catAvgYear));
+    const catRows = yearRows.filter(r => (r.category ?? "") === catAvgCat);
+    if (catRows.length === 0) return null;
+    const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
+    const perMonth = new Map<string, number>();
+    catRows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      perMonth.set(k, (perMonth.get(k) || 0) + Number(r.amount));
+    });
+    const activeMonths = perMonth.size;
+    const yearTotal = yearRows.reduce((s, r) => s + Number(r.amount), 0);
+    const top = Array.from(perMonth.entries()).sort((a, b) => b[1] - a[1])[0];
+    return {
+      total,
+      count: catRows.length,
+      activeMonths,
+      avgActive: activeMonths > 0 ? total / activeMonths : 0,
+      avg12: total / 12,
+      share: yearTotal > 0 ? (total / yearTotal) * 100 : 0,
+      maxMonthLabel: top ? `${monthLabel(top[0])} (${EGP(top[1])})` : "—",
+    };
+  }, [rows, catAvgCat, catAvgYear]);
+
+
+
 
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
