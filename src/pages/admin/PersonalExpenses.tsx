@@ -869,56 +869,6 @@ export default function PersonalExpenses() {
     [rows]
   );
 
-  /**
-   * متوسط التصنيفات — بيتحسب من فلاتر البحث المتقدم نفسها (تصنيف/سنة/بحث/تاريخ/مبلغ)
-   * ملاحظة: اختيار الشهور فوق مش بيأثر هنا عشان يبقى فيه مصدر فلتر واحد.
-   */
-  const catYearAvg = useMemo(() => {
-    // الصفوف المطلوبة = اللي عدت من فلاتر البحث المتقدم
-    const catRows = filtered;
-    if (catRows.length === 0) return null;
-
-    const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
-    const count = catRows.length;
-
-    // الشهور اللي فيها صرف فعلي (من الصفوف المفلترة)
-    const perMonth = new Map<string, number>();
-    catRows.forEach(r => {
-      const k = monthKey(r.expense_datetime);
-      perMonth.set(k, (perMonth.get(k) || 0) + Number(r.amount));
-    });
-    const activeMonths = perMonth.size;
-
-    // مدى الحساب: لو سنة مختارة = ١٢ شهر، لو لأ = عدد الشهور الفريدة في الداتا المفلترة
-    const monthsSpan = filterYear
-      ? 12
-      : Math.max(1, perMonth.size);
-
-    // إجمالي كل المصاريف في نفس السنة (أو كل السنين لو مفيش سنة مختارة) — مقياس النسبة
-    const scopeRows = filterYear
-      ? rows.filter(r => monthKey(r.expense_datetime).startsWith(filterYear))
-      : rows;
-    const scopeTotal = scopeRows.reduce((s, r) => s + Number(r.amount), 0);
-
-    const top = Array.from(perMonth.entries()).sort((a, b) => b[1] - a[1])[0];
-
-    return {
-      total,
-      count,
-      activeMonths,
-      avgActive: activeMonths > 0 ? total / activeMonths : 0,
-      avg12: total / monthsSpan,
-      avg12Label: filterYear ? "متوسط شهري على ١٢ شهر" : "متوسط شهري على الشهور اللي فيها داتا",
-      share: scopeTotal > 0 ? (total / scopeTotal) * 100 : 0,
-      shareLabel: filterYear ? "نسبته من مصاريف السنة" : "نسبته من كل المصاريف",
-      maxMonthLabel: top ? `${monthLabel(top[0])} (${EGP(top[1])})` : "—",
-      scopeLabel: [
-        filterCats.length === 0 ? "كل التصنيفات" : filterCats.join("، "),
-        filterYear || "كل السنين",
-      ].join(" — "),
-      monthsSpan,
-    };
-  }, [rows, filtered, filterYear, filterCats]);
 
 
 
