@@ -869,11 +869,15 @@ export default function PersonalExpenses() {
     [rows]
   );
 
-  /** متوسط تصنيف معيّن في سنة معيّنة */
+  /**
+   * متوسط التصنيفات — بيتحسب من فلاتر البحث المتقدم نفسها (تصنيف/سنة/بحث/تاريخ/مبلغ)
+   * لو مفيش سنة مختارة بيتحسب على المدى المتاح كله.
+   */
   const catYearAvg = useMemo(() => {
-    if (!catAvgCat || !catAvgYear) return null;
-    const yearRows = rows.filter(r => monthKey(r.expense_datetime).startsWith(catAvgYear));
-    const catRows = yearRows.filter(r => (r.category ?? "") === catAvgCat);
+    const scopeRows = filterYear
+      ? rows.filter(r => monthKey(r.expense_datetime).startsWith(filterYear))
+      : rows;
+    const catRows = filtered.filter(r => inSel(r.expense_datetime));
     if (catRows.length === 0) return null;
     const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
     const perMonth = new Map<string, number>();
@@ -882,18 +886,26 @@ export default function PersonalExpenses() {
       perMonth.set(k, (perMonth.get(k) || 0) + Number(r.amount));
     });
     const activeMonths = perMonth.size;
-    const yearTotal = yearRows.reduce((s, r) => s + Number(r.amount), 0);
+    const scopeTotal = scopeRows.reduce((s, r) => s + Number(r.amount), 0);
     const top = Array.from(perMonth.entries()).sort((a, b) => b[1] - a[1])[0];
+    const monthsSpan = filterYear ? 12 : Math.max(1, new Set(scopeRows.map(r => monthKey(r.expense_datetime))).size);
     return {
       total,
       count: catRows.length,
       activeMonths,
       avgActive: activeMonths > 0 ? total / activeMonths : 0,
-      avg12: total / 12,
-      share: yearTotal > 0 ? (total / yearTotal) * 100 : 0,
+      avg12: total / monthsSpan,
+      avg12Label: filterYear ? "متوسط على ١٢ شهر" : "متوسط على كل الشهور",
+      share: scopeTotal > 0 ? (total / scopeTotal) * 100 : 0,
+      shareLabel: filterYear ? "نسبته من مصاريف السنة" : "نسبته من كل المصاريف",
       maxMonthLabel: top ? `${monthLabel(top[0])} (${EGP(top[1])})` : "—",
+      scopeLabel: [
+        filterCats.length === 0 ? "كل التصنيفات" : filterCats.join("، "),
+        filterYear || "كل السنين",
+      ].join(" — "),
     };
-  }, [rows, catAvgCat, catAvgYear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, filtered, filterYear, filterCats, selMonths]);
 
 
 
