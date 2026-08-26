@@ -108,7 +108,7 @@ export function ExecutiveProfitSummary() {
 
         {/* Middle: Formula breakdown */}
         <div className="flex-1 w-full lg:-mr-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-5 rounded-xl bg-primary/5 border border-primary/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المبيعات (Revenue)</p>
               <p className="text-2xl lg:text-3xl font-extrabold text-primary tabular-nums truncate" dir="ltr" title={formatEGP(sales)}>

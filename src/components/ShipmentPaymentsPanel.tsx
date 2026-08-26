@@ -133,7 +133,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 p-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 text-sm">
             <div className="bg-surface-2 rounded-lg p-3 border border-border">
               <div className="text-xs text-muted-foreground">الإجمالي</div>
               <div className="font-bold">{formatEGP(plan.total_amount)}</div>

@@ -177,7 +177,7 @@ export default function BankReconciliation() {
                         <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div><Label>تاريخ الكشف</Label><Input type="date" value={stmtForm.statement_date} onChange={e => setStmtForm({ ...stmtForm, statement_date: e.target.value })} /></div>
                       <div><Label>من</Label><Input type="date" value={stmtForm.period_start} onChange={e => setStmtForm({ ...stmtForm, period_start: e.target.value })} /></div>
                       <div><Label>إلى</Label><Input type="date" value={stmtForm.period_end} onChange={e => setStmtForm({ ...stmtForm, period_end: e.target.value })} /></div>

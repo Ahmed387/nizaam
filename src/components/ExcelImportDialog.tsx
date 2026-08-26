@@ -72,7 +72,7 @@ export function ExcelImportDialog({ open, onOpenChange, title, templateName, col
 
         {parsed.length > 0 && (
           <div className="mt-4 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="p-3 rounded border bg-card text-center">
                 <div className="text-xs text-muted-foreground">إجمالي الصفوف</div>
                 <div className="text-xl font-bold">{parsed.length}</div>

@@ -137,7 +137,7 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
     <div className="space-y-3 p-4 rounded-lg border bg-muted/10">
       <div>
         <Label className="text-base font-bold">طريقة التسديد</Label>
-        <div className="grid grid-cols-3 gap-2 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
           {([
             { v: "full", l: "دفع كامل الآن" },
             { v: "partial", l: "جزئي + آجل" },

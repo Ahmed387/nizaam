@@ -57,7 +57,7 @@ export default function PartnerLedger() {
       <div dir="rtl" className="text-right space-y-4">
         <PageHeader title="كشف الحساب" subtitle="كل حركاتك المالية" />
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الوارد</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">+{fmt(totalIn)}</div></CardContent></Card>
           <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوب</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">-{fmt(totalOut)}</div></CardContent></Card>
           <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الصافي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(netBalance)}</div></CardContent></Card>

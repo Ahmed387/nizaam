@@ -1419,7 +1419,7 @@ export default function PersonalExpenses() {
                         صرفت {pct.toFixed(0)}% من اللي أودعته السنة دي
                       </div>
 
-                      <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-center">
+                      <div className="mt-3 pt-3 border-t grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                         <div>
                           <div className="text-[10px] text-muted-foreground">أودعت</div>
                           <div className="text-xs font-bold text-success">{EGP(y.dep)}</div>

@@ -410,7 +410,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
                   </div>
 
                   {/* Stats grid */}
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
