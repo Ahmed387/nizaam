@@ -1012,7 +1012,7 @@ export default function PersonalExpenses() {
   };
 
   const clearFilters = () => {
-    setQ(""); setFromDate(""); setToDate(""); setFilterCats([]); setMinAmount(""); setMaxAmount("");
+    setQ(""); setFromDate(""); setToDate(""); setFilterCats([]); setFilterYear(""); setMinAmount(""); setMaxAmount("");
   };
 
   if (!user) return null;
