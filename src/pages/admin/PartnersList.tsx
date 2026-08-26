@@ -238,6 +238,25 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
     else { toast.success(p.is_active ? "تم تعطيل الشريك" : "تم تفعيل الشريك"); load(); }
   };
 
+  const removePartner = async (p: Partner) => {
+    const ok = await confirmAlert({
+      title: `حذف الشريك "${p.name}" نهائياً؟`,
+      description: "هيتم مسح الشريك وحساب دخوله من قاعدة البيانات خالص. لو عليه أي حركات مالية (رأس مال / سلف / أرباح) الحذف هيترفض وتقدر تعطّله بدل الحذف.",
+      confirmLabel: "أيوه، احذف",
+      cancelLabel: "لأ، سيبه",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-partner", {
+      body: { partner_id: p.id },
+    });
+    const errMsg = (data as any)?.error ?? error?.message;
+    if (errMsg) return toast.error(errMsg);
+    toast.success("تم حذف الشريك نهائياً");
+    load();
+  };
+
+
   const doReset = async () => {
     if (!resetPartner) return;
     if (resetPw !== resetConfirm) return toast.error("كلمة المرور غير متطابقة");
