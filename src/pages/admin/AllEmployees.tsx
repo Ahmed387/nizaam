@@ -482,6 +482,11 @@ export default function AllEmployees() {
                         {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {editing
+                        ? "كلمة المرور القديمة متشفّرة ومش ممكن تتعرض — لو الموظف نسيها اكتب كلمة جديدة هنا واضغط على العين علشان تشوفها قبل الحفظ."
+                        : "اضغط على العين علشان تشوف الكلمة اللي كتبتها قبل الحفظ."}
+                    </p>
                   </div>
                 </div>
               </section>
