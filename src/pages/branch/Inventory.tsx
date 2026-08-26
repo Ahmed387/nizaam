@@ -576,7 +576,7 @@ export default function Inventory() {
                   <HelpCircle className="w-3.5 h-3.5" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent dir="rtl" className="w-[320px] text-right p-0 overflow-hidden" side="bottom" align="start" sideOffset={8}>
+              <PopoverContent dir="rtl" className="w-[320px] max-w-[calc(100vw-2rem)] text-right p-0 overflow-hidden" side="bottom" align="start" sideOffset={8}>
                 <div className="bg-primary/10 border-b border-border px-4 py-3">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="w-4 h-4 text-primary" />
@@ -613,7 +613,7 @@ export default function Inventory() {
                   <HelpCircle className="w-3.5 h-3.5" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent dir="rtl" className="w-[320px] text-right p-0 overflow-hidden" side="bottom" align="start" sideOffset={8}>
+              <PopoverContent dir="rtl" className="w-[320px] max-w-[calc(100vw-2rem)] text-right p-0 overflow-hidden" side="bottom" align="start" sideOffset={8}>
                 <div className="bg-primary/10 border-b border-border px-4 py-3">
                   <div className="flex items-center gap-2">
                     <ClipboardCheck className="w-4 h-4 text-primary" />

@@ -139,11 +139,11 @@ export function PaidCelebration() {
       {/* Sparkle rings */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div
-          className="w-[380px] h-[380px] rounded-full border-4 border-success/40"
+          className="w-[380px] h-[380px] max-w-[90vw] max-h-[90vw] rounded-full border-4 border-success/40"
           style={{ animation: visible ? "paid-ring 1.6s ease-out infinite" : "none" }}
         />
         <div
-          className="absolute w-[380px] h-[380px] rounded-full border-4 border-success/30"
+          className="absolute w-[380px] h-[380px] max-w-[90vw] max-h-[90vw] rounded-full border-4 border-success/30"
           style={{ animation: visible ? "paid-ring 1.6s ease-out 0.4s infinite" : "none" }}
         />
       </div>

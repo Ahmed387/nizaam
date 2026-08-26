@@ -167,7 +167,7 @@ export function InvoicePaymentsDialog({
 
             {/* Plan summary */}
             {plan && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="bg-muted/40 rounded-lg p-2.5 text-center">
                   <div className="text-[11px] text-muted-foreground">إجمالي الخطة</div>
                   <div className="font-bold tabular-nums" dir="ltr">{formatEGP(Number(plan.total_amount || 0))}</div>

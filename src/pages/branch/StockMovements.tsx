@@ -249,7 +249,7 @@ export default function StockMovements() {
         }
       />
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground mb-1">إجمالي الوارد</div>
           <div className="text-2xl font-extrabold text-success">+{totalIn}</div>

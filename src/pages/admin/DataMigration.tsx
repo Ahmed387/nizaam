@@ -719,7 +719,7 @@ function LegacyPanel() {
                   </div>
                   <Badge variant="outline" className="text-[11px]">مخزن الملف: {s.warehouse}</Badge>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-xs">
                   <div className="rounded-lg border p-2"><div className="text-muted-foreground">مستندات</div><div className="text-lg font-bold">{s.docs}</div></div>
                   <div className="rounded-lg border p-2 bg-primary/10"><div className="text-primary">أصناف</div><div className="text-lg font-bold text-primary">{s.items}</div></div>
                   <div className="rounded-lg border p-2 bg-success/10"><div className="text-success">الإجمالي</div><div className="text-sm font-bold text-success">{formatEGP(s.total)}</div></div>

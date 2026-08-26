@@ -189,7 +189,7 @@ export function StagedPaymentsPanel({
 
       {/* Plan totals */}
       {plan && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="bg-muted/40 rounded-lg p-2.5 text-center">
             <div className="text-[11px] text-muted-foreground">إجمالي الخطة</div>
             <div className="font-bold tabular-nums" dir="ltr">
@@ -531,7 +531,7 @@ export function StagedPaymentsPanel({
 
       {/* Live projection */}
       <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-4 space-y-3">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-background/80 rounded-lg p-3 text-center border border-border">
             <div className="text-[11px] text-muted-foreground mb-1">إجمالي الفاتورة</div>
             <div className="font-extrabold tabular-nums text-base" dir="ltr">

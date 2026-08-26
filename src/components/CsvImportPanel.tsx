@@ -209,7 +209,7 @@ export function CsvImportPanel({ title, description, templateName, columns, samp
 
         {val && (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="rounded border p-3 text-center">
                 <div className="text-xs text-muted-foreground">إجمالي الصفوف</div>
                 <div className="text-xl font-bold">{(val.ok.length + val.bad.length)}</div>

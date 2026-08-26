@@ -236,7 +236,7 @@ export function MultiMethodPaymentDialog({
           )}
 
           {/* Header summary */}
-          <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
             <div className="card-elevated p-2.5 text-center">
               <div className="text-xs text-muted-foreground">المطلوب</div>
               <div className="font-bold">{formatEGP(effectiveRequired)}</div>

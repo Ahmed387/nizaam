@@ -1103,7 +1103,7 @@ export default function PersonalExpenses() {
               <CalendarDays className="w-4 h-4 opacity-60 shrink-0" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-[320px] p-0 pointer-events-auto">
+          <PopoverContent align="start" className="w-[320px] max-w-[calc(100vw-2rem)] p-0 pointer-events-auto">
             {/* اختيارات سريعة */}
             <div className="p-3 border-b flex flex-wrap gap-2">
               <Button size="sm" variant={isAll ? "default" : "outline"} className="h-8 text-xs" onClick={() => setSelMonths([])}>
@@ -1419,7 +1419,7 @@ export default function PersonalExpenses() {
                         صرفت {pct.toFixed(0)}% من اللي أودعته السنة دي
                       </div>
 
-                      <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-center">
+                      <div className="mt-3 pt-3 border-t grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                         <div>
                           <div className="text-[10px] text-muted-foreground">أودعت</div>
                           <div className="text-xs font-bold text-success">{EGP(y.dep)}</div>
@@ -1485,7 +1485,7 @@ export default function PersonalExpenses() {
                   <Tag className="w-4 h-4 opacity-60 shrink-0" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-[260px] p-0 pointer-events-auto">
+              <PopoverContent align="start" className="w-[260px] max-w-[calc(100vw-2rem)] p-0 pointer-events-auto">
                 <div className="p-2 border-b flex items-center justify-between">
                   <Button size="sm" variant={filterCats.length === 0 ? "default" : "outline"} className="h-8 text-xs" onClick={() => setFilterCats([])}>
                     كل التصنيفات

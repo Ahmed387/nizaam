@@ -396,7 +396,7 @@ export default function InvoiceView() {
           return (
             <div className="mt-4 p-4 rounded-lg border-2 border-primary/30 bg-primary/5">
               <div className="font-bold mb-3 text-primary">💳 ملخص الدفع</div>
-              <div className="grid grid-cols-3 gap-3 text-center text-sm mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-sm mb-3">
                 <div className="bg-card rounded p-2 border border-border">
                   <div className="text-xs text-muted-foreground">إجمالي الفاتورة</div>
                   <div className="font-extrabold text-lg">{formatEGP(totalDue)}</div>

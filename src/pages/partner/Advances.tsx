@@ -76,7 +76,7 @@ export default function PartnerAdvancesView() {
                 <Badge className={st.cls}>{st.label}</Badge>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div><div className="text-muted-foreground">الإجمالي</div><div className="font-bold">{fmt(a.amount)}</div></div>
                   <div><div className="text-muted-foreground">المسدد</div><div className="font-bold text-success">{fmt(Number(a.amount) - Number(a.remaining_amount))}</div></div>
                   <div><div className="text-muted-foreground">المتبقي</div><div className="font-bold text-destructive">{fmt(a.remaining_amount)}</div></div>

@@ -235,7 +235,7 @@ export default function SetupWizard() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                 <div className={`p-2 rounded-lg text-center ${Math.abs(totalCap - 100) < 0.01 ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"}`}>
                   رأس المال: {totalCap}%
                 </div>

@@ -87,7 +87,7 @@ export default function Review() {
         </Button>
       }
     >
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">مطابق</div><div className="text-2xl font-bold">{summary.match}</div></div>
         <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عجز</div><div className="text-2xl font-bold text-red-500">{summary.shortage}</div></div>
         <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">زيادة</div><div className="text-2xl font-bold text-emerald-500">{summary.surplus}</div></div>
