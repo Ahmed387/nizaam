@@ -23,6 +23,7 @@ function pwStrength(pw: string) {
 export default function PartnerProfile() {
   const { user, profile } = useAuth();
   const [partner, setPartner] = useState<any>(null);
+  const [allPartners, setAllPartners] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [cur, setCur] = useState(""); const [np, setNp] = useState(""); const [conf, setConf] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,8 +35,13 @@ export default function PartnerProfile() {
       if (!link) return;
       const { data: p } = await supabase.from("equity_partners" as any).select("*").eq("id", (link as any).partner_id).maybeSingle();
       setPartner(await withPartnerBalance(p as any));
+      const { data: list } = await supabase.from("equity_partners" as any)
+        .select("id,name,partner_type,capital_share,operating_share,is_active")
+        .eq("is_active", true).order("created_at");
+      setAllPartners((list ?? []) as any[]);
     })();
   }, [user?.id]);
+
 
   const submit = async () => {
     if (np !== conf) return toast.error("كلمة المرور غير متطابقة");
@@ -72,6 +78,35 @@ export default function PartnerProfile() {
             </>}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader><CardTitle>نِسب الشركاء</CardTitle></CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-right">
+                  <th className="p-2">الشريك</th>
+                  <th className="p-2">نسبة رأس المال</th>
+                  <th className="p-2">نسبة التشغيل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allPartners.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">لا يوجد</td></tr>}
+                {allPartners.map((p) => (
+                  <tr key={p.id} className={`border-t ${p.id === partner?.id ? "bg-primary/5 font-semibold" : ""}`}>
+                    <td className="p-2">{p.name}{p.id === partner?.id ? " (أنا)" : ""}</td>
+                    <td className="p-2 font-mono">{(Number(p.capital_share) * 100).toFixed(2)}%</td>
+                    <td className="p-2 font-mono">{(Number(p.operating_share) * 100).toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="p-3 text-xs text-muted-foreground">
+              نسبة التشغيل بتتاخد من صافي الربح مقابل إدارة الشغل قبل ما الباقي يتقسم بنِسب رأس المال — معروضة لكل الشركاء للشفافية.
+            </p>
+          </CardContent>
+        </Card>
+
 
         <Card>
           <CardHeader><CardTitle>الأمان</CardTitle></CardHeader>

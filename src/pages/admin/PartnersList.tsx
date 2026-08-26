@@ -177,6 +177,32 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
     }
   };
 
+  /** تعديل نسب شريك (رأس المال / التشغيل) يدويًا — الأونر هو اللي بيحدد */
+  const [editShares, setEditShares] = useState<{ id: string; name: string; cap: string; op: string } | null>(null);
+  const [savingShares, setSavingShares] = useState(false);
+  const saveShares = async () => {
+    if (!editShares) return;
+    const cap = Number(editShares.cap) / 100;
+    const op = Number(editShares.op) / 100;
+    if (!(cap >= 0 && cap <= 1) || !(op >= 0 && op <= 1)) return toast.error("النسب لازم تكون بين 0% و 100%");
+    const othersCap = rows
+      .filter((r) => r.id !== editShares.id && r.is_active)
+      .reduce((s, r) => s + Number(r.capital_share || 0), 0);
+    if (othersCap + cap > 1.0001) {
+      return toast.error(`مجموع نسب رأس المال هيتعدى 100% — المتاح لك ${((1 - othersCap) * 100).toFixed(2)}%`);
+    }
+    setSavingShares(true);
+    const { error } = await supabase.from("equity_partners" as any)
+      .update({ capital_share: cap, operating_share: op }).eq("id", editShares.id);
+    setSavingShares(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تعديل النسب");
+    setEditShares(null);
+    load();
+  };
+
+
+
   const submit = async () => {
     // validation
     if (!form.name.trim()) return toast.error("أدخل اسم الشريك");
@@ -385,14 +411,25 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
 
                   {/* Stats grid */}
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg bg-muted/40 p-3 text-center">
-                      <div className="text-[11px] text-muted-foreground">حصة رأس المال</div>
+                    <button
+                      type="button"
+                      onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
+                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
+                      title="تعديل النسب"
+                    >
+                      <div className="text-[11px] text-muted-foreground">حصة رأس المال ✎</div>
                       <div className="font-bold text-base mt-0.5">{(Number(p.capital_share) * 100).toFixed(1)}%</div>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-3 text-center">
-                      <div className="text-[11px] text-muted-foreground">حصة التشغيل</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
+                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
+                      title="تعديل النسب"
+                    >
+                      <div className="text-[11px] text-muted-foreground">حصة التشغيل ✎</div>
                       <div className="font-bold text-base mt-0.5">{(Number(p.operating_share) * 100).toFixed(1)}%</div>
-                    </div>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setEditCapital({ id: p.id, name: p.name, amount: String(p.initial_capital ?? 0) })}
@@ -596,6 +633,35 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
         </DialogContent>
       </Dialog>
 
+
+      {/* Edit partner shares */}
+      <Dialog open={!!editShares} onOpenChange={() => setEditShares(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تعديل النسب — {editShares?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>نسبة رأس المال (%)</Label>
+              <Input type="number" step="0.01" value={editShares?.cap ?? ""} onChange={e => setEditShares(c => c ? { ...c, cap: e.target.value } : c)} />
+            </div>
+            <div>
+              <Label>نسبة التشغيل (%)</Label>
+              <Input type="number" step="0.01" value={editShares?.op ?? ""} onChange={e => setEditShares(c => c ? { ...c, op: e.target.value } : c)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              نسبة رأس المال بتحدد نصيبه من الأرباح حسب مساهمته، ومجموع نسب كل الشركاء لازم ميعديش 100%.
+              نسبة التشغيل دي مقابل إدارة الشغل وبتتخصم من صافي الربح قبل التوزيع — وكل الشركاء بيشوفوها في صفحاتهم.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditShares(null)}>إلغاء</Button>
+            <Button onClick={saveShares} disabled={savingShares}>
+              {savingShares ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </ConditionalLayout>
   );
 }
+
