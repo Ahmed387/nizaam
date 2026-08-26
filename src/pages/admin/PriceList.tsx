@@ -296,8 +296,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
         const { data, error } = await supabase.functions.invoke("parse-price-list-pdf", {
           body: { pdfBase64: b64, supplierName: currentSource.supplier_name },
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        const plErr = await edgeErrorMessage(error, data);
+        if (plErr) throw new Error(plErr);
         parsed = (data?.products ?? []) as ParsedItem[];
       } else {
         // Excel parse client-side

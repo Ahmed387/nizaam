@@ -51,7 +51,8 @@ export default function PartnerProfile() {
       body: { current_password: cur, new_password: np },
     });
     setBusy(false);
-    if (error || (data as any)?.error) return toast.error(error?.message || (data as any)?.error || "فشل التحديث");
+    const pErr = await edgeErrorMessage(error, data);
+    if (pErr) return toast.error(pErr || "فشل التحديث");
     toast.success("تم تغيير كلمة المرور — سيتم تسجيل خروجك خلال 3 ثوان");
     setTimeout(async () => { await supabase.auth.signOut(); window.location.href = "/login"; }, 3000);
   };

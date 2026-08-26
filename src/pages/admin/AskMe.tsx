@@ -60,8 +60,8 @@ export default function AskMe() {
       const { data, error } = await supabase.functions.invoke("ask-me", {
         body: { messages: next.map((m) => ({ role: m.role, content: m.content })) },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const askErr = await edgeErrorMessage(error, data);
+      if (askErr) throw new Error(askErr);
       setMessages((m) => [...m, { role: "assistant", content: (data as any).content || "…", steps: (data as any).steps }]);
     } catch (e: any) {
       const msg = e?.message ?? "حصل خطأ غير متوقع";

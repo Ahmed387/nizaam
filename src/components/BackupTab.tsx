@@ -119,7 +119,8 @@ export function BackupTab() {
     setRunningServer(true);
     try {
       const { error } = await supabase.functions.invoke("scheduled-backup", { body: {} });
-      if (error) throw error;
+      const bErr = await edgeErrorMessage(error);
+      if (bErr) throw new Error(bErr);
       toast.success("تم تشغيل النسخ الاحتياطي — قد يستغرق دقيقة");
       setTimeout(loadHistory, 3000);
     } catch (e: any) {

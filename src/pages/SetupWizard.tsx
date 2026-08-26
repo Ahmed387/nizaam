@@ -99,8 +99,8 @@ export default function SetupWizard() {
           })),
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const wErr = await edgeErrorMessage(error, data);
+      if (wErr) throw new Error(wErr);
       setResult(data);
       toast.success("تم إنشاء الشركة بنجاح 🎉");
     } catch (e: any) {

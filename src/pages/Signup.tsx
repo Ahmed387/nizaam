@@ -55,8 +55,8 @@ export default function Signup() {
           branch_name: branchName || undefined,
         },
       });
-      if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const sErr = await edgeErrorMessage(error, data);
+      if (sErr) throw new Error(sErr);
 
       toast.success("تم إنشاء الحساب! جاري تسجيل الدخول...");
       const { error: signErr } = await supabase.auth.signInWithPassword({
