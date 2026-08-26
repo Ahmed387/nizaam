@@ -478,6 +478,26 @@ export default function PersonalExpenses() {
     return { total, count: catRows.length, avg: catRows.length ? total / catRows.length : 0, max };
   }, [catRows]);
 
+  // رسمة بيانية: إجمالي ومتوسط كل شهر — بتتغير مع فلاتر التاريخ تلقائيًا
+  const catMonthlyChart = useMemo(() => {
+    const byMonth = new Map<string, { total: number; count: number }>();
+    for (const r of catRows) {
+      const d = new Date(r.expense_datetime);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const cur = byMonth.get(key) || { total: 0, count: 0 };
+      cur.total += Number(r.amount);
+      cur.count += 1;
+      byMonth.set(key, cur);
+    }
+    return [...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, v]) => ({
+        month: key,
+        "إجمالي الشهر": Math.round(v.total * 100) / 100,
+        "متوسط العملية": v.count ? Math.round((v.total / v.count) * 100) / 100 : 0,
+      }));
+  }, [catRows]);
+
   // اختصارات فترات جاهزة للفلتر
   const catPresetThisMonth = () => {
     const d = new Date();
