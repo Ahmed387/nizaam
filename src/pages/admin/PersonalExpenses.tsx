@@ -1795,7 +1795,7 @@ export default function PersonalExpenses() {
 
       {/* Category Detail Dialog — كل مصاريف تصنيف معين + فلترة حرة بالتاريخ */}
       <Dialog open={catDetail !== null} onOpenChange={(o) => { if (!o) setCatDetail(null); }}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0" dir="rtl">
+        <DialogContent className="max-w-5xl w-[95vw] p-0 gap-0 max-h-[92vh] overflow-y-auto" dir="rtl">
           {/* Header */}
           <div className="relative p-5 bg-gradient-to-l from-violet-500/15 via-primary/10 to-sky-500/10 border-b overflow-hidden">
             <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full bg-violet-500/20 blur-2xl" />
@@ -1814,23 +1814,20 @@ export default function PersonalExpenses() {
           </div>
 
           {/* ملخص سريع: صرفت كام؟ */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 pb-2">
-            <Card className="p-3 bg-gradient-to-br from-rose-500/15 to-rose-500/5 border-rose-400/30">
-              <div className="text-[11px] text-muted-foreground font-bold">إجمالي اللي اتصرف</div>
-              <div className="text-lg font-extrabold text-rose-600 dark:text-rose-400 mt-0.5 tabular-nums">{catStats.total.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} <span className="text-xs">ج.م</span></div>
-            </Card>
-            <Card className="p-3 bg-gradient-to-br from-sky-500/15 to-sky-500/5 border-sky-400/30">
-              <div className="text-[11px] text-muted-foreground font-bold">عدد العمليات</div>
-              <div className="text-lg font-extrabold text-sky-600 dark:text-sky-400 mt-0.5 tabular-nums">{catStats.count}</div>
-            </Card>
-            <Card className="p-3 bg-gradient-to-br from-amber-500/15 to-amber-500/5 border-amber-400/30">
-              <div className="text-[11px] text-muted-foreground font-bold">متوسط العملية</div>
-              <div className="text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">{catStats.avg.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
-            </Card>
-            <Card className="p-3 bg-gradient-to-br from-violet-500/15 to-violet-500/5 border-violet-400/30">
-              <div className="text-[11px] text-muted-foreground font-bold">أكبر مصروف</div>
-              <div className="text-lg font-extrabold text-violet-600 dark:text-violet-400 mt-0.5 tabular-nums">{catStats.max.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} <span className="text-xs">ج.م</span></div>
-            </Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 pb-2">
+            {[
+              { label: "إجمالي اللي اتصرف", value: catStats.total, unit: "ج.م", cls: "from-rose-500/15 to-rose-500/5 border-rose-400/30 text-rose-600 dark:text-rose-400" },
+              { label: "عدد العمليات", value: catStats.count, unit: "", cls: "from-sky-500/15 to-sky-500/5 border-sky-400/30 text-sky-600 dark:text-sky-400" },
+              { label: "متوسط العملية", value: catStats.avg, unit: "ج.م", cls: "from-amber-500/15 to-amber-500/5 border-amber-400/30 text-amber-600 dark:text-amber-400" },
+              { label: "أكبر مصروف", value: catStats.max, unit: "ج.م", cls: "from-violet-500/15 to-violet-500/5 border-violet-400/30 text-violet-600 dark:text-violet-400" },
+            ].map(c => (
+              <Card key={c.label} className={`p-3 min-w-0 bg-gradient-to-br border ${c.cls.split(" ").slice(0, 3).join(" ")}`}>
+                <div className="text-[11px] text-muted-foreground font-bold">{c.label}</div>
+                <div className={`text-base md:text-lg font-extrabold mt-0.5 tabular-nums truncate ${c.cls.split(" ").slice(3).join(" ")}`} title={`${c.value.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ${c.unit}`}>
+                  {c.value.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} {c.unit && <span className="text-xs">{c.unit}</span>}
+                </div>
+              </Card>
+            ))}
           </div>
 
           {/* رسمة بيانية: الإجمالي والمتوسط لكل شهر — تتغير مع الفلاتر */}
