@@ -188,6 +188,28 @@
 }
 
 
+/* ===== Responsive tables: on small screens every table scrolls horizontally
+   even when it isn't wrapped in an overflow container. Column alignment is
+   preserved because thead/tbody keep their table row-group layout inside an
+   anonymous table box. ===== */
+@media (max-width: 1023.98px) {
+  main table,
+  [role="dialog"] table,
+  [data-radix-popper-content-wrapper] table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  main table th,
+  main table td,
+  [role="dialog"] table th,
+  [role="dialog"] table td {
+    white-space: nowrap;
+  }
+}
+
 /* Hide thermal receipt on screen — only used during printing */
 .thermal-print { display: none; }
 
