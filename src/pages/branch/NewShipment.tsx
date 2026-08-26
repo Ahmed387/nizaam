@@ -1026,11 +1026,25 @@ export default function NewShipment() {
                 </div>
               );
             })}
-            {isEdit && (
-              <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
-                <Plus className="w-4 h-4" />إضافة صنف جديد
-              </Button>
+            {/* شريط «منتج آخر» — يظهر لما كل الأصناف تكون مكتملة */}
+            {canAddAnother ? (
+              <button
+                type="button"
+                onClick={addAnother}
+                onFocus={addAnother}
+                className="w-full rounded-xl border-2 border-dashed border-primary/40 bg-gradient-to-l from-primary/10 via-emerald-500/10 to-transparent hover:from-primary/20 hover:border-primary transition-all p-3 flex items-center justify-center gap-2 text-primary font-semibold text-sm"
+              >
+                <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                  <Plus className="w-4 h-4" />
+                </span>
+                منتج آخر
+              </button>
+            ) : (
+              <div className="w-full rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-3 text-center text-[12px] text-amber-600 dark:text-amber-400 font-medium">
+                كمّل بيانات الصنف الحالي (الاسم + الكمية + السعر + الماركة والموديل) وهيظهرلك «منتج آخر»
+              </div>
             )}
+
 
           </div>
         )}
