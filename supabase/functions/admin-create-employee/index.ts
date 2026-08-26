@@ -104,19 +104,34 @@ Deno.serve(async (req) => {
         .from('employees').select('id, user_id, tenant_id, email').eq('id', employee_id).maybeSingle();
       if (!existing || existing.tenant_id !== tenantId) return json({ error: 'الموظف غير موجود' }, 404);
 
+      const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+      if (existing.user_id && has_system_access && !normalizedEmail) {
+        return json({ error: 'الإيميل مطلوب للحساب المرتبط' }, 400);
+      }
+
       if (password) {
         if (String(password).length < 8 || !/[A-Za-z]/.test(String(password)) || !/[0-9]/.test(String(password))) {
           return json({ error: 'كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم' }, 400);
         }
-        if (existing.user_id) {
-          const { error: passwordErr } = await admin.auth.admin.updateUserById(existing.user_id as string, { password });
-          if (passwordErr) return json({ error: friendlyAuthError(passwordErr.message) }, 422);
-          // Linked accounts authenticate only through Auth. Removing the legacy hash prevents
-          // an old employee password from silently overwriting the newly saved Auth password.
-          payload.login_password = null;
-        } else {
+        if (!existing.user_id) {
           payload.login_password = password;
         }
+      }
+
+      if (existing.user_id) {
+        const authChanges: Record<string, unknown> = {};
+        if (password) authChanges.password = password;
+        if (normalizedEmail && normalizedEmail !== String(existing.email ?? '').toLowerCase()) {
+          authChanges.email = normalizedEmail;
+          authChanges.email_confirm = true;
+        }
+        if (Object.keys(authChanges).length > 0) {
+          const { error: authUpdateErr } = await admin.auth.admin.updateUserById(existing.user_id as string, authChanges);
+          if (authUpdateErr) return json({ error: friendlyAuthError(authUpdateErr.message) }, 422);
+        }
+        // Linked accounts authenticate only through Auth. Removing the legacy hash prevents
+        // an old employee password from silently overwriting the newly saved Auth password.
+        payload.login_password = null;
       }
 
       const { error: upErr } = await admin.from('employees').update(payload).eq('id', employee_id);

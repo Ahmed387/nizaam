@@ -165,7 +165,8 @@ export default function EmployeeProfile() {
     };
     const { error } = await supabase.from("employees").update(updatePayload).eq("id", emp.id);
     if (error) return toast.error(error.message);
-    if (editForm.login_password) {
+    const accountIdentityChanged = Boolean(emp.user_id) && editForm.email.trim().toLowerCase() !== String(emp.email ?? "").trim().toLowerCase();
+    if (editForm.login_password || accountIdentityChanged) {
       const { data, error: accountError } = await supabase.functions.invoke("admin-create-employee", {
         body: {
           employee_id: emp.id,
