@@ -269,39 +269,15 @@ export default function NewShipment() {
     Number(l.cost_price) > 0 &&
     (!!l.product_id || (!!l.brand?.trim() && !!l.model?.trim()));
 
-  /** إضافة صنف من شريط البحث السريع — لو الصنف موجود بالفعل بنزوّد الكمية بدل التكرار */
-  const quickAdd = (p: QuickAddPick) => {
-    setLines((prev) => {
-      const existing = p.product_id
-        ? prev.findIndex((l) => l.product_id === p.product_id)
-        : prev.findIndex((l) => !l.product_id && l.product_name.trim() === p.product_name.trim());
-      if (existing >= 0) {
-        const copy = [...prev];
-        copy[existing] = { ...copy[existing], quantity: Number(copy[existing].quantity || 0) + 1 };
-        toast.success(`زوّدنا كمية ${p.product_name} — دلوقتي ${copy[existing].quantity}`);
-        setActiveLine(existing);
-        return copy;
-      }
-      const next = [...prev, {
-        product_id: p.product_id,
-        product_name: p.product_name,
-        sku: p.sku || genSku(),
-        quantity: 1,
-        cost_price: Number(p.cost_price) || 0,
-        discount_percent: 0,
-        discount_amount: 0,
-        image: p.image || "",
-        brand: p.brand ?? "",
-        model: p.model ?? "",
-        color: p.color ?? "",
-        product_type: p.product_type ?? "",
-        capacity: p.capacity ?? "",
-        size: p.size ?? "",
-      }];
-      setActiveLine(next.length - 1);
-      return next;
-    });
+  /** آخر صنف اتملى بالكامل؟ يبقى نعرض شريط «منتج آخر» */
+  const canAddAnother = lines.length === 0 || lines.every(isLineComplete);
+
+  /** طي الصنف الحالي وفتح صنف جديد فاضي */
+  const addAnother = () => {
+    setActiveLine(null);
+    addLine();
   };
+
 
   // لما نسيب قسم المنتجات: نتخلص من الأصناف الفاضية
   useEffect(() => {
@@ -870,24 +846,15 @@ export default function NewShipment() {
         open={openSections.products}
         onToggle={() => toggleSection("products")}
       >
-        {branchId && (
-          <div className="p-4 border-b border-border bg-surface-1/40 space-y-2">
-            <ShipmentQuickAddBar branchId={branchId} onPick={quickAdd} />
-            <p className="text-[11px] text-muted-foreground">
-              اكتب اسم المنتج أو كوده → اختار من النتائج (مخزون الفرع / قائمة الأسعار) وهيتضاف على طول في الجدول تحت.
-              لو المنتج جديد خالص، هيظهرلك خيار «إضافة … كصنف جديد». لو اخترت نفس المنتج تاني هنزوّد كميته.
-            </p>
-            {isEdit && (
-              <Button size="sm" variant="outline" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />سطر فاضي</Button>
-            )}
-          </div>
-        )}
-
         {lines.length === 0 ? (
-          <div className="text-center text-muted-foreground py-12 px-4">
-            <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">مفيش أصناف لسه — ابدأ من شريط البحث فوق</p>
+          <div className="text-center py-12 px-4">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
+              <Package className="w-7 h-7 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">مفيش أصناف لسه — ابدأ بإضافة أول منتج</p>
+            <Button onClick={addAnother} className="gap-2"><Plus className="w-4 h-4" />إضافة منتج</Button>
           </div>
+
 
 
 
@@ -904,21 +871,22 @@ export default function NewShipment() {
                     key={i}
                     type="button"
                     onClick={() => setActiveLine(i)}
-                    className="w-full text-right rounded-lg border border-border bg-surface-1/40 hover:bg-surface-1/80 hover:border-primary/50 transition-all flex items-center gap-3 p-2.5"
+                    className="w-full text-right rounded-xl border border-emerald-500/30 bg-gradient-to-l from-emerald-500/10 via-primary/5 to-transparent hover:border-primary/60 hover:shadow-sm transition-all flex items-center gap-3 p-2.5"
                   >
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center justify-center">{i + 1}</span>
+                    <span className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-primary to-emerald-500 text-primary-foreground text-[11px] font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
                     {l.image
-                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded object-cover border border-border shrink-0" />
-                      : <span className="w-9 h-9 rounded bg-muted flex items-center justify-center border border-border shrink-0"><ImageIcon className="w-4 h-4 text-muted-foreground" /></span>}
+                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded-lg object-cover border border-border shrink-0" />
+                      : <span className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><ImageIcon className="w-4 h-4 text-primary" /></span>}
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-sm truncate">{l.product_name || "صنف بدون اسم"}</span>
                       <span className="block text-[11px] text-muted-foreground truncate">
                         {[l.brand, l.model, l.color].filter(Boolean).join(" · ") || l.sku}
                       </span>
                     </span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">×{l.quantity}</span>
-                    <span className="shrink-0 font-bold text-primary text-sm">{formatEGP(net)}</span>
+                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400">×{l.quantity}</span>
+                    <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400 text-sm">{formatEGP(net)}</span>
                     <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+
                     <span
                       role="button"
                       tabIndex={-1}
@@ -1059,11 +1027,25 @@ export default function NewShipment() {
                 </div>
               );
             })}
-            {isEdit && (
-              <Button variant="outline" onClick={addLine} className="w-full gap-2 border-dashed">
-                <Plus className="w-4 h-4" />إضافة صنف جديد
-              </Button>
+            {/* شريط «منتج آخر» — يظهر لما كل الأصناف تكون مكتملة */}
+            {canAddAnother ? (
+              <button
+                type="button"
+                onClick={addAnother}
+                onFocus={addAnother}
+                className="w-full rounded-xl border-2 border-dashed border-primary/40 bg-gradient-to-l from-primary/10 via-emerald-500/10 to-transparent hover:from-primary/20 hover:border-primary transition-all p-3 flex items-center justify-center gap-2 text-primary font-semibold text-sm"
+              >
+                <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                  <Plus className="w-4 h-4" />
+                </span>
+                منتج آخر
+              </button>
+            ) : (
+              <div className="w-full rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-3 text-center text-[12px] text-amber-600 dark:text-amber-400 font-medium">
+                كمّل بيانات الصنف الحالي (الاسم + الكمية + السعر + الماركة والموديل) وهيظهرلك «منتج آخر»
+              </div>
             )}
+
 
           </div>
         )}
