@@ -54,14 +54,25 @@ export default function Login() {
       const { data, error: fnErr } = await supabase.functions.invoke("employee-signin", {
         body: { email: mail, password },
       });
-      if (fnErr || !data?.ok) {
-        const fallbackMessage = data?.error;
-        toast.error(fallbackMessage || "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      let resolvedCredentials = !fnErr && data?.ok ? data : null;
+
+      // 3) Compatibility path for older partner accounts whose visible email was
+      // historically stored as a username while Auth used an internal address.
+      if (!resolvedCredentials) {
+        const { data: partnerData, error: partnerErr } = await supabase.functions.invoke("partner-signin", {
+          body: { email: mail, password },
+        });
+        if (!partnerErr && partnerData?.ok) resolvedCredentials = partnerData;
+      }
+
+      if (!resolvedCredentials) {
+        toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         return;
       }
+
       const { error: signErr } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+        email: resolvedCredentials.email,
+        password: resolvedCredentials.password,
       });
       if (signErr) {
         toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
