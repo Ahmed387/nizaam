@@ -58,9 +58,9 @@ export function ExecutiveProfitSummary() {
       {/* Top gradient accent */}
       <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-success via-primary to-info" />
 
-      <div className="p-6 lg:p-7 flex flex-col lg:flex-row gap-7 items-stretch lg:items-center justify-between">
+<div className="p-6 lg:p-7 flex flex-col xl:flex-row gap-7 items-stretch xl:items-center justify-between">
         {/* Left: Main metric & filter */}
-        <div className="flex flex-col gap-4 lg:w-[280px] shrink-0">
+        <div className="flex flex-col gap-4 xl:w-[280px] shrink-0">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-muted-foreground text-xs font-bold tracking-wide uppercase">
               ملخص صافي الأرباح التنفيذي
@@ -107,7 +107,7 @@ export function ExecutiveProfitSummary() {
         </div>
 
         {/* Middle: Formula breakdown */}
-        <div className="flex-1 w-full lg:-mr-4">
+        <div className="flex-1 w-full xl:-mr-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-5 rounded-xl bg-primary/5 border border-primary/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المبيعات (Revenue)</p>
@@ -141,7 +141,7 @@ export function ExecutiveProfitSummary() {
         </div>
 
         {/* Right: Branch contribution & CTA */}
-        <div className="flex flex-col gap-3 w-full lg:w-64 shrink-0">
+        <div className="flex flex-col gap-3 w-full xl:w-64 shrink-0">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-foreground">مساهمة الفروع في الربح</span>
