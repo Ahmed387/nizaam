@@ -707,13 +707,14 @@ export default function NewShipment() {
         icon={<Wallet className="w-5 h-5" />}
         open={openSections.extras}
         onToggle={() => toggleSection("extras")}
+        accent="amber"
       >
         <div className="p-5">
           <div className="flex items-center justify-end mb-4">
             <button
               type="button"
               onClick={() => setShowExtrasBreakdown((v) => !v)}
-              className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+              className="text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline inline-flex items-center gap-1 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20"
             >
               {showExtrasBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               {showExtrasBreakdown ? "إخفاء التفصيل" : "تفصيل المصاريف"}
@@ -723,9 +724,9 @@ export default function NewShipment() {
           {/* Default compact view: total shipping + admin + grand extras */}
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">إجمالي مصاريف الشحن (ج.م)</Label>
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">إجمالي مصاريف الشحن (ج.م)</Label>
               {showExtrasBreakdown ? (
-                <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+                <div className="h-10 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 flex items-center font-bold text-amber-700 dark:text-amber-300">
                   {formatEGP(totalExtras)}
                 </div>
               ) : (
@@ -736,18 +737,19 @@ export default function NewShipment() {
                     value={shipping}
                     onChange={(e) => { setShipping(Number(e.target.value)); setCustoms(0); setOtherCost(0); }}
                     placeholder="0"
+                    className="border-amber-500/20 focus-visible:ring-amber-500/30"
                   />
                   <p className="text-[10px] text-muted-foreground">شامل الشحن والجمارك والمصاريف الأخرى</p>
                 </>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">مصاريف إدارية (ج.م)</Label>
-              <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" />
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف إدارية (ج.م)</Label>
+              <Input type="number" min={0} value={admin} onChange={(e) => setAdmin(Number(e.target.value))} placeholder="0" className="border-amber-500/20 focus-visible:ring-amber-500/30" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">الإجمالي الإضافي</Label>
-              <div className="h-10 rounded-md border border-input bg-surface-2 px-3 flex items-center font-bold text-primary">
+              <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">الإجمالي الإضافي</Label>
+              <div className="h-10 rounded-md border border-amber-500/20 bg-gradient-to-l from-amber-500/10 to-transparent px-3 flex items-center font-bold text-amber-700 dark:text-amber-300">
                 {formatEGP(totalExtras + Number(admin || 0))}
               </div>
             </div>
@@ -755,58 +757,58 @@ export default function NewShipment() {
 
           {/* Breakdown (collapsible) */}
           {showExtrasBreakdown && (
-            <div className="mt-4 pt-4 border-t border-dashed border-border grid md:grid-cols-3 gap-4">
+            <div className="mt-4 pt-4 border-t border-dashed border-amber-500/20 grid md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الشحن (ج.م){lastShipping !== null && lastShipping > 0 && !isEdit ? ` — آخر مرة: ${lastShipping}` : ""}</Label>
-                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder={lastShipping ? String(lastShipping) : "0"} />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف الشحن (ج.م){lastShipping !== null && lastShipping > 0 && !isEdit ? ` — آخر مرة: ${lastShipping}` : ""}</Label>
+                <Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} placeholder={lastShipping ? String(lastShipping) : "0"} className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف الجمارك (ج.م){lastCustoms !== null && lastCustoms > 0 && !isEdit ? ` — آخر مرة: ${lastCustoms}` : ""}</Label>
-                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder={lastCustoms ? String(lastCustoms) : "0"} />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف الجمارك (ج.م){lastCustoms !== null && lastCustoms > 0 && !isEdit ? ` — آخر مرة: ${lastCustoms}` : ""}</Label>
+                <Input type="number" min={0} value={customs} onChange={(e) => setCustoms(Number(e.target.value))} placeholder={lastCustoms ? String(lastCustoms) : "0"} className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">مصاريف أخرى (ج.م)</Label>
-                <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">مصاريف أخرى (ج.م)</Label>
+                <Input type="number" min={0} value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} placeholder="0" className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
               <div className="space-y-1.5 md:col-span-3">
-                <Label className="text-xs font-semibold text-muted-foreground">وصف المصاريف الأخرى</Label>
-                <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" />
+                <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">وصف المصاريف الأخرى</Label>
+                <Input value={otherDesc} onChange={(e) => setOtherDesc(e.target.value)} placeholder="مثال: مصاريف نقل داخلي" className="border-amber-500/20 focus-visible:ring-amber-500/30" />
               </div>
             </div>
           )}
 
           {/* Notes — own row */}
           <div className="mt-4 space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground">ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none" />
+            <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">ملاحظات</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none border-amber-500/20 focus-visible:ring-amber-500/30" />
           </div>
 
           {/* Live distribution preview */}
           {lines.length > 0 && (totalExtras > 0 || invoiceDiscountAmount > 0) && (
-            <div className="mt-5 rounded-xl border border-border overflow-hidden bg-card">
-              <div className="px-4 py-3 bg-surface-2 border-b border-border flex items-center justify-between flex-wrap gap-2">
-                <span className="text-sm font-bold">توزيع الخصم والمصاريف على الأصناف</span>
+            <div className="mt-5 rounded-xl border border-amber-500/20 overflow-hidden bg-gradient-to-b from-amber-500/[0.03] to-transparent">
+              <div className="px-4 py-3 bg-amber-500/5 border-b border-amber-500/15 flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-bold text-amber-800 dark:text-amber-200">توزيع الخصم والمصاريف على الأصناف</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   {invoiceDiscountAmount > 0 && (
-                    <span className="px-2.5 py-1 rounded-md bg-destructive/10 text-destructive text-[11px] font-bold whitespace-nowrap">
+                    <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] font-bold whitespace-nowrap border border-rose-500/15">
                       خصم الفاتورة − {formatEGP(invoiceDiscountAmount)}
                     </span>
                   )}
                   {totalExtras > 0 && (
-                    <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-600 text-[11px] font-bold whitespace-nowrap">
+                    <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px] font-bold whitespace-nowrap border border-amber-500/15">
                       مصاريف {formatEGP(totalExtras)}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-amber-500/10">
                 {distribution.map((d, i) => (
                   <div key={i} className="p-3 space-y-2.5">
                     {/* Header: product + qty */}
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-sm font-semibold leading-snug">{d.line.product_name || "— صنف بدون اسم —"}</span>
-                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-surface-2 text-[11px] font-bold whitespace-nowrap">
+                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/15 text-[11px] font-bold whitespace-nowrap">
                         الكمية: {d.line.quantity}
                       </span>
                     </div>
@@ -818,11 +820,11 @@ export default function NewShipment() {
                         label={`نصيبه من الخصم (${d.invDiscPct.toFixed(1)}%)`}
                         value={`− ${formatEGP(d.invDiscUnit)} / وحدة`}
                         hint={`إجمالي − ${formatEGP(d.invDiscShare)}`}
-                        className="text-destructive"
+                        className="text-rose-600"
                       />
                       <Metric label="سعر الوحدة بعد الخصم" value={formatEGP(d.baseUnit)} className="text-foreground font-bold" />
                       <Metric label="نصيب الشحن/الوحدة" value={`+ ${formatEGP(d.unitExtra)}`} className="text-amber-600" />
-                      <Metric label="التكلفة الحقيقية/الوحدة" value={formatEGP(d.trueUnit)} className="text-primary font-bold" highlight />
+                      <Metric label="التكلفة الحقيقية/الوحدة" value={formatEGP(d.trueUnit)} className="text-emerald-600 font-bold" highlight />
                     </div>
 
                     <div className="text-[11px] text-emerald-600 font-semibold">
