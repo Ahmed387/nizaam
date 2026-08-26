@@ -503,7 +503,7 @@ export default function NewShipment() {
       // Single-RPC gateway: creates shipment + items + product_batches + updates quantities
       // atomically with shipping cost share calculation. Required because the guard
       // (guard_products_quantity) blocks direct client UPDATEs to products.quantity.
-      const linesPayload = lines.map((l) => ({
+      const linesPayload = effLines.map((l) => ({
         product_id: l.product_id,
         product_name: l.product_name,
         sku: l.sku || undefined,
