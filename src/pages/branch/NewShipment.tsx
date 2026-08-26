@@ -1063,19 +1063,20 @@ export default function NewShipment() {
           icon={<CreditCard className="w-5 h-5" />}
           open={openSections.payment}
           onToggle={() => toggleSection("payment")}
+          accent="violet"
         >
           <div className="p-5">
             {treasuryBalance !== null && (
-              <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${overTreasury ? "border-destructive bg-destructive/10" : "border-border bg-surface-2"}`}>
+              <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${overTreasury ? "border-rose-500 bg-rose-500/10" : "border-violet-500/20 bg-gradient-to-l from-violet-500/10 to-transparent"}`}>
                 <div className="text-sm">
-                  <div className="font-bold">رصيد خزنة الفرع دلوقتي</div>
-                  <div className={`text-xs ${overTreasury ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                  <div className={`font-bold ${overTreasury ? "text-rose-700 dark:text-rose-300" : "text-violet-700 dark:text-violet-300"}`}>رصيد خزنة الفرع دلوقتي</div>
+                  <div className={`text-xs ${overTreasury ? "text-rose-600 font-semibold" : "text-muted-foreground"}`}>
                     {overTreasury
                       ? `مش هينفع تدفع ${formatEGP(plannedPaidNow)} — المتاح ${formatEGP(treasuryBalance)} بس. اختار "آجل" أو قلّل المبلغ.`
                       : "أقصى مبلغ تقدر تدفعه نقدي دلوقتي هو الرصيد ده."}
                   </div>
                 </div>
-                <b className={`text-lg whitespace-nowrap ${overTreasury ? "text-destructive" : "text-primary"}`}>{formatEGP(treasuryBalance)}</b>
+                <b className={`text-lg whitespace-nowrap ${overTreasury ? "text-rose-600" : "text-violet-600 dark:text-violet-400"}`}>{formatEGP(treasuryBalance)}</b>
               </div>
             )}
             <PaymentPlanSelector total={grandTotal} value={plan} onChange={setPlan} />
@@ -1087,9 +1088,10 @@ export default function NewShipment() {
           icon={<CreditCard className="w-5 h-5" />}
           open={openSections.payment}
           onToggle={() => toggleSection("payment")}
+          accent="violet"
         >
           <div className="p-5 space-y-3">
-            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed">
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-3 text-xs leading-relaxed text-violet-800 dark:text-violet-200">
               <b>خد بالك:</b> الدفعات دي بتتسجل فورًا في الخزنة وحساب المورد — يعني مش مربوطة بزرار «حفظ التعديلات» تحت.
               أي دفعة تضيفها أو تعدلها هنا بتتحفظ لوحدها على طول.
             </div>
