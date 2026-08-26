@@ -870,17 +870,26 @@ export default function NewShipment() {
         open={openSections.products}
         onToggle={() => toggleSection("products")}
       >
-        {isEdit && (
-          <div className="flex items-center justify-end p-4 border-b border-border">
-            <Button size="sm" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />إضافة صنف</Button>
+        {branchId && (
+          <div className="p-4 border-b border-border bg-surface-1/40 space-y-2">
+            <ShipmentQuickAddBar branchId={branchId} onPick={quickAdd} />
+            <p className="text-[11px] text-muted-foreground">
+              اكتب اسم المنتج أو كوده → اختار من النتائج (مخزون الفرع / قائمة الأسعار) وهيتضاف على طول في الجدول تحت.
+              لو المنتج جديد خالص، هيظهرلك خيار «إضافة … كصنف جديد». لو اخترت نفس المنتج تاني هنزوّد كميته.
+            </p>
+            {isEdit && (
+              <Button size="sm" variant="outline" onClick={addLine} className="gap-2"><Plus className="w-4 h-4" />سطر فاضي</Button>
+            )}
           </div>
         )}
 
         {lines.length === 0 ? (
           <div className="text-center text-muted-foreground py-12 px-4">
             <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">جاري تحضير صنف جديد…</p>
+            <p className="text-sm">مفيش أصناف لسه — ابدأ من شريط البحث فوق</p>
           </div>
+
+
 
         ) : (
           <div className="p-4 space-y-3">
