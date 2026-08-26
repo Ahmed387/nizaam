@@ -367,6 +367,7 @@ export default function PersonalExpenses() {
         if (!hay.includes(qq)) return false;
       }
       if (filterCats.length > 0 && !filterCats.includes(r.category ?? "")) return false;
+      if (filterYear && !monthKey(r.expense_datetime).startsWith(filterYear)) return false;
       const t = new Date(r.expense_datetime).getTime();
       if (from !== null && t < from) return false;
       if (to !== null && t > to) return false;
@@ -374,7 +375,7 @@ export default function PersonalExpenses() {
       if (max !== null && r.amount > max) return false;
       return true;
     });
-  }, [rows, q, fromDate, toDate, filterCats, minAmount, maxAmount]);
+  }, [rows, q, fromDate, toDate, filterCats, filterYear, minAmount, maxAmount]);
 
   const monthlyTotals = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
