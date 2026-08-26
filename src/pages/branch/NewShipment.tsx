@@ -871,27 +871,27 @@ export default function NewShipment() {
                     key={i}
                     type="button"
                     onClick={() => setActiveLine(i)}
-                    className="w-full text-right rounded-xl border border-emerald-500/30 bg-gradient-to-l from-emerald-500/10 via-primary/5 to-transparent hover:border-primary/60 hover:shadow-sm transition-all flex items-center gap-3 p-2.5"
+                    className="group w-full text-right rounded-2xl border border-emerald-500/25 bg-gradient-to-l from-emerald-500/[0.12] via-sky-500/[0.05] to-transparent hover:border-emerald-500/60 hover:shadow-md hover:shadow-emerald-500/10 transition-all flex items-center gap-3 p-3"
                   >
-                    <span className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-primary to-emerald-500 text-primary-foreground text-[11px] font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
+                    <span className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
                     {l.image
-                      ? <ProductImage src={l.image} alt="" className="w-9 h-9 rounded-lg object-cover border border-border shrink-0" />
-                      : <span className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><ImageIcon className="w-4 h-4 text-primary" /></span>}
+                      ? <ProductImage src={l.image} alt="" className="w-10 h-10 rounded-xl object-cover border-2 border-emerald-500/20 shrink-0 shadow-sm" />
+                      : <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-sky-100 dark:from-emerald-950 dark:to-sky-950 flex items-center justify-center border border-emerald-500/20 shrink-0"><ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></span>}
                     <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-sm truncate">{l.product_name || "صنف بدون اسم"}</span>
+                      <span className="block font-bold text-sm truncate text-foreground">{l.product_name || "صنف بدون اسم"}</span>
                       <span className="block text-[11px] text-muted-foreground truncate">
                         {[l.brand, l.model, l.color].filter(Boolean).join(" · ") || l.sku}
                       </span>
                     </span>
-                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400">×{l.quantity}</span>
-                    <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400 text-sm">{formatEGP(net)}</span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/15">× {l.quantity}</span>
+                    <span className="shrink-0 font-bold text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-500/10 px-2 py-1 rounded-lg">{formatEGP(net)}</span>
+                    <ChevronDown className="w-4 h-4 text-emerald-500/70 group-hover:text-emerald-600 shrink-0" />
 
                     <span
                       role="button"
                       tabIndex={-1}
                       onClick={(e) => { e.stopPropagation(); removeLine(i); }}
-                      className="shrink-0 text-destructive hover:bg-destructive/10 rounded p-1"
+                      className="shrink-0 text-rose-500 hover:bg-rose-500/10 rounded-lg p-1.5 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </span>
