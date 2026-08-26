@@ -1121,39 +1121,40 @@ export default function NewShipment() {
         icon={<FileText className="w-5 h-5" />}
         open={openSections.summary}
         onToggle={() => toggleSection("summary")}
+        accent="indigo"
       >
         <div className="p-5">
         <div className="grid md:grid-cols-2 gap-4 items-end">
           <div className="space-y-3 text-sm">
 
             {/* 1) البضاعة */}
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="px-3 py-1.5 bg-surface-2 text-[11px] font-bold text-muted-foreground">١ — قيمة البضاعة</div>
+            <div className="rounded-xl border border-indigo-500/20 overflow-hidden bg-gradient-to-l from-indigo-500/[0.04] to-transparent">
+              <div className="px-3 py-2 bg-indigo-500/10 text-[11px] font-bold text-indigo-800 dark:text-indigo-200">١ — قيمة البضاعة</div>
               <div className="p-3 space-y-1.5">
-                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف ({lines.length} صنف / {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة)</span><b>{formatEGP(itemsGross)}</b></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الأصناف ({lines.length} صنف / {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة)</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(itemsGross)}</b></div>
                 {itemsDiscount > 0 && (
-                  <div className="flex justify-between text-destructive"><span>− خصومات على الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
+                  <div className="flex justify-between text-rose-600"><span>− خصومات على الأصناف</span><b>− {formatEGP(itemsDiscount)}</b></div>
                 )}
-                <div className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(itemsNet)}</b></div>
+                <div className="flex justify-between border-t border-dashed border-indigo-500/20 pt-1.5"><span className="text-muted-foreground">صافي البضاعة</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(itemsNet)}</b></div>
               </div>
             </div>
 
             {/* 2) خصم على الفاتورة كلها */}
-            <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+            <div className="rounded-xl border border-dashed border-rose-400/40 bg-rose-500/5 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-semibold text-primary">٢ — خصم على الفاتورة كلها</Label>
-                <div className="inline-flex rounded-md overflow-hidden border border-input">
+                <Label className="text-xs font-bold text-rose-700 dark:text-rose-300">٢ — خصم على الفاتورة كلها</Label>
+                <div className="inline-flex rounded-md overflow-hidden border border-rose-500/30">
                   <button
                     type="button"
                     onClick={() => setInvDiscType("amount")}
-                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "amount" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
+                    className={`px-3 h-8 text-xs font-bold ${invDiscType === "amount" ? "bg-rose-600 text-white" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}
                   >
                     ج.م
                   </button>
                   <button
                     type="button"
                     onClick={() => setInvDiscType("percent")}
-                    className={`px-3 h-8 text-xs font-semibold ${invDiscType === "percent" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"}`}
+                    className={`px-3 h-8 text-xs font-bold ${invDiscType === "percent" ? "bg-rose-600 text-white" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}
                   >
                     %
                   </button>
@@ -1167,35 +1168,35 @@ export default function NewShipment() {
                 value={invDiscValue}
                 onChange={(e) => setInvDiscValue(Number(e.target.value))}
                 placeholder="0"
-                className="h-9"
+                className="h-9 border-rose-500/20 focus-visible:ring-rose-500/30"
               />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 الخصم بيتوزّع على الأصناف بالتناسب مع قيمة كل صنف، وبينزّل تكلفة الوحدة في المخزن.
               </p>
               {invoiceDiscountAmount > 0 && (
                 <>
-                  <div className="flex justify-between text-destructive text-xs font-semibold">
+                  <div className="flex justify-between text-rose-600 text-xs font-bold">
                     <span>قيمة الخصم</span><b>− {formatEGP(invoiceDiscountAmount)}</b>
                   </div>
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-muted-foreground">صافي البضاعة بعد الخصم</span><b>{formatEGP(netAfterInvoiceDiscount)}</b>
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-muted-foreground">صافي البضاعة بعد الخصم</span><b className="text-indigo-700 dark:text-indigo-300">{formatEGP(netAfterInvoiceDiscount)}</b>
                   </div>
                 </>
               )}
             </div>
 
             {/* 3) المصاريف */}
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="px-3 py-1.5 bg-surface-2 text-[11px] font-bold text-muted-foreground flex items-center justify-between">
+            <div className="rounded-xl border border-amber-500/20 overflow-hidden bg-gradient-to-l from-amber-500/[0.04] to-transparent">
+              <div className="px-3 py-2 bg-amber-500/10 text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center justify-between">
                 <span>٣ — المصاريف الإضافية</span>
-                <span className="text-amber-600">{formatEGP(totalExtras + Number(admin || 0))}</span>
+                <span className="text-amber-700 dark:text-amber-300">{formatEGP(totalExtras + Number(admin || 0))}</span>
               </div>
               <div className="p-3 space-y-1.5">
                 <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(shipping)}</b></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى{otherDesc ? ` (${otherDesc})` : ""}</span><b>{formatEGP(otherCost)}</b></div>
                 <div className="text-[10px] text-muted-foreground">↑ التلاتة دول بيتوزّعوا على تكلفة الوحدة</div>
-                <div className="flex justify-between border-t border-dashed border-border pt-1.5">
+                <div className="flex justify-between border-t border-dashed border-amber-500/20 pt-1.5">
                   <span className="text-muted-foreground">مصاريف إدارية <span className="text-[10px]">(مش بتدخل في تكلفة الوحدة)</span></span>
                   <b>{formatEGP(admin)}</b>
                 </div>
@@ -1203,9 +1204,9 @@ export default function NewShipment() {
             </div>
 
             {/* 4) الإجمالي */}
-            <div className="rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5 flex justify-between items-center text-lg">
-              <span className="font-bold">٤ — الإجمالي المستحق للمورد</span>
-              <b className="text-primary">{formatEGP(grandTotal)}</b>
+            <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-l from-indigo-500/15 via-violet-500/10 to-transparent px-3 py-3 flex justify-between items-center text-lg shadow-sm shadow-indigo-500/5">
+              <span className="font-bold text-indigo-800 dark:text-indigo-200">٤ — الإجمالي المستحق للمورد</span>
+              <b className="text-indigo-600 dark:text-indigo-400 text-xl">{formatEGP(grandTotal)}</b>
             </div>
             {(() => {
               const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
@@ -1214,20 +1215,20 @@ export default function NewShipment() {
               const remaining = Math.max(0, grandTotal - effectivePaid);
               const over = effectivePaid > grandTotal + 0.01;
               const status = remaining < 0.01 ? "مدفوعة بالكامل" : effectivePaid > 0 ? "دفع جزئي" : "غير مدفوعة";
-              const statusColor = remaining < 0.01 ? "text-success" : effectivePaid > 0 ? "text-warning" : "text-muted-foreground";
+              const statusColor = remaining < 0.01 ? "text-emerald-600" : effectivePaid > 0 ? "text-amber-600" : "text-muted-foreground";
               return (
-                <div className="mt-2 space-y-1 border-t border-dashed border-border pt-2">
-                  <div className="flex justify-between"><span className="text-muted-foreground">المدفوع الآن</span><b className="text-success">{formatEGP(effectivePaid)}</b></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">المتبقي</span><b className={remaining > 0 ? "text-warning" : "text-success"}>{formatEGP(remaining)}</b></div>
+                <div className="mt-2 space-y-1 border-t border-dashed border-indigo-500/20 pt-2">
+                  <div className="flex justify-between"><span className="text-muted-foreground">المدفوع الآن</span><b className="text-emerald-600">{formatEGP(effectivePaid)}</b></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">المتبقي</span><b className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>{formatEGP(remaining)}</b></div>
                   {over && (
-                    <div className="flex justify-between text-destructive"><span>زيادة عن الإجمالي</span><b>{formatEGP(effectivePaid - grandTotal)}</b></div>
+                    <div className="flex justify-between text-rose-600"><span>زيادة عن الإجمالي</span><b>{formatEGP(effectivePaid - grandTotal)}</b></div>
                   )}
                   <div className="flex justify-between"><span className="text-muted-foreground">الحالة</span><b className={statusColor}>{status}</b></div>
                 </div>
               );
             })()}
           </div>
-          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2">
+          <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/20">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
             {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
           </Button>
