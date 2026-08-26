@@ -405,6 +405,7 @@ export default function NewPurchaseReturn() {
           title="بيانات المورد والفاتورة"
           icon={<UserIcon className="w-5 h-5" />}
           open={openSections.supplier}
+          accent="blue"
           onToggle={() => toggleSection("supplier")}
         >
           <div className="p-5 space-y-4">
@@ -452,6 +453,7 @@ export default function NewPurchaseReturn() {
           title="المنتجات المُرتجعة"
           icon={<Package className="w-5 h-5" />}
           open={openSections.products}
+          accent="amber"
           onToggle={() => toggleSection("products")}
         >
           <div className="p-5">
@@ -526,6 +528,7 @@ export default function NewPurchaseReturn() {
           title="طريقة الاسترداد والسبب"
           icon={<CreditCard className="w-5 h-5" />}
           open={openSections.payment}
+          accent="violet"
           onToggle={() => toggleSection("payment")}
         >
           <div className="p-5 space-y-4">
@@ -615,6 +618,7 @@ export default function NewPurchaseReturn() {
           title="الملخص والحفظ"
           icon={<FileText className="w-5 h-5" />}
           open={openSections.summary}
+          accent="indigo"
           onToggle={() => toggleSection("summary")}
         >
           <div className="p-5 space-y-3">
