@@ -871,31 +871,44 @@ export default function PersonalExpenses() {
 
   /**
    * متوسط التصنيفات — بيتحسب من فلاتر البحث المتقدم نفسها (تصنيف/سنة/بحث/تاريخ/مبلغ)
-   * لو مفيش سنة مختارة بيتحسب على المدى المتاح كله.
+   * ملاحظة: اختيار الشهور فوق مش بيأثر هنا عشان يبقى فيه مصدر فلتر واحد.
    */
   const catYearAvg = useMemo(() => {
-    const scopeRows = filterYear
-      ? rows.filter(r => monthKey(r.expense_datetime).startsWith(filterYear))
-      : rows;
-    const catRows = filtered.filter(r => inSel(r.expense_datetime));
+    // الصفوف المطلوبة = اللي عدت من فلاتر البحث المتقدم
+    const catRows = filtered;
     if (catRows.length === 0) return null;
+
     const total = catRows.reduce((s, r) => s + Number(r.amount), 0);
+    const count = catRows.length;
+
+    // الشهور اللي فيها صرف فعلي (من الصفوف المفلترة)
     const perMonth = new Map<string, number>();
     catRows.forEach(r => {
       const k = monthKey(r.expense_datetime);
       perMonth.set(k, (perMonth.get(k) || 0) + Number(r.amount));
     });
     const activeMonths = perMonth.size;
+
+    // مدى الحساب: لو سنة مختارة = ١٢ شهر، لو لأ = عدد الشهور الفريدة في الداتا المفلترة
+    const monthsSpan = filterYear
+      ? 12
+      : Math.max(1, perMonth.size);
+
+    // إجمالي كل المصاريف في نفس السنة (أو كل السنين لو مفيش سنة مختارة) — مقياس النسبة
+    const scopeRows = filterYear
+      ? rows.filter(r => monthKey(r.expense_datetime).startsWith(filterYear))
+      : rows;
     const scopeTotal = scopeRows.reduce((s, r) => s + Number(r.amount), 0);
+
     const top = Array.from(perMonth.entries()).sort((a, b) => b[1] - a[1])[0];
-    const monthsSpan = filterYear ? 12 : Math.max(1, new Set(scopeRows.map(r => monthKey(r.expense_datetime))).size);
+
     return {
       total,
-      count: catRows.length,
+      count,
       activeMonths,
       avgActive: activeMonths > 0 ? total / activeMonths : 0,
       avg12: total / monthsSpan,
-      avg12Label: filterYear ? "متوسط على ١٢ شهر" : "متوسط على كل الشهور",
+      avg12Label: filterYear ? "متوسط شهري على ١٢ شهر" : "متوسط شهري على الشهور اللي فيها داتا",
       share: scopeTotal > 0 ? (total / scopeTotal) * 100 : 0,
       shareLabel: filterYear ? "نسبته من مصاريف السنة" : "نسبته من كل المصاريف",
       maxMonthLabel: top ? `${monthLabel(top[0])} (${EGP(top[1])})` : "—",
@@ -903,9 +916,9 @@ export default function PersonalExpenses() {
         filterCats.length === 0 ? "كل التصنيفات" : filterCats.join("، "),
         filterYear || "كل السنين",
       ].join(" — "),
+      monthsSpan,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filtered, filterYear, filterCats, selMonths]);
+  }, [rows, filtered, filterYear, filterCats]);
 
 
 
