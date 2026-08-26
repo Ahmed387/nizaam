@@ -58,7 +58,9 @@ export function ViewersTab() {
     if (error || (data as any)?.error) {
       return toast.error((await edgeErrorMessage(error, data)) ?? "فشل الإنشاء");
     }
-    toast.success("تم إنشاء حساب المراقب");
+    toast.success((data as any)?.kept_existing_password
+      ? "تمت إضافة صلاحية المراقب للحساب الحالي — كلمة مروره الأصلية لم تتغير"
+      : "تم إنشاء حساب المراقب");
     setForm({ name: "", email: "", password: "" });
     load();
   };

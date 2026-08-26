@@ -128,13 +128,23 @@ Deno.serve(async (req) => {
         if (rolesErr) return j({ error: "تعذر فحص صلاحيات الحساب الموجود" }, 500);
         const roleNames = (existingRoles ?? []).map((row: { role: string }) => row.role);
 
-        const { error: updateErr } = await admin.auth.admin.updateUserById(usernameProfile.id, {
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { viewer_for_tenant: tenantId },
-        });
-        if (updateErr) return businessError(friendlyAuthError(updateErr.message));
+        const { data: authRecord, error: authLookupErr } = await admin.auth.admin.getUserById(usernameProfile.id);
+        if (authLookupErr || !authRecord.user) {
+          return businessError("حساب الدخول المرتبط غير موجود. أعد إنشاء الحساب من شاشة الموظفين أو الشركاء.");
+        }
+
+        // Existing employees/partners keep their established login credentials.
+        // Adding viewer is an extra permission only; silently replacing their email
+        // or password here can break legacy partner accounts that use an internal
+        // Auth address behind the visible profile email.
+        if (roleNames.length === 0 || roleNames.every((role) => role === "viewer")) {
+          const { error: updateErr } = await admin.auth.admin.updateUserById(usernameProfile.id, {
+            password,
+            email_confirm: true,
+            user_metadata: { ...authRecord.user.user_metadata, viewer_for_tenant: tenantId },
+          });
+          if (updateErr) return businessError(friendlyAuthError(updateErr.message));
+        }
 
         const { error: profileUpdateErr } = await admin
           .from("profiles")
@@ -149,7 +159,12 @@ Deno.serve(async (req) => {
             { onConflict: "user_id,role" },
           );
         if (viewerRoleErr) return businessError(viewerRoleErr.message);
-        return j({ ok: true, user_id: usernameProfile.id, reused: true });
+        return j({
+          ok: true,
+          user_id: usernameProfile.id,
+          reused: true,
+          kept_existing_password: roleNames.some((role) => role !== "viewer"),
+        });
       }
 
       // Does an auth user with this email already exist?
