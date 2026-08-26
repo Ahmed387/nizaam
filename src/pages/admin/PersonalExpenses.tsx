@@ -832,7 +832,10 @@ export default function PersonalExpenses() {
   const exportExcel = (mkey: string | null) => {
     try {
       const expData = mkey ? filtered.filter(r => monthKey(r.expense_datetime) === mkey) : visible;
-      const depData = (mkey ? deposits.filter(d => monthKey(d.deposit_datetime) === mkey) : deposits);
+      // الإيداعات لازم تتفلتر بنفس الشهور المختارة زي المصروفات، عشان الإجماليات والباقي يطلعوا صح
+      const depData = mkey
+        ? deposits.filter(d => monthKey(d.deposit_datetime) === mkey)
+        : deposits.filter(d => inSel(d.deposit_datetime));
       if (expData.length === 0 && depData.length === 0) return toast.error("مفيش بيانات للتصدير");
 
       const fmtD = (iso: string) => new Date(iso).toLocaleDateString("ar-EG");

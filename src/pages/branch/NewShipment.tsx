@@ -473,17 +473,11 @@ export default function NewShipment() {
     if (isEdit) return submitEdit();
     if (!supplierId) return toast.error("اختر المورد");
     if (!receivedBy.trim()) return toast.error("أدخل اسم المستلم");
-    // تجاهُل الأصناف الفاضية (اللي اتضافت تلقائي ومحدش ملّاها)
-    if (lines.some(isLineBlank)) {
-      const clean = lines.filter((l) => !isLineBlank(l));
-      setLines(clean);
-      setActiveLine(null);
-      if (!clean.length) return toast.error("املأ بيانات منتج واحد على الأقل");
-      return toast.info("شيلنا الأصناف الفاضية — اضغط حفظ تاني ✅");
-    }
-    if (!lines.length) return toast.error("أضف منتجاً واحداً على الأقل");
+    // تجاهُل الأصناف الفاضية (اللي اتضافت تلقائي ومحدش ملّاها) — بنكمّل حفظ عادي من غير ما نوقف اليوزر
+    const effLines = lines.filter((l) => !isLineBlank(l));
+    if (!effLines.length) return toast.error("املأ بيانات منتج واحد على الأقل");
 
-    for (const l of lines) {
+    for (const l of effLines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
       if (l.product_id === null && (!l.brand?.trim() || !l.model?.trim()))
@@ -509,7 +503,7 @@ export default function NewShipment() {
       // Single-RPC gateway: creates shipment + items + product_batches + updates quantities
       // atomically with shipping cost share calculation. Required because the guard
       // (guard_products_quantity) blocks direct client UPDATEs to products.quantity.
-      const linesPayload = lines.map((l) => ({
+      const linesPayload = effLines.map((l) => ({
         product_id: l.product_id,
         product_name: l.product_name,
         sku: l.sku || undefined,

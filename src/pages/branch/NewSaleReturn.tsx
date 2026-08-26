@@ -191,7 +191,6 @@ export default function NewSaleReturn() {
 
   // ===== تسهيل إدخال الكميات: فوكس تلقائي + انتقال للصنف اللي بعده =====
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const [showAllLines, setShowAllLines] = useState(false);
 
   const focusNextQty = (from: number) => {
     for (let j = from + 1; j < lines.length; j++) {
@@ -520,11 +519,8 @@ export default function NewSaleReturn() {
             ) : (
               <div className="space-y-2">
                 {(() => {
-                  const anyPicked = lines.some((l) => (l.quantity ?? 0) > 0);
-                  const hiddenCount = anyPicked && !showAllLines ? lines.filter((l) => (l.quantity ?? 0) <= 0).length : 0;
-                  const visible = lines
-                    .map((l, i) => ({ l, i }))
-                    .filter(({ l }) => !anyPicked || showAllLines || (l.quantity ?? 0) > 0);
+                  // بنعرض كل الأصناف دايماً عشان اليوزر يقدر يدخل كميات لأكتر من صنف
+                  const visible = lines.map((l, i) => ({ l, i }));
                   return (
                     <>
                       {visible.map(({ l, i }) => (
@@ -561,11 +557,6 @@ export default function NewSaleReturn() {
                     </div>
                   </div>
                       ))}
-                      {(hiddenCount > 0 || showAllLines) && (
-                        <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setShowAllLines((s) => !s)}>
-                          {showAllLines ? "إخفاء الأصناف اللي كميتها صفر" : `إظهار باقي الأصناف (${hiddenCount})`}
-                        </Button>
-                      )}
                     </>
                   );
                 })()}
