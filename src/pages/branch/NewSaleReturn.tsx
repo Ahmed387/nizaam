@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { docSuccess, docError } from "@/lib/docToast";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Loader2, Link2, Printer, AlertTriangle, FileText, User as UserIcon, Package, CreditCard, ShieldAlert } from "lucide-react";
+import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
@@ -557,9 +558,21 @@ export default function NewSaleReturn() {
                     </div>
                   </div>
                       ))}
+                      {/* شريط «صنف آخر» — وقف عليه بالماوس ينقلك لأول صنف لسه فاضي */}
+                      {lines.some((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0) && (
+                        <AddAnotherBar
+                          label="صنف آخر"
+                          hint="— وقف هنا بالماوس ينقلك للصنف اللي بعده"
+                          onActivate={() => {
+                            const idx = lines.findIndex((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0);
+                            if (idx >= 0) { qtyRefs.current[idx]?.focus(); qtyRefs.current[idx]?.select?.(); }
+                          }}
+                        />
+                      )}
                     </>
                   );
                 })()}
+
               </div>
             )}
           </div>
