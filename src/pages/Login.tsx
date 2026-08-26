@@ -55,7 +55,6 @@ export default function Login() {
         body: { email: mail, password },
       });
       let resolvedCredentials = !fnErr && data?.ok ? data : null;
-      let reason: string | null = !fnErr && data?.error ? String(data.error) : null;
 
       // 3) Compatibility path for older partner accounts whose visible email was
       // historically stored as a username while Auth used an internal address.
@@ -67,10 +66,9 @@ export default function Login() {
       }
 
       if (!resolvedCredentials) {
-        toast.error(reason ?? "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         return;
       }
-
 
       const { error: signErr } = await supabase.auth.signInWithPassword({
         email: resolvedCredentials.email,
