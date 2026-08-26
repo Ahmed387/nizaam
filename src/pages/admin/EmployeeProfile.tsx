@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { logAudit } from "@/lib/roles";
 import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
@@ -189,8 +190,8 @@ export default function EmployeeProfile() {
           late_grace_minutes: editShift.late_grace_minutes,
         },
       });
-      const message = (data as any)?.error ?? accountError?.message;
-      if (message) return toast.error(String(message));
+      const message = await edgeErrorMessage(accountError, data);
+      if (accountError || (data as any)?.error) return toast.error(message ?? "فشل تحديث حساب الدخول");
     }
     toast.success("تم التحديث");
     setEditOpen(false);
@@ -351,7 +352,7 @@ export default function EmployeeProfile() {
         },
       });
       if (error || (data as any)?.error) {
-        throw new Error((data as any)?.error ?? error?.message ?? "فشل إنشاء الحساب");
+        throw new Error((await edgeErrorMessage(error, data)) ?? "فشل إنشاء الحساب");
       }
       toast.success("تم إنشاء حساب الدخول وربطه بالموظف");
       setAcctOpen(false);
