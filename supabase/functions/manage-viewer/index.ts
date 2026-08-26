@@ -57,19 +57,27 @@ function businessError(message: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const jwt = authHeader.replace("Bearer ", "");
-    if (!jwt) return j({ error: "لازم تكون مسجل دخول" }, 401);
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return j({ error: "لازم تكون مسجل دخول" }, 401);
+    const jwt = authHeader.slice(7);
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!SUPABASE_URL || !SRK) return j({ error: "إعدادات خدمة الحسابات غير متاحة" }, 500);
-    const admin = createClient(SUPABASE_URL, SRK);
+    if (!SUPABASE_URL || !ANON_KEY || !SRK) return j({ error: "إعدادات خدمة الحسابات غير متاحة" }, 500);
+    const anon = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    const admin = createClient(SUPABASE_URL, SRK, { auth: { persistSession: false } });
 
-    // Identify caller
-    const { data: userData, error: uErr } = await admin.auth.getUser(jwt);
-    if (uErr || !userData.user) return j({ error: "الجلسة منتهية، سجّل دخول تاني" }, 401);
-    const callerId = userData.user.id;
+    // Validate the caller token using the same claims-based path as the other
+    // account-management functions. Ownership always comes from the JWT subject.
+    const { data: claimsData, error: claimsErr } = await anon.auth.getClaims(jwt);
+    const callerId = claimsData?.claims?.sub;
+    if (claimsErr || typeof callerId !== "string") {
+      return j({ error: "الجلسة منتهية، سجّل دخول تاني" }, 401);
+    }
 
     // Verify caller is admin / owner
     const [{ data: callerProfile }, { data: callerRoles }] = await Promise.all([
@@ -163,10 +171,23 @@ Deno.serve(async (req) => {
 
       let newId: string;
       if (existingId) {
-        // Reuse only if the account belongs to this tenant (or has no profile yet)
+        // Reuse only a clean viewer account from this tenant. An Auth account
+        // without a profile may still carry stale cross-tenant roles.
         const { data: prof } = await admin.from("profiles").select("tenant_id").eq("id", existingId).maybeSingle();
         if (prof?.tenant_id && prof.tenant_id !== tenantId) {
           return businessError("الإيميل ده مستخدم في شركة تانية.");
+        }
+        const { data: authRoles, error: authRolesErr } = await admin
+          .from("user_roles")
+          .select("role, tenant_id")
+          .eq("user_id", existingId);
+        if (authRolesErr) return j({ error: "تعذر فحص صلاحيات الحساب الموجود" }, 500);
+        const hasForeignTenantRole = (authRoles ?? []).some((row: { tenant_id: string | null }) =>
+          Boolean(row.tenant_id && row.tenant_id !== tenantId)
+        );
+        const hasNonViewerRole = (authRoles ?? []).some((row: { role: string }) => row.role !== "viewer");
+        if (hasForeignTenantRole || hasNonViewerRole) {
+          return businessError("الإيميل ده مرتبط بالفعل بحساب أو صلاحيات أخرى. استخدم إيميل مختلف لحساب المراقبة.");
         }
         const { error: upErr } = await admin.auth.admin.updateUserById(existingId, { password, email_confirm: true });
         if (upErr) return businessError(friendlyAuthError(upErr.message));
