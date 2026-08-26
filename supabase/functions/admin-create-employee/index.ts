@@ -101,15 +101,37 @@ Deno.serve(async (req) => {
     // ---------- EDIT ----------
     if (employee_id) {
       const { data: existing } = await admin
-        .from('employees').select('id, user_id, tenant_id').eq('id', employee_id).maybeSingle();
+        .from('employees').select('id, user_id, tenant_id, email').eq('id', employee_id).maybeSingle();
       if (!existing || existing.tenant_id !== tenantId) return json({ error: 'الموظف غير موجود' }, 404);
 
+      const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+      if (existing.user_id && has_system_access && !normalizedEmail) {
+        return json({ error: 'الإيميل مطلوب للحساب المرتبط' }, 400);
+      }
+
       if (password) {
-        if (String(password).length < 6) return json({ error: 'كلمة المرور 6 أحرف على الأقل' }, 400);
-        payload.login_password = password;
-        if (existing.user_id) {
-          await admin.auth.admin.updateUserById(existing.user_id as string, { password });
+        if (String(password).length < 8 || !/[A-Za-z]/.test(String(password)) || !/[0-9]/.test(String(password))) {
+          return json({ error: 'كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم' }, 400);
         }
+        if (!existing.user_id) {
+          payload.login_password = password;
+        }
+      }
+
+      if (existing.user_id) {
+        const authChanges: Record<string, unknown> = {};
+        if (password) authChanges.password = password;
+        if (normalizedEmail && normalizedEmail !== String(existing.email ?? '').toLowerCase()) {
+          authChanges.email = normalizedEmail;
+          authChanges.email_confirm = true;
+        }
+        if (Object.keys(authChanges).length > 0) {
+          const { error: authUpdateErr } = await admin.auth.admin.updateUserById(existing.user_id as string, authChanges);
+          if (authUpdateErr) return json({ error: friendlyAuthError(authUpdateErr.message) }, 422);
+        }
+        // Linked accounts authenticate only through Auth. Removing the legacy hash prevents
+        // an old employee password from silently overwriting the newly saved Auth password.
+        payload.login_password = null;
       }
 
       const { error: upErr } = await admin.from('employees').update(payload).eq('id', employee_id);
@@ -143,7 +165,9 @@ Deno.serve(async (req) => {
     let newlyCreatedUser = false;
     if (has_system_access) {
       if (!email) return json({ error: 'الإيميل مطلوب' }, 400);
-      if (!password || String(password).length < 6) return json({ error: 'كلمة المرور 6 أحرف على الأقل' }, 400);
+      if (!password || String(password).length < 8 || !/[A-Za-z]/.test(String(password)) || !/[0-9]/.test(String(password))) {
+        return json({ error: 'كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم' }, 400);
+      }
       const emailLower = String(email).trim().toLowerCase();
       const { data: dup } = await admin
         .from('employees').select('id').eq('tenant_id', tenantId).ilike('email', emailLower).maybeSingle();
@@ -155,7 +179,8 @@ Deno.serve(async (req) => {
       if ('error' in created) return json({ error: created.error }, 400);
       userId = created.userId;
       newlyCreatedUser = created.created;
-      payload.login_password = password;
+      // New linked users authenticate through Auth; keep no second password hash in employees.
+      payload.login_password = null;
     }
 
     const { data: emp, error: insErr } = await admin
@@ -233,6 +258,14 @@ async function createAccount(
   });
   await setRole(admin, userId!, opts.tenantId, opts.role);
   return { userId: userId!, created: createdNew };
+}
+
+function friendlyAuthError(message: string): string {
+  const value = String(message ?? '').toLowerCase();
+  if (value.includes('weak') || value.includes('guess') || value.includes('pwned')) {
+    return 'كلمة المرور ضعيفة أو مستخدمة بكثرة. اختار كلمة أقوى فيها حروف كبيرة وصغيرة وأرقام ورمز.';
+  }
+  return message || 'فشل تحديث كلمة المرور في حساب الدخول';
 }
 
 /** Employee has exactly ONE role: insert the new one and drop any other stale roles. */

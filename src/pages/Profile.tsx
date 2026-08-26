@@ -108,7 +108,9 @@ export default function Profile() {
   };
 
   const changePassword = async () => {
-    if (pwd.next.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (pwd.next.length < 8 || !/[A-Za-z]/.test(pwd.next) || !/[0-9]/.test(pwd.next)) {
+      return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
+    }
     if (pwd.next !== pwd.confirm) return toast.error("كلمتا المرور غير متطابقتين");
     setSavingPwd(true);
     try {
@@ -117,10 +119,6 @@ export default function Profile() {
         data: { must_change_password: false },
       });
       if (error) throw error;
-      // Sync employee login_password if linked (so cashier login keeps working)
-      if (emp) {
-        await supabase.from("employees").update({ login_password: pwd.next }).eq("id", emp.id);
-      }
       toast.success("تم تغيير كلمة المرور");
       setPwd({ current: "", next: "", confirm: "" });
     } catch (e: any) {

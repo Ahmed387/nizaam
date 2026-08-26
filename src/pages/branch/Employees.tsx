@@ -79,8 +79,8 @@ export default function Employees() {
     }
     if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب");
-      if (!form.login_password || form.login_password.length < 6) {
-        return toast.error("كلمة المرور 6 أحرف على الأقل");
+      if (!form.login_password || form.login_password.length < 8 || !/[A-Za-z]/.test(form.login_password) || !/[0-9]/.test(form.login_password)) {
+        return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
       }
     }
 
@@ -269,7 +269,7 @@ export default function Employees() {
                       value={form.login_password}
                       onChange={(e) => setForm({ ...form, login_password: e.target.value })}
                       className="pl-10"
-                      placeholder="6 أحرف على الأقل"
+                      placeholder="8 أحرف على الأقل، منها حرف ورقم"
                     />
                     <button type="button" onClick={() => setShowPwd((v) => !v)}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">

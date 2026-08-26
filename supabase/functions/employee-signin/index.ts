@@ -130,11 +130,24 @@ Deno.serve(async (req) => {
         });
       }
 
-      await admin.from("employees").update({ user_id: authUserId }).eq("id", emp.id);
+      const { error: linkErr } = await admin
+        .from("employees")
+        .update({ user_id: authUserId, login_password: null })
+        .eq("id", emp.id);
+      if (linkErr) {
+        await admin.auth.admin.deleteUser(authUserId).catch(() => {});
+        throw linkErr;
+      }
     } else {
       // Returning user: ensure auth password matches what was just verified
       // (covers the case where admin updated the DB hash from a new plain password)
-      await admin.auth.admin.updateUserById(authUserId, { password });
+      const { error: syncErr } = await admin.auth.admin.updateUserById(authUserId, { password });
+      if (syncErr) throw syncErr;
+      const { error: clearErr } = await admin
+        .from("employees")
+        .update({ login_password: null })
+        .eq("id", emp.id);
+      if (clearErr) throw clearErr;
     }
 
     return new Response(

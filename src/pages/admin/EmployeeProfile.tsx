@@ -149,6 +149,9 @@ export default function EmployeeProfile() {
 
   const submitEdit = async () => {
     if (!editForm.name || !editForm.job_title) return toast.error("املأ الاسم والوظيفة");
+    if (editForm.login_password && (editForm.login_password.length < 8 || !/[A-Za-z]/.test(editForm.login_password) || !/[0-9]/.test(editForm.login_password))) {
+      return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
+    }
     const updatePayload: any = {
       name: editForm.name, job_title: editForm.job_title, phone: editForm.phone || null,
       email: editForm.email?.trim() || null,
@@ -160,11 +163,35 @@ export default function EmployeeProfile() {
       work_days: editShift.work_days,
       late_grace_minutes: editShift.late_grace_minutes,
     };
-    if (editForm.login_password) {
-      updatePayload.login_password = editForm.login_password;
-    }
     const { error } = await supabase.from("employees").update(updatePayload).eq("id", emp.id);
     if (error) return toast.error(error.message);
+    const accountIdentityChanged = Boolean(emp.user_id) && editForm.email.trim().toLowerCase() !== String(emp.email ?? "").trim().toLowerCase();
+    if (editForm.login_password || accountIdentityChanged) {
+      const { data, error: accountError } = await supabase.functions.invoke("admin-create-employee", {
+        body: {
+          employee_id: emp.id,
+          name: editForm.name,
+          job_title: editForm.job_title,
+          phone: editForm.phone || null,
+          national_id: editForm.national_id || null,
+          base_salary: Number(editForm.base_salary) || 0,
+          hire_date: editForm.hire_date,
+          branch_id: emp.branch_id,
+          allowed_branch_ids: emp.user_id ? undefined : [emp.branch_id],
+          role: emp.role,
+          is_active: emp.is_active ?? true,
+          has_system_access: true,
+          email: editForm.email.trim().toLowerCase(),
+          password: editForm.login_password,
+          work_start: editShift.work_start,
+          work_end: editShift.work_end,
+          work_days: editShift.work_days,
+          late_grace_minutes: editShift.late_grace_minutes,
+        },
+      });
+      const message = (data as any)?.error ?? accountError?.message;
+      if (message) return toast.error(String(message));
+    }
     toast.success("تم التحديث");
     setEditOpen(false);
     load();
@@ -297,7 +324,9 @@ export default function EmployeeProfile() {
 
   const submitCreateAccount = async () => {
     if (!acctForm.email || !acctForm.password) return toast.error("أدخل البريد وكلمة المرور");
-    if (acctForm.password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (acctForm.password.length < 8 || !/[A-Za-z]/.test(acctForm.password) || !/[0-9]/.test(acctForm.password)) {
+      return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
+    }
     try {
       const { data, error } = await supabase.functions.invoke("admin-create-employee", {
         body: {
