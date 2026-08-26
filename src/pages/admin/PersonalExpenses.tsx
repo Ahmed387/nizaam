@@ -1255,7 +1255,17 @@ export default function PersonalExpenses() {
             <Button variant="outline" size="sm" onClick={clearFilters}><X className="w-4 h-4 ml-1" />مسح الفلاتر</Button>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-3 items-end">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">السنة</Label>
+            <Select value={filterYear || "__all__"} onValueChange={v => setFilterYear(v === "__all__" ? "" : v)}>
+              <SelectTrigger className="h-10"><SelectValue placeholder="كل السنين" /></SelectTrigger>
+              <SelectContent className="pointer-events-auto">
+                <SelectItem value="__all__">كل السنين</SelectItem>
+                {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="lg:col-span-2 flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">بحث</Label>
             <div className="relative">
