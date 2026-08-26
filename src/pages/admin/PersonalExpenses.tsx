@@ -1838,13 +1838,13 @@ export default function PersonalExpenses() {
                   <BarChart3 className="w-4 h-4 text-primary" />
                   <div className="text-xs font-bold">إجمالي ومتوسط كل شهر {(catFrom || catTo) ? "في الفترة المختارة" : "(كل التواريخ)"}</div>
                 </div>
-                <div className="h-44" dir="ltr">
+                <div className="h-56" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={catMonthlyChart} margin={{ top: 5, right: 8, left: 8, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                      <YAxis yAxisId="total" tick={{ fontSize: 10 }} width={48} />
-                      <YAxis yAxisId="avg" orientation="right" tick={{ fontSize: 10 }} width={48} />
+                      <XAxis dataKey="month" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={30} />
+                      <YAxis yAxisId="total" tick={{ fontSize: 10 }} width={52} tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
+                      <YAxis yAxisId="avg" orientation="right" tick={{ fontSize: 10 }} width={52} tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
                       <Tooltip formatter={(v: number) => `${Number(v).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`} />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Bar yAxisId="total" dataKey="إجمالي الشهر" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={40} />
