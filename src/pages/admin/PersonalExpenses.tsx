@@ -828,6 +828,37 @@ export default function PersonalExpenses() {
     return { spent, count, dep, remaining: dep - spent };
   }, [isAll, selMonths, rawMonthTotals, rows, depositMonthTotals]);
 
+  /** متوسط المصاريف الشهرية لكل سنة — إجمالي السنة ÷ عدد الشهور اللي فيها حركة */
+  const yearlyAverages = useMemo(() => {
+    const perYear = new Map<string, { total: number; months: Set<string>; count: number; dep: number }>();
+    rows.forEach(r => {
+      const k = monthKey(r.expense_datetime);
+      const y = k.slice(0, 4);
+      const e = perYear.get(y) ?? { total: 0, months: new Set<string>(), count: 0, dep: 0 };
+      e.total += Number(r.amount);
+      e.count += 1;
+      e.months.add(k);
+      perYear.set(y, e);
+    });
+    deposits.forEach(d => {
+      const y = monthKey(d.deposit_datetime).slice(0, 4);
+      const e = perYear.get(y) ?? { total: 0, months: new Set<string>(), count: 0, dep: 0 };
+      e.dep += Number(d.amount);
+      perYear.set(y, e);
+    });
+    return Array.from(perYear.entries())
+      .map(([year, e]) => ({
+        year,
+        total: e.total,
+        dep: e.dep,
+        months: e.months.size,
+        count: e.count,
+        avg: e.months.size > 0 ? e.total / e.months.size : 0,
+      }))
+      .sort((a, b) => b.year.localeCompare(a.year));
+  }, [rows, deposits]);
+
+
   /** تصدير Excel — شهر محدد أو كل الصفوف الظاهرة (ملخص + حركة المحفظة + الإيداعات + المصروفات، كلها بالتواريخ) */
   const exportExcel = (mkey: string | null) => {
     try {
