@@ -59,9 +59,9 @@ export function ProtectedRoute({
   }
 
   // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them.
-  // Admins / super admins / the tenant owner keep access to every branch.
+  // Admins / super admins / the tenant owner / viewers (read-only) keep access to every branch.
   const branchMatch = loc.pathname.match(/^\/branch\/([^/]+)/);
-  if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner) {
+  if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner && !isViewer) {
     const allowed = branches.some((b) => b.id === branchMatch[1]);
     if (!allowed) return <Navigate to="/" replace />;
   }
@@ -69,9 +69,9 @@ export function ProtectedRoute({
   // Gates are OR-ed: an explicitly granted permission can unlock a page that is
   // otherwise owner/admin/role gated.
   const gates: boolean[] = [];
-  if (ownerOnly) gates.push(isOwner || isSuperAdmin);
+  if (ownerOnly) gates.push(isOwner || isSuperAdmin || isViewer);
   if (superAdminOnly) gates.push(isSuperAdmin);
-  if (adminOnly) gates.push(isAdmin);
+  if (adminOnly) gates.push(isAdmin || isViewer);
   if (roles) gates.push(isAdmin || roles.some((r) => hasRole(r)));
   if (perm) gates.push(can(perm));
   if (gates.length > 0 && !gates.some(Boolean)) return <Navigate to="/" replace />;
