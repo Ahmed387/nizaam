@@ -462,11 +462,8 @@ export default function NewPurchaseReturn() {
             ) : (
               <div className="space-y-2">
                 {(() => {
-                  const anyPicked = lines.some((l) => (l.quantity ?? 0) > 0);
-                  const hiddenCount = anyPicked && !showAllLines ? lines.filter((l) => (l.quantity ?? 0) <= 0).length : 0;
-                  const visible = lines
-                    .map((l, i) => ({ l, i }))
-                    .filter(({ l }) => !anyPicked || showAllLines || (l.quantity ?? 0) > 0);
+                  // بنعرض كل الأصناف دايماً عشان اليوزر يقدر يدخل كميات لأكتر من صنف
+                  const visible = lines.map((l, i) => ({ l, i }));
                   return (
                     <>
                       {visible.map(({ l, i }) => (
