@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, User as UserIcon, Phone, Mail, MapPin, Briefcase, KeyRound, Eye, EyeOff } from "lucide-react";
 import { formatEGP, formatDate } from "@/lib/format";
+import { edgeErrorMessage } from "@/lib/edgeError";
 
 export default function Profile() {
   const nav = useNavigate();

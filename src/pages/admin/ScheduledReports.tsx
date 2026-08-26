@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { CalendarRange, Download, FileText, Loader2, Play, Sparkles, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportIntro } from "@/components/ReportIntro";
+import { edgeErrorMessage } from "@/lib/edgeError";
 
 interface Report {
   id: string;

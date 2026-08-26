@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { formatDateTime } from "@/lib/format";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
+import { edgeErrorMessage } from "@/lib/edgeError";
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,

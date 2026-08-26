@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Store, Building2, User, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { edgeErrorMessage } from "@/lib/edgeError";
 
 type Step = 1 | 2 | 3;
 
