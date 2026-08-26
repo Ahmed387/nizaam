@@ -1376,8 +1376,37 @@ export default function PersonalExpenses() {
               />
             </Card>
           )}
+
+          {/* ٥) متوسط المصاريف الشهرية لكل سنة */}
+          {yearlyAverages.length > 0 && (
+            <Card className="p-5">
+              <div className="text-sm font-bold mb-1">متوسط المصاريف الشهرية — لكل سنة</div>
+              <div className="text-xs text-muted-foreground mb-4">
+                بنقسم إجمالي مصاريف السنة على عدد الشهور اللي فيها حركة فعلاً
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {yearlyAverages.map(y => (
+                  <div key={y.year} className="rounded-xl border bg-muted/30 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold">سنة {y.year}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {y.months.toLocaleString("ar-EG")} شهر · {y.count.toLocaleString("ar-EG")} مصروف
+                      </span>
+                    </div>
+                    <div className="text-xl font-extrabold text-accent">{EGP(y.avg)}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">متوسط الشهر</div>
+                    <div className="mt-3 pt-3 border-t text-[11px] flex items-center justify-between text-muted-foreground">
+                      <span>إجمالي السنة: <b className="text-foreground">{EGP(y.total)}</b></span>
+                      <span>أودعت: <b className="text-foreground">{EGP(y.dep)}</b></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       )}
+
 
       {/* Actions + Filters */}
       <Card className="p-4 mb-6 space-y-4">
