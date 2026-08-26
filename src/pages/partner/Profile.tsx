@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useEffect, useState } from "react";
 import { PartnerLayout } from "@/components/layout/PartnerLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -11,7 +12,6 @@ import { withPartnerBalance } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { KeyRound, Loader2 } from "lucide-react";
-import { edgeErrorMessage } from "@/lib/edgeError";
 
 function pwStrength(pw: string) {
   let s = 0;

@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -17,7 +18,6 @@ import { toast } from "sonner";
 import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2 } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 import { confirmAlert } from "@/components/ConfirmDialog";
-import { edgeErrorMessage } from "@/lib/edgeError";
 
 
 type Partner = {

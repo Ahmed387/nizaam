@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
-import { edgeErrorMessage } from "@/lib/edgeError";
   Loader2, Building2, Users, UserCog, Sparkles, Plus, Trash2,
   CheckCircle2, ChevronRight, ChevronLeft, Rocket, Store,
 } from "lucide-react";
