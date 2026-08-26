@@ -64,28 +64,12 @@ export default function Treasury() {
   const load = async () => {
     setLoading(true);
     const [tr, tt, wb, br] = await Promise.all([
-      supabase.from("vouchers" as any).select("*, voucher_categories(name, system_key)").eq("branch_id", branchId).eq("status", "active").order("voucher_date", { ascending: false }).limit(500),
+      supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
     ]);
-    // Hide vouchers that double-count transactions already shown elsewhere (returns / supplier payments / inter-branch transfers)
-    const EXCLUDE_EXPENSE_KEYS = ["customer_return", "supplier_payment", "branch_transfer_out"];
-    setRows((tr.data ?? [])
-      .filter((v: any) => !(v.type === "payment" && EXCLUDE_EXPENSE_KEYS.includes(v.voucher_categories?.system_key)))
-      .map((v: any) => ({
-        id: v.id,
-        created_at: v.voucher_date ?? v.created_at,
-        type: v.type === "receipt" ? "income" : "expense",
-        payment_method: v.payment_method,
-        category: v.voucher_categories?.name ?? "—",
-        is_fee: v.source === "system" && v.source_type === "voucher_fee",
-        description: v.description ?? v.voucher_number,
-        reference_number: v.reference_number,
-        amount: v.amount,
-        _raw: v,
-        _category_name: v.voucher_categories?.name ?? "—",
-      })));
+    setRows(tr.data ?? []);
     setTransfers(tt.data ?? []);
     const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
     if (balances) setWalletBalances(balances);
@@ -117,7 +101,7 @@ export default function Treasury() {
     }
   };
   useEffect(() => { load(); }, [branchId]);
-  useRealtimeRefresh(["vouchers", "treasury_transfers"], load);
+  useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], load);
 
   const filtered = rows.filter((r) =>
     (tab === "all" || r.type === tab) &&
@@ -191,7 +175,7 @@ export default function Treasury() {
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
   const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
-  const voucherAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.id), [rows]));
+  const voucherAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.reference_id).filter(Boolean), [rows]));
 
   const wallets = [
     { key: "cash_balance" as const, label: "نقدي", icon: Wallet, color: "text-success", method: "cash" as const },
@@ -307,7 +291,7 @@ export default function Treasury() {
           </div>
 
           <DataTable loading={loading} rows={filtered}
-            onRowClick={(r: any) => setViewVoucher(r)}
+            onRowClick={(r: any) => r.reference_id && setViewVoucher(r)}
             columns={[
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "type", header: "النوع", render: (r: any) => (
@@ -330,7 +314,9 @@ export default function Treasury() {
               )},
               { key: "actions", header: "الإجراءات", render: (r: any) => (
                 <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                  <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={voucherAttCounts[r.id] ?? 0} />
+                  {r.reference_id ? (
+                    <AttachmentsDialogButton recordType="voucher" recordId={r.reference_id} count={voucherAttCounts[r.reference_id] ?? 0} />
+                  ) : <span className="text-muted-foreground">—</span>}
                 </div>
               )},
             ]} />
@@ -494,7 +480,7 @@ export default function Treasury() {
       </Dialog>
 
       <VoucherViewDialog
-        voucher={viewVoucher?._raw ?? null}
+        voucher={null}
         open={!!viewVoucher}
         onOpenChange={(o) => !o && setViewVoucher(null)}
         categoryName={viewVoucher?._category_name}

@@ -11,7 +11,8 @@ export type AppRole =
   | "supervisor"
   | "worker"
   | "driver"
-  | "partner";
+  | "partner"
+  | "owner";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "مالك المنصة",
@@ -25,6 +26,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   worker: "عامل",
   driver: "سواق",
   partner: "شريك",
+  owner: "مالك الشركة",
 };
 
 /** Roles whose users only access their own profile (worker/driver). */
@@ -266,7 +268,7 @@ export function checkPermission(
   key: string,
   userOverrides: Record<string, boolean> = {},
 ): boolean {
-  if (roles.includes("admin") || roles.includes("super_admin")) return true;
+  if (roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner")) return true;
   if (userOverrides[key] !== undefined) return userOverrides[key];
   if (roles.some((r) => permsByRole[r]?.[key] === true)) return true;
   const parent = SUBSECTION_PARENT[key.replace(/\.[^.]+$/, "")];
@@ -295,7 +297,7 @@ export async function fetchUserContext(userId: string) {
   }
 
   const userRoles = (roles ?? []).map((r) => r.role as AppRole);
-  const isAdminOrSuper = userRoles.includes("admin") || userRoles.includes("super_admin");
+  const isAdminOrSuper = userRoles.includes("admin") || userRoles.includes("super_admin") || userRoles.includes("owner");
   const isSupervisor = userRoles.includes("supervisor");
 
   // Admin/Supervisor see all tenant branches. Others see only their assigned branches.

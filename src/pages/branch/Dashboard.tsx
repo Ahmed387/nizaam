@@ -61,7 +61,7 @@ export default function BranchDashboard() {
       supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
       supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", monthStart.toISOString()),
       supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
-      supabase.from("vouchers" as any).select("type, amount").eq("branch_id", id!).eq("status", "active"),
+      supabase.from("treasury").select("type, amount").eq("branch_id", id!),
       supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
       supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
       fetchRecentDocs(5, id),
@@ -83,7 +83,7 @@ export default function BranchDashboard() {
     setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
     setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
     setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
-    setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount), 0));
+    setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
     setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
     setNewCust((custs.data ?? []).length);
     setRecent(recentDocs as RecentDoc[]);
@@ -145,7 +145,7 @@ export default function BranchDashboard() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "invoice_items", "shipments", "purchase_returns", "returns", "return_items", "vouchers", "products", "contacts", "branches"], load);
+  useRealtimeRefresh(["invoices", "invoice_items", "shipments", "purchase_returns", "returns", "return_items", "vouchers", "treasury", "products", "contacts", "branches"], load);
 
   const todayVsYesterday = salesYesterday > 0 ? ((salesToday - salesYesterday) / salesYesterday) * 100 : 0;
   const monthVsLast = salesLastMonth > 0 ? ((salesMonth - salesLastMonth) / salesLastMonth) * 100 : 0;
