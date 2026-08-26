@@ -153,8 +153,8 @@ export default function AllEmployees() {
     if (!form.phone) return toast.error("التليفون مطلوب");
     if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب لدخول الموظف");
-      if (!editing && (!form.login_password || form.login_password.length < 6)) return toast.error("كلمة المرور 6 أحرف على الأقل");
-      if (editing && form.login_password && form.login_password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+      if (!editing && (!form.login_password || form.login_password.length < 8 || !/[A-Za-z]/.test(form.login_password) || !/[0-9]/.test(form.login_password))) return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
+      if (editing && form.login_password && (form.login_password.length < 8 || !/[A-Za-z]/.test(form.login_password) || !/[0-9]/.test(form.login_password))) return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
       if (!allowedBranchIds.length && !form.branch_id) return toast.error("اختر الفروع المسموح بها");
     }
 

@@ -297,7 +297,9 @@ export default function EmployeeProfile() {
 
   const submitCreateAccount = async () => {
     if (!acctForm.email || !acctForm.password) return toast.error("أدخل البريد وكلمة المرور");
-    if (acctForm.password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (acctForm.password.length < 8 || !/[A-Za-z]/.test(acctForm.password) || !/[0-9]/.test(acctForm.password)) {
+      return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
+    }
     try {
       const { data, error } = await supabase.functions.invoke("admin-create-employee", {
         body: {
