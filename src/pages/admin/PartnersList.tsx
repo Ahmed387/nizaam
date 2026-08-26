@@ -177,6 +177,32 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
     }
   };
 
+  /** تعديل نسب شريك (رأس المال / التشغيل) يدويًا — الأونر هو اللي بيحدد */
+  const [editShares, setEditShares] = useState<{ id: string; name: string; cap: string; op: string } | null>(null);
+  const [savingShares, setSavingShares] = useState(false);
+  const saveShares = async () => {
+    if (!editShares) return;
+    const cap = Number(editShares.cap) / 100;
+    const op = Number(editShares.op) / 100;
+    if (!(cap >= 0 && cap <= 1) || !(op >= 0 && op <= 1)) return toast.error("النسب لازم تكون بين 0% و 100%");
+    const othersCap = rows
+      .filter((r) => r.id !== editShares.id && r.is_active)
+      .reduce((s, r) => s + Number(r.capital_share || 0), 0);
+    if (othersCap + cap > 1.0001) {
+      return toast.error(`مجموع نسب رأس المال هيتعدى 100% — المتاح لك ${((1 - othersCap) * 100).toFixed(2)}%`);
+    }
+    setSavingShares(true);
+    const { error } = await supabase.from("equity_partners" as any)
+      .update({ capital_share: cap, operating_share: op }).eq("id", editShares.id);
+    setSavingShares(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تعديل النسب");
+    setEditShares(null);
+    load();
+  };
+
+
+
   const submit = async () => {
     // validation
     if (!form.name.trim()) return toast.error("أدخل اسم الشريك");
