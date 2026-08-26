@@ -633,6 +633,35 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
         </DialogContent>
       </Dialog>
 
+
+      {/* Edit partner shares */}
+      <Dialog open={!!editShares} onOpenChange={() => setEditShares(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تعديل النسب — {editShares?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>نسبة رأس المال (%)</Label>
+              <Input type="number" step="0.01" value={editShares?.cap ?? ""} onChange={e => setEditShares(c => c ? { ...c, cap: e.target.value } : c)} />
+            </div>
+            <div>
+              <Label>نسبة التشغيل (%)</Label>
+              <Input type="number" step="0.01" value={editShares?.op ?? ""} onChange={e => setEditShares(c => c ? { ...c, op: e.target.value } : c)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              نسبة رأس المال بتحدد نصيبه من الأرباح حسب مساهمته، ومجموع نسب كل الشركاء لازم ميعديش 100%.
+              نسبة التشغيل دي مقابل إدارة الشغل وبتتخصم من صافي الربح قبل التوزيع — وكل الشركاء بيشوفوها في صفحاتهم.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditShares(null)}>إلغاء</Button>
+            <Button onClick={saveShares} disabled={savingShares}>
+              {savingShares ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </ConditionalLayout>
   );
 }
+
