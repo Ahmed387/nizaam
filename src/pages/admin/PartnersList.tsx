@@ -426,7 +426,11 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
                     <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}>
                       <Power className={`w-4 h-4 ${p.is_active ? "text-success" : "text-muted-foreground"}`} />
                     </Button>
+                    <Button size="sm" variant="outline" className="border-destructive/30" onClick={() => removePartner(p)} title="حذف نهائي">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
                   </div>
+
                 </CardContent>
               </Card>
             ))}
