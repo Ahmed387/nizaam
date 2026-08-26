@@ -385,14 +385,25 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
 
                   {/* Stats grid */}
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg bg-muted/40 p-3 text-center">
-                      <div className="text-[11px] text-muted-foreground">حصة رأس المال</div>
+                    <button
+                      type="button"
+                      onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
+                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
+                      title="تعديل النسب"
+                    >
+                      <div className="text-[11px] text-muted-foreground">حصة رأس المال ✎</div>
                       <div className="font-bold text-base mt-0.5">{(Number(p.capital_share) * 100).toFixed(1)}%</div>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-3 text-center">
-                      <div className="text-[11px] text-muted-foreground">حصة التشغيل</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
+                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
+                      title="تعديل النسب"
+                    >
+                      <div className="text-[11px] text-muted-foreground">حصة التشغيل ✎</div>
                       <div className="font-bold text-base mt-0.5">{(Number(p.operating_share) * 100).toFixed(1)}%</div>
-                    </div>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setEditCapital({ id: p.id, name: p.name, amount: String(p.initial_capital ?? 0) })}
