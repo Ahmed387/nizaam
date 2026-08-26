@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,8 +100,8 @@ export default function SetupWizard() {
           })),
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const wErr = await edgeErrorMessage(error, data);
+      if (wErr) throw new Error(wErr);
       setResult(data);
       toast.success("تم إنشاء الشركة بنجاح 🎉");
     } catch (e: any) {

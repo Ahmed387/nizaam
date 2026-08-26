@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -279,7 +280,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
     const { data, error } = await supabase.functions.invoke("admin-delete-partner", {
       body: { partner_id: p.id },
     });
-    const errMsg = (data as any)?.error ?? error?.message;
+    const errMsg = await edgeErrorMessage(error, data);
     if (errMsg) return toast.error(errMsg);
     toast.success("تم حذف الشريك نهائياً");
     load();
@@ -295,8 +296,9 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
     const { data, error } = await supabase.functions.invoke("admin-reset-partner-password", {
       body: { partner_id: resetPartner.id, new_password: resetPw },
     });
-    if (error || (data as any)?.error) {
-      toast.error(error?.message || (data as any)?.error || "فشل التحديث");
+    const rErr = await edgeErrorMessage(error, data);
+    if (rErr) {
+      toast.error(rErr || "فشل التحديث");
     } else {
       toast.success("تم تحديث كلمة المرور. شاركها مع الشريك يدوياً.");
       setResetPartner(null); setResetPw(""); setResetConfirm("");

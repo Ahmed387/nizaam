@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,8 +37,8 @@ export default function Profile() {
     setSavingEmail(true);
     try {
       const { data, error } = await supabase.functions.invoke("update-own-email", { body: { newEmail: e } });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const eErr = await edgeErrorMessage(error, data);
+      if (eErr) throw new Error(eErr);
       toast.success("تم تغيير البريد الإلكتروني بنجاح");
       setNewEmail("");
       await refresh();

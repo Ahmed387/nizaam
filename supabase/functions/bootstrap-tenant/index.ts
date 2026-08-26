@@ -2,6 +2,7 @@
 // with automatic Chart of Accounts seeding (via trg_seed_coa_on_tenant), treasuries,
 // capital contributions, and trial-balance verification. verify_jwt = false.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { friendlyAuthError } from '../_shared/authErrors.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: { name: admin_name.trim(), tenant_id: tenantId },
     });
-    if (uErr || !userRes?.user) return await rollback("فشل إنشاء المستخدم: " + (uErr?.message ?? ""));
+    if (uErr || !userRes?.user) return await rollback(friendlyAuthError(uErr?.message));
     const userId = userRes.user.id;
 
     await supabase.from("profiles").upsert({

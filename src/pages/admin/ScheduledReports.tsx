@@ -1,3 +1,4 @@
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useEffect, useState } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -44,7 +45,8 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
     setSavingSched(true);
     const { error } = await supabase.rpc("set_scheduled_reports_cron" as any, { _day: schedDay, _hour: schedHour });
     setSavingSched(false);
-    if (error) toast.error(error.message);
+    const gErr = await edgeErrorMessage(error);
+    if (gErr) toast.error(gErr);
     else toast.success("تم حفظ موعد التقرير الأسبوعي");
   };
 
@@ -100,8 +102,8 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
     setAiBusy(r.id);
     try {
       const { data, error } = await supabase.functions.invoke("ai-report-analysis", { body: { report_id: r.id } });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const aErr = await edgeErrorMessage(error, data);
+      if (aErr) throw new Error(aErr);
       setAiOutput((o) => ({ ...o, [r.id]: (data as any).analysis ?? "" }));
       toast.success("تم إنشاء التحليل");
     } catch (e: any) {
