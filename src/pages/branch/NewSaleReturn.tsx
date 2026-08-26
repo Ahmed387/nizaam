@@ -558,11 +558,6 @@ export default function NewSaleReturn() {
                     </div>
                   </div>
                       ))}
-                      {(hiddenCount > 0 || showAllLines) && (
-                        <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setShowAllLines((s) => !s)}>
-                          {showAllLines ? "إخفاء الأصناف اللي كميتها صفر" : `إظهار باقي الأصناف (${hiddenCount})`}
-                        </Button>
-                      )}
                     </>
                   );
                 })()}
