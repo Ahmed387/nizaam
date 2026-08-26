@@ -741,8 +741,11 @@ export default function EmployeeProfile() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف الموظف</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف <b>{emp.name}</b> نهائياً. (الرواتب والسلف المسجلة لن تُحذف.)
+              هيتم حذف <b>{emp.name}</b> نهائياً من النظام ومن قاعدة البيانات، ومعاه حساب الدخول
+              وأدواره وفروعه — يعني تقدر تضيف نفس الاسم أو نفس الإيميل تاني عادي.
+              (الرواتب والسلف المسجلة قبل كده مش هتتحذف.)
             </AlertDialogDescription>
+
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
