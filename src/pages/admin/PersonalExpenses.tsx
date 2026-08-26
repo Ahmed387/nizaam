@@ -1832,6 +1832,32 @@ export default function PersonalExpenses() {
             </Card>
           </div>
 
+          {/* رسمة بيانية: الإجمالي والمتوسط لكل شهر — تتغير مع الفلاتر */}
+          {catMonthlyChart.length > 0 && (
+            <div className="px-4 pb-3">
+              <Card className="p-3 border-primary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <div className="text-xs font-bold">إجمالي ومتوسط كل شهر {(catFrom || catTo) ? "في الفترة المختارة" : "(كل التواريخ)"}</div>
+                </div>
+                <div className="h-44" dir="ltr">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={catMonthlyChart} margin={{ top: 5, right: 8, left: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                      <YAxis yAxisId="total" tick={{ fontSize: 10 }} width={48} />
+                      <YAxis yAxisId="avg" orientation="right" tick={{ fontSize: 10 }} width={48} />
+                      <Tooltip formatter={(v: number) => `${Number(v).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar yAxisId="total" dataKey="إجمالي الشهر" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      <Line yAxisId="avg" type="monotone" dataKey="متوسط العملية" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+          )}
+
           {/* فلتر التاريخ */}
           <div className="px-4 pb-3 flex flex-wrap items-end gap-2">
             <div className="flex flex-col gap-1">
