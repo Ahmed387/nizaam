@@ -14,8 +14,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2 } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
+import { confirmAlert } from "@/components/ConfirmDialog";
+
 
 type Partner = {
   id: string; name: string; partner_type: string;
