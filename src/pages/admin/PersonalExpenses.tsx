@@ -1440,6 +1440,66 @@ export default function PersonalExpenses() {
             </Card>
           )}
 
+          {/* ٦) متوسط تصنيف معين في سنة معينة */}
+          {allCategories.length > 0 && availableYears.length > 0 && (
+            <Card className="p-5">
+              <div className="text-sm font-bold mb-1 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" /> متوسط تصنيف في سنة
+              </div>
+              <div className="text-xs text-muted-foreground mb-4">
+                اختار التصنيف والسنة، وهنقولك بتصرف عليه كام في الشهر في المتوسط
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">التصنيف</Label>
+                  <Select value={catAvgCat} onValueChange={setCatAvgCat}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="اختار التصنيف" /></SelectTrigger>
+                    <SelectContent>
+                      {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">السنة</Label>
+                  <Select value={catAvgYear} onValueChange={setCatAvgYear}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="اختار السنة" /></SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {catYearAvg ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                    <div className="text-[11px] font-semibold text-muted-foreground">متوسط الشهر</div>
+                    <div className="text-2xl font-extrabold text-primary leading-tight mt-1">{EGP(catYearAvg.avgActive)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">على {catYearAvg.activeMonths.toLocaleString("ar-EG")} شهر فيهم صرف</div>
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    <div className="text-[11px] font-semibold text-muted-foreground">متوسط على ١٢ شهر</div>
+                    <div className="text-2xl font-extrabold leading-tight mt-1">{EGP(catYearAvg.avg12)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">لو وزعناه على السنة كلها</div>
+                  </div>
+                  <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-4">
+                    <div className="text-[11px] font-semibold text-muted-foreground">إجمالي السنة</div>
+                    <div className="text-2xl font-extrabold text-rose-700 dark:text-rose-200 leading-tight mt-1">{EGP(catYearAvg.total)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">{catYearAvg.count.toLocaleString("ar-EG")} عملية</div>
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    <div className="text-[11px] font-semibold text-muted-foreground">نسبته من مصاريف السنة</div>
+                    <div className="text-2xl font-extrabold leading-tight mt-1">{catYearAvg.share.toFixed(1)}%</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">أعلى شهر: {catYearAvg.maxMonthLabel}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">مفيش مصاريف للتصنيف ده في السنة دي</div>
+              )}
+            </Card>
+          )}
+
+
         </div>
       )}
 
