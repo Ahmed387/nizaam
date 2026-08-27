@@ -87,6 +87,8 @@ export default function NewShipment() {
   const [admin, setAdmin] = useState(0);
   const [invDiscType, setInvDiscType] = useState<"amount" | "percent">("amount");
   const [invDiscValue, setInvDiscValue] = useState(0);
+  const [vatType, setVatType] = useState<"amount" | "percent">("percent");
+  const [vatValue, setVatValue] = useState(0);
 
   const [notes, setNotes] = useState("");
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
@@ -105,7 +107,7 @@ export default function NewShipment() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   // ===== Local autosave (crash / accidental reload safety net) =====
-  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, invDiscType, invDiscValue, notes, lines, plan };
+  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, invDiscType, invDiscValue, vatType, vatValue, notes, lines, plan };
   const formDraft = useFormDraft<typeof draftSnapshot>(
     "purchase",
     [user?.id, branchId],
@@ -126,6 +128,8 @@ export default function NewShipment() {
     setAdmin(d.admin ?? 0);
     setInvDiscType(d.invDiscType ?? "amount");
     setInvDiscValue(d.invDiscValue ?? 0);
+    setVatType(d.vatType ?? "percent");
+    setVatValue(d.vatValue ?? 0);
     setNotes(d.notes ?? "");
     setLines(d.lines ?? []);
     if (d.plan) setPlan(d.plan);
@@ -223,6 +227,8 @@ export default function NewShipment() {
       setAdmin(Number(s.admin_cost ?? 0));
       setInvDiscType(((s as any).discount_type === "percent" ? "percent" : "amount"));
       setInvDiscValue(Number((s as any).discount_value ?? 0));
+      setVatType(((s as any).vat_type === "amount" ? "amount" : "percent"));
+      setVatValue(Number((s as any).vat_value ?? 0));
       setNotes(s.notes ?? "");
       setLines((it ?? []).map((r: any) => ({
         id: r.id,
@@ -340,7 +346,15 @@ export default function NewShipment() {
   };
 
 
-  const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0);
+  // ضريبة القيمة المضافة — بتتحسب على صافي البضاعة بعد خصم الفاتورة (نسبة أو مبلغ ثابت)
+  const vatAmount = Math.max(
+    0,
+    vatType === "percent"
+      ? (netAfterInvoiceDiscount * Math.min(100, Math.max(0, Number(vatValue) || 0))) / 100
+      : Number(vatValue) || 0,
+  );
+
+  const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0) + vatAmount;
 
   // ===== رصيد خزنة الفرع — الدفع النقدي مش مسموح لو الخزنة فاضية =====
   const [treasuryBalance, setTreasuryBalance] = useState<number | null>(null);
@@ -423,6 +437,8 @@ export default function NewShipment() {
       admin_cost: Number(admin || 0),
       discount_type: invDiscType,
       discount_value: Number(invDiscValue || 0),
+      vat_type: vatType,
+      vat_value: Number(vatValue || 0),
       notes: notes.trim(),
     };
     const items = lines.map((l) => ({
@@ -537,6 +553,8 @@ export default function NewShipment() {
           admin_cost: Number(admin || 0),
           discount_type: invDiscType,
           discount_value: Number(invDiscValue || 0),
+          vat_type: vatType,
+          vat_value: Number(vatValue || 0),
           notes: notes.trim() || null,
         },
         p_lines: linesPayload,
