@@ -81,12 +81,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const adminNav: NavItem[] = [
     ...allAdminNav
       .filter((i) => {
-        // Owner-equivalent view (owner or read-only viewer) sees the full board.
-        if (ownerView) return true;
+        // Owner-equivalent view (owner or read-only viewer) sees the full board,
+        // minus the screens a viewer is not allowed to open at all.
+        if (ownerView) {
+          if (isViewer && !isAdmin && ["/admin/data-setup"].includes(i.to)) return false;
+          return true;
+        }
         if (i.ownerOnly) return can(i.perm);
         if (i.adminOnly) return isAdmin || can(i.perm);
         return isAdmin || can(i.perm);
       })
+
       .map(({ perm, ownerOnly, adminOnly, ...rest }) => rest),
     ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
   ];
