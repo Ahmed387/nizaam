@@ -1151,6 +1151,11 @@ export default function NewShipment() {
                 <div className="text-xs font-bold text-indigo-800/80 dark:text-indigo-200/80 mb-1">الإجمالي المستحق للمورد</div>
                 <div className="text-3xl md:text-4xl font-black text-indigo-700 dark:text-indigo-300 tracking-tight">{formatEGP(grandTotal)}</div>
                 <div className="text-xs text-muted-foreground mt-1">{lines.length} صنف · {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة</div>
+                {vatAmount > 0 && (
+                  <div className="text-xs mt-1 text-teal-700 dark:text-teal-300 font-semibold">
+                    شامل ضريبة قيمة مضافة {formatEGP(vatAmount)}{vatType === "percent" ? ` (${Number(vatValue) || 0}%)` : ""}
+                  </div>
+                )}
               </div>
               {(() => {
                 const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
@@ -1189,7 +1194,7 @@ export default function NewShipment() {
           </div>
 
           {/* Detail grid */}
-          <div className="grid md:grid-cols-3 gap-3 mb-5">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
             {/* Goods */}
             <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-l from-indigo-500/[0.05] to-transparent p-3 space-y-2">
               <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
