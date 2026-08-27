@@ -32,9 +32,9 @@ function isOnline(iso: string) {
 }
 
 export default function Presence() {
-  const { tenantId, isAdmin, hasRole } = useAuth();
+  const { tenantId, isAdmin, isViewer, hasRole } = useAuth();
   const nav = useNavigate();
-  const allowed = isAdmin || hasRole("supervisor") || hasRole("super_admin");
+  const allowed = isAdmin || isViewer || hasRole("supervisor") || hasRole("super_admin");
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [, tick] = useState(0);
