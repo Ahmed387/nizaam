@@ -245,8 +245,10 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
           phone: form.phone || null,
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if (error || (data as any)?.error) {
+        const msg = await edgeErrorMessage(error, data);
+        throw new Error(msg || "فشل إنشاء الشريك");
+      }
       // بعد الإضافة: إعادة احتساب نهائية عشان المجموع يبقى 100% بالظبط
       if (autoShare) await applyAutoSharesToExisting(0).catch(() => {});
       setSuccessCreds({ username: form.username, password: form.password });
