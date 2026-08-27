@@ -244,42 +244,25 @@ export default function PersonalExpenses() {
   const [bellRing, setBellRing] = useState(false);
   const [seenAlerts, setSeenAlerts] = useState<string[]>([]);
 
-  // Resolve owner + access
+  // Resolve owner + access (الحسابين المسموح لهم بس، والدفتر واحد لصاحبه الأساسي)
   useEffect(() => {
     if (!user) return;
     (async () => {
-      if (isPersonalOwner) {
+      if (!isPersonalOwner) { setOwnerId(null); setCanEdit(false); return; }
+      if (myEmail === OWNER_EMAIL) {
         setOwnerId(user.id);
         setCanEdit(true);
-      } else {
-        const { data } = await supabase
-          .from("owner_expenses_access" as any)
-          .select("owner_user_id, can_edit")
-          .eq("granted_user_id", user.id)
-          .maybeSingle();
-        if (data) {
-          const oid = (data as any).owner_user_id;
-          setOwnerId(oid);
-          setCanEdit(!!(data as any).can_edit);
-          const { data: op } = await supabase.from("profiles").select("name").eq("id", oid).maybeSingle();
-          if ((op as any)?.name) setOwnerName((op as any).name);
-        } else {
-          // فallback للمراقبين: نجيب هوية صاحب الدفتر من دالة آمنة ونشيك مستوى الوصول
-          const { data: oi } = await supabase.rpc("personal_owner_info" as any);
-          const row = Array.isArray(oi) ? oi[0] : oi;
-          const oid = row?.owner_id as string | undefined;
-          if (oid) {
-            const { data: lvl } = await supabase.rpc("personal_access_level" as any, { _owner: oid });
-            if (lvl === "view" || lvl === "edit") {
-              setOwnerId(oid);
-              setCanEdit(lvl === "edit");
-              if (row?.owner_name) setOwnerName(row.owner_name);
-            }
-          }
-        }
+        return;
+      }
+      const { data: oi } = await supabase.rpc("personal_owner_info" as any);
+      const row = Array.isArray(oi) ? oi[0] : oi;
+      const oid = row?.owner_id as string | undefined;
+      if (oid) {
+        setOwnerId(oid);
+        setCanEdit(true);
       }
     })();
-  }, [user, isPersonalOwner]);
+  }, [user, isPersonalOwner, myEmail]);
 
   const load = async () => {
     if (!ownerId) return;
