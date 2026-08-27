@@ -93,16 +93,23 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   // A role's normal branch permissions remain available when an individual
   // employee is granted extra admin pages. The extra grant is additive; it
   // must not make the admin sidebar look like it replaced the role access.
-  const primaryBranch = branches[0];
-  const employeeBranchNav: NavItem[] = !isAdmin && primaryBranch ? [
-    { to: `/branch/${primaryBranch.id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` },
-    ...(can("invoices.view") ? [{ to: `/branch/${primaryBranch.id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
-    ...(can("inventory.view") ? [{ to: `/branch/${primaryBranch.id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
-    ...(can("customers.view") || can("suppliers.view") ? [{ to: `/branch/${primaryBranch.id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
-    ...(can("treasury.view") ? [{ to: `/branch/${primaryBranch.id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
-    ...(can("employees.view") ? [{ to: `/branch/${primaryBranch.id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
-    ...(can("reports.view") ? [{ to: `/branch/${primaryBranch.id}/reports`, label: "تقارير الفرع", icon: <BarChart3 className="w-4 h-4" />, group: `فرع ${primaryBranch.name}` }] : []),
-  ] : [];
+  // Employees linked to several branches get a full section per branch,
+  // not only the first one — otherwise "الخزنة" always points at one branch.
+  const employeeBranchNav: NavItem[] = !isAdmin
+    ? branches.flatMap((br) => {
+        const group = `فرع ${br.name}`;
+        return [
+          { to: `/branch/${br.id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, group },
+          ...(can("invoices.view") ? [{ to: `/branch/${br.id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, group }] : []),
+          ...(can("inventory.view") ? [{ to: `/branch/${br.id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, group }] : []),
+          ...(can("customers.view") || can("suppliers.view") ? [{ to: `/branch/${br.id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, group }] : []),
+          ...(can("treasury.view") ? [{ to: `/branch/${br.id}/treasury`, label: `خزنة ${br.name}`, icon: <Wallet className="w-4 h-4" />, group }] : []),
+          ...(can("employees.view") ? [{ to: `/branch/${br.id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, group }] : []),
+          ...(can("reports.view") ? [{ to: `/branch/${br.id}/reports`, label: "تقارير الفرع", icon: <BarChart3 className="w-4 h-4" />, group }] : []),
+        ] as NavItem[];
+      })
+    : [];
+
 
   const supervisorNav: NavItem[] = [
     { to: "/admin/employees", label: "الموظفين والحضور", icon: <ClipboardCheck className="w-4 h-4" /> },
