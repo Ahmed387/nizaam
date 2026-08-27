@@ -81,13 +81,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const adminNav: NavItem[] = [
     ...allAdminNav
       .filter((i) => {
-        if (i.ownerOnly) return ownerView || can(i.perm);
+        // Owner-equivalent view (owner or read-only viewer) sees the full board.
+        if (ownerView) return true;
+        if (i.ownerOnly) return can(i.perm);
         if (i.adminOnly) return isAdmin || can(i.perm);
         return isAdmin || can(i.perm);
       })
       .map(({ perm, ownerOnly, adminOnly, ...rest }) => rest),
     ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
   ];
+
 
   // A role's normal branch permissions remain available when an individual
   // employee is granted extra admin pages. The extra grant is additive; it
