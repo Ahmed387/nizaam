@@ -1,6 +1,6 @@
 // Scheduled backup: for each tenant, dump key tables to JSON, upload to storage, record in system_backups.
 // Triggered via pg_cron weekly + manual invocation by admins.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,16 +51,19 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { global: { headers: { Authorization: authHeader } } }
       );
-      const { data: userData, error: userErr } = await authClient.auth.getUser();
-      if (userErr || !userData?.user) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claims, error: claimsErr } = await authClient.auth.getClaims(token);
+      const callerId = claims?.claims?.sub as string | undefined;
+      if (claimsErr || !callerId) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Restrict to tenants where the caller is an admin
+      // Restrict to tenants where the caller is an admin / owner / super admin
       const { data: adminRoles } = await admin.from("user_roles")
-        .select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
-      const adminTenantIds = (adminRoles ?? []).map((r: any) => r.tenant_id).filter(Boolean);
+        .select("tenant_id, role").eq("user_id", callerId)
+        .in("role", ["admin", "owner", "super_admin"]);
+      const adminTenantIds = [...new Set((adminRoles ?? []).map((r: any) => r.tenant_id).filter(Boolean))];
       if (adminTenantIds.length === 0) {
         return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
