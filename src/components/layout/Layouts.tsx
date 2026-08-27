@@ -10,7 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { tenant, tenantId, branches, isAdmin, isSuperAdmin, isOwner, hasRole, user, can } = useAuth();
+  const { tenant, tenantId, branches, isAdmin, isSuperAdmin, isOwner, isViewer, hasRole, user, can } = useAuth();
+  // A viewer sees exactly what the owner sees in the sidebar — read-only.
+  const ownerView = isOwner || isViewer;
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingDiscounts, setPendingDiscounts] = useState(0);
   const [mainTreasuryId, setMainTreasuryId] = useState<string | null>(null);
