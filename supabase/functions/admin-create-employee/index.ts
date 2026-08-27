@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     const {
       employee_id, // present => edit mode
       name, job_title, phone, national_id, base_salary, hire_date,
-      branch_id, allowed_branch_ids = [], role, is_active = true,
+      branch_id, allowed_branch_ids = null, role, is_active = true,
       email, password,
       work_start = null, work_end = null, work_days = [0, 1, 2, 3, 4, 5], late_grace_minutes = 15,
       has_system_access = true,
@@ -73,8 +73,10 @@ Deno.serve(async (req) => {
     }
 
     // Branches must belong to caller tenant
+    // null/undefined => caller did not send a branch list: keep existing branch links untouched (edit mode).
+    const branchListProvided = Array.isArray(allowed_branch_ids);
     const branchIds: string[] = Array.from(new Set([
-      ...(Array.isArray(allowed_branch_ids) ? allowed_branch_ids : []),
+      ...(branchListProvided ? allowed_branch_ids : []),
       branch_id,
     ].filter(Boolean)));
     const { data: okBranches } = await admin
@@ -155,7 +157,9 @@ Deno.serve(async (req) => {
 
       if (userId) {
         await setRole(admin, userId as string, tenantId, role);
-        await syncBranches(admin, userId, tenantId, has_system_access ? finalBranchIds : []);
+        if (branchListProvided || !has_system_access) {
+          await syncBranches(admin, userId, tenantId, has_system_access ? finalBranchIds : []);
+        }
       }
       return json({ ok: true, employee_id, user_id: userId });
     }
