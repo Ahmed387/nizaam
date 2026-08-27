@@ -84,7 +84,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         // Owner-equivalent view (owner or read-only viewer) sees the full board,
         // minus the screens a viewer is not allowed to open at all.
         if (ownerView) {
-          if (isViewer && !isAdmin && ["/admin/data-setup"].includes(i.to)) return false;
+          if (isViewer && !isAdmin && ["/admin/data-setup", "/admin/settings"].includes(i.to)) return false;
           return true;
         }
         if (i.ownerOnly) return can(i.perm);
