@@ -253,6 +253,8 @@ export default function NewSale() {
     setSavingCust(false);
     if (error) return toast.error(error.message);
     setCustomers((prev) => [...prev, data]);
+    window.dispatchEvent(new Event("party:refresh"));
+
     setCustomerId(data.id);
     setNewCustOpen(false);
     setNewCust({ name: "", phone: "", address: "" });
