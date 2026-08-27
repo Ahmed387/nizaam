@@ -1053,12 +1053,19 @@ export default function PersonalExpenses() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-extrabold flex items-center gap-2">
-                    المصاريف الشخصية
-                    <Sparkles className="w-5 h-5 text-amber-500" />
+                  <div className="text-2xl md:text-3xl font-extrabold flex items-center gap-2 flex-wrap">
+                    <span className="bg-[length:200%_auto] bg-gradient-to-l from-primary via-fuchsia-500 to-emerald-500 bg-clip-text text-transparent animate-gradient-x">
+                      {greeting()} {ownerDisplayName}
+                    </span>
+                    <Crown className="w-6 h-6 text-amber-500 animate-float" />
+                    {celebrate && <PartyPopper className="w-6 h-6 text-fuchsia-500 animate-pop-in" />}
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-foreground/10 text-foreground">
+                      {canEdit ? "صلاحية تعديل" : "عرض فقط"}
+                    </span>
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    دفتر خاص بصاحب الشركة — منفصل تماماً عن حسابات النظام
+                  <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    دفتر {ownerDisplayName} الشخصي — منفصل تماماً عن حسابات النظام
                   </div>
                 </>
               )}
