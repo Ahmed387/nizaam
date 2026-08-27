@@ -258,8 +258,11 @@ export default function PersonalExpenses() {
           .eq("granted_user_id", user.id)
           .maybeSingle();
         if (data) {
-          setOwnerId((data as any).owner_user_id);
+          const oid = (data as any).owner_user_id;
+          setOwnerId(oid);
           setCanEdit(!!(data as any).can_edit);
+          const { data: op } = await supabase.from("profiles").select("name").eq("id", oid).maybeSingle();
+          if ((op as any)?.name) setOwnerName((op as any).name);
         }
       }
     })();
