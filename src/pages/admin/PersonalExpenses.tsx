@@ -234,7 +234,7 @@ export default function PersonalExpenses() {
 
   // الدفتر الشخصي مسموح لحسابين فقط، والاتنين بيتنادوا "حج ناصر"
   const myEmail = (user?.email || "").toLowerCase();
-  const isPersonalOwner = ALLOWED_EMAILS.includes(myEmail);
+  const [isPersonalOwner, setIsPersonalOwner] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const ownerDisplayName = OWNER_NAME;
 
@@ -244,25 +244,26 @@ export default function PersonalExpenses() {
   const [bellRing, setBellRing] = useState(false);
   const [seenAlerts, setSeenAlerts] = useState<string[]>([]);
 
-  // Resolve owner + access (الحسابين المسموح لهم بس، والدفتر واحد لصاحبه الأساسي)
+  // Resolve owner + access server-side (email OR login username)
   useEffect(() => {
     if (!user) return;
     (async () => {
-      if (!isPersonalOwner) { setOwnerId(null); setCanEdit(false); return; }
-      if (myEmail === OWNER_EMAIL) {
-        setOwnerId(user.id);
-        setCanEdit(true);
-        return;
-      }
       const { data: oi } = await supabase.rpc("personal_owner_info" as any);
-      const row = Array.isArray(oi) ? oi[0] : oi;
+      const row: any = Array.isArray(oi) ? oi[0] : oi;
       const oid = row?.owner_id as string | undefined;
-      if (oid) {
+      const access = (row?.access as string | undefined) ?? "none";
+      if (oid && access !== "none") {
+        setIsPersonalOwner(true);
         setOwnerId(oid);
-        setCanEdit(true);
+        setCanEdit(access === "edit");
+      } else {
+        setIsPersonalOwner(false);
+        setOwnerId(null);
+        setCanEdit(false);
       }
     })();
-  }, [user, isPersonalOwner, myEmail]);
+  }, [user]);
+
 
   const load = async () => {
     if (!ownerId) return;
