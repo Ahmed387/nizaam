@@ -263,6 +263,19 @@ export default function PersonalExpenses() {
           setCanEdit(!!(data as any).can_edit);
           const { data: op } = await supabase.from("profiles").select("name").eq("id", oid).maybeSingle();
           if ((op as any)?.name) setOwnerName((op as any).name);
+        } else {
+          // فallback للمراقبين: نجيب هوية صاحب الدفتر من دالة آمنة ونشيك مستوى الوصول
+          const { data: oi } = await supabase.rpc("personal_owner_info" as any);
+          const row = Array.isArray(oi) ? oi[0] : oi;
+          const oid = row?.owner_id as string | undefined;
+          if (oid) {
+            const { data: lvl } = await supabase.rpc("personal_access_level" as any, { _owner: oid });
+            if (lvl === "view" || lvl === "edit") {
+              setOwnerId(oid);
+              setCanEdit(lvl === "edit");
+              if (row?.owner_name) setOwnerName(row.owner_name);
+            }
+          }
         }
       }
     })();
