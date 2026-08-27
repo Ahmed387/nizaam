@@ -263,8 +263,9 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
 
   const isManager = hasRole("branch_manager");
   const canSeeDiscounts = isAdmin || isManager;
+  const canAccessAdmin = isAdmin || hasPerm("admin_home.view");
   const nav: NavItem[] = [
-    ...(isAdmin ? [{ to: "/admin/dashboard", label: "↩ الرئيسية (الأدمن)", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
+    ...(canAccessAdmin ? [{ to: "/admin/dashboard", label: "↩ لوحة التحكم", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),
     ...(canSeeDiscounts ? [{ to: `/branch/${id}/discount-approvals`, label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscountCount || undefined }] : []),
     ...(canSeeDiscounts ? [{ to: `/branch/${id}/void-approvals`, label: "طلبات إلغاء الدفعات", icon: <Trash2 className="w-4 h-4" /> }] : []),
