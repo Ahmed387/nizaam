@@ -304,10 +304,12 @@ export async function fetchUserContext(userId: string) {
   const userRoles = (roles ?? []).map((r) => r.role as AppRole);
   const isAdminOrSuper = userRoles.includes("admin") || userRoles.includes("super_admin") || userRoles.includes("owner");
   const isSupervisor = userRoles.includes("supervisor");
+  // المراقب: عرض فقط لكل الفروع — لازم يشوف قائمة الفروع كاملة
+  const isViewer = userRoles.includes("viewer");
 
-  // Admin/Supervisor see all tenant branches. Others see only their assigned branches.
+  // Admin/Supervisor/Viewer see all tenant branches. Others see only their assigned branches.
   let branches: any[] = [];
-  if ((isAdminOrSuper || isSupervisor) && (profile as any)?.tenant_id) {
+  if ((isAdminOrSuper || isSupervisor || isViewer) && (profile as any)?.tenant_id) {
     const { data: allBranches } = await supabase
       .from("branches")
       .select("*")

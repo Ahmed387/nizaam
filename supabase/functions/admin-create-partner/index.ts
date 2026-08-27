@@ -1,5 +1,25 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { friendlyAuthError } from '../_shared/authErrors.ts';
+
+/** Business errors return HTTP 200 with { error } so the client can read the Arabic message. */
+const fail = (error: string) =>
+  new Response(JSON.stringify({ error }), {
+    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
+/** Finds an existing Auth user by email (paginated). */
+async function findUserIdByEmail(admin: any, email: string): Promise<string | null> {
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) return null;
+    const users = data?.users ?? [];
+    const hit = users.find((u: any) => String(u.email ?? '').toLowerCase() === email);
+    if (hit) return hit.id as string;
+    if (users.length < 200) return null;
+  }
+  return null;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -70,28 +90,20 @@ Deno.serve(async (req) => {
 
     const normalizedEmail = String(email ?? '').trim().toLowerCase();
     if (!partner_name || !partner_type || !username || !password || !normalizedEmail) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail('املأ كل البيانات المطلوبة (الاسم، النوع، اسم المستخدم، كلمة المرور، الإيميل)');
     }
     if (!['capital', 'operating', 'both'].includes(partner_type)) {
-      return new Response(JSON.stringify({ error: 'Invalid partner_type' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail('نوع الشريك غير صحيح');
     }
     if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-      return new Response(JSON.stringify({ error: 'Password must be 8+ chars with a letter and a number' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail('كلمة المرور لازم تكون 8 أحرف على الأقل وفيها حرف ورقم');
     }
 
     // Check share sum
     const capShare = Number(capital_share) || 0;
     const opShare = Number(operating_share) || 0;
     if (capShare < 0 || capShare > 1 || opShare < 0 || opShare > 1) {
-      return new Response(JSON.stringify({ error: 'Shares must be between 0 and 1' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail('النسب لازم تكون بين 0% و100%');
     }
     const { data: existingPartners } = await admin
       .from('equity_partners')
@@ -100,44 +112,57 @@ Deno.serve(async (req) => {
       .eq('is_active', true);
     const currentSum = (existingPartners ?? []).reduce((s: number, p: any) => s + Number(p.capital_share || 0), 0);
     if (currentSum + capShare > 1.0001) {
-      return new Response(JSON.stringify({ error: `Total capital shares would exceed 100% (current: ${(currentSum * 100).toFixed(2)}%)` }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail(`مجموع نسب رأس المال هيتعدى 100% (الحالي: ${(currentSum * 100).toFixed(2)}%)`);
     }
 
     // Username unique per tenant
     const { data: existingUser } = await admin
       .from('profiles').select('id').eq('tenant_id', tenant_id).eq('username', username).maybeSingle();
     if (existingUser) {
-      return new Response(JSON.stringify({ error: 'Username already exists' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail('اسم المستخدم مستخدم بالفعل — اختار اسم تاني');
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      return new Response(JSON.stringify({ error: 'أدخل بريد إلكتروني صحيح للشريك' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return fail('أدخل بريد إلكتروني صحيح للشريك');
     }
 
     // A real email is mandatory because the unified login screen authenticates by email.
     const authEmail = normalizedEmail;
+    let userId: string | null = null;
+    let createdNewAuthUser = false;
+
     const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
       email: authEmail,
       password,
       email_confirm: true,
       user_metadata: { name: partner_name, username, phone },
     });
+
     if (authErr || !authUser?.user) {
-      const message = String(authErr?.message ?? 'Failed to create user');
-      const friendly = /weak|guess|pwned/i.test(message)
-        ? 'كلمة المرور ضعيفة أو مستخدمة بكثرة. اختار كلمة أقوى فيها حروف كبيرة وصغيرة وأرقام ورمز.'
-        : message;
-      return new Response(JSON.stringify({ error: friendly }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      // Email already exists in Auth → reuse it when it belongs to this tenant.
+      const existingId = await findUserIdByEmail(admin, authEmail);
+      if (!existingId) return fail(friendlyAuthError(authErr?.message));
+
+      const { data: prof } = await admin
+        .from('profiles').select('tenant_id').eq('id', existingId).maybeSingle();
+      if (prof?.tenant_id && prof.tenant_id !== tenant_id) {
+        return fail('الإيميل ده مستخدم في شركة تانية — استخدم إيميل مختلف');
+      }
+      const { data: alreadyPartner } = await admin
+        .from('partner_users').select('id').eq('user_id', existingId).maybeSingle();
+      if (alreadyPartner) return fail('الحساب ده مربوط بشريك موجود بالفعل');
+
+      const { error: updErr } = await admin.auth.admin.updateUserById(existingId, {
+        password,
+        email_confirm: true,
+        user_metadata: { name: partner_name, username, phone },
       });
+      if (updErr) return fail(friendlyAuthError(updErr.message));
+      userId = existingId;
+    } else {
+      userId = authUser.user.id as string;
+      createdNewAuthUser = true;
     }
-    const userId = authUser.user.id;
 
     try {
       // profile
@@ -156,8 +181,11 @@ Deno.serve(async (req) => {
       await admin.from('partner_users').insert({
         tenant_id, user_id: userId, partner_id: partner.id, created_by: callerId,
       });
-      // role
-      await admin.from('user_roles').insert({ user_id: userId, role: 'partner', tenant_id });
+      // role (idempotent — the account may already carry other roles)
+      await admin.from('user_roles').upsert(
+        { user_id: userId, role: 'partner', tenant_id },
+        { onConflict: 'user_id,role' },
+      );
       // initial share history
       await admin.from('partner_share_history').insert({
         tenant_id, partner_id: partner.id,
@@ -180,9 +208,9 @@ Deno.serve(async (req) => {
         ok: true, partner_id: partner.id, user_id: userId, email: authEmail,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
-      // rollback auth user on failure
-      await admin.auth.admin.deleteUser(userId).catch(() => {});
-      throw e;
+      // rollback only accounts we created in this call
+      if (createdNewAuthUser && userId) await admin.auth.admin.deleteUser(userId).catch(() => {});
+      return fail(friendlyAuthError((e as Error).message));
     }
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
