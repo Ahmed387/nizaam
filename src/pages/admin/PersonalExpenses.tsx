@@ -232,13 +232,11 @@ export default function PersonalExpenses() {
   const [catFrom, setCatFrom] = useState("");
   const [catTo, setCatTo] = useState("");
 
-  // تخصيص صاحب الشركة
-  // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
-  const isPersonalOwner = isOwner || (user?.email || "").toLowerCase() === OWNER_EMAIL;
+  // الدفتر الشخصي مسموح لحسابين فقط، والاتنين بيتنادوا "حج ناصر"
+  const myEmail = (user?.email || "").toLowerCase();
+  const isPersonalOwner = ALLOWED_EMAILS.includes(myEmail);
   const [ownerName, setOwnerName] = useState<string | null>(null);
-  const ownerDisplayName = isPersonalOwner
-    ? OWNER_NAME
-    : (ownerName?.trim() || profile?.name?.trim() || OWNER_NAME);
+  const ownerDisplayName = OWNER_NAME;
 
   const greetedRef = useRef(false);
   const [celebrate, setCelebrate] = useState(false);
