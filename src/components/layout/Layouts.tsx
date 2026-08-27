@@ -23,11 +23,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }, [tenantId]);
 
   useEffect(() => {
-    if (!user) { setHasPersonalExpAccess(false); return; }
-    const isPersonalOwner = (user.email || "").toLowerCase() === "an.ayoub98@gmail.com";
-    if (isPersonalOwner) { setHasPersonalExpAccess(true); return; }
-    supabase.from("owner_expenses_access" as any).select("id").eq("granted_user_id", user.id).limit(1)
-      .then(({ data }) => setHasPersonalExpAccess(!!(data && data.length)));
+    const allowed = ["an.ayoub98@gmail.com", "nasser1968ayoub@gmail.com"];
+    setHasPersonalExpAccess(!!user && allowed.includes((user.email || "").toLowerCase()));
   }, [user]);
 
   const loadPending = async () => {
