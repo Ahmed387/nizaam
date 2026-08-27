@@ -81,7 +81,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const adminNav: NavItem[] = [
     ...allAdminNav
       .filter((i) => {
-        if (i.ownerOnly) return isOwner || can(i.perm);
+        if (i.ownerOnly) return ownerView || can(i.perm);
         if (i.adminOnly) return isAdmin || can(i.perm);
         return isAdmin || can(i.perm);
       })
