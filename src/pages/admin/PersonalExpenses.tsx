@@ -284,18 +284,22 @@ export default function PersonalExpenses() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [ownerId]);
 
-  // تحية ترحيبية لصاحب الشركة (مرة واحدة كل جلسة فتح للصفحة)
+  // تحية ترحيبية (مرة واحدة كل جلسة فتح للصفحة)
   useEffect(() => {
-    if (!isPersonalOwner || !ownerId || greetedRef.current) return;
+    if (!ownerId || greetedRef.current) return;
     greetedRef.current = true;
     setCelebrate(true);
     const t1 = setTimeout(() => {
-      fancyToast.info(`${greeting()} ${ownerDisplayName} 👋`, "دفترك الشخصي جاهز — كل حاجة هنا خاصة بيك لوحدك");
+      if (isPersonalOwner) {
+        fancyToast.info(`${greeting()} ${ownerDisplayName} 👋`, "دفترك الشخصي جاهز — كل حاجة هنا خاصة بيك لوحدك");
+      } else {
+        fancyToast.info(`${greeting()} 👋`, `دفتر ${ownerDisplayName} الشخصي — ${canEdit ? "عندك صلاحية التعديل" : "عرض فقط"}`);
+      }
     }, 500);
     const t2 = setTimeout(() => setCelebrate(false), 2600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
     // eslint-disable-next-line
-  }, [isPersonalOwner, ownerId]);
+  }, [isPersonalOwner, ownerId, ownerDisplayName]);
 
   // realtime + إشعارات فورية
   useEffect(() => {
