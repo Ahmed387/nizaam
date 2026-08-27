@@ -25,9 +25,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }, [tenantId]);
 
   useEffect(() => {
-    const allowed = ["an.ayoub98@gmail.com", "nasser1968ayoub@gmail.com"];
-    setHasPersonalExpAccess(!!user && allowed.includes((user.email || "").toLowerCase()));
+    if (!user) { setHasPersonalExpAccess(false); return; }
+    // Identity is resolved server-side (email OR login username), because some
+    // accounts sign in with a generated internal email.
+    supabase.rpc("personal_owner_info" as any).then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data;
+      setHasPersonalExpAccess(!!row?.owner_id && row?.access !== "none");
+    });
   }, [user]);
+
 
   const loadPending = async () => {
     if (!tenantId || !isAdmin) return;

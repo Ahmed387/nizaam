@@ -234,7 +234,7 @@ export default function PersonalExpenses() {
 
   // الدفتر الشخصي مسموح لحسابين فقط، والاتنين بيتنادوا "حج ناصر"
   const myEmail = (user?.email || "").toLowerCase();
-  const isPersonalOwner = ALLOWED_EMAILS.includes(myEmail);
+  const [isPersonalOwner, setIsPersonalOwner] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const ownerDisplayName = OWNER_NAME;
 
@@ -244,25 +244,26 @@ export default function PersonalExpenses() {
   const [bellRing, setBellRing] = useState(false);
   const [seenAlerts, setSeenAlerts] = useState<string[]>([]);
 
-  // Resolve owner + access (الحسابين المسموح لهم بس، والدفتر واحد لصاحبه الأساسي)
+  // Resolve owner + access server-side (email OR login username)
   useEffect(() => {
     if (!user) return;
     (async () => {
-      if (!isPersonalOwner) { setOwnerId(null); setCanEdit(false); return; }
-      if (myEmail === OWNER_EMAIL) {
-        setOwnerId(user.id);
-        setCanEdit(true);
-        return;
-      }
       const { data: oi } = await supabase.rpc("personal_owner_info" as any);
-      const row = Array.isArray(oi) ? oi[0] : oi;
+      const row: any = Array.isArray(oi) ? oi[0] : oi;
       const oid = row?.owner_id as string | undefined;
-      if (oid) {
+      const access = (row?.access as string | undefined) ?? "none";
+      if (oid && access !== "none") {
+        setIsPersonalOwner(true);
         setOwnerId(oid);
-        setCanEdit(true);
+        setCanEdit(access === "edit");
+      } else {
+        setIsPersonalOwner(false);
+        setOwnerId(null);
+        setCanEdit(false);
       }
     })();
-  }, [user, isPersonalOwner, myEmail]);
+  }, [user]);
+
 
   const load = async () => {
     if (!ownerId) return;
@@ -1041,6 +1042,10 @@ export default function PersonalExpenses() {
                     </span>
                     <Crown className="w-6 h-6 text-amber-500 animate-float" />
                     {celebrate && <PartyPopper className="w-6 h-6 text-fuchsia-500 animate-pop-in" />}
+                    {!canEdit && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-foreground/10 text-foreground">عرض فقط</span>
+                    )}
+
                   </div>
                   <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-500" />
