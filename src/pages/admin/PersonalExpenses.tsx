@@ -233,7 +233,10 @@ export default function PersonalExpenses() {
   // تخصيص صاحب الشركة
   // صاحب الشركة = دور owner (أو الإيميل المسجّل كصاحب الدفتر الشخصي)
   const isPersonalOwner = isOwner || (user?.email || "").toLowerCase() === OWNER_EMAIL;
-  const ownerDisplayName = isPersonalOwner ? OWNER_NAME : (profile?.name?.trim() || OWNER_NAME);
+  const [ownerName, setOwnerName] = useState<string | null>(null);
+  const ownerDisplayName = isPersonalOwner
+    ? OWNER_NAME
+    : (ownerName?.trim() || profile?.name?.trim() || OWNER_NAME);
 
   const greetedRef = useRef(false);
   const [celebrate, setCelebrate] = useState(false);
