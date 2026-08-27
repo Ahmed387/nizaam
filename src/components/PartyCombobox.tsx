@@ -38,10 +38,14 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
   }, [type]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
-  useRealtimeRefresh(
-    [type === "supplier" ? "suppliers" : type === "customer" ? "customers" : "employees"],
-    loadItems,
-  );
+  // realtime على الجداول الحقيقية (contacts / employees) + حدث محلي فوري بعد الإضافة
+  useRealtimeRefresh([type === "employee" ? "employees" : "contacts"], loadItems);
+  useEffect(() => {
+    const h = () => loadItems();
+    window.addEventListener("party:refresh", h);
+    return () => window.removeEventListener("party:refresh", h);
+  }, [loadItems]);
+
 
   useEffect(() => {
     if (!value) { setBal(null); return; }
