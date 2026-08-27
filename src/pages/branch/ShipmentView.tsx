@@ -271,28 +271,28 @@ export default function ShipmentView() {
             <h3 className="font-bold text-sm">التكاليف</h3>
           </div>
           <div className="text-sm space-y-2">
-            <div className="flex justify-between"><span className="text-muted-foreground">قيمة البضاعة (قبل الخصم)</span><b>{formatEGP(itemsGross)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">قيمة البضاعة (قبل الخصم)</span><b className="font-mono tabular-nums" dir="ltr">{formatEGP(itemsGross)}</b></div>
             {itemsDiscount > 0 && (
-              <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b>− {formatEGP(itemsDiscount)}</b></div>
+              <div className="flex justify-between text-destructive"><span>إجمالي الخصومات</span><b className="font-mono tabular-nums" dir="ltr">− {formatEGP(itemsDiscount)}</b></div>
             )}
-            <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b>{formatEGP(goodsValue)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">صافي البضاعة</span><b className="font-mono tabular-nums" dir="ltr">{formatEGP(goodsValue)}</b></div>
             {invoiceDiscount > 0 && (
               <div className="flex justify-between text-destructive">
                 <span>خصم على الفاتورة{(ship as any).discount_type === "percent" ? ` (${Number((ship as any).discount_value)}%)` : ""}</span>
-                <b>− {formatEGP(invoiceDiscount)}</b>
+                <b className="font-mono tabular-nums" dir="ltr">− {formatEGP(invoiceDiscount)}</b>
               </div>
             )}
-            <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b>{formatEGP(ship.shipping_cost)}</b></div>
-            {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>}
-            {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b>{formatEGP(otherCost)}</b></div>}
-            <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(ship.admin_cost)}</b></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">الشحن</span><b className="font-mono tabular-nums" dir="ltr">{formatEGP(ship.shipping_cost)}</b></div>
+            {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b className="font-mono tabular-nums" dir="ltr">{formatEGP(customs)}</b></div>}
+            {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b className="font-mono tabular-nums" dir="ltr">{formatEGP(otherCost)}</b></div>}
+            <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b className="font-mono tabular-nums" dir="ltr">{formatEGP(ship.admin_cost)}</b></div>
             {vatAmount > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">ضريبة القيمة المضافة{(ship as any).vat_type === "percent" ? ` (${Number((ship as any).vat_value)}%)` : ""}</span>
-                <b>{formatEGP(vatAmount)}</b>
+                <b className="font-mono tabular-nums" dir="ltr">{formatEGP(vatAmount)}</b>
               </div>
             )}
-            <div className="border-t border-border pt-2 flex justify-between text-lg"><span>الإجمالي</span><b className="text-primary">{formatEGP(ship.total_cost)}</b></div>
+            <div className="border-t border-border pt-2 flex justify-between text-lg"><span>الإجمالي</span><b className="text-primary font-mono tabular-nums font-extrabold" dir="ltr">{formatEGP(ship.total_cost)}</b></div>
           </div>
         </div>
       </div>

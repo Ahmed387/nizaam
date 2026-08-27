@@ -1,15 +1,22 @@
+// كل الأرقام في النظام بتتكتب بالأرقام الإنجليزية (1,234.56) عشان تبقى واضحة ومقروءة
+const AR = "ar-EG-u-nu-latn";
+
 export const formatEGP = (n: number | string | null | undefined) => {
   const v = Number(n ?? 0);
-  return new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(v) + " جنيه";
+  const txt = new Intl.NumberFormat(AR, {
+    minimumFractionDigits: Number.isInteger(v) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(v);
+  return `${txt} ج.م`;
 };
 
 export const formatNumber = (n: number | string | null | undefined) =>
-  new Intl.NumberFormat("ar-EG").format(Number(n ?? 0));
+  new Intl.NumberFormat(AR, { maximumFractionDigits: 2 }).format(Number(n ?? 0));
 
 export const formatDate = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat(AR, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -19,7 +26,7 @@ export const formatDate = (d: string | Date | null | undefined) => {
 export const formatDateTime = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat(AR, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -27,6 +34,7 @@ export const formatDateTime = (d: string | Date | null | undefined) => {
     minute: "2-digit",
   }).format(date);
 };
+
 
 export const monthKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
