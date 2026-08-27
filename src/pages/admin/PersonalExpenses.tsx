@@ -1042,6 +1042,10 @@ export default function PersonalExpenses() {
                     </span>
                     <Crown className="w-6 h-6 text-amber-500 animate-float" />
                     {celebrate && <PartyPopper className="w-6 h-6 text-fuchsia-500 animate-pop-in" />}
+                    {!canEdit && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-foreground/10 text-foreground">عرض فقط</span>
+                    )}
+
                   </div>
                   <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-500" />
