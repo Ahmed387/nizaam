@@ -7008,6 +7008,7 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_viewer: { Args: { _user_id: string }; Returns: boolean }
       map_treasury_to_category_key: {
         Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
         Returns: string

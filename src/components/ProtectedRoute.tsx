@@ -77,7 +77,8 @@ export function ProtectedRoute({
   if (ownerOnly) gates.push(isOwner || isSuperAdmin || isViewer);
   if (superAdminOnly) gates.push(isSuperAdmin);
   if (adminOnly) gates.push(isAdmin || isViewer);
-  if (roles) gates.push(isAdmin || roles.some((r) => hasRole(r)));
+  // المراقب: عرض فقط لكل الشاشات (ماعدا المحظورة أعلاه)
+  if (roles) gates.push(isAdmin || isViewer || roles.some((r) => hasRole(r)));
   if (perm) gates.push(can(perm));
   if (gates.length > 0 && !gates.some(Boolean)) return <Navigate to="/" replace />;
 
