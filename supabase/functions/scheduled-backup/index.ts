@@ -1,6 +1,6 @@
 // Scheduled backup: for each tenant, dump key tables to JSON, upload to storage, record in system_backups.
 // Triggered via pg_cron weekly + manual invocation by admins.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
