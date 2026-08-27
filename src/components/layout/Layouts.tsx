@@ -109,9 +109,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> },
   ];
 
-  // A partner who also has the viewer role browses the admin screens
-  // read-only; give them a way back to their partner portal.
-  const partnerBackNav: NavItem[] = (!isAdmin && hasRole("partner") && hasRole("viewer")) ? [
+  // Any partner browsing the admin screens (with or without viewer role)
+  // needs a way back to their partner portal.
+  const partnerBackNav: NavItem[] = (!isAdmin && hasRole("partner")) ? [
     { to: "/partner/dashboard", label: "↩ بوابة الشريك", icon: <LayoutDashboard className="w-4 h-4" />, group: "التنقل" },
   ] : [];
 
@@ -122,10 +122,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       : hasRole("supervisor")
         ? supervisorNav
         : employeeBranchNav;
+
+  const subtitleText = isAdmin
+    ? "لوحة التحكم العامة"
+    : hasRole("partner") || hasRole("viewer")
+      ? "عرض فقط — بدون تعديل"
+      : "ملاحظ — الحضور والانصراف";
+
   return (
     <AppShell
       title={tenant?.name ?? "Nizam"}
-      subtitle={isAdmin ? "لوحة التحكم العامة" : hasRole("viewer") ? "عرض فقط — بدون تعديل" : "ملاحظ — الحضور والانصراف"}
+      subtitle={subtitleText}
       nav={nav}
     >
       {children}
