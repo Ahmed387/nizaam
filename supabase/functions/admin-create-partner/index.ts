@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
     }
 
     const normalizedEmail = String(email ?? '').trim().toLowerCase();
-    if (!partner_name || !partner_type || !username || !password || !normalizedEmail) {
-      return fail('املأ كل البيانات المطلوبة (الاسم، النوع، اسم المستخدم، كلمة المرور، الإيميل)');
+    if (!partner_name || !partner_type || !username || !password) {
+      return fail('املأ كل البيانات المطلوبة (الاسم، النوع، اسم المستخدم، كلمة المرور)');
     }
     if (!['capital', 'operating', 'both'].includes(partner_type)) {
       return fail('نوع الشريك غير صحيح');
