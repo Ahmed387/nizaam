@@ -24,6 +24,9 @@ const TX_LABEL: Record<string, { label: string; sign: number; color: string }> =
   capital_adjustment: { label: "تسوية", sign: 1, color: "text-warning" },
 };
 
+const fmtAmt = (n: number | string) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
+
+
 export default function PartnerProfile() {
   const { id } = useParams();
   const [partner, setPartner] = useState<any>(null);
