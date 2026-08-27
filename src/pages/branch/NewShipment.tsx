@@ -147,6 +147,8 @@ export default function NewShipment() {
     setSavingSup(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
     setSuppliers([data, ...suppliers]);
+    window.dispatchEvent(new Event("party:refresh"));
+
     setSupplierId(data.id);
     setSupplierDlg(false);
     setNewSup({ name: "", contact_person: "", phone: "", address: "" });
