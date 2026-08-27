@@ -81,13 +81,21 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const adminNav: NavItem[] = [
     ...allAdminNav
       .filter((i) => {
-        if (i.ownerOnly) return ownerView || can(i.perm);
+        // Owner-equivalent view (owner or read-only viewer) sees the full board,
+        // minus the screens a viewer is not allowed to open at all.
+        if (ownerView) {
+          if (isViewer && !isAdmin && ["/admin/data-setup", "/admin/settings"].includes(i.to)) return false;
+          return true;
+        }
+        if (i.ownerOnly) return can(i.perm);
         if (i.adminOnly) return isAdmin || can(i.perm);
         return isAdmin || can(i.perm);
       })
+
       .map(({ perm, ownerOnly, adminOnly, ...rest }) => rest),
     ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
   ];
+
 
   // A role's normal branch permissions remain available when an individual
   // employee is granted extra admin pages. The extra grant is additive; it
@@ -121,8 +129,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/partner/dashboard", label: "↩ بوابة الشريك", icon: <LayoutDashboard className="w-4 h-4" />, group: "التنقل" },
   ] : [];
 
-  const nav = isAdmin
-    ? adminNav
+  const nav = isAdmin || ownerView
+    ? [...partnerBackNav, ...adminNav]
     : adminNav.length > 0
       ? [...partnerBackNav, ...adminNav, ...employeeBranchNav]
       : hasRole("supervisor")
@@ -131,9 +139,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const subtitleText = isAdmin
     ? "لوحة التحكم العامة"
-    : hasRole("partner") || hasRole("viewer")
-      ? "عرض فقط — بدون تعديل"
-      : "ملاحظ — الحضور والانصراف";
+    : isViewer
+      ? "لوحة التحكم العامة — عرض فقط"
+      : hasRole("partner")
+        ? "عرض فقط — بدون تعديل"
+        : "ملاحظ — الحضور والانصراف";
+
 
   return (
     <AppShell
