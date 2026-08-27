@@ -5082,6 +5082,9 @@ export type Database = {
           tenant_id: string | null
           total_cost: number
           total_extra_costs: number
+          vat_amount: number
+          vat_type: string
+          vat_value: number
         }
         Insert: {
           admin_cost?: number
@@ -5110,6 +5113,9 @@ export type Database = {
           tenant_id?: string | null
           total_cost?: number
           total_extra_costs?: number
+          vat_amount?: number
+          vat_type?: string
+          vat_value?: number
         }
         Update: {
           admin_cost?: number
@@ -5138,6 +5144,9 @@ export type Database = {
           tenant_id?: string | null
           total_cost?: number
           total_extra_costs?: number
+          vat_amount?: number
+          vat_type?: string
+          vat_value?: number
         }
         Relationships: [
           {
