@@ -32,15 +32,24 @@ export function ViewersTab() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
+    // ملاحظة: مفيش علاقة مباشرة بين profiles و user_roles في الداتابيز،
+    // فبنجيب المراقبين على خطوتين بدل الـ embed اللي كان بيرجع فاضي.
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("tenant_id", tenantId)
+      .eq("role", "viewer");
+    const ids = Array.from(new Set((roleRows ?? []).map((r: any) => r.user_id).filter(Boolean)));
+    if (ids.length === 0) { setRows([]); setLoading(false); return; }
     const { data } = await supabase
       .from("profiles")
-      .select("id, name, username, created_at, user_roles!inner(role)")
-      .eq("tenant_id", tenantId)
-      .eq("user_roles.role", "viewer")
+      .select("id, name, username, created_at")
+      .in("id", ids)
       .order("created_at", { ascending: false });
     setRows((data ?? []) as any);
     setLoading(false);
   };
+
 
   useEffect(() => { load(); }, [tenantId]);
 
