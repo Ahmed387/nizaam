@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { withPartnerBalance } from "@/lib/partnerBalances";
 import { toast } from "sonner";
-import { Loader2, Pencil, PlusCircle, Wallet } from "lucide-react";
+import { Loader2, Pencil, PlusCircle, Wallet, Trash2 } from "lucide-react";
 import { EditPartnerTxDialog } from "@/components/EditPartnerTxDialog";
+import { confirmAlert } from "@/components/ConfirmDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,9 @@ const TX_LABEL: Record<string, { label: string; sign: number; color: string }> =
   profit_share: { label: "أرباح", sign: 1, color: "text-primary" },
   capital_adjustment: { label: "تسوية", sign: 1, color: "text-warning" },
 };
+
+const fmtAmt = (n: number | string) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
+
 
 export default function PartnerProfile() {
   const { id } = useParams();
@@ -93,6 +97,23 @@ export default function PartnerProfile() {
     setTx({ type: "contribution", amount: "", description: "", month_year: new Date().toISOString().slice(0, 7) });
     load();
   };
+
+  const deleteTx = async (t: any) => {
+    const ok = await confirmAlert({
+      title: "حذف الحركة نهائيًا؟",
+      description: `هيتم مسح الحركة (${TX_LABEL[t.transaction_type]?.label ?? t.transaction_type} بمبلغ ${fmtAmt(t.amount)}) والرصيد هيتحدّث تلقائيًا. مفيش رجوع.`,
+      confirmLabel: "أيوه، احذف",
+      cancelLabel: "لأ، سيبها",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const { error } = await supabase.rpc("delete_partner_transaction" as any, { _tx_id: t.id });
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الحركة — الرصيد اتحدّث");
+    load();
+  };
+
+
 
   const outstandingAdvances = useMemo(
     () => advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0),
@@ -187,11 +208,11 @@ export default function PartnerProfile() {
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">التاريخ</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th>
-                  <th className="p-2">الشهر</th><th className="p-2">الوصف</th><th className="p-2">الرصيد الجاري</th><th className="p-2">إجراءات</th>
+                  <th className="p-2">الوصف</th><th className="p-2">الرصيد الجاري</th><th className="p-2">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
-                {txs.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا توجد حركات</td></tr>}
+                {txs.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا توجد حركات</td></tr>}
                 {txs.map(t => {
                   const cfg = TX_LABEL[t.transaction_type];
                   const signed = t.transaction_type === "drawing" ? -Number(t.amount) : Number(t.amount);
@@ -200,13 +221,17 @@ export default function PartnerProfile() {
                       <td className="p-2">{new Date(t.created_at).toLocaleDateString("en-EG")}</td>
                       <td className={`p-2 font-semibold ${cfg?.color}`}>{cfg?.label ?? t.transaction_type}</td>
                       <td className={`p-2 font-mono ${signed >= 0 ? "text-success" : "text-destructive"}`}>{signed >= 0 ? "+" : ""}{fmt(signed)}</td>
-                      <td className="p-2">{t.month_year || "-"}</td>
                       <td className="p-2">{t.description || "-"}</td>
                       <td className="p-2 font-mono">{fmt(runningBalances[t.id] ?? 0)}</td>
                       <td className="p-2">
-                        <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setEditTx(t); setOpenEdit(true); }}>
-                          <Pencil className="w-3.5 h-3.5 ml-1" />تعديل
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setEditTx(t); setOpenEdit(true); }}>
+                            <Pencil className="w-3.5 h-3.5 ml-1" />تعديل
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-destructive hover:bg-destructive/10" onClick={() => deleteTx(t)}>
+                            <Trash2 className="w-3.5 h-3.5 ml-1" />حذف
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

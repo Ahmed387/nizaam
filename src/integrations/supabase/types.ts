@@ -6710,6 +6710,10 @@ export type Database = {
         Args: { p_approve: boolean; p_note?: string; p_request_id: string }
         Returns: Json
       }
+      delete_partner_transaction: {
+        Args: { _tx_id: string }
+        Returns: undefined
+      }
       delete_voucher_admin: {
         Args: { p_reason?: string; p_voucher_id: string }
         Returns: Json
