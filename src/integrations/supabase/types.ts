@@ -7128,6 +7128,13 @@ export type Database = {
         Returns: number
       }
       personal_access_level: { Args: { _owner: string }; Returns: string }
+      personal_owner_info: {
+        Args: never
+        Returns: {
+          owner_id: string
+          owner_name: string
+        }[]
+      }
       post_invoice_cogs: { Args: { p_invoice_id: string }; Returns: undefined }
       post_journal: {
         Args: {
