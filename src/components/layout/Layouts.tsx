@@ -124,8 +124,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/partner/dashboard", label: "↩ بوابة الشريك", icon: <LayoutDashboard className="w-4 h-4" />, group: "التنقل" },
   ] : [];
 
-  const nav = isAdmin
-    ? adminNav
+  const nav = isAdmin || ownerView
+    ? [...partnerBackNav, ...adminNav]
     : adminNav.length > 0
       ? [...partnerBackNav, ...adminNav, ...employeeBranchNav]
       : hasRole("supervisor")
@@ -134,9 +134,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const subtitleText = isAdmin
     ? "لوحة التحكم العامة"
-    : hasRole("partner") || hasRole("viewer")
-      ? "عرض فقط — بدون تعديل"
-      : "ملاحظ — الحضور والانصراف";
+    : isViewer
+      ? "لوحة التحكم العامة — عرض فقط"
+      : hasRole("partner")
+        ? "عرض فقط — بدون تعديل"
+        : "ملاحظ — الحضور والانصراف";
+
 
   return (
     <AppShell
