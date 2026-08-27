@@ -87,6 +87,8 @@ export default function NewShipment() {
   const [admin, setAdmin] = useState(0);
   const [invDiscType, setInvDiscType] = useState<"amount" | "percent">("amount");
   const [invDiscValue, setInvDiscValue] = useState(0);
+  const [vatType, setVatType] = useState<"amount" | "percent">("percent");
+  const [vatValue, setVatValue] = useState(0);
 
   const [notes, setNotes] = useState("");
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
@@ -105,7 +107,7 @@ export default function NewShipment() {
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   // ===== Local autosave (crash / accidental reload safety net) =====
-  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, invDiscType, invDiscValue, notes, lines, plan };
+  const draftSnapshot = { supplierId, arrival, invoiceDate, receivedBy, shipping, customs, otherCost, otherDesc, admin, invDiscType, invDiscValue, vatType, vatValue, notes, lines, plan };
   const formDraft = useFormDraft<typeof draftSnapshot>(
     "purchase",
     [user?.id, branchId],
@@ -126,6 +128,8 @@ export default function NewShipment() {
     setAdmin(d.admin ?? 0);
     setInvDiscType(d.invDiscType ?? "amount");
     setInvDiscValue(d.invDiscValue ?? 0);
+    setVatType(d.vatType ?? "percent");
+    setVatValue(d.vatValue ?? 0);
     setNotes(d.notes ?? "");
     setLines(d.lines ?? []);
     if (d.plan) setPlan(d.plan);
@@ -223,6 +227,8 @@ export default function NewShipment() {
       setAdmin(Number(s.admin_cost ?? 0));
       setInvDiscType(((s as any).discount_type === "percent" ? "percent" : "amount"));
       setInvDiscValue(Number((s as any).discount_value ?? 0));
+      setVatType(((s as any).vat_type === "amount" ? "amount" : "percent"));
+      setVatValue(Number((s as any).vat_value ?? 0));
       setNotes(s.notes ?? "");
       setLines((it ?? []).map((r: any) => ({
         id: r.id,
@@ -340,7 +346,15 @@ export default function NewShipment() {
   };
 
 
-  const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0);
+  // ضريبة القيمة المضافة — بتتحسب على صافي البضاعة بعد خصم الفاتورة (نسبة أو مبلغ ثابت)
+  const vatAmount = Math.max(
+    0,
+    vatType === "percent"
+      ? (netAfterInvoiceDiscount * Math.min(100, Math.max(0, Number(vatValue) || 0))) / 100
+      : Number(vatValue) || 0,
+  );
+
+  const grandTotal = netAfterInvoiceDiscount + totalExtras + Number(admin || 0) + vatAmount;
 
   // ===== رصيد خزنة الفرع — الدفع النقدي مش مسموح لو الخزنة فاضية =====
   const [treasuryBalance, setTreasuryBalance] = useState<number | null>(null);
@@ -423,6 +437,8 @@ export default function NewShipment() {
       admin_cost: Number(admin || 0),
       discount_type: invDiscType,
       discount_value: Number(invDiscValue || 0),
+      vat_type: vatType,
+      vat_value: Number(vatValue || 0),
       notes: notes.trim(),
     };
     const items = lines.map((l) => ({
@@ -537,6 +553,8 @@ export default function NewShipment() {
           admin_cost: Number(admin || 0),
           discount_type: invDiscType,
           discount_value: Number(invDiscValue || 0),
+          vat_type: vatType,
+          vat_value: Number(vatValue || 0),
           notes: notes.trim() || null,
         },
         p_lines: linesPayload,
@@ -1133,6 +1151,11 @@ export default function NewShipment() {
                 <div className="text-xs font-bold text-indigo-800/80 dark:text-indigo-200/80 mb-1">الإجمالي المستحق للمورد</div>
                 <div className="text-3xl md:text-4xl font-black text-indigo-700 dark:text-indigo-300 tracking-tight">{formatEGP(grandTotal)}</div>
                 <div className="text-xs text-muted-foreground mt-1">{lines.length} صنف · {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة</div>
+                {vatAmount > 0 && (
+                  <div className="text-xs mt-1 text-teal-700 dark:text-teal-300 font-semibold">
+                    شامل ضريبة قيمة مضافة {formatEGP(vatAmount)}{vatType === "percent" ? ` (${Number(vatValue) || 0}%)` : ""}
+                  </div>
+                )}
               </div>
               {(() => {
                 const splitsSum = plan.splits.reduce((s, l) => s + Number(l.amount || 0), 0);
@@ -1171,7 +1194,7 @@ export default function NewShipment() {
           </div>
 
           {/* Detail grid */}
-          <div className="grid md:grid-cols-3 gap-3 mb-5">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
             {/* Goods */}
             <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-l from-indigo-500/[0.05] to-transparent p-3 space-y-2">
               <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
@@ -1238,7 +1261,46 @@ export default function NewShipment() {
                 <div className="flex justify-between border-t border-dashed border-amber-500/20 pt-1"><span className="text-muted-foreground text-xs">إدارية</span><b>{formatEGP(admin)}</b></div>
               </div>
             </div>
+
+            {/* VAT */}
+            <div className="rounded-xl border border-teal-500/25 bg-gradient-to-l from-teal-500/[0.06] to-transparent p-3 space-y-2">
+              <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-teal-500/15 flex items-center justify-center text-[10px]">٤</span>
+                ضريبة القيمة المضافة
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex rounded-md overflow-hidden border border-teal-500/30 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setVatType("amount")}
+                    className={`px-3 h-8 text-xs font-bold ${vatType === "amount" ? "bg-teal-600 text-white" : "bg-teal-500/10 text-teal-700 dark:text-teal-300"}`}
+                  >ج.م</button>
+                  <button
+                    type="button"
+                    onClick={() => setVatType("percent")}
+                    className={`px-3 h-8 text-xs font-bold ${vatType === "percent" ? "bg-teal-600 text-white" : "bg-teal-500/10 text-teal-700 dark:text-teal-300"}`}
+                  >%</button>
+                </div>
+                {vatAmount > 0 && (
+                  <span className="text-xs font-bold text-teal-700 dark:text-teal-300">+ {formatEGP(vatAmount)}</span>
+                )}
+              </div>
+              <Input
+                type="number"
+                min={0}
+                max={vatType === "percent" ? 100 : undefined}
+                step="0.01"
+                value={vatValue}
+                onChange={(e) => setVatValue(Number(e.target.value))}
+                placeholder="0"
+                className="h-9 border-teal-500/20 focus-visible:ring-teal-500/30"
+              />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                بتتحسب على صافي البضاعة بعد الخصم، وبتتضاف على المستحق للمورد — ومش بتدخل في تكلفة الوحدة (بتتسجل في حساب «ضريبة القيمة المضافة على المشتريات»).
+              </p>
+            </div>
           </div>
+
 
           {/* Save button */}
           <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/20 h-14 text-lg font-bold rounded-xl">

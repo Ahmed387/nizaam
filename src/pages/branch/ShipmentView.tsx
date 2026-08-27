@@ -145,7 +145,8 @@ export default function ShipmentView() {
   const otherCost = Number(ship.other_cost ?? 0);
   const totalExtras = Number(ship.total_extra_costs ?? 0) || (Number(ship.shipping_cost ?? 0) + customs + otherCost);
   const invoiceDiscount = Number((ship as any).discount_amount ?? 0);
-  const goodsValue = ship.total_cost - ship.shipping_cost - customs - otherCost - ship.admin_cost + invoiceDiscount;
+  const vatAmount = Number((ship as any).vat_amount ?? 0);
+  const goodsValue = ship.total_cost - ship.shipping_cost - customs - otherCost - ship.admin_cost - vatAmount + invoiceDiscount;
   const itemsGross = items.reduce((s, it) => s + Number(it.quantity) * Number(it.cost_price), 0);
   const itemsDiscount = itemsGross - items.reduce((s, it) => s + Number(it.total ?? 0), 0);
 
@@ -187,6 +188,7 @@ export default function ShipmentView() {
           ${invoiceDiscount > 0 ? `<div class="row"><span>خصم على الفاتورة${(ship as any).discount_type === "percent" ? ` (${Number((ship as any).discount_value)}%)` : ""}</span><b class="neg">− ${formatEGP(invoiceDiscount)}</b></div>` : ""}
           <div class="row"><span>الشحن</span><b>${formatEGP(ship.shipping_cost)}</b></div>
           <div class="row"><span>إدارية</span><b>${formatEGP(ship.admin_cost)}</b></div>
+          ${vatAmount > 0 ? `<div class="row"><span>ضريبة القيمة المضافة${(ship as any).vat_type === "percent" ? ` (${Number((ship as any).vat_value)}%)` : ""}</span><b>${formatEGP(vatAmount)}</b></div>` : ""}
           <div class="row" style="border-top:1px solid #ddd;padding-top:6px;margin-top:6px"><span><b>الإجمالي</b></span><b style="color:#3b82f6;font-size:15px">${formatEGP(ship.total_cost)}</b></div>
         </div>
       </div>
@@ -284,6 +286,12 @@ export default function ShipmentView() {
             {customs > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الجمارك</span><b>{formatEGP(customs)}</b></div>}
             {otherCost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">مصاريف أخرى {ship.other_cost_description ? `(${ship.other_cost_description})` : ""}</span><b>{formatEGP(otherCost)}</b></div>}
             <div className="flex justify-between"><span className="text-muted-foreground">إدارية</span><b>{formatEGP(ship.admin_cost)}</b></div>
+            {vatAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">ضريبة القيمة المضافة{(ship as any).vat_type === "percent" ? ` (${Number((ship as any).vat_value)}%)` : ""}</span>
+                <b>{formatEGP(vatAmount)}</b>
+              </div>
+            )}
             <div className="border-t border-border pt-2 flex justify-between text-lg"><span>الإجمالي</span><b className="text-primary">{formatEGP(ship.total_cost)}</b></div>
           </div>
         </div>
