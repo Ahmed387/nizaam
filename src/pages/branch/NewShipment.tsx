@@ -1256,7 +1256,46 @@ export default function NewShipment() {
                 <div className="flex justify-between border-t border-dashed border-amber-500/20 pt-1"><span className="text-muted-foreground text-xs">إدارية</span><b>{formatEGP(admin)}</b></div>
               </div>
             </div>
+
+            {/* VAT */}
+            <div className="rounded-xl border border-teal-500/25 bg-gradient-to-l from-teal-500/[0.06] to-transparent p-3 space-y-2">
+              <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300 text-xs font-bold">
+                <span className="w-5 h-5 rounded-md bg-teal-500/15 flex items-center justify-center text-[10px]">٤</span>
+                ضريبة القيمة المضافة
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex rounded-md overflow-hidden border border-teal-500/30 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setVatType("amount")}
+                    className={`px-3 h-8 text-xs font-bold ${vatType === "amount" ? "bg-teal-600 text-white" : "bg-teal-500/10 text-teal-700 dark:text-teal-300"}`}
+                  >ج.م</button>
+                  <button
+                    type="button"
+                    onClick={() => setVatType("percent")}
+                    className={`px-3 h-8 text-xs font-bold ${vatType === "percent" ? "bg-teal-600 text-white" : "bg-teal-500/10 text-teal-700 dark:text-teal-300"}`}
+                  >%</button>
+                </div>
+                {vatAmount > 0 && (
+                  <span className="text-xs font-bold text-teal-700 dark:text-teal-300">+ {formatEGP(vatAmount)}</span>
+                )}
+              </div>
+              <Input
+                type="number"
+                min={0}
+                max={vatType === "percent" ? 100 : undefined}
+                step="0.01"
+                value={vatValue}
+                onChange={(e) => setVatValue(Number(e.target.value))}
+                placeholder="0"
+                className="h-9 border-teal-500/20 focus-visible:ring-teal-500/30"
+              />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                بتتحسب على صافي البضاعة بعد الخصم، وبتتضاف على المستحق للمورد — ومش بتدخل في تكلفة الوحدة (بتتسجل في حساب «ضريبة القيمة المضافة على المشتريات»).
+              </p>
+            </div>
           </div>
+
 
           {/* Save button */}
           <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/20 h-14 text-lg font-bold rounded-xl">
