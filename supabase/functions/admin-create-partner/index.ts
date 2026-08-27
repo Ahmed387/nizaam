@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
     }
 
     const normalizedEmail = String(email ?? '').trim().toLowerCase();
-    if (!partner_name || !partner_type || !username || !password || !normalizedEmail) {
-      return fail('املأ كل البيانات المطلوبة (الاسم، النوع، اسم المستخدم، كلمة المرور، الإيميل)');
+    if (!partner_name || !partner_type || !username || !password) {
+      return fail('املأ كل البيانات المطلوبة (الاسم، النوع، اسم المستخدم، كلمة المرور)');
     }
     if (!['capital', 'operating', 'both'].includes(partner_type)) {
       return fail('نوع الشريك غير صحيح');
@@ -122,12 +122,16 @@ Deno.serve(async (req) => {
       return fail('اسم المستخدم مستخدم بالفعل — اختار اسم تاني');
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return fail('أدخل بريد إلكتروني صحيح للشريك');
     }
 
-    // A real email is mandatory because the unified login screen authenticates by email.
-    const authEmail = normalizedEmail;
+    // Email is optional: when it is missing we mint an internal address.
+    // The unified login screen still works because partner-signin resolves the
+    // profile username (which stays the visible login name) to the auth email.
+    const slug = String(username).toLowerCase().replace(/[^a-z0-9]+/g, '') || 'partner';
+    const authEmail = normalizedEmail
+      || `p-${slug}-${crypto.randomUUID().slice(0, 8)}@partners.local`;
     let userId: string | null = null;
     let createdNewAuthUser = false;
 
