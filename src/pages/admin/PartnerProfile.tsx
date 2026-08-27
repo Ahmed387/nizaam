@@ -95,6 +95,23 @@ export default function PartnerProfile() {
     load();
   };
 
+  const deleteTx = async (t: any) => {
+    const ok = await confirmAlert({
+      title: "حذف الحركة نهائيًا؟",
+      description: `هيتم مسح الحركة (${TX_LABEL[t.transaction_type]?.label ?? t.transaction_type} بمبلغ ${fmtAmt(t.amount)}) والرصيد هيتحدّث تلقائيًا. مفيش رجوع.`,
+      confirmLabel: "أيوه، احذف",
+      cancelLabel: "لأ، سيبها",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const { error } = await supabase.rpc("delete_partner_transaction" as any, { _tx_id: t.id });
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الحركة — الرصيد اتحدّث");
+    load();
+  };
+
+
+
   const outstandingAdvances = useMemo(
     () => advances.reduce((s, a) => s + Number(a.remaining_amount || 0), 0),
     [advances]
