@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Loader2, DoorClosed, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, CashierShift, ShiftPaymentLine } from "@/lib/shifts";
+import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, fetchShiftHandovers, CashierShift, ShiftPaymentLine, ShiftHandover } from "@/lib/shifts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
