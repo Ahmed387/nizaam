@@ -171,7 +171,16 @@ export async function fetchShiftHandovers(shiftId: string): Promise<ShiftHandove
   return ((data ?? []) as any[]).map((r) => ({ ...r, amount: Number(r.amount ?? 0) })) as ShiftHandover[];
 }
 
-/** مدير الفرع/الأونر بيسجل استلام عهدة من كاشير غادر طارئ — الوردية بتفضل مفتوحة */
+export interface HandoverManager { id: string; name: string | null; role: string }
+
+/** المستلمون المصرّح لهم في الفرع (مدير الفرع + الإدارة) */
+export async function fetchHandoverManagers(branchId: string): Promise<HandoverManager[]> {
+  const { data, error } = await supabase.rpc("branch_handover_managers" as any, { p_branch_id: branchId });
+  if (error) throw error;
+  return (data ?? []) as HandoverManager[];
+}
+
+/** الكاشير نفسه أو مدير الفرع/الأونر بيسجل تسليم عهدة طارئ — الوردية بتفضل مفتوحة */
 export async function recordMidShiftHandover(shiftId: string, amountReceived: number, notes?: string, managerId?: string) {
   const { data, error } = await supabase.rpc("record_mid_shift_handover" as any, {
     p_shift_id: shiftId,

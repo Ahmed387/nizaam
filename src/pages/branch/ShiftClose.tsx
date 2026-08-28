@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, DoorClosed, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, DoorClosed, CheckCircle2, AlertTriangle, HandCoins } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, fetchShiftHandovers, CashierShift, ShiftPaymentLine, ShiftHandover } from "@/lib/shifts";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, fetchShiftHandovers, fetchHandoverManagers, recordMidShiftHandover, CashierShift, ShiftPaymentLine, ShiftHandover, HandoverManager } from "@/lib/shifts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
@@ -26,6 +28,39 @@ export default function ShiftClose() {
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [autoCheckout, setAutoCheckout] = useState(true);
+  // تسليم عهدة طارئ (الكاشير بنفسه)
+  const [hoOpen, setHoOpen] = useState(false);
+  const [hoManagers, setHoManagers] = useState<HandoverManager[]>([]);
+  const [hoManagerId, setHoManagerId] = useState("");
+  const [hoAmount, setHoAmount] = useState<number>(0);
+  const [hoNotes, setHoNotes] = useState("");
+  const [hoBusy, setHoBusy] = useState(false);
+
+  const openHandover = async () => {
+    setHoAmount(Number(closingCash) || 0);
+    setHoNotes("");
+    setHoOpen(true);
+    try {
+      const list = await fetchHandoverManagers(branchId);
+      setHoManagers(list.filter((m) => m.id !== shift?.cashier_id));
+    } catch (e: any) { toast.error(e.message ?? "تعذر تحميل قائمة المستلمين"); }
+  };
+
+  const submitHandover = async () => {
+    if (!shift) return;
+    if (!hoManagerId) { toast.error("اختار مدير الفرع المستلم للعهدة"); return; }
+    setHoBusy(true);
+    try {
+      await recordMidShiftHandover(shift.id, Number(hoAmount) || 0, hoNotes || undefined, hoManagerId);
+      toast.success("تم تسجيل تسليم العهدة وإخطار المدير والأونر");
+      setHoOpen(false);
+      setHandovers(await fetchShiftHandovers(shift.id).catch(() => []));
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل تسجيل التسليم");
+    } finally { setHoBusy(false); }
+  };
+
+
 
 
   useEffect(() => {
@@ -143,6 +178,15 @@ export default function ShiftClose() {
           </div>
         )}
 
+        <div className="rounded-lg border border-border p-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground max-w-sm">
+            ظرف طارئ ومضطر تمشي قبل نهاية الوردية؟ سلّم الكاش لمدير الفرع وسجّل التسليم — الوردية هتفضل مفتوحة.
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={openHandover}>
+            <HandCoins className="w-4 h-4 me-2" />تسليم عهدة طارئ
+          </Button>
+        </div>
+
 
         <form onSubmit={submit} className="space-y-4 pt-2 border-t">
           <div>
@@ -186,6 +230,45 @@ export default function ShiftClose() {
           </Button>
         </form>
       </Card>
+
+      <Dialog open={hoOpen} onOpenChange={(o) => !hoBusy && setHoOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تسليم عهدة طارئ أثناء الوردية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>مدير الفرع المستلم</Label>
+              <Select value={hoManagerId} onValueChange={setHoManagerId}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختار المستلم" /></SelectTrigger>
+                <SelectContent>
+                  {hoManagers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name ?? "—"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>المبلغ المسلَّم (جنيه)</Label>
+              <Input type="number" min={0} step="0.01" className="mt-1.5 text-lg"
+                value={hoAmount} onChange={(e) => setHoAmount(Number(e.target.value))} />
+            </div>
+            <div>
+              <Label>سبب المغادرة / ملاحظات</Label>
+              <Textarea rows={2} className="mt-1.5" value={hoNotes} onChange={(e) => setHoNotes(e.target.value)} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              الوردية هتفضل مفتوحة وحساباتها زي ما هي — ده إقرار تسليم عهدة داخلي، وهيتبعت إشعار فوري للمدير المستلم وللأونر.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHoOpen(false)} disabled={hoBusy}>إلغاء</Button>
+            <Button onClick={submitHandover} disabled={hoBusy} className="min-w-[150px]">
+              {hoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><HandCoins className="w-4 h-4 me-2" />تسجيل التسليم</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }

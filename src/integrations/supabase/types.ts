@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -6594,6 +6594,8 @@ export type Database = {
         }
         Returns: string
       }
+      admin_cancel_all_invoices: { Args: never; Returns: number }
+      admin_clear_treasury: { Args: never; Returns: number }
       admin_reset_branch_data: {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
@@ -6679,6 +6681,14 @@ export type Database = {
           overdue_count: number
         }[]
       }
+      branch_handover_managers: {
+        Args: { p_branch_id: string }
+        Returns: {
+          id: string
+          name: string
+          role: string
+        }[]
+      }
       cairo_today: { Args: never; Returns: string }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
@@ -6729,6 +6739,7 @@ export type Database = {
         Args: { p_reason: string; p_voucher_id: string }
         Returns: undefined
       }
+      clear_opening_treasury: { Args: never; Returns: number }
       close_cashier_shift: {
         Args: {
           p_auto?: boolean
@@ -7230,6 +7241,17 @@ export type Database = {
         Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
         Returns: string
       }
+      mark_invoice_migrated: {
+        Args: {
+          p_batch_id: string
+          p_invoice_date: string
+          p_invoice_id: string
+          p_legacy_number: string
+          p_notes?: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       mark_overdue_installments: { Args: never; Returns: number }
       mark_partner_advance_installments_overdue: {
         Args: never
@@ -7727,6 +7749,53 @@ export type Database = {
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
+      set_invoice_meta: {
+        Args: {
+          p_invoice_date?: string
+          p_invoice_id: string
+          p_notes?: string
+        }
+        Returns: {
+          branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cashier_id: string
+          contact_id: string | null
+          created_at: string
+          current_balance: number | null
+          discount_amount: number
+          discount_percent: number
+          discount_reason: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          is_migrated: boolean
+          legacy_number: string | null
+          migration_batch_id: string | null
+          migration_source: string | null
+          notes: string | null
+          payment_method: string
+          previous_balance: number | null
+          refund_amount: number
+          refund_method: string | null
+          refund_processed_at: string | null
+          refund_processed_by: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          subtotal: number
+          tenant_id: string | null
+          total: number
+          total_paid_before_cancel: number
+          vat_amount: number
+          vat_rate: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_partner_capital: {
         Args: { _amount: number; _partner_id: string; _rebalance?: boolean }
         Returns: Json
