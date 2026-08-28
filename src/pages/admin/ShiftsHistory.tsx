@@ -42,10 +42,38 @@ export default function ShiftsHistory() {
   const [to, setTo] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [breakdowns, setBreakdowns] = useState<Record<string, ShiftPaymentLine[]>>({});
+  const [handovers, setHandovers] = useState<Record<string, ShiftHandover[]>>({});
+  const [hoShift, setHoShift] = useState<Row | null>(null);
+  const [hoAmount, setHoAmount] = useState<number>(0);
+  const [hoNotes, setHoNotes] = useState("");
+  const [hoBusy, setHoBusy] = useState(false);
+
+  const loadHandovers = async (id: string) => {
+    try {
+      const list = await fetchShiftHandovers(id);
+      setHandovers((p) => ({ ...p, [id]: list }));
+    } catch { /* ignore */ }
+  };
+
+  const submitHandover = async () => {
+    if (!hoShift) return;
+    setHoBusy(true);
+    try {
+      await recordMidShiftHandover(hoShift.id, Number(hoAmount) || 0, hoNotes || undefined);
+      toast.success("تم تسجيل تسليم العهدة — الوردية مستمرة وتم إبلاغ الأونر");
+      await loadHandovers(hoShift.id);
+      setHoShift(null); setHoAmount(0); setHoNotes("");
+    } catch (e: any) {
+      toast.error(e.message ?? "تعذر تسجيل التسليم");
+    } finally {
+      setHoBusy(false);
+    }
+  };
 
   const toggleRow = async (id: string) => {
     if (expanded === id) return setExpanded(null);
     setExpanded(id);
+    if (!handovers[id]) loadHandovers(id);
     if (!breakdowns[id]) {
       try {
         const lines = await shiftPaymentBreakdown(id);
@@ -55,6 +83,8 @@ export default function ShiftsHistory() {
       }
     }
   };
+
+
 
 
   const [pending, setPending] = useState<any[]>([]);
