@@ -1,0 +1,12 @@
+REVOKE EXECUTE ON FUNCTION public.open_cashier_shift_secure(uuid,numeric,text,boolean) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.override_shift_opening(uuid,text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.shift_sale_gate(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.current_shift_schedule(uuid,timestamptz) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.expected_opening_cash(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.shift_planned_end(uuid) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.open_cashier_shift_secure(uuid,numeric,text,boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.override_shift_opening(uuid,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.shift_sale_gate(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.current_shift_schedule(uuid,timestamptz) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.expected_opening_cash(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.shift_planned_end(uuid) TO authenticated;
