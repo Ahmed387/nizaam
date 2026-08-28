@@ -259,36 +259,23 @@ export default function EmployeeProfile() {
     const { validateTransferPayment } = await import("@/lib/paymentMethods");
     const sErr = validateTransferPayment(salPm);
     if (sErr) return toast.error(sErr);
-    const { data: existing } = await supabase.from("salaries").select("id").eq("employee_id", emp.id).eq("month", salForm.month).maybeSingle();
-    if (existing) return toast.error("راتب هذا الشهر مدفوع بالفعل");
-    const { data: sal, error } = await supabase.from("salaries").insert({
-      employee_id: emp.id, month: salForm.month, base_salary: base,
-      bonuses, deductions: ded, advance_deduct: advDed, net_salary: net, paid_by: user!.id,
-    }).select().single();
+    const { data: salaryId, error } = await supabase.rpc("pay_employee_salary" as any, {
+      p_employee_id: emp.id,
+      p_month: salForm.month,
+      p_bonuses: bonuses,
+      p_deductions: ded,
+      p_advance_deduct: advDed,
+      p_payment_method: salPm.method,
+      p_reference_number: salPm.reference_number ?? null,
+      p_transfer_to_account: salPm.transfer_to_account ?? null,
+      p_transfer_from_account: salPm.transfer_from_account ?? null,
+      p_fee_amount: salPm.fee_amount ?? 0,
+      p_notes: null,
+    } as any);
     if (error) return toast.error(error.message);
-    let toDeduct = advDed;
-    for (const a of advances) {
-      if (toDeduct <= 0) break;
-      const take = Math.min(toDeduct, Number(a.remaining));
-      if (take > 0) {
-        await supabase.from("advances").update({ remaining: Number(a.remaining) - take }).eq("id", a.id);
-        await supabase.from("advance_payments").insert({ advance_id: a.id, amount: take, month: salForm.month });
-        toDeduct -= take;
-      }
-    }
-    await supabase.from("treasury").insert({
-      branch_id: emp.branch_id, type: "expense", category: "salary",
-      amount: net, description: `راتب ${salForm.month} - ${emp.name}`, reference_id: sal.id, created_by: user!.id,
-      payment_method: salPm.method, reference_number: salPm.reference_number ?? null, transfer_to_account: salPm.transfer_to_account ?? null, transfer_from_account: salPm.transfer_from_account ?? null,
-    });
-    if (salPm.fee_amount > 0) {
-      await supabase.from("treasury").insert({
-        branch_id: emp.branch_id, type: "expense", category: "transfer_fee",
-        amount: salPm.fee_amount, description: `عمولة ${salPm.method} - راتب ${emp.name}`,
-        is_fee: true, payment_method: salPm.method, created_by: user!.id,
-      } as any);
-    }
+    const sal = { id: salaryId as unknown as string };
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "salary", entityId: sal.id, details: { employee: emp.name, month: salForm.month, net, method: salPm.method } });
+
 
     // Notify employee that their salary has been paid
     if (emp.user_id) {
