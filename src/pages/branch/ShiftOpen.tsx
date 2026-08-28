@@ -109,16 +109,28 @@ export default function ShiftOpen() {
   }
 
   if (existing) {
+    const pending = existing.opening_status && existing.opening_status !== "accepted";
     return (
       <BranchLayout>
-        <PageHeader title="وردية الكاشير" subtitle="لديك وردية مفتوحة بالفعل" />
+        <PageHeader title="وردية الكاشير" subtitle={pending ? "وردية بانتظار اعتماد الإدارة" : "لديك وردية مفتوحة بالفعل"} />
         <Card className="p-6 max-w-xl mx-auto space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><div className="text-muted-foreground">تاريخ الفتح</div><div className="font-semibold">{new Date(existing.opened_at).toLocaleString("ar-EG")}</div></div>
             <div><div className="text-muted-foreground">الرصيد الافتتاحي</div><div className="font-semibold">{formatEGP(existing.opening_cash)}</div></div>
           </div>
+          {pending && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <div className="font-bold text-destructive">تم إبلاغ الإدارة — بانتظار الاعتماد</div>
+                <div className="text-muted-foreground">
+                  المتوقع {formatEGP(existing.expected_opening_cash ?? 0)} والمعدود {formatEGP(existing.reported_opening_cash ?? existing.opening_cash)} — البيع متوقف لحد ما الأونر أو مدير الفرع يعتمد الفرق.
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={() => nav(`/branch/${branchId}/sales/new`)}>
+            <Button className="flex-1" disabled={pending} onClick={() => nav(`/branch/${branchId}/sales/new`)}>
               <ShoppingCart className="w-4 h-4 me-2" />بدء البيع
             </Button>
             <Button variant="outline" onClick={() => nav(`/branch/${branchId}/shifts/close`)}>قفل الوردية</Button>
@@ -127,6 +139,7 @@ export default function ShiftOpen() {
       </BranchLayout>
     );
   }
+
 
   return (
     <BranchLayout>
