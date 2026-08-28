@@ -353,6 +353,49 @@ export default function ShiftsHistory() {
           </table>
         </Card>
       )}
+
+      <Dialog open={!!hoShift} onOpenChange={(o) => !hoBusy && !o && setHoShift(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تسليم عهدة طارئ أثناء الوردية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border p-3 text-sm space-y-1 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الكاشير</span>
+                <span className="font-semibold">{hoShift?.cashier_name ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الفرع</span>
+                <span className="font-semibold">{hoShift?.branch_name ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">فُتحت في</span>
+                <span className="font-semibold">{hoShift ? formatDateTime(hoShift.opened_at) : "—"}</span>
+              </div>
+            </div>
+            <div>
+              <Label>المبلغ المستلم من الكاشير (جنيه)</Label>
+              <Input type="number" min={0} step="0.01" className="mt-1.5 text-lg"
+                value={hoAmount} onChange={(e) => setHoAmount(Number(e.target.value))} autoFocus />
+            </div>
+            <div>
+              <Label>سبب المغادرة / ملاحظات</Label>
+              <Textarea rows={2} className="mt-1.5" value={hoNotes} onChange={(e) => setHoNotes(e.target.value)} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              الوردية هتفضل مفتوحة وحساباتها زي ما هي — ده إقرار استلام عهدة داخلي مش مبيعات ولا مصروف، وهيتبعت إشعار فوري للأونر.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHoShift(null)} disabled={hoBusy}>إلغاء</Button>
+            <Button onClick={submitHandover} disabled={hoBusy} className="min-w-[150px]">
+              {hoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><HandCoins className="w-4 h-4 me-2" />تسجيل الاستلام</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
+
   );
 }
