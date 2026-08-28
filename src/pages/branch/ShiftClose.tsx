@@ -230,6 +230,45 @@ export default function ShiftClose() {
           </Button>
         </form>
       </Card>
+
+      <Dialog open={hoOpen} onOpenChange={(o) => !hoBusy && setHoOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تسليم عهدة طارئ أثناء الوردية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>مدير الفرع المستلم</Label>
+              <Select value={hoManagerId} onValueChange={setHoManagerId}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختار المستلم" /></SelectTrigger>
+                <SelectContent>
+                  {hoManagers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name ?? "—"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>المبلغ المسلَّم (جنيه)</Label>
+              <Input type="number" min={0} step="0.01" className="mt-1.5 text-lg"
+                value={hoAmount} onChange={(e) => setHoAmount(Number(e.target.value))} />
+            </div>
+            <div>
+              <Label>سبب المغادرة / ملاحظات</Label>
+              <Textarea rows={2} className="mt-1.5" value={hoNotes} onChange={(e) => setHoNotes(e.target.value)} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              الوردية هتفضل مفتوحة وحساباتها زي ما هي — ده إقرار تسليم عهدة داخلي، وهيتبعت إشعار فوري للمدير المستلم وللأونر.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHoOpen(false)} disabled={hoBusy}>إلغاء</Button>
+            <Button onClick={submitHandover} disabled={hoBusy} className="min-w-[150px]">
+              {hoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><HandCoins className="w-4 h-4 me-2" />تسجيل التسليم</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
   );
 }
