@@ -324,6 +324,7 @@ export type Database = {
       }
       attendance: {
         Row: {
+          auto_checkout: boolean
           branch_id: string
           check_in: string | null
           check_out: string | null
@@ -339,6 +340,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_checkout?: boolean
           branch_id: string
           check_in?: string | null
           check_out?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_checkout?: boolean
           branch_id?: string
           check_in?: string | null
           check_out?: string | null
@@ -6525,6 +6528,7 @@ export type Database = {
           overdue_count: number
         }[]
       }
+      cairo_today: { Args: never; Returns: string }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
         Returns: number
