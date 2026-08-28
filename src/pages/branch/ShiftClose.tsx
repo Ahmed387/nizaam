@@ -178,6 +178,15 @@ export default function ShiftClose() {
           </div>
         )}
 
+        <div className="rounded-lg border border-border p-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground max-w-sm">
+            ظرف طارئ ومضطر تمشي قبل نهاية الوردية؟ سلّم الكاش لمدير الفرع وسجّل التسليم — الوردية هتفضل مفتوحة.
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={openHandover}>
+            <HandCoins className="w-4 h-4 me-2" />تسليم عهدة طارئ
+          </Button>
+        </div>
+
 
         <form onSubmit={submit} className="space-y-4 pt-2 border-t">
           <div>
