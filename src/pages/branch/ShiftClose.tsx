@@ -119,6 +119,29 @@ export default function ShiftClose() {
           )}
         </div>
 
+        {handovers.length > 0 && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+            <div className="font-bold text-sm mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              تسليم عهدة طارئ أثناء الوردية
+            </div>
+            <div className="space-y-1.5">
+              {handovers.map((h) => (
+                <div key={h.id} className="text-xs flex flex-wrap items-center justify-between gap-2 border-b border-border/50 last:border-0 pb-1.5 last:pb-0">
+                  <span>
+                    الكاشير <span className="font-semibold">{h.cashier_name ?? "—"}</span> سلّم لمدير الفرع{" "}
+                    <span className="font-semibold">{h.manager_name ?? "—"}</span> في {new Date(h.occurred_at).toLocaleString("ar-EG")}
+                    {h.notes ? ` — ${h.notes}` : ""}
+                  </span>
+                  <span className="font-bold">{formatEGP(h.amount)}</span>
+                </div>
+              ))}
+              <div className="text-[11px] text-muted-foreground pt-1">
+                التسليم ده إقرار عهدة داخلي — مش مبيعات ولا مصروف، ومش بيغيّر المتوقع في الدرج.
+              </div>
+            </div>
+          </div>
+        )}
 
 
         <form onSubmit={submit} className="space-y-4 pt-2 border-t">
