@@ -1,0 +1,14 @@
+REVOKE EXECUTE ON FUNCTION public.branch_handover_managers(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.record_mid_shift_handover(uuid, uuid, numeric, text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.set_invoice_meta(uuid, timestamptz, text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.mark_invoice_migrated(uuid, timestamptz, text, uuid, text, text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.clear_opening_treasury() FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.admin_cancel_all_invoices() FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.admin_clear_treasury() FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.branch_handover_managers(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_mid_shift_handover(uuid, uuid, numeric, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_invoice_meta(uuid, timestamptz, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_invoice_migrated(uuid, timestamptz, text, uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.clear_opening_treasury() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_cancel_all_invoices() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_clear_treasury() TO authenticated;
