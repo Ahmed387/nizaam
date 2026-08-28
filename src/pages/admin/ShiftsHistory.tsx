@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown } from "lucide-react";
+import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown, HandCoins } from "lucide-react";
 import { toast } from "sonner";
-import { shiftPaymentBreakdown, ShiftPaymentLine, overrideShiftOpening } from "@/lib/shifts";
+import { shiftPaymentBreakdown, ShiftPaymentLine, overrideShiftOpening, fetchShiftHandovers, recordMidShiftHandover, ShiftHandover } from "@/lib/shifts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Row {
   id: string;
@@ -40,10 +42,38 @@ export default function ShiftsHistory() {
   const [to, setTo] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [breakdowns, setBreakdowns] = useState<Record<string, ShiftPaymentLine[]>>({});
+  const [handovers, setHandovers] = useState<Record<string, ShiftHandover[]>>({});
+  const [hoShift, setHoShift] = useState<Row | null>(null);
+  const [hoAmount, setHoAmount] = useState<number>(0);
+  const [hoNotes, setHoNotes] = useState("");
+  const [hoBusy, setHoBusy] = useState(false);
+
+  const loadHandovers = async (id: string) => {
+    try {
+      const list = await fetchShiftHandovers(id);
+      setHandovers((p) => ({ ...p, [id]: list }));
+    } catch { /* ignore */ }
+  };
+
+  const submitHandover = async () => {
+    if (!hoShift) return;
+    setHoBusy(true);
+    try {
+      await recordMidShiftHandover(hoShift.id, Number(hoAmount) || 0, hoNotes || undefined);
+      toast.success("تم تسجيل تسليم العهدة — الوردية مستمرة وتم إبلاغ الأونر");
+      await loadHandovers(hoShift.id);
+      setHoShift(null); setHoAmount(0); setHoNotes("");
+    } catch (e: any) {
+      toast.error(e.message ?? "تعذر تسجيل التسليم");
+    } finally {
+      setHoBusy(false);
+    }
+  };
 
   const toggleRow = async (id: string) => {
     if (expanded === id) return setExpanded(null);
     setExpanded(id);
+    if (!handovers[id]) loadHandovers(id);
     if (!breakdowns[id]) {
       try {
         const lines = await shiftPaymentBreakdown(id);
@@ -53,6 +83,8 @@ export default function ShiftsHistory() {
       }
     }
   };
+
+
 
 
   const [pending, setPending] = useState<any[]>([]);
@@ -228,15 +260,23 @@ export default function ShiftsHistory() {
                     </td>
                     <td className="p-3">{statusBadge(r.status)}</td>
                     <td className="p-3">
-                      <Button variant="ghost" size="sm" onClick={() => toggleRow(r.id)}>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
-                        وسائل الدفع
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => toggleRow(r.id)}>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
+                          وسائل الدفع
+                        </Button>
+                        {r.status === "open" && (
+                          <Button variant="ghost" size="sm" onClick={() => { setHoShift(r); setHoAmount(0); setHoNotes(""); }}>
+                            <HandCoins className="w-4 h-4 me-1" />
+                            تسليم عهدة طارئ
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   {expanded === r.id && (
                     <tr className="bg-muted/30 border-t border-border">
-                      <td colSpan={12} className="p-3">
+                      <td colSpan={12} className="p-3 space-y-3">
                         {!breakdowns[r.id] ? (
                           <div className="text-xs text-muted-foreground">جاري التحميل…</div>
                         ) : breakdowns[r.id].length === 0 ? (
@@ -254,8 +294,25 @@ export default function ShiftsHistory() {
                             ))}
                           </div>
                         )}
+                        {(handovers[r.id]?.length ?? 0) > 0 && (
+                          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+                            <div className="font-bold text-xs mb-1.5">تسليم عهدة طارئ أثناء الوردية</div>
+                            <div className="space-y-1">
+                              {handovers[r.id].map((h) => (
+                                <div key={h.id} className="text-xs flex flex-wrap items-center justify-between gap-2">
+                                  <span>
+                                    {h.cashier_name ?? "—"} ← {h.manager_name ?? "—"} — {formatDateTime(h.occurred_at)}
+                                    {h.notes ? ` — ${h.notes}` : ""}
+                                  </span>
+                                  <span className="font-bold">{formatEGP(h.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
+
                   )}
                 </Fragment>
               ))}
@@ -296,6 +353,49 @@ export default function ShiftsHistory() {
           </table>
         </Card>
       )}
+
+      <Dialog open={!!hoShift} onOpenChange={(o) => !hoBusy && !o && setHoShift(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تسليم عهدة طارئ أثناء الوردية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border p-3 text-sm space-y-1 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الكاشير</span>
+                <span className="font-semibold">{hoShift?.cashier_name ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الفرع</span>
+                <span className="font-semibold">{hoShift?.branch_name ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">فُتحت في</span>
+                <span className="font-semibold">{hoShift ? formatDateTime(hoShift.opened_at) : "—"}</span>
+              </div>
+            </div>
+            <div>
+              <Label>المبلغ المستلم من الكاشير (جنيه)</Label>
+              <Input type="number" min={0} step="0.01" className="mt-1.5 text-lg"
+                value={hoAmount} onChange={(e) => setHoAmount(Number(e.target.value))} autoFocus />
+            </div>
+            <div>
+              <Label>سبب المغادرة / ملاحظات</Label>
+              <Textarea rows={2} className="mt-1.5" value={hoNotes} onChange={(e) => setHoNotes(e.target.value)} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              الوردية هتفضل مفتوحة وحساباتها زي ما هي — ده إقرار استلام عهدة داخلي مش مبيعات ولا مصروف، وهيتبعت إشعار فوري للأونر.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHoShift(null)} disabled={hoBusy}>إلغاء</Button>
+            <Button onClick={submitHandover} disabled={hoBusy} className="min-w-[150px]">
+              {hoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><HandCoins className="w-4 h-4 me-2" />تسجيل الاستلام</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
+
   );
 }

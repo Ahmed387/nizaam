@@ -5000,6 +5000,66 @@ export type Database = {
           },
         ]
       }
+      shift_cash_handovers: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          from_cashier_id: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          shift_id: string
+          tenant_id: string
+          to_manager_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          from_cashier_id: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          shift_id: string
+          tenant_id: string
+          to_manager_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          from_cashier_id?: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          shift_id?: string
+          tenant_id?: string
+          to_manager_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_cash_handovers_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "cashier_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_cash_handovers_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "v_shifts_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_schedules: {
         Row: {
           branch_id: string
@@ -7493,6 +7553,34 @@ export type Database = {
         }
         Returns: string
       }
+      record_mid_shift_handover: {
+        Args: {
+          p_amount_received?: number
+          p_manager_id?: string
+          p_notes?: string
+          p_shift_id: string
+        }
+        Returns: {
+          amount: number
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          from_cashier_id: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          shift_id: string
+          tenant_id: string
+          to_manager_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_cash_handovers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_partner_advance_payment: {
         Args: {
           _advance_id: string
@@ -7649,6 +7737,20 @@ export type Database = {
       }
       shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
+      shift_handovers: {
+        Args: { p_shift_id: string }
+        Returns: {
+          amount: number
+          cashier_name: string
+          from_cashier_id: string
+          id: string
+          manager_name: string
+          notes: string
+          occurred_at: string
+          shift_id: string
+          to_manager_id: string
+        }[]
+      }
       shift_payment_breakdown: {
         Args: { p_shift_id: string }
         Returns: {
