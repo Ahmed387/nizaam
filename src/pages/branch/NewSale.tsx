@@ -210,7 +210,13 @@ export default function NewSale() {
           nav(`/branch/${branchId}/shifts/close`, { replace: true });
           return;
         }
+        if ((s as any).opening_status && (s as any).opening_status !== "accepted") {
+          toast.error("العهدة لسه مش معتمدة من الإدارة — البيع متوقف");
+          nav(`/branch/${branchId}/shifts/open`, { replace: true });
+          return;
+        }
         setShiftReady(true);
+
       } catch (e: any) {
         toast.error(e.message ?? "خطأ في التحقق من الوردية");
       }
