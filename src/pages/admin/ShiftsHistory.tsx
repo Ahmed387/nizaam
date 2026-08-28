@@ -260,15 +260,23 @@ export default function ShiftsHistory() {
                     </td>
                     <td className="p-3">{statusBadge(r.status)}</td>
                     <td className="p-3">
-                      <Button variant="ghost" size="sm" onClick={() => toggleRow(r.id)}>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
-                        وسائل الدفع
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => toggleRow(r.id)}>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
+                          وسائل الدفع
+                        </Button>
+                        {r.status === "open" && (
+                          <Button variant="ghost" size="sm" onClick={() => { setHoShift(r); setHoAmount(0); setHoNotes(""); }}>
+                            <HandCoins className="w-4 h-4 me-1" />
+                            تسليم عهدة طارئ
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   {expanded === r.id && (
                     <tr className="bg-muted/30 border-t border-border">
-                      <td colSpan={12} className="p-3">
+                      <td colSpan={12} className="p-3 space-y-3">
                         {!breakdowns[r.id] ? (
                           <div className="text-xs text-muted-foreground">جاري التحميل…</div>
                         ) : breakdowns[r.id].length === 0 ? (
@@ -286,8 +294,25 @@ export default function ShiftsHistory() {
                             ))}
                           </div>
                         )}
+                        {(handovers[r.id]?.length ?? 0) > 0 && (
+                          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+                            <div className="font-bold text-xs mb-1.5">تسليم عهدة طارئ أثناء الوردية</div>
+                            <div className="space-y-1">
+                              {handovers[r.id].map((h) => (
+                                <div key={h.id} className="text-xs flex flex-wrap items-center justify-between gap-2">
+                                  <span>
+                                    {h.cashier_name ?? "—"} ← {h.manager_name ?? "—"} — {formatDateTime(h.occurred_at)}
+                                    {h.notes ? ` — ${h.notes}` : ""}
+                                  </span>
+                                  <span className="font-bold">{formatEGP(h.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
+
                   )}
                 </Fragment>
               ))}
