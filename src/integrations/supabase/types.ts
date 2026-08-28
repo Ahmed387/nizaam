@@ -1009,12 +1009,20 @@ export type Database = {
           closing_cash: number | null
           created_at: string
           expected_cash: number | null
+          expected_opening_cash: number | null
           id: string
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          opening_status: string
+          overridden_at: string | null
+          overridden_by: string | null
           pre_close_warned_at: string | null
           reminder_sent_at: string | null
+          reported_opening_cash: number | null
+          schedule_id: string | null
+          soft_close_at: string | null
+          soft_closed_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -1030,12 +1038,20 @@ export type Database = {
           closing_cash?: number | null
           created_at?: string
           expected_cash?: number | null
+          expected_opening_cash?: number | null
           id?: string
           open_notes?: string | null
           opened_at?: string
           opening_cash?: number
+          opening_status?: string
+          overridden_at?: string | null
+          overridden_by?: string | null
           pre_close_warned_at?: string | null
           reminder_sent_at?: string | null
+          reported_opening_cash?: number | null
+          schedule_id?: string | null
+          soft_close_at?: string | null
+          soft_closed_at?: string | null
           status?: string
           tenant_id: string
           updated_at?: string
@@ -1051,12 +1067,20 @@ export type Database = {
           closing_cash?: number | null
           created_at?: string
           expected_cash?: number | null
+          expected_opening_cash?: number | null
           id?: string
           open_notes?: string | null
           opened_at?: string
           opening_cash?: number
+          opening_status?: string
+          overridden_at?: string | null
+          overridden_by?: string | null
           pre_close_warned_at?: string | null
           reminder_sent_at?: string | null
+          reported_opening_cash?: number | null
+          schedule_id?: string | null
+          soft_close_at?: string | null
+          soft_closed_at?: string | null
           status?: string
           tenant_id?: string
           updated_at?: string
@@ -1076,6 +1100,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_treasury_balances"
             referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "cashier_shifts_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "shift_schedules"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "cashier_shifts_tenant_id_fkey"
@@ -4969,6 +5000,66 @@ export type Database = {
           },
         ]
       }
+      shift_schedules: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          is_extra: boolean
+          shift_date: string | null
+          shift_name: string
+          start_time: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          is_extra?: boolean
+          shift_date?: string | null
+          shift_name: string
+          start_time: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          is_extra?: boolean
+          shift_date?: string | null
+          shift_name?: string
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_schedules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_schedules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+        ]
+      }
       shipment_items: {
         Row: {
           base_unit_price: number
@@ -6596,12 +6687,20 @@ export type Database = {
           closing_cash: number | null
           created_at: string
           expected_cash: number | null
+          expected_opening_cash: number | null
           id: string
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          opening_status: string
+          overridden_at: string | null
+          overridden_by: string | null
           pre_close_warned_at: string | null
           reminder_sent_at: string | null
+          reported_opening_cash: number | null
+          schedule_id: string | null
+          soft_close_at: string | null
+          soft_closed_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -6706,6 +6805,29 @@ export type Database = {
       create_product_with_opening_stock: {
         Args: { p_product: Json }
         Returns: Json
+      }
+      current_shift_schedule: {
+        Args: { p_at?: string; p_branch_id: string }
+        Returns: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          is_extra: boolean
+          shift_date: string | null
+          shift_name: string
+          start_time: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
@@ -6886,6 +7008,7 @@ export type Database = {
         Args: { p_tenant: string }
         Returns: undefined
       }
+      expected_opening_cash: { Args: { p_branch_id: string }; Returns: number }
       expire_old_reservations: { Args: never; Returns: number }
       generate_alerts: {
         Args: never
@@ -6950,12 +7073,20 @@ export type Database = {
           closing_cash: number | null
           created_at: string
           expected_cash: number | null
+          expected_opening_cash: number | null
           id: string
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          opening_status: string
+          overridden_at: string | null
+          overridden_by: string | null
           pre_close_warned_at: string | null
           reminder_sent_at: string | null
+          reported_opening_cash: number | null
+          schedule_id: string | null
+          soft_close_at: string | null
+          soft_closed_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -7093,12 +7224,101 @@ export type Database = {
           closing_cash: number | null
           created_at: string
           expected_cash: number | null
+          expected_opening_cash: number | null
           id: string
           open_notes: string | null
           opened_at: string
           opening_cash: number
+          opening_status: string
+          overridden_at: string | null
+          overridden_by: string | null
           pre_close_warned_at: string | null
           reminder_sent_at: string | null
+          reported_opening_cash: number | null
+          schedule_id: string | null
+          soft_close_at: string | null
+          soft_closed_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          variance: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cashier_shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      open_cashier_shift_secure: {
+        Args: {
+          p_auto_attendance?: boolean
+          p_branch_id: string
+          p_notes?: string
+          p_reported_cash: number
+        }
+        Returns: {
+          branch_id: string
+          cash_sales: number | null
+          cashier_id: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          expected_opening_cash: number | null
+          id: string
+          open_notes: string | null
+          opened_at: string
+          opening_cash: number
+          opening_status: string
+          overridden_at: string | null
+          overridden_by: string | null
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
+          reported_opening_cash: number | null
+          schedule_id: string | null
+          soft_close_at: string | null
+          soft_closed_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          variance: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cashier_shifts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      override_shift_opening: {
+        Args: { p_note?: string; p_shift_id: string }
+        Returns: {
+          branch_id: string
+          cash_sales: number | null
+          cashier_id: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closing_cash: number | null
+          created_at: string
+          expected_cash: number | null
+          expected_opening_cash: number | null
+          id: string
+          open_notes: string | null
+          opened_at: string
+          opening_cash: number
+          opening_status: string
+          overridden_at: string | null
+          overridden_by: string | null
+          pre_close_warned_at: string | null
+          reminder_sent_at: string | null
+          reported_opening_cash: number | null
+          schedule_id: string | null
+          soft_close_at: string | null
+          soft_closed_at: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -7435,6 +7655,17 @@ export type Database = {
           payment_method: string
           payments_count: number
           total: number
+        }[]
+      }
+      shift_planned_end: { Args: { p_shift_id: string }; Returns: string }
+      shift_sale_gate: {
+        Args: { p_branch_id: string }
+        Returns: {
+          allowed: boolean
+          minutes_left: number
+          opening_status: string
+          reason: string
+          shift_id: string
         }[]
       }
       supplier_outstanding_payable: {
