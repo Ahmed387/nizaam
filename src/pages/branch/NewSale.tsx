@@ -1004,34 +1004,24 @@ export default function NewSale() {
       }
 
 
-      // === FIFO consume (with batch tracking) + profit columns ===
+      // === Profit/pricing columns only ===
+      // ملاحظة: خصم المخزون + طبقات FIFO (consume_product_batches_json) بيتنفذوا داخل process_sale
+      // على السيرفر. أي استدعاء تاني من المتصفح كان بيسبب خصم مزدوج للمخزون — لذلك اتشال.
       try {
         for (const it of items) {
           if (!it.product_id) continue;
-          const { data: consumeRes } = await supabase.rpc("consume_product_batches_json" as any, {
-            _product_id: it.product_id,
-            _branch_id: branchId!,
-            _quantity: it.quantity,
-          });
-          const batches: any[] = (consumeRes as any)?.batches ?? [];
-          const weightedCost = Number((consumeRes as any)?.weighted_unit_cost ?? it.cost_price);
-          const singleBatchId = batches.length === 1 ? batches[0]?.batch_id ?? null : null;
           const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
           const finalUnit = lineTotal / Math.max(1, it.quantity);
           const orig = Math.max(it.market_price, it.selling_price);
           const pct = orig > 0 ? +(((orig - finalUnit) / orig) * 100).toFixed(2) : 0;
           await supabase.from("invoice_items").update({
-            unit_cost_at_sale: weightedCost,
-            original_unit_cost: weightedCost,
-            batch_id: singleBatchId,
-            batches_consumed: batches.length > 0 ? batches : null,
             original_price: orig,
             final_price: finalUnit,
             discount_percent: pct,
           } as any).eq("invoice_id", invId as string).eq("product_id", it.product_id);
         }
       } catch (e: any) {
-        console.warn("FIFO/profit update failed:", e);
+        console.warn("profit update failed:", e);
       }
 
 
