@@ -7125,6 +7125,22 @@ export type Database = {
         }
         Returns: Json
       }
+      pay_employee_salary: {
+        Args: {
+          p_advance_deduct?: number
+          p_bonuses?: number
+          p_deductions?: number
+          p_employee_id: string
+          p_fee_amount?: number
+          p_month: string
+          p_notes?: string
+          p_payment_method?: string
+          p_reference_number?: string
+          p_transfer_from_account?: string
+          p_transfer_to_account?: string
+        }
+        Returns: string
+      }
       payment_plans_summary: {
         Args: { p_tenant_id: string }
         Returns: {
