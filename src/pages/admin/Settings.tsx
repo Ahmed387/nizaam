@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2, Percent } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2, Percent, Clock } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
