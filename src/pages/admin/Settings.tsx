@@ -26,6 +26,7 @@ import { UserPermissionsTab } from "@/components/UserPermissionsTab";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 import { PersonalExpensesAccessTab } from "@/components/PersonalExpensesAccessTab";
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
+import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -301,6 +302,7 @@ export default function Settings() {
             { v: "targets", icon: Target, label: "أهداف المبيعات" },
             { v: "discount", icon: Percent, label: "إعدادات الخصم" },
             ...(isOwner || canManageAdminTools ? [{ v: "branch-hours", icon: BellRing, label: "مواعيد الفروع والإجازات" }] : []),
+            ...(isOwner || canManageAdminTools ? [{ v: "shift-schedules", icon: Clock, label: "مواعيد الورديات" }] : []),
             ...(isOwner ? [{ v: "return-policy", icon: AlertTriangle, label: "سياسة الإرجاع" }] : []),
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
@@ -327,6 +329,10 @@ export default function Settings() {
 
         <div className="w-full">
 
+
+        <TabsContent value="shift-schedules" className="mt-4">
+          <ShiftSchedulesTab />
+        </TabsContent>
 
         <TabsContent value="branch-hours" className="mt-4">
           <BranchSchedulesTab />
