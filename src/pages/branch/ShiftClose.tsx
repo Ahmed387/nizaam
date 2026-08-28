@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, DoorClosed, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, DoorClosed, CheckCircle2, AlertTriangle, HandCoins } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, fetchShiftHandovers, CashierShift, ShiftPaymentLine, ShiftHandover } from "@/lib/shifts";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, fetchShiftHandovers, fetchHandoverManagers, recordMidShiftHandover, CashierShift, ShiftPaymentLine, ShiftHandover, HandoverManager } from "@/lib/shifts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
