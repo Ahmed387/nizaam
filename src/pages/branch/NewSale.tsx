@@ -895,6 +895,23 @@ export default function NewSale() {
     if (!paymentsValid) return toast.error(`مجموع طرق الدفع (${formatEGP(paymentsSum)}) أكبر من الإجمالي (${formatEGP(total)})`);
     if (isCredit && creditRemaining > 0 && !customerId) return toast.error("اختر العميل لتسجيل المتبقي كآجل");
 
+    // بوابة الوردية: مفيش فواتير جديدة أثناء الإقفال الناعم أو قبل اعتماد العهدة
+    if (!isAdmin) {
+      try {
+        const { fetchSaleGate } = await import("@/lib/shifts");
+        const gate = await fetchSaleGate(branchId);
+        if (!gate.allowed) {
+          if (gate.reason === "handover_pending")
+            return toast.error("العهدة لسه مش معتمدة من الإدارة — مش هينفع تصدر فاتورة");
+          if (gate.reason === "soft_close")
+            return toast.error("الوردية قربت تخلص — البيع اتوقف، صفّي الدرج واقفل الوردية");
+          if (gate.reason === "no_shift")
+            return toast.error("لازم تفتح وردية قبل البدء في البيع");
+        }
+      } catch { /* لو البوابة فشلت مانوقفش البيع */ }
+    }
+
+
     // Validate electronic payments require ref + from + to account
     for (let i = 0; i < payments.length; i++) {
       const p = payments[i];
