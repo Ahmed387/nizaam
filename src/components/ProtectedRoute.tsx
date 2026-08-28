@@ -75,15 +75,19 @@ export function ProtectedRoute({
     if (!allowed) return <Navigate to="/" replace />;
   }
 
+  // المراقب: استثناء محدود — قراءة فقط لشاشات الإدارة/الفروع المصرح بها (مش كل مسار في النظام)
+  const VIEWER_ALLOWED_PREFIXES = ["/admin", "/branch", "/profile", "/guide"];
+  const viewerRead =
+    viewerOnly && (loc.pathname === "/" || VIEWER_ALLOWED_PREFIXES.some((p) => loc.pathname.startsWith(p)));
+
   // Gates are OR-ed: an explicitly granted permission can unlock a page that is
   // otherwise owner/admin/role gated.
   const gates: boolean[] = [];
-  if (ownerOnly) gates.push(isOwner || isSuperAdmin || isViewer);
+  if (ownerOnly) gates.push(isOwner || isSuperAdmin || viewerRead);
   if (superAdminOnly) gates.push(isSuperAdmin);
-  if (adminOnly) gates.push(isAdmin || isViewer);
-  // المراقب: عرض فقط لكل الشاشات (ماعدا المحظورة أعلاه)
-  if (roles) gates.push(isAdmin || isViewer || roles.some((r) => hasRole(r)));
-  if (perm) gates.push(can(perm));
+  if (adminOnly) gates.push(isAdmin || viewerRead);
+  if (roles) gates.push(isAdmin || viewerRead || roles.some((r) => hasRole(r)));
+  if (perm) gates.push(can(perm) || viewerRead);
   if (gates.length > 0 && !gates.some(Boolean)) return <Navigate to="/" replace />;
 
 
