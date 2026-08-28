@@ -58,9 +58,13 @@ export function ProtectedRoute({
     return <Navigate to="/profile" replace state={{ mustChangePassword: true }} />;
   }
 
-  // المراقب: قراءة فقط — ممنوع من شاشات الإعدادات وترحيل/زرع البيانات
-  const VIEWER_BLOCKED = ["/admin/settings", "/admin/data-setup", "/admin/data-migration", "/admin/seed"];
-  if (isViewer && !isAdmin && !isSuperAdmin && VIEWER_BLOCKED.some((p) => loc.pathname.startsWith(p))) {
+  // المراقب: قراءة فقط — ممنوع من شاشات الإعدادات وترحيل/زرع البيانات، وممنوع من مسارات الشركاء/السوبر أدمن
+  const VIEWER_BLOCKED = [
+    "/admin/settings", "/admin/data-setup", "/admin/data-migration", "/admin/seed",
+    "/partner", "/super",
+  ];
+  const viewerOnly = isViewer && !isAdmin && !isSuperAdmin;
+  if (viewerOnly && VIEWER_BLOCKED.some((p) => loc.pathname.startsWith(p))) {
     return <Navigate to="/" replace />;
   }
   // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them.
