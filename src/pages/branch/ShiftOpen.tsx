@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, DoorOpen, ShoppingCart } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, DoorOpen, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, openShift, isMissingAttendanceError } from "@/lib/shifts";
+import { getOpenShift, openShiftSecure, isMissingAttendanceError, fetchExpectedOpeningCash, fetchCurrentSchedule, ShiftSchedule } from "@/lib/shifts";
 import { formatEGP } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { BranchSchedule, fetchClosures, fetchSchedules, offDayReason } from "@/lib/branchSchedule";
@@ -32,20 +33,30 @@ export default function ShiftOpen() {
   const [schedule, setSchedule] = useState<BranchSchedule | undefined>(undefined);
   const [ack, setAck] = useState(false);
   const [needsAttendance, setNeedsAttendance] = useState(false);
+  const [expectedCash, setExpectedCash] = useState<number>(0);
+  const [shiftSchedule, setShiftSchedule] = useState<ShiftSchedule | null>(null);
+  const [handoverOpen, setHandoverOpen] = useState(false);
+  const [countedCash, setCountedCash] = useState<number>(0);
 
   useEffect(() => {
     if (!branchId) return;
     (async () => {
       try {
-        const [s, scheds, closures] = await Promise.all([
+        const [s, scheds, closures, exp, cur] = await Promise.all([
           getOpenShift(branchId),
           fetchSchedules(),
           fetchClosures(branchId),
+          fetchExpectedOpeningCash(branchId).catch(() => 0),
+          fetchCurrentSchedule(branchId).catch(() => null),
         ]);
         setExisting(s);
         const sch = scheds[branchId];
         setSchedule(sch);
         setOffReason(offDayReason(sch, closures));
+        setExpectedCash(exp);
+        setOpeningCash(exp);
+        setCountedCash(exp);
+        setShiftSchedule(cur);
       } catch (e: any) {
         toast.error(e.message ?? "خطأ في قراءة الوردية");
       } finally {
@@ -59,12 +70,19 @@ export default function ShiftOpen() {
   const doOpen = async (autoAttendance: boolean) => {
     setBusy(true);
     try {
-      await openShift(branchId, Number(openingCash) || 0, notes || undefined, autoAttendance);
-      toast.success(autoAttendance ? "تم تسجيل حضورك وفتح الوردية" : "تم فتح الوردية");
-      nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
+      const row = await openShiftSecure(branchId, Number(countedCash) || 0, notes || undefined, autoAttendance);
+      setHandoverOpen(false);
+      if (row.opening_status === "accepted") {
+        toast.success(autoAttendance ? "تم تسجيل حضورك وفتح الوردية" : "تم استلام العهدة وفتح الوردية");
+        nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
+      } else {
+        toast.error("تم إبلاغ الإدارة بفرق العهدة — البيع متوقف لحد الاعتماد");
+        nav(`/branch/${branchId}/dashboard`, { replace: true });
+      }
     } catch (e: any) {
       if (isMissingAttendanceError(e)) {
         setNeedsAttendance(true);
+        setHandoverOpen(false);
         toast.error("لازم تسجل حضورك الأول قبل ما تفتح الوردية");
       } else {
         toast.error(e.message ?? "فشل فتح الوردية");
@@ -80,8 +98,10 @@ export default function ShiftOpen() {
       toast.error("الفرع مقفول اليوم — تحتاج تأكيد المالك لفتح وردية");
       return;
     }
-    await doOpen(false);
+    setCountedCash(Number(openingCash) || 0);
+    setHandoverOpen(true);
   };
+
 
 
   if (loading) {
@@ -89,16 +109,28 @@ export default function ShiftOpen() {
   }
 
   if (existing) {
+    const pending = existing.opening_status && existing.opening_status !== "accepted";
     return (
       <BranchLayout>
-        <PageHeader title="وردية الكاشير" subtitle="لديك وردية مفتوحة بالفعل" />
+        <PageHeader title="وردية الكاشير" subtitle={pending ? "وردية بانتظار اعتماد الإدارة" : "لديك وردية مفتوحة بالفعل"} />
         <Card className="p-6 max-w-xl mx-auto space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><div className="text-muted-foreground">تاريخ الفتح</div><div className="font-semibold">{new Date(existing.opened_at).toLocaleString("ar-EG")}</div></div>
             <div><div className="text-muted-foreground">الرصيد الافتتاحي</div><div className="font-semibold">{formatEGP(existing.opening_cash)}</div></div>
           </div>
+          {pending && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <div className="font-bold text-destructive">تم إبلاغ الإدارة — بانتظار الاعتماد</div>
+                <div className="text-muted-foreground">
+                  المتوقع {formatEGP(existing.expected_opening_cash ?? 0)} والمعدود {formatEGP(existing.reported_opening_cash ?? existing.opening_cash)} — البيع متوقف لحد ما الأونر أو مدير الفرع يعتمد الفرق.
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={() => nav(`/branch/${branchId}/sales/new`)}>
+            <Button className="flex-1" disabled={pending} onClick={() => nav(`/branch/${branchId}/sales/new`)}>
               <ShoppingCart className="w-4 h-4 me-2" />بدء البيع
             </Button>
             <Button variant="outline" onClick={() => nav(`/branch/${branchId}/shifts/close`)}>قفل الوردية</Button>
@@ -107,6 +139,7 @@ export default function ShiftOpen() {
       </BranchLayout>
     );
   }
+
 
   return (
     <BranchLayout>
@@ -129,6 +162,19 @@ export default function ShiftOpen() {
         )}
         <form onSubmit={submit} className="space-y-4">
 
+          <div className="rounded-lg border border-border p-3 text-sm space-y-1 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">الرصيد المتوقع (ختامي آخر وردية)</span>
+              <span className="font-bold text-primary">{formatEGP(expectedCash)}</span>
+            </div>
+            {shiftSchedule && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الوردية المجدولة</span>
+                <span className="font-semibold">{shiftSchedule.shift_name} ({String(shiftSchedule.start_time).slice(0,5)} — {String(shiftSchedule.end_time).slice(0,5)})</span>
+              </div>
+            )}
+          </div>
+
           <div>
             <Label>الرصيد الافتتاحي في الدرج (جنيه)</Label>
             <Input
@@ -139,6 +185,7 @@ export default function ShiftOpen() {
               autoFocus
             />
           </div>
+
           <div>
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
@@ -163,6 +210,43 @@ export default function ShiftOpen() {
           </Button>
         </form>
       </Card>
+
+      <Dialog open={handoverOpen} onOpenChange={(o) => !busy && setHandoverOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>إقرار استلام العهدة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border p-3 text-sm space-y-1 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">المتوقع في الدرج</span>
+                <span className="font-bold text-primary">{formatEGP(expectedCash)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الفرق</span>
+                <span className={`font-bold ${Math.abs((Number(countedCash) || 0) - expectedCash) < 0.01 ? "text-success" : "text-destructive"}`}>
+                  {formatEGP((Number(countedCash) || 0) - expectedCash)}
+                </span>
+              </div>
+            </div>
+            <div>
+              <Label>الفلوس الموجودة في الدرج فعليًا</Label>
+              <Input type="number" min={0} step="0.01" className="mt-1.5 text-lg"
+                value={countedCash} onChange={(e) => setCountedCash(Number(e.target.value))} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              لو المبلغ مطابق هتبدأ البيع فورًا. لو مختلف، الوردية هتتسجل كرفض استلام عهدة وهيتبعت إشعار للأونر ومدير الفرع للاعتماد.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHandoverOpen(false)} disabled={busy}>رجوع</Button>
+            <Button onClick={() => doOpen(false)} disabled={busy} className="min-w-[150px]">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><CheckCircle2 className="w-4 h-4 me-2" />أقر باستلام العهدة</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
+
   );
 }
