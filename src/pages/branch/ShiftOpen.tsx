@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, DoorOpen, ShoppingCart } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, DoorOpen, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { getOpenShift, openShift, isMissingAttendanceError } from "@/lib/shifts";
+import { getOpenShift, openShiftSecure, isMissingAttendanceError, fetchExpectedOpeningCash, fetchCurrentSchedule, ShiftSchedule } from "@/lib/shifts";
 import { formatEGP } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { BranchSchedule, fetchClosures, fetchSchedules, offDayReason } from "@/lib/branchSchedule";
@@ -32,20 +33,30 @@ export default function ShiftOpen() {
   const [schedule, setSchedule] = useState<BranchSchedule | undefined>(undefined);
   const [ack, setAck] = useState(false);
   const [needsAttendance, setNeedsAttendance] = useState(false);
+  const [expectedCash, setExpectedCash] = useState<number>(0);
+  const [shiftSchedule, setShiftSchedule] = useState<ShiftSchedule | null>(null);
+  const [handoverOpen, setHandoverOpen] = useState(false);
+  const [countedCash, setCountedCash] = useState<number>(0);
 
   useEffect(() => {
     if (!branchId) return;
     (async () => {
       try {
-        const [s, scheds, closures] = await Promise.all([
+        const [s, scheds, closures, exp, cur] = await Promise.all([
           getOpenShift(branchId),
           fetchSchedules(),
           fetchClosures(branchId),
+          fetchExpectedOpeningCash(branchId).catch(() => 0),
+          fetchCurrentSchedule(branchId).catch(() => null),
         ]);
         setExisting(s);
         const sch = scheds[branchId];
         setSchedule(sch);
         setOffReason(offDayReason(sch, closures));
+        setExpectedCash(exp);
+        setOpeningCash(exp);
+        setCountedCash(exp);
+        setShiftSchedule(cur);
       } catch (e: any) {
         toast.error(e.message ?? "خطأ في قراءة الوردية");
       } finally {
@@ -59,12 +70,19 @@ export default function ShiftOpen() {
   const doOpen = async (autoAttendance: boolean) => {
     setBusy(true);
     try {
-      await openShift(branchId, Number(openingCash) || 0, notes || undefined, autoAttendance);
-      toast.success(autoAttendance ? "تم تسجيل حضورك وفتح الوردية" : "تم فتح الوردية");
-      nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
+      const row = await openShiftSecure(branchId, Number(countedCash) || 0, notes || undefined, autoAttendance);
+      setHandoverOpen(false);
+      if (row.opening_status === "accepted") {
+        toast.success(autoAttendance ? "تم تسجيل حضورك وفتح الوردية" : "تم استلام العهدة وفتح الوردية");
+        nav(returnTo || `/branch/${branchId}/sales/new`, { replace: true });
+      } else {
+        toast.error("تم إبلاغ الإدارة بفرق العهدة — البيع متوقف لحد الاعتماد");
+        nav(`/branch/${branchId}/dashboard`, { replace: true });
+      }
     } catch (e: any) {
       if (isMissingAttendanceError(e)) {
         setNeedsAttendance(true);
+        setHandoverOpen(false);
         toast.error("لازم تسجل حضورك الأول قبل ما تفتح الوردية");
       } else {
         toast.error(e.message ?? "فشل فتح الوردية");
@@ -80,8 +98,10 @@ export default function ShiftOpen() {
       toast.error("الفرع مقفول اليوم — تحتاج تأكيد المالك لفتح وردية");
       return;
     }
-    await doOpen(false);
+    setCountedCash(Number(openingCash) || 0);
+    setHandoverOpen(true);
   };
+
 
 
   if (loading) {
