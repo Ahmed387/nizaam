@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { shiftPaymentBreakdown, ShiftPaymentLine } from "@/lib/shifts";
+import { shiftPaymentBreakdown, ShiftPaymentLine, overrideShiftOpening } from "@/lib/shifts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 
 interface Row {
@@ -55,6 +55,32 @@ export default function ShiftsHistory() {
   };
 
 
+  const [pending, setPending] = useState<any[]>([]);
+  const [approving, setApproving] = useState<string | null>(null);
+
+  const loadPending = async () => {
+    const { data } = await supabase
+      .from("cashier_shifts")
+      .select("id,branch_id,cashier_id,opened_at,opening_cash,reported_opening_cash,expected_opening_cash,opening_status")
+      .neq("opening_status", "accepted")
+      .eq("status", "open")
+      .order("opened_at", { ascending: false });
+    setPending((data ?? []) as any[]);
+  };
+
+  const approve = async (id: string) => {
+    setApproving(id);
+    try {
+      await overrideShiftOpening(id, "اعتماد إداري من سجل الورديات");
+      toast.success("تم اعتماد العهدة — الكاشير يقدر يبيع دلوقتي");
+      await Promise.all([loadPending(), load()]);
+    } catch (e: any) {
+      toast.error(e.message ?? "تعذر الاعتماد");
+    } finally {
+      setApproving(null);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     let q = supabase.from("v_shifts_history" as any).select("*").order("opened_at", { ascending: false }).limit(500);
@@ -68,6 +94,7 @@ export default function ShiftsHistory() {
   };
 
   useEffect(() => { load(); }, [branchId, from, to]);
+  useEffect(() => { loadPending(); }, []);
 
   useEffect(() => {
     const ch = supabase
@@ -125,6 +152,26 @@ export default function ShiftsHistory() {
           <div className="text-2xl font-extrabold mt-1 text-warning">{stats.open}</div>
         </Card>
       </div>
+
+      {pending.length > 0 && (
+        <Card className="p-4 mb-4 border-destructive/40 bg-destructive/5">
+          <div className="font-bold text-sm text-destructive mb-2">ورديات مرفوضة العهدة — محتاجة اعتماد</div>
+          <div className="space-y-2">
+            {pending.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 bg-background">
+                <div className="text-sm">
+                  <span className="font-semibold">{branches.find((b) => b.id === p.branch_id)?.name ?? "فرع"}</span>
+                  <span className="text-muted-foreground"> — متوقع {formatEGP(p.expected_opening_cash ?? 0)} / معدود {formatEGP(p.reported_opening_cash ?? p.opening_cash)}</span>
+                  <span className="text-muted-foreground"> — {formatDateTime(p.opened_at)}</span>
+                </div>
+                <Button size="sm" className="h-8" disabled={approving === p.id} onClick={() => approve(p.id)}>
+                  {approving === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "اعتماد وتشغيل الفرع"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
