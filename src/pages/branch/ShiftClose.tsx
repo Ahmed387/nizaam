@@ -28,6 +28,39 @@ export default function ShiftClose() {
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [autoCheckout, setAutoCheckout] = useState(true);
+  // تسليم عهدة طارئ (الكاشير بنفسه)
+  const [hoOpen, setHoOpen] = useState(false);
+  const [hoManagers, setHoManagers] = useState<HandoverManager[]>([]);
+  const [hoManagerId, setHoManagerId] = useState("");
+  const [hoAmount, setHoAmount] = useState<number>(0);
+  const [hoNotes, setHoNotes] = useState("");
+  const [hoBusy, setHoBusy] = useState(false);
+
+  const openHandover = async () => {
+    setHoAmount(Number(closingCash) || 0);
+    setHoNotes("");
+    setHoOpen(true);
+    try {
+      const list = await fetchHandoverManagers(branchId);
+      setHoManagers(list.filter((m) => m.id !== shift?.cashier_id));
+    } catch (e: any) { toast.error(e.message ?? "تعذر تحميل قائمة المستلمين"); }
+  };
+
+  const submitHandover = async () => {
+    if (!shift) return;
+    if (!hoManagerId) { toast.error("اختار مدير الفرع المستلم للعهدة"); return; }
+    setHoBusy(true);
+    try {
+      await recordMidShiftHandover(shift.id, Number(hoAmount) || 0, hoNotes || undefined, hoManagerId);
+      toast.success("تم تسجيل تسليم العهدة وإخطار المدير والأونر");
+      setHoOpen(false);
+      setHandovers(await fetchShiftHandovers(shift.id).catch(() => []));
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل تسجيل التسليم");
+    } finally { setHoBusy(false); }
+  };
+
+
 
 
   useEffect(() => {
