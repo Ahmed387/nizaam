@@ -65,18 +65,26 @@ export function releaseDraftBeacon(draftId: string) {
       [JSON.stringify({ p_draft_id: draftId, p_status: "cancelled" })],
       { type: "application/json" },
     );
-    // sendBeacon doesn't support custom headers; fall back to fetch keepalive
-    fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey,
-        Authorization: `Bearer ${apikey}`,
-      },
-      body: blob,
-      keepalive: true,
+    // The RPC is tenant-scoped (execute granted to `authenticated` only), so the
+    // call must carry the user's access token — sending the anon key as Bearer
+    // makes Postgres reject it with "permission denied for function".
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      if (!token) return; // no session → nothing we may release
+      // sendBeacon doesn't support custom headers; fall back to fetch keepalive
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey,
+          Authorization: `Bearer ${token}`,
+        },
+        body: blob,
+        keepalive: true,
+      }).catch(() => {});
     }).catch(() => {});
   } catch {
     // ignore
   }
 }
+

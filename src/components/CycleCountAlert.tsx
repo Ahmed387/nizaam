@@ -43,17 +43,21 @@ export function CycleCountAlert({ branchId, onStartCount }: { branchId?: string;
         .is("archived_at", null);
       if (!products?.length) { if (!cancelled) setStale([]); return; }
 
+      // `counted_at` lives on the parent session, not on the item rows.
       const { data: counts } = await supabase
         .from("inventory_session_items" as any)
-        .select("product_id, counted_at, session:inventory_sessions!inner(branch_id,status)")
-        .eq("session.branch_id", branchId)
-        .not("counted_at", "is", null);
+        .select("product_id, session:inventory_sessions!inner(branch_id,status,counted_at,approved_at,closed_at)")
+        .eq("session.branch_id", branchId);
 
       const lastByProduct: Record<string, string> = {};
       for (const c of (counts ?? []) as any[]) {
+        const s = c.session ?? {};
+        const at = s.counted_at ?? s.approved_at ?? s.closed_at ?? null;
+        if (!at) continue;
         const prev = lastByProduct[c.product_id];
-        if (!prev || c.counted_at > prev) lastByProduct[c.product_id] = c.counted_at;
+        if (!prev || at > prev) lastByProduct[c.product_id] = at;
       }
+
 
       const out: StaleProduct[] = [];
       for (const p of products as any[]) {
