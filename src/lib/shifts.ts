@@ -151,3 +151,35 @@ export async function shiftPaymentBreakdown(shiftId: string): Promise<ShiftPayme
   }));
 }
 
+
+export interface ShiftHandover {
+  id: string;
+  shift_id: string;
+  amount: number;
+  notes: string | null;
+  occurred_at: string;
+  from_cashier_id: string;
+  cashier_name: string | null;
+  to_manager_id: string;
+  manager_name: string | null;
+}
+
+/** سجل تسليم العهدة الطارئ أثناء الوردية (مش مبيعات ولا مصروفات — إقرار تسليم بس) */
+export async function fetchShiftHandovers(shiftId: string): Promise<ShiftHandover[]> {
+  const { data, error } = await supabase.rpc("shift_handovers" as any, { p_shift_id: shiftId });
+  if (error) throw error;
+  return ((data ?? []) as any[]).map((r) => ({ ...r, amount: Number(r.amount ?? 0) })) as ShiftHandover[];
+}
+
+/** مدير الفرع/الأونر بيسجل استلام عهدة من كاشير غادر طارئ — الوردية بتفضل مفتوحة */
+export async function recordMidShiftHandover(shiftId: string, amountReceived: number, notes?: string, managerId?: string) {
+  const { data, error } = await supabase.rpc("record_mid_shift_handover" as any, {
+    p_shift_id: shiftId,
+    p_manager_id: managerId ?? null,
+    p_amount_received: amountReceived,
+    p_notes: notes ?? null,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row as ShiftHandover;
+}
