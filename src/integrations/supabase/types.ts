@@ -6869,6 +6869,15 @@ export type Database = {
         Returns: Json
       }
       enforce_cycle_counts: { Args: { p_stale_days?: number }; Returns: number }
+      ensure_account: {
+        Args: {
+          _code: string
+          _name: string
+          _tenant: string
+          _type: Database["public"]["Enums"]["account_type"]
+        }
+        Returns: string
+      }
       ensure_count_variance_accounts: {
         Args: { p_tenant: string }
         Returns: undefined
@@ -7150,6 +7159,18 @@ export type Database = {
           p_source_id: string
           p_source_type: string
           p_tenant_id: string
+        }
+        Returns: string
+      }
+      post_journal_lines: {
+        Args: {
+          _branch_id?: string
+          _date: string
+          _description: string
+          _lines: Json
+          _source_id: string
+          _source_type: string
+          _tenant: string
         }
         Returns: string
       }
