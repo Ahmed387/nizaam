@@ -22,6 +22,7 @@ export default function ShiftClose() {
   const [shift, setShift] = useState<CashierShift | null>(null);
   const [cashSales, setCashSales] = useState<number>(0);
   const [breakdown, setBreakdown] = useState<ShiftPaymentLine[]>([]);
+  const [handovers, setHandovers] = useState<ShiftHandover[]>([]);
   const [closingCash, setClosingCash] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [autoCheckout, setAutoCheckout] = useState(true);
@@ -38,9 +39,14 @@ export default function ShiftClose() {
           return;
         }
         setShift(s);
-        const [sales, lines] = await Promise.all([shiftCashSales(s.id), shiftPaymentBreakdown(s.id)]);
+        const [sales, lines, hos] = await Promise.all([
+          shiftCashSales(s.id),
+          shiftPaymentBreakdown(s.id),
+          fetchShiftHandovers(s.id).catch(() => []),
+        ]);
         setCashSales(sales);
         setBreakdown(lines);
+        setHandovers(hos);
         setClosingCash(Number(s.opening_cash) + sales);
       } catch (e: any) {
         toast.error(e.message ?? "خطأ");
