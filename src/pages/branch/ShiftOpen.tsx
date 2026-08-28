@@ -162,6 +162,19 @@ export default function ShiftOpen() {
         )}
         <form onSubmit={submit} className="space-y-4">
 
+          <div className="rounded-lg border border-border p-3 text-sm space-y-1 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">الرصيد المتوقع (ختامي آخر وردية)</span>
+              <span className="font-bold text-primary">{formatEGP(expectedCash)}</span>
+            </div>
+            {shiftSchedule && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الوردية المجدولة</span>
+                <span className="font-semibold">{shiftSchedule.shift_name} ({String(shiftSchedule.start_time).slice(0,5)} — {String(shiftSchedule.end_time).slice(0,5)})</span>
+              </div>
+            )}
+          </div>
+
           <div>
             <Label>الرصيد الافتتاحي في الدرج (جنيه)</Label>
             <Input
@@ -172,6 +185,7 @@ export default function ShiftOpen() {
               autoFocus
             />
           </div>
+
           <div>
             <Label>ملاحظات (اختياري)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" />
