@@ -315,17 +315,14 @@ async function migrateSale(doc: LegacyDoc, a: LegacyRunArgs, idx: ProductIndex, 
   } as any);
   if (error) throw error;
 
-  await supabase
-    .from("invoices")
-    .update({
-      invoice_date: doc.dateISO || undefined,
-      legacy_number: doc.legacyNumber,
-      migration_batch_id: batchId,
-      is_migrated: true,
-      migration_source: a.label,
-      notes: `فاتورة مرحّلة — الرقم الأصلي: ${doc.legacyNumber}`,
-    } as any)
-    .eq("id", invId as any);
+  await supabase.rpc("mark_invoice_migrated" as any, {
+    p_invoice_id: invId as any,
+    p_invoice_date: doc.dateISO || null,
+    p_legacy_number: doc.legacyNumber,
+    p_batch_id: batchId,
+    p_source: a.label,
+    p_notes: `فاتورة مرحّلة — الرقم الأصلي: ${doc.legacyNumber}`,
+  });
 
   const { data: inv } = await supabase.from("invoices").select("invoice_number").eq("id", invId as any).maybeSingle();
   return { number: (inv as any)?.invoice_number ?? String(invId), total };

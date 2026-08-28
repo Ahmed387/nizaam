@@ -144,12 +144,12 @@ export default function SeedData() {
       await supabase.from("return_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("returns").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("invoice_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("invoices").update({ status: "cancelled" as any }).neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.rpc("admin_cancel_all_invoices" as any);
       await supabase.from("shipment_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("shipments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("stock_transfers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("treasury_transfers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("treasury").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.rpc("admin_clear_treasury" as any);
       
       await supabase.from("advance_payments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await supabase.from("advances").delete().neq("id", "00000000-0000-0000-0000-000000000000");

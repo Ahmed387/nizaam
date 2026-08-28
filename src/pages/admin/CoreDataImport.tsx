@@ -602,8 +602,7 @@ export default function CoreDataImport({ embedded = false }: { embedded?: boolea
               const ref = await loadRef();
               const branches = new Map(ref.branches.map((b) => [key(b.code), b.id]));
               // امسح أي أرصدة خزنة افتتاحية سابقة عشان مايحصلش ازدواج
-              await supabase.from("treasury" as any).delete()
-                .eq("tenant_id", tenantId).eq("category", "رصيد افتتاحي");
+              await supabase.rpc("clear_opening_treasury" as any);
               let inserted = 0; const failed: any[] = [];
               const cash: Record<string, number> = {};
               for (const r of rows) {

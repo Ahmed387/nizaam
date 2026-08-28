@@ -1019,10 +1019,11 @@ export default function NewSale() {
       // Persist backdated invoice_date if changed (DB trigger restricts to admin/super_admin)
       const _today = new Date().toISOString().slice(0, 10);
       if (invoiceDate && invoiceDate !== _today && invId) {
-        const { error: dErr } = await supabase
-          .from("invoices")
-          .update({ invoice_date: invoiceDate } as any)
-          .eq("id", invId as any);
+        const { error: dErr } = await supabase.rpc("set_invoice_meta" as any, {
+          p_invoice_id: invId as any,
+          p_invoice_date: invoiceDate,
+          p_notes: null,
+        });
         if (dErr) console.warn("invoice_date update blocked:", dErr.message);
       }
 
@@ -1072,7 +1073,7 @@ export default function NewSale() {
       // Save cashier notes on the invoice (printed on the receipt)
       if (invoiceNotes.trim()) {
         try {
-          await supabase.from("invoices").update({ notes: invoiceNotes.trim() } as any).eq("id", invId as string);
+          await supabase.rpc("set_invoice_meta" as any, { p_invoice_id: invId as string, p_invoice_date: null, p_notes: invoiceNotes.trim() });
         } catch (e) { console.warn("save invoice notes failed", e); }
       }
 

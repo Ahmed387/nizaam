@@ -499,7 +499,7 @@ export default function EditSaleInvoice() {
     const oldIso = snap?.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
     const newIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
     if (oldIso !== newIso && newIso) {
-      const { error } = await supabase.from("invoices").update({ invoice_date: newIso }).eq("id", invoiceId!);
+      const { error } = await supabase.rpc("set_invoice_meta" as any, { p_invoice_id: invoiceId!, p_invoice_date: newIso, p_notes: null });
       if (error) {
         setSaving(false);
         const msg = /owner|admin or super_admin|super_admin/i.test(error.message)
