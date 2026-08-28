@@ -210,6 +210,43 @@ export default function ShiftOpen() {
           </Button>
         </form>
       </Card>
+
+      <Dialog open={handoverOpen} onOpenChange={(o) => !busy && setHandoverOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>إقرار استلام العهدة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border p-3 text-sm space-y-1 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">المتوقع في الدرج</span>
+                <span className="font-bold text-primary">{formatEGP(expectedCash)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">الفرق</span>
+                <span className={`font-bold ${Math.abs((Number(countedCash) || 0) - expectedCash) < 0.01 ? "text-success" : "text-destructive"}`}>
+                  {formatEGP((Number(countedCash) || 0) - expectedCash)}
+                </span>
+              </div>
+            </div>
+            <div>
+              <Label>الفلوس الموجودة في الدرج فعليًا</Label>
+              <Input type="number" min={0} step="0.01" className="mt-1.5 text-lg"
+                value={countedCash} onChange={(e) => setCountedCash(Number(e.target.value))} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              لو المبلغ مطابق هتبدأ البيع فورًا. لو مختلف، الوردية هتتسجل كرفض استلام عهدة وهيتبعت إشعار للأونر ومدير الفرع للاعتماد.
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHandoverOpen(false)} disabled={busy}>رجوع</Button>
+            <Button onClick={() => doOpen(false)} disabled={busy} className="min-w-[150px]">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<><CheckCircle2 className="w-4 h-4 me-2" />أقر باستلام العهدة</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BranchLayout>
+
   );
 }
