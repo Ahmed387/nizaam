@@ -507,7 +507,9 @@ export default function Contacts() {
           branchId={branchId}
           type={voucherCtx.type}
           initialParty={{
-            type: voucherCtx.contact.type === "supplier" ? "supplier" : "customer",
+            type: voucherCtx.contact.type === "both"
+              ? (voucherCtx.type === "payment" ? "supplier" : "customer")
+              : (voucherCtx.contact.type === "supplier" ? "supplier" : "customer"),
             id: voucherCtx.contact.id,
             name: voucherCtx.contact.name,
           }}
