@@ -24,7 +24,7 @@ import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
 import { UserPermissionsTab } from "@/components/UserPermissionsTab";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
-import { PersonalExpensesAccessTab } from "@/components/PersonalExpensesAccessTab";
+
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
 import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
 
@@ -308,7 +308,7 @@ export default function Settings() {
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
             { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
-            ...((user?.email || "").toLowerCase() === "an.ayoub98@gmail.com" ? [{ v: "personal-exp", icon: Wallet, label: "المصاريف الشخصية" }] : []),
+            
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
             ...(canManageAdminTools ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
@@ -346,9 +346,6 @@ export default function Settings() {
           <UserPermissionsTab />
         </TabsContent>
 
-        <TabsContent value="personal-exp" className="mt-4">
-          <PersonalExpensesAccessTab />
-        </TabsContent>
 
         <TabsContent value="discount" className="mt-4">
           <div className="card-elevated p-6 space-y-5 max-w-3xl mx-auto">
