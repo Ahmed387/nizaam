@@ -69,3 +69,26 @@ export async function fetchVoucherCategories(type?: VoucherType, onlyActive = fa
   if (error) throw error;
   return (data ?? []) as unknown as VoucherCategory[];
 }
+
+/**
+ * تصنيفات محجوزة لشاشات مخصّصة (مبيعات/مرتجعات/تحويلات) — ممنوع إنشاء سند يدوي بها
+ * لأنها تؤثر على المخزون أو تُنشأ آلياً من مسارات أخرى.
+ */
+export const RESERVED_CATEGORY_KEYS = new Set([
+  "cash_sale",
+  "customer_return",
+  "branch_transfer_in",
+  "branch_transfer_out",
+]);
+
+const RESERVED_CATEGORY_NAMES = ["مبيعات نقدية", "مرتجعات للعملاء", "تحويلات بين الفروع"];
+
+/** هل التصنيف مسموح استخدامه في السندات اليدوية؟ */
+export function isManualVoucherCategory(c: VoucherCategory): boolean {
+  if (!c.is_active) return false;
+  if (c.system_key && RESERVED_CATEGORY_KEYS.has(c.system_key)) return false;
+  const name = (c.name ?? "").trim();
+  if (RESERVED_CATEGORY_NAMES.includes(name)) return false;
+  if (/QA/i.test(name)) return false;
+  return true;
+}
