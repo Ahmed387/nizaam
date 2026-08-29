@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -472,26 +472,32 @@ export default function Contacts() {
                   <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
                     <FileText className="w-3.5 h-3.5" />
                   </Button>
-                  {(t === "customer" || t === "both") && (
+                  {/* سند قبض: يظهر للعميل وللجهة المشتركة ويفتح النافذة ببيانات الجهة الحالية */}
+                  {(r.type === "customer" || r.type === "both") && (
                     <Button
                       size="sm"
-                      variant={t === "both" ? "default" : "outline"}
-                      className={t === "both" ? "bg-success hover:bg-success/90 text-white" : "text-success border-success/30 hover:bg-success/10"}
+                      variant="outline"
+                      className="border-success/50 bg-success/10 text-success hover:bg-success/20 hover:text-success"
                       title="سند قبض"
+                      aria-label={`إنشاء سند قبض لـ ${r.name}`}
+                      data-voucher-action="receipt"
                       onClick={() => setVoucherCtx({ type: "receipt", contact: r })}
                     >
-                      <ArrowDownLeft className="w-4 h-4" />
+                      <Receipt className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   )}
-                  {(t === "supplier" || t === "both") && (
+                  {/* سند صرف: يظهر للمورد وللجهة المشتركة ويفتح النافذة ببيانات الجهة الحالية */}
+                  {(r.type === "supplier" || r.type === "both") && (
                     <Button
                       size="sm"
-                      variant={t === "both" ? "default" : "outline"}
-                      className={t === "both" ? "bg-destructive hover:bg-destructive/90 text-white" : "text-destructive border-destructive/30 hover:bg-destructive/10"}
+                      variant="outline"
+                      className="border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
                       title="سند صرف"
+                      aria-label={`إنشاء سند صرف لـ ${r.name}`}
+                      data-voucher-action="payment"
                       onClick={() => setVoucherCtx({ type: "payment", contact: r })}
                     >
-                      <ArrowUpRight className="w-4 h-4" />
+                      <Wallet className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   )}
                   {t === "customer" && (
