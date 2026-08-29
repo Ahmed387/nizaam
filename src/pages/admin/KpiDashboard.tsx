@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { buildKpiAlerts } from "@/lib/kpiAlerts";
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 type Alert = ReturnType<typeof buildKpiAlerts>[number];
 const buildAlerts = buildKpiAlerts;
@@ -59,6 +60,7 @@ function KpiCard({ icon: Icon, label, value, tone = "default", hint }: {
 }
 
 export default function KpiDashboard() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const y = new Date().getFullYear();
@@ -169,7 +171,7 @@ export default function KpiDashboard() {
               <KpiCard icon={DollarSign} label="الإيرادات" value={fmt(kpi.revenue)} tone="primary" />
               <KpiCard icon={Package} label="تكلفة البضاعة" value={fmt(kpi.cogs)} />
               <KpiCard icon={PiggyBank} label="مجمل الربح" value={fmt(kpi.gross_profit)} tone={kpi.gross_profit >= 0 ? "success" : "destructive"} hint={pct(kpi.gross_margin_pct)} />
-              <KpiCard icon={Percent} label="صافي الربح" value={fmt(kpi.net_profit)} tone={kpi.net_profit >= 0 ? "success" : "destructive"} hint={pct(kpi.net_margin_pct)} />
+              <KpiCard icon={Percent} label="صافي الربح" value={canViewNetProfit ? fmt(kpi.net_profit) : NET_PROFIT_MASK} tone={canViewNetProfit ? (kpi.net_profit >= 0 ? "success" : "destructive") : "default"} hint={canViewNetProfit ? pct(kpi.net_margin_pct) : "---"} />
             </div>
           </div>
 

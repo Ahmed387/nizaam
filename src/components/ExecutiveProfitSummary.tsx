@@ -5,6 +5,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP } from "@/lib/format";
 import { TrendingUp, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
 import { fetchProfitWindow, rangeFor, type ProfitPeriod } from "@/lib/profitEngine";
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 const PERIODS: { key: ProfitPeriod; label: string }[] = [
   { key: "day", label: "يومي" },
@@ -17,6 +18,7 @@ const BRANCH_COLORS = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-
 const BRANCH_DOT = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
 
 export function ExecutiveProfitSummary() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
   const [period, setPeriod] = useState<ProfitPeriod>("month");
   const [loading, setLoading] = useState(true);
@@ -84,10 +86,10 @@ export function ExecutiveProfitSummary() {
 
           <div>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <div className={`text-3xl lg:text-4xl font-extrabold tracking-tight ${net >= 0 ? "text-success" : "text-destructive"}`}>
-                {loading ? <Loader2 className="w-7 h-7 animate-spin inline" /> : formatEGP(net)}
+              <div className={`text-3xl lg:text-4xl font-extrabold tracking-tight ${!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive"}`}>
+                {loading ? <Loader2 className="w-7 h-7 animate-spin inline" /> : canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
               </div>
-              {deltaPct !== null && !loading && (
+              {deltaPct !== null && !loading && canViewNetProfit && (
                 <div
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
                     deltaPct >= 0
