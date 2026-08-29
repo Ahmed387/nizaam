@@ -25,6 +25,7 @@ import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
 export default function BranchDashboard() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
   const { can, isAdmin } = useAuth();
