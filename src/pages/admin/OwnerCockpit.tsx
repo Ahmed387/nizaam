@@ -1,3 +1,4 @@
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +13,6 @@ import {
   Activity,
 } from "lucide-react";
 import {
-import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 

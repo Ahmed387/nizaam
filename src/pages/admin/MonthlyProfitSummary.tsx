@@ -1,3 +1,4 @@
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -14,7 +15,6 @@ import { fetchAllRows } from "@/lib/fetchAll";
 import { fetchProfitWindow, rangeForDates } from "@/lib/profitEngine";
 import { fin, allocateByShares } from "@/lib/financeTerms";
 import {
-import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
   ShoppingCart, Package, TrendingUp, Receipt, Wallet, Users,
   Loader2, HandCoins, AlertTriangle,
 } from "lucide-react";

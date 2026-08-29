@@ -1,3 +1,4 @@
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { invoiceProfit } from "@/lib/profitEngine";
@@ -18,7 +19,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText, CalendarDays } from "lucide-react";
 import { fetchSchedules, fetchClosures, countWorkingDays } from "@/lib/branchSchedule";
 import {
-import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
 } from "recharts";
