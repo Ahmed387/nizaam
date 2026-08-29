@@ -190,7 +190,16 @@ export const PERM_HELP: Record<string, string> = {
   admin_approvals_requests: "طلبات الموافقة على الحذف والتعديل الجاية من الفروع.",
   admin_approvals_discounts: "طلبات الخصم اللي محتاجة موافقة.",
   admin_approvals_advances: "طلبات سلف الموظفين.",
+
+  // بيانات حسّاسة
+  net_profit: "رؤية أرقام صافي الربح في الكروت والتقارير. لو مقفولة الموظف هيشوف «غير مصرح» مكان الرقم.",
 };
+
+/** صلاحيات بيانات حسّاسة — بتتمنح لموظف بعينه فقط (مش أدوار). */
+export const SENSITIVE_PERMISSION_GROUPS: PermGroup[] = [
+  { key: "net_profit", label: "رؤية صافي الربح", actions: ["view"] },
+];
+
 
 /** Full permission catalog used by the admin Role Permissions panel. */
 export const PERMISSION_GROUPS: PermGroup[] = [
