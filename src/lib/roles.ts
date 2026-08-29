@@ -190,7 +190,16 @@ export const PERM_HELP: Record<string, string> = {
   admin_approvals_requests: "طلبات الموافقة على الحذف والتعديل الجاية من الفروع.",
   admin_approvals_discounts: "طلبات الخصم اللي محتاجة موافقة.",
   admin_approvals_advances: "طلبات سلف الموظفين.",
+
+  // بيانات حسّاسة
+  net_profit: "رؤية أرقام صافي الربح في الكروت والتقارير. لو مقفولة الموظف هيشوف «غير مصرح» مكان الرقم.",
 };
+
+/** صلاحيات بيانات حسّاسة — بتتمنح لموظف بعينه فقط (مش أدوار). */
+export const SENSITIVE_PERMISSION_GROUPS: PermGroup[] = [
+  { key: "net_profit", label: "رؤية صافي الربح", actions: ["view"] },
+];
+
 
 /** Full permission catalog used by the admin Role Permissions panel. */
 export const PERMISSION_GROUPS: PermGroup[] = [
@@ -203,7 +212,9 @@ export const USER_PERMISSION_GROUPS: PermGroup[] = [
   ...BRANCH_PERMISSION_GROUPS,
   ...ADMIN_NAV_PERMISSION_GROUPS,
   ...ADMIN_SUBSECTION_PERMISSION_GROUPS,
+  ...SENSITIVE_PERMISSION_GROUPS,
 ];
+
 
 
 
@@ -256,12 +267,16 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   worker: {},
   driver: {},
   // المراقب: يشوف كل حاجة المالك بيشوفها (عرض فقط) — من غير الإعدادات وترحيل البيانات
-  viewer: Object.fromEntries(
-    [...BRANCH_PERMISSION_GROUPS, ...ADMIN_NAV_PERMISSION_GROUPS, ...ADMIN_SUBSECTION_PERMISSION_GROUPS]
-      .filter((g) => g.key !== "admin_settings" && g.key !== "admin_data_migration")
-      .flatMap((g) => g.actions.filter((a) => a === "view").map((a) => [`${g.key}.${a}`, true])),
-  ),
+  viewer: {
+    ...Object.fromEntries(
+      [...BRANCH_PERMISSION_GROUPS, ...ADMIN_NAV_PERMISSION_GROUPS, ...ADMIN_SUBSECTION_PERMISSION_GROUPS]
+        .filter((g) => g.key !== "admin_settings" && g.key !== "admin_data_migration")
+        .flatMap((g) => g.actions.filter((a) => a === "view").map((a) => [`${g.key}.${a}`, true])),
+    ),
+    "net_profit.view": true,
+  },
 };
+
 
 /**
  * Local permission check (mirrors DB has_permission). Admin/super always true.

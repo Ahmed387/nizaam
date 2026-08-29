@@ -1,3 +1,4 @@
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -51,6 +52,7 @@ const currentMonth = () => {
 };
 
 export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean } = {}) {
+  const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
   const [mode, setMode] = useState<"month" | "custom">("month");
   const [month, setMonth] = useState(currentMonth());
@@ -198,10 +200,10 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
   }, [tenantId, period.from, period.to]);
 
   const Line = ({
-    icon, term, hint, value, tone, big,
+    icon, term, hint, value, tone, big, masked,
   }: {
     icon: React.ReactNode; term: string; hint: string; value: number;
-    tone: "primary" | "destructive" | "success" | "muted"; big?: boolean;
+    tone: "primary" | "destructive" | "success" | "muted"; big?: boolean; masked?: boolean;
   }) => {
     const toneCls =
       tone === "success" ? "text-success" :
@@ -220,8 +222,8 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
             <div className="text-xs md:text-sm text-muted-foreground">{hint}</div>
           </div>
         </div>
-        <div className={`font-extrabold tabular-nums ${big ? "text-3xl md:text-4xl" : "text-xl md:text-2xl"} ${toneCls}`}>
-          {formatEGP(value)}
+        <div className={`font-extrabold tabular-nums ${big ? "text-3xl md:text-4xl" : "text-xl md:text-2xl"} ${masked ? "text-muted-foreground" : toneCls}`}>
+          {masked ? NET_PROFIT_MASK : formatEGP(value)}
         </div>
       </div>
     );
@@ -307,6 +309,7 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
           value={net}
           tone={net >= 0 ? "success" : "destructive"}
           big
+          masked={!canViewNetProfit}
         />
       </div>
 

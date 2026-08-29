@@ -1,3 +1,4 @@
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -464,6 +465,7 @@ function HeroCard({
   title: string; subtitle: string; net: number; sales: number; expenses: number;
   delta: number | null; gradient: string;
 }) {
+  const canViewNetProfit = useCanViewNetProfit();
   const pos = net >= 0;
   return (
     <div className={`card-elevated p-6 bg-gradient-to-br ${gradient} border-2 ${pos ? "border-success/30" : "border-destructive/30"} text-center`}>
@@ -476,8 +478,8 @@ function HeroCard({
       {/* Net profit — centered and prominent */}
       <div className="mb-4">
         <div className="text-sm md:text-base font-semibold text-muted-foreground mb-1">صافي الربح</div>
-        <div className={`text-4xl md:text-5xl font-black tracking-tight ${pos ? "text-success" : "text-destructive"}`}>
-          {formatEGP(net)}
+        <div className={`text-4xl md:text-5xl font-black tracking-tight ${!canViewNetProfit ? "text-muted-foreground" : pos ? "text-success" : "text-destructive"}`}>
+          {canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
         </div>
         {delta !== null && (
           <div className={`inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-sm font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>

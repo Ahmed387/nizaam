@@ -38,6 +38,7 @@ import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraf
 import { ColorChip } from "@/components/ColorPicker";
 import { VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 
 
@@ -69,6 +70,7 @@ interface PaymentSplit {
 }
 
 export default function NewSale() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
   const nav = useNavigate();
@@ -2182,8 +2184,8 @@ export default function NewSale() {
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
                   <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{formatEGP(totalProfit)}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{profitPct.toFixed(2)}%</span></div>
+                  <div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={!canViewNetProfit ? "text-muted-foreground font-extrabold" : totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{canViewNetProfit ? formatEGP(totalProfit) : NET_PROFIT_MASK}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={!canViewNetProfit ? "text-muted-foreground font-bold" : totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{canViewNetProfit ? `${profitPct.toFixed(2)}%` : "---"}</span></div>
                 </div>
               )}
             </div>
