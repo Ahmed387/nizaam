@@ -17,9 +17,10 @@ import { searchMatch } from "@/lib/search";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, PackagePlus, Truck, Loader2, Receipt, Wallet } from "lucide-react";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { useBranchScope } from "@/lib/branchScope";
+import { VoucherDialog } from "@/components/VoucherDialog";
 
 interface Supplier {
   id: string;
@@ -74,6 +75,7 @@ export default function AllSuppliers() {
   const [shipmentsList, setShipmentsList] = useState<any[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(false);
   const [shipBranchFilter, setShipBranchFilter] = useState("all");
+  const [voucherCtx, setVoucherCtx] = useState<{ type: "receipt" | "payment"; contact: Supplier; branchId: string } | null>(null);
 
   // New shipment dialog
   const [newShipOpen, setNewShipOpen] = useState(false);
@@ -187,6 +189,14 @@ export default function AllSuppliers() {
     setEditing(s);
     setForm({ name: s.name, contact_person: s.contact_person ?? "", phone: s.phone ?? "", address: s.address ?? "", notes: s.notes ?? "" });
     setOpen(true);
+  };
+
+  const openVoucher = (type: "receipt" | "payment", contact: Supplier & { branchIds?: string[] }) => {
+    const selectedBranchId = branchFilter !== "all"
+      ? branchFilter
+      : contact.branchIds?.[0] ?? branches[0]?.id;
+    if (!selectedBranchId) return toast.error("لا يوجد فرع متاح لإنشاء السند");
+    setVoucherCtx({ type, contact, branchId: selectedBranchId });
   };
 
   const submit = async () => {
@@ -491,9 +501,35 @@ export default function AllSuppliers() {
             if (bal < 0) return <span className="text-destructive font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">علينا</span></span>;
             return <span className="text-success font-bold">{formatEGP(bal)} <span className="text-xs">لينا</span></span>;
           }},
-          { key: "actions", header: "إجراءات", render: (r: any) => (
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          { key: "actions", header: "إجراءات", width: "18rem", className: "min-w-[18rem]", render: (r: any) => (
+            <div className="flex min-w-max items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <Button size="sm" variant="outline" title="فتح صفحة الجهة في تبويب جديد" onClick={() => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}><Eye className="w-3.5 h-3.5" /></Button>
+              {(r.type === "customer" || r.type === "both") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-success/50 bg-success/10 text-success hover:bg-success/20 hover:text-success"
+                  title="سند قبض"
+                  aria-label={`إنشاء سند قبض لـ ${r.name}`}
+                  data-voucher-action="receipt"
+                  onClick={() => openVoucher("receipt", r)}
+                >
+                  <Receipt className="w-4 h-4" aria-hidden="true" />
+                </Button>
+              )}
+              {(r.type === "supplier" || r.type === "both") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
+                  title="سند صرف"
+                  aria-label={`إنشاء سند صرف لـ ${r.name}`}
+                  data-voucher-action="payment"
+                  onClick={() => openVoucher("payment", r)}
+                >
+                  <Wallet className="w-4 h-4" aria-hidden="true" />
+                </Button>
+              )}
               <Button size="sm" variant="outline" title="الشحنات" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
@@ -501,6 +537,21 @@ export default function AllSuppliers() {
             </div>
           )},
         ]} />
+
+      {voucherCtx && (
+        <VoucherDialog
+          open
+          onOpenChange={(nextOpen) => { if (!nextOpen) setVoucherCtx(null); }}
+          branchId={voucherCtx.branchId}
+          type={voucherCtx.type}
+          initialParty={{
+            type: voucherCtx.type === "receipt" ? "customer" : "supplier",
+            id: voucherCtx.contact.id,
+            name: voucherCtx.contact.name,
+          }}
+          onSuccess={() => { setVoucherCtx(null); load(); }}
+        />
+      )}
 
       {/* Add/Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
