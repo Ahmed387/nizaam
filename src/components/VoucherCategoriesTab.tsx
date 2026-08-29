@@ -93,14 +93,8 @@ export function VoucherCategoriesTab() {
   };
 
 
-  const MANUAL_INCOME_CATEGORIES = ["إيرادات أخرى", "أرباح خارجية", "ارباح خارجية"];
-
-  const shouldShowCategory = (c: VoucherCategory) => {
-    // إخفاء المعطّل دائماً، وإخفاء تصنيفات النظام ما عدا الإيرادات/الأرباح اليدوية
-    if (!c.is_active) return false;
-    if (!c.is_system) return true;
-    return MANUAL_INCOME_CATEGORIES.includes(c.name.trim());
-  };
+  // إخفاء المعطّل + التصنيفات المحجوزة للشاشات المخصّصة + تصنيفات الاختبار
+  const shouldShowCategory = (c: VoucherCategory) => isManualVoucherCategory(c);
 
   const renderType = (type: VoucherType) => {
     const visible = cats.filter(shouldShowCategory);
