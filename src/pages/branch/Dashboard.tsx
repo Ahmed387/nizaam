@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { ShareBreakdown } from "@/components/charts/RankBars";
 import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
@@ -233,11 +234,11 @@ export default function BranchDashboard() {
             <span className="text-base font-bold text-foreground">صافي الربح اليوم</span>
             <TrendingUp className="w-6 h-6 text-success" />
           </div>
-          <div className={"text-3xl font-extrabold " + (profitToday >= 0 ? "text-success" : "text-destructive")}>
-            {formatEGP(profitToday)}
+          <div className={"text-3xl font-extrabold " + (canViewNetProfit ? (profitToday >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground")}>
+            {canViewNetProfit ? formatEGP(profitToday) : NET_PROFIT_MASK}
           </div>
           <div className="text-sm mt-2 font-semibold text-muted-foreground">
-            هامش: {salesToday > 0 ? ((profitToday / salesToday) * 100).toFixed(1) : 0}%
+            هامش: {canViewNetProfit ? `${salesToday > 0 ? ((profitToday / salesToday) * 100).toFixed(1) : 0}%` : "---"}
           </div>
         </div>
 
@@ -267,7 +268,7 @@ export default function BranchDashboard() {
                 <h3 className="font-bold">هدف الشهر (صافي الربح)</h3>
               </div>
               <div className="text-sm text-muted-foreground">
-                {formatEGP(profitMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
+                {canViewNetProfit ? formatEGP(profitMonth) : NET_PROFIT_MASK} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
               </div>
             </div>
             <Progress value={pct} className="h-3" />
