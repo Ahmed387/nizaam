@@ -70,6 +70,7 @@ interface PaymentSplit {
 }
 
 export default function NewSale() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { id: branchId } = useParams<{ id: string }>();
   const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
   const nav = useNavigate();
