@@ -12,6 +12,7 @@ import {
   Activity,
 } from "lucide-react";
 import {
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 
@@ -476,8 +477,8 @@ function HeroCard({
       {/* Net profit — centered and prominent */}
       <div className="mb-4">
         <div className="text-sm md:text-base font-semibold text-muted-foreground mb-1">صافي الربح</div>
-        <div className={`text-4xl md:text-5xl font-black tracking-tight ${pos ? "text-success" : "text-destructive"}`}>
-          {formatEGP(net)}
+        <div className={`text-4xl md:text-5xl font-black tracking-tight ${!canViewNetProfit ? "text-muted-foreground" : pos ? "text-success" : "text-destructive"}`}>
+          {canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
         </div>
         {delta !== null && (
           <div className={`inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-sm font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>

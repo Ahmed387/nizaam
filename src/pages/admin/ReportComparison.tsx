@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
 import { useBranchScope } from "@/lib/branchScope";
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
@@ -97,6 +98,7 @@ function DeltaCell({ curr, prev, invert }: { curr: number; prev: number; invert?
 }
 
 export default function ReportComparison({ embedded }: { embedded?: boolean } = {}) {
+  const canViewNetProfit = useCanViewNetProfit();
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const { filterBranches } = useBranchScope();
   const [branchId, setBranchId] = useState("global");
@@ -210,7 +212,7 @@ export default function ReportComparison({ embedded }: { embedded?: boolean } = 
         <ComparisonCard label="المبيعات" a={statsA.sales} b={statsB.sales} icon={<ShoppingCart className="w-4 h-4" />} />
         <ComparisonCard label="إجمالي الربح" a={statsA.profit} b={statsB.profit} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
         <ComparisonCard label="المصروفات" a={statsA.expenses} b={statsB.expenses} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" invert />
-        <ComparisonCard label="صافي الربح" a={statsA.net} b={statsB.net} icon={<Wallet className="w-4 h-4" />} accent={statsA.net >= 0 ? "success" : "destructive"} />
+        <ComparisonCard label="صافي الربح" a={statsA.net} b={statsB.net} icon={<Wallet className="w-4 h-4" />} accent={statsA.net >= 0 ? "success" : "destructive"} masked={!canViewNetProfit} />
       </div>
 
       <div className="card-elevated p-4 mb-6">
@@ -245,7 +247,7 @@ export default function ReportComparison({ embedded }: { embedded?: boolean } = 
             <Row label="التكلفة" a={statsA.cost} b={statsB.cost} invert />
             <Row label="إجمالي الربح" a={statsA.profit} b={statsB.profit} />
             <Row label="المصروفات" a={statsA.expenses} b={statsB.expenses} invert />
-            <Row label="صافي الربح" a={statsA.net} b={statsB.net} />
+            <Row label="صافي الربح" a={statsA.net} b={statsB.net} masked={!canViewNetProfit} />
             <Row label="وارد الخزنة" a={statsA.cashIn} b={statsB.cashIn} />
             <Row label="صادر الخزنة" a={statsA.cashOut} b={statsB.cashOut} invert />
           </tbody>

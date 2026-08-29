@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 type Line = {
   debit: number;
@@ -30,6 +31,7 @@ function firstOfMonth() {
 }
 
 export default function IncomeStatement() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
   const [from, setFrom] = useState<string>(firstOfMonth());
   const [to, setTo] = useState<string>(() => new Date().toISOString().slice(0, 10));

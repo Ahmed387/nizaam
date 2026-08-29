@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FileSpreadsheet, TrendingUp, TrendingDown, ShoppingCart, Wallet, RotateCcw, FileText, CalendarDays } from "lucide-react";
 import { fetchSchedules, fetchClosures, countWorkingDays } from "@/lib/branchSchedule";
 import {
+import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
 } from "recharts";
@@ -28,6 +29,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 
 export default function BranchReports() {
+  const canViewNetProfit = useCanViewNetProfit();
   const { id: branchId } = useParams<{ id: string }>();
   const { tenantId, profile } = useAuth();
   const [from, setFrom] = useState(daysAgo(30));
@@ -236,14 +238,14 @@ export default function BranchReports() {
         <StatCard label="المرتجعات" value={formatEGP(totalReturns)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${returns.length} عملية`} />
         <StatCard label="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
         <StatCard label="المصاريف التشغيلية (OPEX)" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" hint="بدون مرتجعات / مشتريات" />
-        <StatCard label="صافي الربح (Net Profit)" value={formatEGP(netProfit)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
+        <StatCard label="صافي الربح (Net Profit)" value={canViewNetProfit ? formatEGP(netProfit) : NET_PROFIT_MASK} icon={<Wallet className="w-4 h-4" />} accent={canViewNetProfit ? (netProfit >= 0 ? "success" : "destructive") : undefined} />
         <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard label="أيام العمل الفعلية" value={String(workingDays)} icon={<CalendarDays className="w-4 h-4" />} hint="بعد استبعاد الإجازات والإغلاق" />
         <StatCard label="متوسط المبيعات / يوم عمل" value={formatEGP(workingDays ? totalSales / workingDays : 0)} icon={<ShoppingCart className="w-4 h-4" />} />
-        <StatCard label="متوسط الربح / يوم عمل" value={formatEGP(workingDays ? netProfit / workingDays : 0)} icon={<Wallet className="w-4 h-4" />} accent={netProfit >= 0 ? "success" : "destructive"} />
+        <StatCard label="متوسط الربح / يوم عمل" value={canViewNetProfit ? formatEGP(workingDays ? netProfit / workingDays : 0) : NET_PROFIT_MASK} icon={<Wallet className="w-4 h-4" />} accent={canViewNetProfit ? (netProfit >= 0 ? "success" : "destructive") : undefined} />
         <StatCard label="متوسط الفواتير / يوم عمل" value={(workingDays ? activeInv.length / workingDays : 0).toFixed(1)} icon={<FileText className="w-4 h-4" />} />
       </div>
 
