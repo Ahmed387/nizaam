@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchVoucherCategories, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
+import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, Lock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -170,6 +171,11 @@ export function VoucherCategoriesTab() {
 
   return (
     <>
+      <Alert className="mb-4">
+        <AlertDescription className="text-xs leading-relaxed">
+          💡 تنبيه إداري: أي تصنيف يُضاف هنا سيصبح متاحاً فوراً للموظفين لإنشاء سندات يدوية به. للحفاظ على دقة الحسابات، يُنصح دائماً بإنشاء (تصنيف فرعي) يندرج تحت التصنيفات الرئيسية الموجودة.
+        </AlertDescription>
+      </Alert>
       <Tabs defaultValue="payment">
         <TabsList>
           <TabsTrigger value="payment">تصنيفات الصرف</TabsTrigger>
