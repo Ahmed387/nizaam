@@ -93,8 +93,18 @@ export function VoucherCategoriesTab() {
   };
 
 
+  const MANUAL_INCOME_CATEGORIES = ["إيرادات أخرى", "أرباح خارجية", "ارباح خارجية"];
+
+  const shouldShowCategory = (c: VoucherCategory) => {
+    // إخفاء المعطّل دائماً، وإخفاء تصنيفات النظام ما عدا الإيرادات/الأرباح اليدوية
+    if (!c.is_active) return false;
+    if (!c.is_system) return true;
+    return MANUAL_INCOME_CATEGORIES.includes(c.name.trim());
+  };
+
   const renderType = (type: VoucherType) => {
-    const roots = cats.filter((c) => c.type === type && !c.parent_id);
+    const visible = cats.filter(shouldShowCategory);
+    const roots = visible.filter((c) => c.type === type && !c.parent_id);
     return (
       <div className="space-y-3">
         <div className="flex justify-end">
@@ -103,7 +113,7 @@ export function VoucherCategoriesTab() {
           </Button>
         </div>
         {roots.map((r) => {
-          const children = cats.filter((c) => c.parent_id === r.id);
+          const children = visible.filter((c) => c.parent_id === r.id);
           return (
             <div key={r.id} className="card-elevated p-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
