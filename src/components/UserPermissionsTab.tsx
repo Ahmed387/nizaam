@@ -14,6 +14,7 @@ import {
   ADMIN_SUBSECTION_PERMISSION_GROUPS,
   SUBSECTION_PARENT,
   USER_PERMISSION_GROUPS,
+  SENSITIVE_PERMISSION_GROUPS,
   MANAGED_ROLES,
   ROLE_LABELS,
   DEFAULT_ROLE_PERMISSIONS,
@@ -44,6 +45,7 @@ const buildAdminTree = (): Node[] =>
 const SECTIONS: { title: string; nodes: Node[] }[] = [
   { title: "صفحات الفرع والعمليات", nodes: BRANCH_PERMISSION_GROUPS.map((g) => ({ group: g, children: [] })) },
   { title: "قائمة الإدارة الجانبية", nodes: buildAdminTree() },
+  { title: "بيانات حسّاسة", nodes: SENSITIVE_PERMISSION_GROUPS.map((g) => ({ group: g, children: [] })) },
 ];
 
 export function UserPermissionsTab() {
