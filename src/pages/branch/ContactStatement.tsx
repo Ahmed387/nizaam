@@ -40,12 +40,26 @@ export default function ContactStatement() {
   const load = async () => {
     setLoading(true);
     const { data: c } = await supabase.from("contacts").select("*").eq("id", contactId).maybeSingle();
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — override with canonical view balance
-    const { fetchContactBalance } = await import("@/lib/contactBalances");
-    const liveBal = await fetchContactBalance(contactId);
-    setContact(c ? { ...c, balance: liveBal } : c);
+    // الرصيد الرسمي مصدره الوحيد هو v_contact_balances
+    const { data: bal } = await supabase
+      .from("v_contact_balances" as any)
+      .select("*")
+      .eq("contact_id", contactId)
+      .maybeSingle();
+    const bRow: any = bal ?? null;
+    setContact(c ? { ...c, balance: Number(bRow?.total_balance ?? 0) } : c);
 
     const list: Row[] = [];
+    const opening = Number(bRow?.opening_balance ?? 0);
+    if (Math.abs(opening) > 0.001) {
+      list.push({
+        date: (c as any)?.created_at ?? new Date(0).toISOString(),
+        type: "رصيد افتتاحي", reference: "—", description: "—",
+        debit: opening > 0 ? opening : 0,
+        credit: opening < 0 ? Math.abs(opening) : 0,
+      });
+    }
+
     const cType = c?.type as string;
     const isCustomer = cType === "customer" || cType === "both";
     const isSupplier = cType === "supplier" || cType === "both";
@@ -58,7 +72,7 @@ export default function ContactStatement() {
           .eq("contact_id", contactId)
           .eq("status", "active"),
         supabase.from("returns")
-          .select("id, return_number, total_refund, refund_method, created_at, invoice_id, invoices!inner(contact_id, invoice_number)")
+          .select("id, return_number, total_refund, refund_cash_amount, refund_transfer_amount, refund_method, status, created_at, invoice_id, invoices!inner(contact_id, invoice_number)")
           .eq("invoices.contact_id", contactId),
       ]);
 
@@ -67,9 +81,9 @@ export default function ContactStatement() {
       let pays: any[] = [];
       if (invIds.length) {
         const { data } = await supabase.from("invoice_payments")
-          .select("id, amount, payment_method, created_at, invoice_id")
+          .select("id, amount, payment_method, created_at, invoice_id, voided_at, reverses_payment_id")
           .in("invoice_id", invIds);
-        pays = data ?? [];
+        pays = (data ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id);
       }
 
       (invs ?? []).forEach((r: any) => list.push({
@@ -77,16 +91,31 @@ export default function ContactStatement() {
         description: r.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
         debit: Number(r.total ?? 0), credit: 0, link: r.branch_id ? `/branch/${r.branch_id}/sales/${r.id}` : undefined,
       }));
-      pays.forEach((p: any) => list.push({
-        date: p.created_at, type: "تحصيل من عميل", reference: invNumberById.get(p.invoice_id) ?? "—",
-        description: p.payment_method ?? "—",
-        debit: 0, credit: Number(p.amount ?? 0),
-      }));
-      (rets ?? []).forEach((r: any) => list.push({
-        date: r.created_at, type: "مرتجع بيع", reference: r.return_number ?? r.invoices?.invoice_number ?? "—",
-        description: r.refund_method ?? "—",
-        debit: 0, credit: Number(r.total_refund ?? 0),
-      }));
+      pays.forEach((p: any) => {
+        const amt = Number(p.amount ?? 0);
+        const isSettle = p.payment_method === "settlement";
+        // المقاصة: قفل التزام مقابل التزام — بتتسجل مدين ودائن بنفس القيمة فصافي أثرها صفر
+        list.push({
+          date: p.created_at,
+          type: isSettle ? "مقاصة (تسوية بين الحسابين)" : "تحصيل من عميل",
+          reference: invNumberById.get(p.invoice_id) ?? "—",
+          description: isSettle ? "خصم من رصيد الجهة الدائن" : (p.payment_method ?? "—"),
+          debit: isSettle ? amt : 0,
+          credit: amt,
+        });
+      });
+      (rets ?? []).forEach((r: any) => {
+        if (["draft", "cancelled"].includes(String(r.status ?? "active"))) return;
+        const creditNote = Math.max(
+          0,
+          Number(r.total_refund ?? 0) - Number(r.refund_cash_amount ?? 0) - Number(r.refund_transfer_amount ?? 0),
+        );
+        list.push({
+          date: r.created_at, type: "مرتجع بيع", reference: r.return_number ?? r.invoices?.invoice_number ?? "—",
+          description: r.refund_method ?? "—",
+          debit: 0, credit: creditNote,
+        });
+      });
     }
 
     // Supplier flows
@@ -99,8 +128,9 @@ export default function ContactStatement() {
           .select("id, amount, paid_at, notes")
           .eq("contact_id", contactId),
         supabase.from("purchase_returns")
-          .select("id, return_number, total_amount, created_at, refund_method")
-          .eq("contact_id", contactId),
+          .select("id, return_number, total_amount, refund_cash_amount, refund_transfer_amount, status, created_at, refund_method")
+          .eq("contact_id", contactId)
+          .eq("status", "active"),
       ]);
 
       (ships ?? []).forEach((s: any) => list.push({
@@ -116,36 +146,35 @@ export default function ContactStatement() {
       (prets ?? []).forEach((r: any) => list.push({
         date: r.created_at, type: "مرتجع شراء", reference: r.return_number ?? "—",
         description: r.refund_method ?? "—",
-        debit: Number(r.total_amount ?? 0), credit: 0,
+        debit: Math.max(
+          0,
+          Number(r.total_amount ?? 0) - Number(r.refund_cash_amount ?? 0) - Number(r.refund_transfer_amount ?? 0),
+        ),
+        credit: 0,
       }));
     }
 
-    // Manual vouchers (works for both)
+    // Vouchers — نفس منطق v_contact_balances بالضبط: قبض يقلّل الرصيد، صرف يزوّده
     const { data: vchs } = await supabase.from("vouchers" as any)
       .select("id, voucher_number, type, amount, voucher_date, party_type, source, description")
       .eq("party_id", contactId)
-      .eq("source", "manual")
+      .in("party_type", ["customer", "supplier"])
       .eq("status", "active");
 
     (vchs as any[] ?? []).forEach((v: any) => {
-      const isCust = v.party_type === "customer";
-      // Customer: receipt → credit (paid us); payment → credit (we refunded them, increases what we owe)
-      // Supplier: payment → debit (we paid); receipt → credit (they refunded)
-      let debit = 0, credit = 0;
-      if (isCust) credit = Number(v.amount ?? 0);
-      else if (v.type === "payment") debit = Number(v.amount ?? 0);
-      else credit = Number(v.amount ?? 0);
+      const amt = Number(v.amount ?? 0);
       list.push({
         date: v.voucher_date, type: v.type === "receipt" ? "سند قبض" : "سند صرف",
         reference: v.voucher_number ?? "—",
         description: v.description ?? "—",
-        debit, credit,
+        debit: v.type === "payment" ? amt : 0,
+        credit: v.type === "receipt" ? amt : 0,
       });
     });
 
     list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Compute running balance
+    // Compute running balance (matches ledger_balance in v_contact_balances)
     let run = 0;
     for (const r of list) {
       run += r.debit - r.credit;
@@ -156,6 +185,7 @@ export default function ContactStatement() {
     setRows(list);
     setLoading(false);
   };
+
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [contactId]);
   useRealtimeRefresh(

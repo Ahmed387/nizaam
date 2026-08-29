@@ -6365,6 +6365,7 @@ export type Database = {
           total_paid: number | null
           total_purchase_returns: number | null
           total_returned: number | null
+          total_settlement: number | null
           total_shipments: number | null
           total_supplier_paid: number | null
           total_voucher_payments: number | null

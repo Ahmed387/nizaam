@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { exportToExcel, printReport } from "@/lib/export";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { VoucherDialog } from "@/components/VoucherDialog";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -56,6 +57,7 @@ export default function Contacts() {
     notes: "",
   });
   const [search, setSearch] = useState("");
+  const [voucherCtx, setVoucherCtx] = useState<{ type: "receipt" | "payment"; contact: any } | null>(null);
   type BalanceKey = "owe_us" | "we_owe" | "settled";
   const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
   const toggleBalance = (k: BalanceKey) =>
@@ -466,6 +468,12 @@ export default function Contacts() {
                 <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
                   <FileText className="w-3.5 h-3.5" />
                 </Button>
+                <Button size="sm" variant="outline" title="سند قبض" onClick={() => setVoucherCtx({ type: "receipt", contact: r })}>
+                  <ArrowDownLeft className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="sm" variant="outline" title="سند صرف" onClick={() => setVoucherCtx({ type: "payment", contact: r })}>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Button>
                 {r.type === "customer" && (
                   <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
                     <TruckIcon className="w-3.5 h-3.5" />
@@ -491,6 +499,23 @@ export default function Contacts() {
           },
         ]}
       />
+
+      {voucherCtx && branchId && (
+        <VoucherDialog
+          open
+          onOpenChange={(o) => { if (!o) setVoucherCtx(null); }}
+          branchId={branchId}
+          type={voucherCtx.type}
+          initialParty={{
+            type: voucherCtx.contact.type === "both"
+              ? (voucherCtx.type === "payment" ? "supplier" : "customer")
+              : (voucherCtx.contact.type === "supplier" ? "supplier" : "customer"),
+            id: voucherCtx.contact.id,
+            name: voucherCtx.contact.name,
+          }}
+          onSuccess={() => { setVoucherCtx(null); load(); }}
+        />
+      )}
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent>
