@@ -463,10 +463,12 @@ export default function Contacts() {
           {
             key: "actions",
             header: "إجراءات",
+            width: "16rem",
+            className: "min-w-[16rem]",
             render: (r: any) => {
               const t = r.type as ContactType;
               return (
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex min-w-max items-center justify-center gap-1.5 px-1" onClick={(e) => e.stopPropagation()}>
                   <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
                     <FileText className="w-3.5 h-3.5" />
                   </Button>
@@ -478,7 +480,7 @@ export default function Contacts() {
                       title="سند قبض"
                       onClick={() => setVoucherCtx({ type: "receipt", contact: r })}
                     >
-                      <ArrowDownLeft className="w-3.5 h-3.5" />
+                      <ArrowDownLeft className="w-4 h-4" />
                     </Button>
                   )}
                   {(t === "supplier" || t === "both") && (
@@ -489,7 +491,7 @@ export default function Contacts() {
                       title="سند صرف"
                       onClick={() => setVoucherCtx({ type: "payment", contact: r })}
                     >
-                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      <ArrowUpRight className="w-4 h-4" />
                     </Button>
                   )}
                   {t === "customer" && (
