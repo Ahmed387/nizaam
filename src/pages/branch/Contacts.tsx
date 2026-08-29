@@ -463,39 +463,58 @@ export default function Contacts() {
           {
             key: "actions",
             header: "إجراءات",
-            render: (r: any) => (
-              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
-                  <FileText className="w-3.5 h-3.5" />
-                </Button>
-                <Button size="sm" variant="outline" title="سند قبض" onClick={() => setVoucherCtx({ type: "receipt", contact: r })}>
-                  <ArrowDownLeft className="w-3.5 h-3.5" />
-                </Button>
-                <Button size="sm" variant="outline" title="سند صرف" onClick={() => setVoucherCtx({ type: "payment", contact: r })}>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </Button>
-                {r.type === "customer" && (
-                  <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
-                    <TruckIcon className="w-3.5 h-3.5" />
+            render: (r: any) => {
+              const t = r.type as ContactType;
+              return (
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
+                    <FileText className="w-3.5 h-3.5" />
                   </Button>
-                )}
-                {r.type === "supplier" && (
-                  <Button size="sm" variant="outline" title="إضافة كعميل أيضاً" onClick={() => promoteToBoth(r, "customer")}>
-                    <UserPlus className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-                {(isAdmin || isManager) && (
-                  <Button size="sm" variant="outline" title={isAdmin ? "تعديل" : "طلب تعديل"} onClick={() => openEdit(r)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-                {(isAdmin || isManager) && (
-                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "حذف" : "طلب حذف"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-            ),
+                  {(t === "customer" || t === "both") && (
+                    <Button
+                      size="sm"
+                      variant={t === "both" ? "default" : "outline"}
+                      className={t === "both" ? "bg-success hover:bg-success/90 text-white" : "text-success border-success/30 hover:bg-success/10"}
+                      title="سند قبض"
+                      onClick={() => setVoucherCtx({ type: "receipt", contact: r })}
+                    >
+                      <ArrowDownLeft className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {(t === "supplier" || t === "both") && (
+                    <Button
+                      size="sm"
+                      variant={t === "both" ? "default" : "outline"}
+                      className={t === "both" ? "bg-destructive hover:bg-destructive/90 text-white" : "text-destructive border-destructive/30 hover:bg-destructive/10"}
+                      title="سند صرف"
+                      onClick={() => setVoucherCtx({ type: "payment", contact: r })}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {t === "customer" && (
+                    <Button size="sm" variant="outline" title="إضافة كمورد أيضاً" onClick={() => promoteToBoth(r, "supplier")}>
+                      <TruckIcon className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {t === "supplier" && (
+                    <Button size="sm" variant="outline" title="إضافة كعميل أيضاً" onClick={() => promoteToBoth(r, "customer")}>
+                      <UserPlus className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {(isAdmin || isManager) && (
+                    <Button size="sm" variant="outline" title={isAdmin ? "تعديل" : "طلب تعديل"} onClick={() => openEdit(r)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {(isAdmin || isManager) && (
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "حذف" : "طلب حذف"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              );
+            },
           },
         ]}
       />
