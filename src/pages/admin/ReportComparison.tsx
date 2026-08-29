@@ -257,8 +257,8 @@ export default function ReportComparison({ embedded }: { embedded?: boolean } = 
   );
 }
 
-function Row({ label, a, b, invert, kind }: { label: string; a: number; b: number; invert?: boolean; kind?: "num" }) {
-  const fmt = (n: number) => (kind === "num" ? String(n) : formatEGP(n));
+function Row({ label, a, b, invert, kind, masked }: { label: string; a: number; b: number; invert?: boolean; kind?: "num"; masked?: boolean }) {
+  const fmt = (n: number) => (masked ? NET_PROFIT_MASK : kind === "num" ? String(n) : formatEGP(n));
   return (
     <tr className="border-b border-border/40">
       <td className="p-2 font-medium">{label}</td>
@@ -272,13 +272,13 @@ function Row({ label, a, b, invert, kind }: { label: string; a: number; b: numbe
   );
 }
 
-function ComparisonCard({ label, a, b, icon, accent, invert }: any) {
+function ComparisonCard({ label, a, b, icon, accent, invert, masked }: any) {
   return (
     <div className="card-elevated p-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">{icon} {label}</div>
-      <div className="text-lg font-bold">{formatEGP(a)}</div>
-      <div className="text-xs text-muted-foreground">B: {formatEGP(b)}</div>
-      <div className="mt-1"><DeltaCell curr={a} prev={b} invert={invert} /></div>
+      <div className="text-lg font-bold">{masked ? NET_PROFIT_MASK : formatEGP(a)}</div>
+      <div className="text-xs text-muted-foreground">B: {masked ? NET_PROFIT_MASK : formatEGP(b)}</div>
+      {!masked && <div className="mt-1"><DeltaCell curr={a} prev={b} invert={invert} /></div>}
     </div>
   );
 }

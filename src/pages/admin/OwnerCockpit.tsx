@@ -465,6 +465,7 @@ function HeroCard({
   title: string; subtitle: string; net: number; sales: number; expenses: number;
   delta: number | null; gradient: string;
 }) {
+  const canViewNetProfit = useCanViewNetProfit();
   const pos = net >= 0;
   return (
     <div className={`card-elevated p-6 bg-gradient-to-br ${gradient} border-2 ${pos ? "border-success/30" : "border-destructive/30"} text-center`}>

@@ -137,7 +137,7 @@ export default function IncomeStatement() {
             <div><Label>إلى</Label><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">صافي الربح (Net Profit)</div>
-              <div className={"text-2xl font-bold " + (net >= 0 ? "text-success" : "text-destructive")}>{fmt(net)} <span className="text-sm">ج.م</span></div>
+              <div className={"text-2xl font-bold " + (!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive")}>{canViewNetProfit ? <>{fmt(net)} <span className="text-sm">ج.م</span></> : NET_PROFIT_MASK}</div>
             </div>
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">هامش الربح (Profit Margin)</div>
@@ -158,7 +158,7 @@ export default function IncomeStatement() {
         <Card>
           <CardContent className="py-4 flex items-center justify-between text-lg">
             <span className="font-semibold">صافي الربح للفترة (Net Profit)</span>
-            <span className={"font-mono font-bold " + (net >= 0 ? "text-success" : "text-destructive")}>{fmt(net)} ج.م</span>
+            <span className={"font-mono font-bold " + (!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive")}>{canViewNetProfit ? `${fmt(net)} ج.م` : NET_PROFIT_MASK}</span>
           </CardContent>
         </Card>
       </div>
