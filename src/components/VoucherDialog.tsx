@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
 import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
-import { fetchVoucherCategories, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
+import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
@@ -30,6 +30,8 @@ interface Props {
   onSuccess?: () => void;
   /** When provided, dialog runs in edit mode and calls edit_voucher RPC */
   editingVoucher?: Voucher | null;
+  /** Pre-select a party (e.g. opened from the contacts table) */
+  initialParty?: { type: VoucherPartyType; id: string; name: string } | null;
 }
 
 const FIELD_LABELS_AR: Record<string, string> = {
@@ -46,7 +48,7 @@ const FIELD_LABELS_AR: Record<string, string> = {
 
 interface PartyOption { id: string; name: string; }
 
-export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher }: Props) {
+export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher, initialParty }: Props) {
   const { user, branches } = useAuth();
   const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
@@ -68,6 +70,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   const [partyBalance, setPartyBalance] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingPartyRef = useRef<{ id: string; name: string } | null>(null);
 
   const branchName = branches.find((b) => b.id === branchId)?.name ?? "الفرع";
 
@@ -104,12 +107,13 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
       initPm.fee_amount = Number(editingVoucher.fee_amount ?? 0);
       setPm(initPm);
     } else {
+      pendingPartyRef.current = initialParty ? { id: initialParty.id, name: initialParty.name } : null;
       setForm({
         category_id: "",
         amount: "",
-        party_type: "",
-        party_id: "",
-        party_name: "",
+        party_type: (initialParty?.type ?? "") as any,
+        party_id: initialParty?.id ?? "",
+        party_name: initialParty?.name ?? "",
         description: "",
         voucher_date: new Date().toISOString().slice(0, 10),
       });
@@ -119,7 +123,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     setPartyBalance(null);
     setAttachFiles([]);
     setEditReason("");
-  }, [open, type, editingVoucher]);
+  }, [open, type, editingVoucher, initialParty]);
 
   // Reserved categories (sales / returns / branch transfers) are hidden from the manual dialog
   const grouped = useMemo(() => {
@@ -132,19 +136,27 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   // Load party options when party_type changes
   useEffect(() => {
     if (!open) return;
-    setForm((f) => ({ ...f, party_id: "", party_name: "" }));
-    setPartyBalance(null);
+    if (!pendingPartyRef.current) {
+      setForm((f) => ({ ...f, party_id: "", party_name: "" }));
+      setPartyBalance(null);
+    }
     if (!form.party_type || form.party_type === "other") { setPartyOptions([]); return; }
     (async () => {
       if (form.party_type === "supplier" || form.party_type === "customer") {
         const { data, error } = await supabase
           .from("contacts")
           .select("id, name")
-          .eq("type", form.party_type)
+          .in("type", [form.party_type, "both"])
           .order("name");
         if (error) { toast.error(error.message); return; }
         setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
+        const pending = pendingPartyRef.current;
+        if (pending) {
+          pendingPartyRef.current = null;
+          setForm((f) => ({ ...f, party_id: pending.id, party_name: pending.name }));
+        }
       } else if (form.party_type === "employee") {
+        pendingPartyRef.current = null;
         const { data, error } = await supabase
           .from("employees")
           .select("id, name")
