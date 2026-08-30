@@ -1933,6 +1933,182 @@ export type Database = {
         }
         Relationships: []
       }
+      historical_invoice_items: {
+        Row: {
+          branch_name: string
+          created_at: string | null
+          date: string
+          discount: number | null
+          id: string
+          invoice_id: string | null
+          item_code: string | null
+          item_name: string
+          price: number | null
+          profit: number | null
+          qty: number | null
+          total: number | null
+          unit: string | null
+          year: number
+        }
+        Insert: {
+          branch_name: string
+          created_at?: string | null
+          date: string
+          discount?: number | null
+          id?: string
+          invoice_id?: string | null
+          item_code?: string | null
+          item_name: string
+          price?: number | null
+          profit?: number | null
+          qty?: number | null
+          total?: number | null
+          unit?: string | null
+          year: number
+        }
+        Update: {
+          branch_name?: string
+          created_at?: string | null
+          date?: string
+          discount?: number | null
+          id?: string
+          invoice_id?: string | null
+          item_code?: string | null
+          item_name?: string
+          price?: number | null
+          profit?: number | null
+          qty?: number | null
+          total?: number | null
+          unit?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "historical_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historical_invoices: {
+        Row: {
+          branch_name: string
+          created_at: string | null
+          credit: number | null
+          date: string
+          discount: number | null
+          doc_type: string
+          due: number | null
+          id: string
+          invoice_no: string | null
+          month: number
+          paid_cash: number | null
+          party_name: string | null
+          payment_method: string | null
+          profit: number | null
+          returned_invoice_no: string | null
+          total_amount: number | null
+          total_qty: number | null
+          warehouse_name: string | null
+          year: number
+        }
+        Insert: {
+          branch_name: string
+          created_at?: string | null
+          credit?: number | null
+          date: string
+          discount?: number | null
+          doc_type: string
+          due?: number | null
+          id?: string
+          invoice_no?: string | null
+          month: number
+          paid_cash?: number | null
+          party_name?: string | null
+          payment_method?: string | null
+          profit?: number | null
+          returned_invoice_no?: string | null
+          total_amount?: number | null
+          total_qty?: number | null
+          warehouse_name?: string | null
+          year: number
+        }
+        Update: {
+          branch_name?: string
+          created_at?: string | null
+          credit?: number | null
+          date?: string
+          discount?: number | null
+          doc_type?: string
+          due?: number | null
+          id?: string
+          invoice_no?: string | null
+          month?: number
+          paid_cash?: number | null
+          party_name?: string | null
+          payment_method?: string | null
+          profit?: number | null
+          returned_invoice_no?: string | null
+          total_amount?: number | null
+          total_qty?: number | null
+          warehouse_name?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      historical_vouchers: {
+        Row: {
+          amount: number | null
+          branch_name: string
+          category: string | null
+          created_at: string | null
+          date: string
+          id: string
+          month: number
+          movement_name: string | null
+          notes: string | null
+          party_name: string | null
+          treasury_name: string | null
+          voucher_no: string | null
+          voucher_type: string
+          year: number
+        }
+        Insert: {
+          amount?: number | null
+          branch_name: string
+          category?: string | null
+          created_at?: string | null
+          date: string
+          id?: string
+          month: number
+          movement_name?: string | null
+          notes?: string | null
+          party_name?: string | null
+          treasury_name?: string | null
+          voucher_no?: string | null
+          voucher_type: string
+          year: number
+        }
+        Update: {
+          amount?: number | null
+          branch_name?: string
+          category?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          month?: number
+          movement_name?: string | null
+          notes?: string | null
+          party_name?: string | null
+          treasury_name?: string | null
+          voucher_no?: string | null
+          voucher_type?: string
+          year?: number
+        }
+        Relationships: []
+      }
       inventory_adjustments: {
         Row: {
           adjustment_amount: number
