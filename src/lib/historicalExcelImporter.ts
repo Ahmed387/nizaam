@@ -128,11 +128,11 @@ function detectHeader(rows: any[][]): { map: ColMap; headerRow: number } {
     const map: ColMap = {};
     let score = 0;
     rows[r].forEach((cell, c) => {
-      const t = norm(cell);
+      const t = norm(cell).toLowerCase();
       if (!t || t.length > 40) return;
       for (const [key, words] of Object.entries(KEYS)) {
         if (map[key] !== undefined) continue;
-        if (words.some((w) => t === w || t.includes(w))) {
+        if (words.some((w) => { const wl = w.toLowerCase(); return t === wl || t.includes(wl); })) {
           map[key] = c;
           score++;
           break;
