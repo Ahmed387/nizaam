@@ -20,7 +20,6 @@ import {
   Paperclip,
   PiggyBank,
   
-  Database,
 } from "lucide-react";
 
 export type GuideStep = {
