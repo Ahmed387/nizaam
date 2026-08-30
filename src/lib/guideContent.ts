@@ -19,7 +19,6 @@ import {
   Sparkles,
   Paperclip,
   PiggyBank,
-  
 } from "lucide-react";
 
 export type GuideStep = {
