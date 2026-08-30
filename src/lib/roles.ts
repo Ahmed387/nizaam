@@ -264,10 +264,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   },
   worker: {},
   driver: {},
-  // المراقب: يشوف كل حاجة المالك بيشوفها (عرض فقط) — من غير الإعدادات وترحيل البيانات
+  // المراقب: يشوف كل حاجة المالك بيشوفها (عرض فقط) — من غير الإعدادات
   viewer: {
     ...Object.fromEntries(
       [...BRANCH_PERMISSION_GROUPS, ...ADMIN_NAV_PERMISSION_GROUPS, ...ADMIN_SUBSECTION_PERMISSION_GROUPS]
+        .filter((g) => g.key !== "admin_settings")
         .flatMap((g) => g.actions.filter((a) => a === "view").map((a) => [`${g.key}.${a}`, true])),
     ),
     "net_profit.view": true,
