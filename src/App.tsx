@@ -120,6 +120,7 @@ import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
 import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
+import HistoricalAnalytics from "./pages/admin/HistoricalAnalytics";
 import InsightsPage from "./pages/admin/InsightsPage";
 import FinanceHub from "./pages/admin/FinanceHub";
 import MainTreasury from "./pages/admin/MainTreasury";
@@ -229,6 +230,7 @@ const App = () => (
             {/* Hubs */}
             <Route path="/admin/catalog" element={<ProtectedRoute perm="admin_catalog.view" adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><ReportsHub /></ProtectedRoute>} />
+            <Route path="/admin/historical-analytics" element={<ProtectedRoute perm="admin_historical_analytics.view" adminOnly><HistoricalAnalytics /></ProtectedRoute>} />
             <Route path="/admin/cockpit" element={<Navigate to="/admin/reports-hub?tab=owner" replace />} />
             <Route path="/admin/monthly-profit" element={<Navigate to="/admin/reports-hub?tab=monthly" replace />} />
             <Route path="/admin/insights" element={<ProtectedRoute perm="admin_insights.view" ownerOnly><InsightsPage /></ProtectedRoute>} />

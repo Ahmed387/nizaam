@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
-  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent, Trash2,
+  ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent, Trash2, History,
 Wand2, Building2 } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,6 +77,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية", perm: "admin_finance.view" },
     { to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" />, group: "المالية", perm: "admin_financial_position.view", ownerOnly: true },
     { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية", perm: "admin_reports_hub.view" },
+    { to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" />, group: "المالية", perm: "admin_historical_analytics.view" },
 
     { to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة", perm: "admin_system_health.view", ownerOnly: true },
     { to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة", perm: "admin_approvals.view", adminOnly: true },

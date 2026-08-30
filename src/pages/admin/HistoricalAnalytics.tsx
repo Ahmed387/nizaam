@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -529,8 +529,8 @@ export default function HistoricalAnalytics() {
                       const its = itemsByInvoice.get(d.id) ?? [];
                       const open = expanded === d.id;
                       return (
-                        <>
-                          <tr key={d.id} className="border-t hover:bg-muted/40 cursor-pointer"
+                        <Fragment key={d.id}>
+                          <tr className="border-t hover:bg-muted/40 cursor-pointer"
                             onClick={() => setExpanded(open ? null : d.id)}>
                             <td className="px-2 py-1.5">
                               {its.length > 0 && (open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />)}
@@ -548,7 +548,7 @@ export default function HistoricalAnalytics() {
                             <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
                           </tr>
                           {open && its.length > 0 && (
-                            <tr key={`${d.id}-x`} className="bg-muted/30">
+                            <tr className="bg-muted/30">
                               <td colSpan={10} className="px-4 py-2">
                                 <table className="w-full text-[11px]">
                                   <thead>
@@ -572,7 +572,7 @@ export default function HistoricalAnalytics() {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                   </tbody>
