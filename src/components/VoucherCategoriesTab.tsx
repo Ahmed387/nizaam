@@ -139,7 +139,7 @@ export function VoucherCategoriesTab() {
               {children.length > 0 && (
                 <div className="mt-2 ps-4 border-s-2 border-muted space-y-1">
                   {children.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between text-sm py-1 gap-2">
+                    <div key={c.id} className={`flex items-center justify-between text-sm py-1 gap-2 ${c.is_active ? "" : "opacity-60"}`}>
                       <div className="flex items-center gap-2">
                         <span>— {c.name}</span>
                         {!c.is_active && <Badge variant="secondary" className="text-xs">معطّل</Badge>}
