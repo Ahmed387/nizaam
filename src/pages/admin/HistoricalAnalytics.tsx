@@ -59,23 +59,24 @@ const PIE_COLORS = ["#10b981", "#0ea5e9", "#f43f5e", "#f59e0b", "#6366f1", "#14b
 
 /**
  * فلتر المصروفات التشغيلية الحقيقية:
- * يستبعد التحويلات النقدية بين الخزائن (تحويل سيولة وليس تكلفة تشغيل)
- * ويقبل فقط سندات الصرف ذات تصنيف تشغيلي صالح أو حركة صرف غير مرتبطة بتحويل داخلي.
+ * - يشترط وجود تصنيف صالح (category IS NOT NULL).
+ * - يستبعد التحويلات النقدية بين الخزائن/المخزن الرئيسي.
+ * - يقبل فقط سندات الصرف ذات تصنيف تشغيلي معروف.
  */
 const TRANSFER_RE = /تحويل|حواله|حوالة|خزين[هة]|الخزينه|المخزن الرئيسي|الرئيسي|سيوله|سيولة|ايداع خزنه|تغذيه|تغذية/;
-const OPEX_CATEGORY_RE = /رواتب|مرتبات|ايجار|إيجار|نقل|شحن|كهرباء|مياه|صيانه|صيانة|نثريات|مصاريف|اتصالات|تليفون|انترنت|بنزين|مواصلات|ضرائب|تسويق|دعايه|دعاية|اعلان|صادر|تغليف|مستلزمات|عموله|عمولة|غير مبوّب|غير مبوب/;
+const OPEX_CATEGORY_RE = /رواتب|مرتبات|ايجار|إيجار|نقل|توكتوك|شحن|كهرباء|مياه|صيانه|صيانة|نثريات|مصاريف|اتصالات|تليفون|انترنت|بنزين|مواصلات|ضرائب|تسويق|دعايه|دعاية|اعلان|صادر|تغليف|مستلزمات|عموله|عمولة|بوفيه|بوفية|إكراميات|اكراميات|غير مبوّب|غير مبوب/;
 
-export function isOpexVoucher(v: { voucher_type: string; category?: string | null; movement_name?: string | null; treasury_name?: string | null; notes?: string | null }): boolean {
+export function isOpexVoucher(v: { voucher_type: string; category?: string | null; party_name?: string | null; movement_name?: string | null; treasury_name?: string | null; notes?: string | null }): boolean {
   if (v.voucher_type !== "expense") return false;
   const cat = (v.category ?? "").trim();
-  const text = `${v.movement_name ?? ""} ${cat} ${v.treasury_name ?? ""}`;
+  if (!cat) return false; // لا تصنيف = تحويل/سداد وليس مصروف تشغيلي
+  const party = (v.party_name ?? "").trim();
+  if (party === "المخزن الرئيسي") return false; // سداد/تحويل للمخزن الرئيسي
+  const text = `${v.movement_name ?? ""} ${cat} ${v.treasury_name ?? ""} ${v.notes ?? ""}`;
   // استبعاد التحويلات الداخلية بين الخزائن/الفروع
   if (TRANSFER_RE.test(text)) return false;
   // قبول صريح لو التصنيف تشغيلي معروف
-  if (cat && OPEX_CATEGORY_RE.test(cat)) return true;
-  // حركة "صرف" عامة بتصنيف موجود غير تحويلي = مصروف تشغيلي
-  if (/صرف|مصروف/.test(v.movement_name ?? "") && cat) return true;
-  // لا تصنيف ولا حركة واضحة → لا يُحسب كمصروف تشغيلي
+  if (OPEX_CATEGORY_RE.test(cat)) return true;
   return false;
 }
 
@@ -171,17 +172,18 @@ export default function HistoricalAnalytics() {
     const sales = by("sales"), purch = by("purchases"), sRet = by("sales_returns"), pRet = by("purchase_returns");
     const salesTotal = sum(sales, "total_amount"), sRetTotal = sum(sRet, "total_amount");
     const purchTotal = sum(purch, "total_amount"), pRetTotal = sum(pRet, "total_amount");
-    const netSales = salesTotal - sRetTotal;
-    const netPurch = purchTotal - pRetTotal;
-    const gross = sum(sales, "profit") - sum(sRet, "profit");
+    // المرتجعات مسجلة بقيم سالبة → نستخدم القيمة المطلقة لتجنب الجمع الخاطئ
+    const netSales = salesTotal - Math.abs(sRetTotal);
+    const netPurch = purchTotal - Math.abs(pRetTotal);
+    const gross = sum(sales, "profit") - Math.abs(sum(sRet, "profit"));
     const opexRows = fVch.filter(isOpexVoucher);
     const opex = opexRows.reduce((s, v) => s + Number(v.amount ?? 0), 0);
     const receipts = fVch.filter((v) => v.voucher_type === "receipt").reduce((s, v) => s + Number(v.amount ?? 0), 0);
     const monthsCount = new Set(opexRows.map((v) => `${v.year}-${v.month}`)).size || 1;
-    const due = sum(sales, "due") - sum(sRet, "due");
+    const due = sum(sales, "due") - Math.abs(sum(sRet, "due"));
     return {
-      netSales, salesTotal, sRetTotal, salesCount: sales.length, sRetCount: sRet.length,
-      netPurch, purchTotal, pRetTotal, purchCount: purch.length, pRetCount: pRet.length,
+      netSales, salesTotal, sRetTotal: Math.abs(sRetTotal), salesCount: sales.length, sRetCount: sRet.length,
+      netPurch, purchTotal, pRetTotal: Math.abs(pRetTotal), purchCount: purch.length, pRetCount: pRet.length,
       gross, margin: netSales ? (gross / netSales) * 100 : 0,
       opex, opexAvg: opex / monthsCount, receipts,
       noi: gross - opex, due,
@@ -198,9 +200,9 @@ export default function HistoricalAnalytics() {
       const row = map.get(kk) ?? { key: kk, name: label(i.year, i.month), مبيعات: 0, مشتريات: 0, أرباح: 0, مصروفات: 0 };
       const amt = Number(i.total_amount ?? 0), pr = Number(i.profit ?? 0);
       if (i.doc_type === "sales") { row["مبيعات"] += amt; row["أرباح"] += pr; }
-      if (i.doc_type === "sales_returns") { row["مبيعات"] -= amt; row["أرباح"] -= pr; }
+      if (i.doc_type === "sales_returns") { row["مبيعات"] -= Math.abs(amt); row["أرباح"] -= Math.abs(pr); }
       if (i.doc_type === "purchases") row["مشتريات"] += amt;
-      if (i.doc_type === "purchase_returns") row["مشتريات"] -= amt;
+      if (i.doc_type === "purchase_returns") row["مشتريات"] -= Math.abs(amt);
       map.set(kk, row);
     }
     for (const v of fVch) {
@@ -220,8 +222,8 @@ export default function HistoricalAnalytics() {
       const sr = rows.filter((r) => r.doc_type === "sales_returns");
       return {
         name: b,
-        مبيعات: sum(s, "total_amount") - sum(sr, "total_amount"),
-        أرباح: sum(s, "profit") - sum(sr, "profit"),
+        مبيعات: sum(s, "total_amount") - Math.abs(sum(sr, "total_amount")),
+        أرباح: sum(s, "profit") - Math.abs(sum(sr, "profit")),
       };
     }),
     [fInv],
@@ -243,11 +245,19 @@ export default function HistoricalAnalytics() {
       if (i.doc_type !== "purchases" && i.doc_type !== "purchase_returns") return;
       const n = i.party_name || "غير محدد";
       const r = m.get(n) ?? { name: n, purchases: 0, returns: 0, paid: 0, due: 0 };
-      const sign = i.doc_type === "purchases" ? 1 : -1;
-      if (sign === 1) r.purchases += Number(i.total_amount ?? 0);
-      else r.returns += Number(i.total_amount ?? 0);
-      r.paid += sign * Number(i.paid_cash ?? 0);
-      r.due += sign * Number(i.due ?? 0);
+      const total = Number(i.total_amount ?? 0);
+      const paid = Number(i.paid_cash ?? 0);
+      const due = Number(i.due ?? 0);
+      if (i.doc_type === "purchases") {
+        r.purchases += total;
+        r.paid += paid;
+        r.due += due;
+      } else {
+        // المرتجعات مسجلة بقيم سالبة → نخصم قيمتها المطلقة
+        r.returns += Math.abs(total);
+        r.paid -= Math.abs(paid);
+        r.due -= Math.abs(due);
+      }
       m.set(n, r);
     });
     const rows = Array.from(m.values()).map((r) => ({ ...r, net: r.purchases - r.returns }));
@@ -261,27 +271,41 @@ export default function HistoricalAnalytics() {
       if (i.doc_type !== "sales" && i.doc_type !== "sales_returns") return;
       const n = i.party_name || "غير محدد";
       const r = m.get(n) ?? { name: n, total: 0, paid: 0, due: 0 };
-      const sign = i.doc_type === "sales" ? 1 : -1;
-      r.total += sign * Number(i.total_amount ?? 0);
-      r.paid += sign * Number(i.paid_cash ?? 0);
-      r.due += sign * Number(i.due ?? 0);
+      const total = Number(i.total_amount ?? 0);
+      const paid = Number(i.paid_cash ?? 0);
+      const due = Number(i.due ?? 0);
+      if (i.doc_type === "sales") {
+        r.total += total;
+        r.paid += paid;
+        r.due += due;
+      } else {
+        // المرتجعات مسجلة بقيم سالبة → نخصم قيمتها المطلقة
+        r.total -= Math.abs(total);
+        r.paid -= Math.abs(paid);
+        r.due -= Math.abs(due);
+      }
       m.set(n, r);
     });
     return Array.from(m.values()).sort((a, b) => b.total - a.total).slice(0, 50);
   }, [fInv]);
 
   const topProducts = useMemo(() => {
+    const docType = new Map(fInv.map((i) => [i.id, i.doc_type]));
     const m = new Map<string, { code: string; name: string; qty: number; revenue: number; profit: number }>();
     fItems.forEach((it) => {
       const kk = it.item_code || it.item_name;
       const r = m.get(kk) ?? { code: it.item_code || "—", name: it.item_name, qty: 0, revenue: 0, profit: 0 };
-      r.qty += Number(it.qty ?? 0);
-      r.revenue += Number(it.total ?? 0);
-      r.profit += Number(it.profit ?? 0);
+      const isReturn = (docType.get(it.invoice_id ?? "") ?? "").endsWith("_returns");
+      const qty = Number(it.qty ?? 0);
+      const total = Number(it.total ?? 0);
+      const profit = Number(it.profit ?? 0);
+      r.qty += isReturn ? -Math.abs(qty) : qty;
+      r.revenue += isReturn ? -Math.abs(total) : total;
+      r.profit += isReturn ? -Math.abs(profit) : profit;
       m.set(kk, r);
     });
     return Array.from(m.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 50);
-  }, [fItems]);
+  }, [fItems, fInv]);
 
   const itemsByInvoice = useMemo(() => {
     const m = new Map<string, Item[]>();
@@ -401,17 +425,19 @@ export default function HistoricalAnalytics() {
                 value={formatEGP(k.netPurch)}
                 sub={`${formatNumber(k.purchCount)} فاتورة`}
                 badge={`مرتجع شراء ${formatEGP(k.pRetTotal)}`} />
-              <KpiCard tone="indigo" icon={<Coins className="w-4 h-4" />} title="مجمل الربح التجاري"
+              <KpiCard tone="indigo" icon={<Coins className="w-4 h-4" />} title="مجمل الربح الحقيقي"
                 value={formatEGP(k.gross)}
                 badge={`هامش ${k.margin.toFixed(1)}%`} />
               <KpiCard tone="rose" icon={<Wallet className="w-4 h-4" />} title="المصروفات التشغيلية"
                 value={formatEGP(k.opex)}
                 sub={`متوسط شهري ${formatEGP(k.opexAvg)}`} />
-              <KpiCard tone={k.noi >= 0 ? "emerald" : "rose"} icon={<TrendingUp className="w-4 h-4" />}
-                title="صافي أداء النشاط"
-                value={formatEGP(k.noi)}
-                sub="مجمل الربح − المصروفات"
-                badge={`آجل مستحق ${formatEGP(k.due)}`} />
+              <KpiCard
+                tone={k.noi >= 0 ? "emerald" : "rose"}
+                icon={k.noi >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                title={k.noi >= 0 ? "صافي ربح نشاط" : "صافي خسارة نشاط"}
+                value={formatEGP(Math.abs(k.noi))}
+                sub="مجمل الربح الحقيقي − المصروفات التشغيلية"
+                badge={k.noi >= 0 ? "ربح" : "خسارة"} />
             </div>
 
             {/* charts */}
