@@ -727,31 +727,6 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     ],
   },
   {
-    key: "migration",
-    title: "ترحيل الفواتير القديمة",
-    hint: "تدخل داتا شغلك القديم",
-    icon: Database,
-    anyPerm: ["admin_data_migration.view"],
-    steps: [
-      {
-        title: "حمّل القالب",
-        desc: "نزّل ملف الإكسل الجاهز واملاه بفواتيرك القديمة (بيع، شرا، مرتجعات) بنفس ترتيب الأعمدة.",
-        to: a("/admin/data-migration"),
-        perm: "admin_data_migration.view",
-      },
-      {
-        title: "المراجعة قبل الاعتماد",
-        desc: "بعد الرفع السيستم بيوريك كل سطر ويلوّن الناقص منه، وتربط كل عميل/مورد باللي عندك على النظام.",
-        perm: "admin_data_migration.view",
-      },
-      {
-        title: "بعد الاعتماد",
-        desc: "هيطلعلك ملخص: إيه اللي دخل في كل فرع، وكام دخل في كل خزنة، عشان تراجع قبل ما تكمل شغل.",
-        perm: "admin_data_migration.view",
-      },
-    ],
-  },
-  {
     key: "settings",
     title: "الإعدادات والصلاحيات",
     hint: "أهم حاجات تظبطها من البداية",
