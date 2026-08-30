@@ -227,10 +227,10 @@ export function parseInvoiceSheet(
       continue;
     }
 
-    // سطر صنف تابع: الخانة الأولى فارغة + كود أو اسم صنف موجود
+    // سطر صنف تابع: أي سطر غير سطر فاتورة يحمل كود أو اسم صنف
     const itemName = String(cell(row, map, "item_name") ?? "").trim();
     const itemCode = String(cell(row, map, "item_code") ?? "").trim();
-    if (serial === "" && current && (itemName || itemCode)) {
+    if (current && (itemName || itemCode)) {
       current.items.push({
         branch_name: branch,
         date: current.invoice.date,
@@ -244,8 +244,14 @@ export function parseInvoiceSheet(
         profit: toNum(cell(row, map, "profit")),
         total: toNum(cell(row, map, "total_amount")),
       });
-    } else if (serial === "" && !itemName && !itemCode) {
+    } else if (!itemName && !itemCode) {
       skipped++;
+    }
+  }
+  // ربح الفاتورة من مجموع أرباح الأصناف لو رأس الفاتورة فاضي/صفر
+  for (const inv of invoices) {
+    if (!inv.invoice.profit && inv.items.length) {
+      inv.invoice.profit = inv.items.reduce((s, it) => s + toNum(it.profit), 0);
     }
   }
   return { invoices, vouchers: [], skipped };
