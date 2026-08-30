@@ -113,7 +113,7 @@ export function VoucherCategoriesTab() {
           const children = visible.filter((c) => c.parent_id === r.id);
           return (
             <div key={r.id} className="card-elevated p-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className={`flex items-center justify-between gap-2 flex-wrap ${r.is_active ? "" : "opacity-60"}`}>
                 <div className="flex items-center gap-2">
                   <span className="font-bold">{r.name}</span>
                   {r.is_system && <Badge variant="outline" className="text-xs">نظام</Badge>}
