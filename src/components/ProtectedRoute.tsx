@@ -60,7 +60,7 @@ export function ProtectedRoute({
 
   // المراقب: قراءة فقط — ممنوع من شاشات الإعدادات وترحيل/زرع البيانات، وممنوع من مسارات الشركاء/السوبر أدمن
   const VIEWER_BLOCKED = [
-    "/admin/settings", "/admin/data-setup", "/admin/data-migration", "/admin/seed",
+    "/admin/settings", "/admin/seed",
     "/partner", "/super",
   ];
   const viewerOnly = isViewer && !isAdmin && !isSuperAdmin;

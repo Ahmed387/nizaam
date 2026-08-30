@@ -73,7 +73,6 @@ export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_reports_hub", label: "التقارير (المركزية)", actions: ["view"] },
   { key: "admin_system_health", label: "فحص السيستم", actions: ["view"] },
   { key: "admin_approvals", label: "طلبات موافقة الأدمن", actions: ["view"] },
-  { key: "admin_data_migration", label: "ترحيل الفواتير القديمة (المالك فقط افتراضيًا)", actions: ["view"] },
   { key: "admin_settings", label: "الإعدادات", actions: ["view"] },
 ];
 
@@ -168,7 +167,6 @@ export const PERM_HELP: Record<string, string> = {
   admin_reports_hub: "مركز التقارير: كل تقارير الشركة (أرباح، ربحية، ميزانية، مقارنات).",
   admin_system_health: "فحص السيستم: مشاكل الداتا والتنبيهات الفنية.",
   admin_approvals: "مركز الموافقات: الموافقة على طلبات الحذف والتعديل والخصومات والسلف.",
-  admin_data_migration: "ترحيل الفواتير القديمة من نظام قديم — خطيرة لأنها بتضيف مستندات وأرصدة بالجملة.",
   admin_settings: "إعدادات الشركة والصلاحيات والنسخ الاحتياطي — أخطر صلاحية، للمالك فقط.",
 
   // الأقسام الفرعية
@@ -270,7 +268,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   viewer: {
     ...Object.fromEntries(
       [...BRANCH_PERMISSION_GROUPS, ...ADMIN_NAV_PERMISSION_GROUPS, ...ADMIN_SUBSECTION_PERMISSION_GROUPS]
-        .filter((g) => g.key !== "admin_settings" && g.key !== "admin_data_migration")
         .flatMap((g) => g.actions.filter((a) => a === "view").map((a) => [`${g.key}.${a}`, true])),
     ),
     "net_profit.view": true,
