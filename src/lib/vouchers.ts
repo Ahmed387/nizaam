@@ -83,12 +83,18 @@ export const RESERVED_CATEGORY_KEYS = new Set([
 
 const RESERVED_CATEGORY_NAMES = ["مبيعات نقدية", "مرتجعات للعملاء", "تحويلات بين الفروع"];
 
-/** هل التصنيف مسموح استخدامه في السندات اليدوية؟ */
+/** هل التصنيف محجوز لعمليات آلية (مبيعات/مرتجعات/تحويلات) أو تصنيف اختبار؟ */
+export function isReservedVoucherCategory(c: VoucherCategory): boolean {
+  if (c.system_key && RESERVED_CATEGORY_KEYS.has(c.system_key)) return true;
+  const name = (c.name ?? "").trim();
+  if (RESERVED_CATEGORY_NAMES.includes(name)) return true;
+  if (/QA/i.test(name)) return true;
+  return false;
+}
+
+/** هل التصنيف مسموح استخدامه في السندات اليدوية؟ (نشط + غير محجوز) */
 export function isManualVoucherCategory(c: VoucherCategory): boolean {
   if (!c.is_active) return false;
-  if (c.system_key && RESERVED_CATEGORY_KEYS.has(c.system_key)) return false;
-  const name = (c.name ?? "").trim();
-  if (RESERVED_CATEGORY_NAMES.includes(name)) return false;
-  if (/QA/i.test(name)) return false;
-  return true;
+  return !isReservedVoucherCategory(c);
 }
+
