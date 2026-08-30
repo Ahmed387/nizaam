@@ -174,9 +174,10 @@ export default function HistoricalAnalytics() {
     const netSales = salesTotal - sRetTotal;
     const netPurch = purchTotal - pRetTotal;
     const gross = sum(sales, "profit") - sum(sRet, "profit");
-    const opex = fVch.filter((v) => v.voucher_type === "expense").reduce((s, v) => s + Number(v.amount ?? 0), 0);
+    const opexRows = fVch.filter(isOpexVoucher);
+    const opex = opexRows.reduce((s, v) => s + Number(v.amount ?? 0), 0);
     const receipts = fVch.filter((v) => v.voucher_type === "receipt").reduce((s, v) => s + Number(v.amount ?? 0), 0);
-    const monthsCount = new Set(fVch.filter((v) => v.voucher_type === "expense").map((v) => `${v.year}-${v.month}`)).size || 1;
+    const monthsCount = new Set(opexRows.map((v) => `${v.year}-${v.month}`)).size || 1;
     const due = sum(sales, "due") - sum(sRet, "due");
     return {
       netSales, salesTotal, sRetTotal, salesCount: sales.length, sRetCount: sRet.length,
@@ -203,7 +204,7 @@ export default function HistoricalAnalytics() {
       map.set(kk, row);
     }
     for (const v of fVch) {
-      if (v.voucher_type !== "expense") continue;
+      if (!isOpexVoucher(v)) continue;
       const kk = key(v.year, v.month);
       const row = map.get(kk) ?? { key: kk, name: label(v.year, v.month), مبيعات: 0, مشتريات: 0, أرباح: 0, مصروفات: 0 };
       row["مصروفات"] += Number(v.amount ?? 0);
@@ -228,7 +229,7 @@ export default function HistoricalAnalytics() {
 
   const expenseCats = useMemo(() => {
     const m = new Map<string, number>();
-    fVch.filter((v) => v.voucher_type === "expense").forEach((v) => {
+    fVch.filter(isOpexVoucher).forEach((v) => {
       const c = v.category || "غير مبوّب";
       m.set(c, (m.get(c) ?? 0) + Number(v.amount ?? 0));
     });
@@ -237,13 +238,16 @@ export default function HistoricalAnalytics() {
 
   /* drill-down tables */
   const topSuppliers = useMemo(() => {
-    const m = new Map<string, { name: string; purchases: number; returns: number }>();
+    const m = new Map<string, { name: string; purchases: number; returns: number; paid: number; due: number }>();
     fInv.forEach((i) => {
       if (i.doc_type !== "purchases" && i.doc_type !== "purchase_returns") return;
       const n = i.party_name || "غير محدد";
-      const r = m.get(n) ?? { name: n, purchases: 0, returns: 0 };
-      if (i.doc_type === "purchases") r.purchases += Number(i.total_amount ?? 0);
+      const r = m.get(n) ?? { name: n, purchases: 0, returns: 0, paid: 0, due: 0 };
+      const sign = i.doc_type === "purchases" ? 1 : -1;
+      if (sign === 1) r.purchases += Number(i.total_amount ?? 0);
       else r.returns += Number(i.total_amount ?? 0);
+      r.paid += sign * Number(i.paid_cash ?? 0);
+      r.due += sign * Number(i.due ?? 0);
       m.set(n, r);
     });
     const rows = Array.from(m.values()).map((r) => ({ ...r, net: r.purchases - r.returns }));
@@ -488,7 +492,7 @@ export default function HistoricalAnalytics() {
               <TabsContent value="suppliers" className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/60">
-                    <tr>{["المورد", "إجمالي المشتريات", "المرتجعات", "الصافي", "المساهمة"].map((h) => <th key={h} className="px-2 py-2 text-right">{h}</th>)}</tr>
+                    <tr>{["المورد", "إجمالي المشتريات", "المرتجعات", "الصافي", "المسدد", "المديونية المتبقية", "المساهمة"].map((h) => <th key={h} className="px-2 py-2 text-right">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {topSuppliers.map((r) => (
@@ -497,6 +501,8 @@ export default function HistoricalAnalytics() {
                         <td className="px-2 py-1.5">{formatEGP(r.purchases)}</td>
                         <td className="px-2 py-1.5 text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
                         <td className="px-2 py-1.5 font-semibold">{formatEGP(r.net)}</td>
+                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
+                        <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
                         <td className="px-2 py-1.5">{r.share.toFixed(1)}%</td>
                       </tr>
                     ))}
