@@ -57,6 +57,28 @@ const PAY_GROUPS: Record<string, RegExp> = {
 const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 const PIE_COLORS = ["#10b981", "#0ea5e9", "#f43f5e", "#f59e0b", "#6366f1", "#14b8a6", "#a855f7", "#ef4444", "#84cc16", "#eab308"];
 
+/**
+ * فلتر المصروفات التشغيلية الحقيقية:
+ * يستبعد التحويلات النقدية بين الخزائن (تحويل سيولة وليس تكلفة تشغيل)
+ * ويقبل فقط سندات الصرف ذات تصنيف تشغيلي صالح أو حركة صرف غير مرتبطة بتحويل داخلي.
+ */
+const TRANSFER_RE = /تحويل|حواله|حوالة|خزين[هة]|الخزينه|المخزن الرئيسي|الرئيسي|سيوله|سيولة|ايداع خزنه|تغذيه|تغذية/;
+const OPEX_CATEGORY_RE = /رواتب|مرتبات|ايجار|إيجار|نقل|شحن|كهرباء|مياه|صيانه|صيانة|نثريات|مصاريف|اتصالات|تليفون|انترنت|بنزين|مواصلات|ضرائب|تسويق|دعايه|دعاية|اعلان|صادر|تغليف|مستلزمات|عموله|عمولة|غير مبوّب|غير مبوب/;
+
+export function isOpexVoucher(v: { voucher_type: string; category?: string | null; movement_name?: string | null; treasury_name?: string | null; notes?: string | null }): boolean {
+  if (v.voucher_type !== "expense") return false;
+  const cat = (v.category ?? "").trim();
+  const text = `${v.movement_name ?? ""} ${cat} ${v.treasury_name ?? ""}`;
+  // استبعاد التحويلات الداخلية بين الخزائن/الفروع
+  if (TRANSFER_RE.test(text)) return false;
+  // قبول صريح لو التصنيف تشغيلي معروف
+  if (cat && OPEX_CATEGORY_RE.test(cat)) return true;
+  // حركة "صرف" عامة بتصنيف موجود غير تحويلي = مصروف تشغيلي
+  if (/صرف|مصروف/.test(v.movement_name ?? "") && cat) return true;
+  // لا تصنيف ولا حركة واضحة → لا يُحسب كمصروف تشغيلي
+  return false;
+}
+
 function KpiCard({ title, value, sub, badge, tone, icon }: {
   title: string; value: string; sub?: string; badge?: string;
   tone: "emerald" | "sky" | "rose" | "amber" | "indigo"; icon: React.ReactNode;
