@@ -87,33 +87,44 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   const availableForMethod = wallets ? Number((wallets as any)[`${pm.method}_balance`] ?? 0) : null;
 
 
+  // عزل حالة النموذج: التهيئة تحصل مرة واحدة عند فتح النافذة فقط،
+  // وأي تحديث خلفي (realtime / refetch) يعيد رسم الأب مش هيمسح اللي المستخدم كتبه.
+  const editingId = editingVoucher?.id ?? null;
+  const initialPartyId = initialParty?.id ?? null;
+  const editRef = useRef(editingVoucher);
+  editRef.current = editingVoucher;
+  const initialPartyRefStable = useRef(initialParty);
+  initialPartyRefStable.current = initialParty;
+
   useEffect(() => {
     if (!open) return;
     fetchVoucherCategories(type, true).then(setCats).catch((e) => toast.error(e.message));
-    if (editingVoucher) {
+    const ev = editRef.current;
+    const ip = initialPartyRefStable.current;
+    if (ev) {
       setForm({
-        category_id: editingVoucher.category_id,
-        amount: String(editingVoucher.amount ?? ""),
-        party_type: (editingVoucher.party_type ?? "") as any,
-        party_id: editingVoucher.party_id ?? "",
-        party_name: editingVoucher.party_name ?? "",
-        description: editingVoucher.description ?? "",
-        voucher_date: editingVoucher.voucher_date,
+        category_id: ev.category_id,
+        amount: String(ev.amount ?? ""),
+        party_type: (ev.party_type ?? "") as any,
+        party_id: ev.party_id ?? "",
+        party_name: ev.party_name ?? "",
+        description: ev.description ?? "",
+        voucher_date: ev.voucher_date,
       });
-      const initPm = emptyPaymentValue(editingVoucher.payment_method as any);
-      initPm.reference_number = editingVoucher.reference_number ?? undefined;
-      initPm.transfer_to_account = editingVoucher.transferred_to ?? undefined;
-      initPm.transfer_from_account = (editingVoucher as any).transferred_from ?? undefined;
-      initPm.fee_amount = Number(editingVoucher.fee_amount ?? 0);
+      const initPm = emptyPaymentValue(ev.payment_method as any);
+      initPm.reference_number = ev.reference_number ?? undefined;
+      initPm.transfer_to_account = ev.transferred_to ?? undefined;
+      initPm.transfer_from_account = (ev as any).transferred_from ?? undefined;
+      initPm.fee_amount = Number(ev.fee_amount ?? 0);
       setPm(initPm);
     } else {
-      pendingPartyRef.current = initialParty ? { id: initialParty.id, name: initialParty.name } : null;
+      pendingPartyRef.current = ip ? { id: ip.id, name: ip.name } : null;
       setForm({
         category_id: "",
         amount: "",
-        party_type: (initialParty?.type ?? "") as any,
-        party_id: initialParty?.id ?? "",
-        party_name: initialParty?.name ?? "",
+        party_type: (ip?.type ?? "") as any,
+        party_id: ip?.id ?? "",
+        party_name: ip?.name ?? "",
         description: "",
         voucher_date: new Date().toISOString().slice(0, 10),
       });
@@ -123,7 +134,9 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     setPartyBalance(null);
     setAttachFiles([]);
     setEditReason("");
-  }, [open, type, editingVoucher, initialParty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, type, editingId, initialPartyId]);
+
 
   // Reserved categories (sales / returns / branch transfers) are hidden from the manual dialog
   const grouped = useMemo(() => {

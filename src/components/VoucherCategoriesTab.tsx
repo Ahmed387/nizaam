@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
+import { fetchVoucherCategories, isReservedVoucherCategory, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, Lock } from "lucide-react";
@@ -94,8 +94,10 @@ export function VoucherCategoriesTab() {
   };
 
 
-  // إخفاء المعطّل + التصنيفات المحجوزة للشاشات المخصّصة + تصنيفات الاختبار
-  const shouldShowCategory = (c: VoucherCategory) => isManualVoucherCategory(c);
+  // إخفاء التصنيفات المحجوزة للشاشات المخصّصة + تصنيفات الاختبار فقط
+  // (التصنيفات المعطّلة تظهر باهتة مع إمكانية إعادة تفعيلها)
+  const shouldShowCategory = (c: VoucherCategory) => !isReservedVoucherCategory(c);
+
 
   const renderType = (type: VoucherType) => {
     const visible = cats.filter(shouldShowCategory);
@@ -111,7 +113,7 @@ export function VoucherCategoriesTab() {
           const children = visible.filter((c) => c.parent_id === r.id);
           return (
             <div key={r.id} className="card-elevated p-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className={`flex items-center justify-between gap-2 flex-wrap ${r.is_active ? "" : "opacity-60"}`}>
                 <div className="flex items-center gap-2">
                   <span className="font-bold">{r.name}</span>
                   {r.is_system && <Badge variant="outline" className="text-xs">نظام</Badge>}
@@ -137,7 +139,7 @@ export function VoucherCategoriesTab() {
               {children.length > 0 && (
                 <div className="mt-2 ps-4 border-s-2 border-muted space-y-1">
                   {children.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between text-sm py-1 gap-2">
+                    <div key={c.id} className={`flex items-center justify-between text-sm py-1 gap-2 ${c.is_active ? "" : "opacity-60"}`}>
                       <div className="flex items-center gap-2">
                         <span>— {c.name}</span>
                         {!c.is_active && <Badge variant="secondary" className="text-xs">معطّل</Badge>}
