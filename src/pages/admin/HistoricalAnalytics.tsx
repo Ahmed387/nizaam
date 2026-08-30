@@ -57,6 +57,28 @@ const PAY_GROUPS: Record<string, RegExp> = {
 const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 const PIE_COLORS = ["#10b981", "#0ea5e9", "#f43f5e", "#f59e0b", "#6366f1", "#14b8a6", "#a855f7", "#ef4444", "#84cc16", "#eab308"];
 
+/**
+ * فلتر المصروفات التشغيلية الحقيقية:
+ * يستبعد التحويلات النقدية بين الخزائن (تحويل سيولة وليس تكلفة تشغيل)
+ * ويقبل فقط سندات الصرف ذات تصنيف تشغيلي صالح أو حركة صرف غير مرتبطة بتحويل داخلي.
+ */
+const TRANSFER_RE = /تحويل|حواله|حوالة|خزين[هة]|الخزينه|المخزن الرئيسي|الرئيسي|سيوله|سيولة|ايداع خزنه|تغذيه|تغذية/;
+const OPEX_CATEGORY_RE = /رواتب|مرتبات|ايجار|إيجار|نقل|شحن|كهرباء|مياه|صيانه|صيانة|نثريات|مصاريف|اتصالات|تليفون|انترنت|بنزين|مواصلات|ضرائب|تسويق|دعايه|دعاية|اعلان|صادر|تغليف|مستلزمات|عموله|عمولة|غير مبوّب|غير مبوب/;
+
+export function isOpexVoucher(v: { voucher_type: string; category?: string | null; movement_name?: string | null; treasury_name?: string | null; notes?: string | null }): boolean {
+  if (v.voucher_type !== "expense") return false;
+  const cat = (v.category ?? "").trim();
+  const text = `${v.movement_name ?? ""} ${cat} ${v.treasury_name ?? ""}`;
+  // استبعاد التحويلات الداخلية بين الخزائن/الفروع
+  if (TRANSFER_RE.test(text)) return false;
+  // قبول صريح لو التصنيف تشغيلي معروف
+  if (cat && OPEX_CATEGORY_RE.test(cat)) return true;
+  // حركة "صرف" عامة بتصنيف موجود غير تحويلي = مصروف تشغيلي
+  if (/صرف|مصروف/.test(v.movement_name ?? "") && cat) return true;
+  // لا تصنيف ولا حركة واضحة → لا يُحسب كمصروف تشغيلي
+  return false;
+}
+
 function KpiCard({ title, value, sub, badge, tone, icon }: {
   title: string; value: string; sub?: string; badge?: string;
   tone: "emerald" | "sky" | "rose" | "amber" | "indigo"; icon: React.ReactNode;
@@ -152,9 +174,10 @@ export default function HistoricalAnalytics() {
     const netSales = salesTotal - sRetTotal;
     const netPurch = purchTotal - pRetTotal;
     const gross = sum(sales, "profit") - sum(sRet, "profit");
-    const opex = fVch.filter((v) => v.voucher_type === "expense").reduce((s, v) => s + Number(v.amount ?? 0), 0);
+    const opexRows = fVch.filter(isOpexVoucher);
+    const opex = opexRows.reduce((s, v) => s + Number(v.amount ?? 0), 0);
     const receipts = fVch.filter((v) => v.voucher_type === "receipt").reduce((s, v) => s + Number(v.amount ?? 0), 0);
-    const monthsCount = new Set(fVch.filter((v) => v.voucher_type === "expense").map((v) => `${v.year}-${v.month}`)).size || 1;
+    const monthsCount = new Set(opexRows.map((v) => `${v.year}-${v.month}`)).size || 1;
     const due = sum(sales, "due") - sum(sRet, "due");
     return {
       netSales, salesTotal, sRetTotal, salesCount: sales.length, sRetCount: sRet.length,
@@ -181,7 +204,7 @@ export default function HistoricalAnalytics() {
       map.set(kk, row);
     }
     for (const v of fVch) {
-      if (v.voucher_type !== "expense") continue;
+      if (!isOpexVoucher(v)) continue;
       const kk = key(v.year, v.month);
       const row = map.get(kk) ?? { key: kk, name: label(v.year, v.month), مبيعات: 0, مشتريات: 0, أرباح: 0, مصروفات: 0 };
       row["مصروفات"] += Number(v.amount ?? 0);
@@ -206,7 +229,7 @@ export default function HistoricalAnalytics() {
 
   const expenseCats = useMemo(() => {
     const m = new Map<string, number>();
-    fVch.filter((v) => v.voucher_type === "expense").forEach((v) => {
+    fVch.filter(isOpexVoucher).forEach((v) => {
       const c = v.category || "غير مبوّب";
       m.set(c, (m.get(c) ?? 0) + Number(v.amount ?? 0));
     });
@@ -215,13 +238,16 @@ export default function HistoricalAnalytics() {
 
   /* drill-down tables */
   const topSuppliers = useMemo(() => {
-    const m = new Map<string, { name: string; purchases: number; returns: number }>();
+    const m = new Map<string, { name: string; purchases: number; returns: number; paid: number; due: number }>();
     fInv.forEach((i) => {
       if (i.doc_type !== "purchases" && i.doc_type !== "purchase_returns") return;
       const n = i.party_name || "غير محدد";
-      const r = m.get(n) ?? { name: n, purchases: 0, returns: 0 };
-      if (i.doc_type === "purchases") r.purchases += Number(i.total_amount ?? 0);
+      const r = m.get(n) ?? { name: n, purchases: 0, returns: 0, paid: 0, due: 0 };
+      const sign = i.doc_type === "purchases" ? 1 : -1;
+      if (sign === 1) r.purchases += Number(i.total_amount ?? 0);
       else r.returns += Number(i.total_amount ?? 0);
+      r.paid += sign * Number(i.paid_cash ?? 0);
+      r.due += sign * Number(i.due ?? 0);
       m.set(n, r);
     });
     const rows = Array.from(m.values()).map((r) => ({ ...r, net: r.purchases - r.returns }));
@@ -466,7 +492,7 @@ export default function HistoricalAnalytics() {
               <TabsContent value="suppliers" className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/60">
-                    <tr>{["المورد", "إجمالي المشتريات", "المرتجعات", "الصافي", "المساهمة"].map((h) => <th key={h} className="px-2 py-2 text-right">{h}</th>)}</tr>
+                    <tr>{["المورد", "إجمالي المشتريات", "المرتجعات", "الصافي", "المسدد", "المديونية المتبقية", "المساهمة"].map((h) => <th key={h} className="px-2 py-2 text-right">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {topSuppliers.map((r) => (
@@ -475,6 +501,8 @@ export default function HistoricalAnalytics() {
                         <td className="px-2 py-1.5">{formatEGP(r.purchases)}</td>
                         <td className="px-2 py-1.5 text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
                         <td className="px-2 py-1.5 font-semibold">{formatEGP(r.net)}</td>
+                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
+                        <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
                         <td className="px-2 py-1.5">{r.share.toFixed(1)}%</td>
                       </tr>
                     ))}
