@@ -248,6 +248,12 @@ export function parseInvoiceSheet(
       skipped++;
     }
   }
+  // ربح الفاتورة من مجموع أرباح الأصناف لو رأس الفاتورة فاضي/صفر
+  for (const inv of invoices) {
+    if (!inv.invoice.profit && inv.items.length) {
+      inv.invoice.profit = inv.items.reduce((s, it) => s + toNum(it.profit), 0);
+    }
+  }
   return { invoices, vouchers: [], skipped };
 }
 
