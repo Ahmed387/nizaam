@@ -71,6 +71,7 @@ export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_finance", label: "المالية", actions: ["view"] },
   { key: "admin_financial_position", label: "الذمة المالية للشركاء", actions: ["view"] },
   { key: "admin_reports_hub", label: "التقارير (المركزية)", actions: ["view"] },
+  { key: "admin_historical_analytics", label: "الأرشيف والتحليل التاريخي", actions: ["view"] },
   { key: "admin_system_health", label: "فحص السيستم", actions: ["view"] },
   { key: "admin_approvals", label: "طلبات موافقة الأدمن", actions: ["view"] },
   { key: "admin_settings", label: "الإعدادات", actions: ["view"] },
