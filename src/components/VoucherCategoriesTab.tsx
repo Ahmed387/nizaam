@@ -94,8 +94,10 @@ export function VoucherCategoriesTab() {
   };
 
 
-  // إخفاء المعطّل + التصنيفات المحجوزة للشاشات المخصّصة + تصنيفات الاختبار
-  const shouldShowCategory = (c: VoucherCategory) => isManualVoucherCategory(c);
+  // إخفاء التصنيفات المحجوزة للشاشات المخصّصة + تصنيفات الاختبار فقط
+  // (التصنيفات المعطّلة تظهر باهتة مع إمكانية إعادة تفعيلها)
+  const shouldShowCategory = (c: VoucherCategory) => !isReservedVoucherCategory(c);
+
 
   const renderType = (type: VoucherType) => {
     const visible = cats.filter(shouldShowCategory);
