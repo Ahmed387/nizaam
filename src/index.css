@@ -164,7 +164,6 @@
     overflow: hidden;
   }
   .stat-value {
-    font-size: clamp(1.05rem, 13cqi, 2.25rem);
     line-height: 1.1;
     max-width: 100%;
     min-width: 0;

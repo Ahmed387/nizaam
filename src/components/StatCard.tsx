@@ -62,13 +62,16 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatC
       data-stat-card
       className={`stat-shell rounded-2xl p-4 md:p-5 h-full border ${a.border} ${a.bg} flex flex-col items-center justify-center text-center transition-shadow hover:shadow-md ${className ?? ""}`}
     >
-      <div className="flex items-center justify-center gap-2 mb-3 max-w-full min-w-0">
+      <div className="flex items-center justify-center gap-2 mb-3 w-full max-w-full min-w-0">
         <span className={`text-sm font-semibold break-words ${a.label}`}>{label}</span>
         <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${a.chip} [&_svg]:w-3.5 [&_svg]:h-3.5`}>
           {icon}
         </div>
       </div>
-      <div className={`stat-value font-extrabold ${a.value}`}>
+      <div
+        className={`stat-value font-extrabold w-full min-w-0 truncate text-xl sm:text-2xl lg:text-xl xl:text-2xl 2xl:text-3xl ${a.value}`}
+        title={String(value)}
+      >
         {value}
       </div>
 

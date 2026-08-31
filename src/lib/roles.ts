@@ -63,7 +63,7 @@ export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_insights", label: "الرؤى التنفيذية", actions: ["view"] },
   { key: "admin_catalog", label: "الفروع والمخزون", actions: ["view"] },
   { key: "admin_product_attributes", label: "خصائص المنتجات", actions: ["view"] },
-  { key: "admin_contacts", label: "جهات التواصل", actions: ["view"] },
+  { key: "admin_contacts", label: "الحسابات", actions: ["view"] },
   { key: "admin_employees", label: "الموظفين (إدارة)", actions: ["view"] },
   { key: "admin_presence", label: "تتبع المستخدمين", actions: ["view"] },
   { key: "admin_shifts", label: "سجل الورديات", actions: ["view"] },
