@@ -122,15 +122,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
     // ===== العمليات =====
     ...only(allow("admin_catalog.view"), { to: "/admin/catalog?tab=branches", label: "إدارة الفروع", icon: <Store className="w-4 h-4" />, group: "العمليات" }),
-    ...branchIf(true, { to: "/admin/catalog", label: "المخزون والتصنيفات", icon: <Warehouse className="w-4 h-4" />, group: "العمليات" }, catalogChildren),
+    ...branchIf(true, { to: "#catalog", label: "المخزون والتصنيفات", icon: <Warehouse className="w-4 h-4" />, group: "العمليات" }, catalogChildren),
     ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليات" }),
-    ...branchIf(true, { to: "/admin/employees", label: "الموظفين والمستخدمين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات" }, peopleChildren),
+    ...branchIf(true, { to: "#people", label: "الموظفين والمستخدمين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات" }, peopleChildren),
 
     // ===== المالية =====
     ...only(allow("admin_main_treasury.view", { adminOnly: true }), { to: "/admin/main-treasury", label: "ملخص الخزينة", icon: <Wallet className="w-4 h-4" />, group: "المالية" }),
     ...only(allow("admin_finance.view", { adminOnly: true }), { to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" />, group: "المالية" }),
-    ...branchIf(true, { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية" }, reportsChildren),
-    ...branchIf(true, { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية" }, financeChildren),
+    ...branchIf(true, { to: "#reports", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية" }, reportsChildren),
+    ...branchIf(true, { to: "#finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية" }, financeChildren),
     ...only(allow("admin_historical_analytics.view"), { to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" />, group: "المالية" }),
     ...only(hasPersonalExpAccess, { to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }),
 
