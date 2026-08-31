@@ -109,10 +109,10 @@ Deno.serve(async (req) => {
     for (const tenantId of tenantIds) {
       const counts: Record<string, number> = {};
       // Serialized chunks — row objects are released after each table (memory management)
-      const parts: string[] = [];
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `backup-${stamp}.json`;
       const storagePath = `${tenantId}/${filename}`;
+      let bytesWritten = 0;
 
       const fail = async (message: string) => {
         await admin.from("system_backups").insert({
@@ -127,52 +127,91 @@ Deno.serve(async (req) => {
         results.push({ tenant_id: tenantId, status: "failed", error: message });
       };
 
-      const dumpTable = async (table: string, scoped: boolean): Promise<void> => {
-        let from = 0;
-        let total = 0;
-        parts.push(`${parts.length ? "," : ""}${JSON.stringify(table)}:[`);
-        while (true) {
-          let q = admin.from(table).select("*").range(from, from + PAGE - 1);
-          if (scoped) q = q.eq("tenant_id", tenantId);
-          const { data, error } = await q;
-          if (error) throw new Error(`جدول ${table}: ${error.message}`);
-          const rows = data ?? [];
-          for (const r of rows) {
-            parts.push(`${total ? "," : ""}${JSON.stringify(r)}`);
-            total++;
+      // Streaming generator: never keeps more than one page of rows in memory
+      async function* jsonChunks(): AsyncGenerator<string> {
+        yield `{"tenant_id":${JSON.stringify(tenantId)},"exported_at":${JSON.stringify(new Date().toISOString())},"data":{`;
+        let firstTable = true;
+        const tables: [string, boolean][] = [
+          ...TENANT_TABLES.map((t) => [t, true] as [string, boolean]),
+          ...GLOBAL_TABLES.map((t) => [t, false] as [string, boolean]),
+        ];
+        for (const [table, scoped] of tables) {
+          yield `${firstTable ? "" : ","}${JSON.stringify(table)}:[`;
+          firstTable = false;
+          let from = 0;
+          let total = 0;
+          while (true) {
+            let q = admin.from(table).select("*").range(from, from + PAGE - 1);
+            if (scoped) q = q.eq("tenant_id", tenantId);
+            const { data, error } = await q;
+            if (error) throw new Error(`جدول ${table}: ${error.message}`);
+            const rows = data ?? [];
+            if (rows.length) {
+              const buf: string[] = [];
+              for (const r of rows) buf.push(JSON.stringify(r));
+              yield (total ? "," : "") + buf.join(",");
+              total += rows.length;
+              buf.length = 0;
+            }
+            const len = rows.length;
+            rows.length = 0; // release page from memory
+            if (len < PAGE) break;
+            from += PAGE;
           }
-          const len = rows.length;
-          rows.length = 0; // release references
-          if (len < PAGE) break;
-          from += PAGE;
+          yield "]";
+          counts[table] = total;
         }
-        parts.push("]");
-        counts[table] = total;
-      };
+        yield "}}";
+      }
 
+      let streamError: string | null = null;
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          try {
+            const { value, done } = await iterator.next();
+            if (done) return controller.close();
+            const chunk = encoder.encode(value);
+            bytesWritten += chunk.byteLength;
+            controller.enqueue(chunk);
+          } catch (e: any) {
+            streamError = e?.message ?? String(e);
+            controller.error(new Error(streamError!));
+          }
+        },
+      });
+      const iterator = jsonChunks()[Symbol.asyncIterator]();
+
+      let uploadOk = false;
+      let uploadErrMsg: string | null = null;
       try {
-        for (const t of TENANT_TABLES) await dumpTable(t, true);
-        for (const t of GLOBAL_TABLES) await dumpTable(t, false);
+        const res = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: serviceKey,
+            "Content-Type": "application/json",
+            "x-upsert": "false",
+          },
+          body,
+          // @ts-ignore Deno streaming request body
+          duplex: "half",
+        });
+        uploadOk = res.ok;
+        if (!res.ok) uploadErrMsg = `رفع الملف: ${res.status} ${await res.text()}`;
       } catch (e: any) {
-        // Atomic: abort completely, no partial file is written
-        parts.length = 0;
-        await fail(e?.message ?? String(e));
+        uploadErrMsg = streamError ?? (e?.message ?? String(e));
+      }
+
+      if (!uploadOk) {
+        // Atomic: remove any partial object and record a failed backup
+        try { await admin.storage.from("system-backups").remove([storagePath]); } catch { /* ignore */ }
+        await fail(streamError ?? uploadErrMsg ?? "فشل غير معروف");
         continue;
       }
 
-      const header = `{"tenant_id":${JSON.stringify(tenantId)},"exported_at":${JSON.stringify(new Date().toISOString())},"table_count":${Object.keys(counts).length},"data":{`;
-      const payload = header + parts.join("") + "}}";
-      parts.length = 0;
-      const bytes = new TextEncoder().encode(payload);
+      const bytes = { byteLength: bytesWritten };
 
-      const { error: upErr } = await admin.storage
-        .from("system-backups")
-        .upload(storagePath, bytes, { contentType: "application/json", upsert: false });
-
-      if (upErr) {
-        await fail(upErr.message);
-        continue;
-      }
 
       await admin.from("system_backups").insert({
         tenant_id: tenantId,
