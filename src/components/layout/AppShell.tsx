@@ -267,8 +267,11 @@ export function AppShell({
           {groupedNav.map((group, gi) => (
             <div key={`${group.label}-${gi}`} className="space-y-1">
               {!isCollapsed && group.label && (
-                <div className="px-3 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                  {group.label}
+                <div className="flex items-center gap-2 px-3 pt-1 pb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary/80">
+                    {group.label}
+                  </span>
                 </div>
               )}
               {isCollapsed && group.label && gi > 0 && (
