@@ -598,7 +598,11 @@ export function BackupTab() {
       };
 
       for (const s of sheets) addSheet(s.name, s.rows);
-      for (const t of TABLES) addSheet(`خام-${t.label}`, all[t.key] ?? []);
+      for (const t of TABLES) {
+        addSheet(`خام-${t.label}`, all[t.key] ?? []);
+        all[t.key] = []; // تفريغ الذاكرة بعد كتابة كل شيت
+      }
+
 
       XLSX.writeFile(wb, `nizam-full-export-${stamp}.xlsx`);
       toast.success(`تم التصدير: ${sheets.length} تقرير تفصيلي + ${TABLES.length} جدول خام`);
