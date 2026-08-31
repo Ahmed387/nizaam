@@ -466,32 +466,44 @@ export default function HistoricalAnalytics() {
         ) : (
           <>
             {/* KPIs */}
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard tone="emerald" icon={<TrendingUp className="w-4 h-4" />} title="صافي المبيعات"
-                value={formatEGP(k.netSales)}
-                sub={`${formatNumber(k.salesCount)} فاتورة`}
-                badge={`مرتجع مستبعد ${formatEGP(k.sRetTotal)}`} />
-              <KpiCard tone="sky" icon={<TrendingDown className="w-4 h-4" />} title="صافي المشتريات"
-                value={formatEGP(k.netPurch)}
-                sub={`${formatNumber(k.purchCount)} فاتورة`}
-                badge={`مرتجع شراء ${formatEGP(k.pRetTotal)}`} />
-              <KpiCard tone="indigo" icon={<Coins className="w-4 h-4" />} title="مجمل الربح الحقيقي"
-                value={formatEGP(k.gross)}
-                badge={`هامش ${k.margin.toFixed(1)}%`} />
-              <KpiCard tone="rose" icon={<Wallet className="w-4 h-4" />} title="المصروفات التشغيلية"
-                value={formatEGP(k.opex)}
-                sub={`متوسط شهري ${formatEGP(k.opexAvg)}`} />
-              <KpiCard
-                tone={k.noi >= 0 ? "emerald" : "rose"}
-                icon={k.noi >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                title={k.noi >= 0 ? "صافي ربح نشاط" : "صافي خسارة نشاط"}
-                value={formatEGP(Math.abs(k.noi))}
-                sub="مجمل الربح الحقيقي − المصروفات التشغيلية"
-                badge={k.noi >= 0 ? "ربح" : "خسارة"} />
-            </div>
+            <TooltipProvider delayDuration={100}>
+              <div key={`kpi-${branch}-${year}-${pay}`} className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+                <KpiCard index={0} tone="emerald" icon={<TrendingUp className="w-4 h-4" />} title="صافي المبيعات"
+                  info="إجمالي فواتير البيع مخصوماً منها مرتجعات البيع."
+                  value={formatEGP(k.netSales)}
+                  sub={`${formatNumber(k.salesCount)} فاتورة`}
+                  badge={`مرتجع مستبعد ${formatEGP(k.sRetTotal)}`} />
+                <KpiCard index={1} tone="sky" icon={<TrendingDown className="w-4 h-4" />} title="صافي المشتريات"
+                  info="إجمالي فواتير الشراء مخصوماً منها مرتجعات الشراء."
+                  value={formatEGP(k.netPurch)}
+                  sub={`${formatNumber(k.purchCount)} فاتورة`}
+                  badge={`مرتجع شراء ${formatEGP(k.pRetTotal)}`} />
+                <KpiCard index={2} tone="indigo" icon={<Coins className="w-4 h-4" />} title="مجمل الربح الحقيقي"
+                  info="أرباح فواتير البيع الفعلية فقط."
+                  value={formatEGP(k.gross)}
+                  badge={`هامش ${k.margin.toFixed(1)}%`} />
+                <KpiCard index={3} tone="rose" icon={<Wallet className="w-4 h-4" />} title="المصروفات التشغيلية"
+                  info="إجمالي بنود الصرف المؤثرة على النشاط الدفترى."
+                  value={formatEGP(k.opex)}
+                  sub={`متوسط شهري ${formatEGP(k.opexAvg)}`} />
+                <KpiCard
+                  index={4}
+                  tone={k.noi >= 0 ? "emerald" : "rose"}
+                  icon={k.noi >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                  title={k.noi >= 0 ? "صافي ربح نشاط" : "صافي خسارة نشاط"}
+                  info="مجمل الربح مطروحاً منه المصروفات التشغيلية."
+                  value={formatEGP(Math.abs(k.noi))}
+                  sub="مجمل الربح الحقيقي − المصروفات التشغيلية"
+                  badge={k.noi >= 0 ? "ربح" : "خسارة"} />
+              </div>
+            </TooltipProvider>
 
             {/* charts */}
-            <div className="rounded-2xl border bg-card p-4">
+            <div
+              key={`trend-${branch}-${year}-${pay}`}
+              style={{ animationDelay: "360ms" }}
+              className="rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+            >
               <div className="text-sm font-semibold mb-3">منحنى الأداء المالي</div>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -499,7 +511,7 @@ export default function HistoricalAnalytics() {
                     <defs>
                       {[["s", "#10b981"], ["p", "#0ea5e9"], ["g", "#6366f1"], ["e", "#f43f5e"]].map(([id, c]) => (
                         <linearGradient key={id} id={`hg-${id}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={c} stopOpacity={0.5} />
+                          <stop offset="5%" stopColor={c} stopOpacity={0.55} />
                           <stop offset="95%" stopColor={c} stopOpacity={0.02} />
                         </linearGradient>
                       ))}
@@ -507,52 +519,91 @@ export default function HistoricalAnalytics() {
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => formatNumber(v)} />
-                    <Tooltip formatter={(v: any, n: any) => [formatEGP(Number(v)), n]} />
-                    <Legend />
-                    <Area type="monotone" dataKey="مبيعات" stroke="#10b981" fill="url(#hg-s)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="مشتريات" stroke="#0ea5e9" fill="url(#hg-p)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="أرباح" stroke="#6366f1" fill="url(#hg-g)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="مصروفات" stroke="#f43f5e" fill="url(#hg-e)" strokeWidth={2} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: "hsl(var(--primary))", strokeOpacity: 0.3 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Area type="monotone" dataKey="مبيعات" stroke="#10b981" fill="url(#hg-s)" strokeWidth={2} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="مشتريات" stroke="#0ea5e9" fill="url(#hg-p)" strokeWidth={2} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="أرباح" stroke="#6366f1" fill="url(#hg-g)" strokeWidth={2} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="مصروفات" stroke="#f43f5e" fill="url(#hg-e)" strokeWidth={2} activeDot={{ r: 5 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border bg-card p-4">
+              <div
+                key={`branch-${branch}-${year}-${pay}`}
+                style={{ animationDelay: "430ms" }}
+                className="rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+              >
                 <div className="text-sm font-semibold mb-3">مساهمة الفروع</div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={branchPerf}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <BarChart data={branchPerf} barGap={6}>
+                      <defs>
+                        <linearGradient id="hb-s" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.45} />
+                        </linearGradient>
+                        <linearGradient id="hb-g" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0.45} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => formatNumber(v)} />
-                      <Tooltip formatter={(v: any, n: any) => [formatEGP(Number(v)), n]} />
-                      <Legend />
-                      <Bar dataKey="مبيعات" fill="#10b981" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="أرباح" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.35 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="مبيعات" fill="url(#hb-s)" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                      <Bar dataKey="أرباح" fill="url(#hb-g)" radius={[4, 4, 0, 0]} maxBarSize={60} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="rounded-2xl border bg-card p-4">
+              <div
+                key={`exp-${branch}-${year}-${pay}`}
+                style={{ animationDelay: "500ms" }}
+                className="rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+              >
                 <div className="text-sm font-semibold mb-3">خريطة المصروفات</div>
-                <div className="h-64">
-                  {expenseCats.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={expenseCats} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                          {expenseCats.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(v: any, n: any) => [formatEGP(Number(v)), n]} />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full grid place-items-center text-sm text-muted-foreground">لا توجد مصروفات مسجلة</div>
-                  )}
-                </div>
+                {expenseCats.length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={expenseCats}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={60}
+                            outerRadius={95}
+                            paddingAngle={2}
+                            stroke="none"
+                          >
+                            {expenseCats.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip content={<DonutTooltip total={expenseTotal} />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {/* Legend مرتب في شبكة بدل الازدحام تحت الشارت */}
+                    <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pl-1">
+                      {expenseCats.map((c, i) => (
+                        <div key={c.name} className="flex items-center gap-2 text-[11px] rounded-md px-1.5 py-1 hover:bg-muted/50 transition-colors">
+                          <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                          <span className="truncate flex-1" title={c.name}>{c.name}</span>
+                          <span className="tabular-nums font-semibold shrink-0">
+                            {expenseTotal ? ((c.value / expenseTotal) * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-64 grid place-items-center text-sm text-muted-foreground">لا توجد مصروفات مسجلة</div>
+                )}
               </div>
             </div>
 
