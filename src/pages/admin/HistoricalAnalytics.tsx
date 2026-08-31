@@ -12,8 +12,11 @@ import { exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
 import {
   Upload, Download, History, Loader2, TrendingUp, TrendingDown, Wallet, Coins,
-  ChevronDown, ChevronLeft,
+  ChevronDown, ChevronLeft, Info,
 } from "lucide-react";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from "@/components/ui/tooltip";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
   BarChart, Bar, PieChart, Pie, Cell,
@@ -79,28 +82,76 @@ export function isOpexVoucher(v: { voucher_type: string; amount?: number | strin
 }
 
 
-function KpiCard({ title, value, sub, badge, tone, icon }: {
+function KpiCard({ title, value, sub, badge, tone, icon, info, index = 0 }: {
   title: string; value: string; sub?: string; badge?: string;
   tone: "emerald" | "sky" | "rose" | "amber" | "indigo"; icon: React.ReactNode;
+  info?: string; index?: number;
 }) {
   const tones: Record<string, string> = {
-    emerald: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/25 text-emerald-600 dark:text-emerald-400",
-    sky: "from-sky-500/15 to-sky-500/5 border-sky-500/25 text-sky-600 dark:text-sky-400",
-    rose: "from-rose-500/15 to-rose-500/5 border-rose-500/25 text-rose-600 dark:text-rose-400",
-    amber: "from-amber-500/15 to-amber-500/5 border-amber-500/25 text-amber-600 dark:text-amber-400",
-    indigo: "from-indigo-500/15 to-indigo-500/5 border-indigo-500/25 text-indigo-600 dark:text-indigo-400",
+    emerald: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/25 text-emerald-600 dark:text-emerald-400 hover:shadow-emerald-500/20",
+    sky: "from-sky-500/15 to-sky-500/5 border-sky-500/25 text-sky-600 dark:text-sky-400 hover:shadow-sky-500/20",
+    rose: "from-rose-500/15 to-rose-500/5 border-rose-500/25 text-rose-600 dark:text-rose-400 hover:shadow-rose-500/20",
+    amber: "from-amber-500/15 to-amber-500/5 border-amber-500/25 text-amber-600 dark:text-amber-400 hover:shadow-amber-500/20",
+    indigo: "from-indigo-500/15 to-indigo-500/5 border-indigo-500/25 text-indigo-600 dark:text-indigo-400 hover:shadow-indigo-500/20",
   };
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br backdrop-blur-sm p-4 shadow-sm ${tones[tone]}`}>
+    <div
+      style={{ animationDelay: `${index * 70}ms` }}
+      className={`group rounded-2xl border bg-gradient-to-br backdrop-blur-sm p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg animate-in fade-in slide-in-from-bottom-4 fill-mode-both ${tones[tone]}`}
+    >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-muted-foreground">{title}</span>
-        <span className="opacity-80">{icon}</span>
+        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          {title}
+          {info && (
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label={`شرح ${title}`} className="opacity-60 hover:opacity-100 transition">
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[240px] text-[11px] leading-relaxed">
+                {info}
+              </TooltipContent>
+            </UITooltip>
+          )}
+        </span>
+        <span className="opacity-80 transition-transform duration-300 group-hover:scale-110">{icon}</span>
       </div>
-      <div className="text-2xl font-extrabold tracking-tight">{value}</div>
+      <div className="text-2xl font-extrabold tracking-tight tabular-nums">{value}</div>
       <div className="flex items-center gap-2 mt-1">
         {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
         {badge && <Badge variant="secondary" className="text-[10px]">{badge}</Badge>}
       </div>
+    </div>
+  );
+}
+
+/** Tooltip زجاجي أنيق للرسوم البيانية */
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/70 backdrop-blur-md shadow-lg px-3 py-2 text-xs space-y-1">
+      {label !== undefined && <div className="font-bold mb-1">{label}</div>}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color || p.payload?.fill }} />
+          <span className="text-muted-foreground">{p.name}</span>
+          <span className="font-semibold tabular-nums mr-auto">{formatEGP(Number(p.value))}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Tooltip الدونات: البند + القيمة + النسبة */
+function DonutTooltip({ active, payload, total }: any) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0];
+  const pct = total ? (Number(p.value) / total) * 100 : 0;
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/70 backdrop-blur-md shadow-lg px-3 py-2 text-xs">
+      <div className="font-bold mb-0.5">{p.name}</div>
+      <div className="tabular-nums">{formatEGP(Number(p.value))} · {pct.toFixed(1)}%</div>
     </div>
   );
 }
@@ -236,6 +287,11 @@ export default function HistoricalAnalytics() {
     });
     return Array.from(m, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
   }, [fVch]);
+
+  // عرض فقط: إجمالي شرائح الدونات لحساب النسب المئوية في الـ Tooltip والـ Legend
+  const expenseTotal = useMemo(() => expenseCats.reduce((s, c) => s + c.value, 0), [expenseCats]);
+
+
 
   /* drill-down tables */
   const topSuppliers = useMemo(() => {
@@ -415,32 +471,44 @@ export default function HistoricalAnalytics() {
         ) : (
           <>
             {/* KPIs */}
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard tone="emerald" icon={<TrendingUp className="w-4 h-4" />} title="صافي المبيعات"
-                value={formatEGP(k.netSales)}
-                sub={`${formatNumber(k.salesCount)} فاتورة`}
-                badge={`مرتجع مستبعد ${formatEGP(k.sRetTotal)}`} />
-              <KpiCard tone="sky" icon={<TrendingDown className="w-4 h-4" />} title="صافي المشتريات"
-                value={formatEGP(k.netPurch)}
-                sub={`${formatNumber(k.purchCount)} فاتورة`}
-                badge={`مرتجع شراء ${formatEGP(k.pRetTotal)}`} />
-              <KpiCard tone="indigo" icon={<Coins className="w-4 h-4" />} title="مجمل الربح الحقيقي"
-                value={formatEGP(k.gross)}
-                badge={`هامش ${k.margin.toFixed(1)}%`} />
-              <KpiCard tone="rose" icon={<Wallet className="w-4 h-4" />} title="المصروفات التشغيلية"
-                value={formatEGP(k.opex)}
-                sub={`متوسط شهري ${formatEGP(k.opexAvg)}`} />
-              <KpiCard
-                tone={k.noi >= 0 ? "emerald" : "rose"}
-                icon={k.noi >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                title={k.noi >= 0 ? "صافي ربح نشاط" : "صافي خسارة نشاط"}
-                value={formatEGP(Math.abs(k.noi))}
-                sub="مجمل الربح الحقيقي − المصروفات التشغيلية"
-                badge={k.noi >= 0 ? "ربح" : "خسارة"} />
-            </div>
+            <TooltipProvider delayDuration={100}>
+              <div key={`kpi-${branch}-${year}-${pay}`} className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+                <KpiCard index={0} tone="emerald" icon={<TrendingUp className="w-4 h-4" />} title="صافي المبيعات"
+                  info="إجمالي فواتير البيع مخصوماً منها مرتجعات البيع."
+                  value={formatEGP(k.netSales)}
+                  sub={`${formatNumber(k.salesCount)} فاتورة`}
+                  badge={`مرتجع مستبعد ${formatEGP(k.sRetTotal)}`} />
+                <KpiCard index={1} tone="sky" icon={<TrendingDown className="w-4 h-4" />} title="صافي المشتريات"
+                  info="إجمالي فواتير الشراء مخصوماً منها مرتجعات الشراء."
+                  value={formatEGP(k.netPurch)}
+                  sub={`${formatNumber(k.purchCount)} فاتورة`}
+                  badge={`مرتجع شراء ${formatEGP(k.pRetTotal)}`} />
+                <KpiCard index={2} tone="indigo" icon={<Coins className="w-4 h-4" />} title="مجمل الربح الحقيقي"
+                  info="أرباح فواتير البيع الفعلية فقط."
+                  value={formatEGP(k.gross)}
+                  badge={`هامش ${k.margin.toFixed(1)}%`} />
+                <KpiCard index={3} tone="rose" icon={<Wallet className="w-4 h-4" />} title="المصروفات التشغيلية"
+                  info="إجمالي بنود الصرف المؤثرة على النشاط الدفترى."
+                  value={formatEGP(k.opex)}
+                  sub={`متوسط شهري ${formatEGP(k.opexAvg)}`} />
+                <KpiCard
+                  index={4}
+                  tone={k.noi >= 0 ? "emerald" : "rose"}
+                  icon={k.noi >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                  title={k.noi >= 0 ? "صافي ربح نشاط" : "صافي خسارة نشاط"}
+                  info="مجمل الربح مطروحاً منه المصروفات التشغيلية."
+                  value={formatEGP(Math.abs(k.noi))}
+                  sub="مجمل الربح الحقيقي − المصروفات التشغيلية"
+                  badge={k.noi >= 0 ? "ربح" : "خسارة"} />
+              </div>
+            </TooltipProvider>
 
             {/* charts */}
-            <div className="rounded-2xl border bg-card p-4">
+            <div
+              key={`trend-${branch}-${year}-${pay}`}
+              style={{ animationDelay: "360ms" }}
+              className="rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+            >
               <div className="text-sm font-semibold mb-3">منحنى الأداء المالي</div>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -448,7 +516,7 @@ export default function HistoricalAnalytics() {
                     <defs>
                       {[["s", "#10b981"], ["p", "#0ea5e9"], ["g", "#6366f1"], ["e", "#f43f5e"]].map(([id, c]) => (
                         <linearGradient key={id} id={`hg-${id}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={c} stopOpacity={0.5} />
+                          <stop offset="5%" stopColor={c} stopOpacity={0.55} />
                           <stop offset="95%" stopColor={c} stopOpacity={0.02} />
                         </linearGradient>
                       ))}
@@ -456,52 +524,91 @@ export default function HistoricalAnalytics() {
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => formatNumber(v)} />
-                    <Tooltip formatter={(v: any, n: any) => [formatEGP(Number(v)), n]} />
-                    <Legend />
-                    <Area type="monotone" dataKey="مبيعات" stroke="#10b981" fill="url(#hg-s)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="مشتريات" stroke="#0ea5e9" fill="url(#hg-p)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="أرباح" stroke="#6366f1" fill="url(#hg-g)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="مصروفات" stroke="#f43f5e" fill="url(#hg-e)" strokeWidth={2} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: "hsl(var(--primary))", strokeOpacity: 0.3 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Area type="monotone" dataKey="مبيعات" stroke="#10b981" fill="url(#hg-s)" strokeWidth={2} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="مشتريات" stroke="#0ea5e9" fill="url(#hg-p)" strokeWidth={2} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="أرباح" stroke="#6366f1" fill="url(#hg-g)" strokeWidth={2} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="مصروفات" stroke="#f43f5e" fill="url(#hg-e)" strokeWidth={2} activeDot={{ r: 5 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border bg-card p-4">
+              <div
+                key={`branch-${branch}-${year}-${pay}`}
+                style={{ animationDelay: "430ms" }}
+                className="rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+              >
                 <div className="text-sm font-semibold mb-3">مساهمة الفروع</div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={branchPerf}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <BarChart data={branchPerf} barGap={6}>
+                      <defs>
+                        <linearGradient id="hb-s" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.45} />
+                        </linearGradient>
+                        <linearGradient id="hb-g" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0.45} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => formatNumber(v)} />
-                      <Tooltip formatter={(v: any, n: any) => [formatEGP(Number(v)), n]} />
-                      <Legend />
-                      <Bar dataKey="مبيعات" fill="#10b981" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="أرباح" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.35 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="مبيعات" fill="url(#hb-s)" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                      <Bar dataKey="أرباح" fill="url(#hb-g)" radius={[4, 4, 0, 0]} maxBarSize={60} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="rounded-2xl border bg-card p-4">
+              <div
+                key={`exp-${branch}-${year}-${pay}`}
+                style={{ animationDelay: "500ms" }}
+                className="rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+              >
                 <div className="text-sm font-semibold mb-3">خريطة المصروفات</div>
-                <div className="h-64">
-                  {expenseCats.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={expenseCats} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                          {expenseCats.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(v: any, n: any) => [formatEGP(Number(v)), n]} />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full grid place-items-center text-sm text-muted-foreground">لا توجد مصروفات مسجلة</div>
-                  )}
-                </div>
+                {expenseCats.length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={expenseCats}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={60}
+                            outerRadius={95}
+                            paddingAngle={2}
+                            stroke="none"
+                          >
+                            {expenseCats.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip content={<DonutTooltip total={expenseTotal} />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {/* Legend مرتب في شبكة بدل الازدحام تحت الشارت */}
+                    <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pl-1">
+                      {expenseCats.map((c, i) => (
+                        <div key={c.name} className="flex items-center gap-2 text-[11px] rounded-md px-1.5 py-1 hover:bg-muted/50 transition-colors">
+                          <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                          <span className="truncate flex-1" title={c.name}>{c.name}</span>
+                          <span className="tabular-nums font-semibold shrink-0">
+                            {expenseTotal ? ((c.value / expenseTotal) * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-64 grid place-items-center text-sm text-muted-foreground">لا توجد مصروفات مسجلة</div>
+                )}
               </div>
             </div>
 
@@ -521,14 +628,14 @@ export default function HistoricalAnalytics() {
                   </thead>
                   <tbody>
                     {topSuppliers.map((r) => (
-                      <tr key={r.name} className="border-t">
-                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{formatEGP(r.purchases)}</td>
-                        <td className="px-2 py-1.5 text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
-                        <td className="px-2 py-1.5 font-semibold">{formatEGP(r.net)}</td>
-                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
-                        <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
-                        <td className="px-2 py-1.5">{r.share.toFixed(1)}%</td>
+                      <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.purchases)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(r.net)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{r.share.toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -542,11 +649,11 @@ export default function HistoricalAnalytics() {
                   </thead>
                   <tbody>
                     {topCustomers.map((r) => (
-                      <tr key={r.name} className="border-t">
-                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{formatEGP(r.total)}</td>
-                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
-                        <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
+                      <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.total)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -560,12 +667,12 @@ export default function HistoricalAnalytics() {
                   </thead>
                   <tbody>
                     {topProducts.map((r, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-2 py-1.5">{r.code}</td>
-                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{formatNumber(r.qty)}</td>
-                        <td className="px-2 py-1.5">{formatEGP(r.revenue)}</td>
-                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.profit)}</td>
+                      <tr key={i} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-1.5 tabular-nums">{r.code}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatNumber(r.qty)}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.revenue)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.profit)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -583,22 +690,22 @@ export default function HistoricalAnalytics() {
                       const open = expanded === d.id;
                       return (
                         <Fragment key={d.id}>
-                          <tr className="border-t hover:bg-muted/40 cursor-pointer"
+                          <tr className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
                             onClick={() => setExpanded(open ? null : d.id)}>
-                            <td className="px-2 py-1.5">
+                            <td className="px-2 py-1.5 tabular-nums">
                               {its.length > 0 && (open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />)}
                             </td>
-                            <td className="px-2 py-1.5">{d.date}</td>
-                            <td className="px-2 py-1.5">
+                            <td className="px-2 py-1.5 tabular-nums">{d.date}</td>
+                            <td className="px-2 py-1.5 tabular-nums">
                               <Badge variant="secondary" className="text-[10px]">{DOC_LABEL[d.doc_type] ?? d.doc_type}</Badge>
                             </td>
-                            <td className="px-2 py-1.5">{d.invoice_no}</td>
-                            <td className="px-2 py-1.5">{d.branch_name}</td>
-                            <td className="px-2 py-1.5">{d.party_name ?? "—"}</td>
-                            <td className="px-2 py-1.5">{d.payment_method ?? "—"}</td>
-                            <td className="px-2 py-1.5 font-semibold">{formatEGP(d.total_amount)}</td>
-                            <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
-                            <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.invoice_no}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.branch_name}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.party_name ?? "—"}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.payment_method ?? "—"}</td>
+                            <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(d.total_amount)}</td>
+                            <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
+                            <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
                           </tr>
                           {open && its.length > 0 && (
                             <tr className="bg-muted/30">
@@ -606,18 +713,18 @@ export default function HistoricalAnalytics() {
                                 <table className="w-full text-[11px]">
                                   <thead>
                                     <tr className="text-muted-foreground">
-                                      {["الكود", "الصنف", "الكمية", "السعر", "الربح", "الإجمالي"].map((h) => <th key={h} className="px-2 py-1 text-right">{h}</th>)}
+                                      {["الكود", "الصنف", "الكمية", "السعر", "الربح", "الإجمالي"].map((h) => <th key={h} className="px-2 py-1 tabular-nums text-right">{h}</th>)}
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {its.map((it) => (
-                                      <tr key={it.id} className="border-t border-border/50">
-                                        <td className="px-2 py-1">{it.item_code ?? "—"}</td>
-                                        <td className="px-2 py-1">{it.item_name}</td>
-                                        <td className="px-2 py-1">{formatNumber(it.qty)}</td>
-                                        <td className="px-2 py-1">{formatEGP(it.price)}</td>
-                                        <td className="px-2 py-1">{formatEGP(it.profit)}</td>
-                                        <td className="px-2 py-1">{formatEGP(it.total)}</td>
+                                      <tr key={it.id} className="border-t border-border/50 hover:bg-muted/50 transition-colors">
+                                        <td className="px-2 py-1 tabular-nums">{it.item_code ?? "—"}</td>
+                                        <td className="px-2 py-1 tabular-nums">{it.item_name}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatNumber(it.qty)}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatEGP(it.price)}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatEGP(it.profit)}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatEGP(it.total)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
