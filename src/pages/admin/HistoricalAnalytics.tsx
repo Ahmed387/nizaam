@@ -288,6 +288,11 @@ export default function HistoricalAnalytics() {
     return Array.from(m, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
   }, [fVch]);
 
+  // عرض فقط: إجمالي شرائح الدونات لحساب النسب المئوية في الـ Tooltip والـ Legend
+  const expenseTotal = useMemo(() => expenseCats.reduce((s, c) => s + c.value, 0), [expenseCats]);
+
+
+
   /* drill-down tables */
   const topSuppliers = useMemo(() => {
     const m = new Map<string, { name: string; purchases: number; returns: number; paid: number; due: number }>();
