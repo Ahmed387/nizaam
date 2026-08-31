@@ -141,68 +141,8 @@ export function AppShell({
               {isCollapsed && group.label && gi > 0 && (
                 <div className="mx-2 h-px bg-sidebar-border/60 my-2" />
               )}
-              {group.items.map((item) => {
-                const active = loc.pathname === item.to || loc.pathname.startsWith(item.to + "/");
-                const linkClass = `group/link relative flex items-center gap-3 ${isCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"} rounded-xl text-[13.5px] font-semibold transition-all duration-200 ${
-                  active
-                    ? "bg-gradient-to-l from-primary to-primary-glow text-primary-foreground shadow-[0_4px_14px_-4px_hsl(217_91%_55%_/_0.5)]"
-                    : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                }`;
-                const linkContent = (
-                  <>
-                    {active && !isCollapsed && (
-                      <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-foreground/80 rounded-l-full" aria-hidden />
-                    )}
-                    <span className={`shrink-0 relative flex items-center justify-center ${active ? "" : "text-muted-foreground group-hover/link:text-sidebar-foreground"}`}>
-                      {item.icon}
-                      {isCollapsed && item.badge && item.badge > 0 ? (
-                        <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold ring-2 ring-sidebar">
-                          {item.badge > 9 ? "9+" : item.badge}
-                        </span>
-                      ) : null}
-                    </span>
-                    {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-                    {!isCollapsed && item.badge && item.badge > 0 ? (
-                      <span className={`shrink-0 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold ${active ? "bg-primary-foreground/25 text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>
-                        {item.badge > 99 ? "99+" : item.badge}
-                      </span>
-                    ) : null}
-                  </>
-                );
-                const link = item.newTab ? (
-                  <a key={item.to} href={item.to} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className={linkClass}>
-                    {linkContent}
-                  </a>
-                ) : (
-                  <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)} className={linkClass}>
-                    {linkContent}
-                  </NavLink>
-                );
-                if (isCollapsed || item.hint) {
-                  return (
-                    <Tooltip key={item.to} delayDuration={100}>
-                      <TooltipTrigger asChild>{link}</TooltipTrigger>
-                      <TooltipContent
-                        side="left"
-                        align="center"
-                        sideOffset={10}
-                        dir="rtl"
-                        className="max-w-[230px] rounded-xl border-primary/25 bg-popover/95 px-3 py-2 text-right shadow-[0_10px_30px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-sm"
-                      >
-                        {isCollapsed ? (
-                          <span className="text-[12.5px] font-semibold">{item.label}</span>
-                        ) : (
-                          <span className="block text-[11.5px] font-medium leading-relaxed text-muted-foreground">
-                            <span className="mb-0.5 block text-[12.5px] font-bold text-foreground">{item.label}</span>
-                            {item.hint}
-                          </span>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                }
-                return link;
-              })}
+              {group.items.map((item) => renderItem(item, 0, isCollapsed, isMobile))}
+
             </div>
           ))}
         </nav>
