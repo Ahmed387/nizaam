@@ -82,28 +82,76 @@ export function isOpexVoucher(v: { voucher_type: string; amount?: number | strin
 }
 
 
-function KpiCard({ title, value, sub, badge, tone, icon }: {
+function KpiCard({ title, value, sub, badge, tone, icon, info, index = 0 }: {
   title: string; value: string; sub?: string; badge?: string;
   tone: "emerald" | "sky" | "rose" | "amber" | "indigo"; icon: React.ReactNode;
+  info?: string; index?: number;
 }) {
   const tones: Record<string, string> = {
-    emerald: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/25 text-emerald-600 dark:text-emerald-400",
-    sky: "from-sky-500/15 to-sky-500/5 border-sky-500/25 text-sky-600 dark:text-sky-400",
-    rose: "from-rose-500/15 to-rose-500/5 border-rose-500/25 text-rose-600 dark:text-rose-400",
-    amber: "from-amber-500/15 to-amber-500/5 border-amber-500/25 text-amber-600 dark:text-amber-400",
-    indigo: "from-indigo-500/15 to-indigo-500/5 border-indigo-500/25 text-indigo-600 dark:text-indigo-400",
+    emerald: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/25 text-emerald-600 dark:text-emerald-400 hover:shadow-emerald-500/20",
+    sky: "from-sky-500/15 to-sky-500/5 border-sky-500/25 text-sky-600 dark:text-sky-400 hover:shadow-sky-500/20",
+    rose: "from-rose-500/15 to-rose-500/5 border-rose-500/25 text-rose-600 dark:text-rose-400 hover:shadow-rose-500/20",
+    amber: "from-amber-500/15 to-amber-500/5 border-amber-500/25 text-amber-600 dark:text-amber-400 hover:shadow-amber-500/20",
+    indigo: "from-indigo-500/15 to-indigo-500/5 border-indigo-500/25 text-indigo-600 dark:text-indigo-400 hover:shadow-indigo-500/20",
   };
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br backdrop-blur-sm p-4 shadow-sm ${tones[tone]}`}>
+    <div
+      style={{ animationDelay: `${index * 70}ms` }}
+      className={`group rounded-2xl border bg-gradient-to-br backdrop-blur-sm p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg animate-in fade-in slide-in-from-bottom-4 fill-mode-both ${tones[tone]}`}
+    >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-muted-foreground">{title}</span>
-        <span className="opacity-80">{icon}</span>
+        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          {title}
+          {info && (
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label={`شرح ${title}`} className="opacity-60 hover:opacity-100 transition">
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[240px] text-[11px] leading-relaxed">
+                {info}
+              </TooltipContent>
+            </UITooltip>
+          )}
+        </span>
+        <span className="opacity-80 transition-transform duration-300 group-hover:scale-110">{icon}</span>
       </div>
-      <div className="text-2xl font-extrabold tracking-tight">{value}</div>
+      <div className="text-2xl font-extrabold tracking-tight tabular-nums">{value}</div>
       <div className="flex items-center gap-2 mt-1">
         {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
         {badge && <Badge variant="secondary" className="text-[10px]">{badge}</Badge>}
       </div>
+    </div>
+  );
+}
+
+/** Tooltip زجاجي أنيق للرسوم البيانية */
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/70 backdrop-blur-md shadow-lg px-3 py-2 text-xs space-y-1">
+      {label !== undefined && <div className="font-bold mb-1">{label}</div>}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color || p.payload?.fill }} />
+          <span className="text-muted-foreground">{p.name}</span>
+          <span className="font-semibold tabular-nums mr-auto">{formatEGP(Number(p.value))}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Tooltip الدونات: البند + القيمة + النسبة */
+function DonutTooltip({ active, payload, total }: any) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0];
+  const pct = total ? (Number(p.value) / total) * 100 : 0;
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/70 backdrop-blur-md shadow-lg px-3 py-2 text-xs">
+      <div className="font-bold mb-0.5">{p.name}</div>
+      <div className="tabular-nums">{formatEGP(Number(p.value))} · {pct.toFixed(1)}%</div>
     </div>
   );
 }
