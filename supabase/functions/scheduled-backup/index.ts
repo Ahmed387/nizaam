@@ -1,22 +1,47 @@
-// Scheduled backup: for each tenant, dump key tables to JSON, upload to storage, record in system_backups.
-// Triggered via pg_cron weekly + manual invocation by admins.
+// Scheduled backup: for each tenant, dump ALL public tables to JSON, upload to storage, record in system_backups.
+// Triggered via pg_cron weekly (x-cron-secret header) + manual invocation by admins.
+// Strict mode: any table read failure aborts the whole backup and records status = "failed".
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const TABLES = [
-  "branches","categories","products","price_list_sources","price_list_items",
-  "contacts","employees","invoices","invoice_items","invoice_payments",
-  "returns","return_items","pre_orders","payment_plans","payment_installments",
-  "payment_transactions","treasury","treasury_transfers","vouchers","voucher_categories",
-  "advances","advance_payments","advance_requests","salaries","attendance",
-  "shipments","shipment_items","supplier_payments","purchase_returns","purchase_return_items",
-  "stock_adjustments","stock_adjustment_items","stock_transfers","product_batches",
-  "audit_log",
+// Tables scoped per tenant (they all have a tenant_id column)
+const TENANT_TABLES = [
+  "advance_payments","advance_requests","advances","ai_ask_log","approval_requests","attachments",
+  "attendance","audit_log","bank_accounts","branch_capital_allocations","branch_closures","branch_schedules",
+  "branch_users","branches","brands","budgets","capacities","cashier_shifts","categories","chart_of_accounts",
+  "colors","contacts","customer_credit_log","depreciation_entries","discount_approval_requests","employees",
+  "equity_partners","expenses","fiscal_periods","fixed_assets","health_check_runs","inventory_count_batch_moves",
+  "inventory_reservations","inventory_sessions","invoice_items","invoice_payments","invoices","journal_entries",
+  "journal_entry_lines","migration_batches","notifications","partner_advances","partner_share_history",
+  "partner_transactions","partner_users","payment_installments","payment_plans","payment_transactions",
+  "pre_order_transactions","pre_orders","price_audit_log","price_list_items","price_list_sources",
+  "product_batches","product_types","products","profiles","profit_distributions","purchase_returns","quotes",
+  "return_items","returns","role_permissions","salaries","scheduled_reports","settings","shift_cash_handovers",
+  "shift_schedules","shipment_items","shipments","sizes","stock_adjustments","stock_transfers",
+  "supplier_payments","transfer_fees","treasury","treasury_transfers","user_permissions","user_presence",
+  "user_roles","voucher_categories","voucher_sequences","vouchers",
 ];
+
+// Tables without a tenant_id column — dumped in full (child/global tables)
+const GLOBAL_TABLES = [
+  "bank_statement_lines","bank_statements","historical_invoice_items","historical_invoices","historical_vouchers",
+  "inventory_adjustments","inventory_session_items","onboarding_progress","owner_expenses_access",
+  "owner_personal_deposits","owner_personal_expenses","partner_advance_installments","partner_advance_payments",
+  "profit_distribution_lines","purchase_return_items","quote_items","stock_adjustment_items","voucher_attachments",
+];
+
+const PAGE = 1000;
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -26,55 +51,47 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-    // Optional: backup a single tenant if specified, else all active tenants
     let tenantIds: string[] = [];
     let requestedTenant: string | undefined;
     try {
       const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
       if (body?.tenant_id) requestedTenant = body.tenant_id;
-    } catch {}
+    } catch { /* ignore */ }
 
-    // Authorization: allow CRON_SECRET header for automated invocation, otherwise require admin
-    const cronSecret = Deno.env.get("CRON_SECRET");
+    // ---- Authorization: cron secret (env or DB-stored token) OR an admin JWT ----
     const providedCron = req.headers.get("x-cron-secret");
-    const isCron = !!cronSecret && providedCron === cronSecret;
+    let isCron = false;
+    if (providedCron) {
+      const envSecret = Deno.env.get("CRON_SECRET");
+      if (envSecret && providedCron === envSecret) isCron = true;
+      if (!isCron) {
+        const { data: tok } = await admin
+          .from("system_cron_tokens")
+          .select("token")
+          .eq("name", "scheduled-backup")
+          .maybeSingle();
+        if (tok?.token && providedCron === tok.token) isCron = true;
+      }
+    }
 
     if (!isCron) {
       const authHeader = req.headers.get("Authorization");
-      if (!authHeader) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const authClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
+      if (!authHeader) return jsonResponse({ error: "Unauthorized" }, 401);
+      const authClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
       const token = authHeader.replace("Bearer ", "");
       const { data: claims, error: claimsErr } = await authClient.auth.getClaims(token);
       const callerId = claims?.claims?.sub as string | undefined;
-      if (claimsErr || !callerId) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      // Restrict to tenants where the caller is an admin / owner / super admin
+      if (claimsErr || !callerId) return jsonResponse({ error: "Unauthorized" }, 401);
+
       const { data: adminRoles } = await admin.from("user_roles")
         .select("tenant_id, role").eq("user_id", callerId)
         .in("role", ["admin", "owner", "super_admin"]);
       const adminTenantIds = [...new Set((adminRoles ?? []).map((r: any) => r.tenant_id).filter(Boolean))];
-      if (adminTenantIds.length === 0) {
-        return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (adminTenantIds.length === 0) return jsonResponse({ error: "Forbidden: admin role required" }, 403);
       if (requestedTenant) {
-        if (!adminTenantIds.includes(requestedTenant)) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        if (!adminTenantIds.includes(requestedTenant)) return jsonResponse({ error: "Forbidden" }, 403);
         tenantIds = [requestedTenant];
       } else {
         tenantIds = adminTenantIds;
@@ -91,51 +108,79 @@ Deno.serve(async (req) => {
 
     for (const tenantId of tenantIds) {
       const counts: Record<string, number> = {};
-      const dump: Record<string, any[]> = {};
-
-      for (const table of TABLES) {
-        const rows: any[] = [];
-        let from = 0;
-        const PAGE = 1000;
-        while (true) {
-          const { data, error } = await admin
-            .from(table)
-            .select("*")
-            .eq("tenant_id", tenantId)
-            .range(from, from + PAGE - 1);
-          if (error) {
-            // Some tables might not have tenant_id — try full scan as fallback (best effort)
-            break;
-          }
-          rows.push(...(data ?? []));
-          if (!data || data.length < PAGE) break;
-          from += PAGE;
-        }
-        dump[table] = rows;
-        counts[table] = rows.length;
-      }
-
+      // Serialized chunks — row objects are released after each table (memory management)
+      const parts: string[] = [];
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `backup-${stamp}.json`;
       const storagePath = `${tenantId}/${filename}`;
-      const payload = JSON.stringify({ tenant_id: tenantId, exported_at: new Date().toISOString(), data: dump });
+
+      const fail = async (message: string) => {
+        await admin.from("system_backups").insert({
+          tenant_id: tenantId,
+          filename,
+          size_bytes: 0,
+          table_counts: counts,
+          status: "failed",
+          error: message,
+          storage_path: null,
+        });
+        results.push({ tenant_id: tenantId, status: "failed", error: message });
+      };
+
+      const dumpTable = async (table: string, scoped: boolean): Promise<void> => {
+        let from = 0;
+        let total = 0;
+        parts.push(`${parts.length ? "," : ""}${JSON.stringify(table)}:[`);
+        while (true) {
+          let q = admin.from(table).select("*").range(from, from + PAGE - 1);
+          if (scoped) q = q.eq("tenant_id", tenantId);
+          const { data, error } = await q;
+          if (error) throw new Error(`جدول ${table}: ${error.message}`);
+          const rows = data ?? [];
+          for (const r of rows) {
+            parts.push(`${total ? "," : ""}${JSON.stringify(r)}`);
+            total++;
+          }
+          const len = rows.length;
+          rows.length = 0; // release references
+          if (len < PAGE) break;
+          from += PAGE;
+        }
+        parts.push("]");
+        counts[table] = total;
+      };
+
+      try {
+        for (const t of TENANT_TABLES) await dumpTable(t, true);
+        for (const t of GLOBAL_TABLES) await dumpTable(t, false);
+      } catch (e: any) {
+        // Atomic: abort completely, no partial file is written
+        parts.length = 0;
+        await fail(e?.message ?? String(e));
+        continue;
+      }
+
+      const header = `{"tenant_id":${JSON.stringify(tenantId)},"exported_at":${JSON.stringify(new Date().toISOString())},"table_count":${Object.keys(counts).length},"data":{`;
+      const payload = header + parts.join("") + "}}";
+      parts.length = 0;
       const bytes = new TextEncoder().encode(payload);
 
       const { error: upErr } = await admin.storage
         .from("system-backups")
         .upload(storagePath, bytes, { contentType: "application/json", upsert: false });
 
-      let status = "success";
-      let errMsg: string | null = null;
-      if (upErr) { status = "error"; errMsg = upErr.message; }
+      if (upErr) {
+        await fail(upErr.message);
+        continue;
+      }
 
       await admin.from("system_backups").insert({
         tenant_id: tenantId,
         filename,
         size_bytes: bytes.byteLength,
         table_counts: counts,
-        status,
-        error: errMsg,
+        status: "success",
+        error: null,
         storage_path: storagePath,
       });
 
@@ -148,13 +193,10 @@ Deno.serve(async (req) => {
           .eq("role", "admin");
         const adminIds = Array.from(new Set((adminRoles ?? []).map((r: any) => r.user_id)));
 
-        let downloadUrl: string | null = null;
-        if (status === "success") {
-          const { data: signed } = await admin.storage
-            .from("system-backups")
-            .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
-          downloadUrl = signed?.signedUrl ?? null;
-        }
+        const { data: signed } = await admin.storage
+          .from("system-backups")
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+        const downloadUrl = signed?.signedUrl ?? null;
 
         const totalRows = Object.values(counts).reduce((s: number, n: any) => s + Number(n || 0), 0);
         const sizeKB = (bytes.byteLength / 1024).toFixed(1);
@@ -163,10 +205,8 @@ Deno.serve(async (req) => {
           const rows = adminIds.map((uid) => ({
             user_id: uid,
             tenant_id: tenantId,
-            title: status === "success" ? "✅ نسخة احتياطية جديدة جاهزة" : "❌ فشل النسخ الاحتياطي",
-            body: status === "success"
-              ? `تم إنشاء نسخة احتياطية بنجاح — ${totalRows.toLocaleString("en-US")} سجل • ${sizeKB} KB\nالملف: ${filename}${downloadUrl ? `\n\nرابط التنزيل (صالح لمدة 7 أيام):\n${downloadUrl}` : ""}`
-              : `فشل إنشاء النسخة الاحتياطية: ${errMsg ?? "خطأ غير معروف"}`,
+            title: "✅ نسخة احتياطية جديدة جاهزة",
+            body: `تم إنشاء نسخة احتياطية بنجاح — ${Object.keys(counts).length} جدول • ${totalRows.toLocaleString("en-US")} سجل • ${sizeKB} KB\nالملف: ${filename}${downloadUrl ? `\n\nرابط التنزيل (صالح لمدة 7 أيام):\n${downloadUrl}` : ""}`,
             type: "general",
             link: "/admin/settings?tab=backup",
             related_entity: "system_backups",
@@ -177,11 +217,12 @@ Deno.serve(async (req) => {
         console.warn("Failed to notify admins:", e);
       }
 
-      // Retention: keep last 12 backups per tenant — delete older
+      // Retention: keep last 12 successful backups per tenant — delete older
       const { data: oldOnes } = await admin
         .from("system_backups")
         .select("id, storage_path")
         .eq("tenant_id", tenantId)
+        .eq("status", "success")
         .order("created_at", { ascending: false })
         .range(12, 999);
       if (oldOnes?.length) {
@@ -190,16 +231,18 @@ Deno.serve(async (req) => {
         await admin.from("system_backups").delete().in("id", oldOnes.map((o: any) => o.id));
       }
 
-      results.push({ tenant_id: tenantId, filename, size: bytes.byteLength, status, error: errMsg });
+      results.push({
+        tenant_id: tenantId,
+        filename,
+        size: bytes.byteLength,
+        tables: Object.keys(counts).length,
+        status: "success",
+      });
     }
 
-    return new Response(JSON.stringify({ ok: true, results }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const anyFailed = results.some((r) => r.status === "failed");
+    return jsonResponse({ ok: !anyFailed, results }, anyFailed ? 500 : 200);
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message ?? String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: e.message ?? String(e) }, 500);
   }
 });
