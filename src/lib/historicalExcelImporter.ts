@@ -33,7 +33,7 @@ export interface ImportResult {
   errors: string[];
 }
 
-const BATCH = 200;
+const BATCH = 100;
 
 /* ------------------------------- helpers ------------------------------- */
 
