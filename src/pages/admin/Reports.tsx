@@ -373,7 +373,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         { البند: "صافي الربح", القيمة: k.net },
         { البند: "قيمة المخزون", القيمة: k.inventoryValue },
         { البند: "قطع المخزون", القيمة: k.inventoryQty },
-        { البند: "تكلفة الشحنات", القيمة: k.shipmentsCost },
+        { البند: "تكلفة فواتير الشراء", القيمة: k.shipmentsCost },
         { البند: "مدفوع للموردين", القيمة: k.supPaid },
         { البند: "وارد الخزنة", القيمة: k.cashIn },
         { البند: "صادر الخزنة", القيمة: k.cashOut },
@@ -533,7 +533,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       <Section icon={<Store className="w-5 h-5" />} title="حركة المخزون والمشتريات" color="primary">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MiniKpi label="قيمة المخزون" value={formatEGP(k.inventoryValue)} icon={<Store className="w-4 h-4" />} hint={`${k.inventoryQty} قطعة`} />
-          <MiniKpi label="تكلفة الشحنات" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
+          <MiniKpi label="تكلفة فواتير الشراء" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} فاتورة شراء`} />
           <MiniKpi label="مدفوع للموردين" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="warning" />
         </div>
         <div className="text-xs text-muted-foreground mt-3 text-end">
@@ -616,7 +616,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         {/* ===== TAB 3: PURCHASES & SUPPLIERS (with payables aging) ===== */}
         <TabsContent value="purchases" className="mt-4 space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MiniKpi label="تكلفة الشحنات (الفترة)" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} شحنة`} />
+            <MiniKpi label="تكلفة فواتير الشراء (الفترة)" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} فاتورة شراء`} />
             <MiniKpi label="مدفوع للموردين (الفترة)" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" />
             <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="من contacts.balance" />
             <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />

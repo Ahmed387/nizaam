@@ -211,7 +211,7 @@ export default function NewShipment() {
     (async () => {
       const { data: s } = await supabase.from("shipments").select("*").eq("id", shipmentId).maybeSingle();
       const { data: it } = await supabase.from("shipment_items").select("*").eq("shipment_id", shipmentId);
-      if (!s) { toast.error("الشحنة غير موجودة"); return; }
+      if (!s) { toast.error("فاتورة الشراء غير موجودة"); return; }
       setSupplierId(s.contact_id ?? "");
       setArrival((s.arrival_date ?? "").slice(0, 10));
       if ((s as any).invoice_date) {
@@ -414,7 +414,7 @@ export default function NewShipment() {
 
   const submitEdit = async (skipConfirm = false) => {
     if (!shipmentId) return;
-    if (!lines.length) return toast.error("لا يمكن حفظ شحنة بدون أصناف");
+    if (!lines.length) return toast.error("لا يمكن حفظ فاتورة شراء بدون أصناف");
     for (const l of lines) {
       if (!l.product_name.trim() || l.quantity <= 0 || l.cost_price < 0)
         return toast.error("تأكد من بيانات كل المنتجات");
@@ -472,7 +472,7 @@ export default function NewShipment() {
         const ok = await createApprovalRequest({
           tenantId: tenantId!, branchId: branchId ?? null,
           entityType: "shipment", entityId: shipmentId,
-          entityLabel: `تعديل شحنة #${shipmentId.slice(0, 8)}`,
+          entityLabel: `تعديل فاتورة شراء #${shipmentId.slice(0, 8)}`,
           action: "update",
           payload: { header, items },
           reason: editReason,
@@ -611,8 +611,8 @@ export default function NewShipment() {
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
         docWarning({
-          title: "الشحنة اتسجلت ✅ بس الدفع لسه",
-          description: `ماقدرناش نسجّل خطة الدفع دلوقتي (${planErr?.message ?? "خطأ غير معروف"}). افتح "تعديل الشحنة" → قسم "طريقة الدفع للمورد" وسجّل المدفوع من هناك.`,
+          title: "فاتورة الشراء اتسجلت ✅ بس الدفع لسه",
+          description: `ماقدرناش نسجّل خطة الدفع دلوقتي (${planErr?.message ?? "خطأ غير معروف"}). افتح "تعديل فاتورة الشراء" → قسم "طريقة الدفع للمورد" وسجّل المدفوع من هناك.`,
         });
       }
 
@@ -630,10 +630,10 @@ export default function NewShipment() {
 
       formDraft.clear();
       docSuccess({
-        title: "تم تسجيل الشحنة بنجاح",
+        title: "تم تسجيل فاتورة الشراء بنجاح",
         description: `عدد الأصناف: ${lines.length}`,
         amount: grandTotal,
-        action: { label: "فتح الشحنة", onClick: () => nav(`/branch/${branchId}/shipments/${ship.id}`) },
+        action: { label: "فتح فاتورة الشراء", onClick: () => nav(`/branch/${branchId}/shipments/${ship.id}`) },
       });
       // Reset form for a new shipment
       setSupplierId("");
@@ -649,7 +649,7 @@ export default function NewShipment() {
       loadProducts();
     } catch (err: any) {
       console.error("shipment save failed:", err);
-      docError({ title: "فشل حفظ الشحنة", description: err.message ?? "خطأ غير متوقع" });
+      docError({ title: "فشل حفظ فاتورة الشراء", description: err.message ?? "خطأ غير متوقع" });
     } finally {
       setBusy(false);
     }
@@ -658,7 +658,7 @@ export default function NewShipment() {
   return (
     <BranchLayout>
       <PageHeader
-        title={isEdit ? "تعديل الشحنة" : "شحنة جديدة"}
+        title={isEdit ? "تعديل فاتورة الشراء" : "فاتورة شراء جديدة"}
         subtitle={isEdit ? (isAdmin ? "تعديل مباشر" : "سيُرسل التعديل للمدير للموافقة") : "استلام بضاعة من مورد"}
       />
 
@@ -800,7 +800,7 @@ export default function NewShipment() {
           {/* Notes — own row */}
           <div className="mt-4 space-y-1.5">
             <Label className="text-xs font-bold text-amber-700 dark:text-amber-300">ملاحظات</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن الشحنة..." className="resize-none border-amber-500/20 focus-visible:ring-amber-500/30" />
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="أي ملاحظات عن فاتورة الشراء..." className="resize-none border-amber-500/20 focus-visible:ring-amber-500/30" />
           </div>
 
           {/* Live distribution preview */}
@@ -1305,7 +1305,7 @@ export default function NewShipment() {
           {/* Save button */}
           <Button onClick={submit} disabled={busy} size="lg" className="w-full gap-2 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/20 h-14 text-lg font-bold rounded-xl">
             {busy && <Loader2 className="w-5 h-5 animate-spin" />}
-            {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ الشحنة"}
+            {isEdit ? (isAdmin ? "حفظ التعديلات" : "إرسال طلب التعديل") : "حفظ فاتورة الشراء"}
           </Button>
         </div>
       </CollapsibleSection>
@@ -1315,7 +1315,7 @@ export default function NewShipment() {
       <Dialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>تعديل مصاريف الشحنة</DialogTitle>
+            <DialogTitle>تعديل مصاريف فاتورة الشراء</DialogTitle>
             <DialogDescription>
               تعديل مصاريف الشحن سيؤثر على تكلفة {affectedBatches} دفعة وعلى حسابات الربح للمبيعات المستقبلية فقط.
               <br />

@@ -224,7 +224,7 @@ export default function AdminDashboard() {
                     { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض سعر", icon: FileText, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
                     { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardList, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
                     { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardList, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
-                    { to: `/branch/${b.id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
+                    { to: `/branch/${b.id}/shipments`, label: "فواتير الشراء", icon: Truck, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
                     { to: `/branch/${b.id}/treasury`, label: "الخزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
                     { to: `/branch/${b.id}/reports`, label: "التقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
                     { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-muted-foreground", bg: "bg-muted", border: "border-border", hover: "hover:bg-muted/70" },

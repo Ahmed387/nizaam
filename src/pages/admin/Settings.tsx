@@ -63,8 +63,8 @@ export default function Settings() {
   const RESET_OPTIONS: { key: string; label: string }[] = [
     { key: "sales", label: "المبيعات والفواتير" },
     { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
-    { key: "products", label: "حذف المنتجات نهائياً (مع كل الفواتير والمرتجعات والشحنات المرتبطة)" },
-    { key: "shipments", label: "الشحنات" },
+    { key: "products", label: "حذف المنتجات نهائياً (مع كل الفواتير والمرتجعات وفواتير الشراء المرتبطة)" },
+    { key: "shipments", label: "فواتير الشراء" },
     { key: "returns", label: "مرتجعات البيع" },
     { key: "purchase_returns", label: "مرتجعات الشراء" },
     
@@ -72,7 +72,7 @@ export default function Settings() {
     { key: "vouchers", label: "السندات (سندات قبض وصرف)" },
     { key: "stock_movements", label: "سجل حركات المخزون" },
     { key: "customers", label: "بيانات العملاء" },
-    { key: "suppliers", label: "الموردين (اللي مش مرتبطين بشحنات)" },
+    { key: "suppliers", label: "الموردين (اللي مش مرتبطين بفواتير شراء)" },
     { key: "employees", label: "الموظفين (مع رواتبهم وسلفهم)" },
     { key: "payroll", label: "الرواتب وطلبات السلف" },
     { key: "notifications", label: "الإشعارات" },

@@ -26,7 +26,7 @@ const TONES: Record<Tone, { wrap: string; icon: string; title: string; btn: stri
 };
 
 export interface DocToastOptions {
-  /** Big headline, e.g. "تم تسجيل الشحنة بنجاح" */
+  /** Big headline, e.g. "تم تسجيل فاتورة الشراء بنجاح" */
   title: string;
   /** Optional secondary line */
   description?: string;

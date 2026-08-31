@@ -325,7 +325,7 @@ export default function Inventory() {
         if (error) throw error;
         rows = data ?? [];
       } else if (type === "shipments") {
-        title = "الشحنات / التحويلات";
+        title = "فواتير الشراء / التحويلات";
         const { data, error } = await supabase
           .from("shipment_items" as any)
           .select("*")
@@ -525,7 +525,7 @@ export default function Inventory() {
 
     await logAudit({ userId: user!.id, userName: profile!.name, branchId, action: "CREATE", entity: "Product", entityId: newId, details: { name: form.name } });
     if (qty > 0 && cost <= 0) {
-      toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول شحنة شراء.");
+      toast.warning("تنبيه: تم إنشاء دفعة افتتاحية بدون سعر تكلفة. تتبع FIFO سيكون غير دقيق حتى أول فاتورة شراء شراء.");
     }
     toast.success("تمت إضافة المنتج");
 
@@ -1204,7 +1204,7 @@ export default function Inventory() {
                           {deleteRefs.purchases > 0 && <button type="button" onClick={() => loadRefDetails("purchases", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.purchases} فاتورة شراء</button>}
                           {deleteRefs.sale_returns > 0 && <button type="button" onClick={() => loadRefDetails("sale_returns", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.sale_returns} مرتجع بيع</button>}
                           {deleteRefs.purchase_returns > 0 && <button type="button" onClick={() => loadRefDetails("purchase_returns", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.purchase_returns} مرتجع شراء</button>}
-                          {deleteRefs.shipments > 0 && <button type="button" onClick={() => loadRefDetails("shipments", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.shipments} شحنة / تحويل</button>}
+                          {deleteRefs.shipments > 0 && <button type="button" onClick={() => loadRefDetails("shipments", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.shipments} فاتورة شراء / تحويل</button>}
                           {deleteRefs.adjustments > 0 && <button type="button" onClick={() => loadRefDetails("adjustments", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.adjustments} تسوية مخزون</button>}
                           {deleteRefs.count_sessions > 0 && <button type="button" onClick={() => loadRefDetails("count_sessions", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.count_sessions} جلسة جرد</button>}
                           {deleteRefs.quotes > 0 && <button type="button" onClick={() => loadRefDetails("quotes", deleteTarget.id)} className="text-right rounded-md bg-background/70 border px-3 py-2 hover:bg-primary/5 hover:border-primary/30 transition-colors">{deleteRefs.quotes} عرض سعر</button>}
@@ -1234,7 +1234,7 @@ export default function Inventory() {
                       </div>
                       {hasInternalSetupOnly && (
                         <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 text-sm leading-relaxed text-foreground">
-                          يوجد رصيد/تسوية داخلية فقط للمنتج. ده لا يُعتبر فاتورة بيع أو شراء أو شحنة، والحذف النهائي مسموح وهيحذف السجلات الداخلية مع المنتج.
+                          يوجد رصيد/تسوية داخلية فقط للمنتج. ده لا يُعتبر فاتورة بيع أو شراء أو فاتورة شراء، والحذف النهائي مسموح وهيحذف السجلات الداخلية مع المنتج.
                         </div>
                       )}
                       {!canHardDelete && (
@@ -1359,13 +1359,13 @@ export default function Inventory() {
                   }
                   if (type === "shipments") {
                     return [
-                      { key: "shipment.shipment_number", header: "رقم الشحنة", render: (r: any) => r.shipment?.id ? (
+                      { key: "shipment.shipment_number", header: "رقم فاتورة الشراء", render: (r: any) => r.shipment?.id ? (
                         <a href={`/branch/${branchId}/shipments/${r.shipment.id}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary underline hover:opacity-80">{r.shipment?.shipment_number}</a>
                       ) : <span className="font-mono text-primary">{r.shipment?.shipment_number}</span> },
                       { key: "from", header: "من", render: (r: any) => r.shipment?.source_branch?.name ?? "—" },
                       { key: "to", header: "إلى", render: (r: any) => r.shipment?.destination_branch?.name ?? "—" },
                       { key: "quantity", header: "الكمية المنقولة", render: (r: any) => Number(r.quantity).toLocaleString() },
-                      { key: "shipment.arrival_date", header: "تاريخ الشحنة", render: (r: any) => r.shipment?.arrival_date ? new Date(r.shipment.arrival_date).toLocaleDateString("ar-EG") : "—" },
+                      { key: "shipment.arrival_date", header: "تاريخ فاتورة الشراء", render: (r: any) => r.shipment?.arrival_date ? new Date(r.shipment.arrival_date).toLocaleDateString("ar-EG") : "—" },
                       { key: "shipment.created_at", header: "تاريخ التسجيل", render: (r: any) => formatDateTime(r.shipment?.created_at) },
                     ];
                   }

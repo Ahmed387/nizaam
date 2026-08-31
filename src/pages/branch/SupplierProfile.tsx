@@ -122,7 +122,7 @@ export default function SupplierProfile() {
     load();
   }, [supplierId]);
 
-  // Realtime: تحديث تلقائي عند أي دفعة/شحنة/تعديل للمورد
+  // Realtime: تحديث تلقائي عند أي دفعة/فاتورة شراء/تعديل للمورد
   useEffect(() => {
     if (!supplierId) return;
     const channel = supabase
@@ -186,7 +186,7 @@ export default function SupplierProfile() {
   const shipmentUnitsCount = (sh: any) =>
     ((sh.shipment_items ?? []) as any[]).reduce((q, it: any) => q + Number(it.quantity ?? 0), 0);
 
-  // الخصومات اللي المورد عملها لنا على الشحنات
+  // الخصومات اللي المورد عملها لنا على فواتير الشراء
   const discountShipments = useMemo(
     () => shipments.filter((s) => Number(s.discount_amount ?? 0) > 0),
     [shipments]
@@ -205,7 +205,7 @@ export default function SupplierProfile() {
         kind: "shipment",
         date: sh.arrival_date,
         amount: Number(sh.total_cost),
-        title: `شحنة جديدة — ${sh.branches?.name ?? ""}`,
+        title: `فاتورة شراء جديدة — ${sh.branches?.name ?? ""}`,
         subtitle: `استلمها: ${sh.received_by}`,
         ref: sh,
       })
@@ -245,7 +245,7 @@ export default function SupplierProfile() {
 
   const submitDelete = async () => {
     if (shipments.length > 0) {
-      return toast.error("لا يمكن حذف مورد له شحنات. احذف الشحنات أولاً.");
+      return toast.error("لا يمكن حذف مورد له فواتير شراء. احذف فواتير الشراء أولاً.");
     }
     const { error } = await supabase.from("contacts").delete().eq("id", supplierId!);
     if (error) return toast.error(error.message);
@@ -290,8 +290,8 @@ export default function SupplierProfile() {
 
     const html = `
       <div class="kpi">
-        <div>عدد الشحنات <b>${shipments.length}</b></div>
-        <div>إجمالي الشحنات <b>${formatEGP(totalShipments)}</b></div>
+        <div>عدد فواتير الشراء <b>${shipments.length}</b></div>
+        <div>إجمالي فواتير الشراء <b>${formatEGP(totalShipments)}</b></div>
         <div>إجمالي المدفوع <b class="pos">${formatEGP(totalPaid)}</b></div>
         <div>المتبقي عليك <b class="${owedByUs > 0 ? "neg" : "pos"}">${formatEGP(owedByUs)}</b></div>
       </div>
@@ -302,10 +302,10 @@ export default function SupplierProfile() {
         <tr><th>التليفون</th><td dir="ltr">${supplier.phone ?? "—"}</td><th>العنوان</th><td>${supplier.address ?? "—"}</td></tr>
       </table>
 
-      <h3>الشحنات (${shipments.length})</h3>
+      <h3>فواتير الشراء (${shipments.length})</h3>
       <table>
         <thead><tr><th>التاريخ</th><th>الفرع</th><th>المستلم</th><th>شحن</th><th>إدارية</th><th>الإجمالي</th></tr></thead>
-        <tbody>${ship || '<tr><td colspan="6" style="text-align:center">لا توجد شحنات</td></tr>'}</tbody>
+        <tbody>${ship || '<tr><td colspan="6" style="text-align:center">لا توجد فواتير شراء</td></tr>'}</tbody>
       </table>
 
       <h3>المدفوعات (${payments.length})</h3>
@@ -324,10 +324,10 @@ export default function SupplierProfile() {
       { البيان: "المسؤول", القيمة: supplier.contact_person ?? "—" },
       { البيان: "التليفون", القيمة: supplier.phone ?? "—" },
       { البيان: "العنوان", القيمة: supplier.address ?? "—" },
-      { البيان: "عدد الشحنات", القيمة: shipments.length },
+      { البيان: "عدد فواتير الشراء", القيمة: shipments.length },
       { البيان: "عدد الأصناف (إجمالي)", القيمة: totalItemsCount },
       { البيان: "إجمالي الوحدات", القيمة: totalUnits },
-      { البيان: "إجمالي الشحنات (جنيه)", القيمة: totalShipments },
+      { البيان: "إجمالي فواتير الشراء (جنيه)", القيمة: totalShipments },
       { البيان: "إجمالي المدفوع (جنيه)", القيمة: totalPaid },
       { البيان: "المتبقي عليك (جنيه)", القيمة: owedByUs },
     ];
@@ -351,7 +351,7 @@ export default function SupplierProfile() {
     }));
     exportToExcel(`كشف حساب — ${supplier.name}`, [
       { name: "ملخص", rows: summary },
-      { name: "الشحنات", rows: shipRows },
+      { name: "فواتير الشراء", rows: shipRows },
       { name: "المدفوعات", rows: payRows },
     ]);
   };
@@ -417,9 +417,9 @@ export default function SupplierProfile() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-        <StatCard label="عدد الشحنات" value={shipments.length} icon={<Truck className="w-5 h-5" />} accent="primary" />
+        <StatCard label="عدد فواتير الشراء" value={shipments.length} icon={<Truck className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي الأصناف" value={`${totalItemsCount} (${totalUnits} وحدة)`} icon={<Package className="w-5 h-5" />} accent="primary" />
-        <StatCard label="إجمالي الشحنات" value={formatEGP(totalShipments)} icon={<DollarSign className="w-5 h-5" />} accent="secondary" />
+        <StatCard label="إجمالي فواتير الشراء" value={formatEGP(totalShipments)} icon={<DollarSign className="w-5 h-5" />} accent="secondary" />
         <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
         <StatCard
           label={`إجمالي الخصومات (${discountPct.toFixed(1)}%)`}
@@ -437,7 +437,7 @@ export default function SupplierProfile() {
       {totalDiscounts > 0 && lastDiscount && (
         <div className="card-elevated p-3 mb-6 bg-success/10 border-success/30 text-sm">
           <span className="font-semibold text-success">
-            🎁 المورد ده عملّك خصومات بإجمالي {formatEGP(totalDiscounts)} على {discountShipments.length} شحنة
+            🎁 المورد ده عملّك خصومات بإجمالي {formatEGP(totalDiscounts)} على {discountShipments.length} فاتورة شراء
           </span>
           <div className="text-xs text-muted-foreground mt-0.5">
             آخر خصم كان يوم {formatDate(lastDiscount.arrival_date)} بقيمة {formatEGP(Number(lastDiscount.discount_amount))}
@@ -449,7 +449,7 @@ export default function SupplierProfile() {
         <div className="card-elevated p-3 mb-6 bg-success/10 border-success/30 text-sm flex items-center justify-between">
           <div>
             <span className="font-semibold text-success">💰 ليك رصيد عند المورد قدره {formatEGP(creditAtSupplier)}</span>
-            <div className="text-xs text-muted-foreground mt-0.5">هيتخصم تلقائياً من أي شحنة جديدة من نفس المورد.</div>
+            <div className="text-xs text-muted-foreground mt-0.5">هيتخصم تلقائياً من أي فاتورة شراء جديدة من نفس المورد.</div>
           </div>
         </div>
       )}
@@ -458,7 +458,7 @@ export default function SupplierProfile() {
         <TabsList>
           <TabsTrigger value="timeline" className="gap-2"><Activity className="w-4 h-4" /> Timeline</TabsTrigger>
           {(supplier?.type === "supplier" || supplier?.type === "both") && (
-            <TabsTrigger value="shipments" className="gap-2"><Truck className="w-4 h-4" /> الشحنات ({shipments.length})</TabsTrigger>
+            <TabsTrigger value="shipments" className="gap-2"><Truck className="w-4 h-4" /> فواتير الشراء ({shipments.length})</TabsTrigger>
           )}
           {(supplier?.type === "supplier" || supplier?.type === "both") && (
             <TabsTrigger value="payments" className="gap-2"><Receipt className="w-4 h-4" /> المدفوعات ({payments.length})</TabsTrigger>
@@ -548,7 +548,7 @@ export default function SupplierProfile() {
           <DataTable
             loading={loading}
             rows={shipments}
-            empty="لا توجد شحنات"
+            empty="لا توجد فواتير شراء"
             onRowClick={(r: any) => nav(`/branch/${r.branch_id}/shipments/${r.id}`)}
             columns={[
               { key: "arrival_date", header: "التاريخ", render: (r: any) => formatDate(r.arrival_date) },
@@ -581,7 +581,7 @@ export default function SupplierProfile() {
 
         <TabsContent value="discounts" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <StatCard label="عدد الشحنات اللي فيها خصم" value={discountShipments.length} icon={<Percent className="w-5 h-5" />} accent="primary" />
+            <StatCard label="عدد فواتير الشراء اللي فيها خصم" value={discountShipments.length} icon={<Percent className="w-5 h-5" />} accent="primary" />
             <StatCard label="إجمالي الخصومات" value={formatEGP(totalDiscounts)} icon={<Percent className="w-5 h-5" />} accent="success" />
             <StatCard label="متوسط نسبة الخصم" value={`${discountPct.toFixed(2)}%`} icon={<Percent className="w-5 h-5" />} accent="secondary" />
           </div>
@@ -707,7 +707,7 @@ export default function SupplierProfile() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف المورد؟</AlertDialogTitle>
             <AlertDialogDescription>
-              هتفقد كل بيانات المورد <b>{supplier?.name}</b>. مينفعش الحذف لو ليه شحنات مسجلة.
+              هتفقد كل بيانات المورد <b>{supplier?.name}</b>. مينفعش الحذف لو ليه فواتير شراء مسجلة.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

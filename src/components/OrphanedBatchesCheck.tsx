@@ -37,7 +37,7 @@ export function OrphanedBatchesCheck() {
         <div className="flex-1">
           <h4 className="font-bold">فحص الدفعات اليتيمة</h4>
           <p className="text-xs text-muted-foreground mt-1">
-            يفحص وجود أي دفعات مخزون غير مرتبطة بشحنة (orphaned batches) قد تسبب أرقام مخزون خاطئة.
+            يفحص وجود أي دفعات مخزون غير مرتبطة بفاتورة شراء (orphaned batches) قد تسبب أرقام مخزون خاطئة.
           </p>
         </div>
       </div>

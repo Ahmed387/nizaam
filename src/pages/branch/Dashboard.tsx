@@ -164,7 +164,7 @@ export default function BranchDashboard() {
     { to: `/branch/${id}/invoices?tab=quote`, label: "عرض أسعار", icon: FileText, color: "text-secondary", bg: "bg-secondary/10" },
     { to: `/branch/${id}/inventory?tab=count`, label: "جرد الفرع", icon: ClipboardList, color: "text-primary", bg: "bg-primary/10" },
     { to: `/branch/${id}/inventory?tab=adjustments`, label: "تسوية مخزون", icon: ClipboardList, color: "text-warning", bg: "bg-warning/10" },
-    { to: `/branch/${id}/shipments`, label: "الشحنات", icon: Truck, color: "text-primary", bg: "bg-primary/10" },
+    { to: `/branch/${id}/shipments`, label: "فواتير الشراء", icon: Truck, color: "text-primary", bg: "bg-primary/10" },
     ...(isAdmin || can("attachments.view")
       ? [{ to: `/branch/${id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/10" }]
       : []),

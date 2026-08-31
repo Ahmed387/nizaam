@@ -49,13 +49,16 @@ export function EditPartnerTxDialog({
     if (!tx) return;
     const amt = Number(form.amount);
     if (!amt || amt <= 0) return toast.error("المبلغ غير صحيح");
+    // الشهر بيتولد برمجياً من التاريخ عشان الـ payload يفضل مكتمل
+    const baseDate = form.date ? new Date(form.date + "T12:00:00") : new Date();
+    const monthStr = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}`;
     setSaving(true);
     const { error } = await supabase.rpc("edit_partner_transaction" as any, {
       _tx_id: tx.id,
       _transaction_type: form.type,
       _amount: amt,
       _description: form.description || null,
-      _month_year: form.month_year || null,
+      _month_year: monthStr,
       _created_at: form.date ? new Date(form.date + "T12:00:00").toISOString() : null,
     });
     setSaving(false);
@@ -91,9 +94,6 @@ export function EditPartnerTxDialog({
           </div>
           <div><Label>التاريخ</Label>
             <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-          </div>
-          <div><Label>الشهر (YYYY-MM)</Label>
-            <Input value={form.month_year} onChange={e => setForm({ ...form, month_year: e.target.value })} placeholder="2026-08" />
           </div>
           <div><Label>الوصف</Label>
             <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />

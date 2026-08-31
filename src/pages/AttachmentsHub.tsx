@@ -20,7 +20,7 @@ const TYPE_LABELS: Record<string, string> = {
   invoice: "فاتورة بيع",
   sale_return: "مرتجع بيع",
   purchase_return: "مرتجع شراء",
-  shipment: "فاتورة شراء/شحنة",
+  shipment: "فاتورة شراء/فاتورة شراء",
   stock_transfer: "تحويل مخزون",
   stock_adjustment: "تسوية مخزون",
   inventory_adjustment: "تسوية مخزون",
@@ -253,7 +253,7 @@ export default function AttachmentsHub({ scope }: Props) {
         title="المرفقات"
         subtitle={
           scope === "admin"
-            ? "كل ملفات المرفقات في الشركة (فواتير، شحنات، مرتجعات، تحويلات، سندات)"
+            ? "كل ملفات المرفقات في الشركة (فواتير، فواتير شراء، مرتجعات، تحويلات، سندات)"
             : "مرفقات هذا الفرع فقط"
         }
       />

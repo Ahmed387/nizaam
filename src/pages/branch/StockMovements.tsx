@@ -128,7 +128,7 @@ export default function StockMovements() {
         if (!s || s.branch_id !== branchId) return;
         list.push({
           date: s.arrival_date,
-          type: "شحنة واردة",
+          type: "فاتورة شراء واردة",
           qty: Number(it.quantity),
           reason: "—",
           reference: "SHIP",
@@ -228,7 +228,7 @@ export default function StockMovements() {
   const typeColor: Record<string, string> = {
     "بيع": "bg-destructive/15 text-destructive",
     "مرتجع": "bg-success/15 text-success",
-    "شحنة واردة": "bg-success/15 text-success",
+    "فاتورة شراء واردة": "bg-success/15 text-success",
     "مرتجع شراء": "bg-destructive/15 text-destructive",
     "تسوية مخزون": "bg-muted text-foreground",
     "نقل صادر": "bg-warning/15 text-warning",

@@ -10,7 +10,6 @@ import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
-import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
@@ -84,12 +83,10 @@ export default function FinancialPosition() {
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="partners">الشركاء</TabsTrigger>
             <TabsTrigger value="transactions">الحركات</TabsTrigger>
-            <TabsTrigger value="advances">السلف</TabsTrigger>
           </TabsList>
 
           <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
           <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
-          <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
 
           <TabsContent value="overview" className="mt-4 space-y-6">
 
@@ -157,13 +154,6 @@ export default function FinancialPosition() {
               title="إدارة الشركاء"
               note="ضيف شريك جديد، عدّل بياناته، أو شوف كشف حساب أي حد."
               variant="default"
-            />
-            <ActionButton
-              to="/admin/financial-position?tab=advances"
-              icon={<HandCoins className="w-4 h-4" />}
-              title="سلف الشركاء"
-              note="لما شريك ياخد فلوس مقدماً على حساب أرباحه الجاية."
-              iconClass="text-warning"
             />
             <ActionButton
               to="/admin/financial-position?tab=transactions&type=contribution"
