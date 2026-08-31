@@ -405,8 +405,12 @@ export async function uploadHistorical(
     onProgress?.({ phase: "رفع الفواتير والأصناف", done: Math.min(i + BATCH, invs.length), total: invs.length });
   }
 
-  // 3) السندات
-  const vs = parsed.vouchers;
+  // 3) السندات — تنقية التكرار داخل نفس الدفعة
+  const vMap = new Map<string, any>();
+  for (const v of parsed.vouchers) {
+    vMap.set(`${v.branch_name}|${v.voucher_type}|${v.voucher_no}|${v.date}|${v.amount}`, v);
+  }
+  const vs = Array.from(vMap.values());
   for (let i = 0; i < vs.length; i += BATCH) {
     const chunk = vs.slice(i, i + BATCH);
     const { data, error } = await supabase
