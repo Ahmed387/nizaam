@@ -371,8 +371,8 @@ export async function uploadHistorical(
 ): Promise<ImportResult> {
   const result: ImportResult = { invoices: 0, items: 0, vouchers: 0, skipped: parsed.skipped, errors: [] };
 
-  // 1) الفواتير — Upsert مجمّع يمنع التكرار عند إعادة الرفع
-  const invs = parsed.invoices;
+  // 1) الفواتير — Upsert مجمّع (بعد تنقية التكرار) يمنع خطأ ON CONFLICT
+  const invs = dedupeInvoices(parsed.invoices);
   for (let i = 0; i < invs.length; i += BATCH) {
     const chunk = invs.slice(i, i + BATCH);
     const { data, error } = await supabase
