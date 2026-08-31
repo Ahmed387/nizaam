@@ -74,6 +74,139 @@ export function AppShell({
     return groups;
   })();
 
+  // ---- Multi-level menu helpers -------------------------------------------
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const matchItem = (to: string) => {
+    const [path, search] = to.split("?");
+    if (loc.pathname !== path && !loc.pathname.startsWith(path + "/")) return false;
+    if (search) {
+      const want = new URLSearchParams(search);
+      const cur = new URLSearchParams(loc.search);
+      for (const [k, v] of want.entries()) if (cur.get(k) !== v) return false;
+    }
+    return true;
+  };
+  const pathMatches = (to: string) => {
+    const path = to.split("?")[0];
+    return loc.pathname === path || loc.pathname.startsWith(path + "/");
+  };
+  const branchHasActive = (item: NavItem): boolean =>
+    pathMatches(item.to) || (item.children ?? []).some(branchHasActive);
+
+  const renderItem = (item: NavItem, depth: number, isCollapsed: boolean, isMobile: boolean): ReactNode => {
+    const hasChildren = !!item.children?.length;
+    const active = hasChildren ? false : matchItem(item.to);
+    const autoOpen = hasChildren && item.children!.some(branchHasActive);
+    const key = `${item.label}-${item.to}`;
+    const isOpen = expanded[key] ?? autoOpen;
+
+    const padX = isCollapsed ? "justify-center px-2" : depth === 1 ? "px-3 pr-8" : depth >= 2 ? "px-3 pr-12" : "px-3";
+    const rowClass = `group/link relative w-full flex items-center gap-3 ${padX} py-2.5 rounded-xl ${
+      depth > 0 ? "text-[12.5px] font-medium" : "text-[13.5px] font-semibold"
+    } transition-colors duration-200 ${
+      active
+        ? "bg-gradient-to-l from-primary to-primary-glow text-primary-foreground shadow-[0_4px_14px_-4px_hsl(217_91%_55%_/_0.5)] font-semibold"
+        : "text-sidebar-foreground/85 hover:bg-primary/10 hover:text-primary"
+    }`;
+
+    if (hasChildren) {
+      const branchActive = branchHasActive(item);
+      const trigger = (
+        <button
+          type="button"
+          onClick={() => {
+            if (isCollapsed && !isMobile) { setCollapsed(false); setExpanded((e) => ({ ...e, [key]: true })); return; }
+            setExpanded((e) => ({ ...e, [key]: !isOpen }));
+          }}
+          aria-expanded={isOpen}
+          className={`${rowClass} ${branchActive && !isOpen ? "text-primary" : ""}`}
+        >
+          <span className={`shrink-0 flex items-center justify-center ${branchActive ? "text-primary" : "text-muted-foreground group-hover/link:text-primary"}`}>
+            {item.icon}
+          </span>
+          {!isCollapsed && <span className="flex-1 truncate text-right">{item.label}</span>}
+          {!isCollapsed && (
+            <ChevronDown className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+          )}
+        </button>
+      );
+      return (
+        <div key={key} className="space-y-1">
+          {isCollapsed && !isMobile ? (
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+              <TooltipContent side="left" className="font-semibold">{item.label}</TooltipContent>
+            </Tooltip>
+          ) : (
+            trigger
+          )}
+          {!isCollapsed && isOpen && (
+            <div className="overflow-hidden animate-accordion-down space-y-1 border-r border-sidebar-border/70 mr-4 pr-1">
+              {item.children!.map((c) => renderItem(c, depth + 1, isCollapsed, isMobile))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const linkContent = (
+      <>
+        {active && !isCollapsed && (
+          <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-foreground/80 rounded-l-full" aria-hidden />
+        )}
+        <span className={`shrink-0 relative flex items-center justify-center ${active ? "" : "text-muted-foreground group-hover/link:text-primary"}`}>
+          {item.icon}
+          {isCollapsed && item.badge && item.badge > 0 ? (
+            <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold ring-2 ring-sidebar">
+              {item.badge > 9 ? "9+" : item.badge}
+            </span>
+          ) : null}
+        </span>
+        {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {!isCollapsed && item.badge && item.badge > 0 ? (
+          <span className={`shrink-0 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold ${active ? "bg-primary-foreground/25 text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>
+            {item.badge > 99 ? "99+" : item.badge}
+          </span>
+        ) : null}
+      </>
+    );
+    const link = item.newTab ? (
+      <a key={key} href={item.to} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className={rowClass}>
+        {linkContent}
+      </a>
+    ) : (
+      <NavLink key={key} to={item.to} onClick={() => setOpen(false)} className={rowClass}>
+        {linkContent}
+      </NavLink>
+    );
+    if (isCollapsed || item.hint) {
+      return (
+        <Tooltip key={key} delayDuration={100}>
+          <TooltipTrigger asChild>{link}</TooltipTrigger>
+          <TooltipContent
+            side="left"
+            align="center"
+            sideOffset={10}
+            dir="rtl"
+            className="max-w-[230px] rounded-xl border-primary/25 bg-popover/95 px-3 py-2 text-right shadow-[0_10px_30px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-sm"
+          >
+            {isCollapsed ? (
+              <span className="text-[12.5px] font-semibold">{item.label}</span>
+            ) : (
+              <span className="block text-[11.5px] font-medium leading-relaxed text-muted-foreground">
+                <span className="mb-0.5 block text-[12.5px] font-bold text-foreground">{item.label}</span>
+                {item.hint}
+              </span>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return link;
+  };
+
+
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
     <aside
       className={`${isCollapsed ? "w-[76px]" : "w-72"} shrink-0 flex flex-col h-screen sticky top-0 transition-[width] duration-300 ${isMobile ? "" : "p-3"}`}
