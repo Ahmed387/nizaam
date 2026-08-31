@@ -59,48 +59,87 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const totalAdminApprovals = (pendingApprovals || 0) + (pendingDiscounts || 0);
 
-  const allAdminNav: (NavItem & { perm: string; ownerOnly?: boolean; adminOnly?: boolean })[] = [
-    { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عام", perm: "admin_home.view" },
-    { to: "/admin/reports-hub?tab=owner", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عام", perm: "admin_cockpit.view", ownerOnly: true },
-    { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عام", perm: "admin_ask_me.view" },
-    { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عام", perm: "admin_insights.view", ownerOnly: true },
+  // Role-based visibility gate — identical rules to the previous flat sidebar.
+  const allow = (perm: string, opts: { to?: string; ownerOnly?: boolean; adminOnly?: boolean } = {}) => {
+    if (ownerView) {
+      if (isViewer && !isAdmin && opts.to === "/admin/settings") return false;
+      return true;
+    }
+    if (opts.ownerOnly) return can(perm);
+    return isAdmin || can(perm);
+  };
+  const only = (cond: boolean, item: NavItem): NavItem[] => (cond ? [item] : []);
+  const branchIf = (cond: boolean, parent: Omit<NavItem, "children">, children: NavItem[]): NavItem[] =>
+    cond && children.length ? [{ ...parent, children }] : [];
 
-    { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" />, group: "العمليات", perm: "admin_catalog.view" },
-    { to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" />, group: "العمليات", perm: "admin_product_attributes.view" },
-    { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليات", perm: "admin_contacts.view" },
-    { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات", perm: "admin_employees.view" },
-    { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_presence.view" },
-    { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_shifts.view" },
+  const catalogChildren: NavItem[] = allow("admin_catalog.view")
+    ? [
+        { to: "/admin/catalog?tab=inventory", label: "بضاعة كل الفروع", icon: <Boxes className="w-4 h-4" /> },
+        { to: "/admin/catalog?tab=categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
+        { to: "/admin/catalog?tab=pricelist", label: "قائمة الأسعار", icon: <BadgeDollarSign className="w-4 h-4" /> },
+        ...only(allow("admin_reports_hub.view"), { to: "/admin/reports-hub?tab=price-audit", label: "سجل الأسعار", icon: <History className="w-4 h-4" /> }),
+        ...only(allow("admin_product_attributes.view"), { to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" /> }),
+      ]
+    : [];
 
-    { to: "/admin/main-treasury", label: "ملخص الخزائن", icon: <Wallet className="w-4 h-4" />, group: "المالية", perm: "admin_main_treasury.view", adminOnly: true },
-    { to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" />, group: "المالية", perm: "admin_finance.view", adminOnly: true },
-    { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية", perm: "admin_finance.view" },
-    { to: "/admin/financial-position", label: "الذمة المالية للشركاء", icon: <HandCoins className="w-4 h-4" />, group: "المالية", perm: "admin_financial_position.view", ownerOnly: true },
-    { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية", perm: "admin_reports_hub.view" },
-    { to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" />, group: "المالية", perm: "admin_historical_analytics.view" },
+  const peopleChildren: NavItem[] = [
+    ...only(allow("admin_employees.view"), { to: "/admin/employees", label: "قائمة الموظفين", icon: <UserCircle className="w-4 h-4" /> }),
+    ...only(allow("admin_employees.view"), { to: "/admin/attendance", label: "حضور وانصراف الموظفين", icon: <CalendarRange className="w-4 h-4" /> }),
+    ...only(allow("admin_presence.view"), { to: "/admin/presence", label: "تواجد المستخدمين", icon: <ClipboardCheck className="w-4 h-4" /> }),
+    ...only(allow("admin_shifts.view"), { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" /> }),
+  ];
 
-    { to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة", perm: "admin_system_health.view", ownerOnly: true },
-    { to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة", perm: "admin_approvals.view", adminOnly: true },
-    { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة", perm: "admin_settings.view" },
+  const reportsChildren: NavItem[] = allow("admin_reports_hub.view")
+    ? [
+        { to: "/admin/reports-hub?tab=owner", label: "نظرة المالك", icon: <TrendingUp className="w-4 h-4" /> },
+        { to: "/admin/reports-hub?tab=monthly", label: "ملخص الأرباح الشهري", icon: <Coins className="w-4 h-4" /> },
+        { to: "/admin/reports-hub?tab=central", label: "العمليات", icon: <BarChart3 className="w-4 h-4" /> },
+        { to: "/admin/reports-hub?tab=profitability", label: "تقارير الربحية", icon: <TrendingUp className="w-4 h-4" /> },
+        { to: "/admin/reports-hub?tab=insights", label: "الرؤية التنفيذية", icon: <Sparkles className="w-4 h-4" /> },
+        { to: "/admin/reports-hub?tab=comparison", label: "مقارنة الفترات", icon: <ArrowLeftRight className="w-4 h-4" /> },
+        { to: "/admin/reports-hub?tab=scheduled", label: "التقارير المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
+      ]
+    : [];
+
+  const financeChildren: NavItem[] = [
+    ...only(allow("admin_finance.view"), { to: "/admin/finance?tab=vouchers", label: "السندات المالية", icon: <Receipt className="w-4 h-4" /> }),
+    ...only(allow("admin_finance.view"), { to: "/admin/finance?tab=receivables", label: "ذمم العملاء والموردين", icon: <ScrollText className="w-4 h-4" /> }),
+    ...branchIf(allow("admin_financial_position.view", { ownerOnly: true }), {
+      to: "/admin/financial-position",
+      label: "الذمم المالية للشركاء",
+      icon: <HandCoins className="w-4 h-4" />,
+    }, [
+      { to: "/admin/financial-position?tab=overview", label: "نظرة عامة", icon: <LayoutDashboard className="w-4 h-4" /> },
+      { to: "/admin/financial-position?tab=partners", label: "الشركاء", icon: <UserCircle className="w-4 h-4" /> },
+      { to: "/admin/financial-position?tab=transactions", label: "المعاملات", icon: <ArrowLeftRight className="w-4 h-4" /> },
+    ]),
   ];
 
   const adminNav: NavItem[] = [
-    ...allAdminNav
-      .filter((i) => {
-        // Owner-equivalent view (owner or read-only viewer) sees the full board,
-        // minus the screens a viewer is not allowed to open at all.
-        if (ownerView) {
-          if (isViewer && !isAdmin && ["/admin/settings"].includes(i.to)) return false;
-          return true;
-        }
-        if (i.ownerOnly) return can(i.perm);
-        if (i.adminOnly) return isAdmin || can(i.perm);
-        return isAdmin || can(i.perm);
-      })
+    // ===== عام =====
+    ...only(allow("admin_home.view"), { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عام" }),
+    ...only(allow("admin_ask_me.view"), { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عام" }),
 
-      .map(({ perm, ownerOnly, adminOnly, ...rest }) => rest),
-    ...(hasPersonalExpAccess ? [{ to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }] : []),
+    // ===== العمليات =====
+    ...only(allow("admin_catalog.view"), { to: "/admin/catalog?tab=branches", label: "إدارة الفروع", icon: <Store className="w-4 h-4" />, group: "العمليات" }),
+    ...branchIf(true, { to: "/admin/catalog", label: "المخزون والتصنيفات", icon: <Warehouse className="w-4 h-4" />, group: "العمليات" }, catalogChildren),
+    ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليات" }),
+    ...branchIf(true, { to: "/admin/employees", label: "الموظفين والمستخدمين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات" }, peopleChildren),
+
+    // ===== المالية =====
+    ...only(allow("admin_main_treasury.view", { adminOnly: true }), { to: "/admin/main-treasury", label: "ملخص الخزينة", icon: <Wallet className="w-4 h-4" />, group: "المالية" }),
+    ...only(allow("admin_finance.view", { adminOnly: true }), { to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" />, group: "المالية" }),
+    ...branchIf(true, { to: "/admin/reports-hub", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "المالية" }, reportsChildren),
+    ...branchIf(true, { to: "/admin/finance", label: "المالية", icon: <BookOpen className="w-4 h-4" />, group: "المالية" }, financeChildren),
+    ...only(allow("admin_historical_analytics.view"), { to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" />, group: "المالية" }),
+    ...only(hasPersonalExpAccess, { to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, group: "المالية" }),
+
+    // ===== الإدارة =====
+    ...only(allow("admin_system_health.view", { ownerOnly: true }), { to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" />, group: "الإدارة" }),
+    ...only(allow("admin_approvals.view", { adminOnly: true }), { to: "/admin/approvals-hub", label: "طلبات موافقة الأدمن", icon: <ShieldCheck className="w-4 h-4" />, badge: totalAdminApprovals || undefined, group: "الإدارة" }),
+    ...only(allow("admin_settings.view", { to: "/admin/settings" }), { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة" }),
   ];
+
 
 
   // A role's normal branch permissions remain available when an individual
