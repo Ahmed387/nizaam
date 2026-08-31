@@ -59,26 +59,25 @@ const PIE_COLORS = ["#10b981", "#0ea5e9", "#f43f5e", "#f59e0b", "#6366f1", "#14b
 
 /**
  * فلتر المصروفات التشغيلية الحقيقية:
- * - يشترط وجود تصنيف صالح (category IS NOT NULL).
- * - يستبعد التحويلات النقدية بين الخزائن/المخزن الرئيسي.
- * - يقبل فقط سندات الصرف ذات تصنيف تشغيلي معروف.
+ * - سند صرف بقيمة أكبر من صفر.
+ * - يشترط تصنيفاً دفترياً صالحاً (ليس فارغاً وليس "غير مبوّب").
+ * - يستبعد التحويلات/السداد للمخزن الرئيسي وبين الخزائن.
  */
-const TRANSFER_RE = /تحويل|حواله|حوالة|خزين[هة]|الخزينه|المخزن الرئيسي|الرئيسي|سيوله|سيولة|ايداع خزنه|تغذيه|تغذية/;
-const OPEX_CATEGORY_RE = /رواتب|مرتبات|ايجار|إيجار|نقل|توكتوك|شحن|كهرباء|مياه|صيانه|صيانة|نثريات|مصاريف|اتصالات|تليفون|انترنت|بنزين|مواصلات|ضرائب|تسويق|دعايه|دعاية|اعلان|صادر|تغليف|مستلزمات|عموله|عمولة|بوفيه|بوفية|إكراميات|اكراميات|غير مبوّب|غير مبوب/;
+const TRANSFER_RE = /تحويل|حواله|حوالة|المخزن الرئيسي|سيوله|سيولة|ايداع خزنه|تغذيه|تغذية/;
+const UNCLASSIFIED_RE = /^(غير مبوّب|غير مبوب|بدون تصنيف|-|_)$/;
 
-export function isOpexVoucher(v: { voucher_type: string; category?: string | null; party_name?: string | null; movement_name?: string | null; treasury_name?: string | null; notes?: string | null }): boolean {
+export function isOpexVoucher(v: { voucher_type: string; amount?: number | string | null; category?: string | null; party_name?: string | null; movement_name?: string | null; treasury_name?: string | null; notes?: string | null }): boolean {
   if (v.voucher_type !== "expense") return false;
+  if (!(Number(v.amount ?? 0) > 0)) return false;
   const cat = (v.category ?? "").trim();
-  if (!cat) return false; // لا تصنيف = تحويل/سداد وليس مصروف تشغيلي
+  if (!cat || UNCLASSIFIED_RE.test(cat)) return false; // بدون تصنيف = تحويل/سداد وليس مصروف تشغيلي
   const party = (v.party_name ?? "").trim();
   if (party === "المخزن الرئيسي") return false; // سداد/تحويل للمخزن الرئيسي
-  const text = `${v.movement_name ?? ""} ${cat} ${v.treasury_name ?? ""} ${v.notes ?? ""}`;
-  // استبعاد التحويلات الداخلية بين الخزائن/الفروع
+  const text = `${v.movement_name ?? ""} ${cat} ${v.treasury_name ?? ""}`;
   if (TRANSFER_RE.test(text)) return false;
-  // قبول صريح لو التصنيف تشغيلي معروف
-  if (OPEX_CATEGORY_RE.test(cat)) return true;
-  return false;
+  return true;
 }
+
 
 function KpiCard({ title, value, sub, badge, tone, icon }: {
   title: string; value: string; sub?: string; badge?: string;
