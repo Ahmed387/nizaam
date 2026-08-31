@@ -195,8 +195,14 @@ export function parseInvoiceSheet(
     if (isInvoiceRow) {
       auto++;
       const date = iso as string;
+      const isReturn = docType === "sales_returns" || docType === "purchase_returns";
       const invNoRaw = String(cell(row, map, "invoice_no") ?? "").trim();
-      const invoice_no = invNoRaw || `AUTO-${docType}-${auto}`;
+      const returnedRaw =
+        String(cell(row, map, "returned_invoice_no") ?? "").trim() || (isReturn ? invNoRaw : "");
+      // في المرتجعات: الرقم التسلسلي للحركة هو رقم المستند لتفادي التكرار
+      const invoice_no = isReturn
+        ? serial || invNoRaw || `AUTO-${docType}-${auto}`
+        : invNoRaw || `AUTO-${docType}-${auto}`;
       const total = toNum(cell(row, map, "total_amount"));
       const paid = toNum(cell(row, map, "paid_cash"));
       const credit = toNum(cell(row, map, "credit"));
@@ -206,7 +212,7 @@ export function parseInvoiceSheet(
           branch_name: branch,
           doc_type: docType,
           invoice_no,
-          returned_invoice_no: String(cell(row, map, "returned_invoice_no") ?? "").trim() || null,
+          returned_invoice_no: returnedRaw || null,
           date,
           year: +date.slice(0, 4),
           month: +date.slice(5, 7),
@@ -227,24 +233,44 @@ export function parseInvoiceSheet(
       continue;
     }
 
-    // سطر صنف تابع: أي سطر غير سطر فاتورة يحمل كود أو اسم صنف
-    const itemName = String(cell(row, map, "item_name") ?? "").trim();
-    const itemCode = String(cell(row, map, "item_code") ?? "").trim();
-    if (current && (itemName || itemCode)) {
+    // سطر صنف تابع: عمود 0 فاضي + كود واسم صنف موجودين
+    const codeRaw = row[1];
+    const nameRaw = row[2];
+    const hasPositionalItem =
+      serial === "" &&
+      codeRaw !== undefined && codeRaw !== null && String(codeRaw).trim() !== "" &&
+      nameRaw !== undefined && nameRaw !== null && String(nameRaw).trim() !== "" &&
+      String(codeRaw).trim() !== "رقم الصنف";
+
+    const mappedName = String(cell(row, map, "item_name") ?? "").trim();
+    const mappedCode = String(cell(row, map, "item_code") ?? "").trim();
+
+    if (current && (hasPositionalItem || mappedName || mappedCode)) {
+      const item_code = hasPositionalItem ? String(codeRaw).trim() : mappedCode || null;
+      const item_name = hasPositionalItem ? String(nameRaw).trim() : mappedName || mappedCode;
+      const qty = hasPositionalItem ? toNum(row[5]) : toNum(cell(row, map, "total_qty"));
+      const price = hasPositionalItem ? toNum(row[6]) : toNum(cell(row, map, "price"));
+      const discount = hasPositionalItem ? toNum(row[7]) : toNum(cell(row, map, "discount"));
+      const profit = hasPositionalItem ? toNum(row[8]) : toNum(cell(row, map, "profit"));
+      const total = hasPositionalItem
+        ? toNum(row[9]) || toNum(row[8])
+        : toNum(cell(row, map, "total_amount"));
       current.items.push({
         branch_name: branch,
         date: current.invoice.date,
         year: current.invoice.year,
-        item_code: itemCode || null,
-        item_name: itemName || itemCode,
-        unit: String(cell(row, map, "unit") ?? "").trim() || null,
-        qty: toNum(cell(row, map, "total_qty")),
-        price: toNum(cell(row, map, "price")),
-        discount: toNum(cell(row, map, "discount")),
-        profit: toNum(cell(row, map, "profit")),
-        total: toNum(cell(row, map, "total_amount")),
+        item_code: item_code || null,
+        item_name,
+        unit: hasPositionalItem
+          ? String(row[3] ?? "").trim() || null
+          : String(cell(row, map, "unit") ?? "").trim() || null,
+        qty,
+        price,
+        discount,
+        profit,
+        total,
       });
-    } else if (!itemName && !itemCode) {
+    } else {
       skipped++;
     }
   }
@@ -254,8 +280,31 @@ export function parseInvoiceSheet(
       inv.invoice.profit = inv.items.reduce((s, it) => s + toNum(it.profit), 0);
     }
   }
-  return { invoices, vouchers: [], skipped };
+  return { invoices: dedupeInvoices(invoices), vouchers: [], skipped };
 }
+
+/** يمنع تكرار (branch, doc_type, invoice_no, date) داخل نفس الدفعة */
+function dedupeInvoices(list: ParsedInvoice[]): ParsedInvoice[] {
+  const byKey = new Map<string, ParsedInvoice>();
+  for (const inv of list) {
+    const prev = byKey.get(inv.key);
+    if (!prev) { byKey.set(inv.key, inv); continue; }
+    // دمج: نجمع القيم والأصناف في سجل واحد
+    prev.items.push(...inv.items);
+    const a = prev.invoice, b = inv.invoice;
+    a.total_qty = toNum(a.total_qty) + toNum(b.total_qty);
+    a.discount = toNum(a.discount) + toNum(b.discount);
+    a.total_amount = toNum(a.total_amount) + toNum(b.total_amount);
+    a.profit = toNum(a.profit) + toNum(b.profit);
+    a.paid_cash = toNum(a.paid_cash) + toNum(b.paid_cash);
+    a.credit = toNum(a.credit) + toNum(b.credit);
+    a.due = toNum(a.due) + toNum(b.due);
+    a.returned_invoice_no = a.returned_invoice_no ?? b.returned_invoice_no;
+    a.party_name = a.party_name ?? b.party_name;
+  }
+  return Array.from(byKey.values());
+}
+
 
 /** يحلّل ملف أذون الصرف / القبض */
 export function parseVoucherSheet(
