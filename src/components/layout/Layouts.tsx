@@ -67,7 +67,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
     { to: "/admin/catalog", label: "الفروع والمخزون", icon: <Store className="w-4 h-4" />, group: "العمليات", perm: "admin_catalog.view" },
     { to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" />, group: "العمليات", perm: "admin_product_attributes.view" },
-    { to: "/admin/contacts", label: "جهات التواصل", icon: <Factory className="w-4 h-4" />, group: "العمليات", perm: "admin_contacts.view" },
+    { to: "/admin/contacts", label: "الحسابات", hint: "(كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم)", icon: <Factory className="w-4 h-4" />, group: "العمليات", perm: "admin_contacts.view" },
     { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليات", perm: "admin_employees.view" },
     { to: "/admin/presence", label: "تتبع المستخدمين", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_presence.view" },
     { to: "/admin/shifts", label: "سجل الورديات", icon: <ClipboardCheck className="w-4 h-4" />, group: "العمليات", perm: "admin_shifts.view" },

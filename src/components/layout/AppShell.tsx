@@ -17,6 +17,7 @@ export interface NavItem {
   badge?: number;
   newTab?: boolean;
   group?: string;
+  hint?: string;
 }
 
 export function AppShell({
@@ -174,11 +175,13 @@ export function AppShell({
                     {linkContent}
                   </NavLink>
                 );
-                if (isCollapsed) {
+                if (isCollapsed || item.hint) {
                   return (
                     <Tooltip key={item.to} delayDuration={100}>
                       <TooltipTrigger asChild>{link}</TooltipTrigger>
-                      <TooltipContent side="left" className="font-semibold">{item.label}</TooltipContent>
+                      <TooltipContent side="left" className="font-semibold max-w-[240px] text-right">
+                        {isCollapsed ? item.label : item.hint}
+                      </TooltipContent>
                     </Tooltip>
                   );
                 }
