@@ -166,6 +166,7 @@ Deno.serve(async (req) => {
 
       let streamError: string | null = null;
       const encoder = new TextEncoder();
+      const iterator = jsonChunks()[Symbol.asyncIterator]();
       const body = new ReadableStream<Uint8Array>({
         async pull(controller) {
           try {
@@ -180,7 +181,7 @@ Deno.serve(async (req) => {
           }
         },
       });
-      const iterator = jsonChunks()[Symbol.asyncIterator]();
+
 
       let uploadOk = false;
       let uploadErrMsg: string | null = null;
