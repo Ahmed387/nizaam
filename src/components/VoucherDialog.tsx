@@ -375,7 +375,11 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
                 <SelectContent>
                   {grouped.map(({ root, children }) => (
                     <div key={root.id}>
-                      <SelectItem value={root.id}>{root.name}</SelectItem>
+                      {children.length > 0 ? (
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{root.name}</div>
+                      ) : (
+                        <SelectItem value={root.id}>{root.name}</SelectItem>
+                      )}
                       {children.map((c) => (
                         <SelectItem key={c.id} value={c.id}>— {c.name}</SelectItem>
                       ))}
