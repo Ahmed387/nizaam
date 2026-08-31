@@ -18,7 +18,10 @@ export interface NavItem {
   newTab?: boolean;
   group?: string;
   hint?: string;
+  /** Optional nested items → renders a collapsible dropdown */
+  children?: NavItem[];
 }
+
 
 export function AppShell({
   title,
