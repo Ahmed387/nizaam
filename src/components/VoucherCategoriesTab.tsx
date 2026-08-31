@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchVoucherCategories, isReservedVoucherCategory, VoucherCategory, VoucherType, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Trash2, Lock } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { toast } from "sonner";
@@ -65,7 +65,6 @@ export function VoucherCategoriesTab() {
   };
 
   const toggleDeductible = async (c: VoucherCategory, next: boolean) => {
-    if (c.is_system) return toast.error("لا يمكن تعديل تصنيف نظامي");
     const { error } = await supabase.from("voucher_categories" as any).update({ is_deductible_from_profit: next } as any).eq("id", c.id);
     if (error) return toast.error(error.message);
     toast.success(next ? "سيتم خصم هذا التصنيف من الربح" : "لن يتم خصم هذا التصنيف من الربح");
@@ -81,8 +80,7 @@ export function VoucherCategoriesTab() {
           <TooltipTrigger asChild>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground">يُخصم من الربح</span>
-              <Switch checked={val} disabled={c.is_system} onCheckedChange={(v) => toggleDeductible(c, v)} />
-              {c.is_system && <Lock className="w-3 h-3 text-muted-foreground" />}
+              <Switch checked={val} onCheckedChange={(v) => toggleDeductible(c, v)} />
             </div>
           </TooltipTrigger>
           <TooltipContent>
