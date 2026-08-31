@@ -12,8 +12,11 @@ import { exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
 import {
   Upload, Download, History, Loader2, TrendingUp, TrendingDown, Wallet, Coins,
-  ChevronDown, ChevronLeft,
+  ChevronDown, ChevronLeft, Info,
 } from "lucide-react";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from "@/components/ui/tooltip";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
   BarChart, Bar, PieChart, Pie, Cell,
