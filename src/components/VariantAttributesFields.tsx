@@ -72,7 +72,7 @@ function FieldShell({
  * Unified, readable editor for the product variant attributes
  * (الماركة / الموديل / اللون / النوع / السعة / المقاس).
  *
- * Used everywhere the attributes are captured: إضافة منتج، تعديل منتج، بنود الشحنة.
+ * Used everywhere the attributes are captured: إضافة منتج، تعديل منتج، بنود فاتورة الشراء.
  * Purely presentational — the parent keeps owning the state & validation.
  */
 export function VariantAttributesFields({

@@ -16,7 +16,7 @@ const PRICE_TYPE_LABEL: Record<string, string> = {
 
 const SOURCE_LABEL: Record<string, string> = {
   manual: "يدوي",
-  shipment: "شحنة",
+  shipment: "فاتورة شراء",
   price_list_import: "استيراد",
   system: "النظام",
 };

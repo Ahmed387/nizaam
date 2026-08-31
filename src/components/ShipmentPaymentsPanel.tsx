@@ -18,7 +18,7 @@ interface Props {
 const methodLabel = (m: string) =>
   PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m ?? "—";
 
-/** تعديل طريقة الدفع من جوه صفحة الشحنة نفسها */
+/** تعديل طريقة الدفع من جوه صفحة فاتورة الشراء نفسها */
 export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -100,7 +100,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="font-bold flex items-center gap-2">
           <Wallet className="w-4 h-4 text-primary" />
-          طرق الدفع على الشحنة
+          طرق الدفع على فاتورة الشراء
         </div>
         <div className="flex items-center gap-2">
           {canEdit && plan && Number(plan.remaining_amount ?? 0) > 0 && (
@@ -120,9 +120,9 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
         </div>
       ) : !plan ? (
         <div className="p-6 space-y-3">
-          <div className="text-sm text-destructive font-bold">مفيش خطة دفع مرتبطة بالشحنة دي</div>
+          <div className="text-sm text-destructive font-bold">مفيش خطة دفع مرتبطة بفاتورة الشراء دي</div>
           <div className="text-xs text-muted-foreground">
-            الشحنة اتسجلت بس خطة الدفع مااتعملتش. اعمل خطة دفع دلوقتي عشان تقدر تسجّل المدفوع للمورد وتعدّل طريقة الدفع.
+            فاتورة الشراء اتسجلت بس خطة الدفع مااتعملتش. اعمل خطة دفع دلوقتي عشان تقدر تسجّل المدفوع للمورد وتعدّل طريقة الدفع.
           </div>
           {canEdit && (
             <Button size="sm" onClick={createPlan} disabled={creating} className="gap-1">
@@ -150,7 +150,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
 
           {active.length === 0 ? (
             <div className="px-4 pb-4 text-sm text-muted-foreground">
-              الشحنة دي آجل ومفيش دفعات متسجلة لحد دلوقتي.
+              فاتورة الشراء دي آجل ومفيش دفعات متسجلة لحد دلوقتي.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -211,7 +211,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
           mode={{ kind: "plan", planId: plan.id }}
           defaultAmount={Number(plan.remaining_amount ?? 0)}
           direction="out"
-          title="تسجيل مبلغ مدفوع للشحنة"
+          title="تسجيل مبلغ مدفوع للفاتورة شراء"
           onSuccess={() => {
             setPayOpen(false);
             load();

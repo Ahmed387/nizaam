@@ -110,7 +110,7 @@ export default function Invoices() {
   const handleDeleteShipment = async () => {
     if (!delShipment) return;
     setDelShipBusy(true);
-    const label = `شحنة ${delShipment.shipment_number ?? ""} - ${delShipment.contacts?.name ?? ""}`;
+    const label = `فاتورة شراء ${delShipment.shipment_number ?? ""} - ${delShipment.contacts?.name ?? ""}`;
     if (isAdmin) {
       const { error } = await supabase.from("shipments").delete().eq("id", delShipment.id);
       setDelShipBusy(false);
@@ -350,7 +350,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/sales/${r.id}`),
       };
       case "purchase": return {
-        newLink: `${base}/shipments/new`, newLabel: "شحنة شراء جديدة", newPerm: "shipments.create",
+        newLink: `${base}/shipments/new`, newLabel: "فاتورة شراء جديدة", newPerm: "shipments.create",
         columns: [
           { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span></span> },
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
@@ -366,7 +366,7 @@ export default function Invoices() {
                 </Button>
                 <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canDeleteInvoice && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف الشحنة" : "طلب حذف"} onClick={() => setDelShipment(r)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف فاتورة الشراء" : "طلب حذف"} onClick={() => setDelShipment(r)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -947,12 +947,12 @@ export default function Invoices() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">
-              {isManager && !isAdmin ? "طلب حذف شحنة للموافقة" : "حذف الشحنة"}
+              {isManager && !isAdmin ? "طلب حذف فاتورة شراء للموافقة" : "حذف فاتورة الشراء"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {isManager && !isAdmin
-                ? <>سيتم إرسال طلب حذف الشحنة <span className="font-mono text-primary">{delShipment?.shipment_number}</span> لمدير الشركة للموافقة.</>
-                : <>هل أنت متأكد من حذف الشحنة <span className="font-mono text-primary">{delShipment?.shipment_number}</span>؟ لن يمكن التراجع.</>}
+                ? <>سيتم إرسال طلب حذف فاتورة الشراء <span className="font-mono text-primary">{delShipment?.shipment_number}</span> لمدير الشركة للموافقة.</>
+                : <>هل أنت متأكد من حذف فاتورة الشراء <span className="font-mono text-primary">{delShipment?.shipment_number}</span>؟ لن يمكن التراجع.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {isManager && !isAdmin && (

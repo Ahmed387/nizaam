@@ -210,7 +210,7 @@ export default function ProductAttributes() {
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد حفظ الخصائص</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم تحديث {staged.length} منتج بالخصائص المعروضة. الخصائص الجديدة هتظهر في كل الفواتير والشحنات القادمة،
+              سيتم تحديث {staged.length} منتج بالخصائص المعروضة. الخصائص الجديدة هتظهر في كل الفواتير وفواتير الشراء القادمة،
               والمستندات القديمة هتفضل زي ما هي.
             </AlertDialogDescription>
           </AlertDialogHeader>

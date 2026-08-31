@@ -113,7 +113,7 @@ export default function Shipments() {
 
   const handleExportPdf = async () => {
     if (!branchId) return;
-    if (filtered.length === 0) { toast.error("لا توجد شحنات لتصديرها"); return; }
+    if (filtered.length === 0) { toast.error("لا توجد فواتير شراء لتصديرها"); return; }
     await generateShipmentsReport({
       branchId, branchName,
       shipments: filtered,
@@ -124,11 +124,11 @@ export default function Shipments() {
 
   const doDelete = async () => {
     if (!delTarget) return;
-    const label = `شحنة ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
+    const label = `فاتورة شراء ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
     if (isAdmin) {
       const { error } = await supabase.from("shipments").delete().eq("id", delTarget.id);
       if (error) return toast.error(error.message);
-      toast.success("تم حذف الشحنة");
+      toast.success("تم حذف فاتورة الشراء");
     } else if (isManager) {
       if (!reason.trim()) return toast.error("اكتب سبب الحذف");
       const ok = await createApprovalRequest({
@@ -145,7 +145,7 @@ export default function Shipments() {
   return (
     <BranchLayout backTo={`/branch/${branchId}/dashboard`} backLabel="الرئيسية">
       <PageHeader
-        title="الشحنات"
+        title="فواتير الشراء"
         subtitle="استلام البضاعة من الموردين"
         actions={
           <div className="flex gap-2">
@@ -154,7 +154,7 @@ export default function Shipments() {
             </Button>
             <PermGate perm="shipments.create">
               <Button onClick={() => nav(`/branch/${branchId}/shipments/new`)} className="gap-2">
-                <Plus className="w-4 h-4" /> شحنة جديدة
+                <Plus className="w-4 h-4" /> فاتورة شراء جديدة
               </Button>
             </PermGate>
           </div>
@@ -205,7 +205,7 @@ export default function Shipments() {
             <DataTable
               loading={loading}
               rows={filtered}
-              empty="لا توجد شحنات بعد"
+              empty="لا توجد فواتير شراء بعد"
               onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
         columns={[
           { key: "arrival_date", header: "تاريخ الوصول", render: (r: any) => formatDate(r.arrival_date) },
@@ -264,11 +264,11 @@ export default function Shipments() {
       <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isManager && !isAdmin ? "طلب حذف شحنة للموافقة" : "حذف الشحنة"}</AlertDialogTitle>
+            <AlertDialogTitle>{isManager && !isAdmin ? "طلب حذف فاتورة شراء للموافقة" : "حذف فاتورة الشراء"}</AlertDialogTitle>
             <AlertDialogDescription>
               {isManager && !isAdmin
                 ? <>سيتم إرسال الطلب لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
-                : <>هل أنت متأكد من حذف هذه الشحنة؟ لن يمكن التراجع.</>}
+                : <>هل أنت متأكد من حذف هذه فاتورة الشراء؟ لن يمكن التراجع.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {isManager && !isAdmin && (

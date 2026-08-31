@@ -134,7 +134,7 @@ export default function ContactStatement() {
       ]);
 
       (ships ?? []).forEach((s: any) => list.push({
-        date: s.invoice_date ?? s.arrival_date ?? s.created_at, type: "فاتورة شراء (شحنة)", reference: s.shipment_number ?? "—",
+        date: s.invoice_date ?? s.arrival_date ?? s.created_at, type: "فاتورة شراء", reference: s.shipment_number ?? "—",
         description: s.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
         debit: 0, credit: Number(s.total_cost ?? 0), link: s.branch_id ? `/branch/${s.branch_id}/shipments/${s.id}` : undefined,
       }));

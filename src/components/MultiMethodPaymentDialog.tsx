@@ -230,7 +230,7 @@ export function MultiMethodPaymentDialog({
                 <span className="font-bold text-success">{formatEGP(supplierCredit)}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                هيتخصم تلقائياً من أي شحنة جديدة من نفس المورد.
+                هيتخصم تلقائياً من أي فاتورة شراء جديدة من نفس المورد.
               </div>
             </div>
           )}
@@ -258,7 +258,7 @@ export function MultiMethodPaymentDialog({
             <div className="card-elevated p-3 bg-warning/10 border-warning border-2 text-sm space-y-1">
               <div className="font-bold text-warning flex items-center gap-2">⚠️ تنبيه: دفعة زائدة</div>
               <div className="text-xs">
-                هتدفع <b>{formatEGP(overpayAmount)}</b> أكتر من المتبقي. هتتسجل كـ<b> رصيد ليك عند المورد</b> وهتتخصم تلقائياً من أي شحنة جاية.
+                هتدفع <b>{formatEGP(overpayAmount)}</b> أكتر من المتبقي. هتتسجل كـ<b> رصيد ليك عند المورد</b> وهتتخصم تلقائياً من أي فاتورة شراء جاية.
               </div>
             </div>
           )}

@@ -489,7 +489,7 @@ function shipmentCardHtml(r: {
       <td style="padding:8px 8px;text-align:center;font-size:11px;color:${C.text};white-space:nowrap;">${fmtNum(admin)}</td>
     </tr>
     <tr style="background:${C.accentSoft};">
-      <td colspan="3" style="padding:10px 12px;border-top:1px solid ${C.accent};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">الإجمالي الكلي للشحنة</td>
+      <td colspan="3" style="padding:10px 12px;border-top:1px solid ${C.accent};text-align:right;font-size:12px;font-weight:800;color:${C.ink};">الإجمالي الكلي للفاتورة شراء</td>
       <td style="padding:10px 8px;border-top:1px solid ${C.accent};text-align:center;font-size:12px;font-weight:800;color:${C.accent};white-space:nowrap;">${fmtNum(total)}</td>
     </tr>
   `;
@@ -571,24 +571,24 @@ export async function generateShipmentsReport(input: ShipmentsReportInput): Prom
     });
 
     const header = headerHtml({
-      title: "تقرير تفصيلي بالشحنات",
+      title: "تقرير تفصيلي بفواتير الشراء",
       branchName: input.branchName, userName: input.userName,
       fromDate: input.filters.from, toDate: input.filters.to,
     });
 
-    const summary = sectionTitle("ملخص الشحنات والمشتريات") + kpiCardsHtml([
-      { label: "عدد الشحنات", value: fmtNum(input.shipments.length) },
+    const summary = sectionTitle("ملخص فواتير الشراء والمشتريات") + kpiCardsHtml([
+      { label: "عدد فواتير الشراء", value: fmtNum(input.shipments.length) },
       { label: "إجمالي تكلفة المشتريات", value: fmtEGP(totalCost), highlight: true },
       { label: "إجمالي عدد الأصناف", value: fmtNum(totalItemsCount) },
       { label: "تكاليف الشحن", value: fmtEGP(totalShipping) },
       { label: "المصاريف الإدارية", value: fmtEGP(totalAdmin) },
       { label: "المدفوع للموردين", value: fmtEGP(totalPaid), color: C.good },
       { label: "المتبقي على الموردين (آجل)", value: fmtEGP(totalRemaining), color: totalRemaining > 0 ? C.warn : C.good },
-      { label: "متوسط قيمة الشحنة", value: input.shipments.length ? fmtEGP(totalCost / input.shipments.length) : fmtEGP(0) },
+      { label: "متوسط قيمة فاتورة الشراء", value: input.shipments.length ? fmtEGP(totalCost / input.shipments.length) : fmtEGP(0) },
       { label: "نسبة السداد", value: totalCost > 0 ? fmtPct((totalPaid / totalCost) * 100) : "—", color: C.accent },
     ]);
 
-    const details = sectionTitle("تفاصيل الشحنات");
+    const details = sectionTitle("تفاصيل فواتير الشراء");
 
     await ensureArabicFont();
 
@@ -599,7 +599,7 @@ export async function generateShipmentsReport(input: ShipmentsReportInput): Prom
       direction:rtl;text-align:right;box-sizing:border-box;
       font-feature-settings:"liga","calt","kern";text-rendering:optimizeLegibility;
     `;
-    const emptyState = `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد شحنات في الفترة المحددة</div>`;
+    const emptyState = `<div style="text-align:center;padding:40px;color:${C.muted};font-size:12px;border:1px dashed ${C.border};border-radius:10px;">لا توجد فواتير شراء في الفترة المحددة</div>`;
     container.innerHTML = [
       `<div data-pdf-section="header">${header}</div>`,
       `<div data-pdf-section="summary">${summary}</div>`,
@@ -662,7 +662,7 @@ export async function generateShipmentsReport(input: ShipmentsReportInput): Prom
 
     const fromStr = input.filters.from || "الكل";
     const toStr = input.filters.to || "الكل";
-    pdf.save(`تقرير-الشحنات-${input.branchName}-${fromStr}-${toStr}.pdf`);
+    pdf.save(`تقرير-فواتير الشراء-${input.branchName}-${fromStr}-${toStr}.pdf`);
     toast.dismiss(t2);
     toast.success("✅ تم إنشاء التقرير بنجاح");
   } catch (e: any) {
@@ -902,7 +902,7 @@ function purchaseReturnCardHtml(r: { ret: any; items: any[] }) {
         ${kv("رقم المرتجع", r.ret.return_number ?? "—", C.ink)}
         ${kv("المورد", r.ret.contacts?.name ?? "—")}
         ${kv("تاريخ المرتجع", fmtDate(r.ret.invoice_date || r.ret.created_at))}
-        ${kv("الشحنة الأصلية", r.ret.shipments?.shipment_number ?? "—")}
+        ${kv("فاتورة الشراء الأصلية", r.ret.shipments?.shipment_number ?? "—")}
         ${kv("تليفون المورد", r.ret.contacts?.phone ?? "—")}
         <div style="display:flex;gap:6px;align-items:center;">
           <span style="color:${C.muted};font-size:11px;">طريقة الاسترداد:</span>

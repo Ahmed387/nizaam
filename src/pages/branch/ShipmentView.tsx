@@ -69,7 +69,7 @@ export default function ShipmentView() {
   const handleDelete = async () => {
     if (!ship) return;
     setDelBusy(true);
-    const label = `شحنة ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
+    const label = `فاتورة شراء ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
     if (isAdmin) {
       const { error } = await supabase.from("shipments").delete().eq("id", ship.id);
       setDelBusy(false);
@@ -116,7 +116,7 @@ export default function ShipmentView() {
       notes: edit.notes || null,
       total_cost: newTotal,
     };
-    const label = `شحنة ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
+    const label = `فاتورة شراء ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
     if (isAdmin) {
       const { error } = await supabase.from("shipments").update(updates).eq("id", ship.id);
       setEditBusy(false);
@@ -139,7 +139,7 @@ export default function ShipmentView() {
   };
 
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
-  if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">شحنة غير موجودة</div></BranchLayout>;
+  if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">فاتورة شراء غير موجودة</div></BranchLayout>;
 
   const customs = Number(ship.customs_cost ?? 0);
   const otherCost = Number(ship.other_cost ?? 0);
@@ -164,7 +164,7 @@ export default function ShipmentView() {
       </tr>`).join("");
 
     const body = `
-      <h1>شحنة ${escapeHtml(ship.shipment_number ?? "#" + ship.id.slice(0,8))}</h1>
+      <h1>فاتورة شراء ${escapeHtml(ship.shipment_number ?? "#" + ship.id.slice(0,8))}</h1>
       <div class="meta">تاريخ الوصول: ${formatDate(ship.arrival_date)} · أُنشئت: ${formatDate(ship.created_at)}</div>
 
       <div class="grid-3">
@@ -204,13 +204,13 @@ export default function ShipmentView() {
         <tbody>${rowsHtml}</tbody>
       </table>
     `;
-    printHtml(`شحنة ${ship.shipment_number ?? ship.id.slice(0,8)}`, body, { landscape: true });
+    printHtml(`فاتورة شراء ${ship.shipment_number ?? ship.id.slice(0,8)}`, body, { landscape: true });
   };
 
   return (
     <BranchLayout>
       <PageHeader
-        title={`شحنة ${ship.shipment_number ?? `#${ship.id.slice(0, 8)}`}`}
+        title={`فاتورة شراء ${ship.shipment_number ?? `#${ship.id.slice(0, 8)}`}`}
         subtitle={formatDate(ship.arrival_date)}
         actions={
           <div className="flex items-center gap-2">
@@ -303,7 +303,7 @@ export default function ShipmentView() {
         const currLbl = balanceLabel(Number(ship.current_balance ?? 0));
         return (
           <div className="card-elevated p-4 mb-6">
-            <div className="font-bold text-sm mb-2">📒 رصيد المورد (لحظة استلام الشحنة)</div>
+            <div className="font-bold text-sm mb-2">📒 رصيد المورد (لحظة استلام فاتورة الشراء)</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-surface-2 p-2 rounded border border-border">
                 <div className="text-xs text-muted-foreground">الرصيد السابق</div>
@@ -311,7 +311,7 @@ export default function ShipmentView() {
                 <div className={`text-xs ${prevLbl.tone === "good" ? "text-success" : prevLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{prevLbl.label}</div>
               </div>
               <div className="bg-surface-2 p-2 rounded border border-border">
-                <div className="text-xs text-muted-foreground">الرصيد بعد الشحنة</div>
+                <div className="text-xs text-muted-foreground">الرصيد بعد فاتورة الشراء</div>
                 <div className="font-bold">{formatEGP(currLbl.amount)}</div>
                 <div className={`text-xs ${currLbl.tone === "good" ? "text-success" : currLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{currLbl.label}</div>
               </div>
@@ -434,12 +434,12 @@ export default function ShipmentView() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">
-              {isManager && !isAdmin ? "طلب حذف شحنة للموافقة" : "حذف الشحنة"}
+              {isManager && !isAdmin ? "طلب حذف فاتورة شراء للموافقة" : "حذف فاتورة الشراء"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {isManager && !isAdmin
-                ? <>سيتم إرسال طلب حذف الشحنة لمدير الشركة للموافقة.</>
-                : <>هل أنت متأكد من حذف هذه الشحنة؟ لن يمكن التراجع.</>}
+                ? <>سيتم إرسال طلب حذف فاتورة الشراء لمدير الشركة للموافقة.</>
+                : <>هل أنت متأكد من حذف هذه فاتورة الشراء؟ لن يمكن التراجع.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {isManager && !isAdmin && (
@@ -460,9 +460,9 @@ export default function ShipmentView() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{isManager && !isAdmin ? "طلب تعديل شحنة" : "تعديل بيانات الشحنة"}</DialogTitle>
+            <DialogTitle>{isManager && !isAdmin ? "طلب تعديل فاتورة شراء" : "تعديل بيانات فاتورة الشراء"}</DialogTitle>
             <DialogDescription>
-              {isManager && !isAdmin ? "سيتم إرسال التعديلات للمدير للموافقة." : "تعديل البيانات الأساسية للشحنة."}
+              {isManager && !isAdmin ? "سيتم إرسال التعديلات للمدير للموافقة." : "تعديل البيانات الأساسية للفاتورة شراء."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">

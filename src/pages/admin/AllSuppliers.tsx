@@ -107,7 +107,7 @@ export default function AllSuppliers() {
     setSuppliers(mergeBalancesById(list, balMap) as any);
     setBranches(filterBranches((brs ?? []) as any) as any);
 
-    // تجميع الشحنات لكل (مورد + فرع)
+    // تجميع فواتير الشراء لكل (مورد + فرع)
     const shipMap = new Map<string, ShipmentSummary>();
     for (const s of (ships ?? []) as any[]) {
       if (!s.contact_id || !s.branch_id) continue;
@@ -307,7 +307,7 @@ export default function AllSuppliers() {
         rows.push({
           "تاريخ الوصول": sh.arrival_date, "الفرع": sh.branches?.name ?? "—",
           "الصنف": "—", "الكمية": 0, "سعر الوحدة": 0, "الإجمالي": 0,
-          "إجمالي الشحنة": Number(sh.total_cost) || 0, "الشحن": Number(sh.shipping_cost) || 0,
+          "إجمالي فاتورة الشراء": Number(sh.total_cost) || 0, "الشحن": Number(sh.shipping_cost) || 0,
           "مصاريف إدارية": Number(sh.admin_cost) || 0, "المستلم": sh.received_by ?? "—",
         });
       } else {
@@ -316,7 +316,7 @@ export default function AllSuppliers() {
             "تاريخ الوصول": sh.arrival_date, "الفرع": sh.branches?.name ?? "—",
             "الصنف": it.product_name, "الكمية": it.quantity, "سعر الوحدة": Number(it.cost_price) || 0,
             "الإجمالي": Number(it.total) || 0,
-            "إجمالي الشحنة": Number(sh.total_cost) || 0, "الشحن": Number(sh.shipping_cost) || 0,
+            "إجمالي فاتورة الشراء": Number(sh.total_cost) || 0, "الشحن": Number(sh.shipping_cost) || 0,
             "مصاريف إدارية": Number(sh.admin_cost) || 0, "المستلم": sh.received_by ?? "—",
           });
         }
@@ -324,7 +324,7 @@ export default function AllSuppliers() {
     }
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "شحنات المورد");
+    XLSX.utils.book_append_sheet(wb, ws, "فواتير شراء المورد");
     XLSX.writeFile(wb, `shipments-${shipmentsView.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success(`تم تصدير ${rows.length} سطر`);
   };
@@ -403,16 +403,16 @@ export default function AllSuppliers() {
         type: "expense",
         category: "shipment",
         amount: shipGrandTotal,
-        description: `شحنة #${ship.id.slice(0, 8)}`,
+        description: `فاتورة شراء #${ship.id.slice(0, 8)}`,
         reference_id: ship.id,
         created_by: user!.id,
       });
 
-      toast.success("تم تسجيل الشحنة وتحديث المخزون");
+      toast.success("تم تسجيل فاتورة الشراء وتحديث المخزون");
       setNewShipOpen(false);
       load();
     } catch (err: any) {
-      toast.error(err.message ?? "خطأ في حفظ الشحنة");
+      toast.error(err.message ?? "خطأ في حفظ فاتورة الشراء");
     } finally {
       setShipBusy(false);
     }
@@ -426,7 +426,7 @@ export default function AllSuppliers() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
-            <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> شحنة جديدة</Button>
+            <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> فاتورة شراء جديدة</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> جهة جديدة</Button>
           </div>
         }
@@ -530,8 +530,8 @@ export default function AllSuppliers() {
                   <Wallet className="w-4 h-4" aria-hidden="true" />
                 </Button>
               )}
-              <Button size="sm" variant="outline" title="الشحنات" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="outline" title="إضافة شحنة جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="فواتير الشراء" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" title="إضافة فاتورة شراء جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
             </div>
@@ -597,7 +597,7 @@ export default function AllSuppliers() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <div className="text-muted-foreground text-xs">المشتريات</div>
-                          <div className="font-bold">{formatEGP(ship?.total ?? 0)} <span className="text-xs text-muted-foreground">({ship?.count ?? 0} شحنة)</span></div>
+                          <div className="font-bold">{formatEGP(ship?.total ?? 0)} <span className="text-xs text-muted-foreground">({ship?.count ?? 0} فاتورة شراء)</span></div>
                         </div>
                         <div>
                           <div className="text-muted-foreground text-xs">المدفوعات</div>
@@ -629,7 +629,7 @@ export default function AllSuppliers() {
       <Dialog open={!!shipmentsView} onOpenChange={(o) => !o && setShipmentsView(null)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>شحنات: {shipmentsView?.name}</DialogTitle>
+            <DialogTitle>فواتير شراء: {shipmentsView?.name}</DialogTitle>
             <DialogDescription>كل ما نزّله المورد، بالأصناف والكميات والفرع</DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 flex-wrap items-center mb-2">
@@ -644,13 +644,13 @@ export default function AllSuppliers() {
               <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
             </Button>
             <div className="text-xs text-muted-foreground mr-auto">
-              {shipmentsList.filter((s) => shipBranchFilter === "all" || s.branch_id === shipBranchFilter).length} شحنة
+              {shipmentsList.filter((s) => shipBranchFilter === "all" || s.branch_id === shipBranchFilter).length} فاتورة شراء
             </div>
           </div>
           {shipmentsLoading ? (
             <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
           ) : shipmentsList.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">لا توجد شحنات لهذا المورد.</div>
+            <div className="text-center py-8 text-muted-foreground">لا توجد فواتير شراء لهذا المورد.</div>
           ) : (
             <div className="space-y-3">
               {shipmentsList
@@ -694,7 +694,7 @@ export default function AllSuppliers() {
                         </table>
                         </div>
                       ) : (
-                        <div className="p-3 text-xs text-muted-foreground">لا توجد أصناف مسجّلة لهذه الشحنة.</div>
+                        <div className="p-3 text-xs text-muted-foreground">لا توجد أصناف مسجّلة لهذه فاتورة الشراء.</div>
                       )}
 
                       {sh.notes && <div className="p-2 text-xs text-muted-foreground border-t bg-muted/20">📝 {sh.notes}</div>}
@@ -713,7 +713,7 @@ export default function AllSuppliers() {
       <Dialog open={newShipOpen} onOpenChange={setNewShipOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>تسجيل شحنة جديدة</DialogTitle>
+            <DialogTitle>تسجيل فاتورة شراء جديدة</DialogTitle>
             <DialogDescription>سيتم إضافة الكميات تلقائياً لمخزون الفرع المحدد</DialogDescription>
           </DialogHeader>
 
@@ -824,7 +824,7 @@ export default function AllSuppliers() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewShipOpen(false)}>إلغاء</Button>
             <Button className="btn-gradient gap-2" onClick={submitNewShipment} disabled={shipBusy}>
-              {shipBusy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ الشحنة
+              {shipBusy && <Loader2 className="w-4 h-4 animate-spin" />} حفظ فاتورة الشراء
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -839,7 +839,7 @@ export default function AllSuppliers() {
               {!isAdmin && hasRole("branch_manager") ? (
                 <>سيتم إرسال طلب حذف <b>{deleteConfirm?.name}</b> لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
               ) : (
-                <>هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟<br />لن يمكن التراجع. (الشحنات والمدفوعات المرتبطة لن تُحذف).</>
+                <>هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟<br />لن يمكن التراجع. (فواتير الشراء والمدفوعات المرتبطة لن تُحذف).</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>

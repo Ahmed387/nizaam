@@ -31,7 +31,7 @@ interface Req {
 const ENTITY_LABEL: Record<string, string> = {
   contact: "جهة تواصل",
   invoice: "فاتورة",
-  shipment: "شحنة",
+  shipment: "فاتورة شراء",
 };
 
 export default function ApprovalRequests({ embedded }: { embedded?: boolean } = {}) {

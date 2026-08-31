@@ -193,7 +193,7 @@ export default function SeedData() {
             <div className="flex-1">
               <h3 className="font-semibold mb-2">حذف البيانات التشغيلية</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                حذف كل المنتجات، العملاء، الفواتير، الشحنات، والموظفين. لن يتم حذف الفروع أو المستخدمين.
+                حذف كل المنتجات، العملاء، الفواتير، فواتير الشراء، والموظفين. لن يتم حذف الفروع أو المستخدمين.
               </p>
               <Button onClick={clearAll} disabled={clearing} variant="destructive">
                 {clearing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Trash2 className="w-4 h-4 ml-2" />}

@@ -12,7 +12,7 @@ import { Clock, CheckCircle2, XCircle } from "lucide-react";
 const ENTITY_LABEL: Record<string, string> = {
   contact: "جهة تواصل",
   invoice: "فاتورة",
-  shipment: "شحنة",
+  shipment: "فاتورة شراء",
 };
 
 export default function MyApprovalRequests() {

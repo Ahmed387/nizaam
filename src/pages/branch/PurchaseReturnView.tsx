@@ -101,7 +101,7 @@ export default function PurchaseReturnView() {
             {supplier?.address && <div className="text-xs text-muted-foreground">📍 {supplier.address}</div>}
           </div>
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
-            <div className="text-xs text-muted-foreground mb-1">🧾 الشحنة الأصلية</div>
+            <div className="text-xs text-muted-foreground mb-1">🧾 فاتورة الشراء الأصلية</div>
             <div className="font-bold font-mono">{(ret as any).shipments?.shipment_number ?? "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">طريقة الاسترداد: {methodLabel[(ret as any).refund_method] ?? (ret as any).refund_method}</div>
           </div>
@@ -174,7 +174,7 @@ export default function PurchaseReturnView() {
         notes={null}
         reason={(ret as any).reason}
         originalRef={(ret as any).shipments?.shipment_number ?? null}
-        originalRefLabel="شحنة أصلية"
+        originalRefLabel="فاتورة شراء أصلية"
         items={items.map((it: any) => ({
           name: it.product_name,
           qty: Number(it.quantity ?? 0),

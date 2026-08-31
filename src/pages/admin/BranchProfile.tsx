@@ -120,7 +120,7 @@ export default function BranchProfile() {
       { البيان: "عدد الفواتير", القيمة: stats.invoicesCount },
       { البيان: "إجمالي المبيعات", القيمة: stats.totalSales },
       { البيان: "إجمالي المرتجعات", القيمة: stats.totalRefunds },
-      { البيان: "إجمالي الشحنات", القيمة: stats.totalShipments },
+      { البيان: "إجمالي فواتير الشراء", القيمة: stats.totalShipments },
       { البيان: "إجمالي المصاريف", القيمة: stats.totalExpenses },
       { البيان: "الإيداعات في الخزنة", القيمة: stats.cashIn },
       { البيان: "السحوبات من الخزنة", القيمة: stats.cashOut },
@@ -144,9 +144,9 @@ export default function BranchProfile() {
         الكاشير: i.profiles?.name ?? "—", الإجمالي: Number(i.total),
         "طريقة الدفع": i.payment_method, الحالة: i.status,
       })) },
-      { name: "الشحنات", rows: shipments.map((s) => ({
+      { name: "فواتير الشراء", rows: shipments.map((s) => ({
         التاريخ: s.arrival_date, المورد: s.contacts?.name ?? "—",
-        المستلم: s.received_by, "تكلفة الشحنة": Number(s.total_cost),
+        المستلم: s.received_by, "تكلفة فاتورة الشراء": Number(s.total_cost),
       })) },
       { name: "المصاريف", rows: expenses.map((x) => ({
         التاريخ: x.date, النوع: x.type, الوصف: x.description ?? "—", المبلغ: Number(x.amount),
@@ -203,7 +203,7 @@ export default function BranchProfile() {
         <StatCard label="المبيعات" value={formatEGP(stats.totalSales)} icon={<ShoppingCart className="w-5 h-5" />} accent="primary" />
         <StatCard label="المرتجعات" value={formatEGP(stats.totalRefunds)} icon={<Receipt className="w-5 h-5" />} accent="warning" />
         <StatCard label="المصاريف" value={formatEGP(stats.totalExpenses)} icon={<DollarSign className="w-5 h-5" />} accent="warning" />
-        <StatCard label="الشحنات" value={formatEGP(stats.totalShipments)} icon={<Truck className="w-5 h-5" />} accent="secondary" />
+        <StatCard label="فواتير الشراء" value={formatEGP(stats.totalShipments)} icon={<Truck className="w-5 h-5" />} accent="secondary" />
         <StatCard label="رصيد الخزنة" value={formatEGP(stats.safeBalance)} icon={<Wallet className="w-5 h-5" />} accent={stats.safeBalance >= 0 ? "success" : "warning"} />
         <StatCard label="صافي الربح" value={formatEGP(stats.grossProfit)} icon={<TrendingUp className="w-5 h-5" />} accent={stats.grossProfit >= 0 ? "success" : "warning"} />
       </div>
@@ -220,7 +220,7 @@ export default function BranchProfile() {
           <TabsTrigger value="employees">الموظفين ({employees.length})</TabsTrigger>
           <TabsTrigger value="inventory">المخزون ({products.length})</TabsTrigger>
           <TabsTrigger value="sales">المبيعات ({invoices.length})</TabsTrigger>
-          <TabsTrigger value="shipments">الشحنات ({shipments.length})</TabsTrigger>
+          <TabsTrigger value="shipments">فواتير الشراء ({shipments.length})</TabsTrigger>
           <TabsTrigger value="expenses">المصاريف ({expenses.length})</TabsTrigger>
           <TabsTrigger value="treasury">الخزنة ({treasury.length})</TabsTrigger>
         </TabsList>
@@ -283,7 +283,7 @@ export default function BranchProfile() {
         <TabsContent value="shipments" className="mt-4">
           <DataTable
             rows={shipments}
-            empty="لا توجد شحنات"
+            empty="لا توجد فواتير شراء"
             onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
             columns={[
               { key: "arrival_date", header: "التاريخ", render: (r: any) => formatDate(r.arrival_date) },
