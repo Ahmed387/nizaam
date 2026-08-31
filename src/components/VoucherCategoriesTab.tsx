@@ -173,9 +173,14 @@ export function VoucherCategoriesTab() {
 
   return (
     <>
-      <Alert className="mb-4">
+      <Alert className="mb-3">
         <AlertDescription className="text-xs leading-relaxed">
           💡 تنبيه إداري: أي تصنيف يُضاف هنا سيصبح متاحاً فوراً للموظفين لإنشاء سندات يدوية به. للحفاظ على دقة الحسابات، يُنصح دائماً بإنشاء (تصنيف فرعي) يندرج تحت التصنيفات الرئيسية الموجودة.
+        </AlertDescription>
+      </Alert>
+      <Alert className="mb-4 border-amber-500/40 bg-amber-500/10">
+        <AlertDescription className="text-xs leading-relaxed">
+          ⚠️ تنبيه: خيار «يُخصم من الربح» يؤثر على لوحات المؤشرات التحليلية فقط. لضبط قائمة الدخل الرسمية، يجب التأكد من توجيه الحساب المحاسبي (GL Account) بشكل صحيح.
         </AlertDescription>
       </Alert>
       <Tabs defaultValue="payment">
