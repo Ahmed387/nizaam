@@ -179,8 +179,21 @@ export function AppShell({
                   return (
                     <Tooltip key={item.to} delayDuration={100}>
                       <TooltipTrigger asChild>{link}</TooltipTrigger>
-                      <TooltipContent side="left" className="font-semibold max-w-[240px] text-right">
-                        {isCollapsed ? item.label : item.hint}
+                      <TooltipContent
+                        side="left"
+                        align="center"
+                        sideOffset={10}
+                        dir="rtl"
+                        className="max-w-[230px] rounded-xl border-primary/25 bg-popover/95 px-3 py-2 text-right shadow-[0_10px_30px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-sm"
+                      >
+                        {isCollapsed ? (
+                          <span className="text-[12.5px] font-semibold">{item.label}</span>
+                        ) : (
+                          <span className="block text-[11.5px] font-medium leading-relaxed text-muted-foreground">
+                            <span className="mb-0.5 block text-[12.5px] font-bold text-foreground">{item.label}</span>
+                            {item.hint}
+                          </span>
+                        )}
                       </TooltipContent>
                     </Tooltip>
                   );
