@@ -209,6 +209,33 @@ export function BackupTab() {
   const exportAll = async (format: "xlsx" | "json") => {
     setExporting(true);
     try {
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+      // ---------- JSON: تصدير على دفعات مع تفريغ الذاكرة بعد كل جدول ----------
+      if (format === "json") {
+        const parts: BlobPart[] = [`{"exported_at":"${new Date().toISOString()}","data":{`];
+        let n = 0;
+        for (const t of TABLES) {
+          n++;
+          setProgress(`(${n}/${TABLES.length}) تحميل ${t.label}...`);
+          let rows = await fetchTable(t.key);
+          parts.push(`${n > 1 ? "," : ""}${JSON.stringify(t.key)}:${JSON.stringify(rows)}`);
+          rows = []; // تفريغ الذاكرة فور الانتهاء من الجدول
+        }
+        parts.push("}}");
+        setProgress("جاري بناء ملف JSON...");
+        const blob = new Blob(parts, { type: "application/json" });
+        parts.length = 0;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `nizam-backup-${stamp}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`تم تصدير النسخة الاحتياطية (${TABLES.length} جدول)`);
+        return;
+      }
+
       const all: Record<string, any[]> = {};
       let i = 0;
       for (const t of TABLES) {
@@ -217,22 +244,6 @@ export function BackupTab() {
         all[t.key] = await fetchTable(t.key);
       }
 
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-
-      if (format === "json") {
-        setProgress("جاري بناء ملف JSON...");
-        const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), data: all }, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `nizam-backup-${stamp}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("تم تصدير النسخة الاحتياطية");
-        return;
-      }
 
       setProgress("جاري بناء التقارير التفصيلية...");
 
