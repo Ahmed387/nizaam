@@ -628,14 +628,14 @@ export default function HistoricalAnalytics() {
                   </thead>
                   <tbody>
                     {topSuppliers.map((r) => (
-                      <tr key={r.name} className="border-t">
-                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{formatEGP(r.purchases)}</td>
-                        <td className="px-2 py-1.5 text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
-                        <td className="px-2 py-1.5 font-semibold">{formatEGP(r.net)}</td>
-                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
-                        <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
-                        <td className="px-2 py-1.5">{r.share.toFixed(1)}%</td>
+                      <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.purchases)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(r.net)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{r.share.toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -649,11 +649,11 @@ export default function HistoricalAnalytics() {
                   </thead>
                   <tbody>
                     {topCustomers.map((r) => (
-                      <tr key={r.name} className="border-t">
-                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{formatEGP(r.total)}</td>
-                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
-                        <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
+                      <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.total)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -667,12 +667,12 @@ export default function HistoricalAnalytics() {
                   </thead>
                   <tbody>
                     {topProducts.map((r, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-2 py-1.5">{r.code}</td>
-                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{formatNumber(r.qty)}</td>
-                        <td className="px-2 py-1.5">{formatEGP(r.revenue)}</td>
-                        <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(r.profit)}</td>
+                      <tr key={i} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="px-2 py-1.5 tabular-nums">{r.code}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatNumber(r.qty)}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.revenue)}</td>
+                        <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.profit)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -690,22 +690,22 @@ export default function HistoricalAnalytics() {
                       const open = expanded === d.id;
                       return (
                         <Fragment key={d.id}>
-                          <tr className="border-t hover:bg-muted/40 cursor-pointer"
+                          <tr className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
                             onClick={() => setExpanded(open ? null : d.id)}>
-                            <td className="px-2 py-1.5">
+                            <td className="px-2 py-1.5 tabular-nums">
                               {its.length > 0 && (open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />)}
                             </td>
-                            <td className="px-2 py-1.5">{d.date}</td>
-                            <td className="px-2 py-1.5">
+                            <td className="px-2 py-1.5 tabular-nums">{d.date}</td>
+                            <td className="px-2 py-1.5 tabular-nums">
                               <Badge variant="secondary" className="text-[10px]">{DOC_LABEL[d.doc_type] ?? d.doc_type}</Badge>
                             </td>
-                            <td className="px-2 py-1.5">{d.invoice_no}</td>
-                            <td className="px-2 py-1.5">{d.branch_name}</td>
-                            <td className="px-2 py-1.5">{d.party_name ?? "—"}</td>
-                            <td className="px-2 py-1.5">{d.payment_method ?? "—"}</td>
-                            <td className="px-2 py-1.5 font-semibold">{formatEGP(d.total_amount)}</td>
-                            <td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
-                            <td className="px-2 py-1.5 text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.invoice_no}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.branch_name}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.party_name ?? "—"}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{d.payment_method ?? "—"}</td>
+                            <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(d.total_amount)}</td>
+                            <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
+                            <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
                           </tr>
                           {open && its.length > 0 && (
                             <tr className="bg-muted/30">
@@ -713,18 +713,18 @@ export default function HistoricalAnalytics() {
                                 <table className="w-full text-[11px]">
                                   <thead>
                                     <tr className="text-muted-foreground">
-                                      {["الكود", "الصنف", "الكمية", "السعر", "الربح", "الإجمالي"].map((h) => <th key={h} className="px-2 py-1 text-right">{h}</th>)}
+                                      {["الكود", "الصنف", "الكمية", "السعر", "الربح", "الإجمالي"].map((h) => <th key={h} className="px-2 py-1 tabular-nums text-right">{h}</th>)}
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {its.map((it) => (
-                                      <tr key={it.id} className="border-t border-border/50">
-                                        <td className="px-2 py-1">{it.item_code ?? "—"}</td>
-                                        <td className="px-2 py-1">{it.item_name}</td>
-                                        <td className="px-2 py-1">{formatNumber(it.qty)}</td>
-                                        <td className="px-2 py-1">{formatEGP(it.price)}</td>
-                                        <td className="px-2 py-1">{formatEGP(it.profit)}</td>
-                                        <td className="px-2 py-1">{formatEGP(it.total)}</td>
+                                      <tr key={it.id} className="border-t border-border/50 hover:bg-muted/50 transition-colors">
+                                        <td className="px-2 py-1 tabular-nums">{it.item_code ?? "—"}</td>
+                                        <td className="px-2 py-1 tabular-nums">{it.item_name}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatNumber(it.qty)}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatEGP(it.price)}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatEGP(it.profit)}</td>
+                                        <td className="px-2 py-1 tabular-nums">{formatEGP(it.total)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
