@@ -155,7 +155,7 @@ export function AppShell({
         {active && !isCollapsed && (
           <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-foreground/80 rounded-l-full" aria-hidden />
         )}
-        <span className={`shrink-0 relative flex items-center justify-center ${active ? "" : "text-muted-foreground group-hover/link:text-primary"}`}>
+        <span className={`shrink-0 relative flex items-center justify-center p-1.5 rounded-lg transition-colors duration-200 ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted/40 text-muted-foreground group-hover/link:bg-primary/10 group-hover/link:text-primary"}`}>
           {item.icon}
           {isCollapsed && item.badge && item.badge > 0 ? (
             <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold ring-2 ring-sidebar">
