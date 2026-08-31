@@ -91,7 +91,41 @@ const TABLES: { key: string; label: string }[] = [
   { key: "price_audit_log", label: "سجل تعديل الأسعار" },
   { key: "settings", label: "الإعدادات" },
   { key: "audit_log", label: "سجل العمليات" },
+  // ---- تغطية كاملة: باقي جداول قاعدة البيانات ----
+  { key: "historical_invoices", label: "الفواتير التاريخية" },
+  { key: "historical_invoice_items", label: "أصناف الفواتير التاريخية" },
+  { key: "historical_vouchers", label: "السندات التاريخية" },
+  { key: "partner_advance_installments", label: "أقساط سلف الشركاء" },
+  { key: "partner_advance_payments", label: "مدفوعات سلف الشركاء" },
+  { key: "partner_users", label: "مستخدمي الشركاء" },
+  { key: "owner_personal_expenses", label: "المصاريف الشخصية" },
+  { key: "owner_personal_deposits", label: "الإيداعات الشخصية" },
+  { key: "owner_expenses_access", label: "صلاحيات المصاريف الشخصية" },
+  { key: "bank_statements", label: "كشوف الحسابات البنكية" },
+  { key: "bank_statement_lines", label: "بنود كشوف الحسابات" },
+  { key: "shift_cash_handovers", label: "تسليم عهدة الورديات" },
+  { key: "shift_schedules", label: "جداول الورديات" },
+  { key: "inventory_count_batch_moves", label: "حركات دفعات الجرد" },
+  { key: "voucher_attachments", label: "مرفقات السندات" },
+  { key: "voucher_sequences", label: "تسلسل السندات" },
+  { key: "attachments", label: "المرفقات" },
+  { key: "notifications", label: "الإشعارات" },
+  { key: "transfer_fees", label: "رسوم التحويل" },
+  { key: "role_permissions", label: "صلاحيات الأدوار" },
+  { key: "user_permissions", label: "صلاحيات المستخدمين" },
+  { key: "user_roles", label: "أدوار المستخدمين" },
+  { key: "user_presence", label: "تتبع المستخدمين" },
+  { key: "profiles", label: "الملفات الشخصية" },
+  { key: "branch_users", label: "ربط المستخدمين بالفروع" },
+  { key: "scheduled_reports", label: "التقارير المجدولة" },
+  { key: "migration_batches", label: "دفعات الترحيل" },
+  { key: "onboarding_progress", label: "تقدم التأسيس" },
+  { key: "health_check_runs", label: "فحوصات النظام" },
+  { key: "ai_ask_log", label: "سجل اسألني" },
+  { key: "system_backups", label: "سجل النسخ الاحتياطي" },
+  { key: "tenants", label: "بيانات الشركة" },
 ];
+
 
 const num = (v: any) => Number(v ?? 0);
 const fmtDate = (v: any) => (v ? new Date(v).toLocaleString("ar-EG") : "");
@@ -162,10 +196,8 @@ export function BackupTab() {
     const rows: any[] = [];
     while (true) {
       const { data, error } = await supabase.from(key as any).select("*").range(from, from + pageSize - 1);
-      if (error) {
-        console.warn(`Failed ${key}:`, error.message);
-        break;
-      }
+      // ذرية العملية: أي فشل في جدول واحد يوقف النسخة بالكامل
+      if (error) throw new Error(`فشل تصدير جدول (${key}): ${error.message}`);
       rows.push(...(data ?? []));
       if (!data || data.length < pageSize) break;
       from += pageSize;
@@ -173,9 +205,37 @@ export function BackupTab() {
     return rows;
   };
 
+
   const exportAll = async (format: "xlsx" | "json") => {
     setExporting(true);
     try {
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+      // ---------- JSON: تصدير على دفعات مع تفريغ الذاكرة بعد كل جدول ----------
+      if (format === "json") {
+        const parts: BlobPart[] = [`{"exported_at":"${new Date().toISOString()}","data":{`];
+        let n = 0;
+        for (const t of TABLES) {
+          n++;
+          setProgress(`(${n}/${TABLES.length}) تحميل ${t.label}...`);
+          let rows = await fetchTable(t.key);
+          parts.push(`${n > 1 ? "," : ""}${JSON.stringify(t.key)}:${JSON.stringify(rows)}`);
+          rows = []; // تفريغ الذاكرة فور الانتهاء من الجدول
+        }
+        parts.push("}}");
+        setProgress("جاري بناء ملف JSON...");
+        const blob = new Blob(parts, { type: "application/json" });
+        parts.length = 0;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `nizam-backup-${stamp}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`تم تصدير النسخة الاحتياطية (${TABLES.length} جدول)`);
+        return;
+      }
+
       const all: Record<string, any[]> = {};
       let i = 0;
       for (const t of TABLES) {
@@ -184,22 +244,6 @@ export function BackupTab() {
         all[t.key] = await fetchTable(t.key);
       }
 
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-
-      if (format === "json") {
-        setProgress("جاري بناء ملف JSON...");
-        const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), data: all }, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `nizam-backup-${stamp}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("تم تصدير النسخة الاحتياطية");
-        return;
-      }
 
       setProgress("جاري بناء التقارير التفصيلية...");
 
@@ -554,7 +598,11 @@ export function BackupTab() {
       };
 
       for (const s of sheets) addSheet(s.name, s.rows);
-      for (const t of TABLES) addSheet(`خام-${t.label}`, all[t.key] ?? []);
+      for (const t of TABLES) {
+        addSheet(`خام-${t.label}`, all[t.key] ?? []);
+        all[t.key] = []; // تفريغ الذاكرة بعد كتابة كل شيت
+      }
+
 
       XLSX.writeFile(wb, `nizam-full-export-${stamp}.xlsx`);
       toast.success(`تم التصدير: ${sheets.length} تقرير تفصيلي + ${TABLES.length} جدول خام`);
