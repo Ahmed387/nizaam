@@ -196,16 +196,15 @@ export function BackupTab() {
     const rows: any[] = [];
     while (true) {
       const { data, error } = await supabase.from(key as any).select("*").range(from, from + pageSize - 1);
-      if (error) {
-        console.warn(`Failed ${key}:`, error.message);
-        break;
-      }
+      // ذرية العملية: أي فشل في جدول واحد يوقف النسخة بالكامل
+      if (error) throw new Error(`فشل تصدير جدول (${key}): ${error.message}`);
       rows.push(...(data ?? []));
       if (!data || data.length < pageSize) break;
       from += pageSize;
     }
     return rows;
   };
+
 
   const exportAll = async (format: "xlsx" | "json") => {
     setExporting(true);
