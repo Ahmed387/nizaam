@@ -479,7 +479,46 @@ export default function HistoricalAnalytics() {
                 <SelectItem value="bank">بنك ومحافظ إلكترونية</SelectItem>
               </SelectContent>
             </Select>
+
+            <Popover open={partyOpen} onOpenChange={setPartyOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" role="combobox" className="h-8 w-52 justify-between text-xs font-normal">
+                  <span className="truncate">{partyF === "all" ? "كل العملاء والموردين" : partyF}</span>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="ابحث باسم العميل أو المورد..." />
+                  <CommandList>
+                    <CommandEmpty>لا توجد نتائج</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="كل العملاء والموردين" onSelect={() => { setPartyF("all"); setPartyOpen(false); }}>
+                        كل العملاء والموردين
+                      </CommandItem>
+                      {partyOptions.map((p) => (
+                        <CommandItem key={p} value={p} onSelect={() => { setPartyF(p); setPartyOpen(false); }}>
+                          {p}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            <Select value={cat} onValueChange={setCat}>
+              <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="all">كل التصنيفات</SelectItem>
+                {categoryOptions.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <div className="flex-1" />
+
             <Button size="sm" onClick={() => setUploadOpen(true)}>
               <Upload className="w-4 h-4 ml-1" /> رفع بيانات
             </Button>
@@ -661,7 +700,10 @@ export default function HistoricalAnalytics() {
                   <tbody>
                     {topSuppliers.map((r) => (
                       <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
-                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-medium">
+                          <button type="button" className="text-primary hover:underline" onClick={() => setLedgerParty(r.name)}>{r.name}</button>
+                        </td>
+
                         <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.purchases)}</td>
                         <td className="px-2 py-1.5 tabular-nums text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
                         <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(r.net)}</td>
@@ -682,7 +724,10 @@ export default function HistoricalAnalytics() {
                   <tbody>
                     {topCustomers.map((r) => (
                       <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
-                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-medium">
+                          <button type="button" className="text-primary hover:underline" onClick={() => setLedgerParty(r.name)}>{r.name}</button>
+                        </td>
+
                         <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.total)}</td>
                         <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(r.paid)}</td>
                         <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(r.due)}</td>
@@ -723,9 +768,18 @@ export default function HistoricalAnalytics() {
                       return (
                         <Fragment key={d.id}>
                           <tr className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setExpanded(open ? null : d.id)}>
+                            onClick={() => setDocOpen(d)}>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {its.length > 0 && (open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />)}
+                              {its.length > 0 && (
+                                <button
+                                  type="button"
+                                  aria-label="عرض الأصناف"
+                                  className="p-0.5 rounded hover:bg-muted"
+                                  onClick={(e) => { e.stopPropagation(); setExpanded(open ? null : d.id); }}
+                                >
+                                  {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+                                </button>
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">{d.date}</td>
                             <td className="px-2 py-1.5 tabular-nums">
@@ -733,8 +787,17 @@ export default function HistoricalAnalytics() {
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">{d.invoice_no}</td>
                             <td className="px-2 py-1.5 tabular-nums">{d.branch_name}</td>
-                            <td className="px-2 py-1.5 tabular-nums">{d.party_name ?? "—"}</td>
+                            <td className="px-2 py-1.5 tabular-nums">
+                              <button
+                                type="button"
+                                className="text-primary hover:underline"
+                                onClick={(e) => { e.stopPropagation(); setLedgerParty(d.party_name || "غير محدد"); }}
+                              >
+                                {d.party_name ?? "غير محدد"}
+                              </button>
+                            </td>
                             <td className="px-2 py-1.5 tabular-nums">{d.payment_method ?? "—"}</td>
+
                             <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(d.total_amount)}</td>
                             <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
                             <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
@@ -777,6 +840,22 @@ export default function HistoricalAnalytics() {
       </div>
 
       <HistoricalUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} onDone={load} />
+
+      <HistoricalInvoiceDialog
+        invoice={docOpen as any}
+        items={(docOpen ? (itemsByInvoice.get(docOpen.id) ?? []) : []) as any}
+        open={!!docOpen}
+        onOpenChange={(v) => !v && setDocOpen(null)}
+      />
+      <HistoricalPartyLedgerDialog
+        party={ledgerParty}
+        invoices={invoices as any}
+        vouchers={vouchers as any}
+        items={items as any}
+        open={!!ledgerParty}
+        onOpenChange={(v) => !v && setLedgerParty(null)}
+      />
+
     </AdminLayout>
   );
 }
