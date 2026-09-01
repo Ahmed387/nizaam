@@ -215,23 +215,32 @@ export function AppShell({
             </Tooltip>
           )}
 
-          {groupedNav.map((group, gi) => (
-            <div key={`${group.label}-${gi}`} className="space-y-1">
-              {!isCollapsed && group.label && (
-                <div className="flex items-center gap-2 px-3 pt-1 pb-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary/80">
-                    {group.label}
-                  </span>
-                </div>
-              )}
-              {isCollapsed && group.label && gi > 0 && (
-                <div className="mx-2 h-px bg-sidebar-border/60 my-2" />
-              )}
-              {group.items.map((item) => renderItem(item, 0, isCollapsed, isMobile))}
+          {groupedNav.map((group, gi) => {
+            const hasLabel = !!group.label;
+            const groupOpen = !hasLabel || isCollapsed || openGroups[group.label] !== false;
+            return (
+              <div key={`${group.label}-${gi}`} className="space-y-1">
+                {!isCollapsed && hasLabel && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenGroups((s) => ({ ...s, [group.label]: !groupOpen }))}
+                    className="w-full flex items-center gap-2 px-3 pt-1 pb-1.5 rounded-lg hover:bg-primary/5 transition-colors"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" />
+                    <span className="flex-1 text-right text-[15px] font-extrabold tracking-tight text-primary">
+                      {group.label}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-primary/70 transition-transform ${groupOpen ? "" : "-rotate-90"}`} />
+                  </button>
+                )}
+                {isCollapsed && hasLabel && gi > 0 && (
+                  <div className="mx-2 h-px bg-sidebar-border/60 my-2" />
+                )}
+                {groupOpen && group.items.map((item) => renderItem(item, 0, isCollapsed, isMobile))}
+              </div>
+            );
+          })}
 
-            </div>
-          ))}
         </nav>
 
         {/* User card + sign out */}
