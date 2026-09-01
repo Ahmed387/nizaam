@@ -665,7 +665,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     title: "التقارير",
     hint: "فين كل تقرير وإزاي تفلتره",
     icon: BarChart3,
-    anyPerm: ["reports.view", "admin_reports_hub.view"],
+    anyPerm: ["reports.view", "admin_reports_hub.view", "admin_historical_analytics.view"],
     steps: [
       {
         title: "تقارير الفرع",
