@@ -163,6 +163,8 @@ export function VoucherCategoriesTab() {
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <DeductibleControl c={r} type={type} />
+                  <AddedToProfitControl c={r} type={type} />
+
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">مفعّل</span>
                     <Switch checked={r.is_active} onCheckedChange={(v) => toggleActive(r, v)} />
