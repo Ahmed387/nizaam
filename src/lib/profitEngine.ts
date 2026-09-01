@@ -278,31 +278,39 @@ export async function fetchProfitWindow(params: {
 
   // Per-branch
   const branches = branchesRes.data ?? [];
-  const byBranch: Record<string, { revenue: number; cost: number; expenses: number }> = {};
+  const blank = () => ({ revenue: 0, cost: 0, expenses: 0, otherIncomes: 0 });
+  const byBranch: Record<string, { revenue: number; cost: number; expenses: number; otherIncomes: number }> = {};
   for (const inv of (invRes.data ?? []) as any[]) {
     const b = inv.branch_id;
     if (!b) continue;
-    if (!byBranch[b]) byBranch[b] = { revenue: 0, cost: 0, expenses: 0 };
+    if (!byBranch[b]) byBranch[b] = blank();
     const ip = invoiceProfit(inv);
     byBranch[b].revenue += ip.revenue;
     byBranch[b].cost += ip.cost;
   }
   for (const v of (expRes.data ?? []) as any[]) {
     if (!v.branch_id) continue;
-    if (!byBranch[v.branch_id]) byBranch[v.branch_id] = { revenue: 0, cost: 0, expenses: 0 };
+    if (!byBranch[v.branch_id]) byBranch[v.branch_id] = blank();
     byBranch[v.branch_id].expenses += Number(v.amount || 0);
   }
+  for (const v of (incRes.data ?? []) as any[]) {
+    if (!v.branch_id) continue;
+    if (!byBranch[v.branch_id]) byBranch[v.branch_id] = blank();
+    byBranch[v.branch_id].otherIncomes += Number(v.amount || 0);
+  }
   const perBranch = branches.map((b: any) => {
-    const x = byBranch[b.id] ?? { revenue: 0, cost: 0, expenses: 0 };
+    const x = byBranch[b.id] ?? blank();
     return {
       id: b.id,
       name: b.name,
       revenue: x.revenue,
       cost: x.cost,
       expenses: x.expenses,
-      net: x.revenue - x.cost - x.expenses,
+      otherIncomes: x.otherIncomes,
+      net: x.revenue - x.cost - x.expenses + x.otherIncomes,
     };
   });
+
 
   return { totals, prevNet, perBranch };
 }
