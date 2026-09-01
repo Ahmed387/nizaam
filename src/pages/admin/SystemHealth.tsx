@@ -219,6 +219,9 @@ export default function SystemHealth() {
 
         {err && <Card><CardContent className="p-4 text-destructive">فيه مشكلة في الفحص: {err}</CardContent></Card>}
 
+        <SystemAuditWidgets />
+
+
         {/* Summary */}
         <Card className={issues.length === 0 ? "border-success/40" : "border-warning/50"}>
           <CardHeader className="flex flex-row items-center justify-between">
