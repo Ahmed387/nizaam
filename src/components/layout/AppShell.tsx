@@ -18,7 +18,12 @@ export interface NavItem {
   newTab?: boolean;
   group?: string;
   hint?: string;
+  /** Nested children rendered under a dual-action row (text = link, chevron = toggle) */
+  children?: NavItem[];
+  /** Render as a standalone big section title (no group header, no chevron) */
+  bigTitle?: boolean;
 }
+
 
 
 
