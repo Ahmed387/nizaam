@@ -1,7 +1,7 @@
 import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
-import { Store, ChevronDown, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
