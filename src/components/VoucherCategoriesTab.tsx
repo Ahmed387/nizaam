@@ -190,6 +190,8 @@ export function VoucherCategoriesTab() {
                       </div>
                       <div className="flex items-center gap-2">
                         <DeductibleControl c={c} type={type} />
+                        <AddedToProfitControl c={c} type={type} />
+
                         <Switch checked={c.is_active} onCheckedChange={(v) => toggleActive(c, v)} />
                         {!c.is_system && (
                           <Button size="icon" variant="ghost" onClick={() => removeCat(c)} className="h-7 w-7 text-destructive">
