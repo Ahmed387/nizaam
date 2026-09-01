@@ -1,7 +1,7 @@
 import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
-import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen, ChevronDown } from "lucide-react";
 import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -46,6 +46,8 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const loc = useLocation();
   const navigate = useNavigate();
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
