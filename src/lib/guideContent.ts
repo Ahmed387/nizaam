@@ -422,9 +422,28 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "ذمة الشركاء",
         desc: "رأس مال كل شريك، مسحوباته، سلفه، ونصيبه من الأرباح — كله في شاشة الذمة المالية للشركاء.",
-        to: a("/admin/financial-position"),
+        to: a("/admin/financial-position?tab=partners"),
         perm: "admin_financial_position.view",
       },
+      {
+        title: "توزيع الأرباح بيتحسب إزاي؟",
+        desc: "التوزيع بيعتمد حصريًا على نسب رأس المال الثابتة المسجلة للشركاء النشطين (capital_share) — مش على الأرصدة اللحظية. نصيب الشريك = المبلغ الموزّع × نسبته ÷ مجموع النسب، ومجموع النسب لازم يساوي 100%. والمبلغ المتاح للتوزيع = صافي الربح − اللي اتوزّع قبل كده.",
+        to: a("/admin/financial-position?tab=partners"),
+        perm: "admin_financial_position.view",
+      },
+      {
+        title: "السلف وتسويتها أوتوماتيك",
+        desc: "لو الشريك واخد سلفة، وقت التوزيع النظام بيخصمها من نصيبه بالترتيب الزمني (الأقدم الأول) ويطلعلك الصافي المستحق صرفه بعد الخصم — من غير ما تعمل أي تسوية يدوية.",
+        to: a("/admin/financial-position?tab=partners"),
+        perm: "admin_financial_position.view",
+      },
+      {
+        title: "تنبيهات مساهمات الشركاء",
+        desc: "أول ما شريك يضيف مساهمة رأس مال جديدة بيظهر تنبيه فوري في شاشة الشركاء، وفي بداية كل شهر مالي بيوصلك تذكير في فحص السيستم بمراجعة نسب رأس المال. مهم: المساهمة الجديدة مش بتغيّر نسب التوزيع لوحدها — لازم تعدّل نسبة الشريك يدوي وتدوس «تمت المراجعة».",
+        to: a("/admin/financial-position?tab=transactions&type=contribution"),
+        perm: "admin_financial_position.view",
+      },
+
     ],
   },
   {
