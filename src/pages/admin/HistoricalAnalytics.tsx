@@ -840,6 +840,22 @@ export default function HistoricalAnalytics() {
       </div>
 
       <HistoricalUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} onDone={load} />
+
+      <HistoricalInvoiceDialog
+        invoice={docOpen as any}
+        items={(docOpen ? (itemsByInvoice.get(docOpen.id) ?? []) : []) as any}
+        open={!!docOpen}
+        onOpenChange={(v) => !v && setDocOpen(null)}
+      />
+      <HistoricalPartyLedgerDialog
+        party={ledgerParty}
+        invoices={invoices as any}
+        vouchers={vouchers as any}
+        items={items as any}
+        open={!!ledgerParty}
+        onOpenChange={(v) => !v && setLedgerParty(null)}
+      />
+
     </AdminLayout>
   );
 }
