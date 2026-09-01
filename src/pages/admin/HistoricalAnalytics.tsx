@@ -214,15 +214,33 @@ export default function HistoricalAnalytics() {
   };
   const baseMatch = (b: string, y: number) =>
     (branch === "all" || b === branch) && (year === "all" || y === +year);
+  const matchParty = (p: string | null) => partyF === "all" || (p ?? "غير محدد") === partyF;
+
+  // قوائم الفلاتر المشتقة من الأرشيف نفسه (قراءة فقط)
+  const partyOptions = useMemo(() => {
+    const s = new Set<string>();
+    invoices.forEach((i) => s.add(i.party_name || "غير محدد"));
+    vouchers.forEach((v) => { if (v.party_name) s.add(v.party_name); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ar"));
+  }, [invoices, vouchers]);
+
+  const categoryOptions = useMemo(() => {
+    const s = new Set<string>();
+    vouchers.forEach((v) => { const c = (v.category ?? "").trim(); if (c) s.add(c); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ar"));
+  }, [vouchers]);
 
   const fInv = useMemo(
-    () => invoices.filter((i) => baseMatch(i.branch_name, i.year) && matchPay(i.payment_method)),
-    [invoices, branch, year, pay],
+    () => invoices.filter((i) => baseMatch(i.branch_name, i.year) && matchPay(i.payment_method) && matchParty(i.party_name)),
+    [invoices, branch, year, pay, partyF],
   );
   const fVch = useMemo(
-    () => vouchers.filter((v) => baseMatch(v.branch_name, v.year)),
-    [vouchers, branch, year],
+    () => vouchers.filter((v) =>
+      baseMatch(v.branch_name, v.year) && matchParty(v.party_name) &&
+      (cat === "all" || (v.category ?? "").trim() === cat)),
+    [vouchers, branch, year, partyF, cat],
   );
+
   const invIds = useMemo(() => new Set(fInv.map((i) => i.id)), [fInv]);
   const fItems = useMemo(
     () => items.filter((it) => it.invoice_id && invIds.has(it.invoice_id)),
