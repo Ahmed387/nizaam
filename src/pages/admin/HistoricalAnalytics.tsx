@@ -762,9 +762,18 @@ export default function HistoricalAnalytics() {
                       return (
                         <Fragment key={d.id}>
                           <tr className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setExpanded(open ? null : d.id)}>
+                            onClick={() => setDocOpen(d)}>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {its.length > 0 && (open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />)}
+                              {its.length > 0 && (
+                                <button
+                                  type="button"
+                                  aria-label="عرض الأصناف"
+                                  className="p-0.5 rounded hover:bg-muted"
+                                  onClick={(e) => { e.stopPropagation(); setExpanded(open ? null : d.id); }}
+                                >
+                                  {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+                                </button>
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">{d.date}</td>
                             <td className="px-2 py-1.5 tabular-nums">
@@ -772,8 +781,17 @@ export default function HistoricalAnalytics() {
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">{d.invoice_no}</td>
                             <td className="px-2 py-1.5 tabular-nums">{d.branch_name}</td>
-                            <td className="px-2 py-1.5 tabular-nums">{d.party_name ?? "—"}</td>
+                            <td className="px-2 py-1.5 tabular-nums">
+                              <button
+                                type="button"
+                                className="text-primary hover:underline"
+                                onClick={(e) => { e.stopPropagation(); setLedgerParty(d.party_name || "غير محدد"); }}
+                              >
+                                {d.party_name ?? "غير محدد"}
+                              </button>
+                            </td>
                             <td className="px-2 py-1.5 tabular-nums">{d.payment_method ?? "—"}</td>
+
                             <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(d.total_amount)}</td>
                             <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
                             <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
