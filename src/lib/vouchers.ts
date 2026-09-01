@@ -15,6 +15,9 @@ export interface VoucherCategory {
   parent_id: string | null;
   system_key: string | null;
   is_deductible_from_profit?: boolean;
+  is_added_to_profit?: boolean;
+  gl_account_code?: string | null;
+
 }
 
 

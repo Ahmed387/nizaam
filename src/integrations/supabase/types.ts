@@ -6308,6 +6308,7 @@ export type Database = {
           gl_account_code: string | null
           id: string
           is_active: boolean
+          is_added_to_profit: boolean
           is_deductible_from_profit: boolean
           is_system: boolean
           name: string
@@ -6321,6 +6322,7 @@ export type Database = {
           gl_account_code?: string | null
           id?: string
           is_active?: boolean
+          is_added_to_profit?: boolean
           is_deductible_from_profit?: boolean
           is_system?: boolean
           name: string
@@ -6334,6 +6336,7 @@ export type Database = {
           gl_account_code?: string | null
           id?: string
           is_active?: boolean
+          is_added_to_profit?: boolean
           is_deductible_from_profit?: boolean
           is_system?: boolean
           name?: string
@@ -6684,6 +6687,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_treasury_gl_variance: {
+        Row: {
+          branch_id: string | null
+          branch_name: string | null
+          gl_balance: number | null
+          tenant_id: string | null
+          treasury_balance: number | null
+          variance: number | null
+        }
+        Relationships: []
       }
       voucher_treasury_balances: {
         Row: {
