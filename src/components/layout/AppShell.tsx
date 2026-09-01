@@ -57,6 +57,33 @@ export function AppShell({
   };
   const isBackDisabled = !backTo && !canGoBack;
 
+  // Persist accordion open/closed state across reloads/tab switches.
+  const SIDEBAR_STATE_KEY = "sidebar-accordion-state";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(SIDEBAR_STATE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          if (parsed.openGroups && typeof parsed.openGroups === "object") {
+            setOpenGroups(parsed.openGroups);
+          }
+          if (parsed.openItems && typeof parsed.openItems === "object") {
+            setOpenItems(parsed.openItems);
+          }
+        }
+      }
+    } catch {
+      // Ignore corrupted storage; keep default empty state.
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload = JSON.stringify({ openGroups, openItems });
+    window.localStorage.setItem(SIDEBAR_STATE_KEY, payload);
+  }, [openGroups, openItems]);
+
   // Auto-collapse the sidebar on document forms (new/edit invoice, shipment, return, quote)
   // so the user gets maximum width while filling it in.
   const isDocumentForm = /\/(new|edit)(\/|$)/.test(loc.pathname);
