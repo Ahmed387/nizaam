@@ -479,7 +479,46 @@ export default function HistoricalAnalytics() {
                 <SelectItem value="bank">بنك ومحافظ إلكترونية</SelectItem>
               </SelectContent>
             </Select>
+
+            <Popover open={partyOpen} onOpenChange={setPartyOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" role="combobox" className="h-8 w-52 justify-between text-xs font-normal">
+                  <span className="truncate">{partyF === "all" ? "كل العملاء والموردين" : partyF}</span>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="ابحث باسم العميل أو المورد..." />
+                  <CommandList>
+                    <CommandEmpty>لا توجد نتائج</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="كل العملاء والموردين" onSelect={() => { setPartyF("all"); setPartyOpen(false); }}>
+                        كل العملاء والموردين
+                      </CommandItem>
+                      {partyOptions.map((p) => (
+                        <CommandItem key={p} value={p} onSelect={() => { setPartyF(p); setPartyOpen(false); }}>
+                          {p}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            <Select value={cat} onValueChange={setCat}>
+              <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="all">كل التصنيفات</SelectItem>
+                {categoryOptions.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <div className="flex-1" />
+
             <Button size="sm" onClick={() => setUploadOpen(true)}>
               <Upload className="w-4 h-4 ml-1" /> رفع بيانات
             </Button>
