@@ -123,13 +123,16 @@ export interface ProfitTotals {
   cost: number;
   gross: number;
   expenses: number;
+  /** إيرادات أخرى: سندات قبض مربوطة بتصنيف عليه فلاج «يُضاف للربح» */
+  otherIncomes: number;
   net: number;
   margin: number; // 0..100
 }
 
 export function aggregateTotals(
   items: Array<{ line: LineProfit }>,
-  expensesAmount: number
+  expensesAmount: number,
+  otherIncomesAmount = 0
 ): ProfitTotals {
   let revenue = 0,
     cost = 0;
@@ -138,10 +141,11 @@ export function aggregateTotals(
     cost += r.line.cost;
   }
   const gross = revenue - cost;
-  const net = gross - expensesAmount;
+  const net = gross - expensesAmount + otherIncomesAmount;
   const margin = revenue > 0 ? (net / revenue) * 100 : 0;
-  return { revenue, cost, gross, expenses: expensesAmount, net, margin };
+  return { revenue, cost, gross, expenses: expensesAmount, otherIncomes: otherIncomesAmount, net, margin };
 }
+
 
 export interface ProfitWindow {
   totals: ProfitTotals;
