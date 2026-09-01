@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
+import { PartnerContributionAlerts } from "@/components/PartnerContributionAlerts";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -325,6 +327,8 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
       <div dir="rtl" className="text-right space-y-5">
+        <PartnerContributionAlerts mode="live" />
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {!embedded && <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />}
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
