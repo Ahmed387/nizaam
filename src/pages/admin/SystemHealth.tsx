@@ -223,6 +223,8 @@ export default function SystemHealth() {
 
         {err && <Card><CardContent className="p-4 text-destructive">فيه مشكلة في الفحص: {err}</CardContent></Card>}
 
+        <PartnerContributionAlerts mode="monthly" />
+
         <SystemAuditWidgets />
 
 
