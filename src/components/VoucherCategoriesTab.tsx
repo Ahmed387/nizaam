@@ -71,6 +71,29 @@ export function VoucherCategoriesTab() {
     load();
   };
 
+  // GL Guard: منع «يُضاف للربح» إلا لو التصنيف مربوط بحساب إيرادات في الدليل
+  const toggleAddedToProfit = async (c: VoucherCategory, next: boolean) => {
+    if (next) {
+      const code = (c.gl_account_code ?? "").trim();
+      let ok = !!code && code.startsWith("4");
+      if (code && !ok) {
+        const { data: acc } = await supabase
+          .from("chart_of_accounts")
+          .select("account_type")
+          .eq("code", code)
+          .maybeSingle();
+        ok = (acc as any)?.account_type === "revenue";
+      }
+      if (!ok) {
+        return toast.error("للتطابق المحاسبي: يجب ربط هذا التصنيف بحساب إيرادات في الدليل لتفعيل إضافته للربح");
+      }
+    }
+    const { error } = await supabase.from("voucher_categories" as any).update({ is_added_to_profit: next } as any).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success(next ? "سيتم إضافة هذا التصنيف للربح" : "لن يتم إضافة هذا التصنيف للربح");
+    load();
+  };
+
   const DeductibleControl = ({ c, type }: { c: VoucherCategory; type: VoucherType }) => {
     if (type !== "payment") return null;
     const val = c.is_deductible_from_profit ?? true;
@@ -90,6 +113,27 @@ export function VoucherCategoriesTab() {
       </TooltipProvider>
     );
   };
+
+  const AddedToProfitControl = ({ c, type }: { c: VoucherCategory; type: VoucherType }) => {
+    if (type !== "receipt") return null;
+    const val = c.is_added_to_profit ?? false;
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">يُضاف للربح</span>
+              <Switch checked={val} onCheckedChange={(v) => toggleAddedToProfit(c, v)} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs max-w-[280px]">سندات القبض بهذا التصنيف تُحسب كإيرادات أخرى وتُضاف لصافي الربح. لازم التصنيف يكون مربوط بحساب إيرادات في دليل الحسابات.</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
 
 
   // إخفاء التصنيفات المحجوزة للشاشات المخصّصة + تصنيفات الاختبار فقط
