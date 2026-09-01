@@ -90,13 +90,17 @@ export function AppShell({
   };
 
   const renderItem = (item: NavItem, depth: number, isCollapsed: boolean, isMobile: boolean): ReactNode => {
-    const active = matchItem(item.to);
+    const kids = item.children ?? [];
+    const hasKids = kids.length > 0 && !isCollapsed;
+    const active = matchItem(item.to) || (hasKids && kids.some((c) => matchItem(c.to)));
     const key = `${item.label}-${item.to}`;
+    const expanded = hasKids && (openItems[key] ?? kids.some((c) => matchItem(c.to)) ?? false);
 
-    const padX = isCollapsed ? "justify-center px-2" : "px-3";
-    const rowClass = `group/link relative w-full flex items-center gap-3 ${padX} py-2.5 rounded-xl text-[13.5px] font-semibold transition-all duration-200 ${
+    const padX = isCollapsed ? "justify-center px-2" : depth > 0 ? "px-3 pr-6" : "px-3";
+    const sizeClass = item.bigTitle ? "text-[15px] font-extrabold" : depth > 0 ? "text-[12.5px] font-medium" : "text-[13.5px] font-semibold";
+    const rowClass = `group/link relative w-full flex items-center gap-3 ${padX} py-2.5 rounded-xl ${sizeClass} transition-all duration-200 ${
       active
-        ? "bg-gradient-to-l from-primary to-primary-glow text-primary-foreground shadow-[0_4px_14px_-4px_hsl(217_91%_55%_/_0.5)] font-semibold"
+        ? "bg-gradient-to-l from-primary to-primary-glow text-primary-foreground shadow-[0_4px_14px_-4px_hsl(217_91%_55%_/_0.5)]"
         : "text-sidebar-foreground/85 hover:bg-primary/10 hover:text-primary"
     }`;
 
@@ -131,8 +135,10 @@ export function AppShell({
         {linkContent}
       </NavLink>
     );
+
+    let node: ReactNode = link;
     if (isCollapsed || item.hint) {
-      return (
+      node = (
         <Tooltip key={key} delayDuration={100}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
           <TooltipContent
@@ -154,8 +160,36 @@ export function AppShell({
         </Tooltip>
       );
     }
-    return link;
+
+    if (!hasKids) return node;
+
+    return (
+      <div key={key} className="space-y-1">
+        <div className="flex items-center gap-1">
+          <div className="flex-1 min-w-0">{node}</div>
+          <button
+            type="button"
+            aria-label={expanded ? "إغلاق القائمة" : "فتح القائمة"}
+            aria-expanded={expanded}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpenItems((s) => ({ ...s, [key]: !expanded }));
+            }}
+            className={`shrink-0 p-1.5 rounded-lg transition-colors ${expanded ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"}`}
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "" : "-rotate-90"}`} />
+          </button>
+        </div>
+        {expanded && (
+          <div className="space-y-1 mr-4 border-r border-primary/20 pr-1">
+            {kids.map((c) => renderItem(c, depth + 1, isCollapsed, isMobile))}
+          </div>
+        )}
+      </div>
+    );
   };
+
 
 
   const renderSidebar = (isCollapsed: boolean, isMobile: boolean) => (
