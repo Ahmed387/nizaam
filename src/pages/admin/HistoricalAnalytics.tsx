@@ -700,7 +700,10 @@ export default function HistoricalAnalytics() {
                   <tbody>
                     {topSuppliers.map((r) => (
                       <tr key={r.name} className="border-t hover:bg-muted/50 transition-colors">
-                        <td className="px-2 py-1.5 tabular-nums font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5 tabular-nums font-medium">
+                          <button type="button" className="text-primary hover:underline" onClick={() => setLedgerParty(r.name)}>{r.name}</button>
+                        </td>
+
                         <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.purchases)}</td>
                         <td className="px-2 py-1.5 tabular-nums text-rose-600 dark:text-rose-400">{formatEGP(r.returns)}</td>
                         <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(r.net)}</td>
