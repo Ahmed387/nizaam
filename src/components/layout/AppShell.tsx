@@ -1,7 +1,7 @@
 import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
-import { Store, ChevronDown, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -18,9 +18,8 @@ export interface NavItem {
   newTab?: boolean;
   group?: string;
   hint?: string;
-  /** Optional nested items → renders a collapsible dropdown */
-  children?: NavItem[];
 }
+
 
 
 export function AppShell({
@@ -74,9 +73,6 @@ export function AppShell({
     return groups;
   })();
 
-  // ---- Multi-level menu helpers -------------------------------------------
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
   const matchItem = (to: string) => {
     const [path, search] = to.split("?");
     if (loc.pathname !== path && !loc.pathname.startsWith(path + "/")) return false;
@@ -87,68 +83,18 @@ export function AppShell({
     }
     return true;
   };
-  const pathMatches = (to: string) => {
-    const path = to.split("?")[0];
-    return loc.pathname === path || loc.pathname.startsWith(path + "/");
-  };
-  const branchHasActive = (item: NavItem): boolean =>
-    pathMatches(item.to) || (item.children ?? []).some(branchHasActive);
 
   const renderItem = (item: NavItem, depth: number, isCollapsed: boolean, isMobile: boolean): ReactNode => {
-    const hasChildren = !!item.children?.length;
-    const active = hasChildren ? false : matchItem(item.to);
-    const autoOpen = hasChildren && item.children!.some(branchHasActive);
+    const active = matchItem(item.to);
     const key = `${item.label}-${item.to}`;
-    const isOpen = expanded[key] ?? autoOpen;
 
-    const padX = isCollapsed ? "justify-center px-2" : depth === 1 ? "px-3 pr-8" : depth >= 2 ? "px-3 pr-12" : "px-3";
-    const rowClass = `group/link relative w-full flex items-center gap-3 ${padX} py-2.5 rounded-xl ${
-      depth > 0 ? "text-[12.5px] font-medium" : "text-[13.5px] font-semibold"
-    } transition-all duration-200 ${
+    const padX = isCollapsed ? "justify-center px-2" : "px-3";
+    const rowClass = `group/link relative w-full flex items-center gap-3 ${padX} py-2.5 rounded-xl text-[13.5px] font-semibold transition-all duration-200 ${
       active
         ? "bg-gradient-to-l from-primary to-primary-glow text-primary-foreground shadow-[0_4px_14px_-4px_hsl(217_91%_55%_/_0.5)] font-semibold"
         : "text-sidebar-foreground/85 hover:bg-primary/10 hover:text-primary"
     }`;
 
-    if (hasChildren) {
-      const branchActive = branchHasActive(item);
-      const trigger = (
-        <button
-          type="button"
-          onClick={() => {
-            if (isCollapsed && !isMobile) { setCollapsed(false); setExpanded((e) => ({ ...e, [key]: true })); return; }
-            setExpanded((e) => ({ ...e, [key]: !isOpen }));
-          }}
-          aria-expanded={isOpen}
-          className={`${rowClass} ${isOpen ? "bg-primary/15 text-primary shadow-[inset_-3px_0_0_0_hsl(var(--primary)/0.45)]" : branchActive ? "text-primary" : ""}`}
-        >
-          <span className={`shrink-0 flex items-center justify-center rounded-lg ${isOpen ? "bg-primary/15 text-primary" : branchActive ? "text-primary" : "text-muted-foreground group-hover/link:text-primary"}`}>
-            {item.icon}
-          </span>
-          {!isCollapsed && <span className="flex-1 truncate text-right">{item.label}</span>}
-          {!isCollapsed && (
-            <ChevronDown className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-primary" : ""}`} />
-          )}
-        </button>
-      );
-      return (
-        <div key={key} className="space-y-1">
-          {isCollapsed && !isMobile ? (
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-              <TooltipContent side="left" className="font-semibold">{item.label}</TooltipContent>
-            </Tooltip>
-          ) : (
-            trigger
-          )}
-          {!isCollapsed && isOpen && (
-            <div className="overflow-hidden animate-accordion-down space-y-1 border-r-2 border-primary/30 mr-4 pr-1 py-1 rounded-r-2xl bg-gradient-to-l from-primary/5 via-primary/[0.02] to-transparent">
-              {item.children!.map((c) => renderItem(c, depth + 1, isCollapsed, isMobile))}
-            </div>
-          )}
-        </div>
-      );
-    }
 
     const linkContent = (
       <>
