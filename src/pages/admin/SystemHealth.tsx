@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { fetchProfitWindow } from "@/lib/profitEngine";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
+import { SystemAuditWidgets } from "@/components/SystemAuditWidgets";
+
 
 type Health = any;
 type PartnerNet = { id: string; name: string; tenant_id: string; capital_pct: number; operating_pct: number; net_share: number };
