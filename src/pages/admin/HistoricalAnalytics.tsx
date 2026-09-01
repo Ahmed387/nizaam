@@ -173,7 +173,15 @@ export default function HistoricalAnalytics() {
   const [branch, setBranch] = useState<string>("all");
   const [year, setYear] = useState<string>("all");
   const [pay, setPay] = useState<string>("all");
+  const [partyF, setPartyF] = useState<string>("all");
+  const [partyOpen, setPartyOpen] = useState(false);
+  const [cat, setCat] = useState<string>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // نوافذ العرض التفاعلية (حالات مستقلة عن الفلاتر)
+  const [docOpen, setDocOpen] = useState<Inv | null>(null);
+  const [ledgerParty, setLedgerParty] = useState<string | null>(null);
+
 
   const load = async () => {
     setLoading(true);
