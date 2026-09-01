@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
 import {
-  DollarSign, AlertTriangle, Trash2, Plus, Users, Boxes, Receipt, CheckSquare,
+  DollarSign, AlertTriangle, Plus, Users, Boxes, Receipt, CheckSquare,
   BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight,
   HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
   BookmarkPlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Truck,
@@ -94,13 +94,8 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة تشغيلية على اليوم — كل الفروع"
-        actions={
-          <Button asChild variant="destructive" size="sm" className="gap-2">
-            <Link to="/admin/settings#reset"><Trash2 className="w-4 h-4" /> إعادة تعيين بيانات الشركة</Link>
-          </Button>
-        }
-      />
+      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة تشغيلية على اليوم — كل الفروع" />
+
 
       <KpiHealthAlert />
 
