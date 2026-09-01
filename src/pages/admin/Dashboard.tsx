@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
 import {
-  DollarSign, AlertTriangle, Trash2, Plus, Users, Boxes, Receipt, CheckSquare,
+  DollarSign, AlertTriangle, Plus, Users, Boxes, Receipt, CheckSquare,
   BarChart3, Building2, ShoppingCart, PackagePlus, ArrowRightLeft, ArrowUpRight,
   HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
   BookmarkPlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Truck,
