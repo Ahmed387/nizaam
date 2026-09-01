@@ -211,16 +211,39 @@ export async function fetchProfitWindow(params: {
     if (branchId) q = q.eq("branch_id", branchId);
     return q;
   };
+  // إيرادات أخرى: سندات قبض يدوية بتصنيف عليه فلاج «يُضاف للربح».
+  // بنستثني السندات النظامية (source='system') لأنها مرآة لتحصيلات الفواتير — وإلا يحصل ازدواج.
+  const buildInc = (f: string, t: string, withBranch: boolean) => {
+    let q = supabase
+      .from("vouchers")
+      .select(
+        withBranch
+          ? "amount, branch_id, voucher_categories!inner(is_added_to_profit)"
+          : "amount, voucher_categories!inner(is_added_to_profit)",
+      )
+      .eq("tenant_id", tenantId)
+      .eq("type", "receipt")
+      .eq("status", "active")
+      .eq("source", "manual")
+      .eq("voucher_categories.is_added_to_profit", true)
+      .gte("voucher_date", f)
+      .lte("voucher_date", t);
+    if (branchId) q = q.eq("branch_id", branchId);
+    return q;
+  };
 
-  const [invRows, prevInvRows, expRows, prevExpRows, branchesRes] = await Promise.all([
+  const [invRows, prevInvRows, expRows, prevExpRows, incRows, prevIncRows, branchesRes] = await Promise.all([
     fetchAllRows<any>(() => buildInv(fromIso, toIso)),
     fetchAllRows<any>(() => buildInv(prevFromIso, prevToIso)),
     fetchAllRows<any>(() => buildExp(fromDate, toDate, true)),
     fetchAllRows<any>(() => buildExp(prevFromDate, prevToDate, false)),
+    fetchAllRows<any>(() => buildInc(fromDate, toDate, true)),
+    fetchAllRows<any>(() => buildInc(prevFromDate, prevToDate, false)),
     supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).neq("code", "PARTNER-CASH"),
   ]);
   const invRes = { data: invRows };
   const expRes = { data: expRows };
+  const incRes = { data: incRows };
 
   const sumInv = (rows: any[]) => {
     let rev = 0,
@@ -237,16 +260,21 @@ export async function fetchProfitWindow(params: {
   const prev = sumInv(prevInvRows);
   const expenses = expRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
   const prevExpenses = prevExpRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
+  const otherIncomes = incRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
+  const prevOtherIncomes = prevIncRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
 
+  const netNow = cur.revenue - cur.cost - expenses + otherIncomes;
   const totals: ProfitTotals = {
     revenue: cur.revenue,
     cost: cur.cost,
     gross: cur.revenue - cur.cost,
     expenses,
-    net: cur.revenue - cur.cost - expenses,
-    margin: cur.revenue > 0 ? ((cur.revenue - cur.cost - expenses) / cur.revenue) * 100 : 0,
+    otherIncomes,
+    net: netNow,
+    margin: cur.revenue > 0 ? (netNow / cur.revenue) * 100 : 0,
   };
-  const prevNet = prev.revenue - prev.cost - prevExpenses;
+  const prevNet = prev.revenue - prev.cost - prevExpenses + prevOtherIncomes;
+
 
   // Per-branch
   const branches = branchesRes.data ?? [];
