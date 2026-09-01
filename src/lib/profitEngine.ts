@@ -150,7 +150,7 @@ export function aggregateTotals(
 export interface ProfitWindow {
   totals: ProfitTotals;
   prevNet: number;
-  perBranch: { id: string; name: string; revenue: number; cost: number; expenses: number; net: number }[];
+  perBranch: { id: string; name: string; revenue: number; cost: number; expenses: number; otherIncomes: number; net: number }[];
 }
 
 export interface ProfitRange {
