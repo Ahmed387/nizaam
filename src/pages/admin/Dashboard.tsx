@@ -94,13 +94,8 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة تشغيلية على اليوم — كل الفروع"
-        actions={
-          <Button asChild variant="destructive" size="sm" className="gap-2">
-            <Link to="/admin/settings#reset"><Trash2 className="w-4 h-4" /> إعادة تعيين بيانات الشركة</Link>
-          </Button>
-        }
-      />
+      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة تشغيلية على اليوم — كل الفروع" />
+
 
       <KpiHealthAlert />
 
