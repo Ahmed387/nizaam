@@ -17,10 +17,16 @@ import {
 import {
   Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  HistoricalInvoiceDialog, HistoricalPartyLedgerDialog,
+} from "@/components/HistoricalArchiveDialogs";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
   BarChart, Bar, PieChart, Pie, Cell,
 } from "recharts";
+
 
 type Inv = {
   id: string; branch_name: string; doc_type: string; invoice_no: string | null;
