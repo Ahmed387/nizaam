@@ -84,10 +84,12 @@ export default function FinancialPosition() {
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="partners">الشركاء</TabsTrigger>
             <TabsTrigger value="transactions">الحركات</TabsTrigger>
+            <TabsTrigger value="advances">سلف الشركاء</TabsTrigger>
           </TabsList>
 
           <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
           <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
+          <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
 
           <TabsContent value="overview" className="mt-4 space-y-6">
 
