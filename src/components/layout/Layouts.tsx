@@ -156,7 +156,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         ...(allow("admin_system_health.view", { ownerOnly: true }) ? [{ to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         ...(allow("admin_approvals.view", { adminOnly: true }) ? [{ to: "/admin/approvals-hub", label: "طلبات الموافقة", icon: <Inbox className="w-4 h-4" />, badge: totalAdminApprovals || undefined }] : []),
       ],
-    }),
+    ),
 
     // ===== مستقل =====
     ...only(hasPersonalExpAccess, { to: "/admin/personal-expenses", label: "المصاريف الشخصية", icon: <Wallet className="w-4 h-4" />, bigTitle: true }),
