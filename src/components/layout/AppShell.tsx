@@ -118,6 +118,32 @@ export function AppShell({
     return true;
   };
 
+  // Preserve the sidebar nav scroll position across route changes (the layout
+  // remounts per page, so we restore the last known offset on mount).
+  const NAV_SCROLL_KEY = "sidebar-nav-scroll";
+  const navScrollRef = useRef<Record<string, number>>({});
+  const attachNavScroll = useCallback((variant: "desktop" | "mobile") => (el: HTMLElement | null) => {
+    if (!el) return;
+    let stored = navScrollRef.current[variant];
+    if (stored === undefined && typeof window !== "undefined") {
+      const raw = window.sessionStorage.getItem(`${NAV_SCROLL_KEY}:${variant}`);
+      stored = raw ? Number(raw) : 0;
+    }
+    if (stored) {
+      requestAnimationFrame(() => {
+        el.scrollTop = stored!;
+      });
+    }
+    el.onscroll = () => {
+      navScrollRef.current[variant] = el.scrollTop;
+      try {
+        window.sessionStorage.setItem(`${NAV_SCROLL_KEY}:${variant}`, String(el.scrollTop));
+      } catch {
+        // Ignore storage failures (private mode / quota).
+      }
+    };
+  }, []);
+
   const renderItem = (item: NavItem, depth: number, isCollapsed: boolean, isMobile: boolean): ReactNode => {
     const kids = item.children ?? [];
     const hasKids = kids.length > 0 && !isCollapsed;
@@ -264,7 +290,10 @@ export function AppShell({
         <div className={`${isCollapsed ? "mx-3" : "mx-4"} h-px bg-sidebar-border/70`} />
 
         {/* Nav (grouped) */}
-        <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "px-2 py-3" : "px-3 py-3"} space-y-4`}>
+        <nav
+          ref={attachNavScroll(isMobile ? "mobile" : "desktop")}
+          className={`flex-1 overflow-y-auto ${isCollapsed ? "px-2 py-3" : "px-3 py-3"} space-y-4`}
+        >
           {isCollapsed && !isMobile && (
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
