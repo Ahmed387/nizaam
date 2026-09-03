@@ -89,29 +89,29 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     ...only(allow("admin_insights.view", { ownerOnly: true }), { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
 
     // ===== العمليات =====
-    ...only(allow("admin_catalog.view"), {
-      to: "/admin/catalog?tab=branches",
-      label: "الفروع والمخازن",
-      icon: <Warehouse className="w-4 h-4" />,
-      group: "العمليـات",
-      children: [
-        { to: "/admin/catalog?tab=inventory", label: "مخزون كل الفروع", icon: <Boxes className="w-4 h-4" /> },
+    ...section(
+      allow("admin_catalog.view"),
+      { to: "/admin/catalog?tab=branches", label: "الفروع والمخازن", icon: <Warehouse className="w-4 h-4" />, group: "العمليـات" },
+      [
+        ...(allow("admin_catalog.view") ? [
+          { to: "/admin/catalog?tab=inventory", label: "مخزون كل الفروع", icon: <Boxes className="w-4 h-4" /> },
+        ] : []),
         ...(allow("admin_product_attributes.view") ? [{ to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" /> }] : []),
-        { to: "/admin/catalog?tab=categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
-        { to: "/admin/catalog?tab=pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
+        ...(allow("admin_catalog.view") ? [
+          { to: "/admin/catalog?tab=categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
+          { to: "/admin/catalog?tab=pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
+        ] : []),
       ],
-    }),
-    ...only(allow("admin_employees.view"), {
-      to: "/admin/employees",
-      label: "الموظفين",
-      icon: <UserCircle className="w-4 h-4" />,
-      group: "العمليـات",
-      children: [
-        { to: "/admin/attendance", label: "الحضور والانصراف (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> },
+    ),
+    ...section(
+      allow("admin_employees.view"),
+      { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليـات" },
+      [
+        ...(allow("admin_employees.view") ? [{ to: "/admin/attendance", label: "الحضور والانصراف (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> }] : []),
         ...(allow("admin_shifts.view") ? [{ to: "/admin/shifts", label: "سجل الورديات", icon: <CalendarRange className="w-4 h-4" /> }] : []),
         ...(allow("admin_presence.view") ? [{ to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> }] : []),
       ],
-    }),
+    ),
     ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليـات" }),
 
     // ===== المالية =====
@@ -122,40 +122,37 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       group: "الماليـة",
       children: [
         { to: "/admin/financial-position?tab=partners", label: "الشركاء", icon: <UserCircle className="w-4 h-4" /> },
+        { to: "/admin/financial-position?tab=advances", label: "سلف الشركاء", icon: <HandCoins className="w-4 h-4" /> },
       ],
     }),
-    ...only(allow("admin_main_treasury.view", { adminOnly: true }), {
-      to: "/admin/main-treasury",
-      label: "الخزينة",
-      icon: <Wallet className="w-4 h-4" />,
-      group: "الماليـة",
-      children: [
+    ...section(
+      allow("admin_main_treasury.view", { adminOnly: true }),
+      { to: "/admin/main-treasury", label: "الخزينة", icon: <Wallet className="w-4 h-4" />, group: "الماليـة" },
+      [
         ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=vouchers", label: "السندات المالية", icon: <Receipt className="w-4 h-4" /> }] : []),
         ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=receivables", label: "ذمم العملاء والموردين", icon: <Coins className="w-4 h-4" /> }] : []),
         ...(allow("admin_finance.view", { adminOnly: true }) ? [{ to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" /> }] : []),
       ],
-    }),
-    ...only(allow("admin_reports_hub.view"), {
-      to: "/admin/reports-hub?tab=central",
-      label: "التقارير",
-      icon: <BarChart3 className="w-4 h-4" />,
-      group: "الماليـة",
-      children: [
-        { to: "/admin/reports-hub?tab=monthly", label: "ملخص الأرباح", icon: <Coins className="w-4 h-4" /> },
-        { to: "/admin/reports-hub?tab=profitability", label: "الربحية", icon: <TrendingUp className="w-4 h-4" /> },
-        { to: "/admin/reports-hub?tab=comparison", label: "مقارنة الفترات", icon: <ArrowLeftRight className="w-4 h-4" /> },
-        { to: "/admin/reports-hub?tab=scheduled", label: "المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
+    ),
+    ...section(
+      allow("admin_reports_hub.view"),
+      { to: "/admin/reports-hub?tab=central", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "الماليـة" },
+      [
+        ...(allow("admin_reports_hub.view") ? [
+          { to: "/admin/reports-hub?tab=monthly", label: "ملخص الأرباح", icon: <Coins className="w-4 h-4" /> },
+          { to: "/admin/reports-hub?tab=profitability", label: "الربحية", icon: <TrendingUp className="w-4 h-4" /> },
+          { to: "/admin/reports-hub?tab=comparison", label: "مقارنة الفترات", icon: <ArrowLeftRight className="w-4 h-4" /> },
+          { to: "/admin/reports-hub?tab=scheduled", label: "المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
+        ] : []),
         ...(allow("admin_historical_analytics.view") ? [{ to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" /> }] : []),
       ],
-    }),
+    ),
 
     // ===== الإدارة =====
-    ...only(allow("admin_settings.view", { to: "/admin/settings" }), {
-      to: "/admin/settings",
-      label: "الإعدادات",
-      icon: <Settings className="w-4 h-4" />,
-      group: "الإدارة",
-      children: [
+    ...section(
+      allow("admin_settings.view", { to: "/admin/settings" }),
+      { to: "/admin/settings", label: "الإعدادات", icon: <Settings className="w-4 h-4" />, group: "الإدارة" },
+      [
         ...(allow("admin_system_health.view", { ownerOnly: true }) ? [{ to: "/admin/system-health", label: "فحص السيستم", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         ...(allow("admin_approvals.view", { adminOnly: true }) ? [{ to: "/admin/approvals-hub", label: "طلبات الموافقة", icon: <Inbox className="w-4 h-4" />, badge: totalAdminApprovals || undefined }] : []),
       ],
