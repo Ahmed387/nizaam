@@ -10,6 +10,7 @@ import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
+import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
