@@ -2,7 +2,7 @@ import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
 import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download, ArrowRight, PanelRightClose, PanelRightOpen, ChevronDown } from "lucide-react";
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -123,7 +123,9 @@ export function AppShell({
     const hasKids = kids.length > 0 && !isCollapsed;
     const active = matchItem(item.to) || (hasKids && kids.some((c) => matchItem(c.to)));
     const key = `${item.label}-${item.to}`;
-    const expanded = hasKids && (openItems[key] ?? kids.some((c) => matchItem(c.to)) ?? false);
+    // Keep the section containing the active route expanded regardless of stored state.
+    const hasActiveChild = kids.some((c) => matchItem(c.to));
+    const expanded = hasKids && (hasActiveChild || (openItems[key] ?? false));
 
     const padX = isCollapsed ? "justify-center px-2" : depth > 0 ? "px-3 pr-6" : "px-3";
     const sizeClass = item.bigTitle ? "text-[15px] font-extrabold" : depth > 0 ? "text-[12.5px] font-medium" : "text-[13.5px] font-semibold";
