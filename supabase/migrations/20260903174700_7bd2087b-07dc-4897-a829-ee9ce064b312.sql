@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.trg_delete_source_journal() FROM PUBLIC, anon, authenticated;
