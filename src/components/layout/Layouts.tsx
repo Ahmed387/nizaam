@@ -69,6 +69,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     return isAdmin || can(perm);
   };
   const only = (cond: boolean, item: NavItem): NavItem[] => (cond ? [item] : []);
+  // A parent section stays visible when the user owns the parent permission OR
+  // any of its (already permission-filtered) children. When the parent page
+  // itself is not permitted, the header link points at the first allowed child
+  // so no one gets a link to a page they cannot open, and empty dropdowns are
+  // never rendered.
+  const section = (parentAllowed: boolean, item: NavItem, children: NavItem[]): NavItem[] => {
+    const kids = children.filter(Boolean);
+    if (parentAllowed) return [{ ...item, children: kids.length ? kids : undefined }];
+    if (!kids.length) return [];
+    return [{ ...item, to: kids[0].to, children: kids }];
+  };
 
   const adminNav: NavItem[] = [
     // ===== عام =====
