@@ -10,6 +10,7 @@ import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
+import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
@@ -83,10 +84,12 @@ export default function FinancialPosition() {
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="partners">الشركاء</TabsTrigger>
             <TabsTrigger value="transactions">الحركات</TabsTrigger>
+            <TabsTrigger value="advances">سلف الشركاء</TabsTrigger>
           </TabsList>
 
           <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
           <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
+          <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
 
           <TabsContent value="overview" className="mt-4 space-y-6">
 
