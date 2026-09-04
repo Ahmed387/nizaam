@@ -511,7 +511,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         accent="primary"
         extra={
           <div className="flex flex-wrap gap-2 text-[11px]">
-            <Link to="/admin/reports-hub?tab=owner" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">👑 لملخص لحظي → نظرة المالك</Link>
+            <Link to="/admin/cockpit" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">👑 لملخص لحظي → نظرة المالك</Link>
             <Link to="/admin/reports-hub?tab=profitability" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">📊 لتفاصيل الربح → الربحية</Link>
             <Link to="/admin/reports-hub?tab=insights" className="px-2.5 py-1 rounded bg-surface-2 border border-border hover:border-primary hover:text-primary transition">🎯 لأعلى/أقل → الرؤى</Link>
           </div>
@@ -735,7 +735,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
               <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center relative">
                 <h4 className="font-extrabold text-base md:text-lg">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية</h4>
                 <p className="mt-1 text-xs md:text-sm text-muted-foreground">قارن المتحصلات النقدية والإلكترونية لكل فرع مع المصروفات التشغيلية في نفس الفترة.</p>
-                <Link to="/admin/reports-hub?tab=owner" className="absolute top-3 left-3 text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 👑 نظرة المالك</Link>
+                <Link to="/admin/cockpit" className="absolute top-3 left-3 text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 👑 نظرة المالك</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs md:text-sm border-collapse">
