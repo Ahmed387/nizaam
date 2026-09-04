@@ -121,6 +121,8 @@ import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import HistoricalAnalytics from "./pages/admin/HistoricalAnalytics";
+import OwnerCockpit from "./pages/admin/OwnerCockpit";
+
 import InsightsPage from "./pages/admin/InsightsPage";
 import FinanceHub from "./pages/admin/FinanceHub";
 import MainTreasury from "./pages/admin/MainTreasury";
