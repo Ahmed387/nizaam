@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ interface Row {
   status: string;
 }
 
-export default function ShiftsHistory() {
+export default function ShiftsHistory({ embedded = false }: { embedded?: boolean } = {}) {
   const { branches } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,8 +167,7 @@ export default function ShiftsHistory() {
     : <Badge className="bg-success text-success-foreground">مقفولة</Badge>;
 
   return (
-    <AdminLayout>
-      <PageHeader title="سجل الورديات" subtitle="كل الورديات والعجز/الزيادة لكل كاشير" />
+    <ConditionalLayout embedded={embedded} variant="admin" title="سجل الورديات" subtitle="كل الورديات والعجز/الزيادة لكل كاشير">
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <Card className="p-4">
@@ -395,7 +394,7 @@ export default function ShiftsHistory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ConditionalLayout>
 
   );
 }

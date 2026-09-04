@@ -85,7 +85,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     // ===== عام =====
     ...only(allow("admin_home.view"), { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عــام" }),
     ...only(allow("admin_ask_me.view"), { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
-    ...only(allow("admin_reports_hub.view"), { to: "/admin/reports-hub?tab=owner", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عــام" }),
+    ...only(allow("admin_reports_hub.view"), { to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عــام" }),
     ...only(allow("admin_insights.view", { ownerOnly: true }), { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
 
     // ===== العمليات =====
@@ -96,7 +96,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         ...(allow("admin_catalog.view") ? [
           { to: "/admin/catalog?tab=inventory", label: "مخزون كل الفروع", icon: <Boxes className="w-4 h-4" /> },
         ] : []),
-        ...(allow("admin_product_attributes.view") ? [{ to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" /> }] : []),
+        ...(allow("admin_product_attributes.view") ? [{ to: "/admin/catalog?tab=attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" /> }] : []),
         ...(allow("admin_catalog.view") ? [
           { to: "/admin/catalog?tab=categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
           { to: "/admin/catalog?tab=pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
@@ -108,8 +108,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليـات" },
       [
         ...(allow("admin_employees.view") ? [{ to: "/admin/attendance", label: "الحضور والانصراف (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> }] : []),
-        ...(allow("admin_shifts.view") ? [{ to: "/admin/shifts", label: "سجل الورديات", icon: <CalendarRange className="w-4 h-4" /> }] : []),
-        ...(allow("admin_presence.view") ? [{ to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> }] : []),
+
       ],
     ),
     ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليـات" }),
@@ -144,7 +143,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           { to: "/admin/reports-hub?tab=comparison", label: "مقارنة الفترات", icon: <ArrowLeftRight className="w-4 h-4" /> },
           { to: "/admin/reports-hub?tab=scheduled", label: "المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
         ] : []),
-        ...(allow("admin_historical_analytics.view") ? [{ to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" /> }] : []),
+        ...(allow("admin_historical_analytics.view") ? [{ to: "/admin/reports-hub?tab=historical", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" /> }] : []),
       ],
     ),
 

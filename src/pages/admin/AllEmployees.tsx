@@ -18,9 +18,11 @@ import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff } from "lucide-react";
+import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff, CalendarRange, UserCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllAttendance from "./AllAttendance";
+import ShiftsHistory from "./ShiftsHistory";
+import Presence from "./Presence";
 import { useBranchScope } from "@/lib/branchScope";
 
 const POSITIONS = [
@@ -36,7 +38,9 @@ const POSITIONS = [
 
 export default function AllEmployees() {
   const nav = useNavigate();
-  useAuth();
+  const { can, isAdmin, isViewer, hasRole } = useAuth();
+  const showShifts = isAdmin || can("admin_shifts.view") || hasRole("super_admin") || hasRole("supervisor");
+  const showPresence = isAdmin || isViewer || can("admin_presence.view") || hasRole("supervisor") || hasRole("super_admin");
   const [emps, setEmps] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const { filterBranches } = useBranchScope();
@@ -231,10 +235,13 @@ export default function AllEmployees() {
       <PageHeader title="الموظفين (كل الفروع)" subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة" />
 
 
-      <Tabs defaultValue="list">
-        <TabsList>
+      <Tabs defaultValue="list" className="w-full">
+        {/* التبويبات تتكيف مع الشاشات الصغيرة */}
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
           <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4" /> الحضور (كل الفروع)</TabsTrigger>
+          {showShifts && <TabsTrigger value="shifts" className="gap-2"><CalendarRange className="w-4 h-4" /> سجل الورديات</TabsTrigger>}
+          {showPresence && <TabsTrigger value="presence" className="gap-2"><UserCircle className="w-4 h-4" /> تتبع المستخدمين</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="list" className="mt-4 space-y-4">
@@ -344,6 +351,18 @@ export default function AllEmployees() {
         <TabsContent value="attendance" className="mt-4">
           <AllAttendance embedded />
         </TabsContent>
+
+        {showShifts && (
+          <TabsContent value="shifts" className="mt-4">
+            <ShiftsHistory embedded />
+          </TabsContent>
+        )}
+
+        {showPresence && (
+          <TabsContent value="presence" className="mt-4">
+            <Presence embedded />
+          </TabsContent>
+        )}
       </Tabs>
 
 
