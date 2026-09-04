@@ -108,8 +108,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       { to: "/admin/employees", label: "الموظفين", icon: <UserCircle className="w-4 h-4" />, group: "العمليـات" },
       [
         ...(allow("admin_employees.view") ? [{ to: "/admin/attendance", label: "الحضور والانصراف (كل الفروع)", icon: <ClipboardCheck className="w-4 h-4" /> }] : []),
-        ...(allow("admin_shifts.view") ? [{ to: "/admin/shifts", label: "سجل الورديات", icon: <CalendarRange className="w-4 h-4" /> }] : []),
-        ...(allow("admin_presence.view") ? [{ to: "/admin/presence", label: "تتبع المستخدمين", icon: <UserCircle className="w-4 h-4" /> }] : []),
+
       ],
     ),
     ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليـات" }),
