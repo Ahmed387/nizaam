@@ -214,7 +214,16 @@ export function HistoricalPartyLedgerDialog({
   const [inv, setInv] = useState<ArchiveInvoice | null>(null);
   const [vch, setVch] = useState<ArchiveVoucher | null>(null);
 
-  const rows = useMemo(() => {
+  // فلاتر السجل الكامل — معزولة تمامًا عن فلاتر صفحة الأرشيف الرئيسية
+  const [fType, setFType] = useState("all");
+  const [fNo, setFNo] = useState("");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const [fBranch, setFBranch] = useState("all");
+  const resetFilters = () => { setFType("all"); setFNo(""); setFFrom(""); setFTo(""); setFBranch("all"); };
+  useEffect(() => { if (!open) resetFilters(); }, [open]);
+
+  const allRows = useMemo(() => {
     if (!party) return [] as { kind: "invoice" | "voucher"; id: string; date: string; label: string; no: string | null; branch: string; amount: number; extra: string; raw: any }[];
     const invRows = invoices
       .filter((i) => (i.party_name ?? "غير محدد") === party)
@@ -235,6 +244,24 @@ export function HistoricalPartyLedgerDialog({
     return [...invRows, ...vchRows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }, [party, invoices, vouchers]);
 
+  const ledgerBranches = useMemo(
+    () => Array.from(new Set(allRows.map((r) => r.branch).filter(Boolean))).sort(),
+    [allRows],
+  );
+
+  const rows = useMemo(() => allRows.filter((r) => {
+    if (fType !== "all") {
+      if (fType === "receipt" || fType === "expense") {
+        if (r.kind !== "voucher" || r.raw.voucher_type !== fType) return false;
+      } else if (r.kind !== "invoice" || r.raw.doc_type !== fType) return false;
+    }
+    if (fNo.trim() && !searchMatch(fNo, r.no)) return false;
+    if (fBranch !== "all" && r.branch !== fBranch) return false;
+    if (fFrom && String(r.date) < fFrom) return false;
+    if (fTo && String(r.date) > fTo) return false;
+    return true;
+  }), [allRows, fType, fNo, fBranch, fFrom, fTo]);
+
   const totals = useMemo(() => {
     const pick = (t: string) => invoices.filter((i) => (i.party_name ?? "غير محدد") === party && i.doc_type === t);
     const s = (arr: ArchiveInvoice[], kk: keyof ArchiveInvoice) => arr.reduce((a, r) => a + Number(r[kk] ?? 0), 0);
@@ -247,9 +274,9 @@ export function HistoricalPartyLedgerDialog({
       due: s(sales, "due") - Math.abs(s(sRet, "due")) + s(purch, "due") - Math.abs(s(pRet, "due")),
       receipts: vch.filter((v) => v.voucher_type === "receipt").reduce((a, v) => a + Number(v.amount ?? 0), 0),
       payments: vch.filter((v) => v.voucher_type === "expense").reduce((a, v) => a + Number(v.amount ?? 0), 0),
-      count: rows.length,
+      count: allRows.length,
     };
-  }, [party, invoices, vouchers, rows]);
+  }, [party, invoices, vouchers, allRows]);
 
   const itemsFor = (invoiceId: string) => items.filter((it) => it.invoice_id === invoiceId);
 
@@ -277,6 +304,46 @@ export function HistoricalPartyLedgerDialog({
             ))}
           </div>
 
+          <div className="grid gap-2 grid-cols-2 lg:grid-cols-5 text-xs">
+            <div className="space-y-1">
+              <Label className="text-[11px]">نوع المستند</Label>
+              <Select value={fType} onValueChange={setFType}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="sales">فاتورة بيع</SelectItem>
+                  <SelectItem value="purchases">فاتورة شراء</SelectItem>
+                  <SelectItem value="sales_returns">مرتجع بيع</SelectItem>
+                  <SelectItem value="purchase_returns">مرتجع شراء</SelectItem>
+                  <SelectItem value="receipt">سند قبض</SelectItem>
+                  <SelectItem value="expense">سند صرف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">رقم المستند</Label>
+              <Input className="h-9" value={fNo} onChange={(e) => setFNo(e.target.value)} placeholder="بحث بالرقم" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">من تاريخ</Label>
+              <Input type="date" className="h-9" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">إلى تاريخ</Label>
+              <Input type="date" className="h-9" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">الفرع</Label>
+              <Select value={fBranch} onValueChange={setFBranch}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الفروع</SelectItem>
+                  {ledgerBranches.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-muted/60">
@@ -301,7 +368,7 @@ export function HistoricalPartyLedgerDialog({
               </tbody>
             </table>
           </div>
-          <div className="text-[11px] text-muted-foreground">إجمالي المعاملات: {formatNumber(totals.count)} — اضغط على أي معاملة لعرض تفاصيلها.</div>
+          <div className="text-[11px] text-muted-foreground">المعروض: {formatNumber(rows.length)} من {formatNumber(allRows.length)} — اضغط على أي معاملة لعرض تفاصيلها.</div>
         </DialogContent>
       </Dialog>
 
