@@ -27,6 +27,7 @@ import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
 import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
+import { invalidateReceiptSettings } from "@/components/ThermalReceiptPrint";
 
 interface CompanySettings { name: string; address: string; phone: string; tax_number: string; logo_url: string }
 interface InvoiceSettings { footer_note: string; show_logo: boolean }
@@ -265,6 +266,8 @@ export default function Settings() {
     if (error) toast.error(error.message);
     else {
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "settings", entityId: key, details: value });
+      // نفضّي كاش إعدادات الطباعة عشان ملاحظة التذييل واللوجو يظهروا فورًا
+      invalidateReceiptSettings();
       toast.success("تم الحفظ");
     }
     setSaving(false);
