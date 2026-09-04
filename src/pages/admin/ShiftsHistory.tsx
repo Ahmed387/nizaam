@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -161,21 +161,13 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
     };
   }, [rows]);
 
-  const Wrap = ({ children }: { children: React.ReactNode }) =>
-    embedded ? <>{children}</> : (
-      <AdminLayout>
-        <PageHeader title="سجل الورديات" subtitle="كل الورديات والعجز/الزيادة لكل كاشير" />
-        {children}
-      </AdminLayout>
-    );
-
   const statusBadge = (s: string) =>
     s === "open" ? <Badge className="bg-warning text-warning-foreground">مفتوحة</Badge>
     : s === "auto_closed" ? <Badge variant="destructive">قفل تلقائي</Badge>
     : <Badge className="bg-success text-success-foreground">مقفولة</Badge>;
 
   return (
-    <Wrap>
+    <ConditionalLayout embedded={embedded} variant="admin" title="سجل الورديات" subtitle="كل الورديات والعجز/الزيادة لكل كاشير">
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <Card className="p-4">
@@ -402,7 +394,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Wrap>
+    </ConditionalLayout>
 
   );
 }

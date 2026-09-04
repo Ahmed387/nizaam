@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
@@ -109,19 +109,13 @@ export default function ProductAttributes({ embedded = false }: { embedded?: boo
 
   const filled = rows.filter(hasVariantInfo).length;
 
-  const Wrap = ({ children }: { children: React.ReactNode }) =>
-    embedded ? <>{children}</> : (
-      <AdminLayout>
-        <PageHeader
-          title="استخراج خصائص المنتجات"
-          subtitle="استخرج الماركة والموديل واللون والنوع والسعة تلقائياً من أسماء المنتجات القديمة، وراجعها قبل الحفظ"
-        />
-        {children}
-      </AdminLayout>
-    );
-
   return (
-    <Wrap>
+    <ConditionalLayout
+      embedded={embedded}
+      variant="admin"
+      title="استخراج خصائص المنتجات"
+      subtitle="استخرج الماركة والموديل واللون والنوع والسعة تلقائياً من أسماء المنتجات القديمة، وراجعها قبل الحفظ"
+    >
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <StatCard label="إجمالي المنتجات" value={String(rows.length)} icon={<Package className="w-5 h-5" />} />
@@ -227,6 +221,6 @@ export default function ProductAttributes({ embedded = false }: { embedded?: boo
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Wrap>
+    </ConditionalLayout>
   );
 }
