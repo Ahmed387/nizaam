@@ -96,7 +96,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         ...(allow("admin_catalog.view") ? [
           { to: "/admin/catalog?tab=inventory", label: "مخزون كل الفروع", icon: <Boxes className="w-4 h-4" /> },
         ] : []),
-        ...(allow("admin_product_attributes.view") ? [{ to: "/admin/product-attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" /> }] : []),
+        ...(allow("admin_product_attributes.view") ? [{ to: "/admin/catalog?tab=attributes", label: "خصائص المنتجات", icon: <Wand2 className="w-4 h-4" /> }] : []),
         ...(allow("admin_catalog.view") ? [
           { to: "/admin/catalog?tab=categories", label: "التصنيفات", icon: <FolderTree className="w-4 h-4" /> },
           { to: "/admin/catalog?tab=pricelist", label: "قائمة الأسعار", icon: <ListChecks className="w-4 h-4" /> },
