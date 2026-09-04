@@ -1,10 +1,18 @@
-import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Printer, FileText, Receipt } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Printer, FileText, Receipt, Pencil, Trash2 } from "lucide-react";
 import { formatEGP, formatNumber } from "@/lib/format";
 import { printHtml } from "@/lib/export";
+import { searchMatch } from "@/lib/search";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { printArchiveInvoice } from "@/components/ArchivePrintTemplate";
 
 /* ================= types (mirror archive tables, read-only) ================= */
 export type ArchiveInvoice = {
@@ -44,53 +52,31 @@ export function HistoricalInvoiceDialog({
   const label = ARCHIVE_DOC_LABEL[invoice.doc_type] ?? invoice.doc_type;
   const title = `${label} ${invoice.invoice_no ?? ""}`.trim();
 
+  // قالب طباعة الأرشيف مستقل تمامًا عن مكوّن طباعة الفواتير الحية
   const handlePrint = () => {
-    const rowsHtml = items.map((it, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(it.item_code ?? "—")}</td>
-        <td>${escapeHtml(it.item_name)}</td>
-        <td>${formatNumber(Number(it.qty ?? 0))}</td>
-        <td>${formatEGP(Number(it.price ?? 0))}</td>
-        <td><b>${formatEGP(Number(it.total ?? 0))}</b></td>
-      </tr>`).join("");
-
-    const body = `
-      <h1>${escapeHtml(title)}</h1>
-      <div class="meta">التاريخ: ${escapeHtml(invoice.date)} · الفرع: ${escapeHtml(invoice.branch_name)} · <span class="badge">أرشيف تاريخي</span></div>
-
-      <div class="grid-3">
-        <div class="card">
-          <h3 style="margin-top:0">بيانات الطرف</h3>
-          <div class="row"><span>الاسم</span><b>${escapeHtml(invoice.party_name ?? "—")}</b></div>
-          <div class="row"><span>طريقة السداد</span><b>${escapeHtml(invoice.payment_method ?? "—")}</b></div>
-          <div class="row"><span>رقم المستند</span><b>${escapeHtml(invoice.invoice_no ?? "—")}</b></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-top:0">البيانات الزمنية</h3>
-          <div class="row"><span>التاريخ</span><b>${escapeHtml(invoice.date)}</b></div>
-          <div class="row"><span>السنة</span><b>${invoice.year}</b></div>
-          <div class="row"><span>الشهر</span><b>${invoice.month}</b></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-top:0">الملخص المالي</h3>
-          <div class="row"><span>عدد القطع</span><b>${formatNumber(Number(invoice.total_qty ?? 0))}</b></div>
-          ${Number(invoice.discount ?? 0) > 0 ? `<div class="row"><span>الخصم</span><b class="neg">− ${formatEGP(Number(invoice.discount))}</b></div>` : ""}
-          <div class="row"><span>المسدد نقداً</span><b class="pos">${formatEGP(Number(invoice.paid_cash ?? 0))}</b></div>
-          <div class="row"><span>الآجل</span><b>${formatEGP(Number(invoice.credit ?? 0))}</b></div>
-          <div class="row"><span>المستحق</span><b>${formatEGP(Number(invoice.due ?? 0))}</b></div>
-          <div class="row" style="border-top:1px solid #ddd;padding-top:6px;margin-top:6px"><span><b>الإجمالي</b></span><b style="color:#3b82f6;font-size:15px">${formatEGP(Number(invoice.total_amount ?? 0))}</b></div>
-        </div>
-      </div>
-
-      ${items.length ? `
-      <h2>الأصناف (${items.length})</h2>
-      <table>
-        <thead><tr><th>#</th><th>الكود</th><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>` : `<p class="muted">لا توجد أصناف مسجلة لهذا المستند في الأرشيف.</p>`}
-    `;
-    printHtml(title || "مستند تاريخي", body);
+    void printArchiveInvoice(
+      {
+        title: label,
+        invoice_no: invoice.invoice_no,
+        date: invoice.date,
+        branch_name: invoice.branch_name,
+        party_name: invoice.party_name,
+        party_label: invoice.doc_type.startsWith("purchase") ? "المورد" : "العميل",
+        payment_method: invoice.payment_method,
+        total_qty: Number(invoice.total_qty ?? 0),
+        discount: Number(invoice.discount ?? 0),
+        total_amount: Number(invoice.total_amount ?? 0),
+        paid_cash: Number(invoice.paid_cash ?? 0),
+        due: Number(invoice.due ?? 0),
+      },
+      items.map((it) => ({
+        item_code: it.item_code,
+        item_name: it.item_name,
+        qty: Number(it.qty ?? 0),
+        price: Number(it.price ?? 0),
+        total: Number(it.total ?? 0),
+      })),
+    );
   };
 
   return (
@@ -228,7 +214,16 @@ export function HistoricalPartyLedgerDialog({
   const [inv, setInv] = useState<ArchiveInvoice | null>(null);
   const [vch, setVch] = useState<ArchiveVoucher | null>(null);
 
-  const rows = useMemo(() => {
+  // فلاتر السجل الكامل — معزولة تمامًا عن فلاتر صفحة الأرشيف الرئيسية
+  const [fType, setFType] = useState("all");
+  const [fNo, setFNo] = useState("");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const [fBranch, setFBranch] = useState("all");
+  const resetFilters = () => { setFType("all"); setFNo(""); setFFrom(""); setFTo(""); setFBranch("all"); };
+  useEffect(() => { if (!open) resetFilters(); }, [open]);
+
+  const allRows = useMemo(() => {
     if (!party) return [] as { kind: "invoice" | "voucher"; id: string; date: string; label: string; no: string | null; branch: string; amount: number; extra: string; raw: any }[];
     const invRows = invoices
       .filter((i) => (i.party_name ?? "غير محدد") === party)
@@ -249,6 +244,24 @@ export function HistoricalPartyLedgerDialog({
     return [...invRows, ...vchRows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }, [party, invoices, vouchers]);
 
+  const ledgerBranches = useMemo(
+    () => Array.from(new Set(allRows.map((r) => r.branch).filter(Boolean))).sort(),
+    [allRows],
+  );
+
+  const rows = useMemo(() => allRows.filter((r) => {
+    if (fType !== "all") {
+      if (fType === "receipt" || fType === "expense") {
+        if (r.kind !== "voucher" || r.raw.voucher_type !== fType) return false;
+      } else if (r.kind !== "invoice" || r.raw.doc_type !== fType) return false;
+    }
+    if (fNo.trim() && !searchMatch(fNo, r.no)) return false;
+    if (fBranch !== "all" && r.branch !== fBranch) return false;
+    if (fFrom && String(r.date) < fFrom) return false;
+    if (fTo && String(r.date) > fTo) return false;
+    return true;
+  }), [allRows, fType, fNo, fBranch, fFrom, fTo]);
+
   const totals = useMemo(() => {
     const pick = (t: string) => invoices.filter((i) => (i.party_name ?? "غير محدد") === party && i.doc_type === t);
     const s = (arr: ArchiveInvoice[], kk: keyof ArchiveInvoice) => arr.reduce((a, r) => a + Number(r[kk] ?? 0), 0);
@@ -261,9 +274,9 @@ export function HistoricalPartyLedgerDialog({
       due: s(sales, "due") - Math.abs(s(sRet, "due")) + s(purch, "due") - Math.abs(s(pRet, "due")),
       receipts: vch.filter((v) => v.voucher_type === "receipt").reduce((a, v) => a + Number(v.amount ?? 0), 0),
       payments: vch.filter((v) => v.voucher_type === "expense").reduce((a, v) => a + Number(v.amount ?? 0), 0),
-      count: rows.length,
+      count: allRows.length,
     };
-  }, [party, invoices, vouchers, rows]);
+  }, [party, invoices, vouchers, allRows]);
 
   const itemsFor = (invoiceId: string) => items.filter((it) => it.invoice_id === invoiceId);
 
@@ -291,6 +304,46 @@ export function HistoricalPartyLedgerDialog({
             ))}
           </div>
 
+          <div className="grid gap-2 grid-cols-2 lg:grid-cols-5 text-xs">
+            <div className="space-y-1">
+              <Label className="text-[11px]">نوع المستند</Label>
+              <Select value={fType} onValueChange={setFType}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="sales">فاتورة بيع</SelectItem>
+                  <SelectItem value="purchases">فاتورة شراء</SelectItem>
+                  <SelectItem value="sales_returns">مرتجع بيع</SelectItem>
+                  <SelectItem value="purchase_returns">مرتجع شراء</SelectItem>
+                  <SelectItem value="receipt">سند قبض</SelectItem>
+                  <SelectItem value="expense">سند صرف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">رقم المستند</Label>
+              <Input className="h-9" value={fNo} onChange={(e) => setFNo(e.target.value)} placeholder="بحث بالرقم" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">من تاريخ</Label>
+              <Input type="date" className="h-9" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">إلى تاريخ</Label>
+              <Input type="date" className="h-9" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">الفرع</Label>
+              <Select value={fBranch} onValueChange={setFBranch}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الفروع</SelectItem>
+                  {ledgerBranches.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-muted/60">
@@ -315,7 +368,7 @@ export function HistoricalPartyLedgerDialog({
               </tbody>
             </table>
           </div>
-          <div className="text-[11px] text-muted-foreground">إجمالي المعاملات: {formatNumber(totals.count)} — اضغط على أي معاملة لعرض تفاصيلها.</div>
+          <div className="text-[11px] text-muted-foreground">المعروض: {formatNumber(rows.length)} من {formatNumber(allRows.length)} — اضغط على أي معاملة لعرض تفاصيلها.</div>
         </DialogContent>
       </Dialog>
 
@@ -327,5 +380,147 @@ export function HistoricalPartyLedgerDialog({
       />
       <HistoricalVoucherDialog voucher={vch} open={!!vch} onOpenChange={(v) => !v && setVch(null)} />
     </>
+  );
+}
+
+/* ================= تعديل / حذف فاتورة أرشيفية =================
+   العمليات دي بتلمس جداول الأرشيف المعزولة فقط:
+   historical_invoices (+ historical_invoice_items بالـ CASCADE).
+   ولا تمس أبدًا invoices / journal_entries / treasury الحية. */
+export function HistoricalInvoiceEditDialog({
+  invoice, open, onOpenChange, onSaved,
+}: {
+  invoice: ArchiveInvoice | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<Partial<ArchiveInvoice>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (invoice && open) setForm({ ...invoice }); }, [invoice, open]);
+  if (!invoice) return null;
+
+  const num = (v: unknown) => Number(v ?? 0) || 0;
+
+  const save = async () => {
+    if (!form.date) return toast.error("التاريخ مطلوب");
+    setSaving(true);
+    const d = new Date(String(form.date));
+    const { error } = await supabase
+      .from("historical_invoices")
+      .update({
+        invoice_no: form.invoice_no || null,
+        date: form.date,
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        branch_name: form.branch_name ?? invoice.branch_name,
+        party_name: form.party_name || null,
+        payment_method: form.payment_method || null,
+        total_qty: num(form.total_qty),
+        discount: num(form.discount),
+        total_amount: num(form.total_amount),
+        profit: num(form.profit),
+        paid_cash: num(form.paid_cash),
+        credit: num(form.credit),
+        due: num(form.due),
+      })
+      .eq("id", invoice.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تعديل الفاتورة الأرشيفية");
+    onOpenChange(false);
+    onSaved();
+  };
+
+  const field = (key: keyof ArchiveInvoice, label: string, type: "text" | "number" | "date" = "text") => (
+    <div className="space-y-1">
+      <Label className="text-[11px]">{label}</Label>
+      <Input
+        className="h-9"
+        type={type}
+        value={(form[key] as any) ?? ""}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: type === "number" ? Number(e.target.value) : e.target.value }))}
+      />
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Pencil className="w-4 h-4" /> تعديل فاتورة أرشيفية
+            <Badge variant="secondary" className="text-[10px]">أرشيف فقط</Badge>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-3 text-xs">
+          {field("invoice_no", "رقم المستند")}
+          {field("date", "التاريخ", "date")}
+          {field("branch_name", "الفرع")}
+          {field("party_name", "الطرف")}
+          {field("payment_method", "طريقة السداد")}
+          {field("total_qty", "عدد القطع", "number")}
+          {field("discount", "الخصم", "number")}
+          {field("total_amount", "الإجمالي", "number")}
+          {field("profit", "الربح", "number")}
+          {field("paid_cash", "المسدد نقداً", "number")}
+          {field("credit", "الآجل", "number")}
+          {field("due", "المستحق", "number")}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          التعديل يتم على بيانات الأرشيف التاريخي فقط ولا يؤثر على أي فاتورة أو قيد محاسبي في النظام الحي.
+        </p>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>إلغاء</Button>
+          <Button size="sm" onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function HistoricalInvoiceDeleteDialog({
+  invoice, open, onOpenChange, onDeleted,
+}: {
+  invoice: ArchiveInvoice | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  if (!invoice) return null;
+
+  const remove = async () => {
+    setBusy(true);
+    // الأصناف المرتبطة بتتحذف تلقائيًا (ON DELETE CASCADE) فالعملية ذرّية
+    const { error } = await supabase.from("historical_invoices").delete().eq("id", invoice.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الفاتورة الأرشيفية وأصنافها");
+    onOpenChange(false);
+    onDeleted();
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-destructive" /> حذف فاتورة أرشيفية
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            سيتم حذف المستند {invoice.invoice_no ?? ""} وكل أصنافه من الأرشيف التاريخي نهائيًا.
+            هذا لا يؤثر على فواتير أو قيود النظام الحي إطلاقًا.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          <AlertDialogAction onClick={remove} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {busy ? "جارٍ الحذف..." : "حذف"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

@@ -103,7 +103,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "لوحة المالك",
         desc: "شاشة مختصرة جدًا للمالك: كاش داخل وخارج، صافي الربح، وأهم الانحرافات في الفترة.",
-        to: a("/admin/reports-hub?tab=owner"),
+        to: a("/admin/cockpit"),
         perm: "admin_cockpit.view",
       },
     ],
@@ -153,7 +153,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "الخصائص (ماركة، موديل، مقاس، لون)",
         desc: "الأصناف ممكن يكون ليها خصائص. ظبّط القوائم دي مرة واحدة من شاشة خصائص المنتجات وبعدين اختار منها وقت إضافة الصنف.",
-        to: a("/admin/product-attributes"),
+        to: a("/admin/catalog?tab=attributes"),
         perm: "admin_product_attributes.view",
       },
       {
@@ -743,25 +743,25 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "الأرشيف والتحليل التاريخي",
         desc: "شاشة مستقلة تمامًا عن الداتا الشغالة، فيها بيانات السنين القديمة (2022–2025) لكل الفروع: فواتير، أصناف، وسندات، مع كروت مؤشرات ورسومات بيانية للمبيعات والمصاريف وصافي الأداء. الأرقام دي أرشيف بس، ومش بتدخل في أرباح ولا مخزون النظام الحالي.",
-        to: a("/admin/historical-analytics"),
+        to: a("/admin/reports-hub?tab=historical"),
         perm: "admin_historical_analytics.view",
       },
       {
         title: "افتح واطبع فاتورة تاريخية",
         desc: "أي سطر فاتورة في الأرشيف بقى قابل للضغط: بتفتحلك نافذة فيها تفاصيل الفاتورة كاملة بأصنافها وقيمها، وجواها زرار طباعة بنفس قالب وإعدادات طباعة فواتير النظام الأصلية.",
-        to: a("/admin/historical-analytics"),
+        to: a("/admin/reports-hub?tab=historical"),
         perm: "admin_historical_analytics.view",
       },
       {
         title: "سجل حساب العميل أو المورد",
         desc: "دوس على اسم أي عميل أو مورد في جداول الأرشيف يفتحلك السجل الكامل لحسابه: إجمالي تعاملاته وكل فواتيره وسنداته. وأي معاملة جواه برضه قابلة للضغط عشان تشوف تفاصيلها.",
-        to: a("/admin/historical-analytics"),
+        to: a("/admin/reports-hub?tab=historical"),
         perm: "admin_historical_analytics.view",
       },
       {
         title: "فلاتر البحث المتقدمة في الأرشيف",
         desc: "غير فلاتر الفرع والسنة وطريقة الدفع، فيه دلوقتي قايمة بحث بأسماء العملاء والموردين (اكتب جزء من الاسم يفلتر على طول)، وفلتر تصنيف بيصفّي المعاملات والسندات حسب تصنيفها. الفلاتر شغالة مع بعض ومستقلة عن باقي الشاشة.",
-        to: a("/admin/historical-analytics"),
+        to: a("/admin/reports-hub?tab=historical"),
         perm: "admin_historical_analytics.view",
       },
 
