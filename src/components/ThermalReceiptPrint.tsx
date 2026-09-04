@@ -66,24 +66,34 @@ interface VatSettings {
 
 let cache: { company?: CompanyInfo; invoice?: InvoiceSettingsRow; vat?: VatSettings } | null = null;
 
+/** يمسح الكاش عشان أي تعديل في الإعدادات يظهر في الطباعة فورًا */
+export function invalidateReceiptSettings() {
+  cache = null;
+}
+
 export function useReceiptSettings() {
+  // الكاش بيتستخدم كقيمة أولية فقط — بنعيد الجلب دايمًا عشان "ملاحظة التذييل"
+  // وأي تعديل في إعدادات الشركة يظهر في الطباعة من غير عمل Refresh للصفحة.
   const [data, setData] = useState(cache);
   useEffect(() => {
-    if (cache) { setData(cache); return; }
+    let alive = true;
     (async () => {
       const { data: rows } = await supabase.from("settings").select("key, value").in("key", ["company", "invoice", "vat"]);
+      if (!rows) return;
       const next: any = {};
-      for (const r of rows ?? []) {
+      for (const r of rows) {
         if (r.key === "company") next.company = r.value;
         if (r.key === "invoice") next.invoice = r.value;
         if (r.key === "vat") next.vat = r.value;
       }
       cache = next;
-      setData(next);
+      if (alive) setData(next);
     })();
+    return () => { alive = false; };
   }, []);
   return data ?? {};
 }
+
 
 const fmt2 = (n: number) => {
   const v = Number(n ?? 0);
