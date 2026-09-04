@@ -1,5 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { Input } from "@/components/ui/input";
+import { Pencil, Trash2, Search } from "lucide-react";
+import { searchMatch } from "@/lib/search";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   HistoricalInvoiceDialog, HistoricalPartyLedgerDialog,
+  HistoricalInvoiceEditDialog, HistoricalInvoiceDeleteDialog,
 } from "@/components/HistoricalArchiveDialogs";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
@@ -162,7 +166,7 @@ function DonutTooltip({ active, payload, total }: any) {
   );
 }
 
-export default function HistoricalAnalytics() {
+export default function HistoricalAnalytics({ embedded = false }: { embedded?: boolean } = {}) {
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Inv[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -181,6 +185,10 @@ export default function HistoricalAnalytics() {
   // نوافذ العرض التفاعلية (حالات مستقلة عن الفلاتر)
   const [docOpen, setDocOpen] = useState<Inv | null>(null);
   const [ledgerParty, setLedgerParty] = useState<string | null>(null);
+  const [editDoc, setEditDoc] = useState<Inv | null>(null);
+  const [deleteDoc, setDeleteDoc] = useState<Inv | null>(null);
+  // بحث المنتجات داخل الأرشيف — state معزول عن فلاتر الشاشة الرئيسية
+  const [prodQuery, setProdQuery] = useState("");
 
 
   const load = async () => {
@@ -409,6 +417,23 @@ export default function HistoricalAnalytics() {
     [fInv],
   );
 
+  // نتائج البحث عن منتج داخل الأرشيف (يحترم فلاتر الأرشيف الحالية فقط)
+  const productHits = useMemo(() => {
+    const q = prodQuery.trim();
+    if (!q) return [] as { key: string; item: Item; inv: Inv }[];
+    const invById = new Map(fInv.map((i) => [i.id, i]));
+    const out: { key: string; item: Item; inv: Inv }[] = [];
+    for (const it of fItems) {
+      if (!searchMatch(q, it.item_name, it.item_code)) continue;
+      const inv = it.invoice_id ? invById.get(it.invoice_id) : undefined;
+      if (!inv) continue;
+      out.push({ key: it.id, item: it, inv });
+      if (out.length >= 500) break;
+    }
+    return out.sort((a, b) => String(b.inv.date).localeCompare(String(a.inv.date)));
+  }, [prodQuery, fItems, fInv]);
+
+
   const DOC_LABEL: Record<string, string> = {
     sales: "فاتورة بيع", purchases: "فاتورة شراء",
     sales_returns: "مرتجع بيع", purchase_returns: "مرتجع شراء",
@@ -441,8 +466,8 @@ export default function HistoricalAnalytics() {
       active ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"
     }`;
 
-  return (
-    <AdminLayout>
+  const content = (
+    <>
       <div className="space-y-5">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/20 to-sky-500/10 border border-indigo-500/20">
@@ -690,6 +715,7 @@ export default function HistoricalAnalytics() {
                 <TabsTrigger value="customers">كبار العملاء</TabsTrigger>
                 <TabsTrigger value="products">الأصناف الذهبية</TabsTrigger>
                 <TabsTrigger value="docs">مستعرض المستندات</TabsTrigger>
+                <TabsTrigger value="product-search">بحث عن منتج</TabsTrigger>
               </TabsList>
 
               <TabsContent value="suppliers" className="mt-3 overflow-x-auto">
@@ -759,7 +785,7 @@ export default function HistoricalAnalytics() {
               <TabsContent value="docs" className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/60">
-                    <tr>{["", "التاريخ", "النوع", "رقم", "الفرع", "الطرف", "السداد", "الإجمالي", "الربح", "الآجل"].map((h, i) => <th key={i} className="px-2 py-2 text-right">{h}</th>)}</tr>
+                    <tr>{["", "التاريخ", "النوع", "رقم", "الفرع", "الطرف", "السداد", "الإجمالي", "الربح", "الآجل", "إجراءات"].map((h, i) => <th key={i} className="px-2 py-2 text-right">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {docs.map((d) => {
@@ -801,10 +827,30 @@ export default function HistoricalAnalytics() {
                             <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(d.total_amount)}</td>
                             <td className="px-2 py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{formatEGP(d.profit)}</td>
                             <td className="px-2 py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{formatEGP(d.due)}</td>
+                            <td className="px-2 py-1.5">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  aria-label="تعديل"
+                                  className="p-1 rounded hover:bg-muted"
+                                  onClick={(e) => { e.stopPropagation(); setEditDoc(d); }}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="حذف"
+                                  className="p-1 rounded hover:bg-destructive/10 text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setDeleteDoc(d); }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                           {open && its.length > 0 && (
                             <tr className="bg-muted/30">
-                              <td colSpan={10} className="px-4 py-2">
+                              <td colSpan={11} className="px-4 py-2">
                                 <table className="w-full text-[11px]">
                                   <thead>
                                     <tr className="text-muted-foreground">
@@ -834,6 +880,52 @@ export default function HistoricalAnalytics() {
                 </table>
                 {docs.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">لا توجد مستندات مطابقة للفلاتر</div>}
               </TabsContent>
+
+              <TabsContent value="product-search" className="mt-3 space-y-3">
+                <div className="relative max-w-md">
+                  <Search className="w-4 h-4 absolute top-2.5 right-2.5 text-muted-foreground" />
+                  <Input
+                    value={prodQuery}
+                    onChange={(e) => setProdQuery(e.target.value)}
+                    placeholder="اكتب اسم المنتج أو الكود..."
+                    className="pr-8"
+                  />
+                </div>
+                {!prodQuery.trim() ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">اكتب اسم صنف لعرض كل فواتيره التاريخية.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/60">
+                        <tr>{["التاريخ", "النوع", "رقم الفاتورة", "الفرع", "الطرف", "الصنف", "الكمية", "السعر", "الإجمالي", ""].map((h, i) => <th key={i} className="px-2 py-2 text-right">{h}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {productHits.map((r) => (
+                          <tr key={r.key} className="border-t hover:bg-muted/50 transition-colors">
+                            <td className="px-2 py-1.5 tabular-nums">{r.inv.date}</td>
+                            <td className="px-2 py-1.5"><Badge variant="secondary" className="text-[10px]">{DOC_LABEL[r.inv.doc_type] ?? r.inv.doc_type}</Badge></td>
+                            <td className="px-2 py-1.5 tabular-nums">{r.inv.invoice_no ?? "—"}</td>
+                            <td className="px-2 py-1.5">{r.inv.branch_name}</td>
+                            <td className="px-2 py-1.5">{r.inv.party_name ?? "غير محدد"}</td>
+                            <td className="px-2 py-1.5">{r.item.item_name}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{formatNumber(r.item.qty)}</td>
+                            <td className="px-2 py-1.5 tabular-nums">{formatEGP(r.item.price)}</td>
+                            <td className="px-2 py-1.5 tabular-nums font-semibold">{formatEGP(r.item.total)}</td>
+                            <td className="px-2 py-1.5">
+                              <button type="button" className="text-primary hover:underline" onClick={() => setDocOpen(r.inv)}>
+                                فتح / طباعة
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {!productHits.length && (
+                          <tr><td colSpan={10} className="py-8 text-center text-muted-foreground">لا توجد فواتير تحتوي على هذا الصنف</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           </>
         )}
@@ -855,7 +947,20 @@ export default function HistoricalAnalytics() {
         open={!!ledgerParty}
         onOpenChange={(v) => !v && setLedgerParty(null)}
       />
-
-    </AdminLayout>
+      <HistoricalInvoiceEditDialog
+        invoice={editDoc as any}
+        open={!!editDoc}
+        onOpenChange={(v) => !v && setEditDoc(null)}
+        onSaved={load}
+      />
+      <HistoricalInvoiceDeleteDialog
+        invoice={deleteDoc as any}
+        open={!!deleteDoc}
+        onOpenChange={(v) => !v && setDeleteDoc(null)}
+        onDeleted={load}
+      />
+    </>
   );
+
+  return embedded ? content : <AdminLayout>{content}</AdminLayout>;
 }
