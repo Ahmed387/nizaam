@@ -1,10 +1,18 @@
-import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Printer, FileText, Receipt } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Printer, FileText, Receipt, Pencil, Trash2 } from "lucide-react";
 import { formatEGP, formatNumber } from "@/lib/format";
 import { printHtml } from "@/lib/export";
+import { searchMatch } from "@/lib/search";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { printArchiveInvoice } from "@/components/ArchivePrintTemplate";
 
 /* ================= types (mirror archive tables, read-only) ================= */
 export type ArchiveInvoice = {
@@ -44,53 +52,31 @@ export function HistoricalInvoiceDialog({
   const label = ARCHIVE_DOC_LABEL[invoice.doc_type] ?? invoice.doc_type;
   const title = `${label} ${invoice.invoice_no ?? ""}`.trim();
 
+  // قالب طباعة الأرشيف مستقل تمامًا عن مكوّن طباعة الفواتير الحية
   const handlePrint = () => {
-    const rowsHtml = items.map((it, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(it.item_code ?? "—")}</td>
-        <td>${escapeHtml(it.item_name)}</td>
-        <td>${formatNumber(Number(it.qty ?? 0))}</td>
-        <td>${formatEGP(Number(it.price ?? 0))}</td>
-        <td><b>${formatEGP(Number(it.total ?? 0))}</b></td>
-      </tr>`).join("");
-
-    const body = `
-      <h1>${escapeHtml(title)}</h1>
-      <div class="meta">التاريخ: ${escapeHtml(invoice.date)} · الفرع: ${escapeHtml(invoice.branch_name)} · <span class="badge">أرشيف تاريخي</span></div>
-
-      <div class="grid-3">
-        <div class="card">
-          <h3 style="margin-top:0">بيانات الطرف</h3>
-          <div class="row"><span>الاسم</span><b>${escapeHtml(invoice.party_name ?? "—")}</b></div>
-          <div class="row"><span>طريقة السداد</span><b>${escapeHtml(invoice.payment_method ?? "—")}</b></div>
-          <div class="row"><span>رقم المستند</span><b>${escapeHtml(invoice.invoice_no ?? "—")}</b></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-top:0">البيانات الزمنية</h3>
-          <div class="row"><span>التاريخ</span><b>${escapeHtml(invoice.date)}</b></div>
-          <div class="row"><span>السنة</span><b>${invoice.year}</b></div>
-          <div class="row"><span>الشهر</span><b>${invoice.month}</b></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-top:0">الملخص المالي</h3>
-          <div class="row"><span>عدد القطع</span><b>${formatNumber(Number(invoice.total_qty ?? 0))}</b></div>
-          ${Number(invoice.discount ?? 0) > 0 ? `<div class="row"><span>الخصم</span><b class="neg">− ${formatEGP(Number(invoice.discount))}</b></div>` : ""}
-          <div class="row"><span>المسدد نقداً</span><b class="pos">${formatEGP(Number(invoice.paid_cash ?? 0))}</b></div>
-          <div class="row"><span>الآجل</span><b>${formatEGP(Number(invoice.credit ?? 0))}</b></div>
-          <div class="row"><span>المستحق</span><b>${formatEGP(Number(invoice.due ?? 0))}</b></div>
-          <div class="row" style="border-top:1px solid #ddd;padding-top:6px;margin-top:6px"><span><b>الإجمالي</b></span><b style="color:#3b82f6;font-size:15px">${formatEGP(Number(invoice.total_amount ?? 0))}</b></div>
-        </div>
-      </div>
-
-      ${items.length ? `
-      <h2>الأصناف (${items.length})</h2>
-      <table>
-        <thead><tr><th>#</th><th>الكود</th><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>` : `<p class="muted">لا توجد أصناف مسجلة لهذا المستند في الأرشيف.</p>`}
-    `;
-    printHtml(title || "مستند تاريخي", body);
+    void printArchiveInvoice(
+      {
+        title: label,
+        invoice_no: invoice.invoice_no,
+        date: invoice.date,
+        branch_name: invoice.branch_name,
+        party_name: invoice.party_name,
+        party_label: invoice.doc_type.startsWith("purchase") ? "المورد" : "العميل",
+        payment_method: invoice.payment_method,
+        total_qty: Number(invoice.total_qty ?? 0),
+        discount: Number(invoice.discount ?? 0),
+        total_amount: Number(invoice.total_amount ?? 0),
+        paid_cash: Number(invoice.paid_cash ?? 0),
+        due: Number(invoice.due ?? 0),
+      },
+      items.map((it) => ({
+        item_code: it.item_code,
+        item_name: it.item_name,
+        qty: Number(it.qty ?? 0),
+        price: Number(it.price ?? 0),
+        total: Number(it.total ?? 0),
+      })),
+    );
   };
 
   return (
