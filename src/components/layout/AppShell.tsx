@@ -149,9 +149,10 @@ export function AppShell({
     const hasKids = kids.length > 0 && !isCollapsed;
     const active = matchItem(item.to) || (hasKids && kids.some((c) => matchItem(c.to)));
     const key = `${item.label}-${item.to}`;
-    // Keep the section containing the active route expanded regardless of stored state.
+    // Auto-expand the section containing the active route on first encounter,
+    // but let an explicit manual toggle in openItems override that default.
     const hasActiveChild = kids.some((c) => matchItem(c.to));
-    const expanded = hasKids && (hasActiveChild || (openItems[key] ?? false));
+    const expanded = hasKids && (openItems[key] !== undefined ? openItems[key] : hasActiveChild);
 
     const padX = isCollapsed ? "justify-center px-2" : depth > 0 ? "px-3 pr-6" : "px-3";
     const sizeClass = item.bigTitle ? "text-[15px] font-extrabold" : depth > 0 ? "text-[12.5px] font-medium" : "text-[13.5px] font-semibold";
