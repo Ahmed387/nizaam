@@ -417,6 +417,23 @@ export default function HistoricalAnalytics({ embedded = false }: { embedded?: b
     [fInv],
   );
 
+  // نتائج البحث عن منتج داخل الأرشيف (يحترم فلاتر الأرشيف الحالية فقط)
+  const productHits = useMemo(() => {
+    const q = prodQuery.trim();
+    if (!q) return [] as { key: string; item: Item; inv: Inv }[];
+    const invById = new Map(fInv.map((i) => [i.id, i]));
+    const out: { key: string; item: Item; inv: Inv }[] = [];
+    for (const it of fItems) {
+      if (!searchMatch(q, it.item_name, it.item_code)) continue;
+      const inv = it.invoice_id ? invById.get(it.invoice_id) : undefined;
+      if (!inv) continue;
+      out.push({ key: it.id, item: it, inv });
+      if (out.length >= 500) break;
+    }
+    return out.sort((a, b) => String(b.inv.date).localeCompare(String(a.inv.date)));
+  }, [prodQuery, fItems, fInv]);
+
+
   const DOC_LABEL: Record<string, string> = {
     sales: "فاتورة بيع", purchases: "فاتورة شراء",
     sales_returns: "مرتجع بيع", purchase_returns: "مرتجع شراء",
