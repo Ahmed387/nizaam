@@ -35,7 +35,7 @@ type Prod = {
 
 const FIELDS: (keyof VariantAttrs)[] = ["brand", "model", "color", "product_type", "capacity", "size"];
 
-export default function ProductAttributes() {
+export default function ProductAttributes({ embedded = false }: { embedded?: boolean } = {}) {
   const [rows, setRows] = useState<Prod[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -109,12 +109,19 @@ export default function ProductAttributes() {
 
   const filled = rows.filter(hasVariantInfo).length;
 
+  const Wrap = ({ children }: { children: React.ReactNode }) =>
+    embedded ? <>{children}</> : (
+      <AdminLayout>
+        <PageHeader
+          title="استخراج خصائص المنتجات"
+          subtitle="استخرج الماركة والموديل واللون والنوع والسعة تلقائياً من أسماء المنتجات القديمة، وراجعها قبل الحفظ"
+        />
+        {children}
+      </AdminLayout>
+    );
+
   return (
-    <AdminLayout>
-      <PageHeader
-        title="استخراج خصائص المنتجات"
-        subtitle="استخرج الماركة والموديل واللون والنوع والسعة تلقائياً من أسماء المنتجات القديمة، وراجعها قبل الحفظ"
-      />
+    <Wrap>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <StatCard label="إجمالي المنتجات" value={String(rows.length)} icon={<Package className="w-5 h-5" />} />
@@ -220,6 +227,6 @@ export default function ProductAttributes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </Wrap>
   );
 }

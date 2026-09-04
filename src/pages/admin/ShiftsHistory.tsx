@@ -33,7 +33,7 @@ interface Row {
   status: string;
 }
 
-export default function ShiftsHistory() {
+export default function ShiftsHistory({ embedded = false }: { embedded?: boolean } = {}) {
   const { branches } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,14 +161,21 @@ export default function ShiftsHistory() {
     };
   }, [rows]);
 
+  const Wrap = ({ children }: { children: React.ReactNode }) =>
+    embedded ? <>{children}</> : (
+      <AdminLayout>
+        <PageHeader title="سجل الورديات" subtitle="كل الورديات والعجز/الزيادة لكل كاشير" />
+        {children}
+      </AdminLayout>
+    );
+
   const statusBadge = (s: string) =>
     s === "open" ? <Badge className="bg-warning text-warning-foreground">مفتوحة</Badge>
     : s === "auto_closed" ? <Badge variant="destructive">قفل تلقائي</Badge>
     : <Badge className="bg-success text-success-foreground">مقفولة</Badge>;
 
   return (
-    <AdminLayout>
-      <PageHeader title="سجل الورديات" subtitle="كل الورديات والعجز/الزيادة لكل كاشير" />
+    <Wrap>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <Card className="p-4">
@@ -395,7 +402,7 @@ export default function ShiftsHistory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </Wrap>
 
   );
 }

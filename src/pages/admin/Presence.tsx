@@ -31,7 +31,7 @@ function isOnline(iso: string) {
   return (Date.now() - new Date(iso).getTime()) < 3 * 60_000;
 }
 
-export default function Presence() {
+export default function Presence({ embedded = false }: { embedded?: boolean } = {}) {
   const { tenantId, isAdmin, isViewer, hasRole } = useAuth();
   const nav = useNavigate();
   const allowed = isAdmin || isViewer || hasRole("supervisor") || hasRole("super_admin");
@@ -101,14 +101,16 @@ export default function Presence() {
   const onlineCount = rows.filter((r) => isOnline(r.last_seen_at)).length;
 
   return (
-    <div className="p-4 md:p-6 space-y-4" dir="rtl">
+    <div className={embedded ? "space-y-4" : "p-4 md:p-6 space-y-4"} dir="rtl">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => nav(-1)} aria-label="رجوع">
-            <ArrowRight className="w-5 h-5" />
-          </Button>
+          {!embedded && (
+            <Button variant="ghost" size="icon" onClick={() => nav(-1)} aria-label="رجوع">
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+          )}
           <div>
-            <h1 className="text-2xl font-bold">تتبع تواجد المستخدمين</h1>
+            <h1 className={embedded ? "text-lg font-bold" : "text-2xl font-bold"}>تتبع تواجد المستخدمين</h1>
             <p className="text-muted-foreground text-sm">
               متصل الآن: <span className="font-semibold text-foreground">{onlineCount}</span> من {rows.length}
             </p>
