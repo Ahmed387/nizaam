@@ -491,8 +491,9 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         {
           key: "invoice_number",
           header: "الفاتورة",
+          align: "center",
           render: (r: InvRow) => (
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center justify-center gap-1 flex-wrap">
               <span>{r.invoice_number}</span>
               {r.is_migrated && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title="مستوردة من نظام قديم">
@@ -511,11 +512,12 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
             </div>
           ),
         },
-        { key: "created_at", header: "التاريخ", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
-        { key: "revenue", header: "الإيراد", render: (r: InvRow) => formatEGP(r.revenue) },
-        { key: "cost", header: "التكلفة", render: (r: InvRow) => r.cost_unknown ? <span className="text-xs text-muted-foreground italic">غير متاح</span> : formatEGP(r.cost) },
-        { key: "profit", header: "صافي الربح (Net Profit)", render: (r: InvRow) => !canViewNetProfit ? <span className="text-muted-foreground italic">{NET_PROFIT_MASK}</span> : r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
-        { key: "margin", header: "الهامش %", render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
+        { key: "created_at", header: "التاريخ", align: "center", render: (r: InvRow) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
+        { key: "revenue", header: "الإيراد", align: "center", numeric: true, render: (r: InvRow) => formatEGP(r.revenue) },
+        { key: "cost", header: "التكلفة", align: "center", numeric: true, render: (r: InvRow) => r.cost_unknown ? <span className="text-xs text-muted-foreground italic">غير متاح</span> : formatEGP(r.cost) },
+        { key: "profit", header: "صافي الربح (Net Profit)", align: "center", numeric: true, render: (r: InvRow) => !canViewNetProfit ? <span className="text-muted-foreground italic">{NET_PROFIT_MASK}</span> : r.cost_unknown ? <span className="text-muted-foreground italic">غير متاح</span> : <span className={r.profit >= 0 ? "text-success font-bold" : "text-destructive font-bold bg-destructive/10 px-2 rounded"}>{formatEGP(r.profit)}</span> },
+        { key: "margin", header: "الهامش %", align: "center", numeric: true, render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
+
       ]} />
     </Wrapper>
   );
