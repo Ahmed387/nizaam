@@ -143,7 +143,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           { to: "/admin/reports-hub?tab=comparison", label: "مقارنة الفترات", icon: <ArrowLeftRight className="w-4 h-4" /> },
           { to: "/admin/reports-hub?tab=scheduled", label: "المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
         ] : []),
-        ...(allow("admin_historical_analytics.view") ? [{ to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" /> }] : []),
+        ...(allow("admin_historical_analytics.view") ? [{ to: "/admin/reports-hub?tab=historical", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" /> }] : []),
       ],
     ),
 
