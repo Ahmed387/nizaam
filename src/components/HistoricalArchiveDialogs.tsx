@@ -382,3 +382,145 @@ export function HistoricalPartyLedgerDialog({
     </>
   );
 }
+
+/* ================= تعديل / حذف فاتورة أرشيفية =================
+   العمليات دي بتلمس جداول الأرشيف المعزولة فقط:
+   historical_invoices (+ historical_invoice_items بالـ CASCADE).
+   ولا تمس أبدًا invoices / journal_entries / treasury الحية. */
+export function HistoricalInvoiceEditDialog({
+  invoice, open, onOpenChange, onSaved,
+}: {
+  invoice: ArchiveInvoice | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<Partial<ArchiveInvoice>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (invoice && open) setForm({ ...invoice }); }, [invoice, open]);
+  if (!invoice) return null;
+
+  const num = (v: unknown) => Number(v ?? 0) || 0;
+
+  const save = async () => {
+    if (!form.date) return toast.error("التاريخ مطلوب");
+    setSaving(true);
+    const d = new Date(String(form.date));
+    const { error } = await supabase
+      .from("historical_invoices")
+      .update({
+        invoice_no: form.invoice_no || null,
+        date: form.date,
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        branch_name: form.branch_name ?? invoice.branch_name,
+        party_name: form.party_name || null,
+        payment_method: form.payment_method || null,
+        total_qty: num(form.total_qty),
+        discount: num(form.discount),
+        total_amount: num(form.total_amount),
+        profit: num(form.profit),
+        paid_cash: num(form.paid_cash),
+        credit: num(form.credit),
+        due: num(form.due),
+      })
+      .eq("id", invoice.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم تعديل الفاتورة الأرشيفية");
+    onOpenChange(false);
+    onSaved();
+  };
+
+  const field = (key: keyof ArchiveInvoice, label: string, type: "text" | "number" | "date" = "text") => (
+    <div className="space-y-1">
+      <Label className="text-[11px]">{label}</Label>
+      <Input
+        className="h-9"
+        type={type}
+        value={(form[key] as any) ?? ""}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: type === "number" ? Number(e.target.value) : e.target.value }))}
+      />
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Pencil className="w-4 h-4" /> تعديل فاتورة أرشيفية
+            <Badge variant="secondary" className="text-[10px]">أرشيف فقط</Badge>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-3 text-xs">
+          {field("invoice_no", "رقم المستند")}
+          {field("date", "التاريخ", "date")}
+          {field("branch_name", "الفرع")}
+          {field("party_name", "الطرف")}
+          {field("payment_method", "طريقة السداد")}
+          {field("total_qty", "عدد القطع", "number")}
+          {field("discount", "الخصم", "number")}
+          {field("total_amount", "الإجمالي", "number")}
+          {field("profit", "الربح", "number")}
+          {field("paid_cash", "المسدد نقداً", "number")}
+          {field("credit", "الآجل", "number")}
+          {field("due", "المستحق", "number")}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          التعديل يتم على بيانات الأرشيف التاريخي فقط ولا يؤثر على أي فاتورة أو قيد محاسبي في النظام الحي.
+        </p>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>إلغاء</Button>
+          <Button size="sm" onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function HistoricalInvoiceDeleteDialog({
+  invoice, open, onOpenChange, onDeleted,
+}: {
+  invoice: ArchiveInvoice | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  if (!invoice) return null;
+
+  const remove = async () => {
+    setBusy(true);
+    // الأصناف المرتبطة بتتحذف تلقائيًا (ON DELETE CASCADE) فالعملية ذرّية
+    const { error } = await supabase.from("historical_invoices").delete().eq("id", invoice.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حذف الفاتورة الأرشيفية وأصنافها");
+    onOpenChange(false);
+    onDeleted();
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-destructive" /> حذف فاتورة أرشيفية
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            سيتم حذف المستند {invoice.invoice_no ?? ""} وكل أصنافه من الأرشيف التاريخي نهائيًا.
+            هذا لا يؤثر على فواتير أو قيود النظام الحي إطلاقًا.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          <AlertDialogAction onClick={remove} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {busy ? "جارٍ الحذف..." : "حذف"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
