@@ -25,10 +25,14 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
     let cancelled = false;
     (async () => {
       setLoading(true);
-      let q = supabase.from("attendance").select("*, branches(name)").eq("date", date).order("created_at", { ascending: false });
+      // attendance has no FK to branches, so the branch name is resolved locally
+      // instead of via a PostgREST embed (which fails with PGRST200).
+      let q = supabase.from("attendance").select("*").eq("date", date).order("created_at", { ascending: false });
       if (branchId !== "all") q = q.eq("branch_id", branchId);
       const { data } = await q;
-      if (!cancelled) { setRows(data ?? []); setLoading(false); }
+      const nameById = new Map(branches.map((b) => [b.id, b.name]));
+      const mapped = (data ?? []).map((r: any) => ({ ...r, branch_name: nameById.get(r.branch_id) ?? null }));
+      if (!cancelled) { setRows(mapped); setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, [date, branchId, reloadTick]);
