@@ -721,29 +721,6 @@ export default function Settings() {
         </div>
       </Tabs>
 
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> تأكيد مسح البيانات
-            </DialogTitle>
-            <DialogDescription className="text-foreground/80 pt-2">
-              هتمسح: <b>{selectedLabels.join(" + ")}</b> من <b>{branchLabel}</b>.
-              <br />
-              <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
-            <Input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="تأكيد" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>إلغاء</Button>
-            <Button variant="destructive" disabled={resetConfirm.trim() !== "تأكيد" || resetting || !resetBranch || selectedKeys.length === 0} onClick={runReset}>
-              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
       </Dialog>
     </AdminLayout>
   );
