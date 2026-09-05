@@ -24,6 +24,7 @@ import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
 import { UserPermissionsTab } from "@/components/UserPermissionsTab";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
+import { DataManagementTab } from "@/components/DataManagementTab";
 
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
 import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
@@ -61,94 +62,6 @@ export default function Settings() {
   const [returnWindowDays, setReturnWindowDays] = useState<number>(20);
   const [savingReturnPolicy, setSavingReturnPolicy] = useState(false);
 
-  const RESET_OPTIONS: { key: string; label: string }[] = [
-    { key: "sales", label: "المبيعات والفواتير" },
-    { key: "inventory", label: "المخزون (الكميات فقط — مش المنتجات نفسها)" },
-    { key: "products", label: "حذف المنتجات نهائياً (مع كل الفواتير والمرتجعات وفواتير الشراء المرتبطة)" },
-    { key: "shipments", label: "فواتير الشراء" },
-    { key: "returns", label: "مرتجعات البيع" },
-    { key: "purchase_returns", label: "مرتجعات الشراء" },
-    
-    { key: "treasury", label: "بيانات الخزينة" },
-    { key: "vouchers", label: "السندات (سندات قبض وصرف)" },
-    { key: "stock_movements", label: "سجل حركات المخزون" },
-    { key: "customers", label: "بيانات العملاء" },
-    { key: "suppliers", label: "الموردين (اللي مش مرتبطين بفواتير شراء)" },
-    { key: "employees", label: "الموظفين (مع رواتبهم وسلفهم)" },
-    { key: "payroll", label: "الرواتب وطلبات السلف" },
-    { key: "notifications", label: "الإشعارات" },
-    { key: "audit_log", label: "سجل العمليات" },
-    { key: "price_audit_log", label: "سجل تعديلات الأسعار" },
-    { key: "voucher_sequences", label: "تصفير ترقيم السندات (يبدأ من 1 من جديد)" },
-    { key: "shifts", label: "تنظيف الورديات المعلّقة (الورديات والتسليمات والجداول)" },
-    { key: "fiscal_periods", label: "فتح الفترات المالية (حذف الإغلاقات المانعة للتسجيل)" },
-    { key: "attachments", label: "تنظيف المرفقات اليتيمة (بدون فاتورة أو سند)" },
-    { key: "count_moves", label: "تسويات الجرد (حركات الجرد المرتبطة بالدفعات)" },
-    { key: "approvals", label: "طلبات الاعتماد (الحذف/التعديل والخصومات)" },
-  ];
-  const [resetBranch, setResetBranch] = useState<string>("");
-  const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
-  const [resetConfirm, setResetConfirm] = useState("");
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const selectedKeys = Object.keys(resetOpts).filter((k) => resetOpts[k]);
-  const selectedLabels = RESET_OPTIONS.filter((o) => resetOpts[o.key]).map((o) => o.label);
-  const branchLabel = !resetBranch
-    ? "—"
-    : resetBranch === "__all__"
-    ? "كل الفروع"
-    : (branches.find((b) => b.id === resetBranch)?.name ?? "—");
-
-  const runReset = async () => {
-    if (!resetBranch || selectedKeys.length === 0 || resetConfirm.trim() !== "تأكيد") {
-      toast.error("اختر الفرع ونوع البيانات واكتب كلمة التأكيد أولاً");
-      return;
-    }
-
-    setResetting(true);
-    try {
-      // Handle separate RPCs
-      const wantsPriceAudit = !!resetOpts["price_audit_log"];
-      const wantsVouchers = !!resetOpts["vouchers"];
-      const otherKeys = selectedKeys.filter((k) => k !== "price_audit_log" && k !== "vouchers");
-
-      if (otherKeys.length > 0) {
-        const { error } = await supabase.rpc("admin_reset_branch_data", {
-          p_branch_id: resetBranch === "__all__" ? null : resetBranch,
-          p_options: Object.fromEntries(otherKeys.map((k) => [k, true])),
-        } as any);
-        if (error) throw error;
-      }
-
-      if (wantsPriceAudit) {
-        const { error } = await supabase.rpc("admin_reset_price_audit", {
-          p_branch_id: resetBranch === "__all__" ? null : resetBranch,
-        } as any);
-        if (error) throw error;
-      }
-
-      if (wantsVouchers) {
-        const { error } = await supabase.rpc("admin_reset_vouchers", {
-          p_branch_id: resetBranch === "__all__" ? null : resetBranch,
-        } as any);
-        if (error) throw error;
-      }
-
-      toast.success("تم مسح البيانات المحددة");
-      setResetOpen(false);
-      setResetOpts({});
-      setResetConfirm("");
-    } catch (e: any) {
-      const message = String(e?.message ?? "");
-      toast.error(
-        message.includes("branch_id")
-          ? "تم تحديث دالة المسح. حدّث الصفحة وجرب مرة واحدة، ولو ظهر نفس الخطأ ابعتلي صورة الخطأ فوراً."
-          : message || "خطأ في تنفيذ المسح"
-      );
-    } finally {
-      setResetting(false);
-    }
-  };
 
   useEffect(() => {
     (async () => {
@@ -714,81 +627,14 @@ export default function Settings() {
         </TabsContent>
         {canManageAdminTools && (
           <TabsContent value="data" className="mt-4">
-            <div className="card-elevated p-6 space-y-4 max-w-3xl mx-auto border border-destructive/40">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <h2 className="text-lg font-bold text-destructive">مسح البيانات التجريبية / إعادة تشغيل بيانات الفروع</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    تحذير: الإجراء يحذف نهائيًا البيانات المحددة من الفرع المختار ولا يمكن التراجع عنه.
-                    لا يتم حذف بيانات الإعداد الأساسية أو بيانات الشركة والتصنيفات.
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <Label>الفرع</Label>
-                <Select value={resetBranch} onValueChange={setResetBranch}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر فرع" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">كل الفروع</SelectItem>
-                    {branches.map((b) => (<SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">نوع البيانات المراد مسحها</Label>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {RESET_OPTIONS.map((o) => (
-                    <label key={o.key} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/50 cursor-pointer">
-                      <Checkbox checked={!!resetOpts[o.key]} onCheckedChange={(v) => setResetOpts((s) => ({ ...s, [o.key]: !!v }))} />
-                      <span className="text-sm">{o.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button variant="destructive" disabled={!resetBranch || selectedKeys.length === 0}
-                  onClick={() => { setResetConfirm(""); setResetOpen(true); }}>
-                  <Trash2 className="w-4 h-4 ml-1" /> مسح البيانات
-                </Button>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                💡 لمسح كل البيانات على السيستم: اختر <b>«كل الفروع»</b> وحدد كل الخيارات أعلاه ثم اضغط <b>«مسح البيانات»</b>.
-              </p>
-            </div>
+            <DataManagementTab />
           </TabsContent>
         )}
+
         </div>
       </Tabs>
 
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> تأكيد مسح البيانات
-            </DialogTitle>
-            <DialogDescription className="text-foreground/80 pt-2">
-              هتمسح: <b>{selectedLabels.join(" + ")}</b> من <b>{branchLabel}</b>.
-              <br />
-              <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
-            <Input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="تأكيد" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>إلغاء</Button>
-            <Button variant="destructive" disabled={resetConfirm.trim() !== "تأكيد" || resetting || !resetBranch || selectedKeys.length === 0} onClick={runReset}>
-              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </AdminLayout>
   );
 }
