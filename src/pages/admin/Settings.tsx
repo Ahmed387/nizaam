@@ -714,54 +714,10 @@ export default function Settings() {
         </TabsContent>
         {canManageAdminTools && (
           <TabsContent value="data" className="mt-4">
-            <div className="card-elevated p-6 space-y-4 max-w-3xl mx-auto border border-destructive/40">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <h2 className="text-lg font-bold text-destructive">مسح البيانات التجريبية / إعادة تشغيل بيانات الفروع</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    تحذير: الإجراء يحذف نهائيًا البيانات المحددة من الفرع المختار ولا يمكن التراجع عنه.
-                    لا يتم حذف بيانات الإعداد الأساسية أو بيانات الشركة والتصنيفات.
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <Label>الفرع</Label>
-                <Select value={resetBranch} onValueChange={setResetBranch}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر فرع" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">كل الفروع</SelectItem>
-                    {branches.map((b) => (<SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">نوع البيانات المراد مسحها</Label>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {RESET_OPTIONS.map((o) => (
-                    <label key={o.key} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/50 cursor-pointer">
-                      <Checkbox checked={!!resetOpts[o.key]} onCheckedChange={(v) => setResetOpts((s) => ({ ...s, [o.key]: !!v }))} />
-                      <span className="text-sm">{o.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button variant="destructive" disabled={!resetBranch || selectedKeys.length === 0}
-                  onClick={() => { setResetConfirm(""); setResetOpen(true); }}>
-                  <Trash2 className="w-4 h-4 ml-1" /> مسح البيانات
-                </Button>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                💡 لمسح كل البيانات على السيستم: اختر <b>«كل الفروع»</b> وحدد كل الخيارات أعلاه ثم اضغط <b>«مسح البيانات»</b>.
-              </p>
-            </div>
+            <DataManagementTab />
           </TabsContent>
         )}
+
         </div>
       </Tabs>
 
