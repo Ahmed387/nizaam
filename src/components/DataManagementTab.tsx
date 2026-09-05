@@ -9,13 +9,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info, ShieldCheck } from "lucide-react";
 
 /** كل بند = خيار مستقل بالكامل بـ state خاص به */
 interface ResetItem {
   key: string;
   label: string;
   hint: string;
+  /** الأثر المترتب على تنفيذ هذا البند — يظهر في نافذة تحليل الأثر */
+  impact: string;
   /** مفاتيح الخيارات التي تُرسل للدالة الخلفية */
   options?: string[];
   /** RPC منفصل (السندات) */
@@ -35,45 +37,48 @@ const CARDS: ResetCard[] = [
     title: "المعاملات التجارية والمالية",
     icon: Wallet,
     items: [
-      { key: "sales", label: "فواتير المبيعات وأقساطها", hint: "يمسح الفواتير والدفعات التابعة لها للفرع فقط.", options: ["sales"] },
-      { key: "sale_returns", label: "مرتجعات المبيعات", hint: "يمسح فواتير الإرجاع وسنداتها للفرع فقط.", options: ["returns"] },
-      { key: "purchases", label: "فواتير الشراء ومدفوعات الموردين", hint: "يمسح شحنات الوارد ودفعات الموردين للفرع فقط.", options: ["shipments"] },
-      { key: "purchase_returns", label: "مرتجعات الشراء", hint: "يمسح مرتجعات البضاعة للموردين للفرع فقط.", options: ["purchase_returns"] },
-      { key: "treasury", label: "حركات الخزينة والمصروفات التشغيلية", hint: "يمسح حركات الكاش والتحويلات للفرع فقط.", options: ["treasury"] },
-      { key: "vouchers", label: "السندات اليدوية", hint: "يمسح سندات القبض والصرف التابعة للفرع فقط.", rpc: "vouchers" },
-      { key: "voucher_sequences", label: "تصفير عداد ترقيم السندات", hint: "يُعيد ضبط تسلسل السندات ليبدأ من #1 مجدداً.", options: ["voucher_sequences"] },
+      { key: "sales", label: "فواتير المبيعات وأقساطها", hint: "يمسح الفواتير والدفعات التابعة لها للفرع فقط.", impact: "هتختفي كل فواتير البيع ودفعاتها وأقساطها من التقارير والأرباح، ومش هينفع ترجعها تاني.", options: ["sales"] },
+      { key: "sale_returns", label: "مرتجعات المبيعات", hint: "يمسح فواتير الإرجاع وسنداتها للفرع فقط.", impact: "هتتشال كل عمليات الإرجاع وسنداتها، وأرقام المرتجعات في التقارير هتبقى صفر.", options: ["returns"] },
+      { key: "purchases", label: "فواتير الشراء ومدفوعات الموردين", hint: "يمسح شحنات الوارد ودفعات الموردين للفرع فقط.", impact: "هتتمسح شحنات الوارد ودفعات الموردين، وأرصدة المستحق للموردين هتتغير.", options: ["shipments"] },
+      { key: "purchase_returns", label: "مرتجعات الشراء", hint: "يمسح مرتجعات البضاعة للموردين للفرع فقط.", impact: "هتختفي كل مرتجعات البضاعة للموردين وتسوياتها المالية.", options: ["purchase_returns"] },
+      { key: "treasury", label: "حركات الخزينة والمصروفات التشغيلية", hint: "يمسح حركات الكاش والتحويلات للفرع فقط.", impact: "رصيد الخزينة هيتصفّر وهتبدأ من أول وجديد، وكل حركات الكاش والتحويلات هتتشال.", options: ["treasury"] },
+      { key: "vouchers", label: "السندات اليدوية", hint: "يمسح سندات القبض والصرف التابعة للفرع فقط.", impact: "كل سندات القبض والصرف اليدوية هتتمسح ومش هتظهر في كشوف الحسابات.", rpc: "vouchers" },
+      { key: "voucher_sequences", label: "تصفير عداد ترقيم السندات", hint: "يُعيد ضبط تسلسل السندات ليبدأ من #1 مجدداً.", impact: "أول سند جديد هياخد رقم 1، فلو فيه سندات قديمة متسابة ممكن تلاقي أرقام مكررة.", options: ["voucher_sequences"] },
     ],
   },
   {
     title: "المخزون والمنتجات",
     icon: Boxes,
     items: [
-      { key: "inventory", label: "تصفير كميات المخزون", hint: "يُصفر الأرصدة للفرع المختار فقط مع الإبقاء على كروت المنتجات والباركود والأسعار.", options: ["inventory"] },
-      { key: "stock_movements", label: "سجل حركات وبنود الجرد والتحويلات", hint: "يمسح كارت الصنف والتحويلات وجلسات الجرد للفرع فقط.", options: ["stock_movements", "count_moves"] },
-      { key: "products", label: "حذف بطاقات المنتجات نهائياً", hint: "متاح فقط عند اختيار «كل الفروع» — يمسح الأصناف ذاتها من النظام.", options: ["products"], allBranchesOnly: true },
+      { key: "inventory", label: "تصفير كميات المخزون", hint: "يُصفر الأرصدة للفرع المختار فقط مع الإبقاء على كروت المنتجات والباركود والأسعار.", impact: "أرصدة كل المنتجات هتبقى صفر مع بقاء كروت الأصناف والباركود والأسعار زي ما هي، عشان تعمل جرد افتتاحي.", options: ["inventory"] },
+      { key: "stock_movements", label: "سجل حركات وبنود الجرد والتحويلات", hint: "يمسح كارت الصنف والتحويلات وجلسات الجرد للفرع فقط.", impact: "كارت الصنف هيبقى فاضي، ومش هتقدر تتبع حركة أي منتج قبل تاريخ المسح.", options: ["stock_movements", "count_moves"] },
+      { key: "products", label: "حذف بطاقات المنتجات نهائياً", hint: "متاح فقط عند اختيار «كل الفروع» — يمسح الأصناف ذاتها من النظام.", impact: "الأصناف نفسها هتتشال من النظام بكودها وباركودها وأسعارها، وهتحتاج ترفع الكتالوج من جديد.", options: ["products"], allBranchesOnly: true },
     ],
   },
   {
     title: "الموارد البشرية وجهات التعامل",
     icon: Users2,
     items: [
-      { key: "payroll", label: "سجلات الرواتب والسلف والحضور", hint: "يمسح حركات الصرف والحضور مع الإبقاء على حسابات الموظفين.", options: ["payroll"] },
-      { key: "employees", label: "حذف ملفات وحسابات الموظفين", hint: "يمسح حسابات الموظفين المعينين على الفرع المختار.", options: ["employees"] },
-      { key: "customer_balances", label: "أرصدة وسجلات ديون العملاء", hint: "يُصفر الرصيد وسجل الائتمان مع الحفاظ على اسم وبيانات العميل.", options: ["customer_balances"] },
-      { key: "orphan_contacts", label: "جهات الاتصال غير المرتبطة بحركات", hint: "يمسح العملاء/الموردين اللي ملهمش أي فواتير أو سندات مسجلة.", options: ["orphan_contacts"] },
+      { key: "payroll", label: "سجلات الرواتب والسلف والحضور", hint: "يمسح حركات الصرف والحضور مع الإبقاء على حسابات الموظفين.", impact: "سجل الرواتب والسلف والحضور هيتفضّى، بس حسابات الموظفين نفسها هتفضل موجودة.", options: ["payroll"] },
+      { key: "employees", label: "مسح ملفات وسجلات الموظفين نهائياً", hint: "يمسح ملفات وحسابات الموظفين المعينين على الفرع المختار.", impact: "الحسابات الوظيفية هتتمسح، والموظفين هيحتاجوا ملفات جديدة وبيانات دخول جديدة.", options: ["employees"] },
+      { key: "customer_balances", label: "أرصدة وسجلات ديون العملاء", hint: "يُصفر الرصيد وسجل الائتمان مع الحفاظ على اسم وبيانات العميل.", impact: "ديون العملاء هتبقى صفر وسجل الائتمان هيتفضّى، بس اسم العميل وبياناته هتفضل.", options: ["customer_balances"] },
+      { key: "all_contacts", label: "مسح حسابات وجهات العملاء والموردين نهائياً", hint: "يمسح كروت العملاء والموردين والجهات المشتركة. أي جهة مرتبطة بمستندات مسجلة بتتخطى تلقائياً.", impact: "بيانات الاتصال وكشوف الحسابات هتتمسح نهائياً ومش ممكن استرجاعها، وأي جهة عليها مستندات مسجلة هتتساب زي ما هي لحماية الفواتير.", options: ["all_contacts"] },
+      { key: "orphan_contacts", label: "جهات الاتصال غير المرتبطة بحركات", hint: "يمسح العملاء/الموردين اللي ملهمش أي فواتير أو سندات مسجلة.", impact: "الجهات الفاضية بس هي اللي هتتشال، والجهات اللي عليها حركات مش هتتأثر.", options: ["orphan_contacts"] },
+      { key: "partners", label: "مسح الشركاء وحصصهم في رأس المال", hint: "متاح فقط عند اختيار «كل الفروع» — يمسح الشركاء وحركاتهم وسلفهم وتوزيعات الأرباح.", impact: "جدول الشركاء هيتفضّى بالكامل، وهتحتاج تسجّل الشركاء ونسبهم وحصص رأس المال من جديد.", options: ["partners"], allBranchesOnly: true },
     ],
   },
   {
     title: "النظام والتشغيل الإداري",
     icon: Settings2,
     items: [
-      { key: "shifts", label: "الورديات المعلقة وأرصدة الأدراج", hint: "يمسح سجلات الورديات المفتوحة وتسليم العهد للفرع فقط.", options: ["shifts"] },
-      { key: "fiscal_periods", label: "فترات الإغلاق السابقة", hint: "يحذف إقفالات الشهور والفروع لمنع أخطاء الحظر.", options: ["fiscal_periods"] },
-      { key: "attachments", label: "المرفقات والملفات اليتيمة", hint: "ينظف المرفقات التالفة غير المرتبطة بأي مستند.", options: ["attachments"] },
-      { key: "logs", label: "سجل العمليات والإشعارات", hint: "يُفرغ سجل العمليات والإشعارات وطلبات الاعتماد التابعة للفرع.", options: ["audit_log", "notifications", "approvals"] },
+      { key: "shifts", label: "الورديات وسجلات أدراج الكاشير العالقة", hint: "يمسح سجلات الورديات المفتوحة وتسليم العهد للفرع فقط.", impact: "أدراج الكاشير المعلقة هتتصفّر، والكاشير هيقدر يفتح وردية جديدة أول يوم من غير رسائل «فيه وردية مفتوحة».", options: ["shifts"] },
+      { key: "fiscal_periods", label: "فترات الإغلاق السابقة", hint: "يحذف إقفالات الشهور والفروع لمنع أخطاء الحظر.", impact: "الشهور المقفولة هتتفتح تاني، فهيبقى ممكن تسجّل حركات في أي تاريخ من غير منع.", options: ["fiscal_periods"] },
+      { key: "attachments", label: "المرفقات والملفات اليتيمة", hint: "ينظف المرفقات التالفة غير المرتبطة بأي مستند.", impact: "المرفقات اللي مش مرتبطة بأي مستند هتتشال، والمرفقات السليمة مش هتتأثر.", options: ["attachments"] },
+      { key: "logs", label: "سجل العمليات والإشعارات", hint: "يُفرغ سجل العمليات والإشعارات وطلبات الاعتماد التابعة للفرع.", impact: "سجل المتابعة والإشعارات وطلبات الاعتماد هتتفضّى، ومش هتقدر تراجع مين عمل إيه قبل كده.", options: ["audit_log", "notifications", "approvals"] },
     ],
   },
 ];
+
 
 const ALL_ITEMS = CARDS.flatMap((c) => c.items);
 
@@ -218,23 +223,55 @@ export function DataManagementTab() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> تأكيد مسح البيانات
+              <AlertTriangle className="w-5 h-5" /> تحليل أثر عملية المسح
             </DialogTitle>
-            <DialogDescription className="text-foreground/80 pt-2">
-              هتمسح من <b>{branchLabel}</b>:
-              <br />
-              <b>{effectiveChecked.map((i) => i.label).join(" + ")}</b>
-              <br />
-              <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
+            <DialogDescription className="text-foreground/80 pt-1">
+              راجع التبعات كويس قبل ما تكمّل — النطاق: <b>{branchLabel}</b>
             </DialogDescription>
           </DialogHeader>
+
+          <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1">
+            <div className="rounded-xl border border-border bg-muted/40 p-3">
+              <div className="text-sm font-bold mb-2">العناصر التي سيتم حذفها</div>
+              <ul className="list-disc pr-5 space-y-1 text-sm">
+                {effectiveChecked.map((i) => (<li key={i.key}>{i.label}</li>))}
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-3">
+              <div className="text-sm font-bold text-destructive mb-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" /> الآثار والتبعات المترتبة على هذا الإجراء
+              </div>
+              <ul className="space-y-1.5 text-sm text-foreground/90">
+                {effectiveChecked.map((i) => (
+                  <li key={i.key}>
+                    <span className="font-semibold">{i.label}:</span> {i.impact}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 text-sm font-bold text-destructive">هذا الإجراء لا يمكن التراجع عنه.</div>
+            </div>
+
+            <div className="rounded-xl border border-success/50 bg-success/10 p-3">
+              <div className="text-sm font-bold text-success mb-2 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" /> ما سيبقى محمياً بالكامل
+              </div>
+              <ul className="list-disc pr-5 space-y-1 text-sm text-foreground/90">
+                <li>الأرشيف التاريخي (فواتير وسندات السنوات السابقة) لا يُمس نهائياً.</li>
+                <li>المصاريف والإيداعات الشخصية للمالك محمية بالكامل.</li>
+                <li>بيانات فروع الشركة وإعداداتها الأساسية تفضل زي ما هي.</li>
+              </ul>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
             <Input value={confirmWord} onChange={(e) => setConfirmWord(e.target.value)} placeholder="تأكيد" />
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>إلغاء</Button>
             <Button
