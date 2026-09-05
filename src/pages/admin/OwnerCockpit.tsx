@@ -6,6 +6,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { ReportIntro } from "@/components/ReportIntro";
+import { AdminLayout } from "@/components/layout/Layouts";
+import { PageHeader } from "@/components/layout/AppShell";
 import { fetchProfitWindow, rangeFor, rangeForDates, lineProfit } from "@/lib/profitEngine";
 import {
   TrendingUp, TrendingDown, Wallet, AlertTriangle, Package,
@@ -219,15 +221,23 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
   const bestBranch = perBranch[0];
   const worstBranch = perBranch.length > 1 ? perBranch[perBranch.length - 1] : null;
 
+  const loadingView = (
+    <div className={embedded ? "p-8 flex items-center justify-center" : "p-12 flex items-center justify-center"}>
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  );
+
   if (loading && trend.length === 0) {
+    if (embedded) return loadingView;
     return (
-      <div className={embedded ? "p-8 flex items-center justify-center" : "p-12 flex items-center justify-center"}>
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <AdminLayout>
+        <PageHeader title="نظرة المالك" subtitle="👑 لمحة سريعة وشاملة عن شركتك" />
+        {loadingView}
+      </AdminLayout>
     );
   }
 
-  return (
+  const content = (
     <div className={embedded ? "space-y-4" : "p-6 space-y-4"}>
       <ReportIntro
         icon="👑"
@@ -455,6 +465,14 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
       </div>
     </div>
   );
+
+  if (embedded) return content;
+  return (
+    <AdminLayout>
+      <PageHeader title="نظرة المالك" subtitle="👑 لمحة سريعة وشاملة عن شركتك" />
+      {content}
+    </AdminLayout>
+  );
 }
 
 /* ========== Sub-components ========== */
@@ -497,7 +515,7 @@ function HeroCard({
         </div>
         <div className="text-center">
           <div className="text-sm font-semibold text-muted-foreground mb-1">المصروفات</div>
-          <div className="font-extrabold text-lg md:text-xl text-destructive">{formatEGP(expenses)}</div>
+      <div className="font-extrabold text-lg md:text-xl text-destructive">{formatEGP(expenses)}</div>
         </div>
       </div>
     </div>
