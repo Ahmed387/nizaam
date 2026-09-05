@@ -6831,6 +6831,10 @@ export type Database = {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
       }
+      admin_reset_go_live_extras: {
+        Args: { p_branch_id: string; p_options: Json }
+        Returns: Json
+      }
       admin_reset_price_audit: { Args: { p_branch_id?: string }; Returns: Json }
       admin_reset_vouchers: { Args: { p_branch_id?: string }; Returns: Json }
       admin_set_product_quantity: {
