@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info, ShieldCheck } from "lucide-react";
 
 /** كل بند = خيار مستقل بالكامل بـ state خاص به */
 interface ResetItem {
@@ -223,7 +223,7 @@ export function DataManagementTab() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" /> تحليل أثر عملية المسح
