@@ -7,6 +7,7 @@ import AdminReports from "./Reports";
 import ScheduledReports from "./ScheduledReports";
 import AuditLog from "./AuditLog";
 import ProfitabilityReport from "./ProfitabilityReport";
+import OwnerCockpit from "./OwnerCockpit";
 import MonthlyProfitSummary from "./MonthlyProfitSummary";
 import ReturnOverrides from "./ReturnOverrides";
 import ReportComparison from "./ReportComparison";
@@ -16,6 +17,7 @@ export default function ReportsHub() {
   const [params, setParams] = useSearchParams();
   const { isOwner, can } = useAuth();
   const show = {
+    owner: isOwner || can("admin_reports_owner.view"),
     monthly: isOwner || can("admin_monthly_profit.view"),
     central: can("admin_reports_central.view"),
     profitability: isOwner || can("admin_reports_profitability.view"),
@@ -33,6 +35,7 @@ export default function ReportsHub() {
       <PageHeader title="التقارير" subtitle="🏢 عمليات يومية • 📊 ربحية محاسبية • 🕰️ أرشيف تاريخي • ⏰ أتمتة — كل تبويب فريد بدون تكرار" />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
         <TabsList className="flex-wrap h-auto">
+          {show.owner && <TabsTrigger value="owner">👑 نظرة المالك</TabsTrigger>}
           {show.monthly && <TabsTrigger value="monthly">💰 ملخص الأرباح الشهري</TabsTrigger>}
           {show.central && <TabsTrigger value="central">🏢 العمليات (مركزية)</TabsTrigger>}
           {show.profitability && <TabsTrigger value="profitability">📊 الربحية</TabsTrigger>}
@@ -42,6 +45,7 @@ export default function ReportsHub() {
           {show.audit && <TabsTrigger value="audit">سجل العمليات</TabsTrigger>}
           {show["return-overrides"] && <TabsTrigger value="return-overrides">↩️ تجاوزات المرتجعات</TabsTrigger>}
         </TabsList>
+        {show.owner && <TabsContent value="owner" className="mt-4"><OwnerCockpit embedded /></TabsContent>}
         {show.monthly && <TabsContent value="monthly" className="mt-4"><MonthlyProfitSummary embedded /></TabsContent>}
         {show.central && <TabsContent value="central" className="mt-4"><AdminReports embedded /></TabsContent>}
         {show.profitability && <TabsContent value="profitability" className="mt-4"><ProfitabilityReport embedded /></TabsContent>}
