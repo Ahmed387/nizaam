@@ -237,7 +237,15 @@ export default function AllEmployees() {
       <PageHeader title="الموظفين (كل الفروع)" subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة" />
 
 
-      <Tabs defaultValue="list" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          const next = new URLSearchParams(searchParams);
+          if (v === "list") next.delete("tab"); else next.set("tab", v);
+          setSearchParams(next, { replace: true });
+        }}
+        className="w-full"
+      >
         {/* التبويبات تتكيف مع الشاشات الصغيرة */}
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
