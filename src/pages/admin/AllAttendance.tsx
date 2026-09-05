@@ -35,7 +35,7 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
       if (!cancelled) { setRows(mapped); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [date, branchId, reloadTick]);
+  }, [date, branchId, reloadTick, branches]);
 
   useRealtimeRefresh(["attendance"], () => setReloadTick((t) => t + 1));
 
@@ -60,7 +60,7 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
         empty="لا توجد سجلات لهذا اليوم"
         columns={[
           { key: "employee_name", header: "الموظف", render: (r: any) => <span className="font-semibold">{r.employee_name}</span> },
-          { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+          { key: "branch", header: "الفرع", render: (r: any) => r.branch_name ?? "—" },
           { key: "status", header: "الحالة", render: (r: any) => STATUS_LABEL[r.status] ?? r.status },
           { key: "check_in", header: "حضور", render: (r: any) => r.check_in ? <span dir="ltr" className="text-xs">{new Date(r.check_in).toLocaleTimeString("ar-EG")}</span> : "—" },
           { key: "check_out", header: "انصراف", render: (r: any) => r.check_out ? <span dir="ltr" className="text-xs">{new Date(r.check_out).toLocaleTimeString("ar-EG")}</span> : "—" },
