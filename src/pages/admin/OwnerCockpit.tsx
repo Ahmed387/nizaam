@@ -465,6 +465,14 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
       </div>
     </div>
   );
+
+  if (embedded) return content;
+  return (
+    <AdminLayout>
+      <PageHeader title="نظرة المالك" subtitle="👑 لمحة سريعة وشاملة عن شركتك" />
+      {content}
+    </AdminLayout>
+  );
 }
 
 /* ========== Sub-components ========== */
@@ -511,14 +519,6 @@ function HeroCard({
         </div>
       </div>
     </div>
-  );
-
-  if (embedded) return content;
-  return (
-    <AdminLayout>
-      <PageHeader title="نظرة المالك" subtitle="👑 لمحة سريعة وشاملة عن شركتك" />
-      {content}
-    </AdminLayout>
   );
 }
 
