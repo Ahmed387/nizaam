@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -38,6 +38,8 @@ const POSITIONS = [
 
 export default function AllEmployees() {
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") ?? "list";
   const { can, isAdmin, isViewer, hasRole } = useAuth();
   const showShifts = isAdmin || can("admin_shifts.view") || hasRole("super_admin") || hasRole("supervisor");
   const showPresence = isAdmin || isViewer || can("admin_presence.view") || hasRole("supervisor") || hasRole("super_admin");
@@ -235,7 +237,15 @@ export default function AllEmployees() {
       <PageHeader title="الموظفين (كل الفروع)" subtitle="عرض موحّد لكل الموظفين عبر فروع الشركة" />
 
 
-      <Tabs defaultValue="list" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          const next = new URLSearchParams(searchParams);
+          if (v === "list") next.delete("tab"); else next.set("tab", v);
+          setSearchParams(next, { replace: true });
+        }}
+        className="w-full"
+      >
         {/* التبويبات تتكيف مع الشاشات الصغيرة */}
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>

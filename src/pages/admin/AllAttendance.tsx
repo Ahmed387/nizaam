@@ -25,13 +25,17 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
     let cancelled = false;
     (async () => {
       setLoading(true);
-      let q = supabase.from("attendance").select("*, branches(name)").eq("date", date).order("created_at", { ascending: false });
+      // attendance has no FK to branches, so the branch name is resolved locally
+      // instead of via a PostgREST embed (which fails with PGRST200).
+      let q = supabase.from("attendance").select("*").eq("date", date).order("created_at", { ascending: false });
       if (branchId !== "all") q = q.eq("branch_id", branchId);
       const { data } = await q;
-      if (!cancelled) { setRows(data ?? []); setLoading(false); }
+      const nameById = new Map(branches.map((b) => [b.id, b.name]));
+      const mapped = (data ?? []).map((r: any) => ({ ...r, branch_name: nameById.get(r.branch_id) ?? null }));
+      if (!cancelled) { setRows(mapped); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [date, branchId, reloadTick]);
+  }, [date, branchId, reloadTick, branches]);
 
   useRealtimeRefresh(["attendance"], () => setReloadTick((t) => t + 1));
 
@@ -56,7 +60,7 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
         empty="لا توجد سجلات لهذا اليوم"
         columns={[
           { key: "employee_name", header: "الموظف", render: (r: any) => <span className="font-semibold">{r.employee_name}</span> },
-          { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
+          { key: "branch", header: "الفرع", render: (r: any) => r.branch_name ?? "—" },
           { key: "status", header: "الحالة", render: (r: any) => STATUS_LABEL[r.status] ?? r.status },
           { key: "check_in", header: "حضور", render: (r: any) => r.check_in ? <span dir="ltr" className="text-xs">{new Date(r.check_in).toLocaleTimeString("ar-EG")}</span> : "—" },
           { key: "check_out", header: "انصراف", render: (r: any) => r.check_out ? <span dir="ltr" className="text-xs">{new Date(r.check_out).toLocaleTimeString("ar-EG")}</span> : "—" },

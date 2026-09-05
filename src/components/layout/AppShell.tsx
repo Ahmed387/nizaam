@@ -109,6 +109,8 @@ export function AppShell({
 
   const matchItem = (to: string) => {
     const [path, search] = to.split("?");
+    // Base-path match ignores query params, so tabbed pages (e.g. /admin/employees?tab=shifts)
+    // keep their sidebar entry highlighted.
     if (loc.pathname !== path && !loc.pathname.startsWith(path + "/")) return false;
     if (search) {
       const want = new URLSearchParams(search);
