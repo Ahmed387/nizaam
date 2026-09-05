@@ -381,14 +381,16 @@ export default function AllEmployees() {
           <AllAttendance embedded />
         </TabsContent>
 
+        <TabsContent value="monthly" className="mt-4">
+          <MonthlyAttendanceReport embedded />
+        </TabsContent>
+
         {showShifts && (
-          <TabsContent value="monthly" className="mt-4">
-            <MonthlyAttendanceReport embedded />
-          </TabsContent>
           <TabsContent value="shifts" className="mt-4">
             <ShiftsHistory embedded />
           </TabsContent>
         )}
+
 
         {showPresence && (
           <TabsContent value="presence" className="mt-4">
