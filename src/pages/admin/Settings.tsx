@@ -634,7 +634,7 @@ export default function Settings() {
         </div>
       </Tabs>
 
-      </Dialog>
+
     </AdminLayout>
   );
 }
