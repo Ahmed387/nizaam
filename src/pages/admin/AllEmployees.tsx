@@ -18,11 +18,12 @@ import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff, CalendarRange, UserCircle } from "lucide-react";
+import { Plus, FileSpreadsheet, ArrowRight, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff, CalendarRange, UserCircle, CalendarDays, Coins } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllAttendance from "./AllAttendance";
 import ShiftsHistory from "./ShiftsHistory";
 import Presence from "./Presence";
+import MonthlyAttendanceReport from "./MonthlyAttendanceReport";
 import { useBranchScope } from "@/lib/branchScope";
 
 const POSITIONS = [
@@ -47,6 +48,8 @@ export default function AllEmployees() {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const { filterBranches } = useBranchScope();
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
+  // قسط السلفة المستحق هذا الشهر (عرض فقط — لا يُنشئ أي حركة مالية)
+  const [advInstallment, setAdvInstallment] = useState<Record<string, number>>({});
   const [userBranches, setUserBranches] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
@@ -76,15 +79,21 @@ export default function AllEmployees() {
     const [{ data: e }, { data: b }, { data: a }] = await Promise.all([
       supabase.from("employees").select("*").order("created_at", { ascending: false }),
       supabase.from("branches").select("id, name").eq("is_active", true).neq("code", "PARTNER-CASH").order("name"),
-      supabase.from("advances").select("employee_id, remaining"),
+      supabase.from("advances").select("employee_id, remaining, monthly_deduct"),
     ]);
     setEmps(e ?? []);
     setBranches(filterBranches((b ?? []) as any) as any);
     const map: Record<string, number> = {};
+    const inst: Record<string, number> = {};
     for (const x of (a ?? []) as any[]) {
-      map[x.employee_id] = (map[x.employee_id] ?? 0) + Number(x.remaining);
+      const remaining = Number(x.remaining) || 0;
+      map[x.employee_id] = (map[x.employee_id] ?? 0) + remaining;
+      // القسط الشهري لا يتعدى المتبقي غير المسدد
+      const due = Math.min(Number(x.monthly_deduct) || 0, remaining);
+      inst[x.employee_id] = (inst[x.employee_id] ?? 0) + due;
     }
     setAdvRemaining(map);
+    setAdvInstallment(inst);
     const uids = (e ?? []).map((x: any) => x.user_id).filter(Boolean);
     if (uids.length) {
       const { data: bu } = await supabase.from("branch_users").select("user_id, branch_id").in("user_id", uids);
@@ -103,8 +112,9 @@ export default function AllEmployees() {
     ...e,
     branch_name: branches.find((b) => b.id === e.branch_id)?.name ?? "—",
     advance_remaining: advRemaining[e.id] ?? 0,
+    advance_installment: advInstallment[e.id] ?? 0,
     allowed_branches: e.user_id ? (userBranches[e.user_id] ?? []) : [],
-  })), [emps, branches, advRemaining, userBranches]);
+  })), [emps, branches, advRemaining, advInstallment, userBranches]);
 
   const filtered = useMemo(() => enriched.filter((e) => {
     if (search && !searchMatch(search, e.name, e.job_title, e.phone)) return false;
@@ -121,7 +131,10 @@ export default function AllEmployees() {
     active: enriched.filter((e) => e.is_active).length,
     inactive: enriched.filter((e) => !e.is_active).length,
     salaryTotal: enriched.filter((e) => e.is_active).reduce((s, e) => s + Number(e.base_salary), 0),
+    advanceDue: enriched.filter((e) => e.is_active).reduce((s, e) => s + Number(e.advance_installment || 0), 0),
   }), [enriched]);
+  // صافي الرواتب = إجمالي رواتب النشطين - أقساط السلف غير المسددة لنفس الشهر (عرض تحليلي فقط)
+  const netSalaryTotal = Math.max(0, stats.salaryTotal - stats.advanceDue);
 
   const openNew = () => {
     setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
@@ -250,6 +263,7 @@ export default function AllEmployees() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="list" className="gap-2"><Users className="w-4 h-4" /> قائمة الموظفين</TabsTrigger>
           <TabsTrigger value="attendance" className="gap-2"><ClipboardCheck className="w-4 h-4" /> الحضور (كل الفروع)</TabsTrigger>
+          <TabsTrigger value="monthly" className="gap-2"><CalendarDays className="w-4 h-4" /> التقرير الشهري</TabsTrigger>
           {showShifts && <TabsTrigger value="shifts" className="gap-2"><CalendarRange className="w-4 h-4" /> سجل الورديات</TabsTrigger>}
           {showPresence && <TabsTrigger value="presence" className="gap-2"><UserCircle className="w-4 h-4" /> تتبع المستخدمين</TabsTrigger>}
         </TabsList>
@@ -260,7 +274,7 @@ export default function AllEmployees() {
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
           </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-4">
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> إجمالي الموظفين</div>
           <div className="text-2xl font-bold mt-1">{stats.total}</div>
@@ -276,6 +290,11 @@ export default function AllEmployees() {
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="w-3 h-3" /> إجمالي الرواتب الشهرية</div>
           <div className="text-2xl font-bold mt-1 text-primary">{formatEGP(stats.salaryTotal)}</div>
+        </div>
+        <div className="p-4 rounded-lg border bg-card">
+          <div className="text-xs text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> صافي الرواتب (بعد السلف)</div>
+          <div className="text-2xl font-bold mt-1 text-success tabular-nums">{formatEGP(netSalaryTotal)}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">أقساط سلف مستحقة: {formatEGP(stats.advanceDue)}</div>
         </div>
       </div>
 
@@ -362,11 +381,16 @@ export default function AllEmployees() {
           <AllAttendance embedded />
         </TabsContent>
 
+        <TabsContent value="monthly" className="mt-4">
+          <MonthlyAttendanceReport embedded />
+        </TabsContent>
+
         {showShifts && (
           <TabsContent value="shifts" className="mt-4">
             <ShiftsHistory embedded />
           </TabsContent>
         )}
+
 
         {showPresence && (
           <TabsContent value="presence" className="mt-4">
