@@ -38,6 +38,8 @@ const POSITIONS = [
 
 export default function AllEmployees() {
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") ?? "list";
   const { can, isAdmin, isViewer, hasRole } = useAuth();
   const showShifts = isAdmin || can("admin_shifts.view") || hasRole("super_admin") || hasRole("supervisor");
   const showPresence = isAdmin || isViewer || can("admin_presence.view") || hasRole("supervisor") || hasRole("super_admin");
