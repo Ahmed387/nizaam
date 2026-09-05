@@ -316,7 +316,7 @@ export default function Settings() {
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
-            { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
+            ...(canManageAdminTools || isOwner ? [{ v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" }] : []),
             
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
@@ -646,9 +646,11 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        <TabsContent value="backup" className="mt-4">
-          <BackupTab />
-        </TabsContent>
+        {(canManageAdminTools || isOwner) && (
+          <TabsContent value="backup" className="mt-4">
+            <BackupTab />
+          </TabsContent>
+        )}
 
         {isOwner && (
           <TabsContent value="return-policy" className="mt-4">
