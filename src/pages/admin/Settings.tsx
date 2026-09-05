@@ -79,6 +79,12 @@ export default function Settings() {
     { key: "notifications", label: "الإشعارات" },
     { key: "audit_log", label: "سجل العمليات" },
     { key: "price_audit_log", label: "سجل تعديلات الأسعار" },
+    { key: "voucher_sequences", label: "تصفير ترقيم السندات (يبدأ من 1 من جديد)" },
+    { key: "shifts", label: "تنظيف الورديات المعلّقة (الورديات والتسليمات والجداول)" },
+    { key: "fiscal_periods", label: "فتح الفترات المالية (حذف الإغلاقات المانعة للتسجيل)" },
+    { key: "attachments", label: "تنظيف المرفقات اليتيمة (بدون فاتورة أو سند)" },
+    { key: "count_moves", label: "تسويات الجرد (حركات الجرد المرتبطة بالدفعات)" },
+    { key: "approvals", label: "طلبات الاعتماد (الحذف/التعديل والخصومات)" },
   ];
   const [resetBranch, setResetBranch] = useState<string>("");
   const [resetOpts, setResetOpts] = useState<Record<string, boolean>>({});
@@ -310,7 +316,7 @@ export default function Settings() {
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
-            { v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" },
+            ...(canManageAdminTools || isOwner ? [{ v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" }] : []),
             
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
@@ -640,9 +646,11 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        <TabsContent value="backup" className="mt-4">
-          <BackupTab />
-        </TabsContent>
+        {(canManageAdminTools || isOwner) && (
+          <TabsContent value="backup" className="mt-4">
+            <BackupTab />
+          </TabsContent>
+        )}
 
         {isOwner && (
           <TabsContent value="return-policy" className="mt-4">
