@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info, ShieldCheck, ListChecks, DatabaseZap } from "lucide-react";
 
 /** كل بند = خيار مستقل بالكامل بـ state خاص به */
 interface ResetItem {
