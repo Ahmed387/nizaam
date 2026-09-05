@@ -121,6 +121,7 @@ import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
 import OwnerCockpit from "./pages/admin/OwnerCockpit";
+import HistoricalAnalytics from "./pages/admin/HistoricalAnalytics";
 
 
 import InsightsPage from "./pages/admin/InsightsPage";
@@ -232,7 +233,7 @@ const App = () => (
             {/* Hubs */}
             <Route path="/admin/catalog" element={<ProtectedRoute perm="admin_catalog.view" adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><ReportsHub /></ProtectedRoute>} />
-            <Route path="/admin/historical-analytics" element={<Navigate to="/admin/reports-hub?tab=historical" replace />} />
+            <Route path="/admin/historical-analytics" element={<ProtectedRoute perm="admin_historical_analytics.view" adminOnly><HistoricalAnalytics /></ProtectedRoute>} />
             <Route path="/admin/cockpit" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><OwnerCockpit /></ProtectedRoute>} />
 
             <Route path="/admin/monthly-profit" element={<Navigate to="/admin/reports-hub?tab=monthly" replace />} />
