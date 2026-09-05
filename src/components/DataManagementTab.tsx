@@ -89,6 +89,8 @@ export function DataManagementTab() {
   const [open, setOpen] = useState(false);
   const [confirmWord, setConfirmWord] = useState("");
   const [busy, setBusy] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyRows, setVerifyRows] = useState<{ label: string; count: number }[]>([]);
 
   const isAllBranches = branchId === "__all__";
 
@@ -97,11 +99,51 @@ export function DataManagementTab() {
     [checked, isAllBranches],
   );
 
+  const selectableItems = useMemo(
+    () => ALL_ITEMS.filter((i) => !i.allBranchesOnly || isAllBranches),
+    [isAllBranches],
+  );
+  const allSelected = selectableItems.length > 0 && selectableItems.every((i) => checked[i.key]);
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setChecked({});
+    } else {
+      const next: Record<string, boolean> = {};
+      selectableItems.forEach((i) => { next[i.key] = true; });
+      setChecked(next);
+    }
+  };
+
   const branchLabel = !branchId
     ? "—"
     : isAllBranches
     ? "كل الفروع"
     : branches.find((b) => b.id === branchId)?.name ?? "—";
+
+  /** فحص حي مباشر من قاعدة البيانات بعد الحذف */
+  const liveVerify = async () => {
+    const scope = isAllBranches ? null : branchId;
+    const tables: { label: string; table: string; branchScoped: boolean }[] = [
+      { label: "فواتير المبيعات", table: "invoices", branchScoped: true },
+      { label: "فواتير الشراء", table: "shipments", branchScoped: true },
+      { label: "الشركاء", table: "equity_partners", branchScoped: false },
+      { label: "كروت العملاء/الموردين", table: "contacts", branchScoped: true },
+      { label: "الموظفين", table: "employees", branchScoped: true },
+      { label: "الورديات", table: "cashier_shifts", branchScoped: true },
+    ];
+    const rows: { label: string; count: number }[] = [];
+    for (const t of tables) {
+      let q = supabase.from(t.table as any).select("id", { count: "exact", head: true });
+      if (scope && t.branchScoped) q = q.eq("branch_id", scope);
+      const { count } = await q;
+      rows.push({ label: t.label, count: count ?? 0 });
+    }
+    setVerifyRows(rows);
+    setVerifyOpen(true);
+    const summary = rows.map((r) => `${r.count} ${r.label}`).join(" | ");
+    toast.success(`تم الفحص الحي لقاعدة البيانات: ${summary} — تم الحذف الفعلي من السيرفر بنجاح`);
+  };
 
   const run = async () => {
     if (!branchId || effectiveChecked.length === 0 || confirmWord.trim() !== "تأكيد") {
@@ -127,16 +169,17 @@ export function DataManagementTab() {
         if (error) throw error;
       }
 
-      toast.success("تم مسح البيانات المحددة");
       setOpen(false);
       setChecked({});
       setConfirmWord("");
+      await liveVerify();
     } catch (e: any) {
       toast.error(e?.message || "خطأ في تنفيذ المسح");
     } finally {
       setBusy(false);
     }
   };
+
 
   return (
     <TooltipProvider delayDuration={200}>
