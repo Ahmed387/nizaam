@@ -206,7 +206,20 @@ export function DataManagementTab() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {isAllBranches
+                ? "تحديد كل البنود بما فيها المتاحة لكل الفروع فقط"
+                : "تحديد كل البنود المتاحة للفرع المختار"}
+            </span>
+            <Button variant="outline" size="sm" onClick={toggleSelectAll} disabled={!branchId}>
+              <ListChecks className="w-4 h-4 ml-1" />
+              {allSelected ? "إلغاء تحديد الكل" : "تحديد الكل للتصفير الشامل"}
+            </Button>
+          </div>
         </div>
+
 
         <div className="grid lg:grid-cols-2 gap-4">
           {CARDS.map((card) => {
