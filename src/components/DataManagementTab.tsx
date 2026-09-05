@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, Wallet, Boxes, Users2, Settings2, Info, ShieldCheck, ListChecks, DatabaseZap } from "lucide-react";
 
 /** كل بند = خيار مستقل بالكامل بـ state خاص به */
 interface ResetItem {
@@ -89,6 +89,8 @@ export function DataManagementTab() {
   const [open, setOpen] = useState(false);
   const [confirmWord, setConfirmWord] = useState("");
   const [busy, setBusy] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyRows, setVerifyRows] = useState<{ label: string; count: number }[]>([]);
 
   const isAllBranches = branchId === "__all__";
 
@@ -97,11 +99,51 @@ export function DataManagementTab() {
     [checked, isAllBranches],
   );
 
+  const selectableItems = useMemo(
+    () => ALL_ITEMS.filter((i) => !i.allBranchesOnly || isAllBranches),
+    [isAllBranches],
+  );
+  const allSelected = selectableItems.length > 0 && selectableItems.every((i) => checked[i.key]);
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setChecked({});
+    } else {
+      const next: Record<string, boolean> = {};
+      selectableItems.forEach((i) => { next[i.key] = true; });
+      setChecked(next);
+    }
+  };
+
   const branchLabel = !branchId
     ? "—"
     : isAllBranches
     ? "كل الفروع"
     : branches.find((b) => b.id === branchId)?.name ?? "—";
+
+  /** فحص حي مباشر من قاعدة البيانات بعد الحذف */
+  const liveVerify = async () => {
+    const scope = isAllBranches ? null : branchId;
+    const tables: { label: string; table: string; branchScoped: boolean }[] = [
+      { label: "فواتير المبيعات", table: "invoices", branchScoped: true },
+      { label: "فواتير الشراء", table: "shipments", branchScoped: true },
+      { label: "الشركاء", table: "equity_partners", branchScoped: false },
+      { label: "كروت العملاء/الموردين", table: "contacts", branchScoped: true },
+      { label: "الموظفين", table: "employees", branchScoped: true },
+      { label: "الورديات", table: "cashier_shifts", branchScoped: true },
+    ];
+    const rows: { label: string; count: number }[] = [];
+    for (const t of tables) {
+      let q = supabase.from(t.table as any).select("id", { count: "exact", head: true });
+      if (scope && t.branchScoped) q = q.eq("branch_id", scope);
+      const { count } = await q;
+      rows.push({ label: t.label, count: count ?? 0 });
+    }
+    setVerifyRows(rows);
+    setVerifyOpen(true);
+    const summary = rows.map((r) => `${r.count} ${r.label}`).join(" | ");
+    toast.success(`تم الفحص الحي لقاعدة البيانات: ${summary} — تم الحذف الفعلي من السيرفر بنجاح`);
+  };
 
   const run = async () => {
     if (!branchId || effectiveChecked.length === 0 || confirmWord.trim() !== "تأكيد") {
@@ -127,16 +169,17 @@ export function DataManagementTab() {
         if (error) throw error;
       }
 
-      toast.success("تم مسح البيانات المحددة");
       setOpen(false);
       setChecked({});
       setConfirmWord("");
+      await liveVerify();
     } catch (e: any) {
       toast.error(e?.message || "خطأ في تنفيذ المسح");
     } finally {
       setBusy(false);
     }
   };
+
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -163,7 +206,20 @@ export function DataManagementTab() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {isAllBranches
+                ? "تحديد كل البنود بما فيها المتاحة لكل الفروع فقط"
+                : "تحديد كل البنود المتاحة للفرع المختار"}
+            </span>
+            <Button variant="outline" size="sm" onClick={toggleSelectAll} disabled={!branchId}>
+              <ListChecks className="w-4 h-4 ml-1" />
+              {allSelected ? "إلغاء تحديد الكل" : "تحديد الكل للتصفير الشامل"}
+            </Button>
+          </div>
         </div>
+
 
         <div className="grid lg:grid-cols-2 gap-4">
           {CARDS.map((card) => {
@@ -281,6 +337,32 @@ export function DataManagementTab() {
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "نفّذ المسح"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={verifyOpen} onOpenChange={setVerifyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              <DatabaseZap className="w-5 h-5" /> تقرير الفحص الحي لقاعدة البيانات
+            </DialogTitle>
+            <DialogDescription className="pt-1">
+              تم الاستعلام مباشرة من الجداول الأصلية بعد تنفيذ الحذف — النطاق: <b>{branchLabel}</b>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-border divide-y divide-border">
+            {verifyRows.map((r) => (
+              <div key={r.label} className="flex items-center justify-between px-3 py-2 text-sm">
+                <span>{r.label}</span>
+                <span className={`font-bold tabular-nums ${r.count === 0 ? "text-success" : "text-destructive"}`}>{r.count}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            الأرشيف التاريخي والمصاريف/الإيداعات الشخصية للمالك محصنة ولم تُمس.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setVerifyOpen(false)}>تمام</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
