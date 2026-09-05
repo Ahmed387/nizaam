@@ -340,6 +340,32 @@ export function DataManagementTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={verifyOpen} onOpenChange={setVerifyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              <DatabaseZap className="w-5 h-5" /> تقرير الفحص الحي لقاعدة البيانات
+            </DialogTitle>
+            <DialogDescription className="pt-1">
+              تم الاستعلام مباشرة من الجداول الأصلية بعد تنفيذ الحذف — النطاق: <b>{branchLabel}</b>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-border divide-y divide-border">
+            {verifyRows.map((r) => (
+              <div key={r.label} className="flex items-center justify-between px-3 py-2 text-sm">
+                <span>{r.label}</span>
+                <span className={`font-bold tabular-nums ${r.count === 0 ? "text-success" : "text-destructive"}`}>{r.count}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            الأرشيف التاريخي والمصاريف/الإيداعات الشخصية للمالك محصنة ولم تُمس.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setVerifyOpen(false)}>تمام</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
