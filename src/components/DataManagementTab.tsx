@@ -226,20 +226,52 @@ export function DataManagementTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> تأكيد مسح البيانات
+              <AlertTriangle className="w-5 h-5" /> تحليل أثر عملية المسح
             </DialogTitle>
-            <DialogDescription className="text-foreground/80 pt-2">
-              هتمسح من <b>{branchLabel}</b>:
-              <br />
-              <b>{effectiveChecked.map((i) => i.label).join(" + ")}</b>
-              <br />
-              <span className="text-destructive font-semibold">هذا الإجراء لا يمكن التراجع عنه.</span>
+            <DialogDescription className="text-foreground/80 pt-1">
+              راجع التبعات كويس قبل ما تكمّل — النطاق: <b>{branchLabel}</b>
             </DialogDescription>
           </DialogHeader>
+
+          <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1">
+            <div className="rounded-xl border border-border bg-muted/40 p-3">
+              <div className="text-sm font-bold mb-2">العناصر التي سيتم حذفها</div>
+              <ul className="list-disc pr-5 space-y-1 text-sm">
+                {effectiveChecked.map((i) => (<li key={i.key}>{i.label}</li>))}
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-3">
+              <div className="text-sm font-bold text-destructive mb-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" /> الآثار والتبعات المترتبة على هذا الإجراء
+              </div>
+              <ul className="space-y-1.5 text-sm text-foreground/90">
+                {effectiveChecked.map((i) => (
+                  <li key={i.key}>
+                    <span className="font-semibold">{i.label}:</span> {i.impact}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 text-sm font-bold text-destructive">هذا الإجراء لا يمكن التراجع عنه.</div>
+            </div>
+
+            <div className="rounded-xl border border-success/50 bg-success/10 p-3">
+              <div className="text-sm font-bold text-success mb-2 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" /> ما سيبقى محمياً بالكامل
+              </div>
+              <ul className="list-disc pr-5 space-y-1 text-sm text-foreground/90">
+                <li>الأرشيف التاريخي (فواتير وسندات السنوات السابقة) لا يُمس نهائياً.</li>
+                <li>المصاريف والإيداعات الشخصية للمالك محمية بالكامل.</li>
+                <li>بيانات فروع الشركة وإعداداتها الأساسية تفضل زي ما هي.</li>
+              </ul>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
             <Input value={confirmWord} onChange={(e) => setConfirmWord(e.target.value)} placeholder="تأكيد" />
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>إلغاء</Button>
             <Button
