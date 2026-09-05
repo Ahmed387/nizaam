@@ -85,7 +85,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     // ===== عام =====
     ...only(allow("admin_home.view"), { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عــام" }),
     ...only(allow("admin_ask_me.view"), { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
-    ...only(allow("admin_reports_hub.view"), { to: "/admin/reports-hub?tab=owner", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عــام" }),
+    ...only(allow("admin_reports_hub.view"), { to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عــام" }),
     ...only(allow("admin_insights.view", { ownerOnly: true }), { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
 
     // ===== العمليات =====
