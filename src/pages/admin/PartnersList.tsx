@@ -643,13 +643,118 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
 
       {/* Add partner dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader><DialogTitle>إضافة شريك جديد</DialogTitle></DialogHeader>
+
+          {/* شريط الاختيار العلوي */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {([
+              { key: "employee", title: "ترقية موظف حالي إلى شريك", desc: "بضغطة واحدة ومن غير تكرار بيانات" },
+              { key: "external", title: "تسجيل شريك خارجي جديد", desc: "شريك ليس له وظيفة في الشركة" },
+            ] as const).map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => setAddMode(o.key)}
+                className={`text-right rounded-lg border p-3 transition-colors ${
+                  addMode === o.key ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "border-border hover:bg-muted/50"
+                }`}
+              >
+                <div className="font-semibold text-sm">{o.title}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{o.desc}</div>
+              </button>
+            ))}
+          </div>
+
+          {addMode === "employee" ? (
+            <div className="space-y-4 mt-3">
+              {/* الكتلة الأولى: بيانات الهوية والارتباط */}
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">بيانات الهوية والارتباط</div>
+                <div>
+                  <Label>اختر الموظف المراد ترقيته *</Label>
+                  <Input
+                    className="mt-1 mb-2"
+                    placeholder="ابحث بالاسم أو المسمى الوظيفي..."
+                    value={empSearch}
+                    onChange={(e) => setEmpSearch(e.target.value)}
+                  />
+                  <Select value={selectedEmpId} onValueChange={setSelectedEmpId}>
+                    <SelectTrigger><SelectValue placeholder={empLoading ? "جاري التحميل..." : "اختر الموظف"} /></SelectTrigger>
+                    <SelectContent>
+                      {eligibleEmps
+                        .filter((e) => !empSearch.trim() || `${e.name} ${e.job_title}`.includes(empSearch.trim()))
+                        .map((e) => (
+                          <SelectItem key={e.id} value={e.id}>{e.name} — {e.job_title}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {!empLoading && eligibleEmps.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">مفيش موظفين متاحين للترقية (لازم يكون للموظف حساب دخول ومش مربوط بشريك تاني).</p>
+                  )}
+                </div>
+
+                {selectedEmp && (
+                  <div className="rounded-lg border bg-muted/30 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 text-sm">
+                        <div className="font-bold">{selectedEmp.name}</div>
+                        <div className="text-muted-foreground">{selectedEmp.job_title}</div>
+                        <div className="text-muted-foreground">الفرع الأساسي: {branchName(selectedEmp.branch_id)}</div>
+                        <div className="text-muted-foreground font-mono">{selectedEmp.phone || "بدون رقم هاتف"}</div>
+                      </div>
+                      <Badge className="bg-success/10 text-success border-success/20">حساب دخول نشط وموثق</Badge>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* الكتلة الثانية: شروط وحصص الشراكة */}
+              <div className="border-t pt-4 space-y-3">
+                <div className="text-sm font-semibold">شروط وحصص الشراكة</div>
+                <div><Label>النوع *</Label>
+                  <Select value={form.partner_type} onValueChange={v => setForm({ ...form, partner_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="capital">شريك رأس مال</SelectItem>
+                      <SelectItem value="operating">شريك تشغيل</SelectItem>
+                      <SelectItem value="both">الاثنين</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>حصة رأس المال (ج.م) *</Label>
+                  <Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} placeholder="مثال: 600000" />
+                </div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer bg-muted/40 rounded-md p-2">
+                  <input type="checkbox" checked={autoShare} onChange={e => setAutoShare(e.target.checked)} className="accent-primary w-4 h-4" />
+                  <span>احسب نسبة الشراكة أوتوماتيك من المبالغ المدفوعة</span>
+                </label>
+                {autoShare ? (
+                  <div className="rounded-md border p-3 bg-primary/5 text-sm">
+                    نسبة الشريك الجديد: <span className="font-mono font-bold">{(autoNewShare * 100).toFixed(2)}%</span>
+                    <span className="text-xs text-muted-foreground"> — من إجمالي {fmt(autoTotalCapital)} ج.م</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>نسبة الشراكة والأرباح (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
+                    <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
+                  </div>
+                )}
+                {autoShare && (
+                  <div><Label>حصة التشغيل (0-1) — اختياري</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
+                )}
+                <div><Label>تاريخ بدء الشراكة</Label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+                <div><Label>ملاحظات أو شروط العقد (اختياري)</Label><Input value={partnerNotes} onChange={e => setPartnerNotes(e.target.value)} /></div>
+                <p className="text-xs text-muted-foreground">راتب الموظف وحساباته الوظيفية تفضل منفصلة تماماً عن حصته وأرباحه كشريك.</p>
+              </div>
+            </div>
+          ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full">
               <TabsTrigger value="data" className="flex-1">بيانات الشريك</TabsTrigger>
               <TabsTrigger value="creds" className="flex-1">بيانات الدخول</TabsTrigger>
             </TabsList>
+
             <TabsContent value="data" className="space-y-3 mt-4">
               <div><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
               <div><Label>النوع *</Label>
