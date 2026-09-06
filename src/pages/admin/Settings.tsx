@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PersonalExpensesAccessTab } from "@/components/settings/PersonalExpensesAccessTab";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -234,6 +235,7 @@ export default function Settings() {
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
             ...(canManageAdminTools ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
+            ...(isOwner ? [{ v: "personal-access", icon: Wallet, label: "المصاريف الشخصية" }] : []),
           ].map((it: any) => {
             const Icon = it.icon;
             return (
@@ -263,6 +265,12 @@ export default function Settings() {
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsTab />
         </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="personal-access" className="mt-4">
+            <PersonalExpensesAccessTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="user-permissions" className="mt-4">
           <UserPermissionsTab />
