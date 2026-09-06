@@ -303,7 +303,7 @@ export async function fetchUserContext(userId: string) {
   const [{ data: profile }, { data: roles }, { data: branchUsers }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", userId),
-    supabase.from("branch_users").select("branch_id, branches(*)").eq("user_id", userId),
+    supabase.from("branch_users").select("branch_id, access_level, branches(*)").eq("user_id", userId),
   ]);
 
   let tenant: any = null;
