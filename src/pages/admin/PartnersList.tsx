@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2, Link2 } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 import { confirmAlert } from "@/components/ConfirmDialog";
 
@@ -73,6 +73,51 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
   const [resetPartner, setResetPartner] = useState<Partner | null>(null);
   const [resetPw, setResetPw] = useState("");
   const [resetConfirm, setResetConfirm] = useState("");
+
+  // ربط شريك بحساب موظف موجود (ازدواجية صفة الشريك والموظف)
+  const [linkPartner, setLinkPartner] = useState<Partner | null>(null);
+  const [linkUserId, setLinkUserId] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [empAccounts, setEmpAccounts] = useState<{ user_id: string; name: string; username: string }[]>([]);
+
+  const openLinkDialog = async (p: Partner) => {
+    setLinkPartner(p);
+    setLinkUserId("");
+    const { data: emps } = await supabase
+      .from("employees")
+      .select("user_id, name")
+      .eq("tenant_id", tenantId as string)
+      .not("user_id", "is", null);
+    const ids = ((emps ?? []) as any[]).map((e) => e.user_id);
+    if (!ids.length) { setEmpAccounts([]); return; }
+    const { data: profs } = await supabase.from("profiles").select("id, username").in("id", ids);
+    const uname: Record<string, string> = Object.fromEntries(((profs ?? []) as any[]).map((x) => [x.id, x.username]));
+    setEmpAccounts(((emps ?? []) as any[]).map((e) => ({ user_id: e.user_id, name: e.name, username: uname[e.user_id] ?? "-" })));
+  };
+
+  const saveLink = async () => {
+    if (!linkPartner || !linkUserId) return;
+    setLinking(true);
+    try {
+      const { data: existing } = await supabase
+        .from("partner_users" as any).select("id").eq("user_id", linkUserId).maybeSingle();
+      if (existing) throw new Error("الحساب ده مربوط بشريك تاني بالفعل");
+      const { error } = await supabase.from("partner_users" as any).insert({
+        tenant_id: tenantId, user_id: linkUserId, partner_id: linkPartner.id,
+      });
+      if (error) throw error;
+      await supabase.from("user_roles" as any)
+        .upsert({ user_id: linkUserId, role: "partner", tenant_id: tenantId }, { onConflict: "user_id,role" });
+      toast.success("تم ربط الشريك بحساب الموظف");
+      setLinkPartner(null);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "فشل الربط");
+    } finally {
+      setLinking(false);
+    }
+  };
+
 
   const load = async () => {
     if (!tenantId) return;
@@ -467,6 +512,9 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
                       onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
                       <FileText className="w-4 h-4 ml-1.5" />تحميل PDF
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => openLinkDialog(p)} title="ربط الشريك بحساب موظف مسجل">
+                      <Link2 className="w-4 h-4" />
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
                       <KeyRound className="w-4 h-4" />
                     </Button>
@@ -484,6 +532,36 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
           </div>
         )}
       </div>
+
+      {/* Link partner to an existing employee account */}
+      <Dialog open={!!linkPartner} onOpenChange={(o) => !o && setLinkPartner(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>ربط «{linkPartner?.name}» بحساب موظف</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
+              اختر حساب موظف موجود ليصبح هو نفسه حساب الشريك. الحساب هيحتفظ بصلاحياته ومستوى صلاحيته على كل فرع، وهيضاف له دخول شاشات الشركاء.
+            </p>
+            <div>
+              <Label>حساب الموظف</Label>
+              <Select value={linkUserId} onValueChange={setLinkUserId}>
+                <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
+                <SelectContent>
+                  {empAccounts.map((e) => (
+                    <SelectItem key={e.user_id} value={e.user_id}>{e.name} — {e.username}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!empAccounts.length && <p className="text-xs text-muted-foreground mt-1">لا يوجد موظفين مرتبطين بحسابات دخول</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkPartner(null)}>إلغاء</Button>
+            <Button onClick={saveLink} disabled={!linkUserId || linking}>
+              {linking && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}ربط الحساب
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add partner dialog */}
       <Dialog open={open} onOpenChange={setOpen}>

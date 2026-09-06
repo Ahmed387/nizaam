@@ -587,7 +587,14 @@ export default function EmployeeProfile() {
                     {accountRoles.includes("admin")
                       ? "كل الفروع (مدير عام)"
                       : accountBranchIds.length
-                        ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
+                        ? accountBranchIds
+                            .map((bid) => {
+                              const nm = allBranches.find((b) => b.id === bid)?.name;
+                              if (!nm) return null;
+                              return `${nm} (${accountBranchLevels[bid] === "read" ? "عرض فقط" : "إدارة كاملة"})`;
+                            })
+                            .filter(Boolean)
+                            .join("، ")
                         : <span className="text-warning">لم يتم تحديد أي فرع — لن يرى أي بيانات</span>}
                   </div>
                 </div>
@@ -870,21 +877,48 @@ export default function EmployeeProfile() {
           <DialogHeader><DialogTitle>إدارة الفروع المسموح بها</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
-              اختر الفروع التي يستطيع هذا الحساب الوصول لها. يمكن للمستخدم أن يكون في أكثر من فرع (مثلاً محاسب لكل الفروع).
+              اختر الفروع التي يستطيع هذا الحساب الوصول لها، وحدد لكل فرع مستوى الصلاحية:
+              «إدارة كاملة» تسمح بالبيع والتعديل والسندات، و«عرض فقط» تسمح بالاستعراض والتقارير بدون أي إضافة أو تعديل أو إلغاء.
             </div>
-            <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto border border-border rounded-lg p-2">
-              {allBranches.map((b) => (
-                <label key={b.id} className="flex items-center gap-2 p-2 rounded hover:bg-surface-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={branchMgrIds.includes(b.id)}
-                    onChange={(e) => setBranchMgrIds(
-                      e.target.checked ? [...branchMgrIds, b.id] : branchMgrIds.filter((x) => x !== b.id),
+            <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto border border-border rounded-lg p-2">
+              {allBranches.map((b) => {
+                const on = branchMgrIds.includes(b.id);
+                const level = branchMgrLevels[b.id] === "read" ? "read" : "manage";
+                return (
+                  <div key={b.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-surface-2">
+                    <label className="flex items-center gap-2 cursor-pointer min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={(e) => setBranchMgrIds(
+                          e.target.checked ? [...branchMgrIds, b.id] : branchMgrIds.filter((x) => x !== b.id),
+                        )}
+                      />
+                      <span className="text-sm truncate">{b.name}</span>
+                    </label>
+                    {on && (
+                      <div className="flex gap-1 shrink-0">
+                        {(["manage", "read"] as const).map((lv) => (
+                          <button
+                            key={lv}
+                            type="button"
+                            onClick={() => setBranchMgrLevels((p) => ({ ...p, [b.id]: lv }))}
+                            className={`rounded-full border px-2.5 py-1 text-[11px] transition-all ${
+                              level === lv
+                                ? lv === "manage"
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-warning text-warning-foreground border-warning"
+                                : "bg-background hover:bg-muted"
+                            }`}
+                          >
+                            {lv === "manage" ? "إدارة كاملة" : "عرض فقط"}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                  />
-                  <span className="text-sm">{b.name}</span>
-                </label>
-              ))}
+                  </div>
+                );
+              })}
             </div>
             <div className="flex gap-2 text-xs">
               <Button variant="outline" size="sm" onClick={() => setBranchMgrIds(allBranches.map((b) => b.id))}>كل الفروع</Button>

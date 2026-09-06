@@ -55,9 +55,11 @@ export function UserPermissionsTab() {
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, string[]>>({});
   const [branchIdsByUser, setBranchIdsByUser] = useState<Record<string, string[]>>({});
+  const [branchLevelsByUser, setBranchLevelsByUser] = useState<Record<string, Record<string, "manage" | "read">>>({});
   const [userId, setUserId] = useState<string>("");
   const [role, setRole] = useState<string>("");
   const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [branchLevels, setBranchLevels] = useState<Record<string, "manage" | "read">>({});
   const [savingAccess, setSavingAccess] = useState(false);
   const [state, setState] = useState<Record<string, Tri>>({});
   const [q, setQ] = useState("");
@@ -72,7 +74,7 @@ export function UserPermissionsTab() {
     const [{ data: profs }, { data: roles }, { data: bu }, { data: brs }, { data: emps }, { data: rp }] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role"),
-      supabase.from("branch_users").select("user_id, branch_id"),
+      supabase.from("branch_users").select("user_id, branch_id, access_level"),
       (supabase.from("branches") as any).select("id, name").eq("tenant_id", tenantId).eq("is_system", false).order("name"),
       supabase.from("employees").select("user_id").eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
       supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
@@ -88,8 +90,13 @@ export function UserPermissionsTab() {
     (roles ?? []).forEach((r: any) => { (rmap[r.user_id] = rmap[r.user_id] || []).push(r.role); });
     setRolesByUser(rmap);
     const bmap: Record<string, string[]> = {};
-    (bu ?? []).forEach((r: any) => { (bmap[r.user_id] = bmap[r.user_id] || []).push(r.branch_id); });
+    const lmap: Record<string, Record<string, "manage" | "read">> = {};
+    (bu ?? []).forEach((r: any) => {
+      (bmap[r.user_id] = bmap[r.user_id] || []).push(r.branch_id);
+      (lmap[r.user_id] = lmap[r.user_id] || {})[r.branch_id] = r.access_level === "read" ? "read" : "manage";
+    });
     setBranchIdsByUser(bmap);
+    setBranchLevelsByUser(lmap);
     setLoading(false);
   };
 
@@ -136,9 +143,10 @@ export function UserPermissionsTab() {
   };
 
   useEffect(() => {
-    if (!userId) { setState({}); setRole(""); setBranchIds([]); return; }
+    if (!userId) { setState({}); setRole(""); setBranchIds([]); setBranchLevels({}); return; }
     setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
     setBranchIds(branchIdsByUser[userId] ?? []);
+    setBranchLevels({ ...(branchLevelsByUser[userId] ?? {}) });
     loadOverrides(userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -147,8 +155,9 @@ export function UserPermissionsTab() {
     if (!userId) return;
     setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
     setBranchIds(branchIdsByUser[userId] ?? []);
+    setBranchLevels({ ...(branchLevelsByUser[userId] ?? {}) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rolesByUser, branchIdsByUser]);
+  }, [rolesByUser, branchIdsByUser, branchLevelsByUser]);
 
 
   const filteredSections = useMemo(() => {
@@ -214,6 +223,8 @@ export function UserPermissionsTab() {
       }
 
       const prev = branchIdsByUser[userId] ?? [];
+      const prevLevels = branchLevelsByUser[userId] ?? {};
+      const lvl = (b: string) => (branchLevels[b] === "read" ? "read" : "manage");
       const removed = prev.filter((b) => !branchIds.includes(b));
       const added = branchIds.filter((b) => !prev.includes(b));
       if (removed.length) {
@@ -223,10 +234,20 @@ export function UserPermissionsTab() {
       if (added.length) {
         const { error } = await supabase
           .from("branch_users")
-          .insert(added.map((b) => ({ user_id: userId, branch_id: b, tenant_id: tenantId })) as any);
+          .insert(added.map((b) => ({ user_id: userId, branch_id: b, tenant_id: tenantId, access_level: lvl(b) })) as any);
         if (error) throw error;
       }
-      toast.success("تم تحديث الدور والفروع");
+      for (const b of branchIds.filter((x) => prev.includes(x))) {
+        if (lvl(b) !== (prevLevels[b] ?? "manage")) {
+          const { error } = await supabase
+            .from("branch_users")
+            .update({ access_level: lvl(b) } as any)
+            .eq("user_id", userId)
+            .eq("branch_id", b);
+          if (error) throw error;
+        }
+      }
+      toast.success("تم تحديث الدور والفروع ومستويات الصلاحية");
       await load();
     } catch (e: any) {
       toast.error("فشل التحديث: " + (e?.message ?? e));
@@ -508,22 +529,38 @@ export function UserPermissionsTab() {
               </div>
               <div className="md:col-span-2">
                 <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5" /> الفروع المربوطة ({branchIds.length || "كل الفروع"})
+                  <Building2 className="w-3.5 h-3.5" /> الفروع المربوطة ({branchIds.length || "كل الفروع"}) — حدد لكل فرع: إدارة كاملة أو عرض فقط
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {allBranches.map((b) => {
                     const on = branchIds.includes(b.id);
+                    const level = branchLevels[b.id] === "read" ? "read" : "manage";
                     return (
-                      <button
-                        key={b.id}
-                        type="button"
-                        onClick={() => setBranchIds((p) => (on ? p.filter((x) => x !== b.id) : [...p, b.id]))}
-                        className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-all hover-scale ${
-                          on ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
-                        }`}
-                      >
-                        {on && <Check className="w-3 h-3" />} {b.name}
-                      </button>
+                      <div key={b.id} className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setBranchIds((p) => (on ? p.filter((x) => x !== b.id) : [...p, b.id]))}
+                          className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-all hover-scale ${
+                            on ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
+                          }`}
+                        >
+                          {on && <Check className="w-3 h-3" />} {b.name}
+                        </button>
+                        {on && (
+                          <button
+                            type="button"
+                            onClick={() => setBranchLevels((p) => ({ ...p, [b.id]: level === "manage" ? "read" : "manage" }))}
+                            className={`rounded-full border px-2.5 py-1 text-[11px] transition-all ${
+                              level === "manage"
+                                ? "bg-success/15 text-success border-success/40"
+                                : "bg-warning/15 text-warning border-warning/40"
+                            }`}
+                            title="اضغط للتبديل بين إدارة كاملة وعرض فقط"
+                          >
+                            {level === "manage" ? "إدارة كاملة" : "عرض فقط"}
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                   {!allBranches.length && <span className="text-xs text-muted-foreground">لا توجد فروع</span>}
