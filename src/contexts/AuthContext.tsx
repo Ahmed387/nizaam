@@ -196,7 +196,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isViewer: roles.includes("viewer"),
     isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
     hasRole: (r) => roles.includes(r),
-    can: (key) => checkPermission(roles, permsByRole, key, userPerms),
+    can: (key) => {
+      if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
+      // Hard cap: inside a branch marked "read", every write permission is dropped
+      // regardless of role matrix or per-user overrides.
+      return !isWriteKey(key) || !readOnlyBranch(activeBranchId());
+    },
+    branchAccess: (branchId) => (isFullAccess ? "manage" : branchLevel(branchId)),
+    isBranchReadOnly: (branchId) => readOnlyBranch(branchId),
+    canInBranch: (key, branchId) => {
+      if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
+      return !isWriteKey(key) || !readOnlyBranch(branchId);
+    },
     signOut: async () => {
       await supabase.auth.signOut();
     },
