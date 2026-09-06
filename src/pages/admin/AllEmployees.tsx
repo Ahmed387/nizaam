@@ -339,7 +339,7 @@ export default function AllEmployees() {
           )},
           { key: "branch_name", header: "الفرع الأساسي", align: "right", width: "12%", render: (r: any) => (
             <div className="flex justify-start">
-              <span className="inline-flex items-center h-6 px-2 rounded-md text-xs font-medium bg-primary/10 text-primary">{r.branch_name}</span>
+              <span className="inline-block px-2 py-1 rounded-md text-xs font-medium leading-snug bg-primary/10 text-primary text-right">{r.branch_name}</span>
             </div>
           )},
           { key: "allowed_branches", header: "الفروع ومستوى الصلاحية", align: "right", width: "20%", render: (r: any) => {
@@ -349,25 +349,25 @@ export default function AllEmployees() {
               .map((b: any) => ({ name: branches.find((x) => x.id === b.branch_id)?.name, level: b.access_level }))
               .filter((x: any) => x.name);
             return (
-              <div className="flex flex-wrap gap-1 justify-start">
+              <div className="flex flex-col gap-1 items-start">
                 {items.map((it: any, i: number) => (
                   <span
                     key={i}
-                    className={`inline-flex items-center h-6 px-2 rounded-md text-[11px] font-medium ${
+                    className={`block w-full px-2 py-1 rounded-md text-[11px] font-medium leading-snug text-right ${
                       it.level === "read"
                         ? "bg-muted text-muted-foreground border border-border"
                         : "bg-success/15 text-success border border-success/30"
                     }`}
                     title={it.level === "read" ? "عرض فقط" : "إدارة كاملة"}
                   >
-                    {it.name}
-                    <span className="mx-1 opacity-40">·</span>
-                    {it.level === "read" ? "عرض فقط" : "إدارة كاملة"}
+                    <span className="block">{it.name}</span>
+                    <span className="block opacity-80">{it.level === "read" ? "عرض فقط" : "إدارة كاملة"}</span>
                   </span>
                 ))}
               </div>
             );
           }},
+
           { key: "phone", header: "التليفون", align: "right", width: "10%", render: (r: any) => (
             <span dir="ltr" className="block text-right tabular-nums">{r.phone ?? "—"}</span>
           )},
