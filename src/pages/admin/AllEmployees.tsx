@@ -355,7 +355,7 @@ export default function AllEmployees() {
                     key={i}
                     className={`inline-flex items-center h-6 px-2 rounded-md text-[11px] font-medium ${
                       it.level === "read"
-                        ? "bg-info/15 text-info border border-info/30"
+                        ? "bg-muted text-muted-foreground border border-border"
                         : "bg-success/15 text-success border border-success/30"
                     }`}
                     title={it.level === "read" ? "عرض فقط" : "إدارة كاملة"}
