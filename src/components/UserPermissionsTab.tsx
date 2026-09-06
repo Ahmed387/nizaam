@@ -529,22 +529,38 @@ export function UserPermissionsTab() {
               </div>
               <div className="md:col-span-2">
                 <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5" /> الفروع المربوطة ({branchIds.length || "كل الفروع"})
+                  <Building2 className="w-3.5 h-3.5" /> الفروع المربوطة ({branchIds.length || "كل الفروع"}) — حدد لكل فرع: إدارة كاملة أو عرض فقط
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {allBranches.map((b) => {
                     const on = branchIds.includes(b.id);
+                    const level = branchLevels[b.id] === "read" ? "read" : "manage";
                     return (
-                      <button
-                        key={b.id}
-                        type="button"
-                        onClick={() => setBranchIds((p) => (on ? p.filter((x) => x !== b.id) : [...p, b.id]))}
-                        className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-all hover-scale ${
-                          on ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
-                        }`}
-                      >
-                        {on && <Check className="w-3 h-3" />} {b.name}
-                      </button>
+                      <div key={b.id} className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setBranchIds((p) => (on ? p.filter((x) => x !== b.id) : [...p, b.id]))}
+                          className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-all hover-scale ${
+                            on ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
+                          }`}
+                        >
+                          {on && <Check className="w-3 h-3" />} {b.name}
+                        </button>
+                        {on && (
+                          <button
+                            type="button"
+                            onClick={() => setBranchLevels((p) => ({ ...p, [b.id]: level === "manage" ? "read" : "manage" }))}
+                            className={`rounded-full border px-2.5 py-1 text-[11px] transition-all ${
+                              level === "manage"
+                                ? "bg-success/15 text-success border-success/40"
+                                : "bg-warning/15 text-warning border-warning/40"
+                            }`}
+                            title="اضغط للتبديل بين إدارة كاملة وعرض فقط"
+                          >
+                            {level === "manage" ? "إدارة كاملة" : "عرض فقط"}
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                   {!allBranches.length && <span className="text-xs text-muted-foreground">لا توجد فروع</span>}
