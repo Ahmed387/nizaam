@@ -587,7 +587,14 @@ export default function EmployeeProfile() {
                     {accountRoles.includes("admin")
                       ? "كل الفروع (مدير عام)"
                       : accountBranchIds.length
-                        ? accountBranchIds.map((bid) => allBranches.find((b) => b.id === bid)?.name).filter(Boolean).join("، ")
+                        ? accountBranchIds
+                            .map((bid) => {
+                              const nm = allBranches.find((b) => b.id === bid)?.name;
+                              if (!nm) return null;
+                              return `${nm} (${accountBranchLevels[bid] === "read" ? "عرض فقط" : "إدارة كاملة"})`;
+                            })
+                            .filter(Boolean)
+                            .join("، ")
                         : <span className="text-warning">لم يتم تحديد أي فرع — لن يرى أي بيانات</span>}
                   </div>
                 </div>
