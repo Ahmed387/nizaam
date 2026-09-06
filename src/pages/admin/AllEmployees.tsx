@@ -50,7 +50,7 @@ export default function AllEmployees() {
   const [advRemaining, setAdvRemaining] = useState<Record<string, number>>({});
   // قسط السلفة المستحق هذا الشهر (عرض فقط — لا يُنشئ أي حركة مالية)
   const [advInstallment, setAdvInstallment] = useState<Record<string, number>>({});
-  const [userBranches, setUserBranches] = useState<Record<string, string[]>>({});
+  const [userBranches, setUserBranches] = useState<Record<string, { branch_id: string; access_level: string }[]>>({});
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
