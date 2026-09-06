@@ -7423,6 +7423,17 @@ export type Database = {
         }
       }
       get_opening_balances: { Args: never; Returns: Json }
+      get_owner_expense_delegates: {
+        Args: never
+        Returns: {
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          email: string
+          full_name: string
+          granted_user_id: string
+        }[]
+      }
       get_partner_net_balance: { Args: { p_partner_id: string }; Returns: Json }
       get_product_references_count: {
         Args: { _product_id: string }
@@ -7489,6 +7500,14 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_viewer: { Args: { _user_id: string }; Returns: boolean }
+      manage_owner_expense_access: {
+        Args: {
+          allow_edit: boolean
+          allow_view: boolean
+          target_user_id: string
+        }
+        Returns: undefined
+      }
       map_treasury_to_category_key: {
         Args: { _t: Database["public"]["Tables"]["treasury"]["Row"] }
         Returns: string
@@ -7716,6 +7735,7 @@ export type Database = {
       }
       personal_access_level: { Args: { _owner: string }; Returns: string }
       personal_identity: { Args: never; Returns: string }
+      personal_ledger_owner_id: { Args: never; Returns: string }
       personal_owner_info: {
         Args: never
         Returns: {
@@ -7984,6 +8004,10 @@ export type Database = {
           p_reason?: string
           p_tenant_id: string
         }
+        Returns: undefined
+      }
+      revoke_owner_expense_access: {
+        Args: { target_user_id: string }
         Returns: undefined
       }
       run_regression_checks: { Args: { p_source?: string }; Returns: string }
