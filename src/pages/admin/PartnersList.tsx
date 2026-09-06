@@ -512,6 +512,9 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
                       onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
                       <FileText className="w-4 h-4 ml-1.5" />تحميل PDF
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => openLinkDialog(p)} title="ربط الشريك بحساب موظف مسجل">
+                      <Link2 className="w-4 h-4" />
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
                       <KeyRound className="w-4 h-4" />
                     </Button>
