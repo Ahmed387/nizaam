@@ -55,9 +55,11 @@ export function UserPermissionsTab() {
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, string[]>>({});
   const [branchIdsByUser, setBranchIdsByUser] = useState<Record<string, string[]>>({});
+  const [branchLevelsByUser, setBranchLevelsByUser] = useState<Record<string, Record<string, "manage" | "read">>>({});
   const [userId, setUserId] = useState<string>("");
   const [role, setRole] = useState<string>("");
   const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [branchLevels, setBranchLevels] = useState<Record<string, "manage" | "read">>({});
   const [savingAccess, setSavingAccess] = useState(false);
   const [state, setState] = useState<Record<string, Tri>>({});
   const [q, setQ] = useState("");
