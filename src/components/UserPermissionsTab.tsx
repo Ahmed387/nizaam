@@ -223,6 +223,8 @@ export function UserPermissionsTab() {
       }
 
       const prev = branchIdsByUser[userId] ?? [];
+      const prevLevels = branchLevelsByUser[userId] ?? {};
+      const lvl = (b: string) => (branchLevels[b] === "read" ? "read" : "manage");
       const removed = prev.filter((b) => !branchIds.includes(b));
       const added = branchIds.filter((b) => !prev.includes(b));
       if (removed.length) {
@@ -232,10 +234,20 @@ export function UserPermissionsTab() {
       if (added.length) {
         const { error } = await supabase
           .from("branch_users")
-          .insert(added.map((b) => ({ user_id: userId, branch_id: b, tenant_id: tenantId })) as any);
+          .insert(added.map((b) => ({ user_id: userId, branch_id: b, tenant_id: tenantId, access_level: lvl(b) })) as any);
         if (error) throw error;
       }
-      toast.success("تم تحديث الدور والفروع");
+      for (const b of branchIds.filter((x) => prev.includes(x))) {
+        if (lvl(b) !== (prevLevels[b] ?? "manage")) {
+          const { error } = await supabase
+            .from("branch_users")
+            .update({ access_level: lvl(b) } as any)
+            .eq("user_id", userId)
+            .eq("branch_id", b);
+          if (error) throw error;
+        }
+      }
+      toast.success("تم تحديث الدور والفروع ومستويات الصلاحية");
       await load();
     } catch (e: any) {
       toast.error("فشل التحديث: " + (e?.message ?? e));
