@@ -90,8 +90,13 @@ export function UserPermissionsTab() {
     (roles ?? []).forEach((r: any) => { (rmap[r.user_id] = rmap[r.user_id] || []).push(r.role); });
     setRolesByUser(rmap);
     const bmap: Record<string, string[]> = {};
-    (bu ?? []).forEach((r: any) => { (bmap[r.user_id] = bmap[r.user_id] || []).push(r.branch_id); });
+    const lmap: Record<string, Record<string, "manage" | "read">> = {};
+    (bu ?? []).forEach((r: any) => {
+      (bmap[r.user_id] = bmap[r.user_id] || []).push(r.branch_id);
+      (lmap[r.user_id] = lmap[r.user_id] || {})[r.branch_id] = r.access_level === "read" ? "read" : "manage";
+    });
     setBranchIdsByUser(bmap);
+    setBranchLevelsByUser(lmap);
     setLoading(false);
   };
 
