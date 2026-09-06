@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2, Link2 } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 import { confirmAlert } from "@/components/ConfirmDialog";
 
@@ -532,6 +532,36 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
           </div>
         )}
       </div>
+
+      {/* Link partner to an existing employee account */}
+      <Dialog open={!!linkPartner} onOpenChange={(o) => !o && setLinkPartner(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>ربط «{linkPartner?.name}» بحساب موظف</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
+              اختر حساب موظف موجود ليصبح هو نفسه حساب الشريك. الحساب هيحتفظ بصلاحياته ومستوى صلاحيته على كل فرع، وهيضاف له دخول شاشات الشركاء.
+            </p>
+            <div>
+              <Label>حساب الموظف</Label>
+              <Select value={linkUserId} onValueChange={setLinkUserId}>
+                <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
+                <SelectContent>
+                  {empAccounts.map((e) => (
+                    <SelectItem key={e.user_id} value={e.user_id}>{e.name} — {e.username}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!empAccounts.length && <p className="text-xs text-muted-foreground mt-1">لا يوجد موظفين مرتبطين بحسابات دخول</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkPartner(null)}>إلغاء</Button>
+            <Button onClick={saveLink} disabled={!linkUserId || linking}>
+              {linking && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}ربط الحساب
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add partner dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
