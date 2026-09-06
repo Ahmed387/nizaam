@@ -96,10 +96,10 @@ export default function AllEmployees() {
     setAdvInstallment(inst);
     const uids = (e ?? []).map((x: any) => x.user_id).filter(Boolean);
     if (uids.length) {
-      const { data: bu } = await supabase.from("branch_users").select("user_id, branch_id").in("user_id", uids);
-      const ub: Record<string, string[]> = {};
+      const { data: bu } = await supabase.from("branch_users").select("user_id, branch_id, access_level").in("user_id", uids);
+      const ub: Record<string, { branch_id: string; access_level: string }[]> = {};
       for (const r of (bu ?? []) as any[]) {
-        (ub[r.user_id] = ub[r.user_id] || []).push(r.branch_id);
+        (ub[r.user_id] = ub[r.user_id] || []).push({ branch_id: r.branch_id, access_level: r.access_level ?? "manage" });
       }
       setUserBranches(ub);
     } else setUserBranches({});
