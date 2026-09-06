@@ -41,7 +41,7 @@ function passwordStrength(pw: string): { level: "ضعيفة" | "متوسطة" | 
 }
 
 export default function PartnersList({ embedded }: { embedded?: boolean } = {}) {
-  const { tenantId, profile } = useAuth();
+  const { tenantId, profile, branches } = useAuth();
   const [rows, setRows] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(false);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
