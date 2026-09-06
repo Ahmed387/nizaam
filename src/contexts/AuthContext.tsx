@@ -22,7 +22,7 @@ interface AuthCtx {
   tenantId: string | null;
   tenant: Tenant | null;
   roles: AppRole[];
-  branches: { id: string; name: string; code: string }[];
+  branches: { id: string; name: string; code: string; access_level?: "manage" | "read" }[];
   loading: boolean;
   ctxReady: boolean;
   /** Branch ids this user may see in admin pages; null = all branches. */
@@ -34,6 +34,12 @@ interface AuthCtx {
   isOwner: boolean;
   hasRole: (r: AppRole) => boolean;
   can: (key: string) => boolean;
+  /** مستوى صلاحية المستخدم على فرع معيّن (إدارة كاملة / عرض فقط). */
+  branchAccess: (branchId?: string | null) => "manage" | "read";
+  /** هل الفرع مضبوط على «عرض فقط» لهذا المستخدم؟ */
+  isBranchReadOnly: (branchId?: string | null) => boolean;
+  /** فحص صلاحية داخل فرع محدد (يطبّق سقف الحظر النهائي). */
+  canInBranch: (key: string, branchId?: string | null) => boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
