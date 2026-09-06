@@ -177,6 +177,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [tenantId]);
 
+  // ===== Hybrid branch access (manage | read) =====
+  const isFullAccess =
+    roles.includes("admin") ||
+    roles.includes("super_admin") ||
+    roles.includes("owner") ||
+    (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id);
+
+  /** Branch currently open in the URL (/branch/:id/...), if any. */
+  const activeBranchId = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const m = window.location.pathname.match(/^\/branch\/([^/]+)/);
+    return m ? m[1] : null;
+  };
+
+  const branchLevel = (branchId?: string | null): "manage" | "read" => {
+    if (isFullAccess || !branchId) return "manage";
+    const b = branches.find((x) => x.id === branchId) as any;
+    return b?.access_level === "read" ? "read" : "manage";
+  };
+
+  const readOnlyBranch = (branchId?: string | null) => !isFullAccess && branchLevel(branchId) === "read";
+
+  /** Any permission action that is not a plain view/read. */
+  const isWriteKey = (key: string) => {
+    const action = key.split(".").pop() ?? "";
+    return !["view", "read"].includes(action);
+  };
+
   const value: AuthCtx = {
     user,
     session,
