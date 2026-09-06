@@ -143,9 +143,10 @@ export function UserPermissionsTab() {
   };
 
   useEffect(() => {
-    if (!userId) { setState({}); setRole(""); setBranchIds([]); return; }
+    if (!userId) { setState({}); setRole(""); setBranchIds([]); setBranchLevels({}); return; }
     setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
     setBranchIds(branchIdsByUser[userId] ?? []);
+    setBranchLevels({ ...(branchLevelsByUser[userId] ?? {}) });
     loadOverrides(userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -154,8 +155,9 @@ export function UserPermissionsTab() {
     if (!userId) return;
     setRole((rolesByUser[userId] ?? []).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? (rolesByUser[userId] ?? [])[0] ?? "");
     setBranchIds(branchIdsByUser[userId] ?? []);
+    setBranchLevels({ ...(branchLevelsByUser[userId] ?? {}) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rolesByUser, branchIdsByUser]);
+  }, [rolesByUser, branchIdsByUser, branchLevelsByUser]);
 
 
   const filteredSections = useMemo(() => {
