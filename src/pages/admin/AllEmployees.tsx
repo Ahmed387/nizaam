@@ -331,46 +331,66 @@ export default function AllEmployees() {
         empty="لا يوجد موظفين"
         onRowClick={(r: any) => window.open(`/admin/employees/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
-          { key: "name", header: "الاسم", render: (r: any) => (
-            <div>
+          { key: "name", header: "الاسم", align: "right", width: "16rem", render: (r: any) => (
+            <div className="text-right leading-tight">
               <div className="font-semibold">{r.name}</div>
-              <div className="text-xs text-muted-foreground">{r.job_title}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{r.job_title}</div>
             </div>
           )},
-          { key: "branch_name", header: "الفرع الأساسي", render: (r: any) => (
-            <span className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary">{r.branch_name}</span>
+          { key: "branch_name", header: "الفرع الأساسي", align: "right", width: "10rem", render: (r: any) => (
+            <div className="flex justify-start">
+              <span className="inline-flex items-center h-6 px-2 rounded-md text-xs font-medium bg-primary/10 text-primary">{r.branch_name}</span>
+            </div>
           )},
-          { key: "allowed_branches", header: "الفروع المسموح بها (للدخول)", render: (r: any) => {
+          { key: "allowed_branches", header: "الفروع ومستوى الصلاحية", align: "right", width: "16rem", render: (r: any) => {
             if (!r.user_id) return <span className="text-xs text-muted-foreground">بدون حساب</span>;
             if (!r.allowed_branches.length) return <span className="text-xs text-warning">لا فروع — تحتاج إعداد</span>;
-            const names = r.allowed_branches.map((bid: string) => branches.find((b) => b.id === bid)?.name).filter(Boolean);
-            if (names.length === branches.length) return <span className="text-xs px-2 py-0.5 rounded bg-success/15 text-success">كل الفروع</span>;
+            const items = r.allowed_branches
+              .map((b: any) => ({ name: branches.find((x) => x.id === b.branch_id)?.name, level: b.access_level }))
+              .filter((x: any) => x.name);
             return (
-              <div className="flex flex-wrap gap-1 max-w-[220px]">
-                {names.map((n: string, i: number) => (
-                  <span key={i} className="px-1.5 py-0.5 rounded text-[10px] bg-muted">{n}</span>
+              <div className="flex flex-wrap gap-1 justify-start">
+                {items.map((it: any, i: number) => (
+                  <span
+                    key={i}
+                    className={`inline-flex items-center h-6 px-2 rounded-md text-[11px] font-medium ${
+                      it.level === "read"
+                        ? "bg-info/15 text-info border border-info/30"
+                        : "bg-success/15 text-success border border-success/30"
+                    }`}
+                    title={it.level === "read" ? "عرض فقط" : "إدارة كاملة"}
+                  >
+                    {it.name}
+                    <span className="mx-1 opacity-40">·</span>
+                    {it.level === "read" ? "عرض فقط" : "إدارة كاملة"}
+                  </span>
                 ))}
               </div>
             );
           }},
-          { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-          { key: "base_salary", header: "الراتب", render: (r: any) => <b>{formatEGP(r.base_salary)}</b> },
-          { key: "advance_remaining", header: "سلف متبقية", render: (r: any) => (
-            r.advance_remaining > 0
-              ? <span className="text-warning font-bold">{formatEGP(r.advance_remaining)}</span>
-              : <span className="text-muted-foreground">—</span>
+          { key: "phone", header: "التليفون", align: "right", width: "9rem", render: (r: any) => (
+            <span dir="ltr" className="block text-right tabular-nums">{r.phone ?? "—"}</span>
           )},
-          { key: "hire_date", header: "التعيين", render: (r: any) => formatDate(r.hire_date) },
-          { key: "is_active", header: "الحالة", render: (r: any) => (
-            <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
+          { key: "base_salary", header: "الراتب", align: "right", numeric: true, width: "9rem", render: (r: any) => (
+            <span className="block text-right font-bold tabular-nums">{formatEGP(r.base_salary)}</span>
+          )},
+          { key: "advance_remaining", header: "سلف متبقية", align: "right", numeric: true, width: "9rem", render: (r: any) => (
+            r.advance_remaining > 0
+              ? <span className="block text-right text-warning font-bold tabular-nums">{formatEGP(r.advance_remaining)}</span>
+              : <span className="block text-right text-muted-foreground">—</span>
+          )},
+          { key: "hire_date", header: "التعيين", align: "center", width: "8rem", render: (r: any) => (
+            <span className="tabular-nums">{formatDate(r.hire_date)}</span>
+          )},
+          { key: "is_active", header: "الحالة", align: "center", width: "7rem", render: (r: any) => (
+            <span className={`inline-flex items-center justify-center h-6 px-2.5 rounded-md text-xs font-medium ${r.is_active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
               {r.is_active ? "نشط" : "موقوف"}
             </span>
           )},
-          { key: "actions", header: "", render: (r: any) => (
-            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-              <ArrowRight className="w-4 h-4 text-muted-foreground self-center" />
+          { key: "actions", header: "إجراءات", align: "center", width: "8rem", render: (r: any) => (
+            <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" title="تعديل" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" title="حذف" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
             </div>
           )},
         ]}
