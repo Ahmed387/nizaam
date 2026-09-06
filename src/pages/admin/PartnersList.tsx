@@ -829,13 +829,18 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
               </div>
             </TabsContent>
           </Tabs>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button onClick={submit} disabled={submitting}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>إلغاء</Button>
+            <Button
+              onClick={addMode === "employee" ? submitEmployeePartner : submit}
+              disabled={submitting || (addMode === "employee" && !selectedEmpId)}
+            >
               {submitting && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
-              إنشاء الشريك
+              {addMode === "employee" ? "تأكيد الشراكة والحفظ" : "إنشاء الشريك"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
