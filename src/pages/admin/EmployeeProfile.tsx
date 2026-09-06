@@ -110,15 +110,19 @@ export default function EmployeeProfile() {
       const [{ data: prof }, { data: rs }, { data: bus }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", (e as any).user_id).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", (e as any).user_id),
-        supabase.from("branch_users").select("branch_id").eq("user_id", (e as any).user_id),
+        supabase.from("branch_users").select("branch_id, access_level").eq("user_id", (e as any).user_id),
       ]);
       setAccountProfile(prof);
       setAccountRoles((rs ?? []).map((r: any) => r.role));
       setAccountBranchIds((bus ?? []).map((x: any) => x.branch_id));
+      setAccountBranchLevels(
+        Object.fromEntries(((bus ?? []) as any[]).map((x) => [x.branch_id, x.access_level === "read" ? "read" : "manage"])),
+      );
     } else {
       setAccountProfile(null);
       setAccountRoles([]);
       setAccountBranchIds([]);
+      setAccountBranchLevels({});
     }
     setLoading(false);
   };
