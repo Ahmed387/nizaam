@@ -80,6 +80,7 @@ export default function EmployeeProfile() {
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [branchMgrOpen, setBranchMgrOpen] = useState(false);
   const [branchMgrIds, setBranchMgrIds] = useState<string[]>([]);
+  const [branchMgrLevels, setBranchMgrLevels] = useState<Record<string, "manage" | "read">>({});
   const [savingBranches, setSavingBranches] = useState(false);
 
   const load = async () => {
