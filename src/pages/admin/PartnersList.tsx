@@ -74,6 +74,51 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
   const [resetPw, setResetPw] = useState("");
   const [resetConfirm, setResetConfirm] = useState("");
 
+  // ربط شريك بحساب موظف موجود (ازدواجية صفة الشريك والموظف)
+  const [linkPartner, setLinkPartner] = useState<Partner | null>(null);
+  const [linkUserId, setLinkUserId] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [empAccounts, setEmpAccounts] = useState<{ user_id: string; name: string; username: string }[]>([]);
+
+  const openLinkDialog = async (p: Partner) => {
+    setLinkPartner(p);
+    setLinkUserId("");
+    const { data: emps } = await supabase
+      .from("employees")
+      .select("user_id, name")
+      .eq("tenant_id", tenantId as string)
+      .not("user_id", "is", null);
+    const ids = ((emps ?? []) as any[]).map((e) => e.user_id);
+    if (!ids.length) { setEmpAccounts([]); return; }
+    const { data: profs } = await supabase.from("profiles").select("id, username").in("id", ids);
+    const uname: Record<string, string> = Object.fromEntries(((profs ?? []) as any[]).map((x) => [x.id, x.username]));
+    setEmpAccounts(((emps ?? []) as any[]).map((e) => ({ user_id: e.user_id, name: e.name, username: uname[e.user_id] ?? "-" })));
+  };
+
+  const saveLink = async () => {
+    if (!linkPartner || !linkUserId) return;
+    setLinking(true);
+    try {
+      const { data: existing } = await supabase
+        .from("partner_users" as any).select("id").eq("user_id", linkUserId).maybeSingle();
+      if (existing) throw new Error("الحساب ده مربوط بشريك تاني بالفعل");
+      const { error } = await supabase.from("partner_users" as any).insert({
+        tenant_id: tenantId, user_id: linkUserId, partner_id: linkPartner.id,
+      });
+      if (error) throw error;
+      await supabase.from("user_roles" as any)
+        .upsert({ user_id: linkUserId, role: "partner", tenant_id: tenantId }, { onConflict: "user_id,role" });
+      toast.success("تم ربط الشريك بحساب الموظف");
+      setLinkPartner(null);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "فشل الربط");
+    } finally {
+      setLinking(false);
+    }
+  };
+
+
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
