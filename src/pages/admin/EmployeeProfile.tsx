@@ -41,6 +41,7 @@ export default function EmployeeProfile() {
   const [accountProfile, setAccountProfile] = useState<any>(null);
   const [accountRoles, setAccountRoles] = useState<AppRole[]>([]);
   const [accountBranchIds, setAccountBranchIds] = useState<string[]>([]);
+  const [accountBranchLevels, setAccountBranchLevels] = useState<Record<string, "manage" | "read">>({});
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
 
   const [editOpen, setEditOpen] = useState(false);
