@@ -41,7 +41,7 @@ function passwordStrength(pw: string): { level: "ضعيفة" | "متوسطة" | 
 }
 
 export default function PartnersList({ embedded }: { embedded?: boolean } = {}) {
-  const { tenantId, profile } = useAuth();
+  const { tenantId, profile, branches } = useAuth();
   const [rows, setRows] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(false);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
@@ -68,6 +68,84 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
   const [submitting, setSubmitting] = useState(false);
   const [successCreds, setSuccessCreds] = useState<{ username: string; password: string } | null>(null);
   const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "taken" | "free">("idle");
+
+  // ===== وضع النافذة: ترقية موظف حالي / شريك خارجي جديد =====
+  type EligibleEmp = { id: string; name: string; job_title: string; phone: string | null; branch_id: string; user_id: string };
+  const [addMode, setAddMode] = useState<"employee" | "external">("employee");
+  const [eligibleEmps, setEligibleEmps] = useState<EligibleEmp[]>([]);
+  const [empLoading, setEmpLoading] = useState(false);
+  const [selectedEmpId, setSelectedEmpId] = useState("");
+  const [empSearch, setEmpSearch] = useState("");
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [partnerNotes, setPartnerNotes] = useState("");
+  const selectedEmp = eligibleEmps.find((e) => e.id === selectedEmpId) || null;
+  const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? "-";
+
+  /** الموظفين اللي ليهم حساب دخول ومش مربوطين بأي شريك */
+  const loadEligibleEmployees = async () => {
+    if (!tenantId) return;
+    setEmpLoading(true);
+    try {
+      const [{ data: emps }, { data: links }] = await Promise.all([
+        supabase.from("employees")
+          .select("id, name, job_title, phone, branch_id, user_id")
+          .eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
+        supabase.from("partner_users" as any).select("user_id").eq("tenant_id", tenantId),
+      ]);
+      const linked = new Set(((links ?? []) as any[]).map((l) => l.user_id));
+      setEligibleEmps(((emps ?? []) as any[]).filter((e) => !linked.has(e.user_id)) as EligibleEmp[]);
+    } finally {
+      setEmpLoading(false);
+    }
+  };
+
+  const openAddDialog = () => {
+    setAddMode("employee");
+    setSelectedEmpId(""); setEmpSearch(""); setPartnerNotes("");
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setTab("data");
+    setOpen(true);
+    loadEligibleEmployees();
+  };
+
+  /** ترقية موظف موجود إلى شريك — عملية ذرية واحدة في قاعدة البيانات */
+  const submitEmployeePartner = async () => {
+    if (!selectedEmp) return toast.error("اختر الموظف المراد ترقيته");
+    const cap = autoShare ? Number(autoNewShare.toFixed(6)) : (Number(form.capital_share) || 0);
+    const op = Number(form.operating_share) || 0;
+    if (autoShare && newAmount <= 0) return toast.error("أدخل حصة رأس المال عشان النظام يحسب النسبة");
+    if (cap < 0 || cap > 1 || op < 0 || op > 1) return toast.error("النسب يجب أن تكون بين 0% و 100%");
+    if (!autoShare) {
+      const manualTotal = activePartners.reduce((s, p) => s + Number(p.capital_share || 0), 0) + cap;
+      if (manualTotal > 1.0001) return toast.error(`مجموع نسب الشركاء هيتعدى 100% — المجموع ${(manualTotal * 100).toFixed(2)}%`);
+    }
+    setSubmitting(true);
+    try {
+      if (autoShare && activePartners.length) await applyAutoSharesToExisting(newAmount);
+      const { error } = await supabase.rpc("create_partner_from_employee" as any, {
+        _employee_id: selectedEmp.id,
+        _partner_type: form.partner_type,
+        _capital_share: cap,
+        _operating_share: op,
+        _initial_capital: Number(form.initial_capital) || 0,
+        _start_date: startDate || null,
+        _notes: partnerNotes.trim() || null,
+      });
+      if (error) throw error;
+      if (autoShare) await applyAutoSharesToExisting(0).catch(() => {});
+      toast.success(`تم تسجيل الشراكة وربطها بالموظف (${selectedEmp.name}) بنجاح`);
+      setOpen(false);
+      setForm({ name: "", partner_type: "capital", capital_share: "", operating_share: "", initial_capital: "", username: "", password: "", confirm: "", email: "", phone: "" });
+      setSelectedEmpId(""); setPartnerNotes("");
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "فشل تسجيل الشراكة");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
 
 
   const [resetPartner, setResetPartner] = useState<Partner | null>(null);

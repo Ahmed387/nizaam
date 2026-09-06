@@ -1638,8 +1638,10 @@ export type Database = {
           initial_capital: number
           is_active: boolean
           name: string
+          notes: string | null
           operating_share: number
           partner_type: string
+          partnership_start_date: string | null
           tenant_id: string
           updated_at: string
         }
@@ -1650,8 +1652,10 @@ export type Database = {
           initial_capital?: number
           is_active?: boolean
           name: string
+          notes?: string | null
           operating_share?: number
           partner_type: string
+          partnership_start_date?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -1662,8 +1666,10 @@ export type Database = {
           initial_capital?: number
           is_active?: boolean
           name?: string
+          notes?: string | null
           operating_share?: number
           partner_type?: string
+          partnership_start_date?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -7084,6 +7090,18 @@ export type Database = {
           _notes?: string
           _partner_id: string
           _reason?: string
+        }
+        Returns: string
+      }
+      create_partner_from_employee: {
+        Args: {
+          _capital_share: number
+          _employee_id: string
+          _initial_capital: number
+          _notes?: string
+          _operating_share: number
+          _partner_type: string
+          _start_date?: string
         }
         Returns: string
       }
