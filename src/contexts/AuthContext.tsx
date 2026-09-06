@@ -22,7 +22,7 @@ interface AuthCtx {
   tenantId: string | null;
   tenant: Tenant | null;
   roles: AppRole[];
-  branches: { id: string; name: string; code: string }[];
+  branches: { id: string; name: string; code: string; access_level?: "manage" | "read" }[];
   loading: boolean;
   ctxReady: boolean;
   /** Branch ids this user may see in admin pages; null = all branches. */
@@ -34,6 +34,12 @@ interface AuthCtx {
   isOwner: boolean;
   hasRole: (r: AppRole) => boolean;
   can: (key: string) => boolean;
+  /** مستوى صلاحية المستخدم على فرع معيّن (إدارة كاملة / عرض فقط). */
+  branchAccess: (branchId?: string | null) => "manage" | "read";
+  /** هل الفرع مضبوط على «عرض فقط» لهذا المستخدم؟ */
+  isBranchReadOnly: (branchId?: string | null) => boolean;
+  /** فحص صلاحية داخل فرع محدد (يطبّق سقف الحظر النهائي). */
+  canInBranch: (key: string, branchId?: string | null) => boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -171,6 +177,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [tenantId]);
 
+  // ===== Hybrid branch access (manage | read) =====
+  const isFullAccess =
+    roles.includes("admin") ||
+    roles.includes("super_admin") ||
+    roles.includes("owner") ||
+    (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id);
+
+  /** Branch currently open in the URL (/branch/:id/...), if any. */
+  const activeBranchId = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const m = window.location.pathname.match(/^\/branch\/([^/]+)/);
+    return m ? m[1] : null;
+  };
+
+  const branchLevel = (branchId?: string | null): "manage" | "read" => {
+    if (isFullAccess || !branchId) return "manage";
+    const b = branches.find((x) => x.id === branchId) as any;
+    return b?.access_level === "read" ? "read" : "manage";
+  };
+
+  const readOnlyBranch = (branchId?: string | null) => !isFullAccess && branchLevel(branchId) === "read";
+
+  /** Any permission action that is not a plain view/read. */
+  const isWriteKey = (key: string) => {
+    const action = key.split(".").pop() ?? "";
+    return !["view", "read"].includes(action);
+  };
+
   const value: AuthCtx = {
     user,
     session,
@@ -190,7 +224,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isViewer: roles.includes("viewer"),
     isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
     hasRole: (r) => roles.includes(r),
-    can: (key) => checkPermission(roles, permsByRole, key, userPerms),
+    can: (key) => {
+      if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
+      // Hard cap: inside a branch marked "read", every write permission is dropped
+      // regardless of role matrix or per-user overrides.
+      return !isWriteKey(key) || !readOnlyBranch(activeBranchId());
+    },
+    branchAccess: (branchId) => (isFullAccess ? "manage" : branchLevel(branchId)),
+    isBranchReadOnly: (branchId) => readOnlyBranch(branchId),
+    canInBranch: (key, branchId) => {
+      if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
+      return !isWriteKey(key) || !readOnlyBranch(branchId);
+    },
     signOut: async () => {
       await supabase.auth.signOut();
     },

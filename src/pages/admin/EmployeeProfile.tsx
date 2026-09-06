@@ -41,6 +41,7 @@ export default function EmployeeProfile() {
   const [accountProfile, setAccountProfile] = useState<any>(null);
   const [accountRoles, setAccountRoles] = useState<AppRole[]>([]);
   const [accountBranchIds, setAccountBranchIds] = useState<string[]>([]);
+  const [accountBranchLevels, setAccountBranchLevels] = useState<Record<string, "manage" | "read">>({});
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([]);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -79,6 +80,7 @@ export default function EmployeeProfile() {
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [branchMgrOpen, setBranchMgrOpen] = useState(false);
   const [branchMgrIds, setBranchMgrIds] = useState<string[]>([]);
+  const [branchMgrLevels, setBranchMgrLevels] = useState<Record<string, "manage" | "read">>({});
   const [savingBranches, setSavingBranches] = useState(false);
 
   const load = async () => {
@@ -108,15 +110,19 @@ export default function EmployeeProfile() {
       const [{ data: prof }, { data: rs }, { data: bus }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", (e as any).user_id).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", (e as any).user_id),
-        supabase.from("branch_users").select("branch_id").eq("user_id", (e as any).user_id),
+        supabase.from("branch_users").select("branch_id, access_level").eq("user_id", (e as any).user_id),
       ]);
       setAccountProfile(prof);
       setAccountRoles((rs ?? []).map((r: any) => r.role));
       setAccountBranchIds((bus ?? []).map((x: any) => x.branch_id));
+      setAccountBranchLevels(
+        Object.fromEntries(((bus ?? []) as any[]).map((x) => [x.branch_id, x.access_level === "read" ? "read" : "manage"])),
+      );
     } else {
       setAccountProfile(null);
       setAccountRoles([]);
       setAccountBranchIds([]);
+      setAccountBranchLevels({});
     }
     setLoading(false);
   };
@@ -367,6 +373,7 @@ export default function EmployeeProfile() {
 
   const openManageBranches = () => {
     setBranchMgrIds([...accountBranchIds]);
+    setBranchMgrLevels({ ...accountBranchLevels });
     setBranchMgrOpen(true);
   };
 
@@ -378,13 +385,27 @@ export default function EmployeeProfile() {
       const next = new Set(branchMgrIds);
       const toAdd = [...next].filter((x) => !current.has(x));
       const toRemove = [...current].filter((x) => !next.has(x));
+      const lvl = (bid: string) => (branchMgrLevels[bid] === "read" ? "read" : "manage");
       if (toRemove.length) {
         await supabase.from("branch_users").delete().eq("user_id", emp.user_id).in("branch_id", toRemove);
       }
       if (toAdd.length) {
-        await supabase.from("branch_users").insert(toAdd.map((bid) => ({ user_id: emp.user_id, branch_id: bid })));
+        await supabase.from("branch_users").insert(
+          toAdd.map((bid) => ({ user_id: emp.user_id, branch_id: bid, access_level: lvl(bid) })) as any,
+        );
       }
-      toast.success("تم تحديث الفروع");
+      // Update the access level of branches that stay linked but changed level
+      const kept = [...next].filter((x) => current.has(x));
+      for (const bid of kept) {
+        if (lvl(bid) !== (accountBranchLevels[bid] ?? "manage")) {
+          await supabase
+            .from("branch_users")
+            .update({ access_level: lvl(bid) } as any)
+            .eq("user_id", emp.user_id)
+            .eq("branch_id", bid);
+        }
+      }
+      toast.success("تم تحديث الفروع ومستويات الصلاحية");
       setBranchMgrOpen(false);
       load();
     } catch (e: any) {
@@ -393,6 +414,7 @@ export default function EmployeeProfile() {
       setSavingBranches(false);
     }
   };
+
 
   if (loading) return <AdminLayout><div className="text-center py-12 text-muted-foreground">جاري التحميل...</div></AdminLayout>;
   if (!emp) return <AdminLayout><div className="text-center py-12 text-muted-foreground">الموظف غير موجود</div></AdminLayout>;

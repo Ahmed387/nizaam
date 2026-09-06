@@ -822,18 +822,21 @@ export type Database = {
       }
       branch_users: {
         Row: {
+          access_level: string
           branch_id: string
           id: string
           tenant_id: string | null
           user_id: string
         }
         Insert: {
+          access_level?: string
           branch_id: string
           id?: string
           tenant_id?: string | null
           user_id: string
         }
         Update: {
+          access_level?: string
           branch_id?: string
           id?: string
           tenant_id?: string | null
@@ -8138,6 +8141,10 @@ export type Database = {
       upsert_inventory_counts: {
         Args: { _items: Json; _session_id: string }
         Returns: number
+      }
+      user_can_write_branch: {
+        Args: { p_branch_id: string; p_user_id: string }
+        Returns: boolean
       }
       user_in_branch: {
         Args: { _branch_id: string; _user_id: string }
