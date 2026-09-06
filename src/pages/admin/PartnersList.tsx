@@ -465,7 +465,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
             <Button variant="outline" className="w-full sm:w-auto shadow-sm" onClick={recalcShares} disabled={recalcing}>
               {recalcing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}إعادة احتساب النسب من المبالغ
             </Button>
-            <Button onClick={() => setOpen(true)} className="w-full sm:w-auto shadow-sm">
+            <Button onClick={openAddDialog} className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
             </Button>
 
