@@ -322,6 +322,12 @@ export async function fetchUserContext(userId: string) {
   // المراقب: عرض فقط لكل الفروع — لازم يشوف قائمة الفروع كاملة
   const isViewer = userRoles.includes("viewer");
 
+  // Per-branch access level from branch_users (manage | read). Missing = manage (backward compatible).
+  const accessByBranch: Record<string, "manage" | "read"> = {};
+  (branchUsers ?? []).forEach((b: any) => {
+    accessByBranch[b.branch_id] = b.access_level === "read" ? "read" : "manage";
+  });
+
   // Admin/Supervisor/Viewer see all tenant branches. Others see only their assigned branches.
   let branches: any[] = [];
   if ((isAdminOrSuper || isSupervisor || isViewer) && (profile as any)?.tenant_id) {
@@ -335,6 +341,12 @@ export async function fetchUserContext(userId: string) {
   } else {
     branches = (branchUsers ?? []).map((b: any) => b.branches).filter(Boolean);
   }
+
+  // Owner / admin / super admin keep permanent "manage" on every branch (owner immunity).
+  branches = branches.map((b: any) => ({
+    ...b,
+    access_level: isAdminOrSuper ? "manage" : (accessByBranch[b.id] ?? "manage"),
+  }));
 
   return {
     profile,
