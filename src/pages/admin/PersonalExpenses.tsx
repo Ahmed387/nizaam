@@ -47,9 +47,6 @@ interface Deposit {
   notes: string | null;
 }
 
-const OWNER_EMAIL = "an.ayoub98@gmail.com";
-const SECOND_EMAIL = "nasser1968ayoub@gmail.com";
-const ALLOWED_EMAILS = [OWNER_EMAIL, SECOND_EMAIL];
 const OWNER_NAME = "حج ناصر";
 
 /** تحية حسب وقت اليوم */
