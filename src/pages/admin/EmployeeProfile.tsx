@@ -373,6 +373,7 @@ export default function EmployeeProfile() {
 
   const openManageBranches = () => {
     setBranchMgrIds([...accountBranchIds]);
+    setBranchMgrLevels({ ...accountBranchLevels });
     setBranchMgrOpen(true);
   };
 
@@ -384,13 +385,27 @@ export default function EmployeeProfile() {
       const next = new Set(branchMgrIds);
       const toAdd = [...next].filter((x) => !current.has(x));
       const toRemove = [...current].filter((x) => !next.has(x));
+      const lvl = (bid: string) => (branchMgrLevels[bid] === "read" ? "read" : "manage");
       if (toRemove.length) {
         await supabase.from("branch_users").delete().eq("user_id", emp.user_id).in("branch_id", toRemove);
       }
       if (toAdd.length) {
-        await supabase.from("branch_users").insert(toAdd.map((bid) => ({ user_id: emp.user_id, branch_id: bid })));
+        await supabase.from("branch_users").insert(
+          toAdd.map((bid) => ({ user_id: emp.user_id, branch_id: bid, access_level: lvl(bid) })) as any,
+        );
       }
-      toast.success("تم تحديث الفروع");
+      // Update the access level of branches that stay linked but changed level
+      const kept = [...next].filter((x) => current.has(x));
+      for (const bid of kept) {
+        if (lvl(bid) !== (accountBranchLevels[bid] ?? "manage")) {
+          await supabase
+            .from("branch_users")
+            .update({ access_level: lvl(bid) } as any)
+            .eq("user_id", emp.user_id)
+            .eq("branch_id", bid);
+        }
+      }
+      toast.success("تم تحديث الفروع ومستويات الصلاحية");
       setBranchMgrOpen(false);
       load();
     } catch (e: any) {
@@ -399,6 +414,7 @@ export default function EmployeeProfile() {
       setSavingBranches(false);
     }
   };
+
 
   if (loading) return <AdminLayout><div className="text-center py-12 text-muted-foreground">جاري التحميل...</div></AdminLayout>;
   if (!emp) return <AdminLayout><div className="text-center py-12 text-muted-foreground">الموظف غير موجود</div></AdminLayout>;
