@@ -56,10 +56,14 @@ export function AttributePicker({
   compact?: boolean;
   allowClear?: boolean;
 }) {
-  const { items, add } = useTextLookup(table);
+  const { items, add, remove } = useTextLookup(table);
+  const { isOwner, isAdmin } = useAuth();
+  const canDelete = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const save = async () => {
     if (!newName.trim()) return toast.error("الاسم مطلوب");
@@ -74,6 +78,22 @@ export function AttributePicker({
       toast.error(e.message);
     }
   };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await remove(pendingDelete.id);
+      if (value === pendingDelete.name) onChange(null);
+      toast.success("تم حذف المقترح");
+      setPendingDelete(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر الحذف");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   return (
     <>
