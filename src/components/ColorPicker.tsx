@@ -177,6 +177,24 @@ export function ColorPicker({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>حذف لون</DialogTitle>
+            <DialogDescription>
+              حذف «{pendingDelete?.name}» نهائياً من المقترحات؟ المنتجات والفواتير القديمة لن تتأثر.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "جارٍ الحذف..." : "حذف"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }
