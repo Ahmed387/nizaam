@@ -46,11 +46,15 @@ export function ColorPicker({
   placeholder?: string;
   allowClear?: boolean;
 }) {
-  const { colors, addColor, hexFor } = useColors();
+  const { colors, addColor, removeColor, hexFor } = useColors();
+  const { isOwner, isAdmin } = useAuth();
+  const canDelete = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newHex, setNewHex] = useState("#3b82f6");
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const currentHex = hexFor(value);
 
@@ -67,6 +71,22 @@ export function ColorPicker({
       toast.error(e.message);
     }
   };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await removeColor(pendingDelete.id);
+      if (value === pendingDelete.name) onChange(null);
+      toast.success("تم حذف اللون من المقترحات");
+      setPendingDelete(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر الحذف");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   return (
     <>
