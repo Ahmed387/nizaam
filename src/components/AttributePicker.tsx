@@ -128,9 +128,22 @@ export function AttributePicker({
                     }}
                     className="flex items-center gap-2"
                   >
-                    <span className="flex-1">{c.name}</span>
-                    {value === c.name && <Check className="w-4 h-4" />}
+                    <span className="flex-1 truncate">{c.name}</span>
+                    {value === c.name && <Check className="w-4 h-4 shrink-0" />}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        aria-label={`حذف ${c.name}`}
+                        title="حذف المقترح"
+                        className="mr-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </CommandItem>
+
                 ))}
               </CommandGroup>
               <div className="p-1 border-t flex gap-1">
