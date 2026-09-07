@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Check, ChevronsUpDown, Palette, X } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Palette, X, Trash2 } from "lucide-react";
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -45,11 +46,15 @@ export function ColorPicker({
   placeholder?: string;
   allowClear?: boolean;
 }) {
-  const { colors, addColor, hexFor } = useColors();
+  const { colors, addColor, removeColor, hexFor } = useColors();
+  const { isOwner, isAdmin } = useAuth();
+  const canDelete = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newHex, setNewHex] = useState("#3b82f6");
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const currentHex = hexFor(value);
 
@@ -66,6 +71,22 @@ export function ColorPicker({
       toast.error(e.message);
     }
   };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await removeColor(pendingDelete.id);
+      if (value === pendingDelete.name) onChange(null);
+      toast.success("تم حذف اللون من المقترحات");
+      setPendingDelete(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر الحذف");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   return (
     <>
@@ -101,9 +122,22 @@ export function ColorPicker({
                     className="flex items-center gap-2"
                   >
                     <ColorSwatch hex={c.hex} name={c.name} />
-                    <span className="flex-1">{c.name}</span>
-                    {value === c.name && <Check className="w-4 h-4" />}
+                    <span className="flex-1 truncate">{c.name}</span>
+                    {value === c.name && <Check className="w-4 h-4 shrink-0" />}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        aria-label={`حذف ${c.name}`}
+                        title="حذف اللون"
+                        className="mr-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </CommandItem>
+
                 ))}
               </CommandGroup>
               <div className="p-1 border-t flex gap-1">
@@ -143,6 +177,24 @@ export function ColorPicker({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>حذف لون</DialogTitle>
+            <DialogDescription>
+              حذف «{pendingDelete?.name}» نهائياً من المقترحات؟ المنتجات والفواتير القديمة لن تتأثر.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "جارٍ الحذف..." : "حذف"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }

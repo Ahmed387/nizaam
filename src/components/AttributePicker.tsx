@@ -56,10 +56,14 @@ export function AttributePicker({
   compact?: boolean;
   allowClear?: boolean;
 }) {
-  const { items, add } = useTextLookup(table);
+  const { items, add, remove } = useTextLookup(table);
+  const { isOwner, isAdmin } = useAuth();
+  const canDelete = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const save = async () => {
     if (!newName.trim()) return toast.error("الاسم مطلوب");
@@ -74,6 +78,22 @@ export function AttributePicker({
       toast.error(e.message);
     }
   };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await remove(pendingDelete.id);
+      if (value === pendingDelete.name) onChange(null);
+      toast.success("تم حذف المقترح");
+      setPendingDelete(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر الحذف");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   return (
     <>
@@ -108,9 +128,22 @@ export function AttributePicker({
                     }}
                     className="flex items-center gap-2"
                   >
-                    <span className="flex-1">{c.name}</span>
-                    {value === c.name && <Check className="w-4 h-4" />}
+                    <span className="flex-1 truncate">{c.name}</span>
+                    {value === c.name && <Check className="w-4 h-4 shrink-0" />}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        aria-label={`حذف ${c.name}`}
+                        title="حذف المقترح"
+                        className="mr-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </CommandItem>
+
                 ))}
               </CommandGroup>
               <div className="p-1 border-t flex gap-1">
@@ -141,6 +174,24 @@ export function AttributePicker({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>حذف مقترح</DialogTitle>
+            <DialogDescription>
+              حذف «{pendingDelete?.name}» نهائياً من المقترحات؟ المنتجات والفواتير القديمة لن تتأثر.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "جارٍ الحذف..." : "حذف"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }
