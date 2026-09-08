@@ -79,10 +79,11 @@ export function ProductPicker({
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["products"], load);
 
-  const list = useMemo(
-    () => (filter === "out_of_stock" ? rows.filter((r) => Number(r.quantity) <= 0) : rows),
-    [rows, filter],
-  );
+  const list = useMemo(() => {
+    const base = filter === "out_of_stock" ? rows.filter((r) => Number(r.quantity) <= 0) : rows;
+    return filterProductsBySearch(base, query);
+  }, [rows, filter, query]);
+
 
   const selected = value ? rows.find((r) => r.id === value) : null;
 
