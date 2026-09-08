@@ -44,7 +44,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
   const [selfBranchName, setSelfBranchName] = useState<string>("");
-  const [doneSearch, setDoneSearch] = useState("");
+  const [allBranches, setAllBranches] = useState<any[]>([]);
+  // فلاتر تبويب "ما تم استلامه بالفعل"
+  const [productQuery, setProductQuery] = useState("");
+  const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
+  const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
+  type DateFilter = "ALL" | "TODAY" | "LAST7" | "THIS_MONTH" | "CUSTOM";
+  const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
+  const [customDate, setCustomDate] = useState<Date | undefined>();
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
   const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
   const [hidden, setHidden] = useState<string[]>([]);
