@@ -618,15 +618,15 @@ export default function EmployeeProfile() {
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
+        <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Pencil className="w-5 h-5 text-primary" />
               تعديل بيانات الموظف
             </DialogTitle>
           </DialogHeader>
 
-          <div className="px-6 pb-6 space-y-5">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
             {/* Basic info */}
             <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
@@ -721,7 +721,7 @@ export default function EmployeeProfile() {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-muted/30 gap-2">
+          <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur gap-2">
             <Button variant="outline" onClick={() => setEditOpen(false)}>إلغاء</Button>
             <Button onClick={submitEdit} className="gap-2">
               <Pencil className="w-4 h-4" /> حفظ التعديلات

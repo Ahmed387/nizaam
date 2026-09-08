@@ -392,12 +392,12 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
 
       {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle>تعديل: {editing?.name} <span className="text-sm text-muted-foreground mr-2">— {editing?.branch_name}</span></DialogTitle>
           </DialogHeader>
           {editing && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 grid grid-cols-2 gap-4 content-start">
               <div className="col-span-2">
                 <ImageField
                   value={editing.image}
@@ -425,7 +425,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               <div><Label>سعر السوق</Label><Input type="number" value={editing.market_price} onChange={(e) => setEditing({ ...editing, market_price: Number(e.target.value) })} className="mt-1.5" /></div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">
             <Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
             <Button className="btn-gradient" onClick={saveEdit}>حفظ</Button>
           </DialogFooter>
@@ -559,12 +559,12 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle>تعديل جماعي ({selectedIds.length} منتج)</DialogTitle>
           <DialogDescription>اختر الحقول التي تريد تعديلها فقط. الباقي لن يتغير.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-3">
           <div className="flex items-start gap-3 p-3 rounded-md border">
             <Checkbox checked={fields.use_category} onCheckedChange={(v) => setFields({ ...fields, use_category: !!v })} className="mt-2" />
             <div className="flex-1">
@@ -614,7 +614,7 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
           <Button className="btn-gradient" onClick={apply} disabled={saving || !anySelected}>
             {saving && <Loader2 className="w-4 h-4 animate-spin ml-1" />}
@@ -705,9 +705,9 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>إضافة منتج جديد لعدة فروع</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 gap-4">
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0"><DialogTitle>إضافة منتج جديد لعدة فروع</DialogTitle></DialogHeader>
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 grid grid-cols-2 gap-4 content-start">
           <div className="col-span-2">
             <ImageField
               value={form.image || null}
@@ -748,7 +748,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
           <div><Label>الكمية لكل فرع</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
           <div className="col-span-2"><Label>الحد التنبيهي</Label><Input type="number" value={form.low_stock_alert} onChange={(e) => setForm({ ...form, low_stock_alert: e.target.value })} className="mt-1.5" /></div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
           <Button className="btn-gradient" onClick={submit} disabled={saving}>
             {saving && <Loader2 className="w-4 h-4 animate-spin ml-1" />}
