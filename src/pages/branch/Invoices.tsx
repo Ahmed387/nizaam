@@ -275,7 +275,7 @@ export default function Invoices() {
     };
 
     return rows.filter((r) => {
-      if (q && active.search && !searchableText(r).includes(q)) return false;
+      if (q && active.search && !searchMatch(q, searchableText(r))) return false;
       if ((fromTs || toTs) && active.date) {
         const d = getDate(r);
         if (fromTs && d < fromTs) return false;
@@ -621,7 +621,7 @@ export default function Invoices() {
       if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
       return [r.return_number, r.contacts?.name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
     };
-    return rows.filter((r) => text(r).includes(q)).slice(0, 8);
+    return rows.filter((r) => searchMatch(q, text(r))).slice(0, 20);
   }, [isReturnTab, tab, draftFilters.q, rows]);
 
   // Summary (count + total) for return tabs

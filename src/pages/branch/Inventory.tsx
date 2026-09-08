@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
-import { normalizeForSearch, searchMatch } from "@/lib/search";
+import { normalizeForSearch, searchMatch, productSearchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle } from "lucide-react";
 
@@ -445,7 +445,7 @@ export default function Inventory() {
   const filtered = rows.filter((p) => {
     const isArchived = !!p.archived_at;
     if (showArchived ? !isArchived : isArchived) return false;
-    if (search && !searchMatch(search, p.name, p.sku, p.legacy_code, p.brand, p.model, p.color, p.capacity, p.size, p.product_type)) return false;
+    if (search && !productSearchMatch(p as any, search)) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;

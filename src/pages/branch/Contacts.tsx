@@ -105,12 +105,7 @@ export default function Contacts() {
       });
     }
     if (search.trim()) {
-      const s = search.toLowerCase();
-      r = r.filter((x) =>
-        (x.name ?? "").toLowerCase().includes(s) ||
-        (x.phone ?? "").includes(s) ||
-        (x.contact_person ?? "").toLowerCase().includes(s)
-      );
+      r = r.filter((x) => searchMatch(search, x.name, x.phone, x.contact_person, (x as any).email, (x as any).address));
     }
     return r;
   }, [rows, filter, balanceFilters, search]);
