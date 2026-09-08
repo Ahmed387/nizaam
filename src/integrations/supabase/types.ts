@@ -4156,6 +4156,7 @@ export type Database = {
           branch_id: string
           cost_price: number
           created_at: string
+          effective_at: string
           id: string
           last_restored_at: string | null
           product_id: string
@@ -4174,6 +4175,7 @@ export type Database = {
           branch_id: string
           cost_price?: number
           created_at?: string
+          effective_at?: string
           id?: string
           last_restored_at?: string | null
           product_id: string
@@ -4192,6 +4194,7 @@ export type Database = {
           branch_id?: string
           cost_price?: number
           created_at?: string
+          effective_at?: string
           id?: string
           last_restored_at?: string | null
           product_id?: string
@@ -4283,6 +4286,7 @@ export type Database = {
           created_at: string
           id: string
           image: string | null
+          initial_stock_date: string
           is_migrated: boolean
           legacy_code: string | null
           low_stock_alert: number
@@ -4310,6 +4314,7 @@ export type Database = {
           created_at?: string
           id?: string
           image?: string | null
+          initial_stock_date?: string
           is_migrated?: boolean
           legacy_code?: string | null
           low_stock_alert?: number
@@ -4337,6 +4342,7 @@ export type Database = {
           created_at?: string
           id?: string
           image?: string | null
+          initial_stock_date?: string
           is_migrated?: boolean
           legacy_code?: string | null
           low_stock_alert?: number
@@ -7126,7 +7132,7 @@ export type Database = {
         Returns: string
       }
       create_product_with_opening_stock: {
-        Args: { p_product: Json }
+        Args: { p_initial_stock_date?: string; p_product: Json }
         Returns: Json
       }
       current_shift_schedule: {
