@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { searchMatch } from "@/lib/search";
+import { productSearchMatch } from "@/lib/search";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
@@ -90,7 +90,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   useRealtimeRefresh(["products", "branches", "categories"], load);
 
   const filtered = useMemo(() => rows.filter((p) => {
-    if (search && !searchMatch(search, p.name, p.sku)) return false;
+    if (search && !productSearchMatch(p as any, search)) return false;
     if (branchFilter !== "all" && p.branch_id !== branchFilter) return false;
     if (catFilter !== "all" && p.category_id !== catFilter) return false;
     if (stockFilter === "low" && p.quantity > p.low_stock_alert) return false;

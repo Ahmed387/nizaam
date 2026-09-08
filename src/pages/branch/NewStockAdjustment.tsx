@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { searchMatch } from "@/lib/search";
+import { filterProductsBySearch } from "@/lib/search";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -29,7 +29,7 @@ function ProductCombobox({
   const [q, setQ] = useState("");
   const selected = products.find((p) => p.id === value);
   const filtered = useMemo(
-    () => (q ? products.filter((p) => searchMatch(q, p.name, p.sku)) : products).slice(0, 200),
+    () => filterProductsBySearch(products as any[], q).slice(0, 200),
     [products, q],
   );
   return (

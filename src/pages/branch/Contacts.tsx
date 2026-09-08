@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -105,12 +106,7 @@ export default function Contacts() {
       });
     }
     if (search.trim()) {
-      const s = search.toLowerCase();
-      r = r.filter((x) =>
-        (x.name ?? "").toLowerCase().includes(s) ||
-        (x.phone ?? "").includes(s) ||
-        (x.contact_person ?? "").toLowerCase().includes(s)
-      );
+      r = r.filter((x) => searchMatch(search, x.name, x.phone, x.contact_person, (x as any).email, (x as any).address));
     }
     return r;
   }, [rows, filter, balanceFilters, search]);

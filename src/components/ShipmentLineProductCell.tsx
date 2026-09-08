@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { filterProductsBySearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronsUpDown, Loader2, Package, Tag, Pencil } from "lucide-react";
@@ -67,25 +68,24 @@ export function ShipmentLineProductCell({
     if (q.length < 2) { setManualMatches({ inventory: [], pricelist: [] }); return; }
     let cancelled = false;
     const t = setTimeout(async () => {
-      const esc = q.replace(/[%,()]/g, " ");
-      const [invRes, plRes] = await Promise.all([
-        supabase.from("products")
-          .select("id, name, sku, quantity, cost_price, image, brand, model, color, product_type, capacity, size")
-          .eq("branch_id", branchId)
-          .or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`)
-          .limit(5),
-        supabase.from("price_list_items_public")
-          .select("id, product_name, model_code, supplier_name, display_price")
-          .eq("is_active", true)
-          .or(`product_name.ilike.%${esc}%,model_code.ilike.%${esc}%`)
-          .limit(5),
-      ]);
+      const tokens = q.replace(/[%,()]/g, " ").split(/\s+/).filter(Boolean).slice(0, 4);
+      let invQ = supabase.from("products")
+        .select("id, name, sku, quantity, cost_price, image, brand, model, color, product_type, capacity, size")
+        .eq("branch_id", branchId);
+      let plQ = supabase.from("price_list_items_public")
+        .select("id, product_name, model_code, supplier_name, display_price")
+        .eq("is_active", true);
+      for (const tk of tokens) {
+        invQ = invQ.or(`name.ilike.%${tk}%,sku.ilike.%${tk}%,brand.ilike.%${tk}%,model.ilike.%${tk}%,color.ilike.%${tk}%,product_type.ilike.%${tk}%,capacity.ilike.%${tk}%,size.ilike.%${tk}%`);
+        plQ = plQ.or(`product_name.ilike.%${tk}%,model_code.ilike.%${tk}%,supplier_name.ilike.%${tk}%`);
+      }
+      const [invRes, plRes] = await Promise.all([invQ.limit(25), plQ.limit(25)]);
       if (cancelled) return;
-      setManualMatches({
-        inventory: (invRes.data ?? []) as any,
-        pricelist: (plRes.data ?? []) as any,
-      });
+      const inv = filterProductsBySearch((invRes.data ?? []) as any[], q).slice(0, 15);
+      const pl = filterProductsBySearch((plRes.data ?? []) as any[], q).slice(0, 15);
+      setManualMatches({ inventory: inv as any, pricelist: pl as any });
     }, 300);
+
     return () => { cancelled = true; clearTimeout(t); };
   }, [source, value.product_name, branchId]);
 
@@ -242,6 +242,7 @@ function PriceListPicker({ value, onPick }: { value: string; onPick: (r: PriceLi
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<PriceListRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -257,9 +258,10 @@ function PriceListPicker({ value, onPick }: { value: string; onPick: (r: PriceLi
   useRealtimeRefresh(["price_list_items"], load);
 
   const selected = useMemo(() => rows.find((r) => r.product_name === value), [rows, value]);
+  const list = useMemo(() => filterProductsBySearch(rows as any[], query) as PriceListRow[], [rows, query]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" className="w-full justify-between font-normal">
           <span className="truncate text-right flex-1">
@@ -269,19 +271,19 @@ function PriceListPicker({ value, onPick }: { value: string; onPick: (r: PriceLi
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command shouldFilter>
-          <CommandInput placeholder="ابحث في قائمة الأسعار..." />
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="ابحث في قائمة الأسعار..." value={query} onValueChange={setQuery} />
           <CommandList>
             {loading ? (
               <div className="text-center py-6"><Loader2 className="w-4 h-4 animate-spin mx-auto" /></div>
-            ) : rows.length === 0 ? (
-              <CommandEmpty>لا توجد عناصر في قائمة الأسعار</CommandEmpty>
+            ) : list.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">لا توجد عناصر مطابقة</div>
             ) : (
               <CommandGroup>
-                {rows.map((r) => (
+                {list.map((r) => (
                   <CommandItem
                     key={r.id}
-                    value={`${r.product_name} ${r.model_code ?? ""} ${r.supplier_name ?? ""}`}
+                    value={r.id}
                     onSelect={() => { onPick(r); setOpen(false); }}
                     className="flex items-center justify-between gap-2"
                   >

@@ -14,7 +14,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { logAudit } from "@/lib/roles";
 import { formatEGP, balanceLabel } from "@/lib/format";
-import { searchMatch } from "@/lib/search";
+import { searchMatch, filterProductsBySearch } from "@/lib/search";
 import { toast } from "sonner";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftRestoreBar } from "@/components/DraftRestoreBar";
@@ -527,7 +527,7 @@ export default function NewSale() {
 
 
   const filtered = useMemo(
-    () => products.filter((p) => !search || searchMatch(search, p.name, p.sku)).slice(0, 8),
+    () => filterProductsBySearch(products as any[], search).slice(0, 50),
     [products, search]
   );
 
@@ -606,11 +606,7 @@ export default function NewSale() {
 
   const filteredCatalog = useMemo(
     () => catalogSearch
-      ? catalog.filter((p: any) =>
-          p.product_name?.includes(catalogSearch) ||
-          p.model_code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-          p.supplier_name?.toLowerCase().includes(catalogSearch.toLowerCase())
-        ).slice(0, 10)
+      ? filterProductsBySearch(catalog as any[], catalogSearch).slice(0, 50)
       : [],
     [catalog, catalogSearch]
   );

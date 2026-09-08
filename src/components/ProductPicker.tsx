@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip, AttributePicker } from "@/components/AttributePicker";
-import { variantSearchTokens } from "@/lib/productVariant";
+import { filterProductsBySearch } from "@/lib/search";
 import { ProductImage } from "@/components/ProductImage";
 
 export interface ProductRow {
@@ -57,9 +57,11 @@ export function ProductPicker({
   allowCreate?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!branchId) return;
@@ -77,16 +79,17 @@ export function ProductPicker({
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["products"], load);
 
-  const list = useMemo(
-    () => (filter === "out_of_stock" ? rows.filter((r) => Number(r.quantity) <= 0) : rows),
-    [rows, filter],
-  );
+  const list = useMemo(() => {
+    const base = filter === "out_of_stock" ? rows.filter((r) => Number(r.quantity) <= 0) : rows;
+    return filterProductsBySearch(base, query);
+  }, [rows, filter, query]);
+
 
   const selected = value ? rows.find((r) => r.id === value) : null;
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -110,26 +113,25 @@ export function ProductPicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-          <Command shouldFilter>
-            <CommandInput placeholder="ابحث بالاسم أو الكود..." />
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="ابحث بالاسم أو الكود أو الماركة..." value={query} onValueChange={setQuery} />
             <CommandList>
               {loading ? (
                 <div className="text-center py-6"><Loader2 className="w-4 h-4 animate-spin mx-auto" /></div>
               ) : list.length === 0 ? (
-                <CommandEmpty>
-                  <div className="flex flex-col items-center gap-2 py-4 text-sm">
-                    <PackageSearch className="w-6 h-6 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {filter === "out_of_stock" ? "لا توجد أصناف غير متوفرة" : "لا توجد منتجات"}
-                    </span>
-                  </div>
-                </CommandEmpty>
+                <div className="flex flex-col items-center gap-2 py-6 text-sm">
+                  <PackageSearch className="w-6 h-6 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {filter === "out_of_stock" ? "لا توجد أصناف غير متوفرة" : "لا توجد منتجات مطابقة"}
+                  </span>
+                </div>
               ) : (
                 <CommandGroup>
                   {list.map((p) => (
                     <CommandItem
                       key={p.id}
-                      value={`${p.name} ${p.sku} ${variantSearchTokens(p)}`}
+                      value={p.id}
+
                       onSelect={() => { onPick(p); setOpen(false); }}
                       className="flex items-center justify-between gap-2"
                     >
