@@ -61,7 +61,9 @@ type DiffRow = {
 };
 
 export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
-  const { tenantId, user, profile } = useAuth();
+  const { tenantId, user, profile, isOwner, isAdmin } = useAuth();
+  const canManageLists = isOwner || isAdmin;
+  const [clearingList, setClearingList] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -332,6 +334,12 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
         return { parsed: p, existing, diff: d, status };
       });
       setParsedDiff(diff);
+      const noSell = parsed.filter((p) => !(Number(p.suggested_sell_price) > 0)).length;
+      if (noSell > 0) {
+        toast.warning(
+          `${noSell} صنف بدون سعر بيع في الملف — استخدم "تعديل جماعي للأسعار %" بعد الحفظ لإضافة هامش الربح واحتساب سعر الكاشير.`
+        );
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "فشل قراءة الملف");
     } finally {
@@ -669,7 +677,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
 
           {!parsedDiff ? (
             <div className="space-y-3">
-              <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               <Button onClick={() => fileRef.current?.click()} disabled={uploadingFile} className="w-full" size="lg">
                 {uploadingFile ? <><Loader2 className="h-4 w-4 ml-2 animate-spin" /> جاري قراءة الملف...</> : <><FileUp className="h-4 w-4 ml-2" /> اختر ملف PDF أو Excel</>}
               </Button>
