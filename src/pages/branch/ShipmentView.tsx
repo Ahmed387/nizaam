@@ -19,7 +19,7 @@ import { printHtml } from "@/lib/export";
 import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalReceiptPrint";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
-import { ProductImage } from "@/components/ProductImage";
+import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { VariantLine } from "@/components/VariantChips";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 
@@ -351,7 +351,7 @@ export default function ShipmentView() {
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-start gap-3">
                       {it.products?.image ? (
-                        <ProductImage src={it.products.image} alt="" className="w-10 h-10 shrink-0 rounded-lg object-cover border border-border" />
+                        <ClickableImagePreview src={it.products.image} alt={it.product_name} title={it.product_name} className="w-10 h-10 shrink-0 rounded-lg object-cover border border-border" />
                       ) : (
                         <div className="w-10 h-10 shrink-0 rounded-lg bg-muted flex items-center justify-center text-[10px] text-muted-foreground">صورة</div>
                       )}

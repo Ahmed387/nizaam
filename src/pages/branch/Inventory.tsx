@@ -16,7 +16,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { normalizeForSearch, searchMatch, productSearchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle, CalendarIcon } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
@@ -28,16 +28,23 @@ import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import StockTransfers from "./StockTransfers";
 import Sessions from "./inventory-count/Sessions";
 import { HistoricalStockPanel } from "@/components/HistoricalStockPanel";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, DialogTitle as DlgTitle } from "@/components/ui/dialog";
-import { ProductImage } from "@/components/ProductImage";
+import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { ImageField } from "@/components/ImageField";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { format as formatDateFns } from "date-fns";
+import { cn } from "@/lib/utils";
+
+const cairoToday = () => new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+}).format(new Date());
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -53,11 +60,13 @@ export default function Inventory() {
   const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
     low_stock_alert: "5", quantity: "0", image: "", color: "",
-    product_type: "", capacity: "", size: "", brand: "", model: "",
+    product_type: "", capacity: "", size: "", brand: "", model: "", initial_stock_date: cairoToday(),
   });
   const [uploading, setUploading] = useState(false);
   const [historyFor, setHistoryFor] = useState<any>(null);
@@ -449,6 +458,9 @@ export default function Inventory() {
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;
+    const productDate = String(p.initial_stock_date ?? p.created_at ?? "").slice(0, 10);
+    if (dateFrom && productDate < formatDateFns(dateFrom, "yyyy-MM-dd")) return false;
+    if (dateTo && productDate > formatDateFns(dateTo, "yyyy-MM-dd")) return false;
     return true;
   });
 
@@ -500,6 +512,7 @@ export default function Inventory() {
 
     const qty = parseInt(form.quantity) || 0;
     const cost = Number(form.cost_price) || 0;
+    if (form.initial_stock_date > cairoToday()) return toast.error("تاريخ الكمية الأولية لا يمكن أن يكون في المستقبل");
     const { data, error } = await supabase.rpc("create_product_with_opening_stock", {
       p_product: {
         name: form.name,
@@ -519,6 +532,7 @@ export default function Inventory() {
         capacity: form.capacity || null,
         size: form.size || null,
       },
+      p_initial_stock_date: `${form.initial_stock_date}T12:00:00+03:00`,
     });
     if (error) {
       const msg = /products_variant_uniq|duplicate key/i.test(error.message)
@@ -535,7 +549,7 @@ export default function Inventory() {
     toast.success("تمت إضافة المنتج");
 
     setOpen(false);
-    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "" });
+    setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "", initial_stock_date: cairoToday() });
     load();
   };
 
@@ -665,6 +679,33 @@ export default function Inventory() {
                 <SelectItem value="out">🔴 نفد ({statusCounts.out})</SelectItem>
               </SelectContent>
             </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-40 justify-start font-normal", !dateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="w-4 h-4 ml-2" />
+                  {dateFrom ? formatDateFns(dateFrom, "yyyy/MM/dd") : "من تاريخ"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} disabled={(date) => date > new Date()} initialFocus />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-40 justify-start font-normal", !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="w-4 h-4 ml-2" />
+                  {dateTo ? formatDateFns(dateTo, "yyyy/MM/dd") : "إلى تاريخ"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} disabled={(date) => date > new Date() || (!!dateFrom && date < dateFrom)} initialFocus />
+              </PopoverContent>
+            </Popover>
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                <X className="w-4 h-4 ml-1" /> مسح الفترة
+              </Button>
+            )}
             <Button
               variant={showArchived ? "default" : "outline"}
               size="sm"
@@ -678,25 +719,27 @@ export default function Inventory() {
             <span className="text-xs text-muted-foreground">عرض {filtered.length} من {showArchived ? archivedCount : activeRows.length}</span>
           </div>
 
-          {/* Desktop table — compact, no horizontal scroll */}
-          <div className="hidden lg:block card-elevated overflow-hidden">
+          {/* Desktop table */}
+          <div className="hidden lg:block card-elevated overflow-x-auto">
             {loading ? (
               <div className="p-12 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
             ) : filtered.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">لا توجد منتجات</div>
             ) : (
-              <table className="w-full text-sm table-fixed">
+              <table className="w-full min-w-[1000px] text-sm table-fixed">
                 <colgroup>
-                  <col className="w-[38%]" />
-                  <col className="w-[13%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[22%]" />
-                  <col className="w-[16%]" />
+                  <col className="w-[35%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[14%]" />
                 </colgroup>
                 <thead>
                   <tr className="bg-surface-2 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                     <th className="px-4 py-3 text-right font-semibold">المنتج</th>
                     <th className="px-2 py-3 text-center font-semibold">التصنيف</th>
+                    <th className="px-2 py-3 text-center font-semibold">التاريخ</th>
                     <th className="px-2 py-3 text-center font-semibold">الكمية</th>
                     <th className="px-4 py-3 text-right font-semibold">الأسعار</th>
                     <th className="px-2 py-3 text-center font-semibold">إجراءات</th>
@@ -719,7 +762,7 @@ export default function Inventory() {
                         <td className="px-4 py-3 align-middle">
                           <div className="flex items-center gap-3 min-w-0">
                             {r.image ? (
-                              <ProductImage src={r.image} alt={r.name} className="w-11 h-11 rounded object-cover shrink-0" />
+                              <ClickableImagePreview src={r.image} alt={r.name} title={r.name} className="w-11 h-11 rounded object-cover shrink-0" />
                             ) : (
                               <div className="w-11 h-11 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
                             )}
@@ -740,6 +783,9 @@ export default function Inventory() {
                         </td>
                         <td className="px-2 py-3 align-middle text-center text-muted-foreground break-words" title={r.categories?.name ?? ""}>
                           {r.categories?.name ?? "—"}
+                        </td>
+                        <td className="px-2 py-3 align-middle text-center text-xs text-muted-foreground">
+                          {formatDate(r.initial_stock_date ?? r.created_at)}
                         </td>
 
                         <td className="px-2 py-3 align-middle text-center font-medium tabular-nums">
@@ -810,7 +856,7 @@ export default function Inventory() {
                       onDoubleClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}
                     >
                       {r.image ? (
-                        <ProductImage src={r.image} alt={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
+                        <ClickableImagePreview src={r.image} alt={r.name} title={r.name} className="w-14 h-14 rounded object-cover shrink-0" />
                       ) : (
                         <div className="w-14 h-14 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">—</div>
                       )}
@@ -822,6 +868,7 @@ export default function Inventory() {
                               {r.sku} {r.categories?.name ? `· ${r.categories.name}` : ""}
                               {r.legacy_code && <span className="mr-1 px-1 py-0.5 rounded bg-muted/60">قديم: {r.legacy_code}</span>}
                             </div>
+                            <div className="text-[11px] text-muted-foreground">تاريخ الكمية الأولية: {formatDate(r.initial_stock_date ?? r.created_at)}</div>
                           </div>
                           <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </div>
@@ -964,15 +1011,16 @@ export default function Inventory() {
                 <div><Label>سعر البيع (القطاعي)</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
                 <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+                <div><Label>تاريخ استلام / إضافة الكمية الأولية</Label><Input type="date" max={cairoToday()} value={form.initial_stock_date} onChange={(e) => setForm({ ...form, initial_stock_date: e.target.value })} className="mt-1.5" /></div>
                 <div><Label>حد التنبيه الأدنى</Label><Input type="number" value={form.low_stock_alert} onChange={(e) => setForm({ ...form, low_stock_alert: e.target.value })} className="mt-1.5" /></div>
               </div>
             </section>
           </div>
 
           <DialogFooter className="border-t p-4 flex-row justify-between items-center bg-background gap-2">
-            <Button variant="outline" disabled={savingNew} onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "" }); setOpen(false); }}>إلغاء</Button>
+            <Button variant="outline" disabled={savingNew} onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "", initial_stock_date: cairoToday() }); setOpen(false); }}>إلغاء</Button>
             <Button className="btn-gradient min-w-[170px]" disabled={savingNew} onClick={submitNew}>
               {savingNew && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ وإضافة الصنف
             </Button>
@@ -992,9 +1040,10 @@ export default function Inventory() {
           { key: "selling_price", header: "سعر البيع", type: "number" },
           { key: "market_price", header: "سعر السوق", type: "number" },
           { key: "quantity", header: "الكمية", type: "number" },
+          { key: "initial_stock_date", header: "تاريخ الكمية الأولية" },
           { key: "low_stock_alert", header: "حد التنبيه", type: "number" },
         ]}
-        sampleRow={{ name: "منتج مثال", cost_price: 10, selling_price: 15, market_price: 18, quantity: 100, low_stock_alert: 5 }}
+        sampleRow={{ name: "منتج مثال", cost_price: 10, selling_price: 15, market_price: 18, quantity: 100, initial_stock_date: cairoToday(), low_stock_alert: 5 }}
         onImport={async (rows) => {
           let inserted = 0;
           for (const r of rows) {
@@ -1012,6 +1061,7 @@ export default function Inventory() {
                 quantity: r.quantity ?? 0,
                 low_stock_alert: r.low_stock_alert ?? 5,
               },
+              p_initial_stock_date: `${String(r.initial_stock_date || cairoToday())}T12:00:00+03:00`,
             });
             if (!error) inserted++;
 

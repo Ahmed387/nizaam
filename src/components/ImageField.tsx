@@ -1,14 +1,14 @@
 import { useRef, useState } from "react";
-import { Loader2, Upload, Trash2, Maximize2, Download, X, ImageOff } from "lucide-react";
+import { Loader2, Upload, Trash2, Maximize2, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { ProductImage, useSignedImage } from "@/components/ProductImage";
+import { ProductImage } from "@/components/ProductImage";
+import { ImagePreviewModal } from "@/components/ImagePreviewModal";
 import { uploadImageToBucket, removeStorageFile } from "@/lib/storageImage";
 import { PRODUCT_BUCKET } from "@/lib/productImage";
 
@@ -60,7 +60,6 @@ export function ImageField({
   const [zoom, setZoom] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { url: signedUrl, refresh } = useSignedImage(value, bucket);
 
   const doUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) return toast.error("اختر ملف صورة صالح");
@@ -96,12 +95,6 @@ export function ImageField({
     } finally {
       setBusy(false);
     }
-  };
-
-  const download = async () => {
-    const u = signedUrl ?? (await refresh());
-    if (!u) return toast.error("تعذّر تجهيز رابط التحميل");
-    window.open(u, "_blank");
   };
 
   return (
@@ -199,31 +192,7 @@ export function ImageField({
 
       {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
 
-      {/* Lightbox */}
-      <Dialog open={zoom} onOpenChange={setZoom}>
-        <DialogContent className="max-w-4xl p-0 bg-background" dir="rtl">
-          <div className="flex items-center justify-between px-4 py-2 border-b">
-            <div className="text-sm font-bold">{label}</div>
-            <div className="flex items-center gap-1">
-              <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={download} title="تحميل">
-                <Download className="w-4 h-4" />
-              </Button>
-              <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setZoom(false)} title="إغلاق">
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="max-h-[80vh] overflow-auto flex items-center justify-center bg-muted/20 p-3">
-            <ProductImage
-              src={value}
-              bucket={bucket}
-              alt={label}
-              className="max-w-full max-h-[75vh] object-contain rounded"
-              fallback={<div className="py-16 text-sm text-muted-foreground">تعذّر عرض الصورة</div>}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ImagePreviewModal open={zoom} onOpenChange={setZoom} src={value} bucket={bucket} title={label} alt={label} />
 
       <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
         <AlertDialogContent dir="rtl">

@@ -20,7 +20,7 @@ import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History } from "lucide-react";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
-import { ProductImage } from "@/components/ProductImage";
+import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { ImageField } from "@/components/ImageField";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
@@ -42,7 +42,12 @@ interface Row {
   branch_name?: string;
   category_id: string | null;
   category_name?: string;
+  initial_stock_date: string;
 }
+
+const cairoToday = () => new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+}).format(new Date());
 
 export default function AllInventory({ embedded }: { embedded?: boolean } = {}) {
   const { user, profile, tenantId } = useAuth();
@@ -324,7 +329,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
           { key: "image", header: "صورة", width: "4.5rem", align: "center", render: (r: Row) => (
             <div className="flex justify-center">
               {r.image
-                ? <ProductImage src={r.image} alt={r.name} className="w-10 h-10 rounded object-cover" />
+                ? <ClickableImagePreview src={r.image} alt={r.name} title={r.name} className="w-10 h-10 rounded object-cover" />
                 : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
             </div>
           ) },
@@ -638,7 +643,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
   const [form, setForm] = useState({
     name: "", category_id: "", branch_ids: [] as string[],
     cost_price: "", selling_price: "", market_price: "",
-    low_stock_alert: "5", quantity: "0", image: "",
+    low_stock_alert: "5", quantity: "0", image: "", initial_stock_date: cairoToday(),
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -649,7 +654,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
       if (Number.isFinite(v) && v >= 0) setDefaultLowStock(v);
     });
   }, []);
-  useEffect(() => { if (!open) setForm({ name: "", category_id: "", branch_ids: [], cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "" }); }, [open, defaultLowStock]);
+  useEffect(() => { if (!open) setForm({ name: "", category_id: "", branch_ids: [], cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", initial_stock_date: cairoToday() }); }, [open, defaultLowStock]);
   useEffect(() => { if (open) setForm((f) => ({ ...f, low_stock_alert: String(defaultLowStock) })); }, [open, defaultLowStock]);
 
   const toggleBranch = (id: string) => {
@@ -684,20 +689,28 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
     }
     if (!sharedSku) { setSaving(false); return toast.error("تعذّر توليد كود منتج فريد، حاول مرة أخرى"); }
 
+    if (form.initial_stock_date > cairoToday()) { setSaving(false); return toast.error("تاريخ الكمية الأولية لا يمكن أن يكون في المستقبل"); }
     let ok = 0;
     for (const branchId of form.branch_ids) {
-      const { data, error } = await supabase.from("products").insert({
-        name: form.name, sku: sharedSku, category_id: form.category_id || null,
-        cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
-        market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
-        quantity: parseInt(form.quantity) || 0, image: form.image || null, branch_id: branchId,
-      }).select().single();
-      if (!error && data) {
+      const { data, error } = await supabase.rpc("create_product_with_opening_stock", {
+        p_product: {
+          name: form.name, sku: sharedSku, category_id: form.category_id || null,
+          cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
+          market_price: Number(form.market_price) || 0, low_stock_alert: parseInt(form.low_stock_alert) || defaultLowStock,
+          quantity: parseInt(form.quantity) || 0, image: form.image || null, branch_id: branchId,
+        },
+        p_initial_stock_date: `${form.initial_stock_date}T12:00:00+03:00`,
+      });
+      const productId = (data as { product_id?: string } | null)?.product_id;
+      if (!error && productId) {
         ok++;
-        await logAudit({ userId: user!.id, userName: profile!.name, tenantId, branchId, action: "CREATE", entity: "Product", entityId: data.id, details: { name: form.name } });
+        await logAudit({ userId: user!.id, userName: profile!.name, tenantId, branchId, action: "CREATE", entity: "Product", entityId: productId, details: { name: form.name } });
+      } else if (error) {
+        toast.error(`تعذّرت الإضافة في أحد الفروع: ${error.message}`);
       }
     }
     setSaving(false);
+    if (ok === 0) return;
     toast.success(`تمت إضافة المنتج في ${ok} فرع`);
     onClose();
     onSaved();
@@ -746,6 +759,7 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
           <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
           <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
           <div><Label>الكمية لكل فرع</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+          <div><Label>تاريخ الكمية الأولية</Label><Input type="date" max={cairoToday()} value={form.initial_stock_date} onChange={(e) => setForm({ ...form, initial_stock_date: e.target.value })} className="mt-1.5" /></div>
           <div className="col-span-2"><Label>الحد التنبيهي</Label><Input type="number" value={form.low_stock_alert} onChange={(e) => setForm({ ...form, low_stock_alert: e.target.value })} className="mt-1.5" /></div>
         </div>
         <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">

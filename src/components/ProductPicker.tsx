@@ -236,9 +236,8 @@ function NewProductDialog({
   const submit = async () => {
     if (!name.trim()) return toast.error("اكتب اسم الصنف");
     setBusy(true);
-    const { data, error } = await supabase
-      .from("products")
-      .insert({
+    const { data: created, error } = await supabase.rpc("create_product_with_opening_stock", {
+      p_product: {
         branch_id: branchId,
         name: name.trim(),
         sku: sku.trim() || genSku(),
@@ -250,9 +249,12 @@ function NewProductDialog({
         image: image || null,
         brand: brand.trim() || null,
         model: model.trim() || null,
-      })
-      .select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size,brand,model")
-      .single();
+      },
+    });
+    const productId = (created as { product_id?: string } | null)?.product_id;
+    const { data } = productId
+      ? await supabase.from("products").select("id,name,sku,quantity,cost_price,selling_price,image,branch_id,color,product_type,capacity,size,brand,model").eq("id", productId).single()
+      : { data: null };
     setBusy(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
     toast.success("تمت إضافة الصنف");
