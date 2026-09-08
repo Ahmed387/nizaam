@@ -33,15 +33,45 @@ const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانا�
    - ممنوع التصحيح الإملائي أو إعادة الصياغة أو الاختصار أو التوسيع.
    - ممنوع تغيير حالة الأحرف (Upper/Lower) أو ترتيب الكلمات.
    - حافظ على المسافات والرموز والأرقام بنفس الترتيب.
-2. **لا تدمج رقم/كود الموديل داخل اسم المنتج**. ضعه في خانة model_code منفصلاً تماماً.
-   إن لم يكن هناك عمود موديل واضح، اترك model_code فارغاً ولا تخترعه من اسم المنتج.
+2. استخراج الموديل (model_code) بنظامين:
+   - لو فيه عمود مستقل للموديل/الطراز/الكود: انقله كما هو.
+   - لو مفيش عمود مستقل والموديل مدمج داخل اسم المنتج (مثل GR-RT468WE أو أرقام موديل 8600 / 9600):
+     استخرج كود الموديل وضعه في model_code بدقة، مع إبقاء الاسم كما هو أو تجريده من الكود.
+   - ممنوع اختراع كود غير موجود في الوثيقة.
 3. لا تخلط بين صفوف مختلفة. كل صف منتج مستقل بذاته.
 4. تجاهل الرؤوس والتذييلات وأسطر العناوين والصفوف الفارغة، لكن لا تتجاهل أي منتج حقيقي.
 5. category: اختر الأنسب من (ثلاجات، غسالات، تكييف، بوتاجازات، مراوح، ميكروويف، ديب فريزر، مبردات هواء) أو اتركها فارغة لو غير واضحة.
 6. cost_price: السعر الأساسي للشراء من المورد — رقم فقط بدون عملة أو فواصل.
-7. suggested_sell_price: لو موجود في القائمة، وإلا 0.
+7. suggested_sell_price: ابحث عن أي عمود لسعر البيع بأي مسمى:
+   (سعر البيع المقترح، سعر المستهلك، القطاعي، سعر العميل، Retail، RRP، Consumer Price).
+   لا تضع 0 إلا لو الوثيقة خالية تماماً من أي سعر بيع.
+8. اكتب النصوص العربية بحروف عربية قياسية سليمة، وممنوع إخراج رموز مشوهة أو أشكال حروف غير قياسية.
 
 ارجع البيانات كما هي تماماً. الأمانة في النقل أهم من أي تنظيم.`;
+
+// ---- Text-quality inspector: detect mojibake / broken CMap output ----
+function textQuality(raw: string) {
+  const s = (raw ?? "").replace(/---\s*صفحة\s*\d+\s*---/g, " ");
+  const chars = [...s].filter((c) => !/\s/.test(c));
+  const total = chars.length;
+  if (!total) return { total: 0, corrupt: true, ratio: 1, reason: "empty" };
+  let presentation = 0;
+  let alien = 0;
+  let arabic = 0;
+  let latinDigit = 0;
+  for (const c of chars) {
+    const cp = c.codePointAt(0)!;
+    if ((cp >= 0xfb50 && cp <= 0xfdff) || (cp >= 0xfe70 && cp <= 0xfeff)) presentation++;
+    else if (cp >= 0x0600 && cp <= 0x06ff) arabic++;
+    else if (cp < 0x0250) latinDigit++;
+    else if (cp !== 0xfffd && (cp < 0x2000 || cp > 0x206f) && (cp < 0x20a0 || cp > 0x20cf)) alien++;
+    if (cp === 0xfffd) alien++;
+  }
+  const known = arabic + latinDigit;
+  const ratio = (presentation + alien) / total;
+  const reason = ratio > 0.08 ? "suspicious-glyphs" : known / total < 0.6 ? "low-known-chars" : "ok";
+  return { total, corrupt: reason !== "ok", ratio, reason };
+}
 
 const TOOL = {
   type: "function" as const,
