@@ -25,7 +25,7 @@ import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { DataTable } from "@/components/DataTable";
-import { format as formatDateFns, isSameDay } from "date-fns";
+import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type Item = { product_id: string; quantity: string };
@@ -49,9 +49,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [productQuery, setProductQuery] = useState("");
   const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
   const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
-  type DateFilter = "ALL" | "TODAY" | "LAST7" | "THIS_MONTH" | "CUSTOM";
-  const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
-  const [customDate, setCustomDate] = useState<Date | undefined>();
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
   const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
   const [hidden, setHidden] = useState<string[]>([]);
@@ -296,20 +295,18 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
       // 2. فلتر الفرع المستلم
       if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
-      // 3. فلتر التاريخ
+      // 3. فلتر التاريخ من / إلى
       const confirmedAt = r.updated_at ?? r.created_at;
-      if (dateFilter !== "ALL" && confirmedAt) {
+      if (confirmedAt) {
         const d = new Date(confirmedAt);
-        const today = new Date();
-        if (dateFilter === "TODAY" && !isSameDay(d, today)) return false;
-        if (dateFilter === "LAST7") {
-          const weekAgo = new Date(); weekAgo.setDate(today.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
-          if (d < weekAgo) return false;
+        if (dateFrom) {
+          const from = new Date(dateFrom); from.setHours(0, 0, 0, 0);
+          if (d < from) return false;
         }
-        if (dateFilter === "THIS_MONTH") {
-          if (d.getMonth() !== today.getMonth() || d.getFullYear() !== today.getFullYear()) return false;
+        if (dateTo) {
+          const to = new Date(dateTo); to.setHours(23, 59, 59, 999);
+          if (d > to) return false;
         }
-        if (dateFilter === "CUSTOM" && customDate && !isSameDay(d, customDate)) return false;
       }
       // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
       if (productQuery.trim()) {
@@ -320,7 +317,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       }
       return true;
     });
-  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFilter, customDate]);
+  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFrom, dateTo]);
 
   const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
 
@@ -489,55 +486,63 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 </Select>
               </div>
 
-              {/* فلتر التاريخ */}
-              <div className="w-full sm:w-44">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">التاريخ</Label>
-                <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="كل التواريخ" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">كل التواريخ</SelectItem>
-                    <SelectItem value="TODAY">اليوم</SelectItem>
-                    <SelectItem value="LAST7">آخر 7 أيام</SelectItem>
-                    <SelectItem value="THIS_MONTH">هذا الشهر</SelectItem>
-                    <SelectItem value="CUSTOM">يوم محدد…</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* فلتر التاريخ من / إلى */}
+              <div className="w-full sm:w-auto">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">من تاريخ</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full sm:w-40 justify-start text-right font-normal",
+                        !dateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="w-4 h-4 ml-2" />
+                      {dateFrom ? formatDateFns(dateFrom, "yyyy/MM/dd") : "اختر تاريخ"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
-              {/* اختيار يوم محدد */}
-              {dateFilter === "CUSTOM" && (
-                <div className="w-full sm:w-auto">
-                  <Label className="text-xs mb-1.5 block text-muted-foreground">يوم محدد</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full sm:w-40 justify-start text-right font-normal",
-                          !customDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="w-4 h-4 ml-2" />
-                        {customDate ? formatDateFns(customDate, "yyyy/MM/dd") : "اختر يوم"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={customDate}
-                        onSelect={setCustomDate}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
+              <div className="w-full sm:w-auto">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">إلى تاريخ</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full sm:w-40 justify-start text-right font-normal",
+                        !dateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="w-4 h-4 ml-2" />
+                      {dateTo ? formatDateFns(dateTo, "yyyy/MM/dd") : "اختر تاريخ"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               {/* زر إعادة ضبط الفلاتر */}
-              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFilter !== "ALL" || customDate) && (
+              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFrom || dateTo) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -545,8 +550,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                     setProductQuery("");
                     setFromBranchFilter("ALL");
                     setToBranchFilter("ALL");
-                    setDateFilter("ALL");
-                    setCustomDate(undefined);
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
                   }}
                   className="gap-1 text-muted-foreground"
                 >
