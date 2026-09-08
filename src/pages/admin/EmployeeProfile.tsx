@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
 import { summarizeMonth, AttendanceSummary } from "@/lib/salaryCalc";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { ImageField } from "@/components/ImageField";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
