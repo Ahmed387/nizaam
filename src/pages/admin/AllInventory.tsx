@@ -399,20 +399,13 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
           {editing && (
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Label>صورة المنتج</Label>
-                <div className="mt-1.5 flex items-center gap-3">
-                  {editing.image && <ProductImage src={editing.image} alt="" className="w-16 h-16 rounded object-cover border" />}
-                  <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
-                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    <span className="text-sm">{editing.image ? "تغيير" : "رفع"}</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                      const f = e.target.files?.[0]; if (!f) return;
-                      const url = await uploadImage(f, editing.branch_id);
-                      if (url) setEditing({ ...editing, image: url });
-                    }} />
-                  </label>
-                  {editing.image && <Button variant="ghost" size="sm" onClick={() => setEditing({ ...editing, image: null })}>إزالة</Button>}
-                </div>
+                <ImageField
+                  value={editing.image}
+                  onChange={(v) => setEditing({ ...editing, image: v })}
+                  folder={editing.branch_id}
+                  label="صورة المنتج"
+                  size="md"
+                />
               </div>
               <div className="col-span-2"><Label>الاسم</Label><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="mt-1.5" /></div>
               <div className="col-span-2">
@@ -716,15 +709,13 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
         <DialogHeader><DialogTitle>إضافة منتج جديد لعدة فروع</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <Label>صورة المنتج</Label>
-            <div className="mt-1.5 flex items-center gap-3">
-              {form.image && <ProductImage src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
-              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                <span className="text-sm">{form.image ? "تغيير" : "رفع"}</span>
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-              </label>
-            </div>
+            <ImageField
+              value={form.image || null}
+              onChange={(v) => setForm((f) => ({ ...f, image: v ?? "" }))}
+              folder="shared"
+              label="صورة المنتج"
+              size="md"
+            />
           </div>
           <div className="col-span-2"><Label>اسم المنتج *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
           <div className="col-span-2">
