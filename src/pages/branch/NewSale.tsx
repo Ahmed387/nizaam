@@ -36,7 +36,7 @@ import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
 import { ColorChip } from "@/components/ColorPicker";
-import { VariantLine } from "@/components/VariantChips";
+import { ProductCell, VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
@@ -1564,8 +1564,16 @@ export default function NewSale() {
               </div>
             ) : (
               <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
-
+              <table className="w-full text-sm min-w-[950px] table-fixed border-collapse">
+                <colgroup>
+                  <col className="w-[35%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[15%]" />
+                  {showCost && <col className="w-[11%]" />}
+                  <col className="w-[12%]" />
+                  <col className="w-[45px]" />
+                </colgroup>
                 <thead><tr className="bg-surface-2 text-xs">
                   <th className="p-2 text-right">المنتج</th>
                   <th className="p-2">الكمية</th>
@@ -1605,41 +1613,51 @@ export default function NewSale() {
                     return (
                       <tr key={k} className={`border-t border-border ${isLoss ? "bg-destructive/5" : ""}`}>
 
-                        <td className="p-2 font-medium">
-                          <div className="flex items-start gap-2">
+                        <td className="p-2 align-top font-medium">
+                          <div className="flex items-start gap-3 w-full p-2">
                             <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold border border-primary/20">
                               {(i.product_name || "?").trim().charAt(0)}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start gap-2">
-                                {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0 mt-1.5" />}
-                                {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0 mt-1.5" />}
-                                <span className="font-bold break-words whitespace-normal leading-snug">{i.product_name}</span>
-                                {i.color && <ColorChip name={i.color} />}
-                              </div>
-                              <VariantLine attrs={i} className="block mt-0.5" />
-                              {showCost && <div className="text-xs text-muted-foreground mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
+                            <div className="flex-1 min-w-0 flex flex-col gap-1">
+                              <ProductCell
+                                className="min-w-0"
+                                name={
+                                  <div className="flex items-start gap-2 min-w-0">
+                                    {isLoss && <span title="بيع بخسارة" className="inline-block w-2.5 h-2.5 rounded-full bg-destructive shrink-0 mt-1.5" />}
+                                    {isProfit && <span title="بيع بمكسب" className="inline-block w-2.5 h-2.5 rounded-full bg-success shrink-0 mt-1.5" />}
+                                    <span className="min-w-0 text-sm font-semibold text-foreground leading-snug line-clamp-2 [overflow-wrap:anywhere]">
+                                      {i.product_name}
+                                    </span>
+                                  </div>
+                                }
+                                attrs={{ ...i, color: null }}
+                                sub={i.color ? (
+                                  <span className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                    <ColorChip name={i.color} />
+                                  </span>
+                                ) : undefined}
+                              />
+                              {showCost && <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">شراء: {formatEGP(i.cost_price)}</div>}
+                              {(() => {
+                                const r = reservations[i.product_id];
+                                if (!r) return null;
+                                const msLeft = new Date(r.expires_at).getTime() - nowTick;
+                                if (msLeft <= 0) {
+                                  return <div className="text-[10px] text-destructive flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ❌ انتهى وقت الحجز — أعد إضافة المنتج</div>;
+                                }
+                                const totalSec = Math.floor(msLeft / 1000);
+                                const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+                                const ss = String(totalSec % 60).padStart(2, "0");
+                                const warn = totalSec <= 5 * 60;
+                                return (
+                                  <div className={`text-[10px] flex items-center gap-1 ${warn ? "text-warning font-bold" : "text-success"}`}>
+                                    {warn ? <AlertTriangle className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                                    {warn ? "⚠️ سيتم إلغاء الحجز خلال" : "محجوز — ينتهي خلال"} {mm}:{ss}
+                                  </div>
+                                );
+                              })()}
                             </div>
-
                           </div>
-                          {(() => {
-                            const r = reservations[i.product_id];
-                            if (!r) return null;
-                            const msLeft = new Date(r.expires_at).getTime() - nowTick;
-                            if (msLeft <= 0) {
-                              return <div className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ❌ انتهى وقت الحجز — أعد إضافة المنتج</div>;
-                            }
-                            const totalSec = Math.floor(msLeft / 1000);
-                            const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
-                            const ss = String(totalSec % 60).padStart(2, "0");
-                            const warn = totalSec <= 5 * 60;
-                            return (
-                              <div className={`text-[10px] mt-1 flex items-center gap-1 ${warn ? "text-warning font-bold" : "text-success"}`}>
-                                {warn ? <AlertTriangle className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
-                                {warn ? "⚠️ سيتم إلغاء الحجز خلال" : "محجوز — ينتهي خلال"} {mm}:{ss}
-                              </div>
-                            );
-                          })()}
                         </td>
                         <td className="p-2 text-center">
                           <div className="inline-flex items-center rounded-lg border border-border overflow-hidden bg-background">
