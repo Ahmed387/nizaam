@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { uploadProductImage } from "@/lib/uploadImage";
 import { toast } from "sonner";
 import { ColorChip } from "@/components/ColorPicker";
 import { AttributeChip, AttributePicker } from "@/components/AttributePicker";
-import { variantSearchTokens } from "@/lib/productVariant";
+import { filterProductsBySearch } from "@/lib/search";
 import { ProductImage } from "@/components/ProductImage";
 
 export interface ProductRow {
@@ -89,7 +89,7 @@ export function ProductPicker({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}>
         <PopoverTrigger asChild>
           <Button
             type="button"
