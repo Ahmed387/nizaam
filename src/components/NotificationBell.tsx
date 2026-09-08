@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
@@ -62,6 +63,17 @@ export function NotificationBell() {
   const remove = async (id: string) => {
     await supabase.from("notifications").delete().eq("id", id);
   };
+  const clearAll = async () => {
+    if (!user || items.length === 0) return;
+    setItems([]);
+    const { error } = await supabase.from("notifications").delete().eq("user_id", user.id);
+    if (error) {
+      toast.error(error.message);
+      load();
+      return;
+    }
+    toast.success("تم مسح كافة الإشعارات بنجاح");
+  };
 
   const onClick = async (n: Notification) => {
     if (!n.is_read) await markRead(n.id);
@@ -84,15 +96,26 @@ export function NotificationBell() {
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between p-3 border-b border-border">
           <div className="font-bold text-sm">الإشعارات</div>
-          {unread > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
-              <Check className="w-3 h-3 ml-1" /> تعليم الكل كمقروء
+          <div className="flex items-center gap-1">
+            {unread > 0 && (
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
+                <Check className="w-3 h-3 ml-1" /> تعليم الكل كمقروء
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={items.length === 0}
+              onClick={clearAll}
+              className="text-xs text-destructive hover:text-destructive/80 h-7 flex items-center gap-1 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-3 h-3" /> حذف الكل
             </Button>
-          )}
+          </div>
         </div>
         <div className="max-h-96 overflow-y-auto">
           {items.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">لا توجد إشعارات</div>
+            <div className="p-6 text-center text-sm text-muted-foreground">لا توجد إشعارات جديدة</div>
           ) : (
             items.map((n) => (
               <div
