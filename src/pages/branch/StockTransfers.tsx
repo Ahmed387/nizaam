@@ -486,55 +486,63 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 </Select>
               </div>
 
-              {/* فلتر التاريخ */}
-              <div className="w-full sm:w-44">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">التاريخ</Label>
-                <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="كل التواريخ" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">كل التواريخ</SelectItem>
-                    <SelectItem value="TODAY">اليوم</SelectItem>
-                    <SelectItem value="LAST7">آخر 7 أيام</SelectItem>
-                    <SelectItem value="THIS_MONTH">هذا الشهر</SelectItem>
-                    <SelectItem value="CUSTOM">يوم محدد…</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* فلتر التاريخ من / إلى */}
+              <div className="w-full sm:w-auto">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">من تاريخ</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full sm:w-40 justify-start text-right font-normal",
+                        !dateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="w-4 h-4 ml-2" />
+                      {dateFrom ? formatDateFns(dateFrom, "yyyy/MM/dd") : "اختر تاريخ"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
-              {/* اختيار يوم محدد */}
-              {dateFilter === "CUSTOM" && (
-                <div className="w-full sm:w-auto">
-                  <Label className="text-xs mb-1.5 block text-muted-foreground">يوم محدد</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full sm:w-40 justify-start text-right font-normal",
-                          !customDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="w-4 h-4 ml-2" />
-                        {customDate ? formatDateFns(customDate, "yyyy/MM/dd") : "اختر يوم"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={customDate}
-                        onSelect={setCustomDate}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
+              <div className="w-full sm:w-auto">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">إلى تاريخ</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full sm:w-40 justify-start text-right font-normal",
+                        !dateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="w-4 h-4 ml-2" />
+                      {dateTo ? formatDateFns(dateTo, "yyyy/MM/dd") : "اختر تاريخ"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               {/* زر إعادة ضبط الفلاتر */}
-              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFilter !== "ALL" || customDate) && (
+              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFrom || dateTo) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -542,8 +550,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                     setProductQuery("");
                     setFromBranchFilter("ALL");
                     setToBranchFilter("ALL");
-                    setDateFilter("ALL");
-                    setCustomDate(undefined);
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
                   }}
                   className="gap-1 text-muted-foreground"
                 >
