@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight } from "lucide-react";
+import { normalizeForSearch } from "@/lib/search";
 
 type Movement = {
   date: string;
