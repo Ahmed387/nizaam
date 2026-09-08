@@ -68,7 +68,6 @@ export interface SearchableProduct {
   category_name?: string | null;
   unit?: string | null;
   supplier_name?: string | null;
-  [key: string]: unknown;
 }
 
 /** All searchable fields of a product merged into one normalized string. */

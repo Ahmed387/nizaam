@@ -25,6 +25,7 @@ import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCount
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
+import { searchMatch } from "@/lib/search";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
