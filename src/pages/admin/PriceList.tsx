@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { normalizeSheetRow, decodeTextFile } from "@/lib/priceListColumns";
 
 type Source = {
   id: string;
@@ -301,29 +302,15 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
         if (plErr) throw new Error(plErr);
         parsed = (data?.products ?? []) as ParsedItem[];
       } else {
-        // Excel parse client-side
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type: "array" });
+        // Excel/CSV parse client-side through the unified column dictionary
+        const isCsv = /\.(csv|txt)$/i.test(file.name);
+        const wb = isCsv
+          ? XLSX.read(await decodeTextFile(file), { type: "string", raw: false })
+          : XLSX.read(await file.arrayBuffer(), { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
         parsed = rows
-          .map((r) => {
-            const get = (keys: string[]) => {
-              for (const k of keys) {
-                const found = Object.keys(r).find((rk) => rk.toLowerCase().trim() === k.toLowerCase());
-                if (found && r[found] !== "") return r[found];
-              }
-              return undefined;
-            };
-            const cost = Number(get(["cost_price", "سعر الشراء", "التكلفة", "السعر", "price"])) || 0;
-            return {
-              product_name: String(get(["product_name", "اسم المنتج", "المنتج", "name"]) ?? "").trim(),
-              model_code: String(get(["model_code", "model", "الموديل", "كود", "sku"]) ?? "").trim() || undefined,
-              category: String(get(["category", "الفئة", "التصنيف"]) ?? "").trim() || undefined,
-              cost_price: cost,
-              suggested_sell_price: Number(get(["suggested_sell_price", "سعر البيع", "البيع المقترح"])) || 0,
-            } as ParsedItem;
-          })
+          .map((r) => normalizeSheetRow(r) as ParsedItem)
           .filter((p) => p.product_name && p.cost_price > 0);
       }
 

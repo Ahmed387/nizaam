@@ -159,8 +159,10 @@ Deno.serve(async (req) => {
       console.warn("[parse] text extraction failed:", e);
     }
 
-    // Decide path: if we have meaningful text, use TEXT mode (fast)
-    const useText = extractedText.length > 200;
+    // Decide path: enough text AND clean text quality, otherwise force VISION mode
+    const quality = textQuality(extractedText);
+    const useText = extractedText.length > 200 && !quality.corrupt;
+    console.log(`[parse] textQuality reason=${quality.reason} ratio=${quality.ratio.toFixed(3)} chars=${quality.total}`);
     const messages = useText
       ? [
           { role: "system", content: SYSTEM(supplier) },
