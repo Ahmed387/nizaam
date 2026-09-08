@@ -302,6 +302,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         <TabsList>
           <TabsTrigger value="incoming">واردة ({totalPendingIncoming})</TabsTrigger>
           <TabsTrigger value="outgoing">صادرة</TabsTrigger>
+          <TabsTrigger value="done">ما تم استلامه بالفعل</TabsTrigger>
         </TabsList>
 
         <TabsContent value="incoming" className="mt-4 space-y-3">
