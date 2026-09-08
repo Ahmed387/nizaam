@@ -113,26 +113,25 @@ export function ProductPicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-          <Command shouldFilter>
-            <CommandInput placeholder="ابحث بالاسم أو الكود..." />
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="ابحث بالاسم أو الكود أو الماركة..." value={query} onValueChange={setQuery} />
             <CommandList>
               {loading ? (
                 <div className="text-center py-6"><Loader2 className="w-4 h-4 animate-spin mx-auto" /></div>
               ) : list.length === 0 ? (
-                <CommandEmpty>
-                  <div className="flex flex-col items-center gap-2 py-4 text-sm">
-                    <PackageSearch className="w-6 h-6 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {filter === "out_of_stock" ? "لا توجد أصناف غير متوفرة" : "لا توجد منتجات"}
-                    </span>
-                  </div>
-                </CommandEmpty>
+                <div className="flex flex-col items-center gap-2 py-6 text-sm">
+                  <PackageSearch className="w-6 h-6 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {filter === "out_of_stock" ? "لا توجد أصناف غير متوفرة" : "لا توجد منتجات مطابقة"}
+                  </span>
+                </div>
               ) : (
                 <CommandGroup>
                   {list.map((p) => (
                     <CommandItem
                       key={p.id}
-                      value={`${p.name} ${p.sku} ${variantSearchTokens(p)}`}
+                      value={p.id}
+
                       onSelect={() => { onPick(p); setOpen(false); }}
                       className="flex items-center justify-between gap-2"
                     >
