@@ -63,7 +63,7 @@ export default function Inventory() {
   const [historyFor, setHistoryFor] = useState<any>(null);
   const [editAll, setEditAll] = useState<any>(null);
   const [editForm, setEditForm] = useState({
-    name: "", sku: "", quantity: "0",
+    name: "", sku: "", quantity: "0", category_id: "",
     cost_price: "", selling_price: "", market_price: "",
     qty_notes: "", price_reason: "", image: "", color: "",
     product_type: "", capacity: "", size: "", brand: "", model: "",
@@ -121,6 +121,7 @@ export default function Inventory() {
       name: String(r.name ?? ""),
       sku: String(r.sku ?? ""),
       quantity: String(r.quantity ?? 0),
+      category_id: String(r.category_id ?? ""),
       cost_price: String(r.cost_price ?? ""),
       selling_price: String(r.selling_price ?? ""),
       market_price: String(r.market_price ?? ""),
@@ -161,6 +162,7 @@ export default function Inventory() {
 
     const nameChanged = name !== String(editAll.name ?? "");
     const skuChanged = sku !== String(editAll.sku ?? "");
+    const categoryChanged = (editForm.category_id || "") !== String(editAll.category_id ?? "");
     const qtyChanged = newQty !== Number(editAll.quantity);
     const costChanged = Number(editForm.cost_price) !== Number(editAll.cost_price ?? 0);
     const sellChanged = Number(editForm.selling_price) !== Number(editAll.selling_price ?? 0);
@@ -175,7 +177,7 @@ export default function Inventory() {
     const modelChanged = (editForm.model || "") !== (editAll.model || "");
     const attrsChanged = colorChanged || typeChanged || capChanged || sizeChanged || brandChanged || modelChanged;
 
-    if (!nameChanged && !skuChanged && !qtyChanged && !priceChanged && !imageChanged && !attrsChanged) {
+    if (!nameChanged && !skuChanged && !categoryChanged && !qtyChanged && !priceChanged && !imageChanged && !attrsChanged) {
       setEditAll(null);
       return;
     }
@@ -185,11 +187,12 @@ export default function Inventory() {
 
     setSavingEdit(true);
 
-    // 1) Name / SKU / Image / Attributes
-    if (nameChanged || skuChanged || imageChanged || attrsChanged) {
+    // 1) Name / SKU / Category / Image / Attributes
+    if (nameChanged || skuChanged || categoryChanged || imageChanged || attrsChanged) {
       const patch: any = {};
       if (nameChanged) patch.name = name;
       if (skuChanged) patch.sku = sku;
+      if (categoryChanged) patch.category_id = editForm.category_id || null;
       if (imageChanged) patch.image = editForm.image || null;
       if (colorChanged) patch.color = editForm.color || null;
       if (typeChanged) patch.product_type = editForm.product_type || null;
@@ -684,19 +687,19 @@ export default function Inventory() {
             ) : (
               <table className="w-full text-sm table-fixed">
                 <colgroup>
-                  <col className="w-[44%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[10%]" />
+                  <col className="w-[38%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[11%]" />
                   <col className="w-[22%]" />
-                  <col className="w-[12%]" />
+                  <col className="w-[16%]" />
                 </colgroup>
                 <thead>
                   <tr className="bg-surface-2 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                     <th className="px-4 py-3 text-right font-semibold">المنتج</th>
-                    <th className="px-3 py-3 text-right font-semibold">التصنيف</th>
-                    <th className="px-3 py-3 text-center font-semibold">الكمية</th>
-                    <th className="px-3 py-3 text-right font-semibold">الأسعار (شراء / بيع / سوق)</th>
-                    <th className="px-3 py-3 text-center font-semibold">إجراءات</th>
+                    <th className="px-2 py-3 text-center font-semibold">التصنيف</th>
+                    <th className="px-2 py-3 text-center font-semibold">الكمية</th>
+                    <th className="px-4 py-3 text-right font-semibold">الأسعار</th>
+                    <th className="px-2 py-3 text-center font-semibold">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -735,24 +738,24 @@ export default function Inventory() {
                             />
                           </div>
                         </td>
-                        <td className="px-3 py-3 align-middle text-center text-muted-foreground break-words" title={r.categories?.name ?? ""}>
+                        <td className="px-2 py-3 align-middle text-center text-muted-foreground break-words" title={r.categories?.name ?? ""}>
                           {r.categories?.name ?? "—"}
                         </td>
 
-                        <td className="px-3 py-3 align-middle text-center">
+                        <td className="px-2 py-3 align-middle text-center font-medium tabular-nums">
                           <div className="font-bold">{r.quantity}</div>
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </td>
-                        <td className="px-3 py-3 align-middle">
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                            <span className="text-muted-foreground">شراء: <span className="text-foreground">{formatEGP(r.cost_price)}</span></span>
-                            <span className="text-muted-foreground">بيع: <span className="text-success font-medium">{formatEGP(r.selling_price)}</span></span>
-                            <span className="text-muted-foreground">سوق: <span className="text-primary">{formatEGP(r.market_price)}</span></span>
+                        <td className="px-4 py-3 align-middle text-right">
+                          <div className="flex flex-col gap-1 tabular-nums text-xs leading-tight whitespace-nowrap">
+                            <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">بيع: {formatEGP(r.selling_price)}</span>
+                            <span className="text-blue-600 dark:text-blue-400">سوق: {formatEGP(r.market_price)}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 align-middle">
+                        <td className="px-2 py-3 align-middle text-center">
                           {canManageInventory && (
-                            <div className="flex items-center justify-center gap-1" onDoubleClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1.5" onDoubleClick={(e) => e.stopPropagation()}>
                               {r.archived_at ? (
                                 <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => doRestore(r)} title="استرجاع المنتج">
                                   <ArchiveRestore className="w-4 h-4" /> استرجاع
@@ -1079,6 +1082,27 @@ export default function Inventory() {
                     <div>
                       <Label className="text-xs font-semibold mb-1.5 block">كود الصنف (SKU) <span className="text-destructive">*</span></Label>
                       <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} className="font-mono" placeholder="SKU-100029" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold mb-1.5 block">التصنيف</Label>
+                      <Select value={editForm.category_id || "none"} onValueChange={(v) => setEditForm({ ...editForm, category_id: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="بدون" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— بدون —</SelectItem>
+                          {[...cats]
+                            .filter((c: any) => !c.parent_id)
+                            .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+                            .flatMap((p: any) => [
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>,
+                              ...cats
+                                .filter((c: any) => c.parent_id === p.id)
+                                .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+                                .map((c: any) => (
+                                  <SelectItem key={c.id} value={c.id}>{`${p.name} › ${c.name}`}</SelectItem>
+                                )),
+                            ])}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="px-4 pb-4">
