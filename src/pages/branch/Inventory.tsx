@@ -1067,7 +1067,7 @@ export default function Inventory() {
             const marketChanged = Number(editForm.market_price) !== Number(editAll.market_price ?? 0);
             const priceChanged = costChanged || sellChanged || marketChanged;
             return (
-              <div className="px-5 py-4 space-y-5">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
                 {/* Section: Basic info */}
                 <section className="rounded-lg border bg-card overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b">
@@ -1184,7 +1184,18 @@ export default function Inventory() {
                         <Textarea value={editForm.price_reason} onChange={(e) => setEditForm({ ...editForm, price_reason: e.target.value })} rows={2} placeholder="مثال: تغيير من المورد، عرض موسمي…" />
                       </div>
                     )}
+                  </div>
+                </section>
+
+                {/* Section: Attributes */}
+                <section className="rounded-lg border bg-card overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <Type className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-bold text-primary">الخصائص والمواصفات</span>
+                  </div>
+                  <div className="p-4">
                     <VariantAttributesFields
+                      showHeader={false}
                       value={editForm}
                       required={["brand", "model"]}
                       onChange={(patch) => setEditForm({ ...editForm, ...patch } as any)}
@@ -1195,7 +1206,7 @@ export default function Inventory() {
             );
           })()}
 
-          <DialogFooter className="px-5 py-3 border-t bg-muted/30 rounded-b-lg gap-2 sm:justify-between">
+          <DialogFooter className="px-5 py-3 border-t shrink-0 bg-background/95 backdrop-blur rounded-b-lg gap-2 sm:justify-between">
             <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive gap-1.5" onClick={() => editAll && openDelete(editAll)} disabled={savingEdit}>
               <Trash2 className="w-4 h-4" /> حذف / أرشفة
             </Button>
