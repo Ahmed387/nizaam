@@ -290,14 +290,37 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         to_name: t.to_branch?.name ?? "—",
       })),
     ].sort((a, b) => String(b.updated_at ?? b.created_at).localeCompare(String(a.updated_at ?? a.created_at)));
-    const q = doneSearch.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.from_name, r.to_name, r.products?.name, r.products?.sku, r.reason]
-        .filter(Boolean)
-        .some((v: any) => String(v).toLowerCase().includes(q))
-    );
-  }, [incoming, outgoing, selfBranchName, doneSearch]);
+
+    return rows.filter((r) => {
+      // 1. فلتر الفرع المرسل
+      if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
+      // 2. فلتر الفرع المستلم
+      if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
+      // 3. فلتر التاريخ
+      const confirmedAt = r.updated_at ?? r.created_at;
+      if (dateFilter !== "ALL" && confirmedAt) {
+        const d = new Date(confirmedAt);
+        const today = new Date();
+        if (dateFilter === "TODAY" && !isSameDay(d, today)) return false;
+        if (dateFilter === "LAST7") {
+          const weekAgo = new Date(); weekAgo.setDate(today.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
+          if (d < weekAgo) return false;
+        }
+        if (dateFilter === "THIS_MONTH") {
+          if (d.getMonth() !== today.getMonth() || d.getFullYear() !== today.getFullYear()) return false;
+        }
+        if (dateFilter === "CUSTOM" && customDate && !isSameDay(d, customDate)) return false;
+      }
+      // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
+      if (productQuery.trim()) {
+        const prod = r.products ?? {};
+        if (!searchMatch(productQuery, prod.name, prod.sku, prod.barcode, prod.model_code, prod.brand, prod.model, prod.legacy_code)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFilter, customDate]);
 
   const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
 
