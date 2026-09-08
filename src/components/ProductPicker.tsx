@@ -133,7 +133,7 @@ export function ProductPicker({
                       value={p.id}
 
                       onSelect={() => { onPick(p); setOpen(false); }}
-                      className="flex items-center justify-between gap-2"
+                      className="group flex items-center justify-between gap-2"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         {value === p.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -152,10 +152,11 @@ export function ProductPicker({
                       </div>
                       <span
                         className={cn(
-                          "shrink-0 text-[11px] px-2 py-0.5 rounded-full font-semibold",
+                          "shrink-0 text-[11px] px-2 py-0.5 rounded-md font-medium border border-border/50",
                           p.quantity > 0
                             ? "bg-success/15 text-success"
                             : "bg-destructive/15 text-destructive",
+                          "group-data-[selected=true]:bg-white/20 group-data-[selected=true]:text-white group-data-[selected=true]:border-white/30",
                         )}
                       >
                         المخزون: {p.quantity}

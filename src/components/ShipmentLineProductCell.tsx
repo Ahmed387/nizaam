@@ -164,13 +164,17 @@ export function ShipmentLineProductCell({
                     key={`inv-${p.id}`}
                     type="button"
                     onClick={() => { setSource("inventory"); onChange({ product_id: p.id, product_name: p.name, sku: p.sku, cost_price: Number(p.cost_price), image: p.image ?? "", source: "inventory", available: Number(p.quantity), brand: (p as any).brand ?? null, model: (p as any).model ?? null, color: (p as any).color ?? null, product_type: (p as any).product_type ?? null, capacity: (p as any).capacity ?? null, size: (p as any).size ?? null }); }}
-                    className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded bg-background hover:bg-accent border border-border text-right min-w-0"
+                    className="group flex items-center justify-between gap-1.5 px-1.5 py-1 rounded bg-background hover:bg-accent border border-border text-right min-w-0"
                   >
                     <span className="flex items-center gap-1 min-w-0">
                       <Package className="w-3 h-3 text-primary shrink-0" />
                       <span className="truncate font-medium">{p.name}</span>
                     </span>
-                    <span className={cn("shrink-0 text-[10px] font-semibold", Number(p.quantity) > 0 ? "text-success" : "text-destructive")}>
+                    <span className={cn(
+                      "shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md border border-border/50",
+                      Number(p.quantity) > 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
+                      "group-hover:bg-white/20 group-hover:text-white group-hover:border-white/30",
+                    )}>
                       {p.quantity}
                     </span>
                   </button>
@@ -285,7 +289,7 @@ function PriceListPicker({ value, onPick }: { value: string; onPick: (r: PriceLi
                     key={r.id}
                     value={r.id}
                     onSelect={() => { onPick(r); setOpen(false); }}
-                    className="flex items-center justify-between gap-2"
+                    className="group flex items-center justify-between gap-2"
                   >
                     <div className="min-w-0">
                       <div className="font-medium truncate">{r.product_name}</div>
@@ -293,7 +297,7 @@ function PriceListPicker({ value, onPick }: { value: string; onPick: (r: PriceLi
                         {r.model_code ?? "—"}{r.supplier_name ? ` · ${r.supplier_name}` : ""}
                       </div>
                     </div>
-                    <span className="shrink-0 text-[11px] text-primary font-semibold">
+                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-muted/80 text-foreground border border-border/50 group-data-[selected=true]:bg-white/20 group-data-[selected=true]:text-white group-data-[selected=true]:border-white/30">
                       {Number(r.display_price ?? 0).toLocaleString()} ج
                     </span>
                   </CommandItem>
