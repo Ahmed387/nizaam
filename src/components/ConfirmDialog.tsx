@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Trash2, HelpCircle, X, Check } from "lucide-react";
 
 export type ConfirmTone = "danger" | "warning" | "info";
