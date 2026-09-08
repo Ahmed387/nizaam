@@ -180,6 +180,36 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  // -------- clear one supplier's price list --------
+  const clearSupplierList = async (sourceId: string, supplierName: string) => {
+    if (!canManageLists) return toast.error("الصلاحية للمالك والمدير العام فقط");
+    const ok = await confirmAlert({
+      title: "مسح قائمة الأسعار؟",
+      description: `هل تريد حذف بيانات قائمة أسعار ${supplierName} لإعادة رفعها من جديد؟ لن يتأثر أي مورد آخر.`,
+      confirmLabel: "أيوه، امسح القائمة",
+      cancelLabel: "لأ، سيبها",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setClearingList(true);
+    const { error, count } = await supabase
+      .from("price_list_items")
+      .delete({ count: "exact" })
+      .eq("source_id", sourceId);
+    setClearingList(false);
+    if (error) return toast.error(error.message);
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "DELETE", entity: "price_list_source_items", entityId: sourceId,
+        details: { supplier: supplierName, deleted: count ?? 0 },
+      });
+    }
+    toast.success(`تم مسح ${count ?? 0} صنف من قائمة ${supplierName}`);
+    setSelected(new Set());
+    load();
+  };
+
   // -------- rename supplier --------
   const renameSupplier = async () => {
     if (!renameId) return;
