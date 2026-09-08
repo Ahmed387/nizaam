@@ -48,13 +48,25 @@ export function useTextLookup(table: LookupTableName) {
   };
 
   const remove = async (id: string) => {
+    // Optimistic: remove from local state instantly, roll back on server failure.
+    const removed = items.find((item) => item.id === id);
+    setItems((prev) => prev.filter((item) => item.id !== id));
     const { error } = await supabase.from(table as any).delete().eq("id", id);
-    if (error) throw error;
+    if (error) {
+      if (removed) setItems((prev) => [...prev, removed].sort((a, b) => a.name.localeCompare(b.name, "ar")));
+      throw error;
+    }
   };
 
   const update = async (id: string, name: string) => {
-    const { error } = await supabase.from(table as any).update({ name: name.trim() } as any).eq("id", id);
-    if (error) throw error;
+    const trimmed = name.trim();
+    const previous = items.find((item) => item.id === id);
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, name: trimmed } : item)));
+    const { error } = await supabase.from(table as any).update({ name: trimmed } as any).eq("id", id);
+    if (error) {
+      if (previous) setItems((prev) => prev.map((item) => (item.id === id ? previous : item)));
+      throw error;
+    }
   };
 
   return { items, loading, add, remove, update, reload: load };
