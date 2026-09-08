@@ -11,17 +11,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search } from "lucide-react";
+import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search, CalendarIcon } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { DataTable } from "@/components/DataTable";
+import { format as formatDateFns, isSameDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type Item = { product_id: string; quantity: string };
 
