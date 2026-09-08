@@ -50,7 +50,10 @@ export default function StockTransferView() {
   const fromBranch = branches[head.from_branch_id];
   const toBranch = branches[head.to_branch_id];
   const totalQty = rows.reduce((s, r) => s + Number(r.quantity ?? 0), 0);
-  const totalReceived = rows.reduce((s, r) => s + Number(r.received_quantity ?? 0), 0);
+  const totalReceived = rows.reduce(
+    (s, r) => s + Number(r.received_quantity ?? (r.status === "confirmed" ? r.quantity : 0)),
+    0
+  );
 
   return (
     <BranchLayout>

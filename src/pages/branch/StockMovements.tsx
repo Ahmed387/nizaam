@@ -72,12 +72,25 @@ export default function StockMovements() {
         .eq("product_id", productId!);
 
       // Transfers — confirmed only, where this branch is from or to.
-      // Destination products are separate rows linked by name (see partial_confirm_transfer),
-      // so match all product IDs that share this product's name.
-      const { data: sameNameProducts } = p?.name
-        ? await supabase.from("products").select("id").eq("name", p.name)
-        : { data: [] as any[] };
-      const productIds = Array.from(new Set([productId!, ...(((sameNameProducts ?? []) as any[]).map((x) => x.id))]));
+      // Destination products are separate rows linked by name (see partial_confirm_transfer).
+      // Match on normalized name / sku / legacy code so hamza, spacing or casing differences
+      // never drop a movement.
+      const { data: candidateProducts } = await supabase
+        .from("products")
+        .select("id, name, sku, legacy_code");
+      const selfKeyName = normalizeForSearch(p?.name ?? "");
+      const selfCodes = new Set(
+        [p?.sku, (p as any)?.legacy_code].map((c) => normalizeForSearch(c)).filter(Boolean)
+      );
+      const matchedIds = ((candidateProducts ?? []) as any[])
+        .filter((x) => {
+          if (x.id === productId) return true;
+          if (selfKeyName && normalizeForSearch(x.name) === selfKeyName) return true;
+          const codes = [x.sku, x.legacy_code].map((c: any) => normalizeForSearch(c)).filter(Boolean);
+          return codes.some((c: string) => selfCodes.has(c));
+        })
+        .map((x) => x.id);
+      const productIds = Array.from(new Set([productId!, ...matchedIds]));
 
       const { data: transfers } = await supabase
         .from("stock_transfers")
