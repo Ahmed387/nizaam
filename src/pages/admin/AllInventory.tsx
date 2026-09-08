@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History } from "lucide-react";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductImage } from "@/components/ProductImage";
+import { ImageField } from "@/components/ImageField";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { ProductCell } from "@/components/VariantChips";

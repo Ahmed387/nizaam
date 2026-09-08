@@ -36,6 +36,7 @@ import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, DialogTitle as DlgTitle } from "@/components/ui/dialog";
 import { ProductImage } from "@/components/ProductImage";
+import { ImageField } from "@/components/ImageField";
 import { confirmAlert } from "@/components/ConfirmDialog";
 
 export default function Inventory() {

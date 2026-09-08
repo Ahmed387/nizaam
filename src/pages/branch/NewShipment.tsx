@@ -30,6 +30,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { ProductImage } from "@/components/ProductImage";
+import { ImageField } from "@/components/ImageField";
 import { AttributePicker } from "@/components/AttributePicker";
 import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { ColorPicker } from "@/components/ColorPicker";
