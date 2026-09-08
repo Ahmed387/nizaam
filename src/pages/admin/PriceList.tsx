@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { normalizeSheetRow, decodeTextFile } from "@/lib/priceListColumns";
 
 type Source = {
   id: string;
@@ -60,7 +61,9 @@ type DiffRow = {
 };
 
 export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
-  const { tenantId, user, profile } = useAuth();
+  const { tenantId, user, profile, isOwner, isAdmin } = useAuth();
+  const canManageLists = isOwner || isAdmin;
+  const [clearingList, setClearingList] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +178,36 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
     const { error } = await supabase.from("price_list_items").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setItems((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  // -------- clear one supplier's price list --------
+  const clearSupplierList = async (sourceId: string, supplierName: string) => {
+    if (!canManageLists) return toast.error("الصلاحية للمالك والمدير العام فقط");
+    const ok = await confirmAlert({
+      title: "مسح قائمة الأسعار؟",
+      description: `هل تريد حذف بيانات قائمة أسعار ${supplierName} لإعادة رفعها من جديد؟ لن يتأثر أي مورد آخر.`,
+      confirmLabel: "أيوه، امسح القائمة",
+      cancelLabel: "لأ، سيبها",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setClearingList(true);
+    const { error, count } = await supabase
+      .from("price_list_items")
+      .delete({ count: "exact" })
+      .eq("source_id", sourceId);
+    setClearingList(false);
+    if (error) return toast.error(error.message);
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId,
+        action: "DELETE", entity: "price_list_source_items", entityId: sourceId,
+        details: { supplier: supplierName, deleted: count ?? 0 },
+      });
+    }
+    toast.success(`تم مسح ${count ?? 0} صنف من قائمة ${supplierName}`);
+    setSelected(new Set());
+    load();
   };
 
   // -------- rename supplier --------
@@ -301,29 +334,15 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
         if (plErr) throw new Error(plErr);
         parsed = (data?.products ?? []) as ParsedItem[];
       } else {
-        // Excel parse client-side
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type: "array" });
+        // Excel/CSV parse client-side through the unified column dictionary
+        const isCsv = /\.(csv|txt)$/i.test(file.name);
+        const wb = isCsv
+          ? XLSX.read(await decodeTextFile(file), { type: "string", raw: false })
+          : XLSX.read(await file.arrayBuffer(), { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
         parsed = rows
-          .map((r) => {
-            const get = (keys: string[]) => {
-              for (const k of keys) {
-                const found = Object.keys(r).find((rk) => rk.toLowerCase().trim() === k.toLowerCase());
-                if (found && r[found] !== "") return r[found];
-              }
-              return undefined;
-            };
-            const cost = Number(get(["cost_price", "سعر الشراء", "التكلفة", "السعر", "price"])) || 0;
-            return {
-              product_name: String(get(["product_name", "اسم المنتج", "المنتج", "name"]) ?? "").trim(),
-              model_code: String(get(["model_code", "model", "الموديل", "كود", "sku"]) ?? "").trim() || undefined,
-              category: String(get(["category", "الفئة", "التصنيف"]) ?? "").trim() || undefined,
-              cost_price: cost,
-              suggested_sell_price: Number(get(["suggested_sell_price", "سعر البيع", "البيع المقترح"])) || 0,
-            } as ParsedItem;
-          })
+          .map((r) => normalizeSheetRow(r) as ParsedItem)
           .filter((p) => p.product_name && p.cost_price > 0);
       }
 
@@ -345,6 +364,12 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
         return { parsed: p, existing, diff: d, status };
       });
       setParsedDiff(diff);
+      const noSell = parsed.filter((p) => !(Number(p.suggested_sell_price) > 0)).length;
+      if (noSell > 0) {
+        toast.warning(
+          `${noSell} صنف بدون سعر بيع في الملف — استخدم "تعديل جماعي للأسعار %" بعد الحفظ لإضافة هامش الربح واحتساب سعر الكاشير.`
+        );
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "فشل قراءة الملف");
     } finally {
@@ -422,6 +447,16 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                   <Button variant="outline" onClick={() => { setUploadOpen(true); setParsedDiff(null); }}>
                     <Upload className="h-4 w-4 ml-1" /> تحديث القائمة
                   </Button>
+                  {canManageLists && (
+                    <Button
+                      variant="outline"
+                      className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                      disabled={clearingList}
+                      onClick={() => clearSupplierList(s.id, s.supplier_name)}
+                    >
+                      {clearingList ? <Loader2 className="h-4 w-4 ml-1 animate-spin" /> : <Trash2 className="h-4 w-4 ml-1" />} مسح القائمة الحالية
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => { setRenameId(s.id); setRenameValue(s.supplier_name); }} title="تعديل اسم المورد">
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -682,7 +717,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
 
           {!parsedDiff ? (
             <div className="space-y-3">
-              <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               <Button onClick={() => fileRef.current?.click()} disabled={uploadingFile} className="w-full" size="lg">
                 {uploadingFile ? <><Loader2 className="h-4 w-4 ml-2 animate-spin" /> جاري قراءة الملف...</> : <><FileUp className="h-4 w-4 ml-2" /> اختر ملف PDF أو Excel</>}
               </Button>
