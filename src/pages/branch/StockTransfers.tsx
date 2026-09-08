@@ -440,15 +440,122 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </TabsContent>
 
         <TabsContent value="done" className="mt-4 space-y-3">
-          <div className="relative max-w-md">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={doneSearch}
-              onChange={(e) => setDoneSearch(e.target.value)}
-              placeholder="ابحث بالصنف أو الكود أو الفرع…"
-              className="pr-9"
-            />
+          {/* شريط الفلاتر المتعدد المعايير */}
+          <div className="bg-surface border border-border rounded-lg p-3 space-y-3">
+            <div className="flex flex-wrap items-end gap-2">
+              {/* البحث الذكي بالمنتج */}
+              <div className="flex-1 min-w-[220px]">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">بحث بالمنتج</Label>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={productQuery}
+                    onChange={(e) => setProductQuery(e.target.value)}
+                    placeholder="بحث بالاسم، الكود، الموديل، الماركة…"
+                    className="pr-9"
+                  />
+                </div>
+              </div>
+
+              {/* الفرع المرسل */}
+              <div className="w-full sm:w-44">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">الفرع المرسل</Label>
+                <Select value={fromBranchFilter} onValueChange={setFromBranchFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="كل الفروع المرسلة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">كل الفروع المرسلة</SelectItem>
+                    {allBranches.map((b) => (
+                      <SelectItem key={`from-${b.id}`} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* الفرع المستلم */}
+              <div className="w-full sm:w-44">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">الفرع المستلم</Label>
+                <Select value={toBranchFilter} onValueChange={setToBranchFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="كل الفروع المستلمة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">كل الفروع المستلمة</SelectItem>
+                    {allBranches.map((b) => (
+                      <SelectItem key={`to-${b.id}`} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* فلتر التاريخ */}
+              <div className="w-full sm:w-44">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">التاريخ</Label>
+                <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="كل التواريخ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">كل التواريخ</SelectItem>
+                    <SelectItem value="TODAY">اليوم</SelectItem>
+                    <SelectItem value="LAST7">آخر 7 أيام</SelectItem>
+                    <SelectItem value="THIS_MONTH">هذا الشهر</SelectItem>
+                    <SelectItem value="CUSTOM">يوم محدد…</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* اختيار يوم محدد */}
+              {dateFilter === "CUSTOM" && (
+                <div className="w-full sm:w-auto">
+                  <Label className="text-xs mb-1.5 block text-muted-foreground">يوم محدد</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full sm:w-40 justify-start text-right font-normal",
+                          !customDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="w-4 h-4 ml-2" />
+                        {customDate ? formatDateFns(customDate, "yyyy/MM/dd") : "اختر يوم"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customDate}
+                        onSelect={setCustomDate}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
+              {/* زر إعادة ضبط الفلاتر */}
+              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFilter !== "ALL" || customDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setProductQuery("");
+                    setFromBranchFilter("ALL");
+                    setToBranchFilter("ALL");
+                    setDateFilter("ALL");
+                    setCustomDate(undefined);
+                  }}
+                  className="gap-1 text-muted-foreground"
+                >
+                  <X className="w-4 h-4" /> تفريغ الفلاتر
+                </Button>
+              )}
+            </div>
           </div>
+
           <DataTable
             loading={loading}
             empty="لا توجد عمليات مستلمة بعد"
