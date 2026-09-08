@@ -443,6 +443,7 @@ function ProductCombobox({
                   key={p.id}
                   value={`${p.name} ${p.sku ?? ""} ${p.legacy_code ?? ""}`}
                   onSelect={() => { onChange(p.id); setOpen(false); }}
+                  className="group"
                 >
                   <Check className={`w-4 h-4 ml-2 ${value === p.id ? "opacity-100" : "opacity-0"}`} />
                   <div className="flex-1 flex items-center justify-between gap-2">
@@ -450,7 +451,9 @@ function ProductCombobox({
                       <div className="text-sm">{p.name}</div>
                       <div className="text-xs text-muted-foreground">{p.sku}{p.legacy_code ? ` • ${p.legacy_code}` : ""}</div>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0">متاح: {p.quantity}</span>
+                    <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-md bg-muted/80 text-foreground border border-border/50 group-data-[selected=true]:bg-white/20 group-data-[selected=true]:text-white group-data-[selected=true]:border-white/30">
+                      متاح: {p.quantity}
+                    </span>
                   </div>
                 </CommandItem>
               ))}
