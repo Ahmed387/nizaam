@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Check, ChevronsUpDown, Palette, X, Trash2 } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Palette, X, Trash2, Pencil } from "lucide-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -46,15 +46,37 @@ export function ColorPicker({
   placeholder?: string;
   allowClear?: boolean;
 }) {
-  const { colors, addColor, removeColor, hexFor } = useColors();
+  const { colors, addColor, removeColor, updateColor, hexFor } = useColors();
   const { isOwner, isAdmin } = useAuth();
   const canDelete = isOwner || isAdmin;
+  const canEdit = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newHex, setNewHex] = useState("#3b82f6");
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editHex, setEditHex] = useState("#3b82f6");
+  const [saving, setSaving] = useState(false);
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return toast.error("اسم اللون مطلوب");
+    setSaving(true);
+    try {
+      await updateColor(editing.id, { name: trimmed, hex: editHex });
+      if (value === editing.name) onChange(trimmed);
+      toast.success("تم تعديل اللون");
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر التعديل");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const currentHex = hexFor(value);
 
