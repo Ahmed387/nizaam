@@ -73,14 +73,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
-    const [b, p, out, inc, self] = await Promise.all([
+    const [b, allB, p, out, inc, self] = await Promise.all([
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
+      supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
+    setAllBranches(allB.data ?? []);
     setProducts(p.data ?? []);
     setOutgoing(out.data ?? []);
     setIncoming(inc.data ?? []);
