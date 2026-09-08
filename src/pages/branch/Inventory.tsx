@@ -899,22 +899,14 @@ export default function Inventory() {
             <section className="bg-card/50 border rounded-xl p-4 space-y-4">
               <div className="text-sm font-bold text-primary">البيانات الأساسية</div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <div className="shrink-0 flex flex-col items-center gap-2">
-                  {form.image ? (
-                    <ProductImage src={form.image} alt="" className="w-24 h-24 rounded-lg object-cover border" />
-                  ) : (
-                    <div className="w-24 h-24 rounded-lg border border-dashed bg-muted/40 flex items-center justify-center text-xs text-muted-foreground">
-                      بدون صورة
-                    </div>
-                  )}
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs hover:bg-muted">
-                    {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    <span>{form.image ? "تغيير" : "رفع صورة"}</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0])} />
-                  </label>
-                  {form.image && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setForm({ ...form, image: "" })}>إزالة</Button>
-                  )}
+                <div className="shrink-0 w-44">
+                  <ImageField
+                    value={form.image || null}
+                    onChange={(v) => setForm((f) => ({ ...f, image: v ?? "" }))}
+                    folder={branchId!}
+                    label="صورة المنتج"
+                    size="md"
+                  />
                 </div>
                 <div className="flex-1 space-y-3">
                   <div>
@@ -1089,25 +1081,14 @@ export default function Inventory() {
                     </div>
                   </div>
                   <div className="px-4 pb-4">
-                    <Label className="text-xs font-semibold mb-1.5 block">صورة المنتج</Label>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {editForm.image ? (
-                        <ProductImage src={editForm.image} alt="" className="w-20 h-20 rounded-md object-cover border" />
-                      ) : (
-                        <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center text-muted-foreground text-[10px] text-center px-1">لا توجد صورة</div>
-                      )}
-                      <label className={`inline-flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer hover:bg-muted ${editUploading ? "opacity-60 pointer-events-none" : ""}`}>
-                        {editUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        <span className="text-sm">{editForm.image ? "تغيير الصورة" : "رفع صورة"}</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadEditImage(e.target.files[0])} />
-                      </label>
-                      {editForm.image && (
-                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setEditForm({ ...editForm, image: "" })}>
-                          <Trash2 className="w-4 h-4 ml-1" /> حذف الصورة
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-2">يتم ضغط الصورة تلقائيًا (بحد أقصى 1200px، جودة 85%).</p>
+                    <ImageField
+                      value={editForm.image || null}
+                      onChange={(v) => setEditForm((f) => ({ ...f, image: v ?? "" }))}
+                      folder={branchId!}
+                      label="صورة المنتج"
+                      size="md"
+                      hint="يتم ضغط الصورة تلقائيًا قبل الرفع."
+                    />
                   </div>
                 </section>
 
