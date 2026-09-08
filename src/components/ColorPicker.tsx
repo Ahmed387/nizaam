@@ -216,6 +216,30 @@ export function ColorPicker({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>تعديل اللون</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>الاسم</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1.5" autoFocus />
+            </div>
+            <div>
+              <Label>الكود اللوني</Label>
+              <div className="flex items-center gap-2 mt-1.5">
+                <input type="color" value={editHex} onChange={(e) => setEditHex(e.target.value)} className="h-10 w-14 rounded border border-border cursor-pointer" />
+                <Input value={editHex} onChange={(e) => setEditHex(e.target.value)} className="font-mono" />
+                <ColorSwatch hex={editHex} name={editName} size={20} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
