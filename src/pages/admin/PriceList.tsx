@@ -447,6 +447,16 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                   <Button variant="outline" onClick={() => { setUploadOpen(true); setParsedDiff(null); }}>
                     <Upload className="h-4 w-4 ml-1" /> تحديث القائمة
                   </Button>
+                  {canManageLists && (
+                    <Button
+                      variant="outline"
+                      className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                      disabled={clearingList}
+                      onClick={() => clearSupplierList(s.id, s.supplier_name)}
+                    >
+                      {clearingList ? <Loader2 className="h-4 w-4 ml-1 animate-spin" /> : <Trash2 className="h-4 w-4 ml-1" />} مسح القائمة الحالية
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => { setRenameId(s.id); setRenameValue(s.supplier_name); }} title="تعديل اسم المورد">
                     <Pencil className="h-4 w-4" />
                   </Button>
