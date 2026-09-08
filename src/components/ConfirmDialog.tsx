@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Trash2, HelpCircle, X, Check } from "lucide-react";
 
 export type ConfirmTone = "danger" | "warning" | "info";
@@ -65,17 +66,15 @@ export function ConfirmDialogHost() {
   useEffect(() => {
     if (!pending) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        pending.resolve(false);
-        setPending(null);
-      }
-      if (e.key === "Enter") {
-        pending.resolve(true);
-        setPending(null);
-      }
+      if (e.key !== "Escape" && e.key !== "Enter") return;
+      // نلتقط الحدث قبل أي Dialog تاني (Radix) عشان ما يبتلعش المفتاح
+      e.preventDefault();
+      e.stopPropagation();
+      pending.resolve(e.key === "Enter");
+      setPending(null);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [pending]);
 
   if (!pending) return null;
@@ -87,15 +86,18 @@ export function ConfirmDialogHost() {
     setPending(null);
   };
 
-  return (
+  return createPortal(
     <div
       dir="rtl"
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-background/70 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-background/70 backdrop-blur-sm p-4 animate-fade-in pointer-events-auto"
+      style={{ pointerEvents: "auto" }}
       onClick={() => done(false)}
     >
+
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-[min(94vw,30rem)] rounded-2xl border-2 ${t.ring} bg-card shadow-2xl overflow-hidden animate-scale-in`}
+        style={{ pointerEvents: "auto" }}
+        className={`w-[min(94vw,30rem)] rounded-2xl border-2 ${t.ring} bg-card shadow-2xl overflow-hidden animate-scale-in pointer-events-auto`}
       >
         <div className="p-5 flex items-start gap-4">
           <div className={`shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center ${t.icon}`}>
@@ -129,6 +131,7 @@ export function ConfirmDialogHost() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
