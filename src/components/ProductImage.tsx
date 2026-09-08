@@ -1,33 +1,67 @@
 import { useEffect, useState } from "react";
-import { getSignedProductImageUrl } from "@/lib/productImage";
+import { getSignedUrl } from "@/lib/storageImage";
+import { PRODUCT_BUCKET } from "@/lib/productImage";
+import { ImageOff } from "lucide-react";
 
-/** هوك يرجّع لينك مؤقت (Signed URL) لصورة منتج مخزّنة في bucket خاص. */
-export function useSignedImage(value: string | null | undefined): string | null {
+/** هوك يرجّع لينك مؤقت (Signed URL) لصورة مخزّنة في bucket خاص، مع تجديد تلقائي. */
+export function useSignedImage(value: string | null | undefined, bucket: string = PRODUCT_BUCKET) {
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    setFailed(false);
     if (!value) { setUrl(null); return; }
-    getSignedProductImageUrl(value).then((u) => { if (alive) setUrl(u); });
+    getSignedUrl(bucket, value).then((u) => { if (alive) setUrl(u); });
     return () => { alive = false; };
-  }, [value]);
+  }, [value, bucket]);
 
-  return url;
+  /** يعيد التوقيع فوراً عند انتهاء صلاحية الرابط أو فشل التحميل. */
+  const refresh = async () => {
+    const u = await getSignedUrl(bucket, value, { force: true });
+    if (u) { setUrl(u); setFailed(false); } else { setFailed(true); }
+    return u;
+  };
+
+  return { url, failed, refresh, setFailed };
 }
 
 interface Props extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
-  /** القيمة المخزّنة في قاعدة البيانات (لينك قديم أو مسار) */
   src: string | null | undefined;
-  /** بديل يظهر لحد ما اللينك يجهز أو لو الصورة مش موجودة */
+  bucket?: string;
   fallback?: React.ReactNode;
 }
 
-/** صورة منتج بتتحمّل عن طريق Signed URL مؤقت بدل اللينك العام. */
-export function ProductImage({ src, fallback = null, alt = "", className, ...rest }: Props) {
-  const signed = useSignedImage(src);
-  if (!src) return <>{fallback}</>;
-  if (!signed) return <>{fallback ?? <div className={className} />}</>;
-  return <img src={signed} alt={alt} className={className} {...rest} />;
+/** صورة بتتحمّل عن طريق Signed URL مؤقت مع إعادة توقيع تلقائية عند الفشل. */
+export function ProductImage({ src, bucket = PRODUCT_BUCKET, fallback, alt = "", className, ...rest }: Props) {
+  const { url, failed, refresh, setFailed } = useSignedImage(src, bucket);
+  const [retried, setRetried] = useState(false);
+
+  useEffect(() => { setRetried(false); }, [src]);
+
+  const placeholder = fallback ?? (
+    <div className={`${className ?? ""} bg-muted/40 border border-dashed flex items-center justify-center text-muted-foreground`}>
+      <ImageOff className="w-4 h-4" />
+    </div>
+  );
+
+  if (!src) return <>{fallback ?? null}</>;
+  if (failed || !url) return <>{placeholder}</>;
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        if (retried) { setFailed(true); return; }
+        setRetried(true);
+        refresh();
+      }}
+      {...rest}
+    />
+  );
 }
 
 export default ProductImage;
