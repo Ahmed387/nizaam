@@ -9,7 +9,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProductImage, useSignedImage } from "@/components/ProductImage";
-import { uploadImageToBucket, removeStorageFile, getSignedUrl } from "@/lib/storageImage";
+import { uploadImageToBucket, removeStorageFile } from "@/lib/storageImage";
 import { PRODUCT_BUCKET } from "@/lib/productImage";
 
 interface Props {
@@ -236,7 +236,7 @@ export function ImageField({
             <AlertDialogAction onClick={doDelete} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </Dialog2Fix>
+      
       </AlertDialog>
     </div>
   );
