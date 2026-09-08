@@ -535,6 +535,17 @@ export default function Inventory() {
     load();
   };
 
+  const submitNew = async () => {
+    if (savingNew) return;
+    setSavingNew(true);
+    try {
+      await submit();
+    } finally {
+      setSavingNew(false);
+    }
+  };
+
+
   return (
     <BranchLayout>
       <PageHeader title="المخزون" subtitle={`${rows.length} منتج`}
