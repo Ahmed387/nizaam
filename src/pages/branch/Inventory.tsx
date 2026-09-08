@@ -877,58 +877,97 @@ export default function Inventory() {
         }
         setOpen(o);
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>إضافة منتج جديد</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label>صورة المنتج</Label>
-              <div className="mt-1.5 flex items-center gap-3">
-                {form.image && <ProductImage src={form.image} alt="" className="w-16 h-16 rounded object-cover border" />}
-                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-muted">
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  <span className="text-sm">{form.image ? "تغيير الصورة" : "رفع صورة"}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0])} />
-                </label>
-                {form.image && <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, image: "" })}>إزالة</Button>}
-              </div>
-            </div>
-            <div className="col-span-2"><Label>اسم المنتج *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
-            <div className="col-span-2">
-              <Label>التصنيف</Label>
-              <Select value={form.category_id || "none"} onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="بدون" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— بدون —</SelectItem>
-                  {[...cats]
-                    .filter((c: any) => !c.parent_id)
-                    .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
-                    .flatMap((p: any) => [
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>,
-                      ...cats
-                        .filter((c: any) => c.parent_id === p.id)
-                        .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
-                        .map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>{`${p.name} › ${c.name}`}</SelectItem>
-                        )),
-                    ])}
-                </SelectContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30 text-right">
+            <DialogTitle className="text-lg font-bold">إضافة صنف جديد للمخزن</DialogTitle>
+          </DialogHeader>
 
-              </Select>
-            </div>
-            <div><Label>سعر الشراء</Label><Input type="number" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>سعر البيع</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+            {/* القسم 1: البيانات الأساسية */}
+            <section className="bg-card/50 border rounded-xl p-4 space-y-4">
+              <div className="text-sm font-bold text-primary">البيانات الأساسية</div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="shrink-0 flex flex-col items-center gap-2">
+                  {form.image ? (
+                    <ProductImage src={form.image} alt="" className="w-24 h-24 rounded-lg object-cover border" />
+                  ) : (
+                    <div className="w-24 h-24 rounded-lg border border-dashed bg-muted/40 flex items-center justify-center text-xs text-muted-foreground">
+                      بدون صورة
+                    </div>
+                  )}
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs hover:bg-muted">
+                    {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    <span>{form.image ? "تغيير" : "رفع صورة"}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0])} />
+                  </label>
+                  {form.image && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setForm({ ...form, image: "" })}>إزالة</Button>
+                  )}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <Label>اسم المنتج *</Label>
+                    <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5 text-base" />
+                  </div>
+                  <div>
+                    <Label>التصنيف</Label>
+                    <Select value={form.category_id || "none"} onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}>
+                      <SelectTrigger className="mt-1.5"><SelectValue placeholder="بدون" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— بدون —</SelectItem>
+                        {[...cats]
+                          .filter((c: any) => !c.parent_id)
+                          .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+                          .flatMap((p: any) => [
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>,
+                            ...cats
+                              .filter((c: any) => c.parent_id === p.id)
+                              .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+                              .map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>{`${p.name} › ${c.name}`}</SelectItem>
+                              )),
+                          ])}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* القسم 2: الخصائص والمواصفات */}
+            <section className="bg-card/50 border rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-primary">الخصائص والمواصفات</span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">الماركة والموديل إلزاميين</span>
+              </div>
+              <VariantAttributesFields
+                showHeader={false}
+                value={form}
+                required={["brand", "model"]}
+                onChange={(patch) => setForm({ ...form, ...patch } as any)}
+              />
+            </section>
+
+            {/* القسم 3: التسعير والمخزون الأولي */}
+            <section className="bg-card/50 border rounded-xl p-4 space-y-3">
+              <div className="text-sm font-bold text-primary">التسعير والمخزون الأولي</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><Label>سعر الشراء (التكلفة)</Label><Input type="number" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} className="mt-1.5" /></div>
+                <div><Label>سعر البيع (القطاعي)</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} className="mt-1.5" /></div>
+                <div><Label>سعر السوق</Label><Input type="number" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} className="mt-1.5" /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><Label>الكمية الأولية</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1.5" /></div>
+                <div><Label>حد التنبيه الأدنى</Label><Input type="number" value={form.low_stock_alert} onChange={(e) => setForm({ ...form, low_stock_alert: e.target.value })} className="mt-1.5" /></div>
+              </div>
+            </section>
           </div>
-          <VariantAttributesFields
-            className="mt-1"
-            value={form}
-            required={["brand", "model"]}
-            onChange={(patch) => setForm({ ...form, ...patch } as any)}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "" }); setOpen(false); }}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={submit}>إضافة</Button>
+
+          <DialogFooter className="border-t p-4 flex-row justify-between items-center bg-background gap-2">
+            <Button variant="outline" disabled={savingNew} onClick={() => { setForm({ name: "", category_id: "", cost_price: "", selling_price: "", market_price: "", low_stock_alert: String(defaultLowStock), quantity: "0", image: "", color: "", product_type: "", capacity: "", size: "", brand: "", model: "" }); setOpen(false); }}>إلغاء</Button>
+            <Button className="btn-gradient min-w-[170px]" disabled={savingNew} onClick={submitNew}>
+              {savingNew && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ وإضافة الصنف
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
