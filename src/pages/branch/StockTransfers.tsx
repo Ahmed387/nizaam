@@ -25,7 +25,7 @@ import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { DataTable } from "@/components/DataTable";
-import { format as formatDateFns, isSameDay } from "date-fns";
+import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type Item = { product_id: string; quantity: string };
@@ -49,9 +49,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [productQuery, setProductQuery] = useState("");
   const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
   const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
-  type DateFilter = "ALL" | "TODAY" | "LAST7" | "THIS_MONTH" | "CUSTOM";
-  const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
-  const [customDate, setCustomDate] = useState<Date | undefined>();
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
   const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
   const [hidden, setHidden] = useState<string[]>([]);
@@ -296,20 +295,18 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
       // 2. فلتر الفرع المستلم
       if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
-      // 3. فلتر التاريخ
+      // 3. فلتر التاريخ من / إلى
       const confirmedAt = r.updated_at ?? r.created_at;
-      if (dateFilter !== "ALL" && confirmedAt) {
+      if (confirmedAt) {
         const d = new Date(confirmedAt);
-        const today = new Date();
-        if (dateFilter === "TODAY" && !isSameDay(d, today)) return false;
-        if (dateFilter === "LAST7") {
-          const weekAgo = new Date(); weekAgo.setDate(today.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
-          if (d < weekAgo) return false;
+        if (dateFrom) {
+          const from = new Date(dateFrom); from.setHours(0, 0, 0, 0);
+          if (d < from) return false;
         }
-        if (dateFilter === "THIS_MONTH") {
-          if (d.getMonth() !== today.getMonth() || d.getFullYear() !== today.getFullYear()) return false;
+        if (dateTo) {
+          const to = new Date(dateTo); to.setHours(23, 59, 59, 999);
+          if (d > to) return false;
         }
-        if (dateFilter === "CUSTOM" && customDate && !isSameDay(d, customDate)) return false;
       }
       // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
       if (productQuery.trim()) {
@@ -320,7 +317,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       }
       return true;
     });
-  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFilter, customDate]);
+  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFrom, dateTo]);
 
   const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
 
