@@ -222,11 +222,13 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     return <span className={`font-bold ${map[s]}`}>{lbl[s] ?? s}</span>;
   };
 
-  // Group incoming by group_id (or by id if no group)
+  // Group incoming by group_id (or by id if no group) — pending only + not visually dismissed
   const incomingGroups = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const t of incoming) {
+      if (t.status !== "pending") continue;
       const key = t.group_id ?? `single-${t.id}`;
+      if (hidden.includes(key) || hidden.includes(t.id)) continue;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
@@ -239,12 +241,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       reason: rows[0].reason,
       pendingCount: rows.filter((r) => r.status === "pending").length,
     }));
-  }, [incoming]);
+  }, [incoming, hidden]);
 
   const outgoingGroups = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const t of outgoing) {
+      if (t.status !== "pending") continue;
       const key = t.group_id ?? `single-${t.id}`;
+      if (hidden.includes(key) || hidden.includes(t.id)) continue;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
@@ -254,9 +258,35 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       created_at: rows[0].created_at,
       reason: rows[0].reason,
     }));
-  }, [outgoing]);
+  }, [outgoing, hidden]);
 
-  const totalPendingIncoming = incoming.filter((t) => t.status === "pending").length;
+  // ما تم استلامه بالفعل — سجل تاريخي كامل (وارد + صادر) لا يتأثر بالإخفاء البصري
+  const completedRows = useMemo(() => {
+    const rows = [
+      ...incoming.filter((t) => t.status === "confirmed").map((t) => ({
+        ...t,
+        direction: "in" as const,
+        from_name: t.from_branch?.name ?? "—",
+        to_name: selfBranchName,
+      })),
+      ...outgoing.filter((t) => t.status === "confirmed").map((t) => ({
+        ...t,
+        direction: "out" as const,
+        from_name: selfBranchName,
+        to_name: t.to_branch?.name ?? "—",
+      })),
+    ].sort((a, b) => String(b.updated_at ?? b.created_at).localeCompare(String(a.updated_at ?? a.created_at)));
+    const q = doneSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      [r.from_name, r.to_name, r.products?.name, r.products?.sku, r.reason]
+        .filter(Boolean)
+        .some((v: any) => String(v).toLowerCase().includes(q))
+    );
+  }, [incoming, outgoing, selfBranchName, doneSearch]);
+
+  const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
+
 
   const allIds = useMemo(() => [...incoming, ...outgoing].map((t: any) => t.id), [incoming, outgoing]);
   const attCounts = useAttachmentCounts("stock_transfer", allIds);
