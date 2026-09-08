@@ -11,17 +11,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search } from "lucide-react";
+import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search, CalendarIcon } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { DataTable } from "@/components/DataTable";
+import { format as formatDateFns, isSameDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type Item = { product_id: string; quantity: string };
 
@@ -39,7 +44,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
   const [selfBranchName, setSelfBranchName] = useState<string>("");
-  const [doneSearch, setDoneSearch] = useState("");
+  const [allBranches, setAllBranches] = useState<any[]>([]);
+  // فلاتر تبويب "ما تم استلامه بالفعل"
+  const [productQuery, setProductQuery] = useState("");
+  const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
+  const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
+  type DateFilter = "ALL" | "TODAY" | "LAST7" | "THIS_MONTH" | "CUSTOM";
+  const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
+  const [customDate, setCustomDate] = useState<Date | undefined>();
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
   const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
   const [hidden, setHidden] = useState<string[]>([]);
@@ -61,14 +73,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
-    const [b, p, out, inc, self] = await Promise.all([
+    const [b, allB, p, out, inc, self] = await Promise.all([
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
+      supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
+    setAllBranches(allB.data ?? []);
     setProducts(p.data ?? []);
     setOutgoing(out.data ?? []);
     setIncoming(inc.data ?? []);
@@ -276,14 +290,37 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         to_name: t.to_branch?.name ?? "—",
       })),
     ].sort((a, b) => String(b.updated_at ?? b.created_at).localeCompare(String(a.updated_at ?? a.created_at)));
-    const q = doneSearch.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.from_name, r.to_name, r.products?.name, r.products?.sku, r.reason]
-        .filter(Boolean)
-        .some((v: any) => String(v).toLowerCase().includes(q))
-    );
-  }, [incoming, outgoing, selfBranchName, doneSearch]);
+
+    return rows.filter((r) => {
+      // 1. فلتر الفرع المرسل
+      if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
+      // 2. فلتر الفرع المستلم
+      if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
+      // 3. فلتر التاريخ
+      const confirmedAt = r.updated_at ?? r.created_at;
+      if (dateFilter !== "ALL" && confirmedAt) {
+        const d = new Date(confirmedAt);
+        const today = new Date();
+        if (dateFilter === "TODAY" && !isSameDay(d, today)) return false;
+        if (dateFilter === "LAST7") {
+          const weekAgo = new Date(); weekAgo.setDate(today.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
+          if (d < weekAgo) return false;
+        }
+        if (dateFilter === "THIS_MONTH") {
+          if (d.getMonth() !== today.getMonth() || d.getFullYear() !== today.getFullYear()) return false;
+        }
+        if (dateFilter === "CUSTOM" && customDate && !isSameDay(d, customDate)) return false;
+      }
+      // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
+      if (productQuery.trim()) {
+        const prod = r.products ?? {};
+        if (!searchMatch(productQuery, prod.name, prod.sku, prod.barcode, prod.model_code, prod.brand, prod.model, prod.legacy_code)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFilter, customDate]);
 
   const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
 
@@ -403,15 +440,122 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </TabsContent>
 
         <TabsContent value="done" className="mt-4 space-y-3">
-          <div className="relative max-w-md">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={doneSearch}
-              onChange={(e) => setDoneSearch(e.target.value)}
-              placeholder="ابحث بالصنف أو الكود أو الفرع…"
-              className="pr-9"
-            />
+          {/* شريط الفلاتر المتعدد المعايير */}
+          <div className="bg-surface border border-border rounded-lg p-3 space-y-3">
+            <div className="flex flex-wrap items-end gap-2">
+              {/* البحث الذكي بالمنتج */}
+              <div className="flex-1 min-w-[220px]">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">بحث بالمنتج</Label>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={productQuery}
+                    onChange={(e) => setProductQuery(e.target.value)}
+                    placeholder="بحث بالاسم، الكود، الموديل، الماركة…"
+                    className="pr-9"
+                  />
+                </div>
+              </div>
+
+              {/* الفرع المرسل */}
+              <div className="w-full sm:w-44">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">الفرع المرسل</Label>
+                <Select value={fromBranchFilter} onValueChange={setFromBranchFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="كل الفروع المرسلة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">كل الفروع المرسلة</SelectItem>
+                    {allBranches.map((b) => (
+                      <SelectItem key={`from-${b.id}`} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* الفرع المستلم */}
+              <div className="w-full sm:w-44">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">الفرع المستلم</Label>
+                <Select value={toBranchFilter} onValueChange={setToBranchFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="كل الفروع المستلمة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">كل الفروع المستلمة</SelectItem>
+                    {allBranches.map((b) => (
+                      <SelectItem key={`to-${b.id}`} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* فلتر التاريخ */}
+              <div className="w-full sm:w-44">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">التاريخ</Label>
+                <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="كل التواريخ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">كل التواريخ</SelectItem>
+                    <SelectItem value="TODAY">اليوم</SelectItem>
+                    <SelectItem value="LAST7">آخر 7 أيام</SelectItem>
+                    <SelectItem value="THIS_MONTH">هذا الشهر</SelectItem>
+                    <SelectItem value="CUSTOM">يوم محدد…</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* اختيار يوم محدد */}
+              {dateFilter === "CUSTOM" && (
+                <div className="w-full sm:w-auto">
+                  <Label className="text-xs mb-1.5 block text-muted-foreground">يوم محدد</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full sm:w-40 justify-start text-right font-normal",
+                          !customDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="w-4 h-4 ml-2" />
+                        {customDate ? formatDateFns(customDate, "yyyy/MM/dd") : "اختر يوم"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customDate}
+                        onSelect={setCustomDate}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
+              {/* زر إعادة ضبط الفلاتر */}
+              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFilter !== "ALL" || customDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setProductQuery("");
+                    setFromBranchFilter("ALL");
+                    setToBranchFilter("ALL");
+                    setDateFilter("ALL");
+                    setCustomDate(undefined);
+                  }}
+                  className="gap-1 text-muted-foreground"
+                >
+                  <X className="w-4 h-4" /> تفريغ الفلاتر
+                </Button>
+              )}
+            </div>
           </div>
+
           <DataTable
             loading={loading}
             empty="لا توجد عمليات مستلمة بعد"
