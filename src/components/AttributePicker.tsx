@@ -63,14 +63,35 @@ export function AttributePicker({
   compact?: boolean;
   allowClear?: boolean;
 }) {
-  const { items, add, remove } = useTextLookup(table);
+  const { items, add, remove, update } = useTextLookup(table);
   const { isOwner, isAdmin } = useAuth();
   const canDelete = isOwner || isAdmin;
+  const canEdit = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return toast.error("الاسم مطلوب");
+    setSaving(true);
+    try {
+      await update(editing.id, trimmed);
+      if (value === editing.name) onChange(trimmed);
+      toast.success("تم تعديل المقترح");
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر التعديل");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     if (!newName.trim()) return toast.error("الاسم مطلوب");
