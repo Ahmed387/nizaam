@@ -131,6 +131,7 @@ export function ConfirmDialogHost() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
