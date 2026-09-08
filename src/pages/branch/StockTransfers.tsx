@@ -401,7 +401,54 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             </div>
           ))}
         </TabsContent>
+
+        <TabsContent value="done" className="mt-4 space-y-3">
+          <div className="relative max-w-md">
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={doneSearch}
+              onChange={(e) => setDoneSearch(e.target.value)}
+              placeholder="ابحث بالصنف أو الكود أو الفرع…"
+              className="pr-9"
+            />
+          </div>
+          <DataTable
+            loading={loading}
+            empty="لا توجد عمليات مستلمة بعد"
+            rows={completedRows}
+            columns={[
+              { key: "date", header: "التاريخ", align: "right", render: (r: any) => <span className="text-xs">{formatDateTime(r.updated_at ?? r.created_at)}</span> },
+              { key: "from", header: "الفرع المرسل", align: "right", render: (r: any) => r.from_name ?? "—" },
+              { key: "to", header: "الفرع المستلم", align: "right", render: (r: any) => r.to_name ?? "—" },
+              {
+                key: "dir", header: "الحركة", align: "center", render: (r: any) =>
+                  r.direction === "in" ? (
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">وارد من {r.from_name}</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-primary/15 text-primary border border-primary/30">صادر إلى {r.to_name}</span>
+                  ),
+              },
+              {
+                key: "item", header: "الصنف والكمية", align: "right", render: (r: any) => (
+                  <div>
+                    <div className="font-medium">{r.products?.name ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {r.products?.sku ? `${r.products.sku} • ` : ""}الكمية المستلمة: {r.received_quantity ?? r.quantity}
+                      {r.received_quantity != null && r.received_quantity !== r.quantity ? ` من ${r.quantity}` : ""}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "status", header: "الحالة", align: "center", render: () => (
+                  <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
+                ),
+              },
+            ]}
+          />
+        </TabsContent>
       </Tabs>
+
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
