@@ -5,13 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Check, ChevronsUpDown, Tag, X, Trash2 } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Tag, X, Trash2, Pencil } from "lucide-react";
 import { useTextLookup } from "@/hooks/useTextLookup";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type LookupTable = "product_types" | "capacities" | "sizes" | "brands";
+
+const TABLE_LABEL: Record<LookupTable, string> = {
+  product_types: "النوع",
+  capacities: "السعة",
+  sizes: "المقاس",
+  brands: "الماركة",
+};
 
 
 /** Compact chip that shows a labelled attribute value inline. */
