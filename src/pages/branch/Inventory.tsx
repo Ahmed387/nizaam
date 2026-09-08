@@ -1030,9 +1030,9 @@ export default function Inventory() {
 
       {/* Unified Product Edit Form */}
       <Dialog open={!!editAll} onOpenChange={(o) => !o && !savingEdit && setEditAll(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
+        <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden [&>button]:hidden">
           {/* Custom header bar with red-hover close */}
-          <div className="relative px-5 py-4 border-b bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
+          <div className="relative px-5 py-4 border-b shrink-0 bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
             <DialogClose
               disabled={savingEdit}
               className="absolute top-3 left-3 h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive disabled:pointer-events-none disabled:opacity-50"
