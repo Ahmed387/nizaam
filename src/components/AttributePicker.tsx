@@ -158,17 +158,33 @@ export function AttributePicker({
                   >
                     <span className="flex-1 truncate">{c.name}</span>
                     {value === c.name && <Check className="w-4 h-4 shrink-0" />}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        aria-label={`حذف ${c.name}`}
-                        title="حذف المقترح"
-                        className="mr-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    {(canEdit || canDelete) && (
+                      <span className="mr-auto flex items-center gap-1.5">
+                        {canEdit && (
+                          <button
+                            type="button"
+                            aria-label={`تعديل ${c.name}`}
+                            title="تعديل المقترح"
+                            className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditing({ id: c.id, name: c.name }); setEditName(c.name); }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            aria-label={`حذف ${c.name}`}
+                            title="حذف المقترح"
+                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </span>
                     )}
                   </CommandItem>
 
