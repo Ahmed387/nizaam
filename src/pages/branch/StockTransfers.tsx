@@ -17,10 +17,11 @@ import { logAudit } from "@/lib/roles";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox } from "lucide-react";
+import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { DataTable } from "@/components/DataTable";
 
 type Item = { product_id: string; quantity: string };
 
@@ -37,21 +38,41 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
-
+  const [selfBranchName, setSelfBranchName] = useState<string>("");
+  const [doneSearch, setDoneSearch] = useState("");
+  // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
+  const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
+  const [hidden, setHidden] = useState<string[]>([]);
+  useEffect(() => {
+    try { setHidden(JSON.parse(localStorage.getItem(hiddenKey) ?? "[]")); } catch { setHidden([]); }
+  }, [hiddenKey]);
+  const dismissGroup = async (key: string, ids: string[]) => {
+    if (!(await confirmAlert({
+      title: "إخفاء هذه العملية من الشاشة النشطة؟",
+      description: "الإخفاء بصري فقط — العملية هتفضل محفوظة بكل تفاصيلها في تبويب «ما تم استلامه بالفعل».",
+      confirmLabel: "أيوه، اخفيها", cancelLabel: "لأ، سيبها", tone: "warning",
+    }))) return;
+    const next = Array.from(new Set([...hidden, key, ...ids]));
+    setHidden(next);
+    try { localStorage.setItem(hiddenKey, JSON.stringify(next)); } catch { /* ignore */ }
+    toast.success("تم إخفاء العملية من الشاشة النشطة");
+  };
 
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
-    const [b, p, out, inc] = await Promise.all([
+    const [b, p, out, inc, self] = await Promise.all([
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
     setProducts(p.data ?? []);
     setOutgoing(out.data ?? []);
     setIncoming(inc.data ?? []);
+    setSelfBranchName((self.data as any)?.name ?? "فرعك");
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
@@ -201,11 +222,13 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     return <span className={`font-bold ${map[s]}`}>{lbl[s] ?? s}</span>;
   };
 
-  // Group incoming by group_id (or by id if no group)
+  // Group incoming by group_id (or by id if no group) — pending only + not visually dismissed
   const incomingGroups = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const t of incoming) {
+      if (t.status !== "pending") continue;
       const key = t.group_id ?? `single-${t.id}`;
+      if (hidden.includes(key) || hidden.includes(t.id)) continue;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
@@ -218,12 +241,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       reason: rows[0].reason,
       pendingCount: rows.filter((r) => r.status === "pending").length,
     }));
-  }, [incoming]);
+  }, [incoming, hidden]);
 
   const outgoingGroups = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const t of outgoing) {
+      if (t.status !== "pending") continue;
       const key = t.group_id ?? `single-${t.id}`;
+      if (hidden.includes(key) || hidden.includes(t.id)) continue;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
@@ -233,9 +258,35 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       created_at: rows[0].created_at,
       reason: rows[0].reason,
     }));
-  }, [outgoing]);
+  }, [outgoing, hidden]);
 
-  const totalPendingIncoming = incoming.filter((t) => t.status === "pending").length;
+  // ما تم استلامه بالفعل — سجل تاريخي كامل (وارد + صادر) لا يتأثر بالإخفاء البصري
+  const completedRows = useMemo(() => {
+    const rows = [
+      ...incoming.filter((t) => t.status === "confirmed").map((t) => ({
+        ...t,
+        direction: "in" as const,
+        from_name: t.from_branch?.name ?? "—",
+        to_name: selfBranchName,
+      })),
+      ...outgoing.filter((t) => t.status === "confirmed").map((t) => ({
+        ...t,
+        direction: "out" as const,
+        from_name: selfBranchName,
+        to_name: t.to_branch?.name ?? "—",
+      })),
+    ].sort((a, b) => String(b.updated_at ?? b.created_at).localeCompare(String(a.updated_at ?? a.created_at)));
+    const q = doneSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      [r.from_name, r.to_name, r.products?.name, r.products?.sku, r.reason]
+        .filter(Boolean)
+        .some((v: any) => String(v).toLowerCase().includes(q))
+    );
+  }, [incoming, outgoing, selfBranchName, doneSearch]);
+
+  const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
+
 
   const allIds = useMemo(() => [...incoming, ...outgoing].map((t: any) => t.id), [incoming, outgoing]);
   const attCounts = useAttachmentCounts("stock_transfer", allIds);
@@ -251,6 +302,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         <TabsList>
           <TabsTrigger value="incoming">واردة ({totalPendingIncoming})</TabsTrigger>
           <TabsTrigger value="outgoing">صادرة</TabsTrigger>
+          <TabsTrigger value="done">ما تم استلامه بالفعل</TabsTrigger>
         </TabsList>
 
         <TabsContent value="incoming" className="mt-4 space-y-3">
@@ -264,16 +316,23 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   <div className="text-xs text-muted-foreground">{formatDateTime(g.created_at)} • {g.rows.length} صنف</div>
                   {g.reason && <div className="text-xs text-muted-foreground mt-1">السبب: {g.reason}</div>}
                 </div>
-                {g.groupId && g.pendingCount > 1 && (
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
-                      <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
-                      <X className="w-3 h-3" /> رفض الكل
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2 items-center">
+                  {g.groupId && g.pendingCount > 1 && (
+                    <>
+                      <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
+                        <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
+                        <X className="w-3 h-3" /> رفض الكل
+                      </Button>
+                    </>
+                  )}
+                  <Button size="icon" variant="ghost" title="إخفاء من الشاشة النشطة"
+                    onClick={() => dismissGroup(g.key, g.rows.map((r: any) => r.id))}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
@@ -318,6 +377,11 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   <div className="text-xs text-muted-foreground">{formatDateTime(g.created_at)} • {g.rows.length} صنف</div>
                   {g.reason && <div className="text-xs text-muted-foreground mt-1">السبب: {g.reason}</div>}
                 </div>
+                <Button size="icon" variant="ghost" title="إخفاء من الشاشة النشطة"
+                  onClick={() => dismissGroup(g.key, g.rows.map((r: any) => r.id))}
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
@@ -337,7 +401,54 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             </div>
           ))}
         </TabsContent>
+
+        <TabsContent value="done" className="mt-4 space-y-3">
+          <div className="relative max-w-md">
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={doneSearch}
+              onChange={(e) => setDoneSearch(e.target.value)}
+              placeholder="ابحث بالصنف أو الكود أو الفرع…"
+              className="pr-9"
+            />
+          </div>
+          <DataTable
+            loading={loading}
+            empty="لا توجد عمليات مستلمة بعد"
+            rows={completedRows}
+            columns={[
+              { key: "date", header: "التاريخ", align: "right", render: (r: any) => <span className="text-xs">{formatDateTime(r.updated_at ?? r.created_at)}</span> },
+              { key: "from", header: "الفرع المرسل", align: "right", render: (r: any) => r.from_name ?? "—" },
+              { key: "to", header: "الفرع المستلم", align: "right", render: (r: any) => r.to_name ?? "—" },
+              {
+                key: "dir", header: "الحركة", align: "center", render: (r: any) =>
+                  r.direction === "in" ? (
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">وارد من {r.from_name}</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-primary/15 text-primary border border-primary/30">صادر إلى {r.to_name}</span>
+                  ),
+              },
+              {
+                key: "item", header: "الصنف والكمية", align: "right", render: (r: any) => (
+                  <div>
+                    <div className="font-medium">{r.products?.name ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {r.products?.sku ? `${r.products.sku} • ` : ""}الكمية المستلمة: {r.received_quantity ?? r.quantity}
+                      {r.received_quantity != null && r.received_quantity !== r.quantity ? ` من ${r.quantity}` : ""}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "status", header: "الحالة", align: "center", render: () => (
+                  <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
+                ),
+              },
+            ]}
+          />
+        </TabsContent>
       </Tabs>
+
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
