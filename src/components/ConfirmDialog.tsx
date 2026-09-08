@@ -96,7 +96,8 @@ export function ConfirmDialogHost() {
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-[min(94vw,30rem)] rounded-2xl border-2 ${t.ring} bg-card shadow-2xl overflow-hidden animate-scale-in`}
+        style={{ pointerEvents: "auto" }}
+        className={`w-[min(94vw,30rem)] rounded-2xl border-2 ${t.ring} bg-card shadow-2xl overflow-hidden animate-scale-in pointer-events-auto`}
       >
         <div className="p-5 flex items-start gap-4">
           <div className={`shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center ${t.icon}`}>
