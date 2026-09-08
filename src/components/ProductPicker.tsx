@@ -57,9 +57,11 @@ export function ProductPicker({
   allowCreate?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!branchId) return;
