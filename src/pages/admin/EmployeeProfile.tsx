@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
 import { summarizeMonth, AttendanceSummary } from "@/lib/salaryCalc";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { ImageField } from "@/components/ImageField";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
@@ -985,38 +986,41 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
     onUpdated();
   };
 
-  const SideCard = ({ side, label, url, path }: { side: "front" | "back"; label: string; url: string | null; path: string | null }) => (
+  const uploadSide = async (file: File, side: "front" | "back") => {
+    if (file.size > 5 * 1024 * 1024) throw new Error("الحد الأقصى 5 ميجا");
+    if (!tenantId) throw new Error("Tenant context missing");
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${tenantId}/${emp.id}/${side}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("employee-ids").upload(path, file, { upsert: true });
+    if (upErr) throw upErr;
+    const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
+    const { error } = await supabase.from("employees").update({ [col]: path } as any).eq("id", emp.id);
+    if (error) throw error;
+    onUpdated();
+    return path;
+  };
+
+  const removeSide = async (value: string, side: "front" | "back") => {
+    const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
+    if (value) await supabase.storage.from("employee-ids").remove([value]);
+    const { error } = await supabase.from("employees").update({ [col]: null } as any).eq("id", emp.id);
+    if (error) throw error;
+    onUpdated();
+  };
+
+  const SideCard = ({ side, label, path }: { side: "front" | "back"; label: string; path: string | null }) => (
     <div className="card-elevated p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-bold flex items-center gap-2"><IdCard className="w-4 h-4 text-primary" /> {label}</div>
-        {path && url && (
-          <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline flex items-center gap-1"><Eye className="w-3 h-3" /> عرض كامل</a>
-        )}
-      </div>
-      {path && url ? (
-        <div className="aspect-[1.6/1] rounded-lg overflow-hidden bg-muted/30 border border-border mb-3">
-          <img src={url} alt={label} className="w-full h-full object-contain" />
-        </div>
-      ) : (
-        <div className="aspect-[1.6/1] rounded-lg bg-muted/20 border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground mb-3">
-          <IdCard className="w-10 h-10 mb-1 opacity-50" />
-          <div className="text-xs">لم يتم رفع الصورة</div>
-        </div>
-      )}
-      <div className="flex gap-2">
-        <label className="flex-1">
-          <input type="file" accept="image/*" className="hidden" disabled={busy === side}
-            onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], side)} />
-          <Button asChild variant="outline" size="sm" className="w-full cursor-pointer" disabled={busy === side}>
-            <span><Upload className="w-3.5 h-3.5 ml-1" /> {busy === side ? "جاري الرفع..." : path ? "استبدال" : "رفع صورة"}</span>
-          </Button>
-        </label>
-        {path && (
-          <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={() => remove(side)}>
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        )}
-      </div>
+      <div className="font-bold flex items-center gap-2 mb-3"><IdCard className="w-4 h-4 text-primary" /> {label}</div>
+      <ImageField
+        value={path}
+        onChange={() => onUpdated()}
+        bucket="employee-ids"
+        uploader={(f) => uploadSide(f, side)}
+        remover={(v) => removeSide(v, side)}
+        label=""
+        size="lg"
+        hint="الصور محفوظة في تخزين آمن — للمدير والمسؤول فقط"
+      />
     </div>
   );
 
@@ -1029,8 +1033,8 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
         </div>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
-        <SideCard side="front" label="وش البطاقة" url={frontUrl} path={emp.national_id_front_url} />
-        <SideCard side="back" label="ظهر البطاقة" url={backUrl} path={emp.national_id_back_url} />
+        <SideCard side="front" label="وش البطاقة" path={emp.national_id_front_url} />
+        <SideCard side="back" label="ظهر البطاقة" path={emp.national_id_back_url} />
       </div>
     </div>
   );

@@ -30,6 +30,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { ProductImage } from "@/components/ProductImage";
+import { ImageField } from "@/components/ImageField";
 import { AttributePicker } from "@/components/AttributePicker";
 import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { ColorPicker } from "@/components/ColorPicker";
@@ -934,21 +935,15 @@ export default function NewShipment() {
                     >
                       <ChevronUp className="w-5 h-5" />
                     </button>
-                    <div className="shrink-0">
-
-                      <div className="relative">
-                        {l.image
-                          ? <ProductImage src={l.image} alt="" className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500/25 shadow-sm" />
-                          : <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-100 to-sky-100 dark:from-emerald-950 dark:to-sky-950 flex items-center justify-center border border-emerald-500/20"><ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
-                        }
-                        {l.product_id === null && (
-                          <label className="absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-pointer inline-flex items-center gap-0.5 text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow hover:bg-emerald-700 whitespace-nowrap">
-                            {l.uploadingImg ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
-                            <span>{l.image ? "تغيير" : "رفع"}</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickLineImage(i, e.target.files[0])} />
-                          </label>
-                        )}
-                      </div>
+                    <div className="shrink-0 w-40">
+                      <ImageField
+                        value={l.image || null}
+                        onChange={(v) => updateLine(i, { image: v ?? "" })}
+                        folder={branchId!}
+                        label=""
+                        size="sm"
+                        readOnly={l.product_id !== null}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <ShipmentLineProductCell
