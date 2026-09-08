@@ -5,13 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Check, ChevronsUpDown, Tag, X, Trash2 } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Tag, X, Trash2, Pencil } from "lucide-react";
 import { useTextLookup } from "@/hooks/useTextLookup";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type LookupTable = "product_types" | "capacities" | "sizes" | "brands";
+
+const TABLE_LABEL: Record<LookupTable, string> = {
+  product_types: "النوع",
+  capacities: "السعة",
+  sizes: "المقاس",
+  brands: "الماركة",
+};
 
 
 /** Compact chip that shows a labelled attribute value inline. */
@@ -56,14 +63,35 @@ export function AttributePicker({
   compact?: boolean;
   allowClear?: boolean;
 }) {
-  const { items, add, remove } = useTextLookup(table);
+  const { items, add, remove, update } = useTextLookup(table);
   const { isOwner, isAdmin } = useAuth();
   const canDelete = isOwner || isAdmin;
+  const canEdit = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return toast.error("الاسم مطلوب");
+    setSaving(true);
+    try {
+      await update(editing.id, trimmed);
+      if (value === editing.name) onChange(trimmed);
+      toast.success("تم تعديل المقترح");
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر التعديل");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     if (!newName.trim()) return toast.error("الاسم مطلوب");
@@ -130,17 +158,33 @@ export function AttributePicker({
                   >
                     <span className="flex-1 truncate">{c.name}</span>
                     {value === c.name && <Check className="w-4 h-4 shrink-0" />}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        aria-label={`حذف ${c.name}`}
-                        title="حذف المقترح"
-                        className="mr-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    {(canEdit || canDelete) && (
+                      <span className="mr-auto flex items-center gap-1.5">
+                        {canEdit && (
+                          <button
+                            type="button"
+                            aria-label={`تعديل ${c.name}`}
+                            title="تعديل المقترح"
+                            className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditing({ id: c.id, name: c.name }); setEditName(c.name); }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            aria-label={`حذف ${c.name}`}
+                            title="حذف المقترح"
+                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </span>
                     )}
                   </CommandItem>
 
@@ -171,6 +215,20 @@ export function AttributePicker({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAddOpen(false)}>إلغاء</Button>
             <Button onClick={save}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>تعديل {TABLE_LABEL[table]}</DialogTitle></DialogHeader>
+          <div className="py-2">
+            <Label>الاسم</Label>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1.5" autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Check, ChevronsUpDown, Palette, X, Trash2 } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Palette, X, Trash2, Pencil } from "lucide-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -46,15 +46,37 @@ export function ColorPicker({
   placeholder?: string;
   allowClear?: boolean;
 }) {
-  const { colors, addColor, removeColor, hexFor } = useColors();
+  const { colors, addColor, removeColor, updateColor, hexFor } = useColors();
   const { isOwner, isAdmin } = useAuth();
   const canDelete = isOwner || isAdmin;
+  const canEdit = isOwner || isAdmin;
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newHex, setNewHex] = useState("#3b82f6");
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editHex, setEditHex] = useState("#3b82f6");
+  const [saving, setSaving] = useState(false);
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return toast.error("اسم اللون مطلوب");
+    setSaving(true);
+    try {
+      await updateColor(editing.id, { name: trimmed, hex: editHex });
+      if (value === editing.name) onChange(trimmed);
+      toast.success("تم تعديل اللون");
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e.message || "تعذر التعديل");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const currentHex = hexFor(value);
 
@@ -124,17 +146,33 @@ export function ColorPicker({
                     <ColorSwatch hex={c.hex} name={c.name} />
                     <span className="flex-1 truncate">{c.name}</span>
                     {value === c.name && <Check className="w-4 h-4 shrink-0" />}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        aria-label={`حذف ${c.name}`}
-                        title="حذف اللون"
-                        className="mr-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    {(canEdit || canDelete) && (
+                      <span className="mr-auto flex items-center gap-1.5">
+                        {canEdit && (
+                          <button
+                            type="button"
+                            aria-label={`تعديل ${c.name}`}
+                            title="تعديل اللون"
+                            className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditing({ id: c.id, name: c.name }); setEditName(c.name); setEditHex(c.hex || "#3b82f6"); }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            aria-label={`حذف ${c.name}`}
+                            title="حذف اللون"
+                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPendingDelete({ id: c.id, name: c.name }); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </span>
                     )}
                   </CommandItem>
 
@@ -174,6 +212,30 @@ export function ColorPicker({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAddOpen(false)}>إلغاء</Button>
             <Button onClick={save}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>تعديل اللون</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>الاسم</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1.5" autoFocus />
+            </div>
+            <div>
+              <Label>الكود اللوني</Label>
+              <div className="flex items-center gap-2 mt-1.5">
+                <input type="color" value={editHex} onChange={(e) => setEditHex(e.target.value)} className="h-10 w-14 rounded border border-border cursor-pointer" />
+                <Input value={editHex} onChange={(e) => setEditHex(e.target.value)} className="font-mono" />
+                <ColorSwatch hex={editHex} name={editName} size={20} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
