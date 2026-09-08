@@ -377,6 +377,11 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   <div className="text-xs text-muted-foreground">{formatDateTime(g.created_at)} • {g.rows.length} صنف</div>
                   {g.reason && <div className="text-xs text-muted-foreground mt-1">السبب: {g.reason}</div>}
                 </div>
+                <Button size="icon" variant="ghost" title="إخفاء من الشاشة النشطة"
+                  onClick={() => dismissGroup(g.key, g.rows.map((r: any) => r.id))}
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
