@@ -316,16 +316,23 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   <div className="text-xs text-muted-foreground">{formatDateTime(g.created_at)} • {g.rows.length} صنف</div>
                   {g.reason && <div className="text-xs text-muted-foreground mt-1">السبب: {g.reason}</div>}
                 </div>
-                {g.groupId && g.pendingCount > 1 && (
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
-                      <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
-                      <X className="w-3 h-3" /> رفض الكل
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2 items-center">
+                  {g.groupId && g.pendingCount > 1 && (
+                    <>
+                      <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
+                        <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
+                        <X className="w-3 h-3" /> رفض الكل
+                      </Button>
+                    </>
+                  )}
+                  <Button size="icon" variant="ghost" title="إخفاء من الشاشة النشطة"
+                    onClick={() => dismissGroup(g.key, g.rows.map((r: any) => r.id))}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
