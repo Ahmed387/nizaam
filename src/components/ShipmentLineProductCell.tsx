@@ -67,25 +67,24 @@ export function ShipmentLineProductCell({
     if (q.length < 2) { setManualMatches({ inventory: [], pricelist: [] }); return; }
     let cancelled = false;
     const t = setTimeout(async () => {
-      const esc = q.replace(/[%,()]/g, " ");
-      const [invRes, plRes] = await Promise.all([
-        supabase.from("products")
-          .select("id, name, sku, quantity, cost_price, image, brand, model, color, product_type, capacity, size")
-          .eq("branch_id", branchId)
-          .or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`)
-          .limit(5),
-        supabase.from("price_list_items_public")
-          .select("id, product_name, model_code, supplier_name, display_price")
-          .eq("is_active", true)
-          .or(`product_name.ilike.%${esc}%,model_code.ilike.%${esc}%`)
-          .limit(5),
-      ]);
+      const tokens = q.replace(/[%,()]/g, " ").split(/\s+/).filter(Boolean).slice(0, 4);
+      let invQ = supabase.from("products")
+        .select("id, name, sku, quantity, cost_price, image, brand, model, color, product_type, capacity, size")
+        .eq("branch_id", branchId);
+      let plQ = supabase.from("price_list_items_public")
+        .select("id, product_name, model_code, supplier_name, display_price")
+        .eq("is_active", true);
+      for (const tk of tokens) {
+        invQ = invQ.or(`name.ilike.%${tk}%,sku.ilike.%${tk}%,brand.ilike.%${tk}%,model.ilike.%${tk}%,color.ilike.%${tk}%,product_type.ilike.%${tk}%,capacity.ilike.%${tk}%,size.ilike.%${tk}%`);
+        plQ = plQ.or(`product_name.ilike.%${tk}%,model_code.ilike.%${tk}%,supplier_name.ilike.%${tk}%`);
+      }
+      const [invRes, plRes] = await Promise.all([invQ.limit(25), plQ.limit(25)]);
       if (cancelled) return;
-      setManualMatches({
-        inventory: (invRes.data ?? []) as any,
-        pricelist: (plRes.data ?? []) as any,
-      });
+      const inv = filterProductsBySearch((invRes.data ?? []) as any[], q).slice(0, 15);
+      const pl = filterProductsBySearch((plRes.data ?? []) as any[], q).slice(0, 15);
+      setManualMatches({ inventory: inv as any, pricelist: pl as any });
     }, 300);
+
     return () => { cancelled = true; clearTimeout(t); };
   }, [source, value.product_name, branchId]);
 
