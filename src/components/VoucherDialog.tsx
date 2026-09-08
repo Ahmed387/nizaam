@@ -339,9 +339,9 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-2xl max-h-[92vh] p-0 flex flex-col overflow-hidden">
         {/* Header banner */}
-        <div className={cn("px-6 py-4 border-b flex items-center gap-3", accentBg)}>
+        <div className={cn("px-6 py-4 border-b shrink-0 flex items-center gap-3", accentBg)}>
           <div className={cn("w-11 h-11 rounded-full bg-background flex items-center justify-center shadow-sm", accentClass)}>
             <HeaderIcon className="w-6 h-6" />
           </div>
@@ -362,7 +362,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           </div>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
           {/* 1. Classification + Amount + Date */}
           <section className="rounded-lg border bg-card p-4 space-y-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -593,7 +593,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-muted/20">
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>إلغاء</Button>
           <Button onClick={submit} disabled={busy} className="gap-2 min-w-32">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
