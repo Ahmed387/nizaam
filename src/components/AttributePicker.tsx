@@ -81,11 +81,12 @@ export function AttributePicker({
     const trimmed = editName.trim();
     if (!trimmed) return toast.error("الاسم مطلوب");
     setSaving(true);
+    const target = editing;
+    setEditing(null);
     try {
-      await update(editing.id, trimmed);
-      if (value === editing.name) onChange(trimmed);
+      await update(target.id, trimmed);
+      if (value === target.name) onChange(trimmed);
       toast.success("تم تعديل المقترح");
-      setEditing(null);
     } catch (e: any) {
       toast.error(e.message || "تعذر التعديل");
     } finally {
@@ -110,11 +111,12 @@ export function AttributePicker({
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
+    const target = pendingDelete;
+    setPendingDelete(null);
     try {
-      await remove(pendingDelete.id);
-      if (value === pendingDelete.name) onChange(null);
+      await remove(target.id);
+      if (value === target.name) onChange(null);
       toast.success("تم حذف المقترح");
-      setPendingDelete(null);
     } catch (e: any) {
       toast.error(e.message || "تعذر الحذف");
     } finally {

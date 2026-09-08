@@ -45,13 +45,24 @@ export function useColors() {
   };
 
   const removeColor = async (id: string) => {
+    // Optimistic: remove from local state instantly, roll back on server failure.
+    const removed = colors.find((c) => c.id === id);
+    setColors((prev) => prev.filter((c) => c.id !== id));
     const { error } = await supabase.from("colors" as any).delete().eq("id", id);
-    if (error) throw error;
+    if (error) {
+      if (removed) setColors((prev) => [...prev, removed].sort((a, b) => a.name.localeCompare(b.name, "ar")));
+      throw error;
+    }
   };
 
   const updateColor = async (id: string, patch: Partial<Pick<ColorItem, "name" | "hex">>) => {
+    const previous = colors.find((c) => c.id === id);
+    setColors((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     const { error } = await supabase.from("colors" as any).update(patch as any).eq("id", id);
-    if (error) throw error;
+    if (error) {
+      if (previous) setColors((prev) => prev.map((c) => (c.id === id ? previous : c)));
+      throw error;
+    }
   };
 
   const hexFor = (name?: string | null) => {
