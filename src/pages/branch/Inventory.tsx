@@ -69,6 +69,7 @@ export default function Inventory() {
   });
   const [editUploading, setEditUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [savingNew, setSavingNew] = useState(false);
 
   // Delete / Archive flow
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
