@@ -38,21 +38,41 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
-
+  const [selfBranchName, setSelfBranchName] = useState<string>("");
+  const [doneSearch, setDoneSearch] = useState("");
+  // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
+  const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
+  const [hidden, setHidden] = useState<string[]>([]);
+  useEffect(() => {
+    try { setHidden(JSON.parse(localStorage.getItem(hiddenKey) ?? "[]")); } catch { setHidden([]); }
+  }, [hiddenKey]);
+  const dismissGroup = async (key: string, ids: string[]) => {
+    if (!(await confirmAlert({
+      title: "إخفاء هذه العملية من الشاشة النشطة؟",
+      description: "الإخفاء بصري فقط — العملية هتفضل محفوظة بكل تفاصيلها في تبويب «ما تم استلامه بالفعل».",
+      confirmLabel: "أيوه، اخفيها", cancelLabel: "لأ، سيبها", tone: "warning",
+    }))) return;
+    const next = Array.from(new Set([...hidden, key, ...ids]));
+    setHidden(next);
+    try { localStorage.setItem(hiddenKey, JSON.stringify(next)); } catch { /* ignore */ }
+    toast.success("تم إخفاء العملية من الشاشة النشطة");
+  };
 
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
-    const [b, p, out, inc] = await Promise.all([
+    const [b, p, out, inc, self] = await Promise.all([
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
     setProducts(p.data ?? []);
     setOutgoing(out.data ?? []);
     setIncoming(inc.data ?? []);
+    setSelfBranchName((self.data as any)?.name ?? "فرعك");
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
