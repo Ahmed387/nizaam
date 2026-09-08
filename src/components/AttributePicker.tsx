@@ -219,6 +219,20 @@ export function AttributePicker({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>تعديل {TABLE_LABEL[table]}</DialogTitle></DialogHeader>
+          <div className="py-2">
+            <Label>الاسم</Label>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1.5" autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
