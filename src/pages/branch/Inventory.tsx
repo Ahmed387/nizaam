@@ -16,7 +16,7 @@ import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { normalizeForSearch, searchMatch, productSearchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle } from "lucide-react";
+import { Plus, Upload, Loader2, Activity, Barcode, FileSpreadsheet, ClipboardList, ClipboardCheck, HelpCircle, Tag, History, Edit3, Settings2, Hash, Type, Package, Pencil, X, Trash2, Archive, ArchiveRestore, AlertTriangle, CalendarIcon } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage } from "@/lib/uploadImage";
@@ -39,15 +39,12 @@ import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, 
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { ImageField } from "@/components/ImageField";
 import { confirmAlert } from "@/components/ConfirmDialog";
-import { CalendarIcon } from "lucide-react";
 import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const cairoToday = () => new Intl.DateTimeFormat("en-CA", {
   timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
 }).format(new Date());
-
-const dateAtNoon = (value: string) => new Date(`${value}T12:00:00`);
 
 export default function Inventory() {
   const { id: branchId } = useParams<{ id: string }>();

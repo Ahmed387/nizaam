@@ -705,9 +705,12 @@ function AddProductDialog({ open, onClose, branches, cats, onSaved }: {
       if (!error && productId) {
         ok++;
         await logAudit({ userId: user!.id, userName: profile!.name, tenantId, branchId, action: "CREATE", entity: "Product", entityId: productId, details: { name: form.name } });
+      } else if (error) {
+        toast.error(`تعذّرت الإضافة في أحد الفروع: ${error.message}`);
       }
     }
     setSaving(false);
+    if (ok === 0) return;
     toast.success(`تمت إضافة المنتج في ${ok} فرع`);
     onClose();
     onSaved();
