@@ -66,11 +66,12 @@ export function ColorPicker({
     const trimmed = editName.trim();
     if (!trimmed) return toast.error("اسم اللون مطلوب");
     setSaving(true);
+    const target = editing;
+    setEditing(null);
     try {
-      await updateColor(editing.id, { name: trimmed, hex: editHex });
-      if (value === editing.name) onChange(trimmed);
+      await updateColor(target.id, { name: trimmed, hex: editHex });
+      if (value === target.name) onChange(trimmed);
       toast.success("تم تعديل اللون");
-      setEditing(null);
     } catch (e: any) {
       toast.error(e.message || "تعذر التعديل");
     } finally {
@@ -97,11 +98,12 @@ export function ColorPicker({
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
+    const target = pendingDelete;
+    setPendingDelete(null);
     try {
-      await removeColor(pendingDelete.id);
-      if (value === pendingDelete.name) onChange(null);
+      await removeColor(target.id);
+      if (value === target.name) onChange(null);
       toast.success("تم حذف اللون من المقترحات");
-      setPendingDelete(null);
     } catch (e: any) {
       toast.error(e.message || "تعذر الحذف");
     } finally {
