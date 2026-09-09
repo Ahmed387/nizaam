@@ -49,32 +49,27 @@ export function ProductImage({ src, bucket = PRODUCT_BUCKET, fallback, alt = "",
   if (!src) return <>{fallback ?? null}</>;
   if (failed) return <>{errorBox}</>;
 
-  // هيكل تحميل ناعم يمنع الوميض وتشوه أبعاد الخلية
-  const skeleton = <div className={`${className ?? ""} bg-muted/40 animate-pulse`} aria-hidden />;
-
-  if (!url) return <>{skeleton}</>;
+  // هيكل تحميل ناعم بدون إخفاء العنصر (display:none يمنع التحميل الكسول من العمل)
+  if (!url) return <div className={`${className ?? ""} bg-muted/40 animate-pulse`} aria-hidden />;
 
   return (
-    <>
-      {!loaded && skeleton}
-      <img
-        src={url}
-        alt={alt}
-        className={className}
-        style={loaded ? undefined : { display: "none" }}
-        loading="lazy"
-        decoding="async"
-        onLoad={() => setLoaded(true)}
-        onError={() => {
-          if (retried) { setFailed(true); return; }
-          setRetried(true);
-          setLoaded(false);
-          refresh();
-        }}
-        {...rest}
-      />
-    </>
+    <img
+      src={url}
+      alt={alt}
+      className={`${className ?? ""} ${loaded ? "" : "bg-muted/40 animate-pulse"}`}
+      loading="lazy"
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+      onError={() => {
+        if (retried) { setFailed(true); return; }
+        setRetried(true);
+        setLoaded(false);
+        refresh();
+      }}
+      {...rest}
+    />
   );
+
 }
 
 export default ProductImage;
