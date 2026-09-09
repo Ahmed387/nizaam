@@ -28,6 +28,7 @@ export default function StockMovements() {
   const [moves, setMoves] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const [pendingOutQty, setPendingOutQty] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -95,13 +96,24 @@ export default function StockMovements() {
 
       const { data: transfers } = await supabase
         .from("stock_transfers")
-        .select("id, quantity, received_quantity, status, created_at, reason, from_branch_id, to_branch_id, product_id")
+        .select("id, quantity, received_quantity, status, created_at, confirmed_at, reason, from_branch_id, to_branch_id, product_id")
         .in("product_id", productIds)
         .eq("status", "confirmed")
         .or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
 
+      // تحويلات معلقة صادرة — الكمية اتخصمت من رصيد الفرع بالفعل وبتستنى تأكيد المستلم
+      const { data: pendingOut } = await supabase
+        .from("stock_transfers")
+        .select("id, quantity, created_at, reason, to_branch_id, product_id")
+        .in("product_id", productIds)
+        .eq("status", "pending")
+        .eq("from_branch_id", branchId!);
+
       // Resolve branch names for transfer rows
-      const branchIds = Array.from(new Set((transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id])));
+      const branchIds = Array.from(new Set([
+        ...(transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id]),
+        ...(pendingOut ?? []).map((t: any) => t.to_branch_id),
+      ]));
       const { data: brs } = branchIds.length
         ? await supabase.from("branches").select("id, name").in("id", branchIds)
         : { data: [] as any[] };
@@ -204,7 +216,7 @@ export default function StockMovements() {
           ? ` (مرسل ${sent} / مستلم ${actualQty})` : "";
         if (t.from_branch_id === branchId) {
           list.push({
-            date: t.created_at,
+            date: t.confirmed_at ?? t.created_at,
             type: "نقل صادر",
             qty: -actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -214,7 +226,7 @@ export default function StockMovements() {
           });
         } else if (t.to_branch_id === branchId) {
           list.push({
-            date: t.created_at,
+            date: t.confirmed_at ?? t.created_at,
             type: "نقل وارد",
             qty: actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -224,6 +236,24 @@ export default function StockMovements() {
           });
         }
       });
+
+      // تحويلات معلقة صادرة: الكمية اتخصمت من الرصيد فعلاً — بنوثقها كحركة صادر واضحة
+      let pendingTotal = 0;
+      (pendingOut ?? []).forEach((t: any) => {
+        const q = Number(t.quantity);
+        if (!q) return;
+        pendingTotal += q;
+        list.push({
+          date: t.created_at,
+          type: "نقل صادر (معلق)",
+          qty: -q,
+          reason: `${t.reason ?? "—"} — بانتظار تأكيد الاستلام`,
+          reference: "TR-PEND",
+          party: `إلى ${brMap.get(t.to_branch_id) ?? "—"}`,
+          linkTo: `/branch/${branchId}/transfers`,
+        });
+      });
+      setPendingOutQty(pendingTotal);
 
       list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setMoves(list);
@@ -248,6 +278,7 @@ export default function StockMovements() {
     "نقل صادر": "bg-warning/15 text-warning",
     "نقل وارد": "bg-primary/15 text-primary",
     "رصيد افتتاحي": "bg-success/15 text-success",
+    "نقل صادر (معلق)": "bg-warning/15 text-warning",
   };
 
 
@@ -255,7 +286,7 @@ export default function StockMovements() {
     <BranchLayout backTo={`/branch/${branchId}/dashboard`} backLabel="القائمة الرئيسية">
       <PageHeader
         title={`حركة المخزون: ${product?.name ?? ""}`}
-        subtitle={product ? `الكود: ${product.sku} · الكمية الحالية: ${product.quantity}` : ""}
+        subtitle={product ? `الكود: ${product.sku} · الكمية الحالية: ${product.quantity}${pendingOutQty > 0 ? ` · محجوز لتحويلات معلقة: ${pendingOutQty}` : ""}` : ""}
         actions={
           <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory`)}>
             <ArrowRight className="w-4 h-4 ml-1" /> رجوع للمخزون
