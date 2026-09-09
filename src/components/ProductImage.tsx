@@ -36,31 +36,44 @@ interface Props extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
 export function ProductImage({ src, bucket = PRODUCT_BUCKET, fallback, alt = "", className, ...rest }: Props) {
   const { url, failed, refresh, setFailed } = useSignedImage(src, bucket);
   const [retried, setRetried] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => { setRetried(false); }, [src]);
+  useEffect(() => { setRetried(false); setLoaded(false); }, [src]);
 
-  const placeholder = fallback ?? (
+  const errorBox = fallback ?? (
     <div className={`${className ?? ""} bg-muted/40 border border-dashed flex items-center justify-center text-muted-foreground`}>
       <ImageOff className="w-4 h-4" />
     </div>
   );
 
   if (!src) return <>{fallback ?? null}</>;
-  if (failed || !url) return <>{placeholder}</>;
+  if (failed) return <>{errorBox}</>;
+
+  // هيكل تحميل ناعم يمنع الوميض وتشوه أبعاد الخلية
+  const skeleton = <div className={`${className ?? ""} bg-muted/40 animate-pulse`} aria-hidden />;
+
+  if (!url) return <>{skeleton}</>;
 
   return (
-    <img
-      src={url}
-      alt={alt}
-      className={className}
-      loading="lazy"
-      onError={() => {
-        if (retried) { setFailed(true); return; }
-        setRetried(true);
-        refresh();
-      }}
-      {...rest}
-    />
+    <>
+      {!loaded && skeleton}
+      <img
+        src={url}
+        alt={alt}
+        className={className}
+        style={loaded ? undefined : { display: "none" }}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          if (retried) { setFailed(true); return; }
+          setRetried(true);
+          setLoaded(false);
+          refresh();
+        }}
+        {...rest}
+      />
+    </>
   );
 }
 

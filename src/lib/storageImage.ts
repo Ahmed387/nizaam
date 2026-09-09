@@ -80,8 +80,9 @@ export function invalidateSigned(bucket: string, value: string | null | undefine
 
 /** رفع صورة مضغوطة لأي حاوية داخل مجلد الشركة، ويرجّع المسار المخزّن. */
 export async function uploadImageToBucket(bucket: string, file: File, folder: string): Promise<string> {
-  const blob = await compressImage(file, { maxDim: 1600, quality: 0.85 });
-  const ext = blob.type === "image/png" ? "png" : "jpg";
+  // ضغط مركزي: WebP بحد أقصى 800px وجودة 0.8 (مع رجوع تلقائي لـ JPEG لو غير مدعوم)
+  const blob = await compressImage(file, { maxDim: 800, quality: 0.8, mimeType: "image/webp", sizeThreshold: 80 * 1024 });
+  const ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
   const sub = (folder || "shared").replace(/^\/+|\/+$/g, "") || "shared";
   const path = await tenantStoragePath(`${sub}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
   const { error } = await supabase.storage.from(bucket).upload(path, blob, { upsert: false, contentType: blob.type });

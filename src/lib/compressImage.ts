@@ -3,9 +3,9 @@
 // Returns a new File (or the original if no compression is needed / unsupported type).
 export async function compressImage(
   file: File,
-  opts: { maxDim?: number; quality?: number; sizeThreshold?: number } = {}
+  opts: { maxDim?: number; quality?: number; sizeThreshold?: number; mimeType?: string } = {}
 ): Promise<File> {
-  const { maxDim = 1920, quality = 0.8, sizeThreshold = 1024 * 1024 } = opts;
+  const { maxDim = 1920, quality = 0.8, sizeThreshold = 1024 * 1024, mimeType = "image/jpeg" } = opts;
 
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
 
@@ -24,8 +24,8 @@ export async function compressImage(
   });
 
   const longest = Math.max(img.width, img.height);
-  // If small file and small dimensions, skip
-  if (file.size <= sizeThreshold && longest <= maxDim) return file;
+  // If already in the target format, small and within bounds, skip
+  if (file.type === mimeType && file.size <= sizeThreshold && longest <= maxDim) return file;
 
   const scale = Math.min(1, maxDim / longest);
   const w = Math.round(img.width * scale);
@@ -38,11 +38,18 @@ export async function compressImage(
   if (!ctx) return file;
   ctx.drawImage(img, 0, 0, w, h);
 
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob((b) => resolve(b), "image/jpeg", quality)
+  let blob: Blob | null = await new Promise((resolve) =>
+    canvas.toBlob((b) => resolve(b), mimeType, quality)
   );
+  // بعض المتصفحات القديمة لا تدعم WebP -> رجوع تلقائي لـ JPEG
+  let outType = mimeType;
+  if (!blob || (mimeType !== "image/jpeg" && blob.type !== mimeType)) {
+    blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", quality));
+    outType = "image/jpeg";
+  }
   if (!blob) return file;
 
+  const ext = outType === "image/webp" ? "webp" : outType === "image/png" ? "png" : "jpg";
   const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
-  return new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  return new File([blob], `${baseName}.${ext}`, { type: outType, lastModified: Date.now() });
 }
