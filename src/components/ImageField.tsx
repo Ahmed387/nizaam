@@ -23,8 +23,14 @@ interface Props {
   folder?: string;
   /** رفع مخصص (يُستخدم مع حاويات لها مسار خاص مثل بطاقات الموظفين) */
   uploader?: (file: File) => Promise<string>;
-  /** حذف مخصص (بديل الحذف الافتراضي من الحاوية) */
+  /** حذف مخصص كامل (ملف + تصفير الحقل) — يُستخدم عند الضغط الصريح على أيقونة الحذف */
   remover?: (value: string) => Promise<void>;
+  /** حذف الملف القديم فقط من التخزين أثناء الاستبدال (بدون تصفير أي حقل في قاعدة البيانات) */
+  fileRemover?: (value: string) => Promise<void>;
+  /** تأجيل الحذف الفعلي لحين حفظ النموذج الأب */
+  deferDelete?: boolean;
+  /** يُبلّغ الأب بالمسارات المرشحة للحذف بعد الحفظ (يعمل مع deferDelete) */
+  onPendingDelete?: (paths: string[]) => void;
   label?: string;
   hint?: string;
   /** حجم إطار المعاينة */
@@ -35,6 +41,7 @@ interface Props {
   readOnly?: boolean;
   className?: string;
 }
+
 
 const SIZES = {
   sm: "w-16 h-16",
