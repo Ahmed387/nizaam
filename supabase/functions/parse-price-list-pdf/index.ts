@@ -55,7 +55,9 @@ const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانا�
    لا تضع 0 إلا لو الوثيقة خالية تماماً من أي سعر بيع.
 8. اكتب النصوص العربية بحروف عربية قياسية سليمة، وممنوع إخراج رموز مشوهة أو أشكال حروف غير قياسية.
 
+${brandHints(supplier)}
 ارجع البيانات كما هي تماماً. الأمانة في النقل أهم من أي تنظيم.`;
+
 
 // ---- Text-quality inspector: detect mojibake / broken CMap output ----
 function textQuality(raw: string) {
