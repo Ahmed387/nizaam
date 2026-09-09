@@ -109,7 +109,10 @@ export default function StockMovements() {
         .eq("from_branch_id", branchId!);
 
       // Resolve branch names for transfer rows
-      const branchIds = Array.from(new Set((transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id])));
+      const branchIds = Array.from(new Set([
+        ...(transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id]),
+        ...(pendingOut ?? []).map((t: any) => t.to_branch_id),
+      ]));
       const { data: brs } = branchIds.length
         ? await supabase.from("branches").select("id, name").in("id", branchIds)
         : { data: [] as any[] };
