@@ -64,6 +64,10 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const [catFilter, setCatFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [editing, setEditing] = useState<Row | null>(null);
+  // حذف مؤجل لصور المنتج — لا يُنفَّذ إلا بعد نجاح الحفظ
+  const [pendingImageDeletes, setPendingImageDeletes] = useState<string[]>([]);
+  const [editOriginalImage, setEditOriginalImage] = useState<string>("");
+
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
