@@ -772,7 +772,24 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                           {d.status === "same" && <Badge variant="secondary">ثابت</Badge>}
                         </TableCell>
                         <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }}>{d.parsed.product_name}</TableCell>
-                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
+                        <TableCell className={cn("text-sm", !String(d.parsed.model_code ?? "").trim() && "bg-orange-500/10")}>
+                          <Input
+                            dir="ltr"
+                            className="h-8 w-32"
+                            placeholder="بدون موديل"
+                            defaultValue={d.parsed.model_code ?? ""}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              setParsedDiff((prev) => {
+                                if (!prev) return prev;
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], parsed: { ...next[idx].parsed, model_code: v || undefined } };
+                                return next;
+                              });
+                            }}
+                          />
+                        </TableCell>
+
                         <TableCell>{d.existing ? formatEGP(d.existing.cost_price) : "—"}</TableCell>
                         <TableCell>
                           <Input
