@@ -38,6 +38,8 @@ interface InventorySettings { default_low_stock_alert: number }
 export default function Settings() {
   const { user, profile, branches, roles, isOwner } = useAuth();
   const canManageAdminTools = roles.includes("admin") || roles.includes("super_admin");
+  // النسخ الاحتياطي والاستعادة: المالك والسوبر أدمن فقط — محجوب عن رتبة admin
+  const canManageBackup = isOwner || roles.includes("super_admin");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState<CompanySettings>({ name: "", address: "", phone: "", tax_number: "", logo_url: "" });
@@ -230,7 +232,7 @@ export default function Settings() {
             { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
             { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
             { v: "security", icon: KeyRound, label: "كلمة المرور" },
-            ...(canManageAdminTools || isOwner ? [{ v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" }] : []),
+            ...(canManageBackup ? [{ v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" }] : []),
             
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
@@ -567,7 +569,7 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        {(canManageAdminTools || isOwner) && (
+        {canManageBackup && (
           <TabsContent value="backup" className="mt-4">
             <BackupTab />
           </TabsContent>
