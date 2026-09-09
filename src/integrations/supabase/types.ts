@@ -449,6 +449,48 @@ export type Database = {
           },
         ]
       }
+      backup_settings: {
+        Row: {
+          created_at: string
+          drive_connected: boolean
+          drive_file_id: string | null
+          drive_file_name: string
+          drive_folder_id: string | null
+          id: string
+          last_error: string | null
+          last_synced_at: string | null
+          refresh_token_encrypted: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          drive_connected?: boolean
+          drive_file_id?: string | null
+          drive_file_name?: string
+          drive_folder_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          refresh_token_encrypted?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          drive_connected?: boolean
+          drive_file_id?: string | null
+          drive_file_name?: string
+          drive_folder_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          refresh_token_encrypted?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_number: string | null
@@ -6925,6 +6967,28 @@ export type Database = {
         Args: { p_from: string; p_tenant_id: string; p_to: string }
         Returns: Json
       }
+      backup_fetch_page: {
+        Args: {
+          _limit: number
+          _offset: number
+          _table: string
+          _tenant: string
+        }
+        Returns: Json
+      }
+      backup_table_manifest: {
+        Args: never
+        Returns: {
+          filter_sql: string
+          ord: number
+          table_name: string
+          tenant_scoped: boolean
+        }[]
+      }
+      backup_tenant_filter: {
+        Args: { _alias: string; _depth?: number; _table: string }
+        Returns: string
+      }
       branch_cycle_count_status: {
         Args: { p_branch_id: string; p_stale_days?: number }
         Returns: {
@@ -8006,6 +8070,10 @@ export type Database = {
         Returns: undefined
       }
       restore_product: { Args: { _product_id: string }; Returns: undefined }
+      restore_tenant_snapshot: {
+        Args: { _payload: Json; _tenant: string }
+        Returns: Json
+      }
       reverse_journal_for_source: {
         Args: {
           p_reason: string
