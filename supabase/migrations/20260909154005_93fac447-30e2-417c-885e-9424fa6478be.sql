@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.trg_replicate_product_across_branches() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.trg_sync_product_identity_across_branches() FROM PUBLIC, anon, authenticated;
