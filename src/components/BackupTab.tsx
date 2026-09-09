@@ -1,143 +1,49 @@
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Download, Loader2, DatabaseBackup, PlayCircle, Clock, CheckCircle2, XCircle, Trash2 } from "lucide-react";
-import * as XLSX from "xlsx";
+import {
+  Download, Loader2, DatabaseBackup, PlayCircle, CheckCircle2, XCircle,
+  Trash2, CloudUpload, RotateCcw, ShieldAlert, FileSearch,
+} from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
-const TABLES: { key: string; label: string }[] = [
-  { key: "branches", label: "الفروع" },
-  { key: "categories", label: "التصنيفات" },
-  { key: "products", label: "المنتجات" },
-  { key: "product_batches", label: "دفعات المنتجات" },
-  { key: "brands", label: "الماركات" },
-  { key: "product_types", label: "أنواع المنتجات" },
-  { key: "colors", label: "الألوان" },
-  { key: "capacities", label: "السعات" },
-  { key: "sizes", label: "المقاسات" },
-  { key: "price_list_sources", label: "موردين قائمة الأسعار" },
-  { key: "price_list_items", label: "أصناف قائمة الأسعار" },
-  { key: "contacts", label: "العملاء والموردين" },
-  { key: "customer_credit_log", label: "سجل رصيد العملاء" },
-  { key: "employees", label: "الموظفين" },
-  { key: "invoices", label: "الفواتير" },
-  { key: "invoice_items", label: "أصناف الفواتير" },
-  { key: "invoice_payments", label: "مدفوعات الفواتير" },
-  { key: "quotes", label: "عروض الأسعار" },
-  { key: "quote_items", label: "أصناف عروض الأسعار" },
-  { key: "returns", label: "المرتجعات" },
-  { key: "return_items", label: "أصناف المرتجعات" },
-  { key: "purchase_returns", label: "مرتجعات المشتريات" },
-  { key: "purchase_return_items", label: "أصناف مرتجعات المشتريات" },
-  { key: "shipments", label: "فواتير الشراء" },
-  { key: "shipment_items", label: "أصناف فواتير الشراء" },
-  { key: "supplier_payments", label: "مدفوعات الموردين" },
-  { key: "stock_transfers", label: "تحويلات المخزون" },
-  { key: "stock_adjustments", label: "تسويات المخزون" },
-  { key: "stock_adjustment_items", label: "أصناف تسويات المخزون" },
-  { key: "inventory_sessions", label: "جلسات الجرد" },
-  { key: "inventory_session_items", label: "أصناف الجرد" },
-  { key: "inventory_adjustments", label: "تعديلات المخزون" },
-  { key: "inventory_reservations", label: "حجوزات المخزون" },
-  { key: "pre_orders", label: "طلبات الحجز" },
-  { key: "pre_order_transactions", label: "حركات طلبات الحجز" },
-  { key: "payment_plans", label: "خطط السداد" },
-  { key: "payment_installments", label: "الأقساط" },
-  { key: "payment_transactions", label: "حركات السداد" },
-  { key: "treasury", label: "حركات الخزينة" },
-  { key: "treasury_transfers", label: "تحويلات الخزينة" },
-  { key: "cashier_shifts", label: "ورديات الكاشير" },
-  { key: "vouchers", label: "السندات المالية" },
-  { key: "voucher_categories", label: "تصنيفات السندات" },
-  { key: "expenses", label: "المصروفات" },
-  { key: "bank_accounts", label: "الحسابات البنكية" },
-  { key: "chart_of_accounts", label: "شجرة الحسابات" },
-  { key: "journal_entries", label: "قيود اليومية" },
-  { key: "journal_entry_lines", label: "بنود قيود اليومية" },
-  { key: "fixed_assets", label: "الأصول الثابتة" },
-  { key: "depreciation_entries", label: "قيود الإهلاك" },
-  { key: "equity_partners", label: "الشركاء" },
-  { key: "partner_transactions", label: "حركات الشركاء" },
-  { key: "partner_share_history", label: "سجل حصص الشركاء" },
-  { key: "partner_advances", label: "سلف الشركاء" },
-  { key: "profit_distributions", label: "توزيعات الأرباح" },
-  { key: "profit_distribution_lines", label: "بنود توزيعات الأرباح" },
-  { key: "branch_capital_allocations", label: "رأس مال الفروع" },
-  { key: "fiscal_periods", label: "الفترات المالية" },
-  { key: "budgets", label: "الموازنات" },
-  { key: "advances", label: "السلف" },
-  { key: "advance_payments", label: "أقساط السلف" },
-  { key: "advance_requests", label: "طلبات السلف" },
-  { key: "salaries", label: "الرواتب" },
-  { key: "attendance", label: "الحضور" },
-  { key: "branch_schedules", label: "مواعيد الفروع" },
-  { key: "branch_closures", label: "إجازات الفروع" },
-  { key: "approval_requests", label: "طلبات الاعتماد" },
-  { key: "discount_approval_requests", label: "طلبات اعتماد الخصم" },
-  { key: "price_audit_log", label: "سجل تعديل الأسعار" },
-  { key: "settings", label: "الإعدادات" },
-  { key: "audit_log", label: "سجل العمليات" },
-  // ---- تغطية كاملة: باقي جداول قاعدة البيانات ----
-  { key: "historical_invoices", label: "الفواتير التاريخية" },
-  { key: "historical_invoice_items", label: "أصناف الفواتير التاريخية" },
-  { key: "historical_vouchers", label: "السندات التاريخية" },
-  { key: "partner_advance_installments", label: "أقساط سلف الشركاء" },
-  { key: "partner_advance_payments", label: "مدفوعات سلف الشركاء" },
-  { key: "partner_users", label: "مستخدمي الشركاء" },
-  { key: "owner_personal_expenses", label: "المصاريف الشخصية" },
-  { key: "owner_personal_deposits", label: "الإيداعات الشخصية" },
-  { key: "owner_expenses_access", label: "صلاحيات المصاريف الشخصية" },
-  { key: "bank_statements", label: "كشوف الحسابات البنكية" },
-  { key: "bank_statement_lines", label: "بنود كشوف الحسابات" },
-  { key: "shift_cash_handovers", label: "تسليم عهدة الورديات" },
-  { key: "shift_schedules", label: "جداول الورديات" },
-  { key: "inventory_count_batch_moves", label: "حركات دفعات الجرد" },
-  { key: "voucher_attachments", label: "مرفقات السندات" },
-  { key: "voucher_sequences", label: "تسلسل السندات" },
-  { key: "attachments", label: "المرفقات" },
-  { key: "notifications", label: "الإشعارات" },
-  { key: "transfer_fees", label: "رسوم التحويل" },
-  { key: "role_permissions", label: "صلاحيات الأدوار" },
-  { key: "user_permissions", label: "صلاحيات المستخدمين" },
-  { key: "user_roles", label: "أدوار المستخدمين" },
-  { key: "user_presence", label: "تتبع المستخدمين" },
-  { key: "profiles", label: "الملفات الشخصية" },
-  { key: "branch_users", label: "ربط المستخدمين بالفروع" },
-  { key: "scheduled_reports", label: "التقارير المجدولة" },
-  { key: "migration_batches", label: "دفعات الترحيل" },
-  { key: "onboarding_progress", label: "تقدم التأسيس" },
-  { key: "health_check_runs", label: "فحوصات النظام" },
-  { key: "ai_ask_log", label: "سجل اسألني" },
-  { key: "system_backups", label: "سجل النسخ الاحتياطي" },
-  { key: "tenants", label: "بيانات الشركة" },
-];
-
-
-const num = (v: any) => Number(v ?? 0);
-const fmtDate = (v: any) => (v ? new Date(v).toLocaleString("ar-EG") : "");
-const attrs = (r: any) =>
-  [r?.brand, r?.model, r?.color, r?.product_type, r?.capacity, r?.size].filter(Boolean).join(" • ");
+const CONFIRM_PHRASE = "أوافق على استبدال كافة البيانات الحالية بالنسخة الاحتياطية";
 
 export function BackupTab() {
-  const [exporting, setExporting] = useState(false);
-  const [progress, setProgress] = useState<string>("");
+  const { isOwner, isSuperAdmin } = useAuth();
+  const allowed = isOwner || isSuperAdmin;
+
   const [runningServer, setRunningServer] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Google Drive settings
+  const [settings, setSettings] = useState<any>(null);
+  const [folderId, setFolderId] = useState("");
+  const [savingDrive, setSavingDrive] = useState(false);
+
+  // Restore
+  const [restoreRow, setRestoreRow] = useState<any>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [restoring, setRestoring] = useState(false);
+  const [inspecting, setInspecting] = useState<string | null>(null);
+  const [inspectResult, setInspectResult] = useState<any>(null);
 
   const loadHistory = async () => {
     const { data } = await supabase
@@ -147,17 +53,47 @@ export function BackupTab() {
       .limit(20);
     setHistory(data ?? []);
   };
-  useEffect(() => { loadHistory(); }, []);
+
+  const loadSettings = async () => {
+    const { data } = await supabase.from("backup_settings" as any).select("*").maybeSingle();
+    setSettings(data ?? null);
+    setFolderId((data as any)?.drive_folder_id ?? "");
+  };
+
+  useEffect(() => {
+    if (!allowed) return;
+    loadHistory();
+    loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowed]);
   useRealtimeRefresh(["system_backups"], loadHistory);
 
-  const runScheduledNow = async () => {
+  if (!allowed) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground flex flex-col items-center gap-2">
+          <ShieldAlert className="h-8 w-8" />
+          <p>النسخ الاحتياطي والاستعادة مقصوران على المالك فقط.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const runBackupNow = async () => {
     setRunningServer(true);
     try {
-      const { error } = await supabase.functions.invoke("scheduled-backup", { body: {} });
+      const { data, error } = await supabase.functions.invoke("scheduled-backup", { body: {} });
       const bErr = await edgeErrorMessage(error);
       if (bErr) throw new Error(bErr);
-      toast.success("تم تشغيل النسخ الاحتياطي — قد يستغرق دقيقة");
-      setTimeout(loadHistory, 3000);
+      const first = (data as any)?.results?.[0];
+      toast.success(
+        first
+          ? `تمت النسخة: ${first.tables} جدول • ${Number(first.rows ?? 0).toLocaleString("en-US")} سجل${first.drive?.synced ? " • تمت مزامنة Google Drive" : ""}`
+          : "تم تشغيل النسخ الاحتياطي",
+      );
+      if (first?.drive?.error) toast.warning(first.drive.error);
+      loadHistory();
+      loadSettings();
     } catch (e: any) {
       toast.error(e.message ?? "فشل التشغيل");
     } finally {
@@ -190,532 +126,253 @@ export function BackupTab() {
     }
   };
 
-  const fetchTable = async (key: string) => {
-    let from = 0;
-    const pageSize = 1000;
-    const rows: any[] = [];
-    while (true) {
-      const { data, error } = await supabase.from(key as any).select("*").range(from, from + pageSize - 1);
-      // ذرية العملية: أي فشل في جدول واحد يوقف النسخة بالكامل
-      if (error) throw new Error(`فشل تصدير جدول (${key}): ${error.message}`);
-      rows.push(...(data ?? []));
-      if (!data || data.length < pageSize) break;
-      from += pageSize;
+  const saveDrive = async (connected: boolean) => {
+    setSavingDrive(true);
+    try {
+      const { data: prof } = await supabase.auth.getUser();
+      const uid = prof.user?.id;
+      if (!uid) throw new Error("يجب تسجيل الدخول");
+      const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", uid).maybeSingle();
+      const tenantId = (profile as any)?.tenant_id;
+      if (!tenantId) throw new Error("تعذر تحديد الشركة");
+
+      const { error } = await supabase.from("backup_settings" as any).upsert(
+        {
+          tenant_id: tenantId,
+          drive_folder_id: folderId.trim() || null,
+          drive_connected: connected,
+          last_error: null,
+        } as any,
+        { onConflict: "tenant_id" },
+      );
+      if (error) throw error;
+      toast.success(connected ? "تم تفعيل المزامنة مع Google Drive" : "تم إيقاف المزامنة");
+      loadSettings();
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل الحفظ");
+    } finally {
+      setSavingDrive(false);
     }
-    return rows;
   };
 
-
-  const exportAll = async (format: "xlsx" | "json") => {
-    setExporting(true);
+  const inspectBackup = async (row: any) => {
+    setInspecting(row.id);
+    setInspectResult(null);
     try {
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-
-      // ---------- JSON: تصدير على دفعات مع تفريغ الذاكرة بعد كل جدول ----------
-      if (format === "json") {
-        const parts: BlobPart[] = [`{"exported_at":"${new Date().toISOString()}","data":{`];
-        let n = 0;
-        for (const t of TABLES) {
-          n++;
-          setProgress(`(${n}/${TABLES.length}) تحميل ${t.label}...`);
-          let rows = await fetchTable(t.key);
-          parts.push(`${n > 1 ? "," : ""}${JSON.stringify(t.key)}:${JSON.stringify(rows)}`);
-          rows = []; // تفريغ الذاكرة فور الانتهاء من الجدول
-        }
-        parts.push("}}");
-        setProgress("جاري بناء ملف JSON...");
-        const blob = new Blob(parts, { type: "application/json" });
-        parts.length = 0;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `nizam-backup-${stamp}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success(`تم تصدير النسخة الاحتياطية (${TABLES.length} جدول)`);
-        return;
-      }
-
-      const all: Record<string, any[]> = {};
-      let i = 0;
-      for (const t of TABLES) {
-        i++;
-        setProgress(`(${i}/${TABLES.length}) تحميل ${t.label}...`);
-        all[t.key] = await fetchTable(t.key);
-      }
-
-
-      setProgress("جاري بناء التقارير التفصيلية...");
-
-      // ---------- lookup maps ----------
-      const map = (rows: any[], k = "id") => {
-        const m: Record<string, any> = {};
-        for (const r of rows ?? []) m[r[k]] = r;
-        return m;
-      };
-      const branches = map(all.branches);
-      const contacts = map(all.contacts);
-      const products = map(all.products);
-      const categories = map(all.categories);
-      const employees = map(all.employees);
-      const invoices = map(all.invoices);
-      const branchName = (id: any) => branches[id]?.name ?? "";
-
-      // payments/returns aggregated per invoice
-      const paidByInvoice: Record<string, number> = {};
-      for (const p of all.invoice_payments ?? []) {
-        if (p.voided_at) continue;
-        paidByInvoice[p.invoice_id] = (paidByInvoice[p.invoice_id] ?? 0) + num(p.amount);
-      }
-      const refundByInvoice: Record<string, number> = {};
-      for (const r of all.returns ?? []) {
-        refundByInvoice[r.invoice_id] = (refundByInvoice[r.invoice_id] ?? 0) + num(r.total_refund);
-      }
-      const itemsByInvoice: Record<string, any[]> = {};
-      for (const it of all.invoice_items ?? []) {
-        (itemsByInvoice[it.invoice_id] ||= []).push(it);
-      }
-
-      const sheets: { name: string; rows: any[] }[] = [];
-
-      // ---------- 1. نظرة عامة ----------
-      const totalSales = (all.invoices ?? []).filter((x) => x.status !== "cancelled").reduce((s, x) => s + num(x.total), 0);
-      const totalPaid = Object.values(paidByInvoice).reduce((s: number, v: any) => s + num(v), 0);
-      const totalRefund = (all.returns ?? []).reduce((s, x) => s + num(x.total_refund), 0);
-      const stockValue = (all.products ?? [])
-        .filter((p) => !p.archived_at)
-        .reduce((s, p) => s + num(p.quantity) * num(p.cost_price), 0);
-      const overview: any[] = [
-        { "البند": "تاريخ التصدير", "القيمة": fmtDate(new Date()) },
-        { "البند": "عدد الفروع", "القيمة": (all.branches ?? []).length },
-        { "البند": "عدد المنتجات", "القيمة": (all.products ?? []).length },
-        { "البند": "عدد العملاء/الموردين", "القيمة": (all.contacts ?? []).length },
-        { "البند": "عدد الموظفين", "القيمة": (all.employees ?? []).length },
-        { "البند": "عدد الفواتير", "القيمة": (all.invoices ?? []).length },
-        { "البند": "إجمالي المبيعات", "القيمة": totalSales },
-        { "البند": "إجمالي المحصّل", "القيمة": totalPaid },
-        { "البند": "إجمالي المرتجعات", "القيمة": totalRefund },
-        { "البند": "المتبقي على العملاء", "القيمة": totalSales - totalPaid - totalRefund },
-        { "البند": "قيمة المخزون بالتكلفة", "القيمة": stockValue },
-        { "البند": "", "القيمة": "" },
-        { "البند": "— عدد صفوف كل جدول —", "القيمة": "" },
-        ...TABLES.map((t) => ({ "البند": t.label, "القيمة": (all[t.key] ?? []).length })),
-      ];
-      sheets.push({ name: "نظرة عامة", rows: overview });
-
-      // ---------- 2. ملخص الفروع ----------
-      sheets.push({
-        name: "ملخص الفروع",
-        rows: (all.branches ?? []).map((b) => {
-          const inv = (all.invoices ?? []).filter((x) => x.branch_id === b.id && x.status !== "cancelled");
-          const sales = inv.reduce((s, x) => s + num(x.total), 0);
-          const paid = inv.reduce((s, x) => s + num(paidByInvoice[x.id]), 0);
-          const refunds = (all.returns ?? []).filter((r) => r.branch_id === b.id).reduce((s, r) => s + num(r.total_refund), 0);
-          const cashIn = (all.treasury ?? []).filter((t) => t.branch_id === b.id && t.type === "in").reduce((s, t) => s + num(t.amount), 0);
-          const cashOut = (all.treasury ?? []).filter((t) => t.branch_id === b.id && t.type === "out").reduce((s, t) => s + num(t.amount), 0);
-          const prods = (all.products ?? []).filter((p) => p.branch_id === b.id && !p.archived_at);
-          return {
-            "الكود": b.code,
-            "الفرع": b.name,
-            "العنوان": b.address,
-            "التليفون": b.phone,
-            "نشط": b.is_active ? "نعم" : "لا",
-            "عدد الفواتير": inv.length,
-            "إجمالي المبيعات": sales,
-            "المحصّل": paid,
-            "المتبقي": sales - paid - refunds,
-            "المرتجعات": refunds,
-            "وارد الخزينة": cashIn,
-            "منصرف الخزينة": cashOut,
-            "رصيد الخزينة": cashIn - cashOut,
-            "عدد الأصناف": prods.length,
-            "قيمة المخزون (تكلفة)": prods.reduce((s, p) => s + num(p.quantity) * num(p.cost_price), 0),
-            "عدد الموظفين": (all.employees ?? []).filter((e) => e.branch_id === b.id && e.is_active).length,
-          };
-        }),
+      const { data, error } = await supabase.functions.invoke("restore-system-backup", {
+        body: { backup_id: row.id, dry_run: true },
       });
-
-      // ---------- 3. الفواتير تفصيلي ----------
-      sheets.push({
-        name: "الفواتير (تفصيلي)",
-        rows: (all.invoices ?? []).map((v) => {
-          const items = itemsByInvoice[v.id] ?? [];
-          const cost = items.reduce((s, it) => s + num(it.unit_cost_at_sale ?? it.cost_price) * num(it.quantity), 0);
-          const paid = num(paidByInvoice[v.id]);
-          const ct = contacts[v.contact_id];
-          return {
-            "رقم الفاتورة": v.invoice_number,
-            "التاريخ": fmtDate(v.invoice_date ?? v.created_at),
-            "الفرع": branchName(v.branch_id),
-            "العميل": ct?.name ?? "",
-            "تليفون العميل": ct?.phone ?? "",
-            "الكاشير": employees[v.cashier_id]?.name ?? v.cashier_id ?? "",
-            "عدد الأصناف": items.length,
-            "إجمالي الكمية": items.reduce((s, it) => s + num(it.quantity), 0),
-            "الإجمالي قبل الخصم": num(v.subtotal),
-            "الخصم": num(v.discount_amount),
-            "نسبة الخصم %": num(v.discount_percent),
-            "سبب الخصم": v.discount_reason ?? "",
-            "ضريبة": num(v.vat_amount),
-            "الصافي": num(v.total),
-            "المدفوع": paid,
-            "المتبقي": num(v.total) - paid,
-            "المرتجع": num(refundByInvoice[v.id]),
-            "طريقة الدفع": v.payment_method,
-            "الحالة": v.status,
-            "التكلفة": cost,
-            "الربح": num(v.total) - cost,
-            "ملاحظات": v.notes ?? "",
-            "سبب الإلغاء": v.cancel_reason ?? "",
-            "رصيد سابق": num(v.previous_balance),
-            "رصيد حالي": num(v.current_balance),
-          };
-        }),
-      });
-
-      // ---------- 4. أصناف الفواتير تفصيلي ----------
-      sheets.push({
-        name: "أصناف الفواتير (تفصيلي)",
-        rows: (all.invoice_items ?? []).map((it) => {
-          const v = invoices[it.invoice_id] ?? {};
-          const p = products[it.product_id] ?? {};
-          const unitCost = num(it.unit_cost_at_sale ?? it.cost_price);
-          return {
-            "رقم الفاتورة": v.invoice_number ?? "",
-            "التاريخ": fmtDate(v.invoice_date ?? v.created_at),
-            "الفرع": branchName(v.branch_id),
-            "العميل": contacts[v.contact_id]?.name ?? "",
-            "المنتج": it.product_name ?? p.name ?? "",
-            "الكود SKU": p.sku ?? "",
-            "التصنيف": categories[p.category_id]?.name ?? "",
-            "الماركة": it.brand ?? p.brand ?? "",
-            "الموديل": it.model ?? p.model ?? "",
-            "اللون": it.color ?? p.color ?? "",
-            "النوع": it.product_type ?? p.product_type ?? "",
-            "السعة": it.capacity ?? p.capacity ?? "",
-            "المقاس": it.size ?? p.size ?? "",
-            "الكمية": num(it.quantity),
-            "المرتجع": num(it.returned_quantity),
-            "الصافي": num(it.net_quantity ?? num(it.quantity) - num(it.returned_quantity)),
-            "سعر القطعة قبل الخصم": num(it.original_price ?? it.selling_price),
-            "خصم السطر": num(it.line_discount),
-            "نسبة خصم %": num(it.discount_percent),
-            "سعر البيع النهائي": num(it.final_price ?? it.selling_price),
-            "إجمالي السطر": num(it.total),
-            "تكلفة القطعة": unitCost,
-            "إجمالي التكلفة": unitCost * num(it.quantity),
-            "ربح السطر": num(it.total) - unitCost * num(it.quantity),
-            "سعر السوق": num(it.market_price),
-            "حالة الفاتورة": v.status ?? "",
-          };
-        }),
-      });
-
-      // ---------- 5. المدفوعات ----------
-      sheets.push({
-        name: "المدفوعات (تفصيلي)",
-        rows: (all.invoice_payments ?? []).map((p) => {
-          const v = invoices[p.invoice_id] ?? {};
-          return {
-            "التاريخ": fmtDate(p.created_at),
-            "رقم الفاتورة": v.invoice_number ?? "",
-            "الفرع": branchName(p.branch_id ?? v.branch_id),
-            "العميل": contacts[v.contact_id]?.name ?? "",
-            "المبلغ": num(p.amount),
-            "طريقة الدفع": p.payment_method,
-            "رسوم": num(p.fee_amount),
-            "الرسوم على العميل": p.fee_on_customer ? "نعم" : "لا",
-            "رقم المرجع": p.reference_number ?? "",
-            "تحويل من": p.transfer_from_account ?? "",
-            "تحويل إلى": p.transfer_to_account ?? "",
-            "المستلم": p.received_by_name ?? "",
-            "ملغي": p.voided_at ? "نعم" : "لا",
-            "سبب الإلغاء": p.void_reason ?? "",
-          };
-        }),
-      });
-
-      // ---------- 6. المخزون تفصيلي ----------
-      sheets.push({
-        name: "المخزون (تفصيلي)",
-        rows: (all.products ?? []).map((p) => {
-          const sold = (all.invoice_items ?? [])
-            .filter((it) => it.product_id === p.id)
-            .reduce((s, it) => s + num(it.net_quantity ?? it.quantity), 0);
-          return {
-            "المنتج": p.name,
-            "الكود SKU": p.sku ?? "",
-            "الفرع": branchName(p.branch_id),
-            "التصنيف": categories[p.category_id]?.name ?? "",
-            "الماركة": p.brand ?? "",
-            "الموديل": p.model ?? "",
-            "اللون": p.color ?? "",
-            "النوع": p.product_type ?? "",
-            "السعة": p.capacity ?? "",
-            "المقاس": p.size ?? "",
-            "الخصائص": attrs(p),
-            "الكمية الحالية": num(p.quantity),
-            "حد الطلب": num(p.min_stock_level ?? p.low_stock_alert),
-            "سعر التكلفة": num(p.cost_price),
-            "سعر البيع": num(p.selling_price),
-            "سعر السوق": num(p.market_price),
-            "قيمة المخزون (تكلفة)": num(p.quantity) * num(p.cost_price),
-            "قيمة المخزون (بيع)": num(p.quantity) * num(p.selling_price),
-            "هامش الربح للقطعة": num(p.selling_price) - num(p.cost_price),
-            "إجمالي المباع": sold,
-            "مؤرشف": p.archived_at ? "نعم" : "لا",
-            "تاريخ الإضافة": fmtDate(p.created_at),
-          };
-        }),
-      });
-
-      // ---------- 7. المرتجعات ----------
-      const returnsMap = map(all.returns);
-      sheets.push({
-        name: "المرتجعات (تفصيلي)",
-        rows: (all.return_items ?? []).map((ri) => {
-          const r = returnsMap[ri.return_id] ?? {};
-          const v = invoices[r.invoice_id] ?? {};
-          const p = products[ri.product_id] ?? {};
-          return {
-            "رقم المرتجع": r.return_number ?? "",
-            "التاريخ": fmtDate(r.created_at),
-            "رقم الفاتورة": v.invoice_number ?? "",
-            "الفرع": branchName(r.branch_id),
-            "العميل": contacts[v.contact_id]?.name ?? "",
-            "المنتج": p.name ?? "",
-            "الخصائص": attrs({ ...p, ...ri }),
-            "الكمية": num(ri.quantity),
-            "قيمة الاسترجاع": num(ri.refund),
-            "إجمالي المرتجع": num(r.total_refund),
-            "طريقة الاسترجاع": r.refund_method ?? "",
-            "الحالة": r.status ?? "",
-            "السبب": r.reason ?? "",
-          };
-        }),
-      });
-
-      // ---------- 8. الخزينة ----------
-      sheets.push({
-        name: "الخزينة (تفصيلي)",
-        rows: (all.treasury ?? []).map((t) => ({
-          "التاريخ": fmtDate(t.created_at),
-          "الفرع": branchName(t.branch_id),
-          "النوع": t.type === "in" ? "وارد" : "منصرف",
-          "التصنيف": t.category ?? "",
-          "المبلغ": num(t.amount),
-          "طريقة الدفع": t.payment_method ?? "",
-          "رقم المرجع": t.reference_number ?? "",
-          "تحويل من": t.transfer_from_account ?? "",
-          "تحويل إلى": t.transfer_to_account ?? "",
-          "رسوم": t.is_fee ? "نعم" : "لا",
-          "البيان": t.description ?? "",
-        })),
-      });
-
-      // ---------- 9. الأقساط ----------
-      const plans = map(all.payment_plans);
-      sheets.push({
-        name: "الأقساط (تفصيلي)",
-        rows: (all.payment_installments ?? []).map((ins) => {
-          const pl = plans[ins.payment_plan_id] ?? {};
-          const v = invoices[pl.invoice_id] ?? {};
-          return {
-            "رقم الفاتورة": v.invoice_number ?? "",
-            "الفرع": branchName(v.branch_id ?? pl.branch_id),
-            "العميل": contacts[v.contact_id ?? pl.contact_id]?.name ?? "",
-            "رقم القسط": ins.installment_number,
-            "تاريخ الاستحقاق": ins.due_date,
-            "المبلغ": num(ins.amount),
-            "المدفوع": num(ins.paid_amount),
-            "المتبقي": num(ins.amount) - num(ins.paid_amount),
-            "الحالة": ins.status,
-            "تاريخ السداد": fmtDate(ins.paid_at),
-            "ملاحظات": ins.notes ?? "",
-          };
-        }),
-      });
-
-      // ---------- 10. العملاء ----------
-      sheets.push({
-        name: "العملاء (تفصيلي)",
-        rows: (all.contacts ?? []).map((c) => {
-          const inv = (all.invoices ?? []).filter((v) => v.contact_id === c.id && v.status !== "cancelled");
-          const sales = inv.reduce((s, v) => s + num(v.total), 0);
-          const paid = inv.reduce((s, v) => s + num(paidByInvoice[v.id]), 0);
-          return {
-            "الاسم": c.name,
-            "النوع": c.type,
-            "التليفون": c.phone ?? "",
-            "الفرع": branchName(c.branch_id),
-            "العنوان": c.address ?? "",
-            "عدد الفواتير": inv.length,
-            "إجمالي التعامل": sales,
-            "المدفوع": paid,
-            "المتبقي": sales - paid,
-            "رصيد دائن": num(c.credit_balance),
-            "رصيد افتتاحي": num(c.opening_balance),
-            "أول تعامل": fmtDate(c.created_at),
-            "ملاحظات": c.notes ?? "",
-          };
-        }),
-      });
-
-      // ---------- 11. الموظفين ----------
-      sheets.push({
-        name: "الموظفين (تفصيلي)",
-        rows: (all.employees ?? []).map((e) => ({
-          "الاسم": e.name,
-          "الوظيفة": e.job_title ?? "",
-          "الدور": e.role ?? "",
-          "الفرع": branchName(e.branch_id),
-          "التليفون": e.phone ?? "",
-          "الإيميل": e.email ?? "",
-          "المرتب الأساسي": num(e.base_salary),
-          "تاريخ التعيين": e.hire_date ?? "",
-          "نشط": e.is_active ? "نعم" : "لا",
-          "له حساب دخول": e.has_system_access ? "نعم" : "لا",
-        })),
-      });
-
-      // ---------- build workbook ----------
-      setProgress("جاري بناء ملف Excel...");
-      const wb = XLSX.utils.book_new();
-      const usedNames = new Set<string>();
-      const addSheet = (name: string, rows: any[]) => {
-        let safe = name.slice(0, 31).replace(/[:\\/?*[\]]/g, " ");
-        let n = 1;
-        while (usedNames.has(safe)) safe = `${name.slice(0, 28)}_${++n}`;
-        usedNames.add(safe);
-        const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ "لا توجد بيانات": "" }]);
-        const keys = Object.keys(rows[0] ?? { "لا توجد بيانات": "" });
-        ws["!cols"] = keys.map((k) => ({
-          wch: Math.min(40, Math.max(12, k.length + 4)),
-        }));
-        ws["!autofilter"] = { ref: ws["!ref"] as string };
-        ws["!freeze"] = { xSplit: "0", ySplit: "1" } as any;
-        XLSX.utils.book_append_sheet(wb, ws, safe);
-      };
-
-      for (const s of sheets) addSheet(s.name, s.rows);
-      for (const t of TABLES) {
-        addSheet(`خام-${t.label}`, all[t.key] ?? []);
-        all[t.key] = []; // تفريغ الذاكرة بعد كتابة كل شيت
-      }
-
-
-      XLSX.writeFile(wb, `nizam-full-export-${stamp}.xlsx`);
-      toast.success(`تم التصدير: ${sheets.length} تقرير تفصيلي + ${TABLES.length} جدول خام`);
+      const bErr = await edgeErrorMessage(error);
+      if (bErr) throw new Error(bErr);
+      setInspectResult(data);
+      toast.success("تم فحص محتوى الأرشيف");
     } catch (e: any) {
-      toast.error(e.message ?? "خطأ في التصدير");
+      toast.error(e.message ?? "فشل الفحص");
     } finally {
-      setExporting(false);
-      setProgress("");
+      setInspecting(null);
+    }
+  };
+
+  const runRestore = async () => {
+    if (confirmText.trim() !== CONFIRM_PHRASE) return toast.error("نص التأكيد غير مطابق");
+    setRestoring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("restore-system-backup", {
+        body: { backup_id: restoreRow.id, confirm: CONFIRM_PHRASE },
+      });
+      const bErr = await edgeErrorMessage(error);
+      if (bErr) throw new Error(bErr);
+      toast.success("تمت استعادة النسخة بالكامل");
+      setInspectResult(data);
+      setRestoreRow(null);
+      setConfirmText("");
+    } catch (e: any) {
+      toast.error(e.message ?? "فشلت الاستعادة — لم يتم تغيير أي بيانات");
+    } finally {
+      setRestoring(false);
     }
   };
 
   return (
-    <div className="card-elevated p-6 space-y-4 max-w-2xl mx-auto">
-      <div className="flex items-start gap-3">
-        <DatabaseBackup className="w-6 h-6 text-primary shrink-0 mt-0.5" />
-        <div>
-          <h2 className="font-bold">نسخة احتياطية شاملة لكل بيانات الشركة</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            ملف Excel فيه تقارير تفصيلية جاهزة للتدقيق (فواتير، أصناف، مدفوعات، مخزون، خزينة، أقساط، عملاء، موظفين)
-            بالإضافة لكل الجداول الخام لكل الفروع.
+    <div className="space-y-4" dir="rtl">
+      {/* ---------------- تشغيل النسخ ---------------- */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <DatabaseBackup className="h-5 w-5 text-primary" />
+            النسخة الاحتياطية الشاملة
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            تُبنى النسخة بالكامل على السيرفر وتشمل كل جداول الشركة (بما فيها الأرشيف التاريخي وسجلات المالك)
+            بالإضافة إلى ملفات الصور والمرفقات، داخل أرشيف مضغوط واحد. لا يتم تحميل أي بيانات على جهازك أثناء التجهيز.
           </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Button onClick={() => exportAll("xlsx")} disabled={exporting} className="gap-2" size="lg">
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          تصدير Excel تفصيلي
-        </Button>
-        <Button onClick={() => exportAll("json")} disabled={exporting} variant="outline" className="gap-2" size="lg">
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          تصدير JSON (للمطورين)
-        </Button>
-      </div>
-
-      {progress && <p className="text-sm text-muted-foreground text-center">{progress}</p>}
-
-      <div className="text-xs text-muted-foreground bg-surface-2 p-3 rounded">
-        <b>محتوى ملف الإكسيل:</b>
-        <ul className="list-disc pr-5 mt-1 space-y-1">
-          <li>نظرة عامة + ملخص لكل فرع (مبيعات، محصّل، متبقي، خزينة، مخزون).</li>
-          <li>الفواتير سطر بسطر مع التكلفة والربح، وأصناف الفواتير بكل الخصائص (ماركة/موديل/لون/سعة/مقاس).</li>
-          <li>المدفوعات، المرتجعات، الخزينة، الأقساط، العملاء، الموظفين — كلها تفصيلية.</li>
-          <li>وكمان {TABLES.length} جدول خام (شيت لكل جدول) للتدقيق الكامل.</li>
-        </ul>
-      </div>
-
-      {/* Scheduled (server-side) backups */}
-      <div className="border-t pt-4 mt-2 space-y-3">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="font-bold flex items-center gap-2"><Clock className="w-4 h-4" /> النسخ التلقائية المجدولة</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              تعمل تلقائياً كل جمعة 3:00 صباحاً وتخزّن على السيرفر (آخر 12 نسخة).
-            </p>
-          </div>
-          <Button size="sm" variant="outline" onClick={runScheduledNow} disabled={runningServer} className="gap-2">
-            {runningServer ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-            تشغيل الآن
+          <Button onClick={runBackupNow} disabled={runningServer} className="gap-2">
+            {runningServer ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+            تشغيل نسخة احتياطية الآن
           </Button>
-        </div>
+        </CardContent>
+      </Card>
 
-        {history.length === 0 ? (
-          <div className="text-xs text-muted-foreground text-center py-4">لا توجد نسخ بعد — اضغط "تشغيل الآن" لأول نسخة.</div>
-        ) : (
-          <div className="border rounded divide-y">
-            {history.map((h) => (
-              <div key={h.id} className="flex items-center justify-between gap-2 p-2 text-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                  {h.status === "success"
-                    ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                    : <XCircle className="w-4 h-4 text-destructive shrink-0" />}
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{h.filename}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDateTime(h.created_at)} • {(Number(h.size_bytes) / 1024).toFixed(1)} KB
-                    </div>
+      {/* ---------------- Google Drive ---------------- */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CloudUpload className="h-5 w-5 text-primary" />
+            المزامنة مع Google Drive
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            يتم رفع نفس الملف <span className="font-mono">AL_SHOROUK_ERP_MASTER_BACKUP.tar.gz</span> وتحديثه في مكانه
+            في كل مرة، بدل إنشاء ملفات مكرّرة تستهلك مساحة الحساب.
+          </p>
+          <div className="grid gap-2 sm:max-w-md">
+            <Label htmlFor="folder">معرّف مجلد Google Drive (اختياري)</Label>
+            <Input
+              id="folder"
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+              placeholder="مثال: 1AbCdEfGhIjKlMnOpQrStUvWxYz"
+              dir="ltr"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={!!settings?.drive_connected}
+                disabled={savingDrive}
+                onCheckedChange={(v) => saveDrive(v)}
+              />
+              <span className="text-sm">تفعيل المزامنة التلقائية</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => saveDrive(!!settings?.drive_connected)} disabled={savingDrive}>
+              {savingDrive ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ الإعدادات"}
+            </Button>
+          </div>
+          <div className="text-xs text-muted-foreground space-y-1">
+            {settings?.last_synced_at && <div>آخر مزامنة: {formatDateTime(settings.last_synced_at)}</div>}
+            {settings?.drive_file_id && <div>معرّف الملف على Drive: <span className="font-mono">{settings.drive_file_id}</span></div>}
+            {settings?.last_error && <div className="text-destructive">آخر خطأ: {settings.last_error}</div>}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ---------------- السجل ---------------- */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">سجل النسخ الاحتياطية</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {history.length === 0 && <p className="text-sm text-muted-foreground">لا توجد نسخ بعد.</p>}
+          {history.map((row) => (
+            <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+              <div className="flex items-center gap-2 min-w-0">
+                {row.status === "success"
+                  ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{row.filename}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDateTime(row.created_at)}
+                    {row.size_bytes ? ` • ${(row.size_bytes / (1024 * 1024)).toFixed(1)} MB` : ""}
+                    {row.table_counts ? ` • ${Object.keys(row.table_counts).length} جدول` : ""}
                   </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {h.status === "success" && (
-                    <Button size="sm" variant="ghost" onClick={() => downloadBackup(h)} className="gap-1">
-                      <Download className="w-3 h-3" /> تنزيل
-                    </Button>
-                  )}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="ghost" className="gap-1 text-destructive hover:text-destructive" disabled={deletingId === h.id}>
-                        {deletingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                        حذف
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>حذف النسخة الاحتياطية؟</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          هيتم حذف الملف «{h.filename}» نهائياً من السيرفر ومش هينفع ترجعه.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteBackup(h)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          حذف نهائي
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {row.error && <div className="text-xs text-destructive">{row.error}</div>}
                 </div>
               </div>
-            ))}
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => inspectBackup(row)} disabled={inspecting === row.id || row.status !== "success"}>
+                  {inspecting === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => downloadBackup(row)} disabled={!row.storage_path}>
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  className="text-amber-600"
+                  onClick={() => { setRestoreRow(row); setConfirmText(""); }}
+                  disabled={row.status !== "success"}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-destructive" disabled={deletingId === row.id}>
+                      {deletingId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>حذف النسخة الاحتياطية؟</AlertDialogTitle>
+                      <AlertDialogDescription>سيتم حذف الملف نهائياً ولا يمكن التراجع.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteBackup(row)}>حذف</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* ---------------- نتيجة الفحص / الاستعادة ---------------- */}
+      {inspectResult && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">نتيجة الفحص</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm space-y-1">
+            {"total_rows" in inspectResult && (
+              <div>إجمالي السجلات داخل الأرشيف: {Number(inspectResult.total_rows).toLocaleString("en-US")}</div>
+            )}
+            {"tables" in inspectResult && <div>عدد الجداول: {inspectResult.tables}</div>}
+            {"media_files" in inspectResult && <div>ملفات الوسائط: {inspectResult.media_files}</div>}
+            {inspectResult.verification && (
+              <div className="pt-2">
+                {Object.entries(inspectResult.verification).map(([k, v]) => (
+                  <div key={k}>{k}: {String(v)}</div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ---------------- نافذة الاستعادة ---------------- */}
+      <Dialog open={!!restoreRow} onOpenChange={(o) => { if (!o) { setRestoreRow(null); setConfirmText(""); } }}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" /> استعادة النظام من نسخة احتياطية
+            </DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              سيتم استبدال كل بيانات الشركة الحالية بمحتوى الملف <span className="font-medium">{restoreRow?.filename}</span>.
+              تتم العملية داخل معاملة واحدة: إما تنجح بالكامل أو يتم التراجع عنها بالكامل دون فقدان أي بيانات.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>اكتب النص التالي للتأكيد:</Label>
+            <div className="rounded bg-muted p-2 text-sm">{CONFIRM_PHRASE}</div>
+            <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="اكتب نص التأكيد هنا" />
           </div>
-        )}
-      </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRestoreRow(null)} disabled={restoring}>إلغاء</Button>
+            <Button
+              variant="destructive"
+              onClick={runRestore}
+              disabled={restoring || confirmText.trim() !== CONFIRM_PHRASE}
+            >
+              {restoring ? <Loader2 className="h-4 w-4 animate-spin ms-2" /> : null}
+              تنفيذ الاستعادة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
