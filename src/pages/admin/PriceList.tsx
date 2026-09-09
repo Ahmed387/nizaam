@@ -737,6 +737,17 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/30">جديد: {newCount}</Badge>
                 <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">تغير سعر: {changedCount}</Badge>
                 <Badge variant="outline">بدون تغيير: {sameCount}</Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    modelCount === parsedDiff.length
+                      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                      : "bg-orange-500/10 text-orange-700 border-orange-500/30"
+                  )}
+                >
+                  تم التعرف على موديل {modelCount} من إجمالي {parsedDiff.length} صنف
+                </Badge>
+
               </div>
               <p className="text-xs text-muted-foreground">يمكنك تعديل السعر الجديد لأي صنف قبل الحفظ بالضغط على الخانة.</p>
               <div className="flex-1 overflow-auto border rounded-lg">
