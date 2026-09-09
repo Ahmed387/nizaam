@@ -68,7 +68,14 @@ export function parseNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Ordered by specificity: bracketed codes, slash-prefixed codes, leading hybrid codes,
+// trailing dash codes, then the legacy embedded/numeric patterns (kept for Toshiba/Midea).
 const MODEL_PATTERNS: RegExp[] = [
+  /\(([A-Z0-9/\-]{4,})\)/i,                          // (ZCG622A6XB)
+  /\[([A-Z0-9/\-]{4,})\]/i,                          // [ZCG94396X]
+  /(?:^|\s)\/([A-Z0-9/\-]{3,})/i,                    // /KH69015
+  /^([A-Z0-9]{1,6}[/\-][A-Z0-9]{1,8}|[A-Z]{1,4}\d{2,5}[A-Z0-9]*)\b/i, // 90FC9/1, S6400, HF18
+  /-\s*([A-Z0-9]{2,}[A-Z0-9\-]*)\s*$/i,              // ... - 2G1664245
   /\b[A-Z]{1,5}[-_/]?[A-Z0-9]*\d[A-Z0-9-]{2,}\b/,   // GR-RT468WE, NF321, WM-8600A
   /\b\d{4,6}\b/,                                     // 8600 / 9600
 ];
@@ -78,13 +85,12 @@ export function extractModelFromName(name: string): string | undefined {
   const s = normalizeArabicText(name);
   for (const re of MODEL_PATTERNS) {
     const m = s.match(re);
-    if (m?.[0]) {
-      const v = m[0].trim();
-      if (v.length >= 3) return v;
-    }
+    const v = (m?.[1] ?? m?.[0] ?? "").trim().replace(/^[([]|[)\]]$/g, "");
+    if (v.length >= 3) return v;
   }
   return undefined;
 }
+
 
 export type NormalizedPriceRow = {
   product_name: string;

@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { confirmAlert } from "@/components/ConfirmDialog";
-import { normalizeSheetRow, decodeTextFile } from "@/lib/priceListColumns";
+import { normalizeSheetRow, decodeTextFile, extractModelFromName } from "@/lib/priceListColumns";
 
 type Source = {
   id: string;
@@ -346,11 +346,18 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
           .filter((p) => p.product_name && p.cost_price > 0);
       }
 
+      // Unified safety net: fill any empty model from the product name (PDF + Excel paths alike)
+      parsed = parsed.map((p) => ({
+        ...p,
+        model_code: String(p.model_code ?? "").trim() || extractModelFromName(String(p.product_name ?? "")) || undefined,
+      }));
+
       if (!parsed.length) {
         toast.error("لم يتم استخراج أي منتج من الملف");
         setUploadingFile(false);
         return;
       }
+
 
       // Build diff
       const sourceItems = items.filter((i) => i.source_id === currentSource.id);
@@ -396,6 +403,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   const newCount = parsedDiff?.filter((d) => d.status === "new").length ?? 0;
   const changedCount = parsedDiff?.filter((d) => d.status === "changed").length ?? 0;
   const sameCount = parsedDiff?.filter((d) => d.status === "same").length ?? 0;
+  const modelCount = parsedDiff?.filter((d) => String(d.parsed.model_code ?? "").trim()).length ?? 0;
+
 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
@@ -728,6 +737,17 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                 <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/30">جديد: {newCount}</Badge>
                 <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">تغير سعر: {changedCount}</Badge>
                 <Badge variant="outline">بدون تغيير: {sameCount}</Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    modelCount === parsedDiff.length
+                      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                      : "bg-orange-500/10 text-orange-700 border-orange-500/30"
+                  )}
+                >
+                  تم التعرف على موديل {modelCount} من إجمالي {parsedDiff.length} صنف
+                </Badge>
+
               </div>
               <p className="text-xs text-muted-foreground">يمكنك تعديل السعر الجديد لأي صنف قبل الحفظ بالضغط على الخانة.</p>
               <div className="flex-1 overflow-auto border rounded-lg">
@@ -752,7 +772,24 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
                           {d.status === "same" && <Badge variant="secondary">ثابت</Badge>}
                         </TableCell>
                         <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }}>{d.parsed.product_name}</TableCell>
-                        <TableCell dir="ltr" style={{ unicodeBidi: "plaintext", whiteSpace: "pre-wrap", textAlign: "start" }} className="text-sm text-muted-foreground">{d.parsed.model_code ?? "—"}</TableCell>
+                        <TableCell className={cn("text-sm", !String(d.parsed.model_code ?? "").trim() && "bg-orange-500/10")}>
+                          <Input
+                            dir="ltr"
+                            className="h-8 w-32"
+                            placeholder="بدون موديل"
+                            defaultValue={d.parsed.model_code ?? ""}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              setParsedDiff((prev) => {
+                                if (!prev) return prev;
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], parsed: { ...next[idx].parsed, model_code: v || undefined } };
+                                return next;
+                              });
+                            }}
+                          />
+                        </TableCell>
+
                         <TableCell>{d.existing ? formatEGP(d.existing.cost_price) : "—"}</TableCell>
                         <TableCell>
                           <Input

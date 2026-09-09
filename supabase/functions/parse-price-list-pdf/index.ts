@@ -24,7 +24,71 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+// ---- Additive, supplier-specific focus hints (never removes generic rules) ----
+function brandHints(supplier: string): string {
+  const s = (supplier ?? "").toUpperCase();
+  const hints: string[] = [];
+  if (s.includes("KIRIAZI") || supplier.includes("كريازي")) {
+    hints.push(
+      "تنبيه خاص لكريازي: عمود الموديل يحتوي سلاشات لاتينية وأرقاماً مدمجة؛ وفي البوتاجازات والسخانات يقع الموديل غالباً في الكلمة الأولى قبل اسم الصنف (مثل 90FC9/1 أو KH10/1AD). استخرجها بدقة في حقل model_code."
+    );
+  }
+  if (s.includes("ZANUSSI") || supplier.includes("زانوسي")) {
+    hints.push(
+      "تنبيه خاص لزانوسي: الصفحة تتكون من عدة جداول متجاورة؛ عمود 'كود' الرقمي (مثل 1019، 409، 573) يُعتبر هو model_code في جداول السخانات والثلاجات، بينما الأكواد بين أقواس مثل (ZCG622A6XB) هي الموديل في البوتاجازات والأفران. لا تترك model_code فارغاً."
+    );
+  }
+  return hints.length ? `\nتوجيهات إضافية خاصة بالمورد:\n- ${hints.join("\n- ")}\n` : "";
+}
+
+// ---- Unified model fallback (mirror of src/lib/priceListColumns.ts) ----
+const AR_DIGITS: Record<string, string> = {
+  "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+  "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+};
+
+function normalizeArabicText(input: unknown): string {
+  let s = String(input ?? "");
+  if (!s) return "";
+  try { s = s.normalize("NFKC"); } catch { /* ignore */ }
+  s = s.replace(/[٠-٩۰-۹]/g, (d) => AR_DIGITS[d] ?? d);
+  s = s.replace(/[\u0640]/g, "");
+  s = s.replace(/[\u064B-\u0652\u0670]/g, "");
+  s = s.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+const MODEL_PATTERNS: RegExp[] = [
+  /\(([A-Z0-9/\-]{4,})\)/i,
+  /\[([A-Z0-9/\-]{4,})\]/i,
+  /(?:^|\s)\/([A-Z0-9/\-]{3,})/i,
+  /^([A-Z0-9]{1,6}[/\-][A-Z0-9]{1,8}|[A-Z]{1,4}\d{2,5}[A-Z0-9]*)\b/i,
+  /-\s*([A-Z0-9]{2,}[A-Z0-9\-]*)\s*$/i,
+  /\b[A-Z]{1,5}[-_/]?[A-Z0-9]*\d[A-Z0-9-]{2,}\b/,
+  /\b\d{4,6}\b/,
+];
+
+function extractModelFromName(name: string): string | undefined {
+  const s = normalizeArabicText(name);
+  for (const re of MODEL_PATTERNS) {
+    const m = s.match(re);
+    const v = (m?.[1] ?? m?.[0] ?? "").trim().replace(/^[([]|[)\]]$/g, "");
+    if (v.length >= 3) return v;
+  }
+  return undefined;
+}
+
+// Heuristic: many short lines carrying 3+ separate price-like numbers indicates adjacent tables.
+function looksMultiColumn(text: string): boolean {
+  const lines = (text ?? "").split("\n").map((l) => l.trim()).filter((l) => l.length > 10);
+  if (lines.length < 15) return false;
+  const dense = lines.filter((l) => (l.match(/\d{3,6}(?:[.,]\d+)?/g) ?? []).length >= 4).length;
+  return dense / lines.length > 0.35;
+}
+
 const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانات قوائم أسعار الموردين.
+
+
 المورد: ${supplier}
 
 قواعد صارمة جداً — اتبعها حرفياً:
@@ -37,9 +101,17 @@ const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانا�
    - لو فيه عمود مستقل للموديل/الطراز/الكود: انقله كما هو.
    - لو مفيش عمود مستقل والموديل مدمج داخل اسم المنتج (مثل GR-RT468WE أو أرقام موديل 8600 / 9600):
      استخرج كود الموديل وضعه في model_code بدقة، مع إبقاء الاسم كما هو أو تجريده من الكود.
-   - ممنوع اختراع كود غير موجود في الوثيقة.
+   - حالات إضافية إلزامية لاستخراج model_code:
+     * (أ) عمود مستقل أو مسمى "كود": اقرأ الموديل من عمود (الموديل / الطراز / كود / Code / Item Code).
+     * (ب) كود محاط بأقواس مثل (ZCG622A6XB) أو [ZCG94396X]: استخرجه كموديل مجرداً من الأقواس.
+     * (ج) كود يسبق اسم الصنف مثل "90FC9/1 بوتاجاز..." أو "S6400 بوتاجاز..." أو "HF18 مروحة...": الكود هو الموديل.
+     * (د) أكواد فيها شرطة مائلة مثل /KH69015 أو 15/KH690LN أو /E4702 أو KH282/1 LD: تُستخرج بالكامل كموديل نقي.
+     * (هـ) كود في نهاية الاسم بعد شرطة مثل "- 2G1664245" أو "- ZQENFIX1": يُستخرج كموديل.
+   - ممنوع اختراع كود غير موجود في الوثيقة، وممنوع ترك model_code فارغاً طالما يوجد كود في السطر.
 3. لا تخلط بين صفوف مختلفة. كل صف منتج مستقل بذاته.
 4. تجاهل الرؤوس والتذييلات وأسطر العناوين والصفوف الفارغة، لكن لا تتجاهل أي منتج حقيقي.
+
+
 5. category: اختر الأنسب من (ثلاجات، غسالات، تكييف، بوتاجازات، مراوح، ميكروويف، ديب فريزر، مبردات هواء) أو اتركها فارغة لو غير واضحة.
 6. cost_price: السعر الأساسي للشراء من المورد — رقم فقط بدون عملة أو فواصل.
 7. suggested_sell_price: ابحث عن أي عمود لسعر البيع بأي مسمى:
@@ -47,7 +119,9 @@ const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانا�
    لا تضع 0 إلا لو الوثيقة خالية تماماً من أي سعر بيع.
 8. اكتب النصوص العربية بحروف عربية قياسية سليمة، وممنوع إخراج رموز مشوهة أو أشكال حروف غير قياسية.
 
+${brandHints(supplier)}
 ارجع البيانات كما هي تماماً. الأمانة في النقل أهم من أي تنظيم.`;
+
 
 // ---- Text-quality inspector: detect mojibake / broken CMap output ----
 function textQuality(raw: string) {
@@ -161,7 +235,11 @@ Deno.serve(async (req) => {
 
     // Decide path: enough text AND clean text quality, otherwise force VISION mode
     const quality = textQuality(extractedText);
-    const useText = extractedText.length > 200 && !quality.corrupt;
+    // Multi-column / adjacent-tables layouts (e.g. Zanussi) scramble in raw text mode → force VISION.
+    const multiColumn =
+      /ZANUSSI/i.test(supplier) || supplier.includes("زانوسي") || looksMultiColumn(extractedText);
+    const useText = extractedText.length > 200 && !quality.corrupt && !multiColumn;
+
     console.log(`[parse] textQuality reason=${quality.reason} ratio=${quality.ratio.toFixed(3)} chars=${quality.total}`);
     const messages = useText
       ? [
@@ -207,10 +285,17 @@ Deno.serve(async (req) => {
     if (!toolCall) return json({ error: "لم يتم استخراج أي بيانات من الملف" }, 422);
 
     const args = JSON.parse(toolCall.function.arguments);
-    const products = args.products ?? [];
-    console.log(`[parse] extracted ${products.length} products | ai=${Date.now() - tAI}ms total=${Date.now() - t0}ms`);
+    const raw = args.products ?? [];
+    // Safety net: fill any empty model_code from the product name (same logic as the Excel path).
+    const products = raw.map((p: any) => ({
+      ...p,
+      model_code: String(p?.model_code ?? "").trim() || extractModelFromName(String(p?.product_name ?? "")) || "",
+    }));
+    const withModel = products.filter((p: any) => p.model_code).length;
+    console.log(`[parse] extracted ${products.length} products | withModel=${withModel} | ai=${Date.now() - tAI}ms total=${Date.now() - t0}ms`);
 
     return json({ products, mode: useText ? "text" : "vision" });
+
   } catch (e) {
     console.error("parse-price-list-pdf error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
