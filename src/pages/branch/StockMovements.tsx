@@ -215,7 +215,7 @@ export default function StockMovements() {
           ? ` (مرسل ${sent} / مستلم ${actualQty})` : "";
         if (t.from_branch_id === branchId) {
           list.push({
-            date: t.created_at,
+            date: t.confirmed_at ?? t.created_at,
             type: "نقل صادر",
             qty: -actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -225,7 +225,7 @@ export default function StockMovements() {
           });
         } else if (t.to_branch_id === branchId) {
           list.push({
-            date: t.created_at,
+            date: t.confirmed_at ?? t.created_at,
             type: "نقل وارد",
             qty: actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -235,6 +235,24 @@ export default function StockMovements() {
           });
         }
       });
+
+      // تحويلات معلقة صادرة: الكمية اتخصمت من الرصيد فعلاً — بنوثقها كحركة صادر واضحة
+      let pendingTotal = 0;
+      (pendingOut ?? []).forEach((t: any) => {
+        const q = Number(t.quantity);
+        if (!q) return;
+        pendingTotal += q;
+        list.push({
+          date: t.created_at,
+          type: "نقل صادر (معلق)",
+          qty: -q,
+          reason: `${t.reason ?? "—"} — بانتظار تأكيد الاستلام`,
+          reference: "TR-PEND",
+          party: `إلى ${brMap.get(t.to_branch_id) ?? "—"}`,
+          linkTo: `/branch/${branchId}/transfers`,
+        });
+      });
+      setPendingOutQty(pendingTotal);
 
       list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setMoves(list);
