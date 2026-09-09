@@ -403,6 +403,8 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
   const newCount = parsedDiff?.filter((d) => d.status === "new").length ?? 0;
   const changedCount = parsedDiff?.filter((d) => d.status === "changed").length ?? 0;
   const sameCount = parsedDiff?.filter((d) => d.status === "same").length ?? 0;
+  const modelCount = parsedDiff?.filter((d) => String(d.parsed.model_code ?? "").trim()).length ?? 0;
+
 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
