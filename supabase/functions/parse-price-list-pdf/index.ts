@@ -239,10 +239,17 @@ Deno.serve(async (req) => {
     if (!toolCall) return json({ error: "لم يتم استخراج أي بيانات من الملف" }, 422);
 
     const args = JSON.parse(toolCall.function.arguments);
-    const products = args.products ?? [];
-    console.log(`[parse] extracted ${products.length} products | ai=${Date.now() - tAI}ms total=${Date.now() - t0}ms`);
+    const raw = args.products ?? [];
+    // Safety net: fill any empty model_code from the product name (same logic as the Excel path).
+    const products = raw.map((p: any) => ({
+      ...p,
+      model_code: String(p?.model_code ?? "").trim() || extractModelFromName(String(p?.product_name ?? "")) || "",
+    }));
+    const withModel = products.filter((p: any) => p.model_code).length;
+    console.log(`[parse] extracted ${products.length} products | withModel=${withModel} | ai=${Date.now() - tAI}ms total=${Date.now() - t0}ms`);
 
     return json({ products, mode: useText ? "text" : "vision" });
+
   } catch (e) {
     console.error("parse-price-list-pdf error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
