@@ -146,88 +146,102 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     load();
   };
 
-  // Partial / full confirm with received quantity
-  const confirmTransfer = async (t: any, receivedOverride?: number) => {
-    const received = receivedOverride ?? Number(recvQty[t.id] ?? t.quantity);
-    if (!Number.isFinite(received) || received < 0 || received > t.quantity) {
-      return toast.error(`الكمية المستلمة يجب أن تكون بين 0 و ${t.quantity}`);
+  // ===== نافذة الاستلام الموحدة =====
+  const openReceive = (rows: any[], fromBranchId: string) => {
+    const pending = rows.filter((r) => r.status === "pending");
+    if (!pending.length) return;
+    setRecvQty(Object.fromEntries(pending.map((r) => [r.id, String(r.quantity)])));
+    setRecvRows(pending);
+    setRecvFrom(fromBranchId);
+    setRecvOpen(true);
+  };
+
+  const submitReceive = async () => {
+    for (const t of recvRows) {
+      const received = Number(recvQty[t.id] ?? t.quantity);
+      if (!Number.isFinite(received) || received < 0 || received > t.quantity) {
+        return toast.error(`${t.products?.name ?? "صنف"}: الكمية المستلمة لازم تكون بين 0 و ${t.quantity}`);
+      }
     }
-    const { data, error } = await supabase.rpc("partial_confirm_transfer" as any, {
-      p_transfer_id: t.id,
-      p_received: received,
-    });
-    if (error) return toast.error(error.message);
-    const res = (data ?? {}) as { received: number; returned: number; total: number };
-
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { received: res.received, returned: res.returned } });
-
-    const senderMgrs = await getBranchManagers(t.from_branch_id);
-    const isPartial = res.returned > 0 && res.received > 0;
-    const isNone = res.received === 0;
-    await notifyMany(senderMgrs, {
-      title: isNone ? "❌ لم يتم استلام الصنف" : isPartial ? "⚠️ استلام جزئي" : "✅ تم استلام الصنف بالكامل",
-      body: `${t.products?.name ?? "منتج"}: مستلم ${res.received} / ${res.total}${res.returned > 0 ? ` — رجع ${res.returned} لمخزنك` : ""}`,
-      type: "general",
-      link: `/branch/${t.from_branch_id}/transfers`,
-      relatedEntity: "stock_transfer", relatedEntityId: t.id,
-    });
-    toast.success(isNone ? `لم يُستلم — رجع ${res.returned} للمخزن المرسل` : isPartial ? `تم استلام ${res.received} ورجع ${res.returned} للمرسل` : "تم استلام الكمية كاملة");
-    setRecvQty((m) => { const n = { ...m }; delete n[t.id]; return n; });
+    setBusy(true);
+    let ok = 0, totalRecv = 0, totalRet = 0;
+    const lines: string[] = [];
+    for (const t of recvRows) {
+      const received = Number(recvQty[t.id] ?? t.quantity);
+      const { data, error } = await supabase.rpc("partial_confirm_transfer" as any, {
+        p_transfer_id: t.id,
+        p_received: received,
+      });
+      if (error) { toast.error(`${t.products?.name ?? "صنف"}: ${error.message}`); continue; }
+      const res = (data ?? {}) as { received: number; returned: number; total: number };
+      ok++; totalRecv += Number(res.received ?? 0); totalRet += Number(res.returned ?? 0);
+      lines.push(`• ${t.products?.name ?? "—"}: مستلم ${res.received} / ${res.total}${res.returned > 0 ? ` — رجع ${res.returned} لمخزنك` : ""}`);
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { received: res.received, returned: res.returned } });
+    }
+    if (ok) {
+      const senderMgrs = await getBranchManagers(recvFrom);
+      await notifyMany(senderMgrs, {
+        title: totalRet > 0 ? "⚠️ استلام جزئي للأصناف" : "✅ تم استلام الأصناف بالكامل",
+        body: lines.join("\n"),
+        type: "general",
+        link: `/branch/${recvFrom}/transfers`,
+        relatedEntity: "stock_transfer", relatedEntityId: recvRows[0]?.id,
+      });
+      toast.success(`تم استلام ${ok} صنف — إجمالي ${totalRecv}${totalRet > 0 ? ` ورجع ${totalRet} لمخزن الفرع المرسل` : ""}`);
+    }
+    setBusy(false);
+    setRecvOpen(false);
+    setRecvRows([]);
+    setRecvQty({});
     load();
   };
 
+  // ===== نافذة الرفض المسبب =====
+  const openReject = (rows: any[], fromBranchId: string, groupId: string | null) => {
+    const pending = rows.filter((r) => r.status === "pending");
+    if (!pending.length) return;
+    setRejRows(pending);
+    setRejFrom(fromBranchId);
+    setRejGroup(pending.length > 1 ? groupId : null);
+    setRejReason("");
+    setRejOpen(true);
+  };
 
-  const rejectTransfer = async (t: any) => {
-    if (!(await confirmAlert({ title: "رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟", description: "الكمية هترجع لمخزن الفرع المرسل.", confirmLabel: "أيوه، ارفض", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { error: rpcErr } = await supabase.rpc("reject_transfer", { p_transfer_id: t.id });
-    if (rpcErr) { toast.error(rpcErr.message); return; }
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { rejected: true } });
-
-    const senderMgrs = await getBranchManagers(t.from_branch_id);
-    await notifyMany(senderMgrs, {
-      title: "❌ تم رفض صنف وإرجاعه للمخزن",
-      body: `رُفض: ${t.products?.name ?? "منتج"} × ${t.quantity} — تم إرجاع الكمية لمخزن فرعك`,
-      type: "general",
-      link: `/branch/${t.from_branch_id}/transfers`,
-      relatedEntity: "stock_transfer", relatedEntityId: t.id,
-    });
-    toast.info("تم الرفض وإرجاع الكمية لمخزن الفرع المرسل");
+  const submitReject = async () => {
+    if (!rejReason.trim()) return toast.error("اكتب سبب الرفض أولاً");
+    setBusy(true);
+    let count = 0;
+    if (rejGroup) {
+      const { data, error } = await supabase.rpc("reject_transfer_group" as any, { p_group: rejGroup, p_reason: rejReason.trim() });
+      if (error) { setBusy(false); return toast.error(error.message); }
+      count = Number(data ?? 0);
+    } else {
+      for (const t of rejRows) {
+        const { error } = await supabase.rpc("reject_transfer" as any, { p_transfer_id: t.id, p_reason: rejReason.trim() });
+        if (error) { toast.error(`${t.products?.name ?? "صنف"}: ${error.message}`); continue; }
+        count++;
+      }
+    }
+    if (count) {
+      const list = rejRows.map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: rejRows[0]?.id, details: { rejected: count, reason: rejReason.trim() } });
+      const senderMgrs = await getBranchManagers(rejFrom);
+      await notifyMany(senderMgrs, {
+        title: `❌ تم رفض ${count} صنف — رجعت لمخزنك`,
+        body: `السبب: ${rejReason.trim()}\n${list}`,
+        type: "general",
+        link: `/branch/${rejFrom}/transfers`,
+        relatedEntity: "stock_transfer", relatedEntityId: rejRows[0]?.id,
+      });
+      toast.info(`تم رفض ${count} صنف وإرجاع الكميات لمخزن الفرع المرسل`);
+    }
+    setBusy(false);
+    setRejOpen(false);
+    setRejRows([]);
+    setRejReason("");
     load();
   };
 
-  // Group bulk actions
-  const confirmGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
-    const { data, error } = await supabase.rpc("confirm_transfer_group", { p_group: groupId });
-    if (error) return toast.error(error.message);
-    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
-    const senderMgrs = await getBranchManagers(fromBranchId);
-    await notifyMany(senderMgrs, {
-      title: `✅ تم استلام كل الأصناف (${data})`,
-      body: `الأصناف المستلمة:\n${list}`,
-      type: "general",
-      link: `/branch/${fromBranchId}/transfers`,
-      relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
-    });
-    toast.success(`تم استلام ${data} صنف`);
-    load();
-  };
-
-  const rejectGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
-    if (!(await confirmAlert({ title: "رفض كل الأصناف وإرجاع الكميات لمخزن فرعك المرسل؟", description: "الكمية هترجع لمخزن الفرع المرسل.", confirmLabel: "أيوه، ارفض", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { data, error } = await supabase.rpc("reject_transfer_group", { p_group: groupId });
-    if (error) return toast.error(error.message);
-    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
-    const senderMgrs = await getBranchManagers(fromBranchId);
-    await notifyMany(senderMgrs, {
-      title: `❌ تم رفض كل الأصناف (${data}) — رجعت للمخزن`,
-      body: `الأصناف المرفوضة وتم إرجاعها لمخزن فرعك:\n${list}`,
-      type: "general",
-      link: `/branch/${fromBranchId}/transfers`,
-      relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
-    });
-    toast.info(`تم رفض ${data} صنف وإرجاعها للمخزن`);
-    load();
-  };
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = { pending: "text-warning", confirmed: "text-success", rejected: "text-destructive" };
