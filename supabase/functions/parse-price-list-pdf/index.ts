@@ -41,7 +41,53 @@ function brandHints(supplier: string): string {
   return hints.length ? `\nتوجيهات إضافية خاصة بالمورد:\n- ${hints.join("\n- ")}\n` : "";
 }
 
+// ---- Unified model fallback (mirror of src/lib/priceListColumns.ts) ----
+const AR_DIGITS: Record<string, string> = {
+  "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+  "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+};
+
+function normalizeArabicText(input: unknown): string {
+  let s = String(input ?? "");
+  if (!s) return "";
+  try { s = s.normalize("NFKC"); } catch { /* ignore */ }
+  s = s.replace(/[٠-٩۰-۹]/g, (d) => AR_DIGITS[d] ?? d);
+  s = s.replace(/[\u0640]/g, "");
+  s = s.replace(/[\u064B-\u0652\u0670]/g, "");
+  s = s.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+const MODEL_PATTERNS: RegExp[] = [
+  /\(([A-Z0-9/\-]{4,})\)/i,
+  /\[([A-Z0-9/\-]{4,})\]/i,
+  /(?:^|\s)\/([A-Z0-9/\-]{3,})/i,
+  /^([A-Z0-9]{1,6}[/\-][A-Z0-9]{1,8}|[A-Z]{1,4}\d{2,5}[A-Z0-9]*)\b/i,
+  /-\s*([A-Z0-9]{2,}[A-Z0-9\-]*)\s*$/i,
+  /\b[A-Z]{1,5}[-_/]?[A-Z0-9]*\d[A-Z0-9-]{2,}\b/,
+  /\b\d{4,6}\b/,
+];
+
+function extractModelFromName(name: string): string | undefined {
+  const s = normalizeArabicText(name);
+  for (const re of MODEL_PATTERNS) {
+    const m = s.match(re);
+    const v = (m?.[1] ?? m?.[0] ?? "").trim().replace(/^[([]|[)\]]$/g, "");
+    if (v.length >= 3) return v;
+  }
+  return undefined;
+}
+
+// Heuristic: many short lines carrying 3+ separate price-like numbers indicates adjacent tables.
+function looksMultiColumn(text: string): boolean {
+  const lines = (text ?? "").split("\n").map((l) => l.trim()).filter((l) => l.length > 10);
+  if (lines.length < 15) return false;
+  const dense = lines.filter((l) => (l.match(/\d{3,6}(?:[.,]\d+)?/g) ?? []).length >= 4).length;
+  return dense / lines.length > 0.35;
+}
+
 const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانات قوائم أسعار الموردين.
+
 
 المورد: ${supplier}
 
