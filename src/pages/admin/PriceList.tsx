@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Plus, Upload, Trash2, Loader2, Search, X, FileUp, Pencil, Percent, CheckSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { confirmAlert } from "@/components/ConfirmDialog";
-import { normalizeSheetRow, decodeTextFile } from "@/lib/priceListColumns";
+import { normalizeSheetRow, decodeTextFile, extractModelFromName } from "@/lib/priceListColumns";
 
 type Source = {
   id: string;
