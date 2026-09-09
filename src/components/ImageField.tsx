@@ -23,8 +23,14 @@ interface Props {
   folder?: string;
   /** رفع مخصص (يُستخدم مع حاويات لها مسار خاص مثل بطاقات الموظفين) */
   uploader?: (file: File) => Promise<string>;
-  /** حذف مخصص (بديل الحذف الافتراضي من الحاوية) */
+  /** حذف مخصص كامل (ملف + تصفير الحقل) — يُستخدم عند الضغط الصريح على أيقونة الحذف */
   remover?: (value: string) => Promise<void>;
+  /** حذف الملف القديم فقط من التخزين أثناء الاستبدال (بدون تصفير أي حقل في قاعدة البيانات) */
+  fileRemover?: (value: string) => Promise<void>;
+  /** تأجيل الحذف الفعلي لحين حفظ النموذج الأب */
+  deferDelete?: boolean;
+  /** يُبلّغ الأب بالمسارات المرشحة للحذف بعد الحفظ (يعمل مع deferDelete) */
+  onPendingDelete?: (paths: string[]) => void;
   label?: string;
   hint?: string;
   /** حجم إطار المعاينة */
@@ -35,6 +41,7 @@ interface Props {
   readOnly?: boolean;
   className?: string;
 }
+
 
 const SIZES = {
   sm: "w-16 h-16",
@@ -47,7 +54,8 @@ const SIZES = {
  * (حذف الملف من التخزين وتصفير القيمة في النموذج/الجدول).
  */
 export function ImageField({
-  value, onChange, bucket = PRODUCT_BUCKET, folder = "shared", uploader, remover,
+  value, onChange, bucket = PRODUCT_BUCKET, folder = "shared", uploader, remover, fileRemover,
+  deferDelete = false, onPendingDelete,
   label = "الصورة", hint, size = "md", disabled = false, readOnly = false, className = "",
 }: Props) {
   const { isAdmin, hasRole } = useAuth() as any;
@@ -61,6 +69,13 @@ export function ImageField({
   const [confirmDel, setConfirmDel] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /** حذف الملف القديم: مؤجل للأب، أو تنظيف فوري للملف فقط (بدون تصفير أي حقل). */
+  const disposeOld = async (target: string) => {
+    if (deferDelete) { onPendingDelete?.([target]); return; }
+    if (fileRemover) { await fileRemover(target); return; }
+    await removeStorageFile(bucket, target);
+  };
+
   const doUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) return toast.error("اختر ملف صورة صالح");
     setBusy(true);
@@ -69,9 +84,9 @@ export function ImageField({
       const path = uploader ? await uploader(file) : await uploadImageToBucket(bucket, file, folder);
       onChange(path);
       toast.success(previous ? "تم استبدال الصورة" : "تم رفع الصورة");
-      // احذف الملف القديم بعد نجاح الرفع لمنع الملفات اليتيمة
+      // تنظيف الملف القديم فقط — من غير أي مساس بقيمة الحقل الجديدة
       if (previous && previous !== path) {
-        try { remover ? await remover(previous) : await removeStorageFile(bucket, previous); } catch { /* ignore */ }
+        try { await disposeOld(previous); } catch { /* ignore */ }
       }
     } catch (e: any) {
       toast.error(e?.message ?? "فشل رفع الصورة");
@@ -88,14 +103,20 @@ export function ImageField({
     setBusy(true);
     onChange(null); // اختفاء فوري من الواجهة
     try {
-      remover ? await remover(target) : await removeStorageFile(bucket, target);
-      toast.success("تم حذف الصورة نهائياً");
+      if (deferDelete) {
+        onPendingDelete?.([target]);
+        toast.success("هيتم حذف الصورة عند حفظ التعديلات");
+      } else {
+        remover ? await remover(target) : await removeStorageFile(bucket, target);
+        toast.success("تم حذف الصورة نهائياً");
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "تعذّر حذف الملف من التخزين");
     } finally {
       setBusy(false);
     }
   };
+
 
   return (
     <div className={`space-y-1.5 ${className}`} dir="rtl">

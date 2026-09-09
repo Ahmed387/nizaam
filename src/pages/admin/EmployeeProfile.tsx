@@ -1000,9 +1000,16 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
     return path;
   };
 
-  const removeSide = async (value: string, side: "front" | "back") => {
+  /** حذف الملف من التخزين فقط — بدون تصفير أي حقل في قاعدة البيانات (يُستخدم عند الاستبدال). */
+  const removeFileOnly = async (filePath: string) => {
+    if (!filePath) return;
+    await supabase.storage.from("employee-ids").remove([filePath]);
+  };
+
+  /** حذف كامل: ملف + تصفير الحقل — لا يُستدعى إلا بالضغط الصريح على أيقونة الحذف. */
+  const clearSide = async (value: string, side: "front" | "back") => {
     const col = side === "front" ? "national_id_front_url" : "national_id_back_url";
-    if (value) await supabase.storage.from("employee-ids").remove([value]);
+    await removeFileOnly(value);
     const { error } = await supabase.from("employees").update({ [col]: null } as any).eq("id", emp.id);
     if (error) throw error;
     onUpdated();
@@ -1016,7 +1023,8 @@ function IdCardSection({ emp, onUpdated }: { emp: any; onUpdated: () => void }) 
         onChange={() => onUpdated()}
         bucket="employee-ids"
         uploader={(f) => uploadSide(f, side)}
-        remover={(v) => removeSide(v, side)}
+        remover={(v) => clearSide(v, side)}
+        fileRemover={(v) => removeFileOnly(v)}
         label=""
         size="lg"
         hint="الصور محفوظة في تخزين آمن — للمدير والمسؤول فقط"

@@ -59,6 +59,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [productQuery, setProductQuery] = useState("");
   const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
   const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "confirmed" | "rejected">("ALL");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
@@ -86,8 +87,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
@@ -300,13 +301,13 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   // ما تم استلامه بالفعل — سجل تاريخي كامل (وارد + صادر) لا يتأثر بالإخفاء البصري
   const completedRows = useMemo(() => {
     const rows = [
-      ...incoming.filter((t) => t.status === "confirmed").map((t) => ({
+      ...incoming.filter((t) => t.status === "confirmed" || t.status === "rejected").map((t) => ({
         ...t,
         direction: "in" as const,
         from_name: t.from_branch?.name ?? "—",
         to_name: selfBranchName,
       })),
-      ...outgoing.filter((t) => t.status === "confirmed").map((t) => ({
+      ...outgoing.filter((t) => t.status === "confirmed" || t.status === "rejected").map((t) => ({
         ...t,
         direction: "out" as const,
         from_name: selfBranchName,
@@ -315,6 +316,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     ].sort((a, b) => String(b.confirmed_at ?? b.created_at).localeCompare(String(a.confirmed_at ?? a.created_at)));
 
     return rows.filter((r) => {
+      // 0. فلتر الحالة (الكل / مستلم / مرفوض)
+      if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
       // 1. فلتر الفرع المرسل
       if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
       // 2. فلتر الفرع المستلم
@@ -335,13 +338,13 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
       if (productQuery.trim()) {
         const prod = r.products ?? {};
-        if (!searchMatch(productQuery, prod.name, prod.sku, prod.barcode, prod.model_code, prod.brand, prod.model, prod.legacy_code)) {
+        if (!searchMatch(productQuery, prod.name, prod.sku, prod.brand, prod.model, prod.legacy_code)) {
           return false;
         }
       }
       return true;
     });
-  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, dateFrom, dateTo]);
+  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, statusFilter, dateFrom, dateTo]);
 
   const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
 
@@ -503,6 +506,21 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 </Select>
               </div>
 
+              {/* فلتر الحالة */}
+              <div className="w-full sm:w-40">
+                <Label className="text-xs mb-1.5 block text-muted-foreground">الحالة</Label>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="الكل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">الكل</SelectItem>
+                    <SelectItem value="confirmed">مستلم</SelectItem>
+                    <SelectItem value="rejected">مرفوض</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* فلتر التاريخ من / إلى */}
               <div className="w-full sm:w-auto">
                 <Label className="text-xs mb-1.5 block text-muted-foreground">من تاريخ</Label>
@@ -559,7 +577,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               </div>
 
               {/* زر إعادة ضبط الفلاتر */}
-              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || dateFrom || dateTo) && (
+              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || statusFilter !== "ALL" || dateFrom || dateTo) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -567,6 +585,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                     setProductQuery("");
                     setFromBranchFilter("ALL");
                     setToBranchFilter("ALL");
+                    setStatusFilter("ALL");
                     setDateFrom(undefined);
                     setDateTo(undefined);
                   }}
@@ -580,10 +599,10 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
 
           <DataTable
             loading={loading}
-            empty="لا توجد عمليات مستلمة بعد"
+            empty="لا توجد عمليات مستلمة أو مرفوضة بعد"
             rows={completedRows}
             columns={[
-              { key: "date", header: "تاريخ الاستلام", align: "right", render: (r: any) => <span className="text-xs">{formatDateTime(r.confirmed_at ?? r.created_at)}</span> },
+              { key: "date", header: "تاريخ الاستلام / الرفض", align: "right", render: (r: any) => <span className="text-xs">{formatDateTime(r.confirmed_at ?? r.created_at)}</span> },
               { key: "from", header: "الفرع المرسل", align: "right", render: (r: any) => r.from_name ?? "—" },
               { key: "to", header: "الفرع المستلم", align: "right", render: (r: any) => r.to_name ?? "—" },
               {
@@ -599,16 +618,24 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   <div>
                     <div className="font-medium">{r.products?.name ?? "—"}</div>
                     <div className="text-xs text-muted-foreground">
-                      {r.products?.sku ? `${r.products.sku} • ` : ""}الكمية المستلمة: {r.received_quantity ?? r.quantity}
-                      {r.received_quantity != null && r.received_quantity !== r.quantity ? ` من ${r.quantity}` : ""}
+                      {r.products?.sku ? `${r.products.sku} • ` : ""}
+                      {r.status === "rejected"
+                        ? `الكمية المرفوضة: ${r.quantity}`
+                        : `الكمية المستلمة: ${r.received_quantity ?? r.quantity}${r.received_quantity != null && r.received_quantity !== r.quantity ? ` من ${r.quantity}` : ""}`}
                     </div>
+                    {r.status === "rejected" && r.rejection_reason && (
+                      <div className="text-xs text-destructive mt-1">سبب الرفض: {r.rejection_reason}</div>
+                    )}
                   </div>
                 ),
               },
               {
-                key: "status", header: "الحالة", align: "center", render: () => (
-                  <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
-                ),
+                key: "status", header: "الحالة", align: "center", render: (r: any) =>
+                  r.status === "rejected" ? (
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-destructive/15 text-destructive border border-destructive/30">مرفوض</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
+                  ),
               },
             ]}
           />
