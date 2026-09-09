@@ -86,8 +86,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, barcode, model_code, brand, model, legacy_code)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
+      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
@@ -335,7 +335,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
       if (productQuery.trim()) {
         const prod = r.products ?? {};
-        if (!searchMatch(productQuery, prod.name, prod.sku, prod.barcode, prod.model_code, prod.brand, prod.model, prod.legacy_code)) {
+        if (!searchMatch(productQuery, prod.name, prod.sku, prod.brand, prod.model, prod.legacy_code)) {
           return false;
         }
       }
