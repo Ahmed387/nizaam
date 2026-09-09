@@ -24,7 +24,25 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+// ---- Additive, supplier-specific focus hints (never removes generic rules) ----
+function brandHints(supplier: string): string {
+  const s = (supplier ?? "").toUpperCase();
+  const hints: string[] = [];
+  if (s.includes("KIRIAZI") || supplier.includes("كريازي")) {
+    hints.push(
+      "تنبيه خاص لكريازي: عمود الموديل يحتوي سلاشات لاتينية وأرقاماً مدمجة؛ وفي البوتاجازات والسخانات يقع الموديل غالباً في الكلمة الأولى قبل اسم الصنف (مثل 90FC9/1 أو KH10/1AD). استخرجها بدقة في حقل model_code."
+    );
+  }
+  if (s.includes("ZANUSSI") || supplier.includes("زانوسي")) {
+    hints.push(
+      "تنبيه خاص لزانوسي: الصفحة تتكون من عدة جداول متجاورة؛ عمود 'كود' الرقمي (مثل 1019، 409، 573) يُعتبر هو model_code في جداول السخانات والثلاجات، بينما الأكواد بين أقواس مثل (ZCG622A6XB) هي الموديل في البوتاجازات والأفران. لا تترك model_code فارغاً."
+    );
+  }
+  return hints.length ? `\nتوجيهات إضافية خاصة بالمورد:\n- ${hints.join("\n- ")}\n` : "";
+}
+
 const SYSTEM = (supplier: string) => `أنت خبير استخراج بيانات قوائم أسعار الموردين.
+
 المورد: ${supplier}
 
 قواعد صارمة جداً — اتبعها حرفياً:
