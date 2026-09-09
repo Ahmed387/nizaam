@@ -346,11 +346,18 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
           .filter((p) => p.product_name && p.cost_price > 0);
       }
 
+      // Unified safety net: fill any empty model from the product name (PDF + Excel paths alike)
+      parsed = parsed.map((p) => ({
+        ...p,
+        model_code: String(p.model_code ?? "").trim() || extractModelFromName(String(p.product_name ?? "")) || undefined,
+      }));
+
       if (!parsed.length) {
         toast.error("لم يتم استخراج أي منتج من الملف");
         setUploadingFile(false);
         return;
       }
+
 
       // Build diff
       const sourceItems = items.filter((i) => i.source_id === currentSource.id);
