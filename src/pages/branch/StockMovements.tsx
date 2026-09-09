@@ -95,10 +95,18 @@ export default function StockMovements() {
 
       const { data: transfers } = await supabase
         .from("stock_transfers")
-        .select("id, quantity, received_quantity, status, created_at, reason, from_branch_id, to_branch_id, product_id")
+        .select("id, quantity, received_quantity, status, created_at, confirmed_at, reason, from_branch_id, to_branch_id, product_id")
         .in("product_id", productIds)
         .eq("status", "confirmed")
         .or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
+
+      // تحويلات معلقة صادرة — الكمية اتخصمت من رصيد الفرع بالفعل وبتستنى تأكيد المستلم
+      const { data: pendingOut } = await supabase
+        .from("stock_transfers")
+        .select("id, quantity, created_at, reason, to_branch_id, product_id")
+        .in("product_id", productIds)
+        .eq("status", "pending")
+        .eq("from_branch_id", branchId!);
 
       // Resolve branch names for transfer rows
       const branchIds = Array.from(new Set((transfers ?? []).flatMap((t: any) => [t.from_branch_id, t.to_branch_id])));
