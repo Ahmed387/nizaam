@@ -23,6 +23,8 @@ import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { ImageField } from "@/components/ImageField";
 import { uploadProductImage } from "@/lib/uploadImage";
+import { removeStorageFile } from "@/lib/storageImage";
+import { PRODUCT_BUCKET } from "@/lib/productImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { ProductCell } from "@/components/VariantChips";
 import { useBranchScope } from "@/lib/branchScope";
@@ -123,6 +125,26 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     }
   };
 
+  /** إغلاق التعديل بدون حفظ: نحمي الصورة القديمة ونحذف الجديدة غير المعتمدة. */
+  const cancelEdit = async () => {
+    const original = String(editOriginalImage ?? "");
+    const current = String(editing?.image ?? "");
+    setEditing(null);
+    setPendingImageDeletes([]);
+    setEditOriginalImage("");
+    if (current && current !== original) {
+      try { await removeStorageFile(PRODUCT_BUCKET, current); } catch { /* ignore */ }
+    }
+  };
+
+  const flushPendingImageDeletes = async (keep: string) => {
+    const targets = pendingImageDeletes.filter((x) => x && x !== keep);
+    setPendingImageDeletes([]);
+    for (const t of targets) {
+      try { await removeStorageFile(PRODUCT_BUCKET, t); } catch { /* ignore */ }
+    }
+  };
+
   const saveEdit = async () => {
     if (!editing) return;
     // Non-quantity fields update directly (guard only blocks quantity)
@@ -152,6 +174,8 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
       action: "UPDATE", entity: "Product", entityId: editing.id,
       details: { name: editing.name, qty: editing.quantity },
     });
+    await flushPendingImageDeletes(String(editing.image ?? ""));
+    setEditOriginalImage("");
     toast.success("تم الحفظ");
     setEditing(null);
     load();
@@ -367,7 +391,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setHistoryFor(r); }} title="تاريخ الأسعار">
                 <History className="w-3.5 h-3.5" />
               </Button>
-              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditing({ ...r }); }} title="تعديل المنتج">
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPendingImageDeletes([]); setEditOriginalImage(String(r.image ?? "")); setEditing({ ...r }); }} title="تعديل المنتج">
                 <Pencil className="w-3.5 h-3.5" />
               </Button>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r); }}>
@@ -396,7 +420,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
       </Dialog>
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) cancelEdit(); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
           <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle>تعديل: {editing?.name} <span className="text-sm text-muted-foreground mr-2">— {editing?.branch_name}</span></DialogTitle>
@@ -410,6 +434,9 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
                   folder={editing.branch_id}
                   label="صورة المنتج"
                   size="md"
+                  deferDelete
+                  onPendingDelete={(paths) => setPendingImageDeletes((prev) => [...prev, ...paths])}
+                  hint="الحذف يتم فعلياً بعد الضغط على حفظ."
                 />
               </div>
               <div className="col-span-2"><Label>الاسم</Label><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="mt-1.5" /></div>
@@ -431,7 +458,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
             </div>
           )}
           <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">
-            <Button variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+            <Button variant="outline" onClick={cancelEdit}>إلغاء</Button>
             <Button className="btn-gradient" onClick={saveEdit}>حفظ</Button>
           </DialogFooter>
         </DialogContent>
