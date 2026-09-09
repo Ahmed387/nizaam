@@ -189,7 +189,11 @@ Deno.serve(async (req) => {
 
     // Decide path: enough text AND clean text quality, otherwise force VISION mode
     const quality = textQuality(extractedText);
-    const useText = extractedText.length > 200 && !quality.corrupt;
+    // Multi-column / adjacent-tables layouts (e.g. Zanussi) scramble in raw text mode → force VISION.
+    const multiColumn =
+      /ZANUSSI/i.test(supplier) || supplier.includes("زانوسي") || looksMultiColumn(extractedText);
+    const useText = extractedText.length > 200 && !quality.corrupt && !multiColumn;
+
     console.log(`[parse] textQuality reason=${quality.reason} ratio=${quality.ratio.toFixed(3)} chars=${quality.total}`);
     const messages = useText
       ? [
