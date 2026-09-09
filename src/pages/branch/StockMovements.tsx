@@ -278,6 +278,7 @@ export default function StockMovements() {
     "نقل صادر": "bg-warning/15 text-warning",
     "نقل وارد": "bg-primary/15 text-primary",
     "رصيد افتتاحي": "bg-success/15 text-success",
+    "نقل صادر (معلق)": "bg-warning/15 text-warning",
   };
 
 
@@ -285,7 +286,7 @@ export default function StockMovements() {
     <BranchLayout backTo={`/branch/${branchId}/dashboard`} backLabel="القائمة الرئيسية">
       <PageHeader
         title={`حركة المخزون: ${product?.name ?? ""}`}
-        subtitle={product ? `الكود: ${product.sku} · الكمية الحالية: ${product.quantity}` : ""}
+        subtitle={product ? `الكود: ${product.sku} · الكمية الحالية: ${product.quantity}${pendingOutQty > 0 ? ` · محجوز لتحويلات معلقة: ${pendingOutQty}` : ""}` : ""}
         actions={
           <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory`)}>
             <ArrowRight className="w-4 h-4 ml-1" /> رجوع للمخزون
