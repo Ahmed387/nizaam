@@ -63,15 +63,7 @@ export async function currentTenantId(): Promise<string> {
  * @param folder مجلد فرعي داخل مجلد الشركة (مثلاً branchId أو "price-list")
  */
 export async function uploadProductImage(file: File, folder: string): Promise<string> {
-  const blob = await compressImage(file);
-  const ext = blob.type === "image/png" ? "png" : "jpg";
-  const tenantId = await currentTenantId();
-  const sub = (folder || "shared").replace(/^\/+|\/+$/g, "") || "shared";
-  const path = `${tenantId}/${sub}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage
-    .from("product-images")
-    .upload(path, blob, { upsert: false, contentType: blob.type });
-  if (error) throw error;
-  return path;
+  // منطق الضغط والرفع مركزي في storageImage.ts (WebP 800px / 0.8)
+  return uploadImageToBucket("product-images", file, folder);
 }
 
