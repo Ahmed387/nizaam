@@ -5693,6 +5693,7 @@ export type Database = {
           brand: string | null
           capacity: string | null
           color: string | null
+          confirmed_at: string | null
           confirmed_by: string | null
           cost_price_at_transfer: number | null
           created_at: string
@@ -5705,6 +5706,7 @@ export type Database = {
           quantity: number
           reason: string | null
           received_quantity: number | null
+          rejection_reason: string | null
           size: string | null
           status: Database["public"]["Enums"]["transfer_status"]
           tenant_id: string | null
@@ -5716,6 +5718,7 @@ export type Database = {
           brand?: string | null
           capacity?: string | null
           color?: string | null
+          confirmed_at?: string | null
           confirmed_by?: string | null
           cost_price_at_transfer?: number | null
           created_at?: string
@@ -5728,6 +5731,7 @@ export type Database = {
           quantity: number
           reason?: string | null
           received_quantity?: number | null
+          rejection_reason?: string | null
           size?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
@@ -5739,6 +5743,7 @@ export type Database = {
           brand?: string | null
           capacity?: string | null
           color?: string | null
+          confirmed_at?: string | null
           confirmed_by?: string | null
           cost_price_at_transfer?: number | null
           created_at?: string
@@ -5751,6 +5756,7 @@ export type Database = {
           quantity?: number
           reason?: string | null
           received_quantity?: number | null
+          rejection_reason?: string | null
           size?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
           tenant_id?: string | null
@@ -7950,8 +7956,13 @@ export type Database = {
         }
         Returns: Json
       }
-      reject_transfer: { Args: { p_transfer_id: string }; Returns: Json }
-      reject_transfer_group: { Args: { p_group: string }; Returns: number }
+      reject_transfer: {
+        Args: { p_reason?: string; p_transfer_id: string }
+        Returns: Json
+      }
+      reject_transfer_group:
+        | { Args: { p_group: string }; Returns: number }
+        | { Args: { p_group: string; p_reason?: string }; Returns: number }
       reject_treasury_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: undefined

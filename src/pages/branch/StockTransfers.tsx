@@ -43,6 +43,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
+  // نافذة الاستلام / الرفض الموحدة
+  const [recvOpen, setRecvOpen] = useState(false);
+  const [recvRows, setRecvRows] = useState<any[]>([]);
+  const [recvFrom, setRecvFrom] = useState<string>("");
+  const [rejOpen, setRejOpen] = useState(false);
+  const [rejRows, setRejRows] = useState<any[]>([]);
+  const [rejGroup, setRejGroup] = useState<string | null>(null);
+  const [rejFrom, setRejFrom] = useState<string>("");
+  const [rejReason, setRejReason] = useState("");
+  const [busy, setBusy] = useState(false);
   const [selfBranchName, setSelfBranchName] = useState<string>("");
   const [allBranches, setAllBranches] = useState<any[]>([]);
   // فلاتر تبويب "ما تم استلامه بالفعل"
@@ -146,88 +156,102 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     load();
   };
 
-  // Partial / full confirm with received quantity
-  const confirmTransfer = async (t: any, receivedOverride?: number) => {
-    const received = receivedOverride ?? Number(recvQty[t.id] ?? t.quantity);
-    if (!Number.isFinite(received) || received < 0 || received > t.quantity) {
-      return toast.error(`الكمية المستلمة يجب أن تكون بين 0 و ${t.quantity}`);
+  // ===== نافذة الاستلام الموحدة =====
+  const openReceive = (rows: any[], fromBranchId: string) => {
+    const pending = rows.filter((r) => r.status === "pending");
+    if (!pending.length) return;
+    setRecvQty(Object.fromEntries(pending.map((r) => [r.id, String(r.quantity)])));
+    setRecvRows(pending);
+    setRecvFrom(fromBranchId);
+    setRecvOpen(true);
+  };
+
+  const submitReceive = async () => {
+    for (const t of recvRows) {
+      const received = Number(recvQty[t.id] ?? t.quantity);
+      if (!Number.isFinite(received) || received < 0 || received > t.quantity) {
+        return toast.error(`${t.products?.name ?? "صنف"}: الكمية المستلمة لازم تكون بين 0 و ${t.quantity}`);
+      }
     }
-    const { data, error } = await supabase.rpc("partial_confirm_transfer" as any, {
-      p_transfer_id: t.id,
-      p_received: received,
-    });
-    if (error) return toast.error(error.message);
-    const res = (data ?? {}) as { received: number; returned: number; total: number };
-
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { received: res.received, returned: res.returned } });
-
-    const senderMgrs = await getBranchManagers(t.from_branch_id);
-    const isPartial = res.returned > 0 && res.received > 0;
-    const isNone = res.received === 0;
-    await notifyMany(senderMgrs, {
-      title: isNone ? "❌ لم يتم استلام الصنف" : isPartial ? "⚠️ استلام جزئي" : "✅ تم استلام الصنف بالكامل",
-      body: `${t.products?.name ?? "منتج"}: مستلم ${res.received} / ${res.total}${res.returned > 0 ? ` — رجع ${res.returned} لمخزنك` : ""}`,
-      type: "general",
-      link: `/branch/${t.from_branch_id}/transfers`,
-      relatedEntity: "stock_transfer", relatedEntityId: t.id,
-    });
-    toast.success(isNone ? `لم يُستلم — رجع ${res.returned} للمخزن المرسل` : isPartial ? `تم استلام ${res.received} ورجع ${res.returned} للمرسل` : "تم استلام الكمية كاملة");
-    setRecvQty((m) => { const n = { ...m }; delete n[t.id]; return n; });
+    setBusy(true);
+    let ok = 0, totalRecv = 0, totalRet = 0;
+    const lines: string[] = [];
+    for (const t of recvRows) {
+      const received = Number(recvQty[t.id] ?? t.quantity);
+      const { data, error } = await supabase.rpc("partial_confirm_transfer" as any, {
+        p_transfer_id: t.id,
+        p_received: received,
+      });
+      if (error) { toast.error(`${t.products?.name ?? "صنف"}: ${error.message}`); continue; }
+      const res = (data ?? {}) as { received: number; returned: number; total: number };
+      ok++; totalRecv += Number(res.received ?? 0); totalRet += Number(res.returned ?? 0);
+      lines.push(`• ${t.products?.name ?? "—"}: مستلم ${res.received} / ${res.total}${res.returned > 0 ? ` — رجع ${res.returned} لمخزنك` : ""}`);
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { received: res.received, returned: res.returned } });
+    }
+    if (ok) {
+      const senderMgrs = await getBranchManagers(recvFrom);
+      await notifyMany(senderMgrs, {
+        title: totalRet > 0 ? "⚠️ استلام جزئي للأصناف" : "✅ تم استلام الأصناف بالكامل",
+        body: lines.join("\n"),
+        type: "general",
+        link: `/branch/${recvFrom}/transfers`,
+        relatedEntity: "stock_transfer", relatedEntityId: recvRows[0]?.id,
+      });
+      toast.success(`تم استلام ${ok} صنف — إجمالي ${totalRecv}${totalRet > 0 ? ` ورجع ${totalRet} لمخزن الفرع المرسل` : ""}`);
+    }
+    setBusy(false);
+    setRecvOpen(false);
+    setRecvRows([]);
+    setRecvQty({});
     load();
   };
 
+  // ===== نافذة الرفض المسبب =====
+  const openReject = (rows: any[], fromBranchId: string, groupId: string | null) => {
+    const pending = rows.filter((r) => r.status === "pending");
+    if (!pending.length) return;
+    setRejRows(pending);
+    setRejFrom(fromBranchId);
+    setRejGroup(pending.length > 1 ? groupId : null);
+    setRejReason("");
+    setRejOpen(true);
+  };
 
-  const rejectTransfer = async (t: any) => {
-    if (!(await confirmAlert({ title: "رفض الصنف وإرجاع الكمية لمخزن الفرع المرسل؟", description: "الكمية هترجع لمخزن الفرع المرسل.", confirmLabel: "أيوه، ارفض", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { error: rpcErr } = await supabase.rpc("reject_transfer", { p_transfer_id: t.id });
-    if (rpcErr) { toast.error(rpcErr.message); return; }
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { rejected: true } });
-
-    const senderMgrs = await getBranchManagers(t.from_branch_id);
-    await notifyMany(senderMgrs, {
-      title: "❌ تم رفض صنف وإرجاعه للمخزن",
-      body: `رُفض: ${t.products?.name ?? "منتج"} × ${t.quantity} — تم إرجاع الكمية لمخزن فرعك`,
-      type: "general",
-      link: `/branch/${t.from_branch_id}/transfers`,
-      relatedEntity: "stock_transfer", relatedEntityId: t.id,
-    });
-    toast.info("تم الرفض وإرجاع الكمية لمخزن الفرع المرسل");
+  const submitReject = async () => {
+    if (!rejReason.trim()) return toast.error("اكتب سبب الرفض أولاً");
+    setBusy(true);
+    let count = 0;
+    if (rejGroup) {
+      const { data, error } = await supabase.rpc("reject_transfer_group" as any, { p_group: rejGroup, p_reason: rejReason.trim() });
+      if (error) { setBusy(false); return toast.error(error.message); }
+      count = Number(data ?? 0);
+    } else {
+      for (const t of rejRows) {
+        const { error } = await supabase.rpc("reject_transfer" as any, { p_transfer_id: t.id, p_reason: rejReason.trim() });
+        if (error) { toast.error(`${t.products?.name ?? "صنف"}: ${error.message}`); continue; }
+        count++;
+      }
+    }
+    if (count) {
+      const list = rejRows.map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: rejRows[0]?.id, details: { rejected: count, reason: rejReason.trim() } });
+      const senderMgrs = await getBranchManagers(rejFrom);
+      await notifyMany(senderMgrs, {
+        title: `❌ تم رفض ${count} صنف — رجعت لمخزنك`,
+        body: `السبب: ${rejReason.trim()}\n${list}`,
+        type: "general",
+        link: `/branch/${rejFrom}/transfers`,
+        relatedEntity: "stock_transfer", relatedEntityId: rejRows[0]?.id,
+      });
+      toast.info(`تم رفض ${count} صنف وإرجاع الكميات لمخزن الفرع المرسل`);
+    }
+    setBusy(false);
+    setRejOpen(false);
+    setRejRows([]);
+    setRejReason("");
     load();
   };
 
-  // Group bulk actions
-  const confirmGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
-    const { data, error } = await supabase.rpc("confirm_transfer_group", { p_group: groupId });
-    if (error) return toast.error(error.message);
-    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
-    const senderMgrs = await getBranchManagers(fromBranchId);
-    await notifyMany(senderMgrs, {
-      title: `✅ تم استلام كل الأصناف (${data})`,
-      body: `الأصناف المستلمة:\n${list}`,
-      type: "general",
-      link: `/branch/${fromBranchId}/transfers`,
-      relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
-    });
-    toast.success(`تم استلام ${data} صنف`);
-    load();
-  };
-
-  const rejectGroup = async (groupId: string, fromBranchId: string, rows: any[]) => {
-    if (!(await confirmAlert({ title: "رفض كل الأصناف وإرجاع الكميات لمخزن فرعك المرسل؟", description: "الكمية هترجع لمخزن الفرع المرسل.", confirmLabel: "أيوه، ارفض", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { data, error } = await supabase.rpc("reject_transfer_group", { p_group: groupId });
-    if (error) return toast.error(error.message);
-    const list = rows.filter((r) => r.status === "pending").map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
-    const senderMgrs = await getBranchManagers(fromBranchId);
-    await notifyMany(senderMgrs, {
-      title: `❌ تم رفض كل الأصناف (${data}) — رجعت للمخزن`,
-      body: `الأصناف المرفوضة وتم إرجاعها لمخزن فرعك:\n${list}`,
-      type: "general",
-      link: `/branch/${fromBranchId}/transfers`,
-      relatedEntity: "stock_transfer_group", relatedEntityId: groupId,
-    });
-    toast.info(`تم رفض ${data} صنف وإرجاعها للمخزن`);
-    load();
-  };
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = { pending: "text-warning", confirmed: "text-success", rejected: "text-destructive" };
@@ -288,7 +312,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         from_name: selfBranchName,
         to_name: t.to_branch?.name ?? "—",
       })),
-    ].sort((a, b) => String(b.updated_at ?? b.created_at).localeCompare(String(a.updated_at ?? a.created_at)));
+    ].sort((a, b) => String(b.confirmed_at ?? b.created_at).localeCompare(String(a.confirmed_at ?? a.created_at)));
 
     return rows.filter((r) => {
       // 1. فلتر الفرع المرسل
@@ -296,7 +320,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       // 2. فلتر الفرع المستلم
       if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
       // 3. فلتر التاريخ من / إلى
-      const confirmedAt = r.updated_at ?? r.created_at;
+      const confirmedAt = r.confirmed_at ?? r.created_at;
       if (confirmedAt) {
         const d = new Date(confirmedAt);
         if (dateFrom) {
@@ -353,10 +377,10 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 <div className="flex gap-2 items-center">
                   {g.groupId && g.pendingCount > 1 && (
                     <>
-                      <Button size="sm" onClick={() => confirmGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1">
+                      <Button size="sm" onClick={() => openReceive(g.rows, g.from_branch_id)} className="gap-1">
                         <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => rejectGroup(g.groupId!, g.from_branch_id, g.rows)} className="gap-1 text-destructive">
+                      <Button size="sm" variant="outline" onClick={() => openReject(g.rows, g.from_branch_id, g.groupId)} className="gap-1 text-destructive">
                         <X className="w-3 h-3" /> رفض الكل
                       </Button>
                     </>
@@ -381,15 +405,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                     <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
                     {r.status === "pending" && (
                       <div className="flex items-center gap-1">
-                        <Input
-                          type="number" min={0} max={r.quantity}
-                          value={recvQty[r.id] ?? String(r.quantity)}
-                          onChange={(e) => setRecvQty((m) => ({ ...m, [r.id]: e.target.value }))}
-                          className="w-20 h-8"
-                          title="الكمية المستلمة فعلياً"
-                        />
-                        <Button size="sm" onClick={() => confirmTransfer(r)} className="gap-1"><Check className="w-3 h-3" /> استلام</Button>
-                        <Button size="sm" variant="outline" onClick={() => rejectTransfer(r)} className="gap-1 text-destructive"><X className="w-3 h-3" /> رفض</Button>
+                        <Button size="sm" onClick={() => openReceive([r], r.from_branch_id)} className="gap-1"><Check className="w-3 h-3" /> استلام</Button>
+                        <Button size="sm" variant="outline" onClick={() => openReject([r], r.from_branch_id, null)} className="gap-1 text-destructive"><X className="w-3 h-3" /> رفض</Button>
                       </div>
                     )}
                   </div>
@@ -566,7 +583,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             empty="لا توجد عمليات مستلمة بعد"
             rows={completedRows}
             columns={[
-              { key: "date", header: "التاريخ", align: "right", render: (r: any) => <span className="text-xs">{formatDateTime(r.updated_at ?? r.created_at)}</span> },
+              { key: "date", header: "تاريخ الاستلام", align: "right", render: (r: any) => <span className="text-xs">{formatDateTime(r.confirmed_at ?? r.created_at)}</span> },
               { key: "from", header: "الفرع المرسل", align: "right", render: (r: any) => r.from_name ?? "—" },
               { key: "to", header: "الفرع المستلم", align: "right", render: (r: any) => r.to_name ?? "—" },
               {
@@ -597,6 +614,67 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
           />
         </TabsContent>
       </Tabs>
+
+      {/* نافذة تأكيد الاستلام بالكمية الفعلية */}
+      <Dialog open={recvOpen} onOpenChange={(v) => { if (!busy) { setRecvOpen(v); if (!v) { setRecvRows([]); setRecvQty({}); } } }}>
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Check className="w-5 h-5 text-success" /> تأكيد استلام البضاعة</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {recvRows.map((r) => {
+              const entered = Number(recvQty[r.id] ?? r.quantity);
+              const diff = Number(r.quantity) - (Number.isFinite(entered) ? entered : 0);
+              return (
+                <div key={r.id} className="border border-border rounded-lg p-3 space-y-2">
+                  <div className="font-bold">{r.products?.name ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground">الكمية المحوّلة: {r.quantity}</div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm shrink-0">الكمية المستلمة فعلياً</Label>
+                    <Input
+                      type="number" min={0} max={r.quantity}
+                      value={recvQty[r.id] ?? String(r.quantity)}
+                      onChange={(e) => setRecvQty((m) => ({ ...m, [r.id]: e.target.value }))}
+                      className="w-28 h-9 font-bold"
+                    />
+                  </div>
+                  {diff > 0 && (
+                    <div className="text-xs font-bold text-warning bg-warning/10 border border-warning/30 rounded-md px-2 py-1.5">
+                      هيرجع {diff} تلقائياً لرصيد الفرع المرسل كمرتجع نقل.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" disabled={busy} onClick={() => setRecvOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitReceive}>تأكيد الاستلام</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* نافذة الرفض المسبب */}
+      <Dialog open={rejOpen} onOpenChange={(v) => { if (!busy) { setRejOpen(v); if (!v) setRejRows([]); } }}>
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><X className="w-5 h-5" /> رفض البضاعة</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              هترفض {rejRows.length} صنف، والكميات هترجع لمخزن الفرع المرسل.
+            </div>
+            <div className="space-y-1 text-sm">
+              {rejRows.map((r) => <div key={r.id}>• {r.products?.name ?? "—"} × {r.quantity}</div>)}
+            </div>
+            <div>
+              <Label>سبب الرفض *</Label>
+              <Textarea rows={3} value={rejReason} onChange={(e) => setRejReason(e.target.value)} className="mt-1.5" placeholder="اكتب سبب الرفض…" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" disabled={busy} onClick={() => setRejOpen(false)}>إلغاء</Button>
+            <Button variant="destructive" disabled={busy || !rejReason.trim()} onClick={submitReject}>تأكيد الرفض</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
