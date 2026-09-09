@@ -38,6 +38,8 @@ import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { Dialog as Dlg, DialogContent as DlgContent, DialogHeader as DlgHeader, DialogTitle as DlgTitle } from "@/components/ui/dialog";
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { ImageField } from "@/components/ImageField";
+import { removeStorageFile } from "@/lib/storageImage";
+import { PRODUCT_BUCKET } from "@/lib/productImage";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -71,6 +73,8 @@ export default function Inventory() {
   const [uploading, setUploading] = useState(false);
   const [historyFor, setHistoryFor] = useState<any>(null);
   const [editAll, setEditAll] = useState<any>(null);
+  // حذف مؤجل لصور المنتج: لا يُنفَّذ إلا بعد نجاح الحفظ الفعلي
+  const [pendingImageDeletes, setPendingImageDeletes] = useState<string[]>([]);
   const [editForm, setEditForm] = useState({
     name: "", sku: "", quantity: "0", category_id: "",
     cost_price: "", selling_price: "", market_price: "",
@@ -125,6 +129,7 @@ export default function Inventory() {
   useRealtimeRefresh(["products", "categories", "stock_adjustments", "product_batches"], load);
 
   const openEditAll = (r: any) => {
+    setPendingImageDeletes([]);
     setEditAll(r);
     setEditForm({
       name: String(r.name ?? ""),
@@ -144,6 +149,26 @@ export default function Inventory() {
       brand: String(r.brand ?? ""),
       model: String(r.model ?? ""),
     });
+  };
+
+  /** إغلاق نافذة التعديل بدون حفظ: نحمي الصورة القديمة ونحذف الصورة الجديدة غير المعتمدة. */
+  const cancelEditAll = async () => {
+    const original = String(editAll?.image ?? "");
+    const current = String(editForm.image ?? "");
+    setEditAll(null);
+    setPendingImageDeletes([]);
+    if (current && current !== original) {
+      try { await removeStorageFile(PRODUCT_BUCKET, current); } catch { /* ignore */ }
+    }
+  };
+
+  /** تنفيذ الحذف المؤجل بعد نجاح الحفظ فقط. */
+  const flushPendingImageDeletes = async (keep: string) => {
+    const targets = pendingImageDeletes.filter((p) => p && p !== keep);
+    setPendingImageDeletes([]);
+    for (const t of targets) {
+      try { await removeStorageFile(PRODUCT_BUCKET, t); } catch { /* ignore */ }
+    }
   };
 
   const uploadEditImage = async (file: File) => {
@@ -253,6 +278,7 @@ export default function Inventory() {
     }
 
     setSavingEdit(false);
+    await flushPendingImageDeletes(String(editForm.image ?? ""));
     toast.success("تم حفظ تعديلات المنتج");
     setEditAll(null);
     load();
@@ -1079,7 +1105,7 @@ export default function Inventory() {
       </Dlg>
 
       {/* Unified Product Edit Form */}
-      <Dialog open={!!editAll} onOpenChange={(o) => !o && !savingEdit && setEditAll(null)}>
+      <Dialog open={!!editAll} onOpenChange={(o) => { if (!o && !savingEdit) cancelEditAll(); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden [&>button]:hidden">
           {/* Custom header bar with red-hover close */}
           <div className="relative px-5 py-4 border-b shrink-0 bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
@@ -1162,7 +1188,9 @@ export default function Inventory() {
                       folder={branchId!}
                       label="صورة المنتج"
                       size="md"
-                      hint="يتم ضغط الصورة تلقائيًا قبل الرفع."
+                      deferDelete
+                      onPendingDelete={(paths) => setPendingImageDeletes((prev) => [...prev, ...paths])}
+                      hint="يتم ضغط الصورة تلقائيًا قبل الرفع، والحذف يتم بعد حفظ التعديلات."
                     />
                   </div>
                 </section>
@@ -1261,7 +1289,7 @@ export default function Inventory() {
               <Trash2 className="w-4 h-4" /> حذف / أرشفة
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditAll(null)} disabled={savingEdit}>إلغاء</Button>
+              <Button variant="outline" onClick={cancelEditAll} disabled={savingEdit}>إلغاء</Button>
               <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>
                 {savingEdit && <Loader2 className="w-4 h-4 animate-spin ml-1" />} حفظ التعديلات
               </Button>
