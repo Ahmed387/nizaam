@@ -43,6 +43,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
+  // نافذة الاستلام / الرفض الموحدة
+  const [recvOpen, setRecvOpen] = useState(false);
+  const [recvRows, setRecvRows] = useState<any[]>([]);
+  const [recvFrom, setRecvFrom] = useState<string>("");
+  const [rejOpen, setRejOpen] = useState(false);
+  const [rejRows, setRejRows] = useState<any[]>([]);
+  const [rejGroup, setRejGroup] = useState<string | null>(null);
+  const [rejFrom, setRejFrom] = useState<string>("");
+  const [rejReason, setRejReason] = useState("");
+  const [busy, setBusy] = useState(false);
   const [selfBranchName, setSelfBranchName] = useState<string>("");
   const [allBranches, setAllBranches] = useState<any[]>([]);
   // فلاتر تبويب "ما تم استلامه بالفعل"
