@@ -15,6 +15,13 @@
       "when": 1789136592378,
       "tag": "0001_backup_fetch_page_order_by_param",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789136670910,
+      "tag": "0002_backup_table_ctid_check_rpc",
+      "breakpoints": true
     }
   ]
 }

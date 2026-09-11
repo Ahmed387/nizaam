@@ -6987,6 +6987,13 @@ export type Database = {
             }
             Returns: Json
           }
+      backup_table_ctid_check: {
+        Args: { _tables: string[] }
+        Returns: {
+          has_ctid: boolean
+          table_name: string
+        }[]
+      }
       backup_table_manifest: {
         Args: never
         Returns: {
