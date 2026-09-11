@@ -19,7 +19,7 @@ const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
 const MEDIA_BUDGET_BYTES = 250 * 1024 * 1024; // guard against Edge Function timeouts
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
-const DRIVE_FILE_NAME = "AL_SHOROUK_ERP_MASTER_BACKUP.tar";
+const DRIVE_FILE_NAME = "A&N.tar";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
