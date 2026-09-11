@@ -70,18 +70,41 @@ Deno.serve(async (req) => {
     const raw = await gunzip(objectRes.body);
     const entries = untar(raw);
 
-    const dataEntry = entries.find((e) => e.name === "data.json");
     const manifestEntry = entries.find((e) => e.name === "manifest.json");
-    if (!dataEntry) return jsonResponse({ error: "الأرشيف لا يحتوي على data.json" }, 400);
+    const manifest = manifestEntry
+      ? JSON.parse(new TextDecoder().decode(manifestEntry.bytes))
+      : null;
 
-    const payload = JSON.parse(new TextDecoder().decode(dataEntry.bytes));
-    const manifest = manifestEntry ? JSON.parse(new TextDecoder().decode(manifestEntry.bytes)) : null;
+    // ---- Build payload from either the legacy data.json or per-table files ----
+    const data: Record<string, any[]> = {};
+    const legacyEntry = entries.find((e) => e.name === "data.json");
+    if (legacyEntry) {
+      const payload = JSON.parse(new TextDecoder().decode(legacyEntry.bytes));
+      if (payload?.data && typeof payload.data === "object") {
+        Object.assign(data, payload.data);
+      }
+    } else {
+      for (const entry of entries) {
+        if (!entry.name.startsWith("tables/") || !entry.name.endsWith(".json")) continue;
+        const tableName = entry.name.slice("tables/".length, -".json".length);
+        data[tableName] = JSON.parse(new TextDecoder().decode(entry.bytes));
+      }
+    }
+
+    const order: string[] = manifest?.order ?? Object.keys(data);
+    const payload = {
+      tenant_id: backup.tenant_id,
+      exported_at: manifest?.exported_at ?? new Date().toISOString(),
+      order,
+      data,
+    };
+
     const mediaEntries = entries.filter((e) => e.name.startsWith("media/"));
 
     // ---- Dry run: just report what the archive holds ----
     if (dryRun) {
       const tableCounts: Record<string, number> = {};
-      for (const [k, v] of Object.entries(payload?.data ?? {})) {
+      for (const [k, v] of Object.entries(data)) {
         tableCounts[k] = Array.isArray(v) ? v.length : 0;
       }
       return jsonResponse({
