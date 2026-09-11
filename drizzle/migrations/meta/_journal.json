@@ -43,6 +43,13 @@
       "when": 1789146906324,
       "tag": "0005_fix_apply_supplier_credit_balance",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789147291291,
+      "tag": "0006_backup_rename_drive_file",
+      "breakpoints": true
     }
   ]
 }
