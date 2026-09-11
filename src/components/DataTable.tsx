@@ -21,6 +21,9 @@ interface DataTableProps<T> {
   title?: ReactNode;
   description?: ReactNode;
   footer?: ReactNode;
+  getRowKey?: (row: T, index: number) => string;
+  isRowExpanded?: (row: T) => boolean;
+  renderExpandedRow?: (row: T) => ReactNode;
 }
 
 function DataTableInner<T>(
@@ -33,6 +36,9 @@ function DataTableInner<T>(
     title,
     description,
     footer,
+    getRowKey,
+    isRowExpanded,
+    renderExpandedRow,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
@@ -84,22 +90,35 @@ function DataTableInner<T>(
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr
-                key={i}
-                onClick={() => onRowClick?.(row)}
-                className={`border-b border-border/60 last:border-0 transition-colors hover:bg-primary/5 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface-2/30" : "bg-card"}`}
-              >
-                {columns.map((c, idx) => (
-                  <td
-                    key={c.key}
-                    className={`px-2 md:px-3 py-3 md:py-3.5 align-middle break-words whitespace-normal min-w-0 ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-nowrap [&>div]:justify-center [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+            {rows.map((row, i) => {
+              const rowKey = getRowKey?.(row, i) ?? String(i);
+              const expanded = Boolean(isRowExpanded?.(row));
+              return (
+                <tbody key={rowKey} className="contents">
+                  <tr
+                    onClick={() => onRowClick?.(row)}
+                    aria-expanded={renderExpandedRow ? expanded : undefined}
+                    className={`border-b border-border/60 transition-colors hover:bg-primary/5 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface-2/30" : "bg-card"}`}
                   >
-                    {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
-                  </td>
-                ))}
-              </tr>
-            ))}
+                    {columns.map((c, idx) => (
+                      <td
+                        key={c.key}
+                        className={`px-2 md:px-3 py-3 md:py-3.5 align-middle break-words whitespace-normal min-w-0 ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-nowrap [&>div]:justify-center [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                      >
+                        {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
+                      </td>
+                    ))}
+                  </tr>
+                  {expanded && renderExpandedRow && (
+                    <tr className="border-b border-border bg-muted/20">
+                      <td colSpan={columns.length} className="p-0">
+                        {renderExpandedRow(row)}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              );
+            })}
           </tbody>
           {footer && (
             <tfoot className="bg-surface-2 border-t-2 border-border font-extrabold">

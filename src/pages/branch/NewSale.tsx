@@ -1014,15 +1014,15 @@ export default function NewSale() {
         throw rpcErr;
       }
 
-      // Persist backdated invoice_date if changed (DB trigger restricts to admin/super_admin)
+      // Persist backdated invoice_date through the sovereign accounting path.
       const _today = new Date().toISOString().slice(0, 10);
       if (invoiceDate && invoiceDate !== _today && invId) {
-        const { error: dErr } = await supabase.rpc("set_invoice_meta" as any, {
-          p_invoice_id: invId as any,
-          p_invoice_date: invoiceDate,
-          p_notes: null,
+        const { error: dErr } = await supabase.rpc("update_invoice_date_sovereign", {
+          p_invoice_id: invId as string,
+          p_new_date: new Date(`${invoiceDate}T12:00:00`).toISOString(),
+          p_reason: "تحديد تاريخ فاتورة البيع عند الإنشاء",
         });
-        if (dErr) console.warn("invoice_date update blocked:", dErr.message);
+        if (dErr) throw dErr;
       }
 
 
