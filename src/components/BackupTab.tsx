@@ -22,6 +22,9 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const CONFIRM_PHRASE = "أوافق على استبدال كافة البيانات الحالية بالنسخة الاحتياطية";
 
