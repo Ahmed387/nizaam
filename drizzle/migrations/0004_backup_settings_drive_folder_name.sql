@@ -1,0 +1,1 @@
+ALTER TABLE public.backup_settings ADD COLUMN IF NOT EXISTS drive_folder_name TEXT;
