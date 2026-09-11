@@ -1821,7 +1821,7 @@ export default function NewSale() {
                     searchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
                     setTimeout(() => searchInputRef.current?.focus(), 120);
                   }}
-                  hint="— وقف هنا بالماوس وابحث عن الصنف الجديد"
+                  hint="— اضغط هنا لإضافة صنف جديد"
                 />
               </div>
             )}
