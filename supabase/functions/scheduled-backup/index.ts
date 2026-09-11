@@ -393,7 +393,16 @@ async function ensureDriveFolder(
   const existingId = settings?.drive_folder_id?.trim();
   const existingName = settings?.drive_folder_name?.trim();
   if (existingId) {
-    return { folder_id: existingId, folder_name: existingName || null, created: false };
+    const check = await fetch(`${GATEWAY}/drive/v3/files/${existingId}?fields=id,name,mimeType,trashed`, {
+      headers: gwHeaders,
+    });
+    if (check.ok) {
+      const meta = await check.json().catch(() => ({}));
+      if (meta?.id && meta?.mimeType === "application/vnd.google-apps.folder" && !meta?.trashed) {
+        return { folder_id: existingId, folder_name: existingName || meta?.name || null, created: false };
+      }
+    }
+    // stale / invalid folder: fall through to recreate
   }
 
   const { data: tenant } = await admin.from("tenants").select("name").eq("id", tenantId).maybeSingle();
