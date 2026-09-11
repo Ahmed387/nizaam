@@ -327,12 +327,13 @@ export function BackupTab() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="ghost" size="sm"
-                        className="text-amber-600"
+                        variant="outline" size="sm"
+                        className="text-amber-600 border-amber-600 hover:bg-amber-50 hover:text-amber-700 gap-1"
                         onClick={() => { setRestoreRow(row); setConfirmText(""); }}
                         disabled={row.status !== "success"}
                       >
                         <RotateCcw className="h-4 w-4" />
+                        استعادة
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">استعادة كامل البيانات من هذه النسخة (يتطلب تأكيد نصي)</TooltipContent>
