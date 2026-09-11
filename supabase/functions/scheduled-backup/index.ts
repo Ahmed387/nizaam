@@ -13,11 +13,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const PAGE = 1000;
+const PAGE = 500; // دفعات أصغر لتقليل الذروة الزمنية لكل استعلام وتفادي مهلة الـ Edge Function
+const RPC_RETRIES = 3;
+const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
 const MEDIA_BUDGET_BYTES = 250 * 1024 * 1024; // guard against Edge Function timeouts
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 const DRIVE_FILE_NAME = "AL_SHOROUK_ERP_MASTER_BACKUP.tar.gz";
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function rpcWithRetry<T = any>(
+  client: any,
+  fn: string,
+  args: Record<string, unknown>,
+  context: string,
+): Promise<T> {
+  let lastErr: any;
+  for (let attempt = 1; attempt <= RPC_RETRIES; attempt++) {
+    try {
+      const { data, error } = await client.rpc(fn, args);
+      if (error) throw error;
+      return (data ?? []) as T;
+    } catch (e: any) {
+      lastErr = e;
+      const msg = e?.message ?? String(e);
+      console.warn(`rpc retry ${attempt}/${RPC_RETRIES} ${fn} (${context}): ${msg}`);
+      if (attempt < RPC_RETRIES) await sleep(RPC_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastErr;
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
