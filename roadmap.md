@@ -18,5 +18,5 @@
 - [x] 16. ربط Google Drive في مساحة العمل الجديدة الحالية (workspace move)
 - [x] 17. أتمتة إنشاء مجلد Google Drive منفصل لكل شركة وربطه بسجل النسخ الاحتياطي
 - [x] 18. ربط Google Drive من مساحة العمل الجديدة والتحقق من جاهزيته للنسخ الاحتياطي
-- [ ] 19. إعادة بناء دالة apply_supplier_credit لتستخدم v_contact_balances بدلاً من contacts.balance المحذوف
-- [ ] 20. إعادة ربط Google Drive بعد نقل المشروع لمساحة عمل جديدة
+- [x] 19. إعادة بناء دالة apply_supplier_credit لتستخدم v_contact_balances بدلاً من contacts.balance المحذوف
+- [x] 20. إعادة ربط Google Drive بعد نقل المشروع لمساحة عمل جديدة
