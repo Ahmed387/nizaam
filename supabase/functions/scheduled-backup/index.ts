@@ -183,23 +183,39 @@ Deno.serve(async (req) => {
       const enc = new TextEncoder();
 
       async function* archiveChunks(): AsyncGenerator<Uint8Array> {
-        // ---------- 1) one JSON file per table (streamed one table at a time) ----------
+        // ---------- 1) one JSON file per table (streamed one table at a time, raw text) ----------
         for (const t of tables) {
           const orderBy = orderByMap.get(t.table_name) ?? "1";
-          const rows: any[] = [];
+          const parts: Uint8Array[] = [];
+          let total = 0;
           let offset = 0;
+          let first = true;
           while (true) {
-            const page = await rpcWithRetry<any[]>(admin, "backup_fetch_page", {
+            const raw = await fetchPageRaw(url, serviceKey, "backup_fetch_page", {
               _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE,
               _order_by: orderBy,
             }, t.table_name);
-            if (page.length) rows.push.apply(rows, page);
-            if (page.length < PAGE) break;
+            const page = enc.encode(raw);
+            if (page.byteLength > 2) {
+              // raw is "[...]"; combine pages into one JSON array
+              if (first) {
+                parts.push(page);
+              } else {
+                parts.push(enc.encode(","));
+                // strip surrounding [] from subsequent pages
+                parts.push(page.subarray(1, page.byteLength - 1));
+              }
+              first = false;
+              // approximate count: count commas + 1, empty array = 0
+              const commaCount = (raw.match(/,/g) || []).length;
+              total += raw === "[]" ? 0 : commaCount + 1;
+            }
+            if (page.byteLength <= 2 || raw === "[]") break;
             offset += PAGE;
           }
-          counts[t.table_name] = rows.length;
+          counts[t.table_name] = total;
 
-          const content = enc.encode(JSON.stringify(rows));
+          const content = first ? enc.encode("[]") : concatArrays(parts);
           yield tarHeader(`tables/${t.table_name}.json`, content.byteLength);
           yield content;
           yield tarPadding(content.byteLength);
