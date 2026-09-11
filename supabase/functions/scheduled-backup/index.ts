@@ -206,22 +206,19 @@ Deno.serve(async (req) => {
               _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE,
               _order_by: orderBy,
             }, t.table_name);
+            const pageRows = JSON.parse(raw) as any[];
             const page = enc.encode(raw);
-            if (page.byteLength > 2) {
-              // raw is "[...]"; combine pages into one JSON array
+            if (pageRows.length > 0) {
               if (first) {
                 parts.push(page);
               } else {
                 parts.push(enc.encode(","));
-                // strip surrounding [] from subsequent pages
                 parts.push(page.subarray(1, page.byteLength - 1));
               }
               first = false;
-              // approximate count: count commas + 1, empty array = 0
-              const commaCount = (raw.match(/,/g) || []).length;
-              total += raw === "[]" ? 0 : commaCount + 1;
             }
-            if (page.byteLength <= 2 || raw === "[]") break;
+            total += pageRows.length;
+            if (pageRows.length < PAGE) break;
             offset += PAGE;
           }
           counts[t.table_name] = total;
