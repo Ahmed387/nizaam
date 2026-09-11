@@ -6967,14 +6967,32 @@ export type Database = {
         Args: { p_from: string; p_tenant_id: string; p_to: string }
         Returns: Json
       }
-      backup_fetch_page: {
-        Args: {
-          _limit: number
-          _offset: number
-          _table: string
-          _tenant: string
-        }
-        Returns: Json
+      backup_fetch_page:
+        | {
+            Args: {
+              _limit: number
+              _offset: number
+              _table: string
+              _tenant: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _limit: number
+              _offset: number
+              _order_by?: string
+              _table: string
+              _tenant: string
+            }
+            Returns: Json
+          }
+      backup_table_ctid_check: {
+        Args: { _tables: string[] }
+        Returns: {
+          has_ctid: boolean
+          table_name: string
+        }[]
       }
       backup_table_manifest: {
         Args: never

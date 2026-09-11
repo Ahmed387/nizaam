@@ -22,6 +22,9 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const CONFIRM_PHRASE = "أوافق على استبدال كافة البيانات الحالية بالنسخة الاحتياطية";
 
@@ -282,39 +285,61 @@ export function BackupTab() {
                   {row.error && <div className="text-xs text-destructive">{row.error}</div>}
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" onClick={() => inspectBackup(row)} disabled={inspecting === row.id || row.status !== "success"}>
-                  {inspecting === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => downloadBackup(row)} disabled={!row.storage_path}>
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost" size="sm"
-                  className="text-amber-600"
-                  onClick={() => { setRestoreRow(row); setConfirmText(""); }}
-                  disabled={row.status !== "success"}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-destructive" disabled={deletingId === row.id}>
-                      {deletingId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>حذف النسخة الاحتياطية؟</AlertDialogTitle>
-                      <AlertDialogDescription>سيتم حذف الملف نهائياً ولا يمكن التراجع.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteBackup(row)}>حذف</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+              <TooltipProvider delayDuration={200}>
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" onClick={() => inspectBackup(row)} disabled={inspecting === row.id || row.status !== "success"}>
+                        {inspecting === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">فحص محتوى الأرشيف وعدد السجلات بدون تغيير أي بيانات</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" onClick={() => downloadBackup(row)} disabled={!row.storage_path}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">تنزيل ملف النسخة الاحتياطية المضغوط</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-amber-600"
+                        onClick={() => { setRestoreRow(row); setConfirmText(""); }}
+                        disabled={row.status !== "success"}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">استعادة كامل البيانات من هذه النسخة (يتطلب تأكيد نصي)</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive" disabled={deletingId === row.id}>
+                            {deletingId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent dir="rtl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>حذف النسخة الاحتياطية؟</AlertDialogTitle>
+                            <AlertDialogDescription>سيتم حذف الملف نهائياً ولا يمكن التراجع.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteBackup(row)}>حذف</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">حذف النسخة الاحتياطية من التخزين والسجل نهائياً</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
             </div>
           ))}
         </CardContent>

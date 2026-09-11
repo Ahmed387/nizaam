@@ -1,29 +1,96 @@
 // Full disaster-recovery export.
-// Builds ONE .tar.gz per tenant containing:
-//   data.json      — every public table, strictly filtered to the tenant
-//   media/...      — the physical files of the storage buckets
-//   manifest.json  — row counts + integrity numbers
+// Builds ONE .tar per tenant containing:
+//   tables/{name}.json — one JSON array per public table, strictly filtered to the tenant
+//   media/...          — the physical files of the storage buckets
+//   manifest.json      — row counts + integrity numbers
 // The archive is streamed straight into the private `system-backups` bucket and
 // then mirrored to Google Drive with an in-place `files.update` when configured.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { tarHeader, tarPadding, TAR_END, gzipStream } from "../_shared/tarGzip.ts";
+import { tarHeader, tarPadding, TAR_END } from "../_shared/tarGzip.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const PAGE = 1000;
+const PAGE = 2000; // دفعات كبيرة لتقليل عدد النداءات
+const RPC_RETRIES = 3;
+const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
 const MEDIA_BUDGET_BYTES = 250 * 1024 * 1024; // guard against Edge Function timeouts
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
-const DRIVE_FILE_NAME = "AL_SHOROUK_ERP_MASTER_BACKUP.tar.gz";
+const DRIVE_FILE_NAME = "AL_SHOROUK_ERP_MASTER_BACKUP.tar";
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function rpcWithRetry<T = any>(
+  client: any,
+  fn: string,
+  args: Record<string, unknown>,
+  context: string,
+): Promise<T> {
+  let lastErr: any;
+  for (let attempt = 1; attempt <= RPC_RETRIES; attempt++) {
+    try {
+      const { data, error } = await client.rpc(fn, args);
+      if (error) throw error;
+      return (data ?? []) as T;
+    } catch (e: any) {
+      lastErr = e;
+      const msg = e?.message ?? String(e);
+      console.warn(`rpc retry ${attempt}/${RPC_RETRIES} ${fn} (${context}): ${msg}`);
+      if (attempt < RPC_RETRIES) await sleep(RPC_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastErr;
+}
+
+// جلب النتيجة كـ JSON خام دون تحليلها/إعادة تسلسلها لتوفير استهلاك CPU
+async function fetchPageRaw(
+  url: string, serviceKey: string, fn: string, args: Record<string, unknown>, context: string,
+): Promise<string> {
+  let lastErr: any;
+  for (let attempt = 1; attempt <= RPC_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(args),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return await res.text();
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`raw rpc retry ${attempt}/${RPC_RETRIES} ${fn} (${context}): ${e?.message ?? String(e)}`);
+      if (attempt < RPC_RETRIES) await sleep(RPC_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastErr;
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function concatArrays(arrs: Uint8Array[]): Uint8Array {
+  const total = arrs.reduce((s, a) => s + a.byteLength, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrs) {
+    out.set(a, off);
+    off += a.byteLength;
+  }
+  return out;
 }
 
 type ManifestRow = { ord: number; table_name: string; scope: "tenant" | "global"; filter_sql: string };
@@ -89,8 +156,19 @@ Deno.serve(async (req) => {
     // ---- Single source of truth for the table list + topological order ----
     const { data: manifestRows, error: manErr } = await admin.rpc("backup_table_manifest");
     if (manErr) throw new Error(`فهرس الجداول: ${manErr.message}`);
-    // كل الجداول تُنسخ: المرتبطة بالشركة بفلترتها، والجداول العامة (الأرشيف التاريخي وسجلات المالك) بالكامل
     const tables = (manifestRows as ManifestRow[]).slice().sort((a, b) => a.ord - b.ord);
+
+    // تحديد عمود الترتيب لكل جدول مرة واحدة فقط — لا نفحص pg_attribute في كل صفحة
+    const orderByMap = new Map<string, string>();
+    const tableNames = tables.map((t) => t.table_name);
+    const { data: ctidInfo, error: ctidErr } = await admin.rpc("backup_table_ctid_check", {
+      _tables: tableNames,
+    });
+    if (!ctidErr && Array.isArray(ctidInfo)) {
+      for (const row of ctidInfo) {
+        if (row?.table_name) orderByMap.set(row.table_name, row.has_ctid ? "x.ctid" : "1");
+      }
+    }
 
     const results: any[] = [];
 
@@ -116,42 +194,43 @@ Deno.serve(async (req) => {
       const enc = new TextEncoder();
 
       async function* archiveChunks(): AsyncGenerator<Uint8Array> {
-        // ---------- 1) data.json (buffered per entry, tar needs the size up front) ----------
-        const parts: Uint8Array[] = [];
-        let dataSize = 0;
-        const push = (s: string) => { const b = enc.encode(s); parts.push(b); dataSize += b.byteLength; };
-
-        push(`{"tenant_id":${JSON.stringify(tenantId)},"exported_at":${JSON.stringify(new Date().toISOString())},"order":${JSON.stringify(tables.map((t) => t.table_name))},"data":{`);
-        let first = true;
+        // ---------- 1) one JSON file per table (streamed one table at a time, raw text) ----------
         for (const t of tables) {
-          push(`${first ? "" : ","}${JSON.stringify(t.table_name)}:[`);
-          first = false;
-          let offset = 0;
+          const orderBy = orderByMap.get(t.table_name) ?? "1";
+          const parts: Uint8Array[] = [];
           let total = 0;
+          let offset = 0;
+          let first = true;
           while (true) {
-            const { data, error } = await admin.rpc("backup_fetch_page", {
+            const raw = await fetchPageRaw(url, serviceKey, "backup_fetch_page", {
               _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE,
-            });
-            if (error) throw new Error(`جدول ${t.table_name}: ${error.message}`);
-            const rows = (data ?? []) as any[];
-            if (rows.length) {
-              const buf: string[] = [];
-              for (const r of rows) buf.push(JSON.stringify(r));
-              push((total ? "," : "") + buf.join(","));
-              total += rows.length;
+              _order_by: orderBy,
+            }, t.table_name);
+            const page = enc.encode(raw);
+            if (page.byteLength > 2) {
+              // raw is "[...]"; combine pages into one JSON array
+              if (first) {
+                parts.push(page);
+              } else {
+                parts.push(enc.encode(","));
+                // strip surrounding [] from subsequent pages
+                parts.push(page.subarray(1, page.byteLength - 1));
+              }
+              first = false;
+              // approximate count: count commas + 1, empty array = 0
+              const commaCount = (raw.match(/,/g) || []).length;
+              total += raw === "[]" ? 0 : commaCount + 1;
             }
-            if (rows.length < PAGE) break;
+            if (page.byteLength <= 2 || raw === "[]") break;
             offset += PAGE;
           }
-          push("]");
           counts[t.table_name] = total;
-        }
-        push("}}");
 
-        yield tarHeader("data.json", dataSize);
-        for (const p of parts) yield p;
-        parts.length = 0;
-        yield tarPadding(dataSize);
+          const content = first ? enc.encode("[]") : concatArrays(parts);
+          yield tarHeader(`tables/${t.table_name}.json`, content.byteLength);
+          yield content;
+          yield tarPadding(content.byteLength);
+        }
 
         // ---------- 2) media files ----------
         let mediaBytes = 0;
@@ -182,7 +261,8 @@ Deno.serve(async (req) => {
         const manifest = enc.encode(JSON.stringify({
           tenant_id: tenantId,
           exported_at: new Date().toISOString(),
-          format: "nizam-backup/1",
+          format: "nizam-backup/2",
+          order: tables.map((t) => t.table_name),
           tables: counts,
           total_rows: Object.values(counts).reduce((s, n) => s + n, 0),
           media_files: media.length,
@@ -201,7 +281,7 @@ Deno.serve(async (req) => {
       let uploadOk = false;
       let uploadErr: string | null = null;
 
-      // محاولتان: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
+      // محاولات متعددة: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
       for (let attempt = 1; attempt <= 4 && !uploadOk; attempt++) {
         if (attempt > 1) await new Promise((r) => setTimeout(r, 1500 * attempt));
         streamError = null;
@@ -222,10 +302,10 @@ Deno.serve(async (req) => {
             headers: {
               Authorization: `Bearer ${serviceKey}`,
               apikey: serviceKey,
-              "Content-Type": "application/gzip",
+              "Content-Type": "application/x-tar",
               "x-upsert": "true",
             },
-            body: gzipStream(counted),
+            body: counted,
             // @ts-ignore Deno streaming request body
             duplex: "half",
           });
@@ -321,7 +401,7 @@ async function syncToDrive(
       : `${GATEWAY}/upload/drive/v3/files?uploadType=media&supportsAllDrives=true`;
     return await fetch(endpoint, {
       method: id ? "PATCH" : "POST",
-      headers: { ...gwHeaders, "Content-Type": "application/gzip" },
+      headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
       body: objectRes.body,
       // @ts-ignore Deno streaming request body
       duplex: "half",
@@ -337,7 +417,7 @@ async function syncToDrive(
     });
     res = await fetch(`${GATEWAY}/upload/drive/v3/files?uploadType=media&supportsAllDrives=true`, {
       method: "POST",
-      headers: { ...gwHeaders, "Content-Type": "application/gzip" },
+      headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
       body: retry.body,
       // @ts-ignore Deno streaming request body
       duplex: "half",

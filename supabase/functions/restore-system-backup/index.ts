@@ -60,28 +60,55 @@ Deno.serve(async (req) => {
     if (!ownerTenants.includes(backup.tenant_id)) return jsonResponse({ error: "Forbidden" }, 403);
     if (!backup.storage_path) return jsonResponse({ error: "لا يوجد ملف لهذه النسخة" }, 400);
 
-    // ---- Read + unpack the archive ----
+    // ---- Read + unpack the archive (gzip or raw tar) ----
     const objectRes = await fetch(`${url}/storage/v1/object/system-backups/${backup.storage_path}`, {
       headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
     });
     if (!objectRes.ok || !objectRes.body) {
       return jsonResponse({ error: `تعذر قراءة ملف النسخة: ${objectRes.status}` }, 500);
     }
-    const raw = await gunzip(objectRes.body);
+    const compressed = await objectRes.bytes();
+    const isGzip = compressed.byteLength >= 2 && compressed[0] === 0x1f && compressed[1] === 0x8b;
+    const raw = isGzip
+      ? await gunzip(new Response(compressed).body as ReadableStream<Uint8Array>)
+      : compressed;
     const entries = untar(raw);
 
-    const dataEntry = entries.find((e) => e.name === "data.json");
     const manifestEntry = entries.find((e) => e.name === "manifest.json");
-    if (!dataEntry) return jsonResponse({ error: "الأرشيف لا يحتوي على data.json" }, 400);
+    const manifest = manifestEntry
+      ? JSON.parse(new TextDecoder().decode(manifestEntry.bytes))
+      : null;
 
-    const payload = JSON.parse(new TextDecoder().decode(dataEntry.bytes));
-    const manifest = manifestEntry ? JSON.parse(new TextDecoder().decode(manifestEntry.bytes)) : null;
+    // ---- Build payload from either the legacy data.json or per-table files ----
+    const data: Record<string, any[]> = {};
+    const legacyEntry = entries.find((e) => e.name === "data.json");
+    if (legacyEntry) {
+      const payload = JSON.parse(new TextDecoder().decode(legacyEntry.bytes));
+      if (payload?.data && typeof payload.data === "object") {
+        Object.assign(data, payload.data);
+      }
+    } else {
+      for (const entry of entries) {
+        if (!entry.name.startsWith("tables/") || !entry.name.endsWith(".json")) continue;
+        const tableName = entry.name.slice("tables/".length, -".json".length);
+        data[tableName] = JSON.parse(new TextDecoder().decode(entry.bytes));
+      }
+    }
+
+    const order: string[] = manifest?.order ?? Object.keys(data);
+    const payload = {
+      tenant_id: backup.tenant_id,
+      exported_at: manifest?.exported_at ?? new Date().toISOString(),
+      order,
+      data,
+    };
+
     const mediaEntries = entries.filter((e) => e.name.startsWith("media/"));
 
     // ---- Dry run: just report what the archive holds ----
     if (dryRun) {
       const tableCounts: Record<string, number> = {};
-      for (const [k, v] of Object.entries(payload?.data ?? {})) {
+      for (const [k, v] of Object.entries(data)) {
         tableCounts[k] = Array.isArray(v) ? v.length : 0;
       }
       return jsonResponse({
