@@ -38,8 +38,8 @@ export function BackupTab() {
 
   // Google Drive settings
   const [settings, setSettings] = useState<any>(null);
-  const [folderId, setFolderId] = useState("");
   const [savingDrive, setSavingDrive] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   // Restore
   const [restoreRow, setRestoreRow] = useState<any>(null);
