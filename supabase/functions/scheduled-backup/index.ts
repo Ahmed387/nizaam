@@ -26,7 +26,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-type ManifestRow = { ord: number; table_name: string; tenant_scoped: boolean; filter_sql: string };
+type ManifestRow = { ord: number; table_name: string; scope: "tenant" | "global"; filter_sql: string };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -89,9 +89,8 @@ Deno.serve(async (req) => {
     // ---- Single source of truth for the table list + topological order ----
     const { data: manifestRows, error: manErr } = await admin.rpc("backup_table_manifest");
     if (manErr) throw new Error(`فهرس الجداول: ${manErr.message}`);
-    const tables = (manifestRows as ManifestRow[])
-      .filter((t) => t.tenant_scoped)
-      .sort((a, b) => a.ord - b.ord);
+    // كل الجداول تُنسخ: المرتبطة بالشركة بفلترتها، والجداول العامة (الأرشيف التاريخي وسجلات المالك) بالكامل
+    const tables = (manifestRows as ManifestRow[]).slice().sort((a, b) => a.ord - b.ord);
 
     const results: any[] = [];
 
