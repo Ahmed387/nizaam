@@ -157,11 +157,9 @@ Deno.serve(async (req) => {
           let offset = 0;
           let total = 0;
           while (true) {
-            const { data, error } = await admin.rpc("backup_fetch_page", {
+            const rows = await rpcWithRetry<any[]>(admin, "backup_fetch_page", {
               _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE,
-            });
-            if (error) throw new Error(`جدول ${t.table_name}: ${error.message}`);
-            const rows = (data ?? []) as any[];
+            }, t.table_name);
             if (rows.length) {
               const buf: string[] = [];
               for (const r of rows) buf.push(JSON.stringify(r));
