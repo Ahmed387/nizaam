@@ -1,8 +1,8 @@
 // Full disaster-recovery export.
 // Builds ONE .tar.gz per tenant containing:
-//   data.json      — every public table, strictly filtered to the tenant
-//   media/...      — the physical files of the storage buckets
-//   manifest.json  — row counts + integrity numbers
+//   tables/{name}.json — one JSON array per public table, strictly filtered to the tenant
+//   media/...          — the physical files of the storage buckets
+//   manifest.json      — row counts + integrity numbers
 // The archive is streamed straight into the private `system-backups` bucket and
 // then mirrored to Google Drive with an in-place `files.update` when configured.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const PAGE = 500; // دفعات أصغر لتقليل الذروة الزمنية لكل استعلام وتفادي مهلة الـ Edge Function
+const PAGE = 250; // دفعات صغيرة لتقليل الذروة الزمنية لكل استعلام وتفادي مهلة الـ Edge Function
 const RPC_RETRIES = 3;
 const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
@@ -117,8 +117,19 @@ Deno.serve(async (req) => {
     // ---- Single source of truth for the table list + topological order ----
     const { data: manifestRows, error: manErr } = await admin.rpc("backup_table_manifest");
     if (manErr) throw new Error(`فهرس الجداول: ${manErr.message}`);
-    // كل الجداول تُنسخ: المرتبطة بالشركة بفلترتها، والجداول العامة (الأرشيف التاريخي وسجلات المالك) بالكامل
     const tables = (manifestRows as ManifestRow[]).slice().sort((a, b) => a.ord - b.ord);
+
+    // تحديد عمود الترتيب لكل جدول مرة واحدة فقط — لا نفحص pg_attribute في كل صفحة
+    const orderByMap = new Map<string, string>();
+    const tableNames = tables.map((t) => t.table_name);
+    const { data: ctidInfo, error: ctidErr } = await admin.rpc("backup_table_ctid_check", {
+      _tables: tableNames,
+    });
+    if (!ctidErr && Array.isArray(ctidInfo)) {
+      for (const row of ctidInfo) {
+        if (row?.table_name) orderByMap.set(row.table_name, row.has_ctid ? "x.ctid" : "1");
+      }
+    }
 
     const results: any[] = [];
 
@@ -144,40 +155,27 @@ Deno.serve(async (req) => {
       const enc = new TextEncoder();
 
       async function* archiveChunks(): AsyncGenerator<Uint8Array> {
-        // ---------- 1) data.json (buffered per entry, tar needs the size up front) ----------
-        const parts: Uint8Array[] = [];
-        let dataSize = 0;
-        const push = (s: string) => { const b = enc.encode(s); parts.push(b); dataSize += b.byteLength; };
-
-        push(`{"tenant_id":${JSON.stringify(tenantId)},"exported_at":${JSON.stringify(new Date().toISOString())},"order":${JSON.stringify(tables.map((t) => t.table_name))},"data":{`);
-        let first = true;
+        // ---------- 1) one JSON file per table (streamed one table at a time) ----------
         for (const t of tables) {
-          push(`${first ? "" : ","}${JSON.stringify(t.table_name)}:[`);
-          first = false;
+          const orderBy = orderByMap.get(t.table_name) ?? "1";
+          const rows: any[] = [];
           let offset = 0;
-          let total = 0;
           while (true) {
-            const rows = await rpcWithRetry<any[]>(admin, "backup_fetch_page", {
+            const page = await rpcWithRetry<any[]>(admin, "backup_fetch_page", {
               _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE,
+              _order_by: orderBy,
             }, t.table_name);
-            if (rows.length) {
-              const buf: string[] = [];
-              for (const r of rows) buf.push(JSON.stringify(r));
-              push((total ? "," : "") + buf.join(","));
-              total += rows.length;
-            }
-            if (rows.length < PAGE) break;
+            if (page.length) rows.push(...page);
+            if (page.length < PAGE) break;
             offset += PAGE;
           }
-          push("]");
-          counts[t.table_name] = total;
-        }
-        push("}}");
+          counts[t.table_name] = rows.length;
 
-        yield tarHeader("data.json", dataSize);
-        for (const p of parts) yield p;
-        parts.length = 0;
-        yield tarPadding(dataSize);
+          const content = enc.encode(JSON.stringify(rows));
+          yield tarHeader(`tables/${t.table_name}.json`, content.byteLength);
+          yield content;
+          yield tarPadding(content.byteLength);
+        }
 
         // ---------- 2) media files ----------
         let mediaBytes = 0;
@@ -208,7 +206,8 @@ Deno.serve(async (req) => {
         const manifest = enc.encode(JSON.stringify({
           tenant_id: tenantId,
           exported_at: new Date().toISOString(),
-          format: "nizam-backup/1",
+          format: "nizam-backup/2",
+          order: tables.map((t) => t.table_name),
           tables: counts,
           total_rows: Object.values(counts).reduce((s, n) => s + n, 0),
           media_files: media.length,
@@ -227,7 +226,7 @@ Deno.serve(async (req) => {
       let uploadOk = false;
       let uploadErr: string | null = null;
 
-      // محاولتان: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
+      // محاولات متعددة: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
       for (let attempt = 1; attempt <= 4 && !uploadOk; attempt++) {
         if (attempt > 1) await new Promise((r) => setTimeout(r, 1500 * attempt));
         streamError = null;
