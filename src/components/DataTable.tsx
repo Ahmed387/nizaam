@@ -1,4 +1,4 @@
-import { forwardRef, ReactNode, Ref } from "react";
+import { Fragment, forwardRef, ReactNode, Ref } from "react";
 import { Loader2 } from "lucide-react";
 
 type Align = "right" | "left" | "center";
@@ -94,7 +94,7 @@ function DataTableInner<T>(
               const rowKey = getRowKey?.(row, i) ?? String(i);
               const expanded = Boolean(isRowExpanded?.(row));
               return (
-                <tbody key={rowKey} className="contents">
+                <Fragment key={rowKey}>
                   <tr
                     onClick={() => onRowClick?.(row)}
                     aria-expanded={renderExpandedRow ? expanded : undefined}
@@ -116,7 +116,7 @@ function DataTableInner<T>(
                       </td>
                     </tr>
                   )}
-                </tbody>
+                </Fragment>
               );
             })}
           </tbody>
