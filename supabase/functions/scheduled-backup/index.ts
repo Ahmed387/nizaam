@@ -198,32 +198,42 @@ Deno.serve(async (req) => {
       }
 
       let streamError: string | null = null;
-      const source = archiveChunks();
-      const counted = (async function* () {
-        try {
-          for await (const chunk of source) { bytesWritten += chunk.byteLength; yield chunk; }
-        } catch (e: any) { streamError = e?.message ?? String(e); throw e; }
-      })();
-
       let uploadOk = false;
       let uploadErr: string | null = null;
-      try {
-        const res = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${serviceKey}`,
-            apikey: serviceKey,
-            "Content-Type": "application/gzip",
-            "x-upsert": "false",
-          },
-          body: gzipStream(counted),
-          // @ts-ignore Deno streaming request body
-          duplex: "half",
-        });
-        uploadOk = res.ok;
-        if (!res.ok) uploadErr = `رفع الملف: ${res.status} ${await res.text()}`;
-      } catch (e: any) {
-        uploadErr = streamError ?? (e?.message ?? String(e));
+
+      // محاولتان: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
+      for (let attempt = 1; attempt <= 2 && !uploadOk; attempt++) {
+        streamError = null;
+        bytesWritten = 0;
+        for (const k of Object.keys(counts)) delete counts[k];
+        media.length = 0;
+
+        const source = archiveChunks();
+        const counted = (async function* () {
+          try {
+            for await (const chunk of source) { bytesWritten += chunk.byteLength; yield chunk; }
+          } catch (e: any) { streamError = e?.message ?? String(e); throw e; }
+        })();
+
+        try {
+          const res = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${serviceKey}`,
+              apikey: serviceKey,
+              "Content-Type": "application/gzip",
+              "x-upsert": "true",
+            },
+            body: gzipStream(counted),
+            // @ts-ignore Deno streaming request body
+            duplex: "half",
+          });
+          uploadOk = res.ok;
+          if (!res.ok) uploadErr = `رفع الملف: ${res.status} ${await res.text()}`;
+        } catch (e: any) {
+          uploadErr = streamError ?? (e?.message ?? String(e));
+        }
+        if (streamError) break; // خطأ في البيانات نفسها — لا فائدة من الإعادة
       }
 
       if (!uploadOk) {
