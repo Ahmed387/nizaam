@@ -96,9 +96,6 @@ export function InvoiceItemsAccordion({ tenantId, branchId, invoiceId, expanded 
                 </td>
                 <td className="p-2.5 text-right align-middle">
                   <div className="font-semibold text-foreground">{item.product_name}</div>
-                  {item.product_name && item.product_name.length > 40 && (
-                    <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">اسم الصنف مفصل — يُعرض كاملاً أعلاه</div>
-                  )}
                 </td>
                 <td className="p-2.5 text-center align-middle">
                   <Badge
