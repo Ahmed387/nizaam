@@ -456,6 +456,7 @@ export type Database = {
           drive_file_id: string | null
           drive_file_name: string
           drive_folder_id: string | null
+          drive_folder_name: string | null
           id: string
           last_error: string | null
           last_synced_at: string | null
@@ -469,6 +470,7 @@ export type Database = {
           drive_file_id?: string | null
           drive_file_name?: string
           drive_folder_id?: string | null
+          drive_folder_name?: string | null
           id?: string
           last_error?: string | null
           last_synced_at?: string | null
@@ -482,6 +484,7 @@ export type Database = {
           drive_file_id?: string | null
           drive_file_name?: string
           drive_folder_id?: string | null
+          drive_folder_name?: string | null
           id?: string
           last_error?: string | null
           last_synced_at?: string | null

@@ -29,6 +29,13 @@
       "when": 1789136785479,
       "tag": "0003_backup_fetch_page_fix_using_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789140459950,
+      "tag": "0004_backup_settings_drive_folder_name",
+      "breakpoints": true
     }
   ]
 }
