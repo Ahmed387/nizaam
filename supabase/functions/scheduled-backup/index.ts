@@ -104,9 +104,11 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
     let requestedTenant: string | undefined;
+    let ensureFolderOnly = false;
     try {
       const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
       if (body?.tenant_id) requestedTenant = body.tenant_id;
+      if (body?.ensure_folder_only) ensureFolderOnly = true;
     } catch { /* ignore */ }
 
     // ---- Authorization: cron secret OR an owner / super_admin JWT (admins are blocked) ----
