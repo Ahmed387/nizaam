@@ -60,7 +60,6 @@ export function BackupTab() {
   const loadSettings = async () => {
     const { data } = await supabase.from("backup_settings" as any).select("*").maybeSingle();
     setSettings(data ?? null);
-    setFolderId((data as any)?.drive_folder_id ?? "");
   };
 
   useEffect(() => {
