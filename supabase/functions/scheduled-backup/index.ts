@@ -1,25 +1,25 @@
 // Full disaster-recovery export.
-// Builds ONE .tar.gz per tenant containing:
+// Builds ONE .tar per tenant containing:
 //   tables/{name}.json — one JSON array per public table, strictly filtered to the tenant
 //   media/...          — the physical files of the storage buckets
 //   manifest.json      — row counts + integrity numbers
 // The archive is streamed straight into the private `system-backups` bucket and
 // then mirrored to Google Drive with an in-place `files.update` when configured.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { tarHeader, tarPadding, TAR_END, gzipStream } from "../_shared/tarGzip.ts";
+import { tarHeader, tarPadding, TAR_END } from "../_shared/tarGzip.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const PAGE = 1500; // دفعات كبيرة لتقليل عدد النداءات وعدم تجاوز مهلة الـ Edge Function
+const PAGE = 2000; // دفعات كبيرة لتقليل عدد النداءات
 const RPC_RETRIES = 3;
 const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
 const MEDIA_BUDGET_BYTES = 250 * 1024 * 1024; // guard against Edge Function timeouts
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
-const DRIVE_FILE_NAME = "AL_SHOROUK_ERP_MASTER_BACKUP.tar.gz";
+const DRIVE_FILE_NAME = "AL_SHOROUK_ERP_MASTER_BACKUP.tar";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
