@@ -141,7 +141,6 @@ export function BackupTab() {
       const { error } = await supabase.from("backup_settings" as any).upsert(
         {
           tenant_id: tenantId,
-          drive_folder_id: folderId.trim() || null,
           drive_connected: connected,
           last_error: null,
         } as any,
@@ -154,6 +153,25 @@ export function BackupTab() {
       toast.error(e.message ?? "فشل الحفظ");
     } finally {
       setSavingDrive(false);
+    }
+  };
+
+  const ensureDriveFolder = async () => {
+    setCreatingFolder(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scheduled-backup", {
+        body: { ensure_folder_only: true },
+      });
+      const bErr = await edgeErrorMessage(error);
+      if (bErr) throw new Error(bErr);
+      const first = (data as any)?.folders?.[0];
+      if (!first || first.error) throw new Error(first?.error || "فشل إنشاء المجلد");
+      toast.success(`تم إنشاء مجلد Google Drive: ${first.folder_name}`);
+      loadSettings();
+    } catch (e: any) {
+      toast.error(e.message ?? "فشل إنشاء المجلد");
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
