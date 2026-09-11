@@ -386,6 +386,52 @@ Deno.serve(async (req) => {
   }
 });
 
+// ---------------------------------------------------------------- Drive folder
+async function ensureDriveFolder(
+  admin: any, tenantId: string, settings: any, gwHeaders: Record<string, string>,
+): Promise<{ folder_id: string | null; folder_name: string | null; created: boolean; error?: string }> {
+  const existingId = settings?.drive_folder_id?.trim();
+  const existingName = settings?.drive_folder_name?.trim();
+  if (existingId) {
+    return { folder_id: existingId, folder_name: existingName || null, created: false };
+  }
+
+  const { data: tenant } = await admin.from("tenants").select("name").eq("id", tenantId).maybeSingle();
+  const rawName = tenant?.name?.trim() || tenantId.slice(0, 8);
+  const sanitized = rawName.replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, "_").replace(/^_+|_+$/g, "");
+  const folderName = sanitized
+    ? `Nizam_Backup_${sanitized}`
+    : `Nizam_Backup_${tenantId.slice(0, 8)}`;
+
+  const res = await fetch(`${GATEWAY}/drive/v3/files`, {
+    method: "POST",
+    headers: { ...gwHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: folderName,
+      mimeType: "application/vnd.google-apps.folder",
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    return { folder_id: null, folder_name: null, created: false, error: `Google Drive [${res.status}]: ${detail}` };
+  }
+  const created = await res.json().catch(() => ({}));
+  const folderId = created?.id;
+  if (!folderId) {
+    return { folder_id: null, folder_name: null, created: false, error: "لم يُرجع Google Drive معرّف المجلد" };
+  }
+
+  await admin.from("backup_settings").upsert({
+    tenant_id: tenantId,
+    drive_folder_id: folderId,
+    drive_folder_name: folderName,
+    drive_connected: true,
+    last_error: null,
+  }, { onConflict: "tenant_id" });
+
+  return { folder_id: folderId, folder_name: folderName, created: true };
+}
+
 // ---------------------------------------------------------------- Drive sync
 async function syncToDrive(
   admin: any, url: string, serviceKey: string, tenantId: string, storagePath: string,
@@ -401,6 +447,12 @@ async function syncToDrive(
   }
   const gwHeaders = { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": connectionKey };
 
+  const folder = await ensureDriveFolder(admin, tenantId, settings, gwHeaders);
+  if (folder.error) {
+    await admin.from("backup_settings").update({ last_error: folder.error }).eq("tenant_id", tenantId);
+    return { synced: false, error: folder.error };
+  }
+
   // Stream the archive straight from storage into Drive — never buffered here.
   const objectRes = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
     headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
@@ -411,34 +463,27 @@ async function syncToDrive(
 
   let fileId: string | null = settings.drive_file_id ?? null;
 
-  // In-place update when we already own a file, otherwise create it once.
-  const doUpload = async (id: string | null) => {
+  const doUpload = async (id: string | null, body: ReadableStream<Uint8Array> | null) => {
     const endpoint = id
       ? `${GATEWAY}/upload/drive/v3/files/${id}?uploadType=media&supportsAllDrives=true`
       : `${GATEWAY}/upload/drive/v3/files?uploadType=media&supportsAllDrives=true`;
     return await fetch(endpoint, {
       method: id ? "PATCH" : "POST",
       headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
-      body: objectRes.body,
+      body,
       // @ts-ignore Deno streaming request body
       duplex: "half",
     });
   };
 
-  let res = await doUpload(fileId);
+  let res = await doUpload(fileId, objectRes.body);
   if (!res.ok && fileId) {
     // The remembered file is gone — fall back to creating a fresh one.
     fileId = null;
     const retry = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
       headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
     });
-    res = await fetch(`${GATEWAY}/upload/drive/v3/files?uploadType=media&supportsAllDrives=true`, {
-      method: "POST",
-      headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
-      body: retry.body,
-      // @ts-ignore Deno streaming request body
-      duplex: "half",
-    });
+    res = await doUpload(null, retry.body);
   }
   if (!res.ok) {
     const detail = await res.text();
@@ -453,14 +498,18 @@ async function syncToDrive(
   // Name + parent folder are metadata — set them on the same file id.
   if (newId) {
     const meta: Record<string, unknown> = { name: settings.drive_file_name || DRIVE_FILE_NAME };
-    const query = !fileId && settings.drive_folder_id
-      ? `?addParents=${encodeURIComponent(settings.drive_folder_id)}&supportsAllDrives=true`
+    const query = folder.folder_id
+      ? `?addParents=${encodeURIComponent(folder.folder_id)}&supportsAllDrives=true`
       : "?supportsAllDrives=true";
-    await fetch(`${GATEWAY}/drive/v3/files/${newId}${query}`, {
+    const patchRes = await fetch(`${GATEWAY}/drive/v3/files/${newId}${query}`, {
       method: "PATCH",
       headers: { ...gwHeaders, "Content-Type": "application/json" },
       body: JSON.stringify(meta),
     });
+    if (!patchRes.ok) {
+      const detail = await patchRes.text();
+      console.warn(`Drive metadata patch failed [${patchRes.status}]: ${detail}`);
+    }
   }
 
   await admin.from("backup_settings").upsert({
