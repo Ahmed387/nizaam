@@ -82,6 +82,17 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function concatArrays(arrs: Uint8Array[]): Uint8Array {
+  const total = arrs.reduce((s, a) => s + a.byteLength, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrs) {
+    out.set(a, off);
+    off += a.byteLength;
+  }
+  return out;
+}
+
 type ManifestRow = { ord: number; table_name: string; scope: "tenant" | "global"; filter_sql: string };
 
 Deno.serve(async (req) => {
