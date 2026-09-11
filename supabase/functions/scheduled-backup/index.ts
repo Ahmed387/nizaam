@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-const PAGE = 250; // دفعات صغيرة لتقليل الذروة الزمنية لكل استعلام وتفادي مهلة الـ Edge Function
+const PAGE = 1500; // دفعات كبيرة لتقليل عدد النداءات وعدم تجاوز مهلة الـ Edge Function
 const RPC_RETRIES = 3;
 const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
