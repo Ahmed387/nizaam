@@ -155,6 +155,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- Drive-folder-only mode (manual activation from BackupTab) ----
+    if (ensureFolderOnly) {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      const connectionKey = Deno.env.get("GOOGLE_DRIVE_API_KEY");
+      if (!lovableKey || !connectionKey) {
+        return jsonResponse({ error: "لم يتم ربط Google Drive بعد" }, 400);
+      }
+      const gwHeaders = { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": connectionKey };
+      const folders: any[] = [];
+      for (const tenantId of tenantIds) {
+        const { data: settings } = await admin.from("backup_settings").select("*").eq("tenant_id", tenantId).maybeSingle();
+        const folder = await ensureDriveFolder(admin, tenantId, settings ?? {}, gwHeaders);
+        folders.push({ tenant_id: tenantId, ...folder });
+      }
+      const anyError = folders.some((f) => f.error);
+      return jsonResponse({ ok: !anyError, folders }, anyError ? 500 : 200);
+    }
+
     // ---- Single source of truth for the table list + topological order ----
     const { data: manifestRows, error: manErr } = await admin.rpc("backup_table_manifest");
     if (manErr) throw new Error(`فهرس الجداول: ${manErr.message}`);
