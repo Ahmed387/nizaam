@@ -502,7 +502,7 @@ export default function NewPurchaseReturn() {
                     </div>
                   </div>
                       ))}
-                      {/* شريط «صنف آخر» — وقف عليه بالماوس ينقلك لأول صنف لسه فاضي */}
+                      {/* شريط «صنف آخر» — بالنقر الصريح ينقلك لأول صنف لسه فاضي */}
                       {lines.some((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0) && (
                         <AddAnotherBar
                           label="صنف آخر"
