@@ -245,29 +245,33 @@ export function BackupTab() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            يتم رفع نفس الملف <span className="font-mono">AL_SHOROUK_ERP_MASTER_BACKUP.tar.gz</span> وتحديثه في مكانه
-            في كل مرة، بدل إنشاء ملفات مكرّرة تستهلك مساحة الحساب.
+            يتم رفع نفس الملف <span className="font-mono">AL_SHOROUK_ERP_MASTER_BACKUP.tar</span> داخل مجلد منفصل
+            لكل شركة على Drive، وتحديثه في مكانه في كل مرة، بدل إنشاء ملفات مكرّرة تستهلك مساحة الحساب.
           </p>
-          <div className="grid gap-2 sm:max-w-md">
-            <Label htmlFor="folder">معرّف مجلد Google Drive (اختياري)</Label>
-            <Input
-              id="folder"
-              value={folderId}
-              onChange={(e) => setFolderId(e.target.value)}
-              placeholder="مثال: 1AbCdEfGhIjKlMnOpQrStUvWxYz"
-              dir="ltr"
-            />
-          </div>
+
+          {settings?.drive_folder_id ? (
+            <div className="rounded-md bg-muted p-3 text-sm space-y-1">
+              <div className="font-medium">المجلد المرتبط بالشركة:</div>
+              <div>{settings.drive_folder_name || "Nizam_Backup_..."}</div>
+              <div className="text-xs text-muted-foreground font-mono break-all">ID: {settings.drive_folder_id}</div>
+            </div>
+          ) : (
+            <Button onClick={ensureDriveFolder} disabled={creatingFolder} className="gap-2">
+              {creatingFolder ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+              إنشاء وتنشيط مجلد Google Drive تلقائياً للشركة
+            </Button>
+          )}
+
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <Switch
                 checked={!!settings?.drive_connected}
-                disabled={savingDrive}
+                disabled={savingDrive || creatingFolder}
                 onCheckedChange={(v) => saveDrive(v)}
               />
               <span className="text-sm">تفعيل المزامنة التلقائية</span>
             </div>
-            <Button variant="outline" size="sm" onClick={() => saveDrive(!!settings?.drive_connected)} disabled={savingDrive}>
+            <Button variant="outline" size="sm" onClick={() => saveDrive(!!settings?.drive_connected)} disabled={savingDrive || creatingFolder}>
               {savingDrive ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ الإعدادات"}
             </Button>
           </div>
