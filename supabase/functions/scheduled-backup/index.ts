@@ -47,6 +47,34 @@ async function rpcWithRetry<T = any>(
   throw lastErr;
 }
 
+// جلب النتيجة كـ JSON خام دون تحليلها/إعادة تسلسلها لتوفير استهلاك CPU
+async function fetchPageRaw(
+  url: string, serviceKey: string, fn: string, args: Record<string, unknown>, context: string,
+): Promise<string> {
+  let lastErr: any;
+  for (let attempt = 1; attempt <= RPC_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(args),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return await res.text();
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`raw rpc retry ${attempt}/${RPC_RETRIES} ${fn} (${context}): ${e?.message ?? String(e)}`);
+      if (attempt < RPC_RETRIES) await sleep(RPC_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastErr;
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
