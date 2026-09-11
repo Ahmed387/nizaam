@@ -1811,7 +1811,7 @@ export default function NewSale() {
               </div>
             )}
 
-            {/* شريط «منتج آخر» — وقف عليه بالماوس يجهّزلك بحث صنف جديد */}
+            {/* شريط «منتج آخر» — بالنقر الصريح يجهّزلك بحث صنف جديد */}
             {items.length > 0 && (
               <div className="p-4 pt-0">
                 <AddAnotherBar
