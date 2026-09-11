@@ -202,7 +202,8 @@ Deno.serve(async (req) => {
       let uploadErr: string | null = null;
 
       // محاولتان: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
-      for (let attempt = 1; attempt <= 2 && !uploadOk; attempt++) {
+      for (let attempt = 1; attempt <= 4 && !uploadOk; attempt++) {
+        if (attempt > 1) await new Promise((r) => setTimeout(r, 1500 * attempt));
         streamError = null;
         bytesWritten = 0;
         for (const k of Object.keys(counts)) delete counts[k];
