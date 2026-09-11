@@ -156,13 +156,14 @@ Deno.serve(async (req) => {
         // ---------- 2) media files ----------
         let mediaBytes = 0;
         for (const bucket of MEDIA_BUCKETS) {
-          const queue: string[] = [tenantId];
+          // شركة واحدة ⇒ نمسح الحاوية بالكامل؛ عدة شركات ⇒ مجلد الشركة فقط لمنع التسريب
+          const queue: string[] = [tenantIds.length === 1 ? "" : tenantId];
           while (queue.length) {
             const prefix = queue.shift()!;
             const { data: entries, error } = await admin.storage.from(bucket).list(prefix, { limit: 1000 });
             if (error) break; // bucket may not exist — media is best-effort, data is not
             for (const e of entries ?? []) {
-              const full = `${prefix}/${e.name}`;
+              const full = prefix ? `${prefix}/${e.name}` : e.name;
               if (!e.id) { queue.push(full); continue; } // folder
               if (mediaBytes >= MEDIA_BUDGET_BYTES) continue;
               const { data: file, error: dErr } = await admin.storage.from(bucket).download(full);
