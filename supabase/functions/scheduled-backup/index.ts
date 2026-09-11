@@ -26,7 +26,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-type ManifestRow = { ord: number; table_name: string; tenant_scoped: boolean; filter_sql: string };
+type ManifestRow = { ord: number; table_name: string; scope: "tenant" | "global"; filter_sql: string };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -89,9 +89,8 @@ Deno.serve(async (req) => {
     // ---- Single source of truth for the table list + topological order ----
     const { data: manifestRows, error: manErr } = await admin.rpc("backup_table_manifest");
     if (manErr) throw new Error(`فهرس الجداول: ${manErr.message}`);
-    const tables = (manifestRows as ManifestRow[])
-      .filter((t) => t.tenant_scoped)
-      .sort((a, b) => a.ord - b.ord);
+    // كل الجداول تُنسخ: المرتبطة بالشركة بفلترتها، والجداول العامة (الأرشيف التاريخي وسجلات المالك) بالكامل
+    const tables = (manifestRows as ManifestRow[]).slice().sort((a, b) => a.ord - b.ord);
 
     const results: any[] = [];
 
@@ -157,13 +156,14 @@ Deno.serve(async (req) => {
         // ---------- 2) media files ----------
         let mediaBytes = 0;
         for (const bucket of MEDIA_BUCKETS) {
-          const queue: string[] = [tenantId];
+          // شركة واحدة ⇒ نمسح الحاوية بالكامل؛ عدة شركات ⇒ مجلد الشركة فقط لمنع التسريب
+          const queue: string[] = [tenantIds.length === 1 ? "" : tenantId];
           while (queue.length) {
             const prefix = queue.shift()!;
             const { data: entries, error } = await admin.storage.from(bucket).list(prefix, { limit: 1000 });
             if (error) break; // bucket may not exist — media is best-effort, data is not
             for (const e of entries ?? []) {
-              const full = `${prefix}/${e.name}`;
+              const full = prefix ? `${prefix}/${e.name}` : e.name;
               if (!e.id) { queue.push(full); continue; } // folder
               if (mediaBytes >= MEDIA_BUDGET_BYTES) continue;
               const { data: file, error: dErr } = await admin.storage.from(bucket).download(full);
@@ -198,32 +198,42 @@ Deno.serve(async (req) => {
       }
 
       let streamError: string | null = null;
-      const source = archiveChunks();
-      const counted = (async function* () {
-        try {
-          for await (const chunk of source) { bytesWritten += chunk.byteLength; yield chunk; }
-        } catch (e: any) { streamError = e?.message ?? String(e); throw e; }
-      })();
-
       let uploadOk = false;
       let uploadErr: string | null = null;
-      try {
-        const res = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${serviceKey}`,
-            apikey: serviceKey,
-            "Content-Type": "application/gzip",
-            "x-upsert": "false",
-          },
-          body: gzipStream(counted),
-          // @ts-ignore Deno streaming request body
-          duplex: "half",
-        });
-        uploadOk = res.ok;
-        if (!res.ok) uploadErr = `رفع الملف: ${res.status} ${await res.text()}`;
-      } catch (e: any) {
-        uploadErr = streamError ?? (e?.message ?? String(e));
+
+      // محاولتان: أخطاء الشبكة العابرة أثناء الرفع المتدفق لا يجوز أن تُفشل النسخة
+      for (let attempt = 1; attempt <= 2 && !uploadOk; attempt++) {
+        streamError = null;
+        bytesWritten = 0;
+        for (const k of Object.keys(counts)) delete counts[k];
+        media.length = 0;
+
+        const source = archiveChunks();
+        const counted = (async function* () {
+          try {
+            for await (const chunk of source) { bytesWritten += chunk.byteLength; yield chunk; }
+          } catch (e: any) { streamError = e?.message ?? String(e); throw e; }
+        })();
+
+        try {
+          const res = await fetch(`${url}/storage/v1/object/system-backups/${storagePath}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${serviceKey}`,
+              apikey: serviceKey,
+              "Content-Type": "application/gzip",
+              "x-upsert": "true",
+            },
+            body: gzipStream(counted),
+            // @ts-ignore Deno streaming request body
+            duplex: "half",
+          });
+          uploadOk = res.ok;
+          if (!res.ok) uploadErr = `رفع الملف: ${res.status} ${await res.text()}`;
+        } catch (e: any) {
+          uploadErr = streamError ?? (e?.message ?? String(e));
+        }
+        if (streamError) break; // خطأ في البيانات نفسها — لا فائدة من الإعادة
       }
 
       if (!uploadOk) {

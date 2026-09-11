@@ -6981,8 +6981,8 @@ export type Database = {
         Returns: {
           filter_sql: string
           ord: number
+          scope: string
           table_name: string
-          tenant_scoped: boolean
         }[]
       }
       backup_tenant_filter: {
