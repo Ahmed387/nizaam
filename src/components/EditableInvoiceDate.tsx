@@ -50,15 +50,18 @@ export function EditableInvoiceDate({ table, recordId, value, fallback, compact,
     setBusy(true);
     // datetime-local → treat as local time, send as ISO.
     const isoValue = new Date(draft).toISOString();
-    const { error } = await (supabase.from(table as any) as any)
-      .update({ invoice_date: isoValue })
-      .eq("id", recordId);
+    const { error } = table === "invoices"
+      ? await supabase.rpc("update_invoice_date_sovereign", {
+          p_invoice_id: recordId,
+          p_new_date: isoValue,
+          p_reason: "تعديل تاريخ الفاتورة من شاشة المستندات",
+        })
+      : await (supabase.from(table as any) as any)
+          .update({ invoice_date: isoValue })
+          .eq("id", recordId);
     setBusy(false);
     if (error) {
-      const msg = /owner|admin or super_admin|super_admin/i.test(error.message)
-        ? "تعديل تاريخ الفاتورة متاح لصاحب الشركة فقط"
-        : error.message;
-      return toast.error(msg);
+      return toast.error(error.message);
     }
     toast.success("تم تحديث تاريخ ووقت الفاتورة");
     setOpen(false);

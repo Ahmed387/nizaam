@@ -494,18 +494,19 @@ export default function EditSaleInvoice() {
       }
     }
 
-    // 3) Persist invoice date/time change (admin only, guarded by RLS/trigger on server)
+    // 3) Persist invoice date/time through the sovereign accounting path.
     const snap = initialSnapshotRef.current;
     const oldIso = snap?.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
     const newIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
     if (oldIso !== newIso && newIso) {
-      const { error } = await supabase.rpc("set_invoice_meta" as any, { p_invoice_id: invoiceId!, p_invoice_date: newIso, p_notes: null });
+      const { error } = await supabase.rpc("update_invoice_date_sovereign", {
+        p_invoice_id: invoiceId!,
+        p_new_date: newIso,
+        p_reason: "تعديل تاريخ الفاتورة من شاشة تعديل فاتورة البيع",
+      });
       if (error) {
         setSaving(false);
-        const msg = /owner|admin or super_admin|super_admin/i.test(error.message)
-          ? "تعديل تاريخ الفاتورة متاح لصاحب الشركة فقط"
-          : error.message;
-        toast.error(msg);
+        toast.error(error.message);
         return;
       }
     }

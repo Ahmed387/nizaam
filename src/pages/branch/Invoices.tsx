@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
-import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
+import { InvoiceItemsAccordion } from "@/components/InvoiceItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
 
@@ -81,6 +82,7 @@ export default function Invoices() {
   const [cancelVoucherReason, setCancelVoucherReason] = useState("");
   const [deleteVoucher, setDeleteVoucher] = useState<any>(null);
   const [voucherBusy, setVoucherBusy] = useState(false);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
 
   const handleDeleteInvoice = async () => {
     if (!delTarget) return;
@@ -134,6 +136,7 @@ export default function Invoices() {
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
+  useEffect(() => { setExpandedInvoiceId(null); }, [tab, branchId]);
   const setTab = (k: string) => {
     const next = new URLSearchParams();
     next.set("tab", k);
@@ -325,6 +328,18 @@ export default function Invoices() {
         columns: [
           { key: "invoice_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="flex items-center justify-center gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف الفاتورة" : "عرض أصناف الفاتورة"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
               <span className="font-mono text-primary font-semibold">{r.invoice_number}</span>
             </span>
           ) },
@@ -486,7 +501,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -908,6 +923,16 @@ export default function Invoices() {
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
+        getRowKey={(row: any) => row.id}
+        isRowExpanded={(row: any) => tab === "sale" && expandedInvoiceId === row.id}
+        renderExpandedRow={tab === "sale" && tenantId && branchId ? (row: any) => (
+          <InvoiceItemsAccordion
+            tenantId={tenantId}
+            branchId={branchId}
+            invoiceId={row.id}
+            expanded={expandedInvoiceId === row.id}
+          />
+        ) : undefined}
       />
 
 
