@@ -502,11 +502,11 @@ export default function NewPurchaseReturn() {
                     </div>
                   </div>
                       ))}
-                      {/* شريط «صنف آخر» — وقف عليه بالماوس ينقلك لأول صنف لسه فاضي */}
+                      {/* شريط «صنف آخر» — بالنقر الصريح ينقلك لأول صنف لسه فاضي */}
                       {lines.some((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0) && (
                         <AddAnotherBar
                           label="صنف آخر"
-                          hint="— وقف هنا بالماوس ينقلك للصنف اللي بعده"
+                          hint="— اضغط هنا للانتقال للصنف اللي بعده"
                           onActivate={() => {
                             const idx = lines.findIndex((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0);
                             if (idx >= 0) { qtyRefs.current[idx]?.focus(); qtyRefs.current[idx]?.select?.(); }
