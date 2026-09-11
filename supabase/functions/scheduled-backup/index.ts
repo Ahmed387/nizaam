@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
 
     for (const tenantId of tenantIds) {
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `backup-${stamp}.tar.gz`;
+      const filename = `backup-${stamp}.tar`;
       const storagePath = `${tenantId}/${filename}`;
       const counts: Record<string, number> = {};
       const media: { bucket: string; path: string; size: number }[] = [];
