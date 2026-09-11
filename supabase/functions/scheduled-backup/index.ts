@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
               _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE,
               _order_by: orderBy,
             }, t.table_name);
-            if (page.length) rows.push(...page);
+            if (page.length) rows.push.apply(rows, page);
             if (page.length < PAGE) break;
             offset += PAGE;
           }
