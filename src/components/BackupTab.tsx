@@ -245,7 +245,7 @@ export function BackupTab() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            يتم رفع نفس الملف <span className="font-mono">AL_SHOROUK_ERP_MASTER_BACKUP.tar</span> داخل مجلد منفصل
+            يتم رفع نفس الملف <span className="font-mono">A&N.tar</span> داخل مجلد منفصل
             لكل شركة على Drive، وتحديثه في مكانه في كل مرة، بدل إنشاء ملفات مكرّرة تستهلك مساحة الحساب.
           </p>
 
