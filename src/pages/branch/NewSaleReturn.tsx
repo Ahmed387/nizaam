@@ -564,7 +564,7 @@ export default function NewSaleReturn() {
                       {lines.some((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0) && (
                         <AddAnotherBar
                           label="صنف آخر"
-                          hint="— وقف هنا بالماوس ينقلك للصنف اللي بعده"
+                          hint="— اضغط هنا للانتقال للصنف اللي بعده"
                           onActivate={() => {
                             const idx = lines.findIndex((x) => x.max_qty > 0 && (x.quantity ?? 0) === 0);
                             if (idx >= 0) { qtyRefs.current[idx]?.focus(); qtyRefs.current[idx]?.select?.(); }
