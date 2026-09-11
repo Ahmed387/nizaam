@@ -1019,7 +1019,7 @@ export default function NewSale() {
       if (invoiceDate && invoiceDate !== _today && invId) {
         const { error: dErr } = await supabase.rpc("update_invoice_date_sovereign", {
           p_invoice_id: invId as string,
-          p_new_date: new Date(`${invoiceDate}T12:00:00`).toISOString(),
+          p_new_date: invoiceDate,
           p_reason: "تحديد تاريخ فاتورة البيع عند الإنشاء",
         });
         if (dErr) toast.error(dErr.message);
