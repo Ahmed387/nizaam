@@ -35,6 +35,7 @@ import { AttributePicker } from "@/components/AttributePicker";
 import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
+import { AddAnotherBar } from "@/components/AddAnotherBar";
 
 interface Line {
   id?: string | null;
