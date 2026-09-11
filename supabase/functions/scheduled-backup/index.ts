@@ -401,7 +401,7 @@ async function syncToDrive(
       : `${GATEWAY}/upload/drive/v3/files?uploadType=media&supportsAllDrives=true`;
     return await fetch(endpoint, {
       method: id ? "PATCH" : "POST",
-      headers: { ...gwHeaders, "Content-Type": "application/gzip" },
+      headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
       body: objectRes.body,
       // @ts-ignore Deno streaming request body
       duplex: "half",
@@ -417,7 +417,7 @@ async function syncToDrive(
     });
     res = await fetch(`${GATEWAY}/upload/drive/v3/files?uploadType=media&supportsAllDrives=true`, {
       method: "POST",
-      headers: { ...gwHeaders, "Content-Type": "application/gzip" },
+      headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
       body: retry.body,
       // @ts-ignore Deno streaming request body
       duplex: "half",
