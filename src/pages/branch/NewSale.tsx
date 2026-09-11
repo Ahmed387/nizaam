@@ -1022,7 +1022,7 @@ export default function NewSale() {
           p_new_date: new Date(`${invoiceDate}T12:00:00`).toISOString(),
           p_reason: "تحديد تاريخ فاتورة البيع عند الإنشاء",
         });
-        if (dErr) throw dErr;
+        if (dErr) toast.error(dErr.message);
       }
 
 

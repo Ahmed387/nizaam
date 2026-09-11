@@ -84,8 +84,6 @@ export default function Invoices() {
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
 
-  useEffect(() => { setExpandedInvoiceId(null); }, [tab, branchId]);
-
   const handleDeleteInvoice = async () => {
     if (!delTarget) return;
     setDelBusy(true);
@@ -138,6 +136,7 @@ export default function Invoices() {
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
+  useEffect(() => { setExpandedInvoiceId(null); }, [tab, branchId]);
   const setTab = (k: string) => {
     const next = new URLSearchParams();
     next.set("tab", k);
