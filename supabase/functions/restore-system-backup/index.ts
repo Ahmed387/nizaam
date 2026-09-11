@@ -60,14 +60,18 @@ Deno.serve(async (req) => {
     if (!ownerTenants.includes(backup.tenant_id)) return jsonResponse({ error: "Forbidden" }, 403);
     if (!backup.storage_path) return jsonResponse({ error: "لا يوجد ملف لهذه النسخة" }, 400);
 
-    // ---- Read + unpack the archive ----
+    // ---- Read + unpack the archive (gzip or raw tar) ----
     const objectRes = await fetch(`${url}/storage/v1/object/system-backups/${backup.storage_path}`, {
       headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
     });
     if (!objectRes.ok || !objectRes.body) {
       return jsonResponse({ error: `تعذر قراءة ملف النسخة: ${objectRes.status}` }, 500);
     }
-    const raw = await gunzip(objectRes.body);
+    const compressed = await objectRes.bytes();
+    const isGzip = compressed.byteLength >= 2 && compressed[0] === 0x1f && compressed[1] === 0x8b;
+    const raw = isGzip
+      ? await gunzip(new Response(compressed).body as ReadableStream<Uint8Array>)
+      : compressed;
     const entries = untar(raw);
 
     const manifestEntry = entries.find((e) => e.name === "manifest.json");
