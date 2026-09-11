@@ -302,10 +302,10 @@ Deno.serve(async (req) => {
             headers: {
               Authorization: `Bearer ${serviceKey}`,
               apikey: serviceKey,
-              "Content-Type": "application/gzip",
+              "Content-Type": "application/x-tar",
               "x-upsert": "true",
             },
-            body: gzipStream(counted),
+            body: counted,
             // @ts-ignore Deno streaming request body
             duplex: "half",
           });
