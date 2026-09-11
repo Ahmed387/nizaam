@@ -8276,6 +8276,10 @@ export type Database = {
         }
         Returns: string
       }
+      update_invoice_date_sovereign: {
+        Args: { p_invoice_id: string; p_new_date: string; p_reason?: string }
+        Returns: Json
+      }
       update_product_price_with_reason: {
         Args: {
           _cost_price?: number
