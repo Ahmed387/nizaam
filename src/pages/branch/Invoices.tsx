@@ -995,7 +995,7 @@ export default function Invoices() {
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
         getRowKey={(row: any) => row.id}
-        isRowExpanded={DOC_ITEMS_TABS.includes(tab) && expandedInvoiceId === row.id}
+        isRowExpanded={DOC_ITEMS_TABS.includes(tab) ? (row: any) => expandedInvoiceId === row.id : undefined}
         renderExpandedRow={DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
           tab === "sale" ? (
             <InvoiceItemsAccordion
