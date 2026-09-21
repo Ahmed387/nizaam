@@ -345,6 +345,7 @@ export default function Invoices() {
       case "sale": return {
         newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
+          seqColumn,
           { key: "invoice_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="flex items-center justify-center gap-1.5">
               <button
@@ -387,7 +388,24 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "فاتورة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span></span> },
+          seqColumn,
+          { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف فاتورة الشراء" : "عرض أصناف فاتورة الشراء"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span>
+            </span>
+          ) },
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة", align: "right" },
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
@@ -414,7 +432,24 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.return_number ?? "—"}</span></span> },
+          seqColumn,
+          { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف المرتجع" : "عرض أصناف المرتجع"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className="font-mono text-primary font-semibold">{r.return_number ?? "—"}</span>
+            </span>
+          ) },
           { key: "inv", header: "رقم الفاتورة", align: "right", width: "8rem", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "customer", header: "العميل", align: "right", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب", align: "right" },
@@ -436,7 +471,24 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.return_number}</span></span> },
+          seqColumn,
+          { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف المرتجع" : "عرض أصناف المرتجع"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className="font-mono text-primary font-semibold">{r.return_number}</span>
+            </span>
+          ) },
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب", align: "right" },
           { key: "total_amount", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
