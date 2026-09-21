@@ -25,10 +25,14 @@ import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCount
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { InvoiceItemsAccordion } from "@/components/InvoiceItemsAccordion";
+import { DocumentItemsAccordion } from "@/components/DocumentItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
+
+// Tabs whose rows expand into a lazy line-items accordion sub-row
+const DOC_ITEMS_TABS: TabKey[] = ["sale", "purchase", "sale_return", "purchase_return"];
 
 const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
   { key: "sale", label: "فواتير البيع", icon: ShoppingCart, color: "text-success" },
@@ -319,6 +323,21 @@ export default function Invoices() {
   }, [tab]);
   const attIds = useMemo(() => attRecordType ? filteredRows.map((r: any) => r.id) : [], [attRecordType, filteredRows]);
   const attCounts = useAttachmentCounts((attRecordType ?? "voucher") as RecordType, attIds);
+
+  // 1-based visual sequence index — pure UI helper, decoupled from document IDs/codes
+  const rowIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    (filteredRows as any[]).forEach((r, i) => m.set(r.id, i));
+    return m;
+  }, [filteredRows]);
+  const seqColumn = {
+    key: "row_seq", header: "#", align: "center" as const, width: "4rem",
+    render: (r: any) => (
+      <span className="font-mono text-xs font-semibold text-muted-foreground" title="ترتيب الصف">
+        {(rowIndexById.get(r.id) ?? 0) + 1}
+      </span>
+    ),
+  };
 
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
