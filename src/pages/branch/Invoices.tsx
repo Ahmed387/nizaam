@@ -25,10 +25,14 @@ import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCount
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { InvoiceItemsAccordion } from "@/components/InvoiceItemsAccordion";
+import { DocumentItemsAccordion } from "@/components/DocumentItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
+
+// Tabs whose rows expand into a lazy line-items accordion sub-row
+const DOC_ITEMS_TABS: TabKey[] = ["sale", "purchase", "sale_return", "purchase_return"];
 
 const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
   { key: "sale", label: "فواتير البيع", icon: ShoppingCart, color: "text-success" },
@@ -320,12 +324,28 @@ export default function Invoices() {
   const attIds = useMemo(() => attRecordType ? filteredRows.map((r: any) => r.id) : [], [attRecordType, filteredRows]);
   const attCounts = useAttachmentCounts((attRecordType ?? "voucher") as RecordType, attIds);
 
+  // 1-based visual sequence index — pure UI helper, decoupled from document IDs/codes
+  const rowIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    (filteredRows as any[]).forEach((r, i) => m.set(r.id, i));
+    return m;
+  }, [filteredRows]);
+  const seqColumn = {
+    key: "row_seq", header: "#", align: "center" as const, width: "4rem",
+    render: (r: any) => (
+      <span className="font-mono text-xs font-semibold text-muted-foreground" title="ترتيب الصف">
+        {(rowIndexById.get(r.id) ?? 0) + 1}
+      </span>
+    ),
+  };
+
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
     switch (tab) {
       case "sale": return {
         newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
+          seqColumn,
           { key: "invoice_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="flex items-center justify-center gap-1.5">
               <button
@@ -368,7 +388,24 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "فاتورة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span></span> },
+          seqColumn,
+          { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف فاتورة الشراء" : "عرض أصناف فاتورة الشراء"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span>
+            </span>
+          ) },
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "received_by", header: "استلم بواسطة", align: "right" },
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
@@ -395,7 +432,24 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.return_number ?? "—"}</span></span> },
+          seqColumn,
+          { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف المرتجع" : "عرض أصناف المرتجع"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className="font-mono text-primary font-semibold">{r.return_number ?? "—"}</span>
+            </span>
+          ) },
           { key: "inv", header: "رقم الفاتورة", align: "right", width: "8rem", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "customer", header: "العميل", align: "right", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب", align: "right" },
@@ -417,7 +471,24 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5"><span className="font-mono text-primary font-semibold">{r.return_number}</span></span> },
+          seqColumn,
+          { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء أصناف المرتجع" : "عرض أصناف المرتجع"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedInvoiceId((current) => current === r.id ? null : r.id);
+                }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className="font-mono text-primary font-semibold">{r.return_number}</span>
+            </span>
+          ) },
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب", align: "right" },
           { key: "total_amount", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
@@ -501,7 +572,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId, rowIndexById]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -924,14 +995,24 @@ export default function Invoices() {
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
         getRowKey={(row: any) => row.id}
-        isRowExpanded={(row: any) => tab === "sale" && expandedInvoiceId === row.id}
-        renderExpandedRow={tab === "sale" && tenantId && branchId ? (row: any) => (
-          <InvoiceItemsAccordion
-            tenantId={tenantId}
-            branchId={branchId}
-            invoiceId={row.id}
-            expanded={expandedInvoiceId === row.id}
-          />
+        isRowExpanded={DOC_ITEMS_TABS.includes(tab) && expandedInvoiceId === row.id}
+        renderExpandedRow={DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
+          tab === "sale" ? (
+            <InvoiceItemsAccordion
+              tenantId={tenantId}
+              branchId={branchId}
+              invoiceId={row.id}
+              expanded={expandedInvoiceId === row.id}
+            />
+          ) : (
+            <DocumentItemsAccordion
+              docType={tab as "purchase" | "sale_return" | "purchase_return"}
+              tenantId={tenantId}
+              branchId={branchId}
+              docId={row.id}
+              expanded={expandedInvoiceId === row.id}
+            />
+          )
         ) : undefined}
       />
 
