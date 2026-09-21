@@ -572,7 +572,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId, rowIndexById]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -995,14 +995,24 @@ export default function Invoices() {
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
         getRowKey={(row: any) => row.id}
-        isRowExpanded={(row: any) => tab === "sale" && expandedInvoiceId === row.id}
-        renderExpandedRow={tab === "sale" && tenantId && branchId ? (row: any) => (
-          <InvoiceItemsAccordion
-            tenantId={tenantId}
-            branchId={branchId}
-            invoiceId={row.id}
-            expanded={expandedInvoiceId === row.id}
-          />
+        isRowExpanded={DOC_ITEMS_TABS.includes(tab) && expandedInvoiceId === row.id}
+        renderExpandedRow={DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
+          tab === "sale" ? (
+            <InvoiceItemsAccordion
+              tenantId={tenantId}
+              branchId={branchId}
+              invoiceId={row.id}
+              expanded={expandedInvoiceId === row.id}
+            />
+          ) : (
+            <DocumentItemsAccordion
+              docType={tab as "purchase" | "sale_return" | "purchase_return"}
+              tenantId={tenantId}
+              branchId={branchId}
+              docId={row.id}
+              expanded={expandedInvoiceId === row.id}
+            />
+          )
         ) : undefined}
       />
 
