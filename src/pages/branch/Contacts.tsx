@@ -433,16 +433,55 @@ export default function Contacts() {
         loading={loading}
         rows={filtered}
         onRowClick={goToProfile}
+        getRowKey={(r: any) => r.id}
+        isRowExpanded={(r: any) => expandedId === r.id}
+        renderExpandedRow={(r: any) => (
+          tenantId && branchId ? (
+            <ContactBranchAccordion
+              contactId={r.id}
+              contactName={r.name}
+              contactType={r.type}
+              tenantId={tenantId}
+              receivingBranchId={branchId}
+              expanded
+              canSettle={isAdmin || isManager || hasRole("cashier") || hasRole("accountant")}
+              onSettled={load}
+            />
+          ) : null
+        )}
         columns={[
+          {
+            key: "row_seq",
+            header: "#",
+            width: "4rem",
+            align: "center",
+            render: (r: any) => (
+              <span className="tabular-nums font-bold text-muted-foreground">{rowIndexById.get(r.id) ?? "—"}</span>
+            ),
+          },
           {
             key: "name",
             header: "الاسم",
-            render: (r: any) => (
-              <div>
-                <div className="font-semibold">{r.name}</div>
-                {r.contact_person && <div className="text-xs text-muted-foreground">{r.contact_person}</div>}
-              </div>
-            ),
+            render: (r: any) => {
+              const open = expandedId === r.id;
+              return (
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-label={open ? `إغلاق تفاصيل ${r.name}` : `عرض تفاصيل ${r.name}`}
+                    className="mt-0.5 rounded-md p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                    onClick={(e) => { e.stopPropagation(); setExpandedId(open ? null : r.id); }}
+                  >
+                    {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  <div>
+                    <div className="font-semibold">{r.name}</div>
+                    {r.contact_person && <div className="text-xs text-muted-foreground">{r.contact_person}</div>}
+                  </div>
+                </div>
+              );
+            },
           },
           {
             key: "type",
