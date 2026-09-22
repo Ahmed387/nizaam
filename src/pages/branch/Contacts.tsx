@@ -62,6 +62,7 @@ export default function Contacts() {
   const [voucherCtx, setVoucherCtx] = useState<{ type: "receipt" | "payment"; contact: any } | null>(null);
   type BalanceKey = "owe_us" | "we_owe" | "settled";
   const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleBalance = (k: BalanceKey) =>
     setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
   const BALANCE_LABELS: Record<BalanceKey, string> = {
