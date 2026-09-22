@@ -6922,6 +6922,14 @@ export type Database = {
         }
         Returns: string
       }
+      apply_customer_credit: {
+        Args: {
+          p_branch_id: string
+          p_contact_id: string
+          p_invoice_id?: string
+        }
+        Returns: number
+      }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
@@ -8185,6 +8193,17 @@ export type Database = {
       set_scheduled_reports_cron: {
         Args: { _day: number; _hour: number }
         Returns: undefined
+      }
+      settle_contact_invoices_sovereign: {
+        Args: {
+          p_contact_id: string
+          p_payment_amount: number
+          p_payment_method: string
+          p_receiving_branch_id: string
+          p_selected_invoices?: Json
+          p_settlement_type?: string
+        }
+        Returns: Json
       }
       shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }

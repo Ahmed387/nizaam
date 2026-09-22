@@ -57,6 +57,13 @@
       "when": 1789150545778,
       "tag": "0007_add_sovereign_invoice_date_update",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790036895685,
+      "tag": "0008_contacts_security_indexes_settlement_engine",
+      "breakpoints": true
     }
   ]
 }
