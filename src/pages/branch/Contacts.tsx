@@ -15,7 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet } from "lucide-react";
+import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet, ChevronDown, ChevronUp } from "lucide-react";
+import { ContactBranchAccordion } from "@/components/ContactBranchAccordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -61,6 +62,7 @@ export default function Contacts() {
   const [voucherCtx, setVoucherCtx] = useState<{ type: "receipt" | "payment"; contact: any } | null>(null);
   type BalanceKey = "owe_us" | "we_owe" | "settled";
   const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleBalance = (k: BalanceKey) =>
     setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
   const BALANCE_LABELS: Record<BalanceKey, string> = {
@@ -110,6 +112,15 @@ export default function Contacts() {
     }
     return r;
   }, [rows, filter, balanceFilters, search]);
+
+  // ترقيم تسلسلي 1-based يحترم الفلاتر والبحث الحاليين (بصري فقط)
+  const rowIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    filtered.forEach((r: any, i: number) => m.set(r.id, i + 1));
+    return m;
+  }, [filtered]);
+
+
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -422,16 +433,55 @@ export default function Contacts() {
         loading={loading}
         rows={filtered}
         onRowClick={goToProfile}
+        getRowKey={(r: any) => r.id}
+        isRowExpanded={(r: any) => expandedId === r.id}
+        renderExpandedRow={(r: any) => (
+          tenantId && branchId ? (
+            <ContactBranchAccordion
+              contactId={r.id}
+              contactName={r.name}
+              contactType={r.type}
+              tenantId={tenantId}
+              receivingBranchId={branchId}
+              expanded
+              canSettle={isAdmin || isManager || hasRole("cashier") || hasRole("accountant")}
+              onSettled={load}
+            />
+          ) : null
+        )}
         columns={[
+          {
+            key: "row_seq",
+            header: "#",
+            width: "4rem",
+            align: "center",
+            render: (r: any) => (
+              <span className="tabular-nums font-bold text-muted-foreground">{rowIndexById.get(r.id) ?? "—"}</span>
+            ),
+          },
           {
             key: "name",
             header: "الاسم",
-            render: (r: any) => (
-              <div>
-                <div className="font-semibold">{r.name}</div>
-                {r.contact_person && <div className="text-xs text-muted-foreground">{r.contact_person}</div>}
-              </div>
-            ),
+            render: (r: any) => {
+              const open = expandedId === r.id;
+              return (
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-label={open ? `إغلاق تفاصيل ${r.name}` : `عرض تفاصيل ${r.name}`}
+                    className="mt-0.5 rounded-md p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                    onClick={(e) => { e.stopPropagation(); setExpandedId(open ? null : r.id); }}
+                  >
+                    {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  <div>
+                    <div className="font-semibold">{r.name}</div>
+                    {r.contact_person && <div className="text-xs text-muted-foreground">{r.contact_person}</div>}
+                  </div>
+                </div>
+              );
+            },
           },
           {
             key: "type",
