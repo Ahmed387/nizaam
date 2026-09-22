@@ -113,6 +113,15 @@ export default function Contacts() {
     return r;
   }, [rows, filter, balanceFilters, search]);
 
+  // ترقيم تسلسلي 1-based يحترم الفلاتر والبحث الحاليين (بصري فقط)
+  const rowIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    filtered.forEach((r: any, i: number) => m.set(r.id, i + 1));
+    return m;
+  }, [filtered]);
+
+
+
   const counts = useMemo(() => ({
     all: rows.length,
     customer: rows.filter((r) => r.type === "customer" || r.type === "both").length,
