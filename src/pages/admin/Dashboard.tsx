@@ -43,7 +43,7 @@ export default function AdminDashboard() {
       { data: approvals },
       { data: sessions },
     ] = await Promise.all([
-      supabase.from("invoices").select("total").eq("status", "active").not("is_migrated","is",true).gte("created_at", todayIso),
+      supabase.from("invoices").select("total").eq("status", "active").not("is_migrated","is",true).gte("invoice_date", todayIso),
       supabase.from("products").select("quantity, low_stock_alert").is("archived_at", null),
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("approval_requests" as any).select("id").eq("status", "pending"),
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
           .eq("branch_id", b.id)
           .eq("status", "active")
           .not("is_migrated","is",true)
-          .gte("created_at", todayIso);
+          .gte("invoice_date", todayIso);
         const todaySales = (sales ?? []).reduce((s, x) => s + Number(x.total), 0);
         return { ...b, todaySales };
       })

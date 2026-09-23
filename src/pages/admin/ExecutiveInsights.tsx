@@ -60,7 +60,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
     let iQ = supabase.from("invoices")
       .select("id, branch_id, is_migrated, invoice_items(product_id, product_name, quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
       .eq("tenant_id", tenantId).eq("status", "active")
-      .gte("created_at", fromIso).lte("created_at", toIso);
+      .gte("invoice_date", fromIso).lte("invoice_date", toIso);
     let pQ = supabase.from("products").select("id, name, sku, branch_id, quantity, archived_at").eq("tenant_id", tenantId).is("archived_at", null);
     let eQ = supabase.from("vouchers")
       .select("amount, branch_id, voucher_categories!inner(name, system_key, is_deductible_from_profit)")

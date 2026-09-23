@@ -72,7 +72,7 @@ export default function ContactStatement() {
           .eq("contact_id", contactId)
           .eq("status", "active"),
         supabase.from("returns")
-          .select("id, return_number, total_refund, refund_cash_amount, refund_transfer_amount, refund_method, status, created_at, invoice_id, invoices!inner(contact_id, invoice_number)")
+          .select("id, return_number, total_refund, refund_cash_amount, refund_transfer_amount, refund_method, status, created_at, invoice_date, invoice_id, invoices!inner(contact_id, invoice_number)")
           .eq("invoices.contact_id", contactId),
       ]);
 
@@ -111,7 +111,7 @@ export default function ContactStatement() {
           Number(r.total_refund ?? 0) - Number(r.refund_cash_amount ?? 0) - Number(r.refund_transfer_amount ?? 0),
         );
         list.push({
-          date: r.created_at, type: "مرتجع بيع", reference: r.return_number ?? r.invoices?.invoice_number ?? "—",
+          date: r.invoice_date ?? r.created_at, type: "مرتجع بيع", reference: r.return_number ?? r.invoices?.invoice_number ?? "—",
           description: r.refund_method ?? "—",
           debit: 0, credit: creditNote,
         });
@@ -128,7 +128,7 @@ export default function ContactStatement() {
           .select("id, amount, paid_at, notes")
           .eq("contact_id", contactId),
         supabase.from("purchase_returns")
-          .select("id, return_number, total_amount, refund_cash_amount, refund_transfer_amount, status, created_at, refund_method")
+          .select("id, return_number, total_amount, refund_cash_amount, refund_transfer_amount, status, created_at, invoice_date, refund_method")
           .eq("contact_id", contactId)
           .eq("status", "active"),
       ]);
@@ -144,7 +144,7 @@ export default function ContactStatement() {
         debit: Number(p.amount ?? 0), credit: 0,
       }));
       (prets ?? []).forEach((r: any) => list.push({
-        date: r.created_at, type: "مرتجع شراء", reference: r.return_number ?? "—",
+        date: r.invoice_date ?? r.created_at, type: "مرتجع شراء", reference: r.return_number ?? "—",
         description: r.refund_method ?? "—",
         debit: Math.max(
           0,

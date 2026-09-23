@@ -70,11 +70,11 @@ export default function BranchReports() {
     const toIso = new Date(to + "T23:59:59").toISOString();
     const [b, inv, exp, tr, pr, rt] = await Promise.all([
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
-      supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("created_at", fromIso).lte("created_at", toIso).order("created_at", { ascending: false }),
+      supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("invoice_date", fromIso).lte("invoice_date", toIso).order("invoice_date", { ascending: false }),
       supabase.from("vouchers").select("*, voucher_categories!inner(name, system_key, is_deductible_from_profit)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("vouchers" as any).select("type, amount, voucher_date, voucher_categories(system_key)").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
       supabase.from("products").select("*").eq("branch_id", branchId),
-      supabase.from("returns" as any).select("total_refund, created_at").eq("branch_id", branchId).eq("status", "active").gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("returns" as any).select("total_refund, created_at, invoice_date").eq("branch_id", branchId).eq("status", "active").gte("invoice_date", fromIso).lte("invoice_date", toIso),
     ]);
     setBranchName(b.data?.name ?? "");
     setInvoices(inv.data ?? []);
@@ -151,7 +151,7 @@ export default function BranchReports() {
   const dailyData = (() => {
     const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
     for (const inv of activeInv) {
-      const d = inv.created_at.slice(0, 10);
+      const d = (inv.invoice_date ?? inv.created_at).slice(0, 10);
       if (!dayMap[d]) dayMap[d] = { date: d, sales: 0, profit: 0 };
       dayMap[d].sales += netInvoiceTotal(inv);
       const cost = invoiceProfit(inv).cost;
@@ -191,7 +191,7 @@ export default function BranchReports() {
           { البند: "صادر من الخزنة", القيمة: cashOut },
         ],
       },
-      { name: "الفواتير", rows: activeInv.map((i) => ({ رقم: i.invoice_number, التاريخ: i.created_at, الإجمالي: netInvoiceTotal(i), الخصم: i.discount_amount })) },
+      { name: "الفواتير", rows: activeInv.map((i) => ({ رقم: i.invoice_number, التاريخ: i.invoice_date ?? i.created_at, الإجمالي: netInvoiceTotal(i), الخصم: i.discount_amount })) },
       { name: "المنتجات_الأكثر_مبيعاً", rows: topProducts.map((p) => ({ المنتج: p.name, الكمية: p.qty, الإيراد: p.revenue })) },
       { name: "المصروفات", rows: expenses.map((e) => ({ التاريخ: e.date, النوع: e.type, المبلغ: e.amount, الوصف: e.description })) },
       { name: "مخزون_منخفض", rows: lowStock.map((p) => ({ المنتج: p.name, المتوفر: p.quantity, "حد التنبيه": p.low_stock_alert })) },
@@ -269,7 +269,7 @@ export default function BranchReports() {
             // sales by day
             const dayMap: Record<string, { date: string; sales: number; profit: number }> = {};
             for (const inv of activeInv) {
-              const d = inv.created_at.slice(0, 10);
+              const d = (inv.invoice_date ?? inv.created_at).slice(0, 10);
               if (!dayMap[d]) dayMap[d] = { date: d.slice(5), sales: 0, profit: 0 };
               dayMap[d].sales += netInvoiceTotal(inv);
               const cost = invoiceProfit(inv).cost;

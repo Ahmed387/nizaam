@@ -101,11 +101,11 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     const build = () => {
       let q = supabase
         .from("invoice_items")
-        .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, status, cashier_id, is_migrated)")
+        .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, invoice_date, status, cashier_id, is_migrated)")
         .eq("tenant_id", tenantId)
         .neq("invoice.status", "cancelled");
-      if (from) q = q.gte("invoice.created_at", new Date(from + "T00:00:00").toISOString());
-      if (to) q = q.lte("invoice.created_at", new Date(to + "T23:59:59.999").toISOString());
+      if (from) q = q.gte("invoice.invoice_date", new Date(from + "T00:00:00").toISOString());
+      if (to) q = q.lte("invoice.invoice_date", new Date(to + "T23:59:59.999").toISOString());
       if (branchId) q = q.eq("invoice.branch_id", branchId);
       return q;
     };
@@ -127,7 +127,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         const cat = r.product_id ? productCat[r.product_id] : null;
         if (cat !== categoryId) return false;
       }
-      const d = inv.created_at?.slice(0, 10);
+      const d = (inv.invoice_date ?? inv.created_at)?.slice(0, 10);
       if (from && d < from) return false;
       if (to && d > to) return false;
       return true;
@@ -173,7 +173,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       map.set(key, prev);
 
       const inv = r.invoice;
-      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, is_migrated: !!inv.is_migrated, cost_unknown: true, original_profit: 0 };
+      const ip: InvRow = invMap.get(inv.id) ?? { invoice_id: inv.id, invoice_number: inv.invoice_number, created_at: inv.invoice_date ?? inv.created_at, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: false, was_edited: false, is_migrated: !!inv.is_migrated, cost_unknown: true, original_profit: 0 };
       ip.revenue += revenue; ip.cost += cost; ip.profit += profit;
       ip.original_profit += origProfit;
       ip.has_return = ip.has_return || hasReturn;
