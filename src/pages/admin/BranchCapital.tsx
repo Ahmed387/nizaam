@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Building2, PlusCircle, TrendingUp, TrendingDown, Wallet, Package, Users, PieChart } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { useBranchScope } from "@/lib/branchScope";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Branch = { id: string; name: string; code: string };
 type Allocation = { id: string; branch_id: string; amount: number; allocation_date: string; notes: string | null; created_at: string };
@@ -141,7 +142,7 @@ export default function BranchCapital() {
               <CardTitle className="text-sm">إجمالي رأس المال الموزع</CardTitle>
               <Wallet className="w-5 h-5 text-primary" />
             </CardHeader>
-            <CardContent><div className="text-3xl font-bold">{fmt(totalAllocated)} <span className="text-sm">ج.م</span></div></CardContent>
+             <CardContent><FinancialAmount value={fmt(totalAllocated)} size="lg" className="justify-start" /></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -149,9 +150,7 @@ export default function BranchCapital() {
               <TrendingUp className={`w-5 h-5 ${totalNetProfit >= 0 ? "text-success" : "text-destructive"}`} />
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl font-bold ${totalNetProfit >= 0 ? "text-success" : "text-destructive"}`}>
-                {fmt(totalNetProfit)} <span className="text-sm">ج.م</span>
-              </div>
+               <FinancialAmount value={fmt(totalNetProfit)} size="lg" className={`justify-start ${totalNetProfit >= 0 ? "text-success" : "text-destructive"}`} />
             </CardContent>
           </Card>
           <Card>
@@ -159,7 +158,7 @@ export default function BranchCapital() {
               <CardTitle className="text-sm">إجمالي أصول الفروع</CardTitle>
               <PieChart className="w-5 h-5 text-primary" />
             </CardHeader>
-            <CardContent><div className="text-3xl font-bold">{fmt(totalAssets)} <span className="text-sm">ج.م</span></div></CardContent>
+             <CardContent><FinancialAmount value={fmt(totalAssets)} size="lg" className="justify-start" /></CardContent>
           </Card>
         </div>
 

@@ -12,6 +12,7 @@ import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
 import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
 function ActionButton({
@@ -125,7 +126,7 @@ export default function FinancialPosition() {
               <Wallet className="w-5 h-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{fmt(stats.capital)} <span className="text-sm">ج.م</span></div>
+               <FinancialAmount value={fmt(stats.capital)} size="lg" className="justify-start" />
               <p className="text-xs text-muted-foreground mt-1">الفلوس اللي الشركاء حطوها في الشركة من الأول.</p>
             </CardContent>
           </Card>
@@ -135,7 +136,7 @@ export default function FinancialPosition() {
               <TrendingUp className="w-5 h-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{fmt(stats.balance)} <span className="text-sm">ج.م</span></div>
+               <FinancialAmount value={fmt(stats.balance)} size="lg" className="justify-start" />
               <p className="text-xs text-muted-foreground mt-1">رصيد الشركاء دلوقتي بعد الأرباح والسحوبات والسلف.</p>
             </CardContent>
           </Card>

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Scale } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Line = {
   debit: number;
@@ -138,11 +139,11 @@ export default function BalanceSheet() {
             </div>
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">إجمالي الأصول</div>
-              <div className="text-2xl font-bold">{fmt(totalAssets)} <span className="text-sm">ج.م</span></div>
+               <FinancialAmount value={fmt(totalAssets)} size="md" className="justify-start" />
             </div>
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">إجمالي الخصوم + حقوق الملكية</div>
-              <div className="text-2xl font-bold">{fmt(totalLE)} <span className="text-sm">ج.م</span></div>
+               <FinancialAmount value={fmt(totalLE)} size="md" className="justify-start" />
             </div>
           </CardContent>
         </Card>
