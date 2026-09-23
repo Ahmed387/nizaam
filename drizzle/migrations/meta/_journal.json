@@ -64,6 +64,13 @@
       "when": 1790036895685,
       "tag": "0008_contacts_security_indexes_settlement_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790193868785,
+      "tag": "0009_rls_initplan_caching",
+      "breakpoints": true
     }
   ]
 }
