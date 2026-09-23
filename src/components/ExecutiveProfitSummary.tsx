@@ -80,9 +80,12 @@ export function ExecutiveProfitSummary() {
           <div>
             <div className="flex items-baseline gap-3 flex-wrap">
               <div className={`text-3xl lg:text-4xl font-extrabold tracking-tight ${!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive"}`}>
-                {loading ? <Loader2 className="w-7 h-7 animate-spin inline" /> : canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
+                {canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
               </div>
-              {deltaPct !== null && !loading && canViewNetProfit && (
+              {canViewNetProfit && deltaPct === null && (
+                <div className="px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-muted-foreground">—</div>
+              )}
+              {deltaPct !== null && canViewNetProfit && (
                 <div
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
                     deltaPct >= 0
@@ -91,7 +94,7 @@ export function ExecutiveProfitSummary() {
                   }`}
                 >
                   {deltaPct >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                  {Math.abs(deltaPct).toFixed(1)}%
+                  {deltaPct >= 0 ? "+" : "−"}{Math.abs(deltaPct).toFixed(1)}%
                 </div>
               )}
             </div>
@@ -150,7 +153,7 @@ export function ExecutiveProfitSummary() {
                     <div
                       key={b.id}
                       className={`h-full ${BRANCH_COLORS[i % BRANCH_COLORS.length]} rounded-full`}
-                      style={{ width: `${b.pct}%` }}
+                      style={{ width: `${(Math.max(0, b.pct) / barTotal) * 100}%` }}
                       title={`${b.name} ${b.pct.toFixed(1)}%`}
                     />
                   ))}
