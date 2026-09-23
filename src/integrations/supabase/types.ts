@@ -5733,6 +5733,54 @@ export type Database = {
           },
         ]
       }
+      stock_movements: {
+        Row: {
+          balance_after: number
+          balance_before: number | null
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_date: string
+          movement_type: string
+          product_id: string
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          balance_after: number
+          balance_before?: number | null
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_date?: string
+          movement_type: string
+          product_id: string
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          balance_after?: number
+          balance_before?: number | null
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_date?: string
+          movement_type?: string
+          product_id?: string
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       stock_transfers: {
         Row: {
           brand: string | null
