@@ -20,6 +20,7 @@ import {
 import { ShareBreakdown } from "@/components/charts/RankBars";
 import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
@@ -205,7 +206,7 @@ export default function BranchDashboard() {
             <span className="text-base font-bold text-foreground">مبيعات اليوم</span>
             <DollarSign className="w-6 h-6 text-success" />
           </div>
-          <div className="text-3xl font-extrabold">{formatEGP(salesToday)}</div>
+           <FinancialAmount value={salesToday} size="lg" className="justify-start font-extrabold" />
           <div className="text-sm mt-2 flex items-center gap-1 font-semibold">
             {todayVsYesterday >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
             <span className={todayVsYesterday >= 0 ? "text-success" : "text-destructive"}>
@@ -220,7 +221,7 @@ export default function BranchDashboard() {
             <span className="text-base font-bold text-foreground">مبيعات الشهر</span>
             <ShoppingBag className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-3xl font-extrabold">{formatEGP(salesMonth)}</div>
+           <FinancialAmount value={salesMonth} size="lg" className="justify-start font-extrabold" />
           <div className="text-sm mt-2 flex items-center gap-1 font-semibold">
             {monthVsLast >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
             <span className={monthVsLast >= 0 ? "text-success" : "text-destructive"}>
@@ -235,9 +236,7 @@ export default function BranchDashboard() {
             <span className="text-base font-bold text-foreground">صافي الربح اليوم</span>
             <TrendingUp className="w-6 h-6 text-success" />
           </div>
-          <div className={"text-3xl font-extrabold " + (canViewNetProfit ? (profitToday >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground")}>
-            {canViewNetProfit ? formatEGP(profitToday) : NET_PROFIT_MASK}
-          </div>
+           <FinancialAmount value={canViewNetProfit ? profitToday : NET_PROFIT_MASK} currency={canViewNetProfit} size="lg" className={`justify-start font-extrabold ${canViewNetProfit ? (profitToday >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground"}`} />
           <div className="text-sm mt-2 font-semibold text-muted-foreground">
             هامش: {canViewNetProfit ? `${salesToday > 0 ? ((profitToday / salesToday) * 100).toFixed(1) : 0}%` : "---"}
           </div>
@@ -248,7 +247,7 @@ export default function BranchDashboard() {
             <span className="text-base font-bold text-foreground">رصيد الخزنة</span>
             <Wallet className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-3xl font-extrabold">{formatEGP(treasury)}</div>
+           <FinancialAmount value={treasury} size="lg" className="justify-start font-extrabold" />
           <div className="text-sm mt-2 font-semibold text-muted-foreground">
             {newCust} عميل جديد اليوم
           </div>

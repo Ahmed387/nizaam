@@ -18,6 +18,7 @@ import {
 import { ExecutiveProfitSummary } from "@/components/ExecutiveProfitSummary";
 import { KpiHealthAlert } from "@/components/KpiHealthAlert";
 import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 export default function AdminDashboard() {
   const nav = useNavigate();
@@ -200,7 +201,7 @@ export default function AdminDashboard() {
                 title="عرض تقرير الفرع التفصيلي"
               >
                 <span className="text-base font-semibold text-muted-foreground">مبيعات اليوم</span>
-                <b className="text-success text-2xl">{formatEGP(b.todaySales)}</b>
+                <FinancialAmount value={b.todaySales} size="md" className="justify-end font-extrabold text-success" />
               </Link>
 
               {/* Quick actions grid — clearer colors */}
