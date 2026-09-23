@@ -71,6 +71,13 @@
       "when": 1790193868785,
       "tag": "0009_rls_initplan_caching",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790195564669,
+      "tag": "0010_stock_movements_ledger",
+      "breakpoints": true
     }
   ]
 }
