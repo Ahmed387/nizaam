@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { PlusCircle, Wallet, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   active: { label: "نشطة", cls: "bg-primary/15 text-primary" },
@@ -119,7 +120,7 @@ export default function PartnerAdvances({ embedded }: { embedded?: boolean } = {
               <CardTitle className="text-sm">المتبقي المستحق</CardTitle>
               <CheckCircle2 className="w-5 h-5 text-destructive" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{fmt(totalOutstanding)} <span className="text-sm">ج.م</span></div></CardContent>
+            <CardContent><FinancialAmount value={fmt(totalOutstanding)} size="md" className="justify-start" /></CardContent>
           </Card>
         </div>
 

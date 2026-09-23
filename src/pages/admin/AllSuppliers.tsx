@@ -21,6 +21,7 @@ import { Plus, Pencil, Trash2, FileSpreadsheet, ArrowDown, ArrowUp, Eye, Package
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { useBranchScope } from "@/lib/branchScope";
 import { VoucherDialog } from "@/components/VoucherDialog";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 interface Supplier {
   id: string;
@@ -440,15 +441,15 @@ export default function AllSuppliers() {
         </div>
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground">إجمالي المشتريات</div>
-          <div className="text-2xl font-bold mt-1 text-primary">{formatEGP(stats.totalPurchases)}</div>
+           <FinancialAmount value={stats.totalPurchases} size="md" className="mt-1 justify-start text-primary" />
         </div>
         <div className="p-4 rounded-lg border bg-destructive/5 border-destructive/30">
           <div className="text-xs text-destructive flex items-center gap-1"><ArrowUp className="w-3 h-3" /> اللي علينا (نسددها)</div>
-          <div className="text-2xl font-bold mt-1 text-destructive">{formatEGP(stats.owedByUs)}</div>
+           <FinancialAmount value={stats.owedByUs} size="md" className="mt-1 justify-start text-destructive" />
         </div>
         <div className="p-4 rounded-lg border bg-success/5 border-success/30">
           <div className="text-xs text-success flex items-center gap-1"><ArrowDown className="w-3 h-3" /> اللي لينا (دفعنا زيادة)</div>
-          <div className="text-2xl font-bold mt-1 text-success">{formatEGP(stats.owedToUs)}</div>
+           <FinancialAmount value={stats.owedToUs} size="md" className="mt-1 justify-start text-success" />
         </div>
       </div>
 

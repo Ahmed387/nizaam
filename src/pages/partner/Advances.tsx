@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Wallet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   active: { label: "نشطة", cls: "bg-primary/15 text-primary" },
@@ -58,7 +59,7 @@ export default function PartnerAdvancesView() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">عدد السلف</CardTitle><Wallet className="w-5 h-5 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold">{advances.length}</div></CardContent></Card>
           <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">سلف قائمة</CardTitle><AlertCircle className="w-5 h-5 text-warning" /></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{activeCount}</div></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">المتبقي المستحق</CardTitle><CheckCircle2 className="w-5 h-5 text-destructive" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(totalOutstanding)} <span className="text-sm">ج.م</span></div></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">المتبقي المستحق</CardTitle><CheckCircle2 className="w-5 h-5 text-destructive" /></CardHeader><CardContent><FinancialAmount value={fmt(totalOutstanding)} size="md" className="justify-start" /></CardContent></Card>
         </div>
 
         {advances.length === 0 && <Card><CardContent className="p-6 text-center text-muted-foreground">لا توجد سلف</CardContent></Card>}

@@ -15,6 +15,7 @@ import { shiftPaymentBreakdown, ShiftPaymentLine, overrideShiftOpening, fetchShi
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 interface Row {
   id: string;
@@ -172,7 +173,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5" /> إجمالي العجز/الزيادة</div>
-          <div className={`text-2xl font-extrabold mt-1 ${stats.totalVar < 0 ? "text-destructive" : "text-success"}`}>{formatEGP(stats.totalVar)}</div>
+          <FinancialAmount value={stats.totalVar} size="md" className={`mt-1 justify-start font-extrabold ${stats.totalVar < 0 ? "text-destructive" : "text-success"}`} />
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><AlarmClock className="w-3.5 h-3.5" /> ورديات قُفلت تلقائيًا</div>

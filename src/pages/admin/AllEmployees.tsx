@@ -20,6 +20,7 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, FileSpreadsheet, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff, CalendarRange, UserCircle, CalendarDays, Coins } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FinancialAmount } from "@/components/FinancialAmount";
 import AllAttendance from "./AllAttendance";
 import ShiftsHistory from "./ShiftsHistory";
 import Presence from "./Presence";
@@ -289,11 +290,11 @@ export default function AllEmployees() {
         </div>
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="w-3 h-3" /> إجمالي الرواتب الشهرية</div>
-          <div className="text-2xl font-bold mt-1 text-primary">{formatEGP(stats.salaryTotal)}</div>
+          <FinancialAmount value={stats.salaryTotal} size="md" className="mt-1 justify-start text-primary" />
         </div>
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> صافي الرواتب (بعد السلف)</div>
-          <div className="text-2xl font-bold mt-1 text-success tabular-nums">{formatEGP(netSalaryTotal)}</div>
+          <FinancialAmount value={netSalaryTotal} size="md" className="mt-1 justify-start text-success" />
           <div className="text-[11px] text-muted-foreground mt-1">أقساط سلف مستحقة: {formatEGP(stats.advanceDue)}</div>
         </div>
       </div>

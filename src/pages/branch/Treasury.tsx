@@ -20,6 +20,7 @@ import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
+import { FinancialAmount } from "@/components/FinancialAmount";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 
@@ -215,14 +216,14 @@ export default function Treasury() {
                 <div key={w.key} className="bg-surface-2 rounded-lg p-4 text-center">
                   <Icon className={`w-6 h-6 mx-auto mb-2 ${w.color}`} />
                   <div className="text-xs text-muted-foreground mb-1">{w.label}</div>
-                  <div className="text-lg font-bold">{formatEGP(walletBalances[w.key])}</div>
+                   <FinancialAmount value={walletBalances[w.key]} size="sm" />
                 </div>
               );
             })}
           </div>
           <div className="border-t pt-4 text-center">
             <div className="text-sm text-muted-foreground mb-1">الإجمالي</div>
-            <div className="text-3xl md:text-4xl font-extrabold gradient-text">{formatEGP(walletBalances.total_balance)}</div>
+             <FinancialAmount value={walletBalances.total_balance} size="hero" className="gradient-text font-extrabold" />
             {lowThreshold > 0 && walletBalances.total_balance < lowThreshold && (
               <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
                 <AlertTriangle className="w-5 h-5" />
