@@ -314,6 +314,17 @@ export async function fetchProfitWindow(params: {
     };
   });
 
+  // TEMP audit log — live DB rows streamed into the browser (F12 → Console)
+  console.log("EXECUTIVE_PROFIT_AUDIT_LOG", {
+    range: { startDate: fromDate, endDate: toDate, fromIso, toIso },
+    rawInvoicesCount: invRows.length,
+    rawExpensesCount: expRows.length,
+    rawOtherIncomesCount: incRows.length,
+    rawInvoices: invRows,
+    rawExpenses: expRows,
+    calculatedTotals: totals,
+    perBranch,
+  });
 
   return { totals, prevNet, perBranch };
 }
