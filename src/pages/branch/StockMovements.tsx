@@ -201,6 +201,10 @@ export default function StockMovements() {
       (invAdj ?? []).forEach((a: any) => {
         const q = Number(a.adjustment_amount);
         if (!q) return;
+        // اعتماد الجرد يسجل تسوية مخزون أيضًا — نتجنب التكرار لو نفس الكمية في نفس الدقيقة
+        const t0 = new Date(a.created_at).getTime();
+        const dup = list.some((m) => m.type === "تسوية مخزون" && m.qty === q && Math.abs(new Date(m.date).getTime() - t0) < 120000);
+        if (dup) return;
         list.push({ date: a.created_at, type: "تسوية جرد", qty: q, reason: a.reason ?? "جلسة جرد معتمدة", reference: "COUNT", party: "—", linkTo: `/branch/${branchId}/inventory-count/${a.session_id}/report` });
       });
 
