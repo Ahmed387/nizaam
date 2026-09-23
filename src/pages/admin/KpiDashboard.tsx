@@ -36,7 +36,7 @@ type KPI = {
   inventory_turnover: number | null; break_even_revenue: number | null;
 };
 
-function KpiCard({ icon: Icon, label, value, tone = "default", hint }: {
+function KpiCard({ icon: Icon, label, value, monetary = false, tone = "default", hint }: {
   icon: any; label: string; value: string; monetary?: boolean; tone?: "default" | "success" | "warning" | "destructive" | "primary"; hint?: string;
 }) {
   const toneClass = {
