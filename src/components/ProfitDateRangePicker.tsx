@@ -47,6 +47,22 @@ export function ProfitDateRangePicker({ value, onChange }: { value: DayRange; on
   const [active, setActive] = useState<PresetKey>("month");
   const [draft, setDraft] = useState<{ from?: Date; to?: Date }>({ from: parseDay(value.from), to: parseDay(value.to) });
 
+  const setInput = (field: "from" | "to", day: string) => {
+    if (!day) return;
+    const next = { ...draft, [field]: parseDay(day) };
+    setDraft(next);
+    setActive("custom");
+  };
+
+  const apply = () => {
+    if (!draft.from) return;
+    const f = draft.from;
+    const t = draft.to ?? f;
+    const [lo, hi] = t < f ? [t, f] : [f, t];
+    onChange({ from: toDay(lo), to: toDay(hi) });
+    setOpen(false);
+  };
+
   const pick = (k: PresetKey) => {
     setActive(k);
     if (k === "custom") return;
@@ -70,14 +86,60 @@ export function ProfitDateRangePicker({ value, onChange }: { value: DayRange; on
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-3" align="start" dir="rtl">
-        <div className="flex flex-wrap gap-1.5 mb-3 max-w-[320px]">
+        {/* حقلان صريحان: من / إلى */}
+        <div className="flex items-end gap-2 mb-3">
+          <label className="flex-1 space-y-1">
+            <span className="block text-[11px] font-medium text-muted-foreground">من تاريخ</span>
+            <input
+              type="date"
+              value={draft.from ? toDay(draft.from) : ""}
+              max={draft.to ? toDay(draft.to) : undefined}
+              onChange={(e) => setInput("from", e.target.value)}
+              className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-card text-foreground tabular-nums focus:outline-none focus:ring-1 focus:ring-success"
+            />
+          </label>
+          <label className="flex-1 space-y-1">
+            <span className="block text-[11px] font-medium text-muted-foreground">إلى تاريخ</span>
+            <input
+              type="date"
+              value={draft.to ? toDay(draft.to) : ""}
+              min={draft.from ? toDay(draft.from) : undefined}
+              onChange={(e) => setInput("to", e.target.value)}
+              className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-card text-foreground tabular-nums focus:outline-none focus:ring-1 focus:ring-success"
+            />
+          </label>
+        </div>
+
+        {/* تقويم تفاعلي لاختيار الفترة مباشرة */}
+        <Calendar
+          mode="range"
+          selected={draft as any}
+          onSelect={(r: any) => {
+            setDraft(r ?? {});
+            setActive("custom");
+          }}
+          numberOfMonths={1}
+          className="p-0 pointer-events-auto"
+        />
+
+        <button
+          type="button"
+          disabled={!draft.from}
+          onClick={apply}
+          className="w-full mt-2 py-1.5 text-xs font-bold rounded-md bg-success text-success-foreground disabled:opacity-50"
+        >
+          تطبيق / بحث
+        </button>
+
+        {/* اختصارات ثانوية */}
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border max-w-[320px]">
           {PRESETS.map((p) => (
             <button
               key={p.key}
               type="button"
               onClick={() => pick(p.key)}
               className={cn(
-                "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                "px-2 py-0.5 text-[11px] rounded-full border transition-colors",
                 active === p.key ? "bg-success/15 border-success/40 text-success font-bold" : "border-border text-muted-foreground hover:bg-muted",
               )}
             >
@@ -85,30 +147,6 @@ export function ProfitDateRangePicker({ value, onChange }: { value: DayRange; on
             </button>
           ))}
         </div>
-        {active === "custom" && (
-          <div className="space-y-2">
-            <Calendar
-              mode="range"
-              selected={draft as any}
-              onSelect={(r: any) => setDraft(r ?? {})}
-              numberOfMonths={1}
-              className="p-0 pointer-events-auto"
-            />
-            <button
-              type="button"
-              disabled={!draft.from}
-              onClick={() => {
-                const f = draft.from!;
-                const t = draft.to ?? f;
-                onChange({ from: toDay(f), to: toDay(t) });
-                setOpen(false);
-              }}
-              className="w-full py-1.5 text-xs font-bold rounded-md bg-success text-success-foreground disabled:opacity-50"
-            >
-              تطبيق
-            </button>
-          </div>
-        )}
       </PopoverContent>
     </Popover>
   );
