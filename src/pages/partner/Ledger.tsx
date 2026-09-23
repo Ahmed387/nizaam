@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const LABEL: Record<string, string> = {
   contribution: "مساهمة", drawing: "مسحوبة", profit_share: "أرباح", capital_adjustment: "تسوية",
@@ -58,9 +59,9 @@ export default function PartnerLedger() {
         <PageHeader title="كشف الحساب" subtitle="كل حركاتك المالية" />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الوارد</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">+{fmt(totalIn)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوب</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">-{fmt(totalOut)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الصافي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(netBalance)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الوارد</CardTitle></CardHeader><CardContent><FinancialAmount value={`+${fmt(totalIn)}`} size="md" className="justify-start text-success" /></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوب</CardTitle></CardHeader><CardContent><FinancialAmount value={`-${fmt(totalOut)}`} size="md" className="justify-start text-destructive" /></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الصافي</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(netBalance)} size="md" className="justify-start" /></CardContent></Card>
         </div>
 
         <Card>

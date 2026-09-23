@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Banknote, Boxes, Users, Save, Scale, Search, ShieldAlert } from "lucide-react";
 import { useBranchScope } from "@/lib/branchScope";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -167,19 +168,19 @@ export default function OpeningBalances() {
       <div className="grid gap-4 md:grid-cols-5 mb-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">النقدية</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{fmt(cashTotal)}</CardContent>
+          <CardContent><FinancialAmount value={fmt(cashTotal)} size="md" className="justify-start" /></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">مديونية العملاء</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{fmt(arTotal)}</CardContent>
+          <CardContent><FinancialAmount value={fmt(arTotal)} size="md" className="justify-start" /></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">مستحقات الموردين</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{fmt(apTotal)}</CardContent>
+          <CardContent><FinancialAmount value={fmt(apTotal)} size="md" className="justify-start" /></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">قيمة المخزون</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{fmt(invTotal)}</CardContent>
+          <CardContent><FinancialAmount value={fmt(invTotal)} size="md" className="justify-start" /></CardContent>
         </Card>
         <Card className="border-primary/40 bg-primary/5">
           <CardHeader className="pb-2">
@@ -187,7 +188,7 @@ export default function OpeningBalances() {
               <Scale className="h-4 w-4" /> صافي حقوق الملكية
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold text-primary">{fmt(equityTotal)}</CardContent>
+          <CardContent><FinancialAmount value={fmt(equityTotal)} size="md" className="justify-start text-primary" /></CardContent>
         </Card>
       </div>
 
