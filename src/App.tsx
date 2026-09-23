@@ -176,7 +176,11 @@ import KpiDashboard from "./pages/admin/KpiDashboard";
 import FixedAssets from "./pages/admin/FixedAssets";
 import BranchCapital from "./pages/admin/BranchCapital";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 2 * 60 * 1000, refetchOnWindowFocus: false, retry: 1 },
+  },
+});
 
 const App = () => (
   <ThemeProvider>

@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, ReactNode, Ref } from "react";
+import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 type Align = "right" | "left" | "center";
@@ -24,6 +24,8 @@ interface DataTableProps<T> {
   getRowKey?: (row: T, index: number) => string;
   isRowExpanded?: (row: T) => boolean;
   renderExpandedRow?: (row: T) => ReactNode;
+  /** Optional client-side pagination (rows per page). */
+  pageSize?: number;
 }
 
 function DataTableInner<T>(
@@ -39,9 +41,15 @@ function DataTableInner<T>(
     getRowKey,
     isRowExpanded,
     renderExpandedRow,
+    pageSize,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [rows.length]);
+  const pageCount = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
+  const safePage = Math.min(page, pageCount - 1);
+  const visibleRows = pageSize ? rows.slice(safePage * pageSize, (safePage + 1) * pageSize) : rows;
   const alignClass = (a?: Align) =>
     a === "right" ? "text-right" : a === "left" ? "text-left" : "text-center";
 
@@ -90,7 +98,7 @@ function DataTableInner<T>(
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => {
+            {visibleRows.map((row, i) => {
               const rowKey = getRowKey?.(row, i) ?? String(i);
               const expanded = Boolean(isRowExpanded?.(row));
               return (
@@ -126,6 +134,13 @@ function DataTableInner<T>(
             </tfoot>
           )}
         </table>
+        {pageCount > 1 && (
+          <div className="flex items-center justify-center gap-3 border-t border-border p-3 text-sm">
+            <button type="button" className="rounded-md border border-border px-3 py-1 disabled:opacity-40" disabled={safePage <= 0} onClick={() => setPage(safePage - 1)}>السابق</button>
+            <span className="tabular-nums text-muted-foreground">صفحة {safePage + 1} من {pageCount} ({rows.length})</span>
+            <button type="button" className="rounded-md border border-border px-3 py-1 disabled:opacity-40" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>التالي</button>
+          </div>
+        )}
       </div>
     );
   })();
