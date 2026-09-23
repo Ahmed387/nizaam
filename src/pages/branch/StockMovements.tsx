@@ -39,13 +39,13 @@ export default function StockMovements() {
       // Sales (out) — only active invoices for this branch
       const { data: invItems } = await supabase
         .from("invoice_items")
-        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, branch_id, status, contact_id, contacts:contact_id(name))")
+        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, invoice_date, branch_id, status, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
       // Returns (in)
       const { data: retItems } = await supabase
         .from("return_items")
-        .select("quantity, return_id, returns!inner(id, reason, return_number, created_at, branch_id, invoice_id, invoices:invoice_id(invoice_number, contacts:contact_id(name)))")
+        .select("quantity, return_id, returns!inner(id, reason, return_number, created_at, invoice_date, branch_id, invoice_id, invoices:invoice_id(invoice_number, contacts:contact_id(name)))")
         .eq("product_id", productId!);
 
 
@@ -53,13 +53,13 @@ export default function StockMovements() {
       // Shipments (in) — to this branch
       const { data: shipItems } = await supabase
         .from("shipment_items")
-        .select("quantity, shipment_id, shipments!inner(id, arrival_date, branch_id, contact_id, contacts:contact_id(name))")
+        .select("quantity, shipment_id, shipments!inner(id, arrival_date, invoice_date, created_at, branch_id, contact_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
       // Purchase returns (out) — from this branch
       const { data: prItems } = await supabase
         .from("purchase_return_items")
-        .select("quantity, purchase_return_id, purchase_returns!inner(id, return_number, reason, created_at, branch_id, contacts:contact_id(name))")
+        .select("quantity, purchase_return_id, purchase_returns!inner(id, return_number, reason, created_at, invoice_date, branch_id, contacts:contact_id(name))")
         .eq("product_id", productId!);
 
       // Opening stock batches (in) — initial quantity when product was created
@@ -71,6 +71,11 @@ export default function StockMovements() {
       const { data: saItems } = await supabase
         .from("stock_adjustment_items")
         .select("difference, adjustment_id, stock_adjustments!inner(id, adjustment_number, reason, created_at, branch_id)")
+        .eq("product_id", productId!);
+      // تسويات الجرد (جلسات الجرد المعتمدة)
+      const { data: invAdj } = await supabase
+        .from("inventory_adjustments")
+        .select("adjustment_amount, reason, created_at, session_id")
         .eq("product_id", productId!);
 
       // Transfers — confirmed only, where this branch is from or to.
@@ -125,7 +130,7 @@ export default function StockMovements() {
         const inv = it.invoices;
         if (!inv || inv.branch_id !== branchId || inv.status !== "active") return;
         list.push({
-          date: inv.created_at,
+          date: inv.invoice_date ?? inv.created_at,
           type: "بيع",
           qty: -Number(it.quantity),
           reason: "—",
@@ -139,7 +144,7 @@ export default function StockMovements() {
         const r = it.returns;
         if (!r || r.branch_id !== branchId) return;
         list.push({
-          date: r.created_at,
+          date: r.invoice_date ?? r.created_at,
           type: "مرتجع",
           qty: Number(it.quantity),
           reason: r.reason ?? "—",
@@ -153,7 +158,7 @@ export default function StockMovements() {
         const s = it.shipments;
         if (!s || s.branch_id !== branchId) return;
         list.push({
-          date: s.arrival_date,
+          date: s.invoice_date ?? s.arrival_date ?? s.created_at,
           type: "فاتورة شراء واردة",
           qty: Number(it.quantity),
           reason: "—",
@@ -167,7 +172,7 @@ export default function StockMovements() {
         const r = it.purchase_returns;
         if (!r || r.branch_id !== branchId) return;
         list.push({
-          date: r.created_at,
+          date: r.invoice_date ?? r.created_at,
           type: "مرتجع شراء",
           qty: -Number(it.quantity),
           reason: r.reason ?? "—",
@@ -191,6 +196,12 @@ export default function StockMovements() {
           reference: a.adjustment_number ?? "ADJ",
           party: "—",
         });
+      });
+
+      (invAdj ?? []).forEach((a: any) => {
+        const q = Number(a.adjustment_amount);
+        if (!q) return;
+        list.push({ date: a.created_at, type: "تسوية جرد", qty: q, reason: a.reason ?? "جلسة جرد معتمدة", reference: "COUNT", party: "—", linkTo: `/branch/${branchId}/inventory-count/${a.session_id}/report` });
       });
 
       (openingBatches ?? []).forEach((b: any) => {
@@ -255,6 +266,14 @@ export default function StockMovements() {
       });
       setPendingOutQty(pendingTotal);
 
+      // رصيد غير موثق: الكمية الحالية أكبر/أقل مما تفسره الحركات المسجلة
+      const net = list.reduce((s, m) => s + m.qty, 0);
+      const gap = Number(p?.quantity ?? 0) - net;
+      if (gap !== 0) {
+        const oldest = list.reduce((d, m) => (m.date && m.date < d ? m.date : d), p?.created_at ?? new Date().toISOString());
+        list.push({ date: oldest, type: "رصيد افتتاحي / غير موثق", qty: gap, reason: "فرق بين الرصيد الحالي والحركات المسجلة (رصيد قديم قبل التسجيل)", reference: "OPEN-GAP", party: "—" });
+      }
+
       list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setMoves(list);
       setLoading(false);
@@ -262,12 +281,23 @@ export default function StockMovements() {
   }, [branchId, productId, tick]);
 
   useRealtimeRefresh(
-    ["products", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items", "product_batches"],
+    ["products", "inventory_adjustments", "invoice_items", "return_items", "shipment_items", "stock_transfers", "purchase_return_items", "stock_adjustment_items", "product_batches"],
     () => setTick((t) => t + 1)
   );
 
-  const totalIn = moves.filter((m) => m.qty > 0).reduce((s, m) => s + m.qty, 0);
-  const totalOut = moves.filter((m) => m.qty < 0).reduce((s, m) => s + Math.abs(m.qty), 0);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [fromD, setFromD] = useState("");
+  const [toD, setToD] = useState("");
+  const shown = moves.filter((m) => {
+    if (typeFilter !== "all" && m.type !== typeFilter) return false;
+    const d = (m.date ?? "").slice(0, 10);
+    if (fromD && d < fromD) return false;
+    if (toD && d > toD) return false;
+    return true;
+  });
+  const types = Array.from(new Set(moves.map((m) => m.type)));
+  const totalIn = shown.filter((m) => m.qty > 0).reduce((s, m) => s + m.qty, 0);
+  const totalOut = shown.filter((m) => m.qty < 0).reduce((s, m) => s + Math.abs(m.qty), 0);
 
   const typeColor: Record<string, string> = {
     "بيع": "bg-destructive/15 text-destructive",
@@ -279,6 +309,8 @@ export default function StockMovements() {
     "نقل وارد": "bg-primary/15 text-primary",
     "رصيد افتتاحي": "bg-success/15 text-success",
     "نقل صادر (معلق)": "bg-warning/15 text-warning",
+    "تسوية جرد": "bg-muted text-foreground",
+    "رصيد افتتاحي / غير موثق": "bg-primary/10 text-primary",
   };
 
 
@@ -311,9 +343,26 @@ export default function StockMovements() {
         </div>
       </div>
 
+      <div className="card-elevated p-4 mb-4 flex flex-wrap items-end gap-3">
+        <label className="text-sm">النوع
+          <select className="block mt-1 h-9 rounded-md border border-input bg-background px-2" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <option value="all">كل الأنواع</option>
+            {types.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="text-sm">من
+          <input type="date" className="block mt-1 h-9 rounded-md border border-input bg-background px-2" value={fromD} onChange={(e) => setFromD(e.target.value)} />
+        </label>
+        <label className="text-sm">إلى
+          <input type="date" className="block mt-1 h-9 rounded-md border border-input bg-background px-2" value={toD} onChange={(e) => setToD(e.target.value)} />
+        </label>
+        <Button variant="outline" size="sm" onClick={() => { setTypeFilter("all"); setFromD(""); setToD(""); }}>كل الوقت</Button>
+        <span className="text-xs text-muted-foreground">{shown.length} حركة من {moves.length}</span>
+      </div>
+
       <DataTable
         loading={loading}
-        rows={moves}
+        rows={shown}
         empty="لا توجد حركات لهذا المنتج"
         onRowClick={(r: any) => { if (r.linkTo) nav(r.linkTo); }}
         columns={[
