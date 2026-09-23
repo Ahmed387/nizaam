@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Package, PlayCircle, Trash2, CalendarClock } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -178,9 +179,9 @@ export default function FixedAssets() {
             </CardHeader>
             <CardContent><div className="text-3xl font-bold">{assets.filter(a => a.status === "active").length}</div></CardContent>
           </Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي التكلفة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(totalCost)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">مجمع الإهلاك</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(totalAccum)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">القيمة الدفترية</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(nbv)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">إجمالي التكلفة</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(totalCost)} size="md" className="justify-start" /></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">مجمع الإهلاك</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(totalAccum)} size="md" className="justify-start text-warning" /></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">القيمة الدفترية</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(nbv)} size="md" className="justify-start text-success" /></CardContent></Card>
         </div>
 
         <Card>

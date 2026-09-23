@@ -17,6 +17,7 @@ import {
 
 import { buildKpiAlerts } from "@/lib/kpiAlerts";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Alert = ReturnType<typeof buildKpiAlerts>[number];
 const buildAlerts = buildKpiAlerts;
@@ -35,8 +36,8 @@ type KPI = {
   inventory_turnover: number | null; break_even_revenue: number | null;
 };
 
-function KpiCard({ icon: Icon, label, value, tone = "default", hint }: {
-  icon: any; label: string; value: string; tone?: "default" | "success" | "warning" | "destructive" | "primary"; hint?: string;
+function KpiCard({ icon: Icon, label, value, monetary = false, tone = "default", hint }: {
+  icon: any; label: string; value: string; monetary?: boolean; tone?: "default" | "success" | "warning" | "destructive" | "primary"; hint?: string;
 }) {
   const toneClass = {
     default: "text-foreground",
@@ -52,7 +53,7 @@ function KpiCard({ icon: Icon, label, value, tone = "default", hint }: {
           <div className="text-xs text-muted-foreground">{label}</div>
           <Icon className={`w-4 h-4 ${toneClass}`} />
         </div>
-        <div className={`text-2xl font-bold ${toneClass}`}>{value}</div>
+        {monetary ? <FinancialAmount value={value} size="md" className={`justify-start ${toneClass}`} /> : <div className={`max-w-full break-words text-2xl font-bold ${toneClass}`} title={value}>{value}</div>}
         {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
       </CardContent>
     </Card>
@@ -168,10 +169,10 @@ export default function KpiDashboard() {
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" />الربحية</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard icon={DollarSign} label="الإيرادات" value={fmt(kpi.revenue)} tone="primary" />
-              <KpiCard icon={Package} label="تكلفة البضاعة" value={fmt(kpi.cogs)} />
-              <KpiCard icon={PiggyBank} label="مجمل الربح" value={fmt(kpi.gross_profit)} tone={kpi.gross_profit >= 0 ? "success" : "destructive"} hint={pct(kpi.gross_margin_pct)} />
-              <KpiCard icon={Percent} label="صافي الربح" value={canViewNetProfit ? fmt(kpi.net_profit) : NET_PROFIT_MASK} tone={canViewNetProfit ? (kpi.net_profit >= 0 ? "success" : "destructive") : "default"} hint={canViewNetProfit ? pct(kpi.net_margin_pct) : "---"} />
+               <KpiCard icon={DollarSign} label="الإيرادات" value={fmt(kpi.revenue)} monetary tone="primary" />
+               <KpiCard icon={Package} label="تكلفة البضاعة" value={fmt(kpi.cogs)} monetary />
+               <KpiCard icon={PiggyBank} label="مجمل الربح" value={fmt(kpi.gross_profit)} monetary tone={kpi.gross_profit >= 0 ? "success" : "destructive"} hint={pct(kpi.gross_margin_pct)} />
+               <KpiCard icon={Percent} label="صافي الربح" value={canViewNetProfit ? fmt(kpi.net_profit) : NET_PROFIT_MASK} monetary={canViewNetProfit} tone={canViewNetProfit ? (kpi.net_profit >= 0 ? "success" : "destructive") : "default"} hint={canViewNetProfit ? pct(kpi.net_margin_pct) : "---"} />
             </div>
           </div>
 
@@ -179,10 +180,10 @@ export default function KpiDashboard() {
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><Scale className="w-5 h-5 text-primary" />المركز المالي</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard icon={Landmark} label="إجمالي الأصول" value={fmt(kpi.total_assets)} />
-              <KpiCard icon={Receipt} label="إجمالي الخصوم" value={fmt(kpi.total_liabilities)} tone="warning" />
-              <KpiCard icon={PiggyBank} label="حقوق الملكية" value={fmt(kpi.total_equity)} tone="success" />
-              <KpiCard icon={Wallet} label="الرصيد النقدي" value={fmt(kpi.cash_balance)} tone="primary" />
+               <KpiCard icon={Landmark} label="إجمالي الأصول" value={fmt(kpi.total_assets)} monetary />
+               <KpiCard icon={Receipt} label="إجمالي الخصوم" value={fmt(kpi.total_liabilities)} monetary tone="warning" />
+               <KpiCard icon={PiggyBank} label="حقوق الملكية" value={fmt(kpi.total_equity)} monetary tone="success" />
+               <KpiCard icon={Wallet} label="الرصيد النقدي" value={fmt(kpi.cash_balance)} monetary tone="primary" />
             </div>
           </div>
 
@@ -190,9 +191,9 @@ export default function KpiDashboard() {
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><Activity className="w-5 h-5 text-primary" />رأس المال العامل</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard icon={Receipt} label="عملاء (مدينون)" value={fmt(kpi.accounts_receivable)} />
-              <KpiCard icon={Receipt} label="موردون (دائنون)" value={fmt(kpi.accounts_payable)} tone="warning" />
-              <KpiCard icon={Package} label="قيمة المخزون" value={fmt(kpi.inventory_value)} />
+               <KpiCard icon={Receipt} label="عملاء (مدينون)" value={fmt(kpi.accounts_receivable)} monetary />
+               <KpiCard icon={Receipt} label="موردون (دائنون)" value={fmt(kpi.accounts_payable)} monetary tone="warning" />
+               <KpiCard icon={Package} label="قيمة المخزون" value={fmt(kpi.inventory_value)} monetary />
               <KpiCard icon={Scale} label="النسبة الجارية" value={ratio(kpi.current_ratio)} tone={kpi.current_ratio && kpi.current_ratio >= 1 ? "success" : "warning"} hint="الأصول المتداولة ÷ الخصوم المتداولة" />
               <KpiCard icon={Activity} label="النسبة السريعة" value={ratio(kpi.quick_ratio)} tone={kpi.quick_ratio && kpi.quick_ratio >= 1 ? "success" : "warning"} hint="(الأصول المتداولة − المخزون) ÷ الخصوم المتداولة" />
             </div>
@@ -218,7 +219,7 @@ export default function KpiDashboard() {
               <div className="flex flex-wrap items-baseline gap-4">
                 <div>
                   <div className="text-xs text-muted-foreground">إيرادات التعادل المطلوبة</div>
-                  <div className="text-3xl font-bold text-primary">{fmt(kpi.break_even_revenue)}</div>
+                   <FinancialAmount value={fmt(kpi.break_even_revenue)} size="lg" className="justify-start text-primary" />
                 </div>
                 <Badge variant="outline" className="text-sm">
                   الإيرادات الحالية: {fmt(kpi.revenue)}

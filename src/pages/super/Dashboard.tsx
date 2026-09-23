@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Building2, Users, Store, Receipt, TrendingUp, Loader2, AlertOctagon, CheckCircle2, Power } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 interface Stats {
   tenants: number; activeTenants: number; suspendedTenants: number;
@@ -60,7 +61,7 @@ export default function SuperDashboard() {
     { label: "إجمالي المستخدمين", value: stats.users, icon: Users },
     { label: "إجمالي الفروع", value: stats.branches, icon: Store },
     { label: "إجمالي الفواتير", value: stats.invoices, icon: Receipt },
-    { label: "إجمالي المبيعات (كل المنصة)", value: stats.totalRevenue.toLocaleString("ar-EG", { maximumFractionDigits: 2 }) + " ج.م", icon: TrendingUp, wide: true },
+    { label: "إجمالي المبيعات (كل المنصة)", value: stats.totalRevenue, icon: TrendingUp, wide: true, currency: true },
   ] : [];
 
   const filtered = tenants.filter((t) => {
@@ -85,7 +86,7 @@ export default function SuperDashboard() {
                     <c.icon className="w-5 h-5 text-white" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold">{c.value}</div>
+                {c.currency ? <FinancialAmount value={c.value} size="lg" className="justify-start font-extrabold" /> : <div className="text-2xl font-extrabold">{c.value}</div>}
                 {c.sub && <div className="text-xs text-muted-foreground mt-1">{c.sub}</div>}
               </div>
             ))}

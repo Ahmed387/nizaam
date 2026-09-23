@@ -14,6 +14,7 @@ import { formatEGP } from "@/lib/format";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { fetchProfitWindow, rangeForDates } from "@/lib/profitEngine";
 import { fin, allocateByShares } from "@/lib/financeTerms";
+import { FinancialAmount } from "@/components/FinancialAmount";
 import {
   ShoppingCart, Package, TrendingUp, Receipt, Wallet, Users,
   Loader2, HandCoins, AlertTriangle,
@@ -222,9 +223,7 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
             <div className="text-xs md:text-sm text-muted-foreground">{hint}</div>
           </div>
         </div>
-        <div className={`font-extrabold tabular-nums ${big ? "text-3xl md:text-4xl" : "text-xl md:text-2xl"} ${masked ? "text-muted-foreground" : toneCls}`}>
-          {masked ? NET_PROFIT_MASK : formatEGP(value)}
-        </div>
+         <FinancialAmount value={masked ? NET_PROFIT_MASK : value} currency={!masked} size={big ? "hero" : "md"} className={`md:justify-end font-extrabold ${masked ? "text-muted-foreground" : toneCls}`} />
       </div>
     );
   };

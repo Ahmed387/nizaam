@@ -1,5 +1,6 @@
 import { forwardRef, ReactNode } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Accent = "primary" | "success" | "warning" | "destructive" | "secondary";
 
@@ -55,6 +56,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatC
   ref
 ) {
   const a = ACCENTS[accent];
+  const isCurrency = typeof value === "string" && /ج\.م\s*$/u.test(value);
   return (
     <div
       ref={ref}
@@ -68,11 +70,14 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatC
           {icon}
         </div>
       </div>
-      <div
-        className={`stat-value font-extrabold w-full min-w-0 truncate text-xl sm:text-2xl lg:text-xl xl:text-2xl 2xl:text-3xl ${a.value}`}
-        title={String(value)}
-      >
-        {value}
+      <div className={`stat-value w-full min-w-0 max-w-full ${a.value}`}>
+        {isCurrency ? (
+          <FinancialAmount value={String(value)} size="lg" className="w-full font-extrabold" />
+        ) : (
+          <span className="block max-w-full break-words text-xl sm:text-2xl lg:text-xl xl:text-2xl 2xl:text-3xl font-extrabold" title={String(value)}>
+            {value}
+          </span>
+        )}
       </div>
 
       {trend && (

@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowRight, Plus, Link2, Unlink, CheckCircle2, Sparkles } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Statement = any;
 type StmtLine = { id: string; txn_date: string; description: string | null; reference: string | null; debit: number; credit: number; is_matched: boolean; matched_journal_line_id: string | null };
@@ -180,11 +181,11 @@ export default function BankReconciliationDetail() {
 
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">رصيد الدفاتر</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(summary?.book_balance || 0)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">صافي الكشف</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(summary?.statement_net || 0)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">الرصيد الختامي (كشف)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(stmt.closing_balance)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">رصيد الدفاتر</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(summary?.book_balance || 0)} size="md" className="justify-start" /></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">صافي الكشف</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(summary?.statement_net || 0)} size="md" className="justify-start" /></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">الرصيد الختامي (كشف)</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(stmt.closing_balance)} size="md" className="justify-start" /></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">بنود مطابقة / غير مطابقة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{stmtTotals.matched}</div><div className="text-sm text-warning">غير مطابق: {stmtTotals.unmatched}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">الفرق</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${Math.abs(diff) < 0.01 ? "text-success" : "text-warning"}`}>{fmt(diff)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">الفرق</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(diff)} size="md" className={`justify-start ${Math.abs(diff) < 0.01 ? "text-success" : "text-warning"}`} /></CardContent></Card>
         </div>
 
         {/* Actions */}

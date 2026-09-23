@@ -6,6 +6,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { ReportIntro } from "@/components/ReportIntro";
+import { FinancialAmount } from "@/components/FinancialAmount";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { fetchProfitWindow, rangeFor, rangeForDates, lineProfit } from "@/lib/profitEngine";
@@ -496,9 +497,7 @@ function HeroCard({
       {/* Net profit — centered and prominent */}
       <div className="mb-4">
         <div className="text-sm md:text-base font-semibold text-muted-foreground mb-1">صافي الربح</div>
-        <div className={`text-4xl md:text-5xl font-black tracking-tight ${!canViewNetProfit ? "text-muted-foreground" : pos ? "text-success" : "text-destructive"}`}>
-          {canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
-        </div>
+         <FinancialAmount value={canViewNetProfit ? net : NET_PROFIT_MASK} currency={canViewNetProfit} size="hero" className={`font-black ${!canViewNetProfit ? "text-muted-foreground" : pos ? "text-success" : "text-destructive"}`} />
         {delta !== null && (
           <div className={`inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-sm font-bold ${delta >= 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
             {delta >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
@@ -511,11 +510,11 @@ function HeroCard({
       <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/50">
         <div className="text-center">
           <div className="text-sm font-semibold text-muted-foreground mb-1">المبيعات</div>
-          <div className="font-extrabold text-lg md:text-xl text-foreground">{formatEGP(sales)}</div>
+           <FinancialAmount value={sales} size="md" className="font-extrabold text-foreground" />
         </div>
         <div className="text-center">
           <div className="text-sm font-semibold text-muted-foreground mb-1">المصروفات</div>
-      <div className="font-extrabold text-lg md:text-xl text-destructive">{formatEGP(expenses)}</div>
+           <FinancialAmount value={expenses} size="md" className="font-extrabold text-destructive" />
         </div>
       </div>
     </div>
@@ -539,7 +538,7 @@ function CashCard({
       <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
         {icon}<span className="font-semibold">{label}</span>
       </div>
-      <div className={`text-2xl md:text-3xl font-black ${c.split(" ")[0]}`}>{formatEGP(value)}</div>
+       <FinancialAmount value={value} size="lg" className={`font-black ${c.split(" ")[0]}`} />
       {hint && <div className="text-xs text-muted-foreground mt-1 font-medium">{hint}</div>}
     </Link>
   );
@@ -550,9 +549,7 @@ function BranchCard({ title, branch, positive }: { title: string; branch: { name
     <div className={`card-elevated p-6 border-2 ${positive ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"} text-center`}>
       <h4 className="text-base md:text-lg font-bold mb-3">{title}</h4>
       <div className="text-2xl md:text-3xl font-black mb-2 text-foreground">{branch.name}</div>
-      <div className={`text-3xl md:text-4xl font-black ${positive ? "text-success" : "text-destructive"} mb-2`}>
-        {formatEGP(branch.net)}
-      </div>
+       <FinancialAmount value={branch.net} size="hero" className={`mb-2 font-black ${positive ? "text-success" : "text-destructive"}`} />
       <div className="text-sm text-muted-foreground font-medium">
         من إجمالي مبيعات {formatEGP(branch.revenue)}
       </div>

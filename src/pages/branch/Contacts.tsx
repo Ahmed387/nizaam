@@ -23,6 +23,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { exportToExcel, printReport } from "@/lib/export";
+import { FinancialAmount } from "@/components/FinancialAmount";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { VoucherDialog } from "@/components/VoucherDialog";
 
@@ -347,21 +348,19 @@ export default function Contacts() {
           <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
             <ArrowDownLeft className="w-5 h-5 text-success" /> مستحق لنا (عملاء + موردين)
           </div>
-          <div className="text-2xl font-extrabold text-success mt-2">{formatEGP(balanceTotals.oweUs)}</div>
+          <FinancialAmount value={balanceTotals.oweUs} size="md" className="mt-2 font-extrabold text-success" />
         </div>
         <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
           <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
             <ArrowUpRight className="w-5 h-5 text-destructive" /> علينا للغير
           </div>
-          <div className="text-2xl font-extrabold text-destructive mt-2">{formatEGP(balanceTotals.weOwe)}</div>
+          <FinancialAmount value={balanceTotals.weOwe} size="md" className="mt-2 font-extrabold text-destructive" />
         </div>
         <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
           <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
             <Scale className="w-5 h-5 text-primary" /> صافي الخصم
           </div>
-          <div className={`text-2xl font-extrabold mt-2 ${balanceTotals.net >= 0 ? "text-success" : "text-destructive"}`}>
-            {formatEGP(balanceTotals.net)}
-          </div>
+          <FinancialAmount value={balanceTotals.net} size="md" className={`mt-2 font-extrabold ${balanceTotals.net >= 0 ? "text-success" : "text-destructive"}`} />
         </div>
       </div>
 

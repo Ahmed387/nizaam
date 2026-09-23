@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const TX_LABEL: Record<string, { label: string; sign: number; color: string }> = {
   contribution: { label: "مساهمة", sign: 1, color: "text-success" },
@@ -173,11 +174,11 @@ export default function PartnerProfile() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
-          <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-warning">{fmt(outstandingAdvances)}</div></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">الرصيد الحالي</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(partner.current_balance)} size="md" className="justify-start" /></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المساهمات</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(partner.total_contributions)} size="md" className="justify-start text-success" /></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي المسحوبات</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(partner.total_drawings)} size="md" className="justify-start text-destructive" /></CardContent></Card>
+          <Card><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">إجمالي الأرباح</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(partner.total_profit_share)} size="md" className="justify-start text-primary" /></CardContent></Card>
+          <Card className="border-warning/30"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">سلف قائمة</CardTitle></CardHeader><CardContent><FinancialAmount value={fmt(outstandingAdvances)} size="md" className="justify-start text-warning" /></CardContent></Card>
         </div>
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="py-4 flex items-center justify-between">
@@ -185,7 +186,7 @@ export default function PartnerProfile() {
               <div className="text-sm text-muted-foreground">الصافي المتاح للسحب (الرصيد − السلف القائمة)</div>
               <div className="text-xs text-muted-foreground mt-1">رأس المال + الأرباح − المسحوبات − السلف</div>
             </div>
-            <div className={`text-3xl font-bold ${netAvailable >= 0 ? "text-success" : "text-destructive"}`}>{fmt(netAvailable)} ج</div>
+             <FinancialAmount value={fmt(netAvailable)} size="lg" className={netAvailable >= 0 ? "text-success" : "text-destructive"} />
           </CardContent>
         </Card>
 

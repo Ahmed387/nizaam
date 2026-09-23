@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
 import { fetchProfitWindow, rangeForDates } from "@/lib/profitEngine";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { ProfitDateRangePicker, presetRange, type DayRange } from "@/components/ProfitDateRangePicker";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const BRANCH_COLORS = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
 const BRANCH_DOT = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
@@ -79,9 +80,12 @@ export function ExecutiveProfitSummary() {
 
           <div>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <div className={`text-3xl lg:text-4xl font-extrabold tracking-tight ${!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive"}`}>
-                {canViewNetProfit ? formatEGP(net) : NET_PROFIT_MASK}
-              </div>
+              <FinancialAmount
+                value={canViewNetProfit ? net : NET_PROFIT_MASK}
+                currency={canViewNetProfit}
+                size="hero"
+                className={`justify-start font-extrabold ${!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive"}`}
+              />
               {canViewNetProfit && deltaPct === null && (
                 <div className="px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-muted-foreground">—</div>
               )}
@@ -109,23 +113,17 @@ export function ExecutiveProfitSummary() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-5 rounded-xl bg-primary/5 border border-primary/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المبيعات (Revenue)</p>
-              <p className="text-2xl lg:text-3xl font-extrabold text-primary tabular-nums truncate" dir="ltr" title={formatEGP(sales)}>
-                {formatEGP(sales)}
-              </p>
+               <FinancialAmount value={sales} size="lg" className="relative z-10 justify-start font-extrabold text-primary" />
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-primary/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
             <div className="p-5 rounded-xl bg-warning/5 border border-warning/30 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">التكلفة (COGS)</p>
-              <p className="text-2xl lg:text-3xl font-extrabold text-warning tabular-nums truncate" dir="ltr" title={formatEGP(cost)}>
-                {formatEGP(cost)}
-              </p>
+               <FinancialAmount value={cost} size="lg" className="relative z-10 justify-start font-extrabold text-warning" />
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-warning/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
             <div className="p-5 rounded-xl bg-destructive/5 border border-destructive/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المصروفات التشغيلية</p>
-              <p className="text-2xl lg:text-3xl font-extrabold text-destructive tabular-nums truncate" dir="ltr" title={formatEGP(expenses)}>
-                {formatEGP(expenses)}
-              </p>
+               <FinancialAmount value={expenses} size="lg" className="relative z-10 justify-start font-extrabold text-destructive" />
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-destructive/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
           </div>

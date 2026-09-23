@@ -11,6 +11,7 @@ import { AlertCircle, Search, RefreshCw, Calendar, Info, ArrowDownLeft, ArrowUpR
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useNavigate } from "react-router-dom";
 import { useBranchScope } from "@/lib/branchScope";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Plan = {
   id: string;
@@ -205,7 +206,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="flex items-center gap-2 text-sm font-semibold text-success">
               <ArrowDownLeft className="w-4 h-4" />مستحق لنا (عملاء)
             </div>
-            <div className="text-2xl font-extrabold text-success mt-2">{formatEGP(totals.due)}</div>
+             <FinancialAmount value={totals.due} size="md" className="mt-2 justify-start font-extrabold text-success" />
             <div className="text-[11px] text-muted-foreground mt-1">فلوس هتدخل الخزنة</div>
           </div>
 
@@ -213,7 +214,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="flex items-center gap-2 text-sm font-semibold text-warning">
               <ArrowUpRight className="w-4 h-4" />مستحق للموردين
             </div>
-            <div className="text-2xl font-extrabold text-warning mt-2">{formatEGP(totals.oweSuppliers)}</div>
+             <FinancialAmount value={totals.oweSuppliers} size="md" className="mt-2 justify-start font-extrabold text-warning" />
             <div className="text-[11px] text-muted-foreground mt-1">فلوس هتخرج منك</div>
           </div>
 
@@ -221,7 +222,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="flex items-center gap-2 text-sm font-semibold text-warning">
               <Users className="w-4 h-4" />مستحق للموظفين
             </div>
-            <div className="text-2xl font-extrabold text-warning mt-2">{formatEGP(totals.oweEmployees)}</div>
+             <FinancialAmount value={totals.oweEmployees} size="md" className="mt-2 justify-start font-extrabold text-warning" />
             <div className="text-[11px] text-muted-foreground mt-1">سلف ومستحقات</div>
           </div>
 
@@ -229,9 +230,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className={`flex items-center gap-2 text-sm font-semibold ${totals.due - totals.owe >= 0 ? "text-primary" : "text-destructive"}`}>
               <Scale className="w-4 h-4" />الصافي
             </div>
-            <div className={`text-2xl font-extrabold mt-2 ${totals.due - totals.owe >= 0 ? "text-primary" : "text-destructive"}`}>
-              {formatEGP(totals.due - totals.owe)}
-            </div>
+             <FinancialAmount value={totals.due - totals.owe} size="md" className={`mt-2 justify-start font-extrabold ${totals.due - totals.owe >= 0 ? "text-primary" : "text-destructive"}`} />
             <div className="text-[11px] text-muted-foreground mt-1">
               {totals.due - totals.owe >= 0 ? "اللي ليك أكتر من اللي عليك" : "اللي عليك أكتر من اللي ليك"}
             </div>
@@ -241,7 +240,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
               <AlertCircle className="w-4 h-4" />متأخرات
             </div>
-            <div className="text-2xl font-extrabold text-destructive mt-2">{formatEGP(totals.overdue)}</div>
+             <FinancialAmount value={totals.overdue} size="md" className="mt-2 justify-start font-extrabold text-destructive" />
             <div className="text-[11px] text-muted-foreground mt-1">{totals.overdueCount} قسط فات ميعاده</div>
           </div>
         </div>

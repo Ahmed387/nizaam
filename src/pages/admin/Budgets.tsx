@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Target, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -177,9 +178,9 @@ export default function Budgets() {
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">إجمالي المخطط</div><div className="text-2xl font-bold">{fmt(totals.planned)}</div></CardContent></Card>
-                <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">إجمالي الفعلي</div><div className="text-2xl font-bold">{fmt(totals.actual)}</div></CardContent></Card>
-                <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">الانحراف</div><div className={`text-2xl font-bold ${totals.variance >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totals.variance)}</div></CardContent></Card>
+                <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">إجمالي المخطط</div><FinancialAmount value={fmt(totals.planned)} size="md" className="mt-1 justify-start" /></CardContent></Card>
+                <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">إجمالي الفعلي</div><FinancialAmount value={fmt(totals.actual)} size="md" className="mt-1 justify-start" /></CardContent></Card>
+                <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">الانحراف</div><FinancialAmount value={fmt(totals.variance)} size="md" className={`mt-1 justify-start ${totals.variance >= 0 ? "text-success" : "text-destructive"}`} /></CardContent></Card>
               </div>
 
               <Table>

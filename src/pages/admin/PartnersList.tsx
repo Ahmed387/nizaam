@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2, Link2 } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 
 type Partner = {
@@ -485,11 +486,11 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <div className="text-xs text-muted-foreground">إجمالي رأس المال</div>
-              <div className="text-2xl font-bold mt-1 font-mono">{fmt(totalCapital)}</div>
+               <FinancialAmount value={fmt(totalCapital)} size="md" className="mt-1 justify-start font-mono" />
             </CardContent></Card>
             <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"><CardContent className="p-4">
               <div className="text-xs text-muted-foreground">إجمالي الأرصدة الحالية</div>
-              <div className="text-2xl font-bold mt-1 text-primary font-mono">{fmt(totalBalance)}</div>
+               <FinancialAmount value={fmt(totalBalance)} size="md" className="mt-1 justify-start text-primary font-mono" />
             </CardContent></Card>
           </div>
         )}
@@ -534,10 +535,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
                   {/* Current balance — hero */}
                   <div className="rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border border-primary/20 p-4">
                     <div className="text-xs text-muted-foreground mb-1">الرصيد الحالي</div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-primary font-mono">{fmt(p.current_balance)}</span>
-                      <span className="text-sm text-muted-foreground">ج.م</span>
-                    </div>
+                     <FinancialAmount value={fmt(p.current_balance)} size="lg" className="justify-start text-primary font-mono" />
                   </div>
 
                   {/* Stats grid */}

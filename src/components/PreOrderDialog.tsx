@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { Loader2, BookmarkPlus, ChevronDown } from "lucide-react";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 interface CatalogItem {
   id?: string | null;
@@ -264,7 +265,7 @@ export function PreOrderDialog({
               </div>
               <div className="pt-3 mt-1 border-t border-primary-foreground/20 flex justify-between items-center">
                 <span className="text-sm font-medium">المتبقي عند الاستلام</span>
-                <span className="text-2xl font-black">{formatEGP(remaining)}</span>
+                <FinancialAmount value={remaining} size="md" className="justify-end font-black text-primary-foreground" currencyClassName="text-primary-foreground/80" />
               </div>
               {deposit === 0 && (
                 <div className="text-[11px] px-2 py-1.5 rounded-lg bg-warning/20 text-warning-foreground border border-warning/30 text-center font-bold">

@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Calculator, PieChart, TrendingUp, Wallet, Loader2 } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -161,7 +162,7 @@ export default function FlexibleDistribution() {
                 >
                   <div>
                     <div className="text-sm text-muted-foreground">{p.name}</div>
-                    <div className="text-2xl font-bold">{fmt(p.current_balance)} ج.م</div>
+                    <FinancialAmount value={fmt(p.current_balance)} size="md" className="justify-start" />
                   </div>
                   <Badge variant={Number(p.current_balance) > 0 ? "default" : "outline"}>
                     {Number(p.current_balance) > 0 ? "قابل للسحب" : "بدون رصيد"}

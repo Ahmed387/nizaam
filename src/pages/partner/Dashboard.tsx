@@ -9,6 +9,7 @@ import { withPartnerBalance } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import { Wallet, PieChart, TrendingUp, ArrowUpCircle, ArrowDownCircle, Gift, BookOpen, FileText } from "lucide-react";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 export default function PartnerDashboard() {
   const { user, profile } = useAuth();
@@ -49,12 +50,12 @@ export default function PartnerDashboard() {
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">الرصيد الحالي</CardTitle><Wallet className="w-4 h-4 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(partner.current_balance)} <span className="text-xs">ج.م</span></div></CardContent></Card>
+               <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">الرصيد الحالي</CardTitle><Wallet className="w-4 h-4 text-primary" /></CardHeader><CardContent><FinancialAmount value={Number(partner.current_balance)} size="md" className="justify-start" /></CardContent></Card>
               <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">نسبة رأس المال</CardTitle><PieChart className="w-4 h-4 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold">{(Number(partner.capital_share) * 100).toFixed(2)}%</div></CardContent></Card>
               <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">نسبة أرباح التشغيل</CardTitle><TrendingUp className="w-4 h-4 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold">{(Number(partner.operating_share) * 100).toFixed(2)}%</div></CardContent></Card>
-              <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">إجمالي المساهمات</CardTitle><ArrowUpCircle className="w-4 h-4 text-success" /></CardHeader><CardContent><div className="text-2xl font-bold text-success">{fmt(partner.total_contributions)}</div></CardContent></Card>
-              <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">إجمالي المسحوبات</CardTitle><ArrowDownCircle className="w-4 h-4 text-destructive" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(partner.total_drawings)}</div></CardContent></Card>
-              <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">إجمالي الأرباح</CardTitle><Gift className="w-4 h-4 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(partner.total_profit_share)}</div></CardContent></Card>
+               <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">إجمالي المساهمات</CardTitle><ArrowUpCircle className="w-4 h-4 text-success" /></CardHeader><CardContent><FinancialAmount value={Number(partner.total_contributions)} size="md" className="justify-start text-success" /></CardContent></Card>
+               <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">إجمالي المسحوبات</CardTitle><ArrowDownCircle className="w-4 h-4 text-destructive" /></CardHeader><CardContent><FinancialAmount value={Number(partner.total_drawings)} size="md" className="justify-start text-destructive" /></CardContent></Card>
+               <Card><CardHeader className="flex flex-row items-center justify-between pb-1"><CardTitle className="text-xs">إجمالي الأرباح</CardTitle><Gift className="w-4 h-4 text-primary" /></CardHeader><CardContent><FinancialAmount value={Number(partner.total_profit_share)} size="md" className="justify-start text-primary" /></CardContent></Card>
             </div>
 
             <Card>

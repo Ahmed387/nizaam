@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Line = {
   debit: number;
@@ -137,7 +138,7 @@ export default function IncomeStatement() {
             <div><Label>إلى</Label><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">صافي الربح (Net Profit)</div>
-              <div className={"text-2xl font-bold " + (!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive")}>{canViewNetProfit ? <>{fmt(net)} <span className="text-sm">ج.م</span></> : NET_PROFIT_MASK}</div>
+               <FinancialAmount value={canViewNetProfit ? fmt(net) : NET_PROFIT_MASK} currency={canViewNetProfit} size="md" className={`justify-start ${!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive"}`} />
             </div>
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">هامش الربح (Profit Margin)</div>

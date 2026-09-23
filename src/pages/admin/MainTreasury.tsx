@@ -13,6 +13,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate } from "@/lib/format";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { FinancialAmount } from "@/components/FinancialAmount";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
@@ -168,9 +169,7 @@ export default function MainTreasury() {
                     <Wallet className="w-5 h-5 text-primary" />
                   </div>
                   <div className="text-xs text-muted-foreground mb-1">الرصيد الحالى (دفتر الأستاذ)</div>
-                  <div className={`text-2xl font-extrabold mb-1 ${glBal >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatEGP(glBal)}
-                  </div>
+                   <FinancialAmount value={glBal} size="md" className={`mb-1 justify-start font-extrabold ${glBal >= 0 ? "text-success" : "text-destructive"}`} />
                   <div className="text-[11px] text-muted-foreground">
                     صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b>
                     {" · "}
