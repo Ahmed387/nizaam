@@ -52,7 +52,8 @@ export function useContactBranchBreakdown(
   return useQuery({
     queryKey: contactBranchBreakdownKey(contactId ?? "", tenantId ?? ""),
     enabled: active,
-    staleTime: 60 * 1000,
+    staleTime: 3 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<ContactBranchBreakdown> => {
       const cid = contactId!;
       const tid = tenantId!;

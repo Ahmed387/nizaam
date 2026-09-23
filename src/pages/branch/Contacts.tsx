@@ -432,6 +432,7 @@ export default function Contacts() {
       <DataTable
         loading={loading}
         rows={filtered}
+        pageSize={50}
         onRowClick={goToProfile}
         getRowKey={(r: any) => r.id}
         isRowExpanded={(r: any) => expandedId === r.id}
