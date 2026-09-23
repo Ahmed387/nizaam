@@ -70,7 +70,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       // خزينة الشركاء (PARTNER-CASH) فرع افتراضي محاسبي — مش فرع تشغيلي، بيتستبعد من تقارير الفروع
       supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),
       // سحب كل الفواتير على دفعات (الحد الافتراضي 1000 صف كان بيقص التقارير في الفترات الكبيرة)
-      fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").gte("created_at", fromIso).lte("created_at", toIso)).then((rows) => ({ data: rows })),
+      fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").gte("invoice_date", fromIso).lte("invoice_date", toIso)).then((rows) => ({ data: rows })),
       supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
       // المنتجات المؤرشفة مش بتتحسب في قيمة المخزون ولا تنبيهات النقص
       supabase.from("products").select("*").is("archived_at", null),
@@ -79,7 +79,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("supplier_payments").select("*").gte("paid_at", fromIso).lte("paid_at", toIso),
       supabase.from("employees").select("*").eq("is_active", true),
       supabase.from("vouchers" as any).select("type, amount, branch_id, voucher_date").eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("returns").select("*").eq("status", "active").gte("created_at", fromIso).lte("created_at", toIso),
+      supabase.from("returns").select("*").eq("status", "active").gte("invoice_date", fromIso).lte("invoice_date", toIso),
       supabase.from("contacts").select("id,branch_id"),
       supabase.from("shipments").select("contact_id,total_cost"),
       supabase.from("supplier_payments").select("contact_id,amount"),

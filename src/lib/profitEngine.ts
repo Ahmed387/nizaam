@@ -189,8 +189,8 @@ export async function fetchProfitWindow(params: {
       .select(invSelect)
       .eq("tenant_id", tenantId)
       .eq("status", "active")
-      .gte("created_at", f)
-      .lte("created_at", t);
+      .gte("invoice_date", f)
+      .lte("invoice_date", t);
     if (branchId) q = q.eq("branch_id", branchId);
     return q;
   };

@@ -93,8 +93,8 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
           .select("id,total,invoice_payments(amount,voided_at)")
           .eq("tenant_id", tenantId)
           .eq("status", "active")
-          .gte("created_at", new Date(f + "T00:00:00").toISOString())
-          .lte("created_at", new Date(t + "T23:59:59.999").toISOString())
+          .gte("invoice_date", new Date(f + "T00:00:00").toISOString())
+          .lte("invoice_date", new Date(t + "T23:59:59.999").toISOString())
       ),
       supabase.from("v_contact_balances" as any).select("type,total_balance"),
       supabase.from("treasury" as any).select("type,amount").eq("tenant_id", tenantId),

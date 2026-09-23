@@ -58,9 +58,9 @@ export default function FinancialDashboard() {
         .limit(20),
       supabase
         .from("invoices")
-        .select("created_at, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+        .select("created_at, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
         .eq("status", "active")
-        .gte("created_at", daysAgo(180)),
+        .gte("invoice_date", daysAgo(180)),
     ]);
 
     // Treasury net
@@ -98,7 +98,7 @@ export default function FinancialDashboard() {
     // Monthly trend (last 6 months) — sales & profit
     const months: Record<string, { month: string; sales: number; profit: number }> = {};
     for (const i of (inv90.data ?? []) as any[]) {
-      const k = i.created_at.slice(0, 7);
+      const k = (i.invoice_date ?? i.created_at).slice(0, 7);
       if (!months[k]) months[k] = { month: k, sales: 0, profit: 0 };
       // مصدر موحّد: profitEngine (صافي المرتجعات + خصم الفاتورة + بدون ضريبة)
       const ip = invoiceProfit(i);

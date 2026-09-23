@@ -82,10 +82,10 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
         supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null),
         supabase
           .from("invoice_items")
-          .select("product_id, quantity, returned_quantity, invoices!inner(tenant_id, status, created_at)")
+          .select("product_id, quantity, returned_quantity, invoices!inner(tenant_id, status, created_at, invoice_date)")
           .eq("invoices.tenant_id", tenantId)
           .eq("invoices.status", "active")
-          .gte("invoices.created_at", new Date(Date.now() - 30 * 86400000).toISOString()),
+          .gte("invoices.invoice_date", new Date(Date.now() - 30 * 86400000).toISOString()),
         supabase
           .from("pre_orders")
           .select("id")
@@ -158,10 +158,10 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
     const [invTrend, expTrend] = await Promise.all([
       supabase
         .from("invoices")
-        .select("created_at, is_migrated, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+        .select("created_at, invoice_date, is_migrated, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
         .eq("tenant_id", tenantId)
         .eq("status", "active")
-        .gte("created_at", trendFrom.toISOString()),
+        .gte("invoice_date", trendFrom.toISOString()),
       supabase
         .from("vouchers")
         .select("voucher_date, amount, voucher_categories!inner(is_deductible_from_profit)")
@@ -179,7 +179,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
       byDay[d] = { revenue: 0, cost: 0, expenses: 0 };
     }
     for (const inv of (invTrend.data ?? []) as any[]) {
-      const d = String(inv.created_at).slice(0, 10);
+      const d = String(inv.invoice_date ?? inv.created_at).slice(0, 10);
       if (!byDay[d]) continue;
       for (const it of inv.invoice_items ?? []) {
         const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
