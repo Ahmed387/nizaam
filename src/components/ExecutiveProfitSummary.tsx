@@ -1,18 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP } from "@/lib/format";
 import { TrendingUp, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
-import { fetchProfitWindow, rangeFor, type ProfitPeriod } from "@/lib/profitEngine";
+import { fetchProfitWindow, rangeForDates } from "@/lib/profitEngine";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
-
-const PERIODS: { key: ProfitPeriod; label: string }[] = [
-  { key: "day", label: "يومي" },
-  { key: "week", label: "أسبوعي" },
-  { key: "month", label: "شهري" },
-  { key: "year", label: "سنوي" },
-];
+import { ProfitDateRangePicker, presetRange, type DayRange } from "@/components/ProfitDateRangePicker";
 
 const BRANCH_COLORS = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
 const BRANCH_DOT = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-accent", "bg-secondary"];
@@ -20,68 +14,67 @@ const BRANCH_DOT = ["bg-success", "bg-primary", "bg-info", "bg-warning", "bg-acc
 export function ExecutiveProfitSummary() {
   const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
-  const [period, setPeriod] = useState<ProfitPeriod>("month");
+  const [range, setRange] = useState<DayRange>(() => presetRange("month"));
   const [loading, setLoading] = useState(true);
   const [sales, setSales] = useState(0);
   const [cost, setCost] = useState(0);
   const [expenses, setExpenses] = useState(0);
+  const [otherIncomes, setOtherIncomes] = useState(0);
   const [prevNet, setPrevNet] = useState(0);
   const [branchProfits, setBranchProfits] = useState<{ id: string; name: string; profit: number }[]>([]);
+  const reqId = useRef(0);
 
   const load = async () => {
     if (!tenantId) return;
+    const id = ++reqId.current;
     setLoading(true);
-    const w = await fetchProfitWindow({ tenantId, range: rangeFor(period) });
+    const w = await fetchProfitWindow({ tenantId, range: rangeForDates(range.from, range.to) });
+    if (id !== reqId.current) return; // تجاهل نتائج طلب قديم
     setSales(w.totals.revenue);
     setCost(w.totals.cost);
     setExpenses(w.totals.expenses);
+    setOtherIncomes(w.totals.otherIncomes);
     setPrevNet(w.prevNet);
     setBranchProfits(w.perBranch.map((b) => ({ id: b.id, name: b.name, profit: b.net })));
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, period]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, range.from, range.to]);
   useRealtimeRefresh(["invoices", "invoice_items", "vouchers", "branches"], load);
 
-  const net = sales - cost - expenses;
+  const net = sales - cost - expenses + otherIncomes;
   const deltaPct = useMemo(() => {
     if (Math.abs(prevNet) < 0.01) return null;
-    return ((net - prevNet) / Math.abs(prevNet)) * 100;
+    const v = ((net - prevNet) / Math.abs(prevNet)) * 100;
+    return Number.isFinite(v) ? v : null;
   }, [net, prevNet]);
 
-  const positiveBranches = branchProfits.filter((b) => b.profit > 0);
-  const totalPositive = positiveBranches.reduce((s, b) => s + b.profit, 0);
-  const branchShares = positiveBranches
-    .map((b) => ({ ...b, pct: totalPositive > 0 ? (b.profit / totalPositive) * 100 : 0 }))
+  // الحصص تُحسب من صافي الربح الكلي بحيث مجموعها = 100% من الصافي
+  const totalNet = branchProfits.reduce((s, b) => s + b.profit, 0);
+  const branchShares = branchProfits
+    .filter((b) => Math.abs(b.profit) > 0.005)
+    .map((b) => ({ ...b, pct: Math.abs(totalNet) > 0.005 ? (b.profit / totalNet) * 100 : 0 }))
     .sort((a, b) => b.profit - a.profit);
+  const barTotal = branchShares.reduce((s, b) => s + Math.max(0, b.pct), 0) || 1;
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-card border border-border shadow-xl shadow-foreground/5 mb-6">
       {/* Top gradient accent */}
       <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-success via-primary to-info" />
+      {loading && (
+        <div className="absolute top-3 left-3 z-10">
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-<div className="p-6 lg:p-7 flex flex-col xl:flex-row gap-7 items-stretch xl:items-center justify-between">
+<div className={`p-6 lg:p-7 flex flex-col xl:flex-row gap-7 items-stretch xl:items-center justify-between transition-opacity ${loading ? "opacity-60" : ""}`}>
         {/* Left: Main metric & filter */}
-        <div className="flex flex-col gap-4 xl:w-[280px] shrink-0">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex flex-col gap-4 xl:w-[300px] shrink-0">
+          <div className="flex flex-col gap-2">
             <h2 className="text-muted-foreground text-xs font-bold tracking-wide uppercase">
               ملخص صافي الأرباح التنفيذي
             </h2>
-            <div className="flex bg-muted p-1 rounded-lg border border-border">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setPeriod(p.key)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                    period === p.key
-                      ? "bg-card shadow-sm text-success"
-                      : "text-muted-foreground hover:bg-card/60"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            <ProfitDateRangePicker value={range} onChange={setRange} />
           </div>
 
           <div>
