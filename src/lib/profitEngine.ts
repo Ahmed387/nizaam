@@ -174,10 +174,13 @@ export async function fetchProfitWindow(params: {
   const toIso = range.to.toISOString();
   const prevFromIso = range.prevFrom.toISOString();
   const prevToIso = range.prevTo.toISOString();
-  const fromDate = range.from.toISOString().slice(0, 10);
-  const toDate = range.to.toISOString().slice(0, 10);
-  const prevFromDate = range.prevFrom.toISOString().slice(0, 10);
-  const prevToDate = range.prevTo.toISOString().slice(0, 10);
+  // تواريخ محلية (وليس UTC) عشان voucher_date عمود date ويتطابق مع يوم المستخدم
+  const localDay = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const fromDate = localDay(range.from);
+  const toDate = localDay(range.to);
+  const prevFromDate = localDay(range.prevFrom);
+  const prevToDate = localDay(range.prevTo);
 
   const invSelect =
     "id, branch_id, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)";
