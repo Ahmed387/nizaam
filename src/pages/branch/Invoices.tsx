@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NumberedPagination } from "@/components/NumberedPagination";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -284,7 +285,7 @@ export default function Invoices() {
       qb = qb.order("created_at", { ascending: false });
     }
     return qb;
-  }, [tab, branchId, filters]);
+  }, [tab, branchId, queryFilters]);
 
   const SELECTS: Record<TabKey, string> = {
     sale: "*, contacts:contact_id(name)",
@@ -1029,6 +1030,7 @@ export default function Invoices() {
         </div>
       )}
 
+      <div ref={tableTopRef} className="scroll-mt-4" />
       <DataTable
         loading={loading}
         rows={filteredRows}
