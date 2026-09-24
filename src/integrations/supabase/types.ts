@@ -5792,6 +5792,7 @@ export type Database = {
           created_at: string
           from_branch_id: string
           group_id: string | null
+          hidden_for_branches: string[]
           id: string
           model: string | null
           product_id: string
@@ -5817,6 +5818,7 @@ export type Database = {
           created_at?: string
           from_branch_id: string
           group_id?: string | null
+          hidden_for_branches?: string[]
           id?: string
           model?: string | null
           product_id: string
@@ -5842,6 +5844,7 @@ export type Database = {
           created_at?: string
           from_branch_id?: string
           group_id?: string | null
+          hidden_for_branches?: string[]
           id?: string
           model?: string | null
           product_id?: string
@@ -7615,6 +7618,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hide_rejected_transfer: {
+        Args: { _branch_id: string; _transfer_id: string }
+        Returns: undefined
       }
       historical_stock_at: {
         Args: { _as_of: string; _branch_id: string }

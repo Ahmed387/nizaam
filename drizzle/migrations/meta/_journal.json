@@ -99,6 +99,13 @@
       "when": 1790280022283,
       "tag": "0013_unify_cash_sale_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790284634824,
+      "tag": "0014_stock_transfers_branch_hide",
+      "breakpoints": true
     }
   ]
 }
