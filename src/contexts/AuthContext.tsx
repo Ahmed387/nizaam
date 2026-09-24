@@ -75,7 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPermsByRole(map);
   };
 
-  const loadCtx = async (uid: string) => {
+  const [connError, setConnError] = useState(false);
+  const withTimeout = <T,>(p: PromiseLike<T>, ms = 5000): Promise<T> =>
+    Promise.race([
+      Promise.resolve(p),
+      new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
+    ]);
+
+  const loadCtxInner = async (uid: string) => {
     const ctx = await fetchUserContext(uid);
     setProfile(ctx.profile as any);
     setTenantId(ctx.tenantId);
@@ -89,7 +96,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("permission_key, allowed")
       .eq("user_id", uid);
     setUserPerms(Object.fromEntries((overrides ?? []).map((r: any) => [r.permission_key, !!r.allowed])));
-    setCtxReady(true);
+  };
+
+  const loadCtx = async (uid: string) => {
+    try {
+      await withTimeout(loadCtxInner(uid));
+      setConnError(false);
+      setCtxReady(true);
+    } catch (e) {
+      console.error("Auth context load failed", e);
+      setConnError(true);
+    }
+  };
+
+  const retryConnection = () => {
+    setConnError(false);
+    setLoading(true);
+    withTimeout(supabase.auth.getSession())
+      .then(async ({ data }) => {
+        if (data.session?.user) await loadCtx(data.session.user.id);
+        else setCtxReady(true);
+      })
+      .catch(() => setConnError(true))
+      .finally(() => setLoading(false));
   };
 
 
@@ -118,15 +147,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    withTimeout(supabase.auth.getSession()).then(async ({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
         currentUserIdRef.current = data.session.user.id;
         await loadCtx(data.session.user.id);
       } else setCtxReady(true);
-      setLoading(false);
-    });
+    }).catch(() => setConnError(true))
+      .finally(() => setLoading(false));
 
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -243,6 +272,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) await loadCtx(user.id);
     },
   };
+
+  if (connError) {
+    return (
+      <div dir="rtl" className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full card-elevated p-6 text-center space-y-4">
+          <h1 className="text-xl font-bold text-foreground">تعذّر الاتصال بالخادم</h1>
+          <p className="text-sm text-muted-foreground">الخادم لم يستجب خلال 5 ثوانٍ. تأكد من الإنترنت ثم أعد المحاولة.</p>
+          <button
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground"
+            onClick={retryConnection}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
