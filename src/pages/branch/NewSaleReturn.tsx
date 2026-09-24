@@ -725,10 +725,10 @@ export default function NewSaleReturn() {
               <div className="p-6 text-center text-muted-foreground text-sm">مفيش فواتير مطابقة</div>
             ) : (
               filteredInvoices.map((r: any) => (
+                <PickerItemsToggle key={r.id} kind="sale" branchId={branchId!} docId={r.id}>
                 <button
-                  key={r.id}
                   onClick={() => pickInvoice(r.id)}
-                  className="w-full flex items-center justify-between gap-3 p-3 border-b border-border last:border-b-0 hover:bg-accent text-right transition-colors"
+                  className="w-full flex items-center justify-between gap-3 p-3 hover:bg-accent text-right transition-colors"
                 >
                   <div className="flex flex-col items-start gap-0.5">
                     <span className="font-mono font-bold text-primary">{r.invoice_number}</span>
@@ -739,6 +739,7 @@ export default function NewSaleReturn() {
                     <span className="text-xs text-muted-foreground">{formatDateTime(r.created_at)}</span>
                   </div>
                 </button>
+                </PickerItemsToggle>
               ))
             )}
           </div>

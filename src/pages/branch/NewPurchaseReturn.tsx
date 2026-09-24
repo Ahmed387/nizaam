@@ -666,10 +666,10 @@ export default function NewPurchaseReturn() {
               <div className="p-6 text-center text-muted-foreground text-sm">مفيش فواتير مطابقة</div>
             ) : (
               filteredShipments.map((r: any) => (
+                <PickerItemsToggle key={r.id} kind="shipment" branchId={branchId!} docId={r.id}>
                 <button
-                  key={r.id}
                   onClick={() => pickShipment(r.id)}
-                  className="w-full flex items-center justify-between gap-3 p-3 border-b border-border last:border-b-0 hover:bg-accent text-right transition-colors"
+                  className="w-full flex items-center justify-between gap-3 p-3 hover:bg-accent text-right transition-colors"
                 >
                   <div className="flex flex-col items-start gap-0.5">
                     <span className="font-mono font-bold text-primary">{r.arrival_date}</span>
@@ -680,6 +680,7 @@ export default function NewPurchaseReturn() {
                     {r.notes && <span className="text-xs text-muted-foreground">{r.notes}</span>}
                   </div>
                 </button>
+                </PickerItemsToggle>
               ))
             )}
           </div>
