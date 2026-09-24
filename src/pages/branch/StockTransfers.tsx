@@ -60,6 +60,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
   const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "confirmed" | "rejected">("ALL");
+  const [hideTarget, setHideTarget] = useState<string | null>(null);
+  const [hideBusy, setHideBusy] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
@@ -254,6 +256,19 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   };
 
 
+  const confirmHide = async () => {
+    if (!hideTarget || !branchId) return;
+    setHideBusy(true);
+    const { error } = await supabase.rpc("hide_rejected_transfer" as any, { _transfer_id: hideTarget, _branch_id: branchId });
+    setHideBusy(false);
+    if (error) { toast.error(error.message); return; }
+    const id = hideTarget;
+    const mark = (list: any[]) => list.map((t) => t.id === id ? { ...t, hidden_for_branches: [...(t.hidden_for_branches ?? []), branchId] } : t);
+    setIncoming(mark); setOutgoing(mark);
+    setHideTarget(null);
+    toast.success("تم إخفاء التحويل المرفوض من الشاشة");
+  };
+
   const statusBadge = (s: string) => {
     const map: Record<string, string> = { pending: "text-warning", confirmed: "text-success", rejected: "text-destructive" };
     const lbl: Record<string, string> = { pending: "قيد الانتظار", confirmed: "تم الاستلام", rejected: "مرفوض" };
@@ -316,6 +331,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     ].sort((a, b) => String(b.confirmed_at ?? b.created_at).localeCompare(String(a.confirmed_at ?? a.created_at)));
 
     return rows.filter((r) => {
+      if (Array.isArray(r.hidden_for_branches) && r.hidden_for_branches.includes(branchId)) return false;
       // 0. فلتر الحالة (الكل / مستلم / مرفوض)
       if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
       // 1. فلتر الفرع المرسل
@@ -632,7 +648,18 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
               {
                 key: "status", header: "الحالة", align: "center", render: (r: any) =>
                   r.status === "rejected" ? (
-                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-destructive/15 text-destructive border border-destructive/30">مرفوض</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-destructive/15 text-destructive border border-destructive/30">مرفوض</span>
+                      <button
+                        type="button"
+                        aria-label="إخفاء التحويل المرفوض"
+                        title="إخفاء من الشاشة"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setHideTarget(r.id); }}
+                        className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                   ) : (
                     <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
                   ),
