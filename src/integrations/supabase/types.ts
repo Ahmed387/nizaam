@@ -7959,6 +7959,7 @@ export type Database = {
           p_discount_amount: number
           p_discount_percent: number
           p_discount_reason: string
+          p_invoice_date?: string
           p_items: Json
           p_payment_method: string
           p_payments?: Json
