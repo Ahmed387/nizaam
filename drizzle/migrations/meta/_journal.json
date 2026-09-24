@@ -78,6 +78,13 @@
       "when": 1790195564669,
       "tag": "0010_stock_movements_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790273666277,
+      "tag": "0011_documents_pagination_indexes",
+      "breakpoints": true
     }
   ]
 }
