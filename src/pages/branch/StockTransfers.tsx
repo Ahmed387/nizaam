@@ -669,6 +669,17 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </TabsContent>
       </Tabs>
 
+      <Dialog open={!!hideTarget} onOpenChange={(v) => { if (!hideBusy && !v) setHideTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>هل أنت متأكد من حذف هذا التحويل المرفوض من الشاشة؟</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">سيختفي من شاشة هذا الفرع فقط، وتبقى كل الكميات والسجلات محفوظة كما هي.</p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setHideTarget(null)} disabled={hideBusy}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmHide} disabled={hideBusy}>إخفاء</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* نافذة تأكيد الاستلام بالكمية الفعلية */}
       <Dialog open={recvOpen} onOpenChange={(v) => { if (!busy) { setRecvOpen(v); if (!v) { setRecvRows([]); setRecvQty({}); } } }}>
         <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
