@@ -284,7 +284,8 @@ export default function Invoices() {
       if (f.status) qb = qb.eq("status", f.status);
       qb = qb.order("created_at", { ascending: false });
     }
-    return qb;
+    // Wrap: PostgREST builders are thenables — returning one from an async fn would execute it.
+    return { qb };
   }, [tab, branchId, queryFilters]);
 
   const SELECTS: Record<TabKey, string> = {
@@ -309,11 +310,18 @@ export default function Invoices() {
     const stale = () => myId !== reqRef.current.id;
     setLoading(true);
     const from = (page - 1) * PAGE_SIZE;
-    const qb = await buildQuery(SELECTS[tab], true);
+    let r: any;
+    try {
+      const { qb } = await buildQuery(SELECTS[tab], true);
+      if (stale()) return;
+      r = await qb.range(from, from + PAGE_SIZE - 1).abortSignal(ctrl.signal);
+    } catch (e: any) {
+      if (!stale() && e?.name !== "AbortError") { toast.error(e?.message ?? "تعذر تحميل البيانات"); setRows([]); setTotalCount(0); }
+      if (!stale()) setLoading(false);
+      return;
+    }
     if (stale()) return;
-    const r = await qb.range(from, from + PAGE_SIZE - 1).abortSignal(ctrl.signal);
-    if (stale()) return;
-    if (r.error) toast.error(r.error.message);
+    if (r.error && !/abort/i.test(r.error.message ?? "")) toast.error(r.error.message);
     let data: any[] = r.data ?? [];
     if (tab === "income" || tab === "expense") {
       data = data.map((v: any) => ({
@@ -331,7 +339,7 @@ export default function Invoices() {
       let sum = 0; let off = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        const sq = await buildQuery(col, false);
+        const { qb: sq } = await buildQuery(col, false);
         const { data: part } = await sq.range(off, off + 999).abortSignal(ctrl.signal);
         if (stale()) return;
         (part ?? []).forEach((x: any) => { sum += Number(x[col] ?? 0); });
