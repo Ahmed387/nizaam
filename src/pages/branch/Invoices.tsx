@@ -193,11 +193,18 @@ export default function Invoices() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [returnsTotal, setReturnsTotal] = useState(0);
-  useEffect(() => { setPage(1); }, [tab, branchId, filters]);
+  const tableTopRef = useRef<HTMLDivElement>(null);
+  // 300ms debounce on the text search; other filters apply instantly.
+  const [debouncedQ, setDebouncedQ] = useState(filters.q);
+  useEffect(() => { const t = setTimeout(() => setDebouncedQ(filters.q), 300); return () => clearTimeout(t); }, [filters.q]);
+  const queryFilters = useMemo(() => ({ ...filters, q: debouncedQ }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify({ ...filters, q: "" }), debouncedQ]);
+  useEffect(() => { setPage(1); }, [tab, branchId, queryFilters]);
 
   /** Applies every active filter directly to the Supabase query (database-level). */
   const buildQuery = useCallback(async (select: string, withCount: boolean) => {
-    const f = filters;
+    const f = queryFilters;
     const q = f.q.trim().replace(/[,()%*]/g, " ").trim();
     const opts = withCount ? { count: "exact" as const } : undefined;
     const contactIdsFor = async (text: string) => {
@@ -290,12 +297,21 @@ export default function Invoices() {
     quote: "*, contacts:contact_id(name)",
   };
 
+  const reqRef = useRef<{ id: number; ctrl: AbortController | null }>({ id: 0, ctrl: null });
   const load = useCallback(async () => {
     if (!branchId) return;
+    // Cancel any in-flight request; only the latest one may update state.
+    reqRef.current.ctrl?.abort();
+    const ctrl = new AbortController();
+    const myId = ++reqRef.current.id;
+    reqRef.current.ctrl = ctrl;
+    const stale = () => myId !== reqRef.current.id;
     setLoading(true);
     const from = (page - 1) * PAGE_SIZE;
     const qb = await buildQuery(SELECTS[tab], true);
-    const r = await qb.range(from, from + PAGE_SIZE - 1);
+    if (stale()) return;
+    const r = await qb.range(from, from + PAGE_SIZE - 1).abortSignal(ctrl.signal);
+    if (stale()) return;
     if (r.error) toast.error(r.error.message);
     let data: any[] = r.data ?? [];
     if (tab === "income" || tab === "expense") {
@@ -308,20 +324,21 @@ export default function Invoices() {
     }
     setRows(data);
     setTotalCount(r.count ?? data.length);
+    setLoading(false);
     if (tab === "sale_return" || tab === "purchase_return") {
       const col = tab === "sale_return" ? "total_refund" : "total_amount";
       let sum = 0; let off = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const sq = await buildQuery(col, false);
-        const { data: part } = await sq.range(off, off + 999);
+        const { data: part } = await sq.range(off, off + 999).abortSignal(ctrl.signal);
+        if (stale()) return;
         (part ?? []).forEach((x: any) => { sum += Number(x[col] ?? 0); });
         if (!part || part.length < 1000) break;
         off += 1000;
       }
       setReturnsTotal(sum);
     }
-    setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, branchId, page, buildQuery]);
 
@@ -795,7 +812,7 @@ export default function Invoices() {
             <Search className="w-4 h-4 text-muted-foreground" />
             <span>فلاتر {currentTabLabel}</span>
             <span className="text-xs text-muted-foreground font-normal">
-              (يعرض {rows.length.toLocaleString("en-US")} من أصل {totalCount.toLocaleString("en-US")} مستند)
+              (يعرض {totalCount ? ((page - 1) * PAGE_SIZE + 1).toLocaleString("en-US") : 0} - {Math.min(page * PAGE_SIZE, totalCount).toLocaleString("en-US")} من أصل {totalCount.toLocaleString("en-US")} مستند)
             </span>
           </div>
           {hasAnyFilter && (
@@ -1040,15 +1057,12 @@ export default function Invoices() {
         ) : undefined}
       />
 
-      {totalCount > 0 && (
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-sm">
-          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(1)}>الصفحة الأولى</Button>
-          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>السابقة</Button>
-          <span className="px-2 tabular-nums text-muted-foreground">صفحة {page.toLocaleString("en-US")} من {pageCount.toLocaleString("en-US")}</span>
-          <Button variant="outline" size="sm" disabled={page >= pageCount || loading} onClick={() => setPage(page + 1)}>التالية</Button>
-          <Button variant="outline" size="sm" disabled={page >= pageCount || loading} onClick={() => setPage(pageCount)}>الصفحة الأخيرة</Button>
-        </div>
-      )}
+      <NumberedPagination
+        page={page}
+        pageCount={pageCount}
+        disabled={loading}
+        onChange={(p) => { setPage(p); tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+      />
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setDelReason(""); } }}>
         <AlertDialogContent>
