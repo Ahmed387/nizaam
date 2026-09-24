@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatEGP, balanceLabel } from "@/lib/format";
+import { searchMatch } from "@/lib/search";
 
 export type PartyType = "supplier" | "customer" | "employee";
 
@@ -79,13 +80,13 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-          <Command>
+          <Command filter={(value, search) => (searchMatch(search, value) ? 1 : 0)}>
             <CommandInput placeholder="ابحث..." />
             <CommandList>
               <CommandEmpty>لا توجد نتائج</CommandEmpty>
               <CommandGroup>
                 {items.map((it) => (
-                  <CommandItem key={it.id} value={it.name} onSelect={() => { onChange(it.id, it.name); setOpen(false); }}>
+                  <CommandItem key={it.id} value={`${it.name} ${(it as any).phone ?? ""} ${it.id}`} onSelect={() => { onChange(it.id, it.name); setOpen(false); }}>
                     <Check className={cn("ml-2 h-4 w-4", value === it.id ? "opacity-100" : "opacity-0")} />
                     {it.name}
                   </CommandItem>
