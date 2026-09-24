@@ -79,10 +79,10 @@ Deno.serve(async (req) => {
       // Sales
       const { data: invoices } = await admin
         .from("invoices")
-        .select("id, total, branch_id, created_at, status")
+        .select("id, total, branch_id, invoice_date, status")
         .eq("tenant_id", t.id)
-        .gte("created_at", sinceISO)
-        .lte("created_at", untilISO);
+        .gte("invoice_date", sinceISO)
+        .lte("invoice_date", untilISO);
 
       const activeInvs = (invoices ?? []).filter((i: any) => i.status === "active");
       const totalSales = activeInvs.reduce((s, i: any) => s + Number(i.total || 0), 0);
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       // Counts
       const { count: invoiceCount } = await admin
         .from("invoices").select("id", { count: "exact", head: true })
-        .eq("tenant_id", t.id).gte("created_at", sinceISO).lte("created_at", untilISO);
+        .eq("tenant_id", t.id).gte("invoice_date", sinceISO).lte("invoice_date", untilISO);
 
       const summary = {
         tenant_name: t.name,

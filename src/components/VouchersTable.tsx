@@ -60,7 +60,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("vouchers" as any).select("*").order("created_at", { ascending: false }).limit(500);
+    let q = supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
     if (branchId) q = q.eq("branch_id", branchId);
     if (tenantId) q = q.eq("tenant_id", tenantId);
     if (type) q = q.eq("type", type);

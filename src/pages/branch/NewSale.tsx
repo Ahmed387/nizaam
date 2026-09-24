@@ -85,7 +85,7 @@ export default function NewSale() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const [products, setProducts] = useState<any[]>([]);
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" }));
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
   const [catalog, setCatalog] = useState<any[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
@@ -993,6 +993,7 @@ export default function NewSale() {
         p_payments: payments.length > 0 ? payments : null,
         p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
         p_vat_amount: vatAmount,
+        p_invoice_date: invoiceDate || null,
       };
 
 
@@ -1013,18 +1014,6 @@ export default function NewSale() {
         }
         throw rpcErr;
       }
-
-      // Persist backdated invoice_date through the sovereign accounting path.
-      const _today = new Date().toISOString().slice(0, 10);
-      if (invoiceDate && invoiceDate !== _today && invId) {
-        const { error: dErr } = await supabase.rpc("update_invoice_date_sovereign", {
-          p_invoice_id: invId as string,
-          p_new_date: invoiceDate,
-          p_reason: "تحديد تاريخ فاتورة البيع عند الإنشاء",
-        });
-        if (dErr) toast.error(dErr.message);
-      }
-
 
       // === Profit/pricing columns only ===
       // ملاحظة: خصم المخزون + طبقات FIFO (consume_product_batches_json) بيتنفذوا داخل process_sale
