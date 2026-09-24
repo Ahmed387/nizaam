@@ -1040,6 +1040,15 @@ export default function Invoices() {
         ) : undefined}
       />
 
+      {totalCount > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-sm">
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(1)}>الصفحة الأولى</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>السابقة</Button>
+          <span className="px-2 tabular-nums text-muted-foreground">صفحة {page.toLocaleString("en-US")} من {pageCount.toLocaleString("en-US")}</span>
+          <Button variant="outline" size="sm" disabled={page >= pageCount || loading} onClick={() => setPage(page + 1)}>التالية</Button>
+          <Button variant="outline" size="sm" disabled={page >= pageCount || loading} onClick={() => setPage(pageCount)}>الصفحة الأخيرة</Button>
+        </div>
+      )}
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setDelReason(""); } }}>
         <AlertDialogContent>
