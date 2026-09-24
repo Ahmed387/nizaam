@@ -188,126 +188,151 @@ export default function Invoices() {
   useEffect(() => { loadParties(); }, [loadParties]);
   useRealtimeRefresh(["contacts"], loadParties);
 
+  // ===== Server-side pagination engine =====
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [returnsTotal, setReturnsTotal] = useState(0);
+  useEffect(() => { setPage(1); }, [tab, branchId, filters]);
+
+  /** Applies every active filter directly to the Supabase query (database-level). */
+  const buildQuery = useCallback(async (select: string, withCount: boolean) => {
+    const f = filters;
+    const q = f.q.trim().replace(/[,()%*]/g, " ").trim();
+    const opts = withCount ? { count: "exact" as const } : undefined;
+    const contactIdsFor = async (text: string) => {
+      const { data } = await supabase.from("contacts").select("id").or(`name.ilike.%${text}%,phone.ilike.%${text}%`).limit(500);
+      return (data ?? []).map((d: any) => d.id as string);
+    };
+    const inList = (ids: string[]) => `(${(ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).join(",")})`;
+    const dateRange = (qb: any, col: string, isDate: boolean) => {
+      if (f.from) qb = qb.gte(col, isDate ? f.from : `${f.from}T00:00:00`);
+      if (f.to) qb = qb.lte(col, isDate ? f.to : `${f.to}T23:59:59.999`);
+      return qb;
+    };
+    const amountRange = (qb: any, col: string) => {
+      if (f.amountMin) qb = qb.gte(col, Number(f.amountMin));
+      if (f.amountMax) qb = qb.lte(col, Number(f.amountMax));
+      return qb;
+    };
+    let qb: any;
+    if (tab === "sale") {
+      qb = supabase.from("invoices").select(select, opts).eq("branch_id", branchId!);
+      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total");
+      if (f.status) qb = qb.eq("status", f.status);
+      if (f.payment) qb = qb.eq("payment_method", f.payment);
+      qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
+    } else if (tab === "purchase") {
+      qb = supabase.from("shipments").select(select, opts).eq("branch_id", branchId!);
+      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total_cost");
+      qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
+    } else if (tab === "sale_return") {
+      qb = supabase.from("returns").select(select, opts).eq("branch_id", branchId!);
+      if (q) {
+        const ids = await contactIdsFor(q);
+        const { data: invs } = await supabase.from("invoices").select("id").eq("branch_id", branchId!).or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`).limit(500);
+        qb = qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%,invoice_id.in.${inList((invs ?? []).map((i: any) => i.id))}`);
+      }
+      if (f.partyId) {
+        const { data: invs } = await supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).limit(1000);
+        qb = qb.in("invoice_id", (invs ?? []).map((i: any) => i.id).concat(["00000000-0000-0000-0000-000000000000"]));
+      }
+      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total_refund");
+      qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
+    } else if (tab === "purchase_return") {
+      qb = supabase.from("purchase_returns" as any).select(select, opts).eq("branch_id", branchId!);
+      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      if (f.partyId) qb = qb.eq("contact_id", f.partyId);
+      if (f.status) qb = qb.eq("status", f.status);
+      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total_amount");
+      qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
+    } else if (tab === "income" || tab === "expense") {
+      qb = supabase.from("vouchers" as any).select(select, opts).eq("branch_id", branchId!)
+        .eq("type", tab === "income" ? "receipt" : "payment").eq("status", "active");
+      if (tab === "expense") {
+        // Exclude system-managed payment types that aren't real business expenses
+        const { data: ex } = await supabase.from("voucher_categories" as any).select("id").in("system_key", ["customer_return", "supplier_payment", "branch_transfer_out"]);
+        const exIds = (ex ?? []).map((c: any) => c.id);
+        if (exIds.length) qb = qb.or(`category_id.is.null,category_id.not.in.${inList(exIds)}`);
+      }
+      if (q) qb = qb.or(`voucher_number.ilike.%${q}%,description.ilike.%${q}%,party_name.ilike.%${q}%`);
+      qb = dateRange(qb, "voucher_date", false); qb = amountRange(qb, "amount");
+      if (f.payment) qb = qb.eq("payment_method", f.payment);
+      if (f.categoryId) qb = qb.eq("category_id", f.categoryId);
+      qb = qb.order("voucher_date", { ascending: false }).order("created_at", { ascending: false });
+    } else if (tab === "transfer") {
+      qb = supabase.from("stock_transfers").select(select, opts).or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
+      qb = dateRange(qb, "created_at", false);
+      if (f.status) qb = qb.eq("status", f.status);
+      if (f.fromBranch) qb = qb.eq("from_branch_id", f.fromBranch);
+      if (f.toBranch) qb = qb.eq("to_branch_id", f.toBranch);
+      qb = qb.order("created_at", { ascending: false });
+    } else {
+      qb = supabase.from("quotes" as any).select(select, opts).eq("branch_id", branchId!);
+      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`quote_number.ilike.%${q}%,customer_name.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      qb = dateRange(qb, "created_at", false); qb = amountRange(qb, "total");
+      if (f.status) qb = qb.eq("status", f.status);
+      qb = qb.order("created_at", { ascending: false });
+    }
+    return qb;
+  }, [tab, branchId, filters]);
+
+  const SELECTS: Record<TabKey, string> = {
+    sale: "*, contacts:contact_id(name)",
+    purchase: "*, contacts:contact_id(name)",
+    sale_return: "*, invoices(invoice_number, contact_id, contacts:contact_id(name, phone))",
+    purchase_return: "*, contacts:contact_id(name, phone)",
+    income: "*, voucher_categories(name)",
+    expense: "*, voucher_categories(name, system_key)",
+    transfer: "*",
+    quote: "*, contacts:contact_id(name)",
+  };
+
   const load = useCallback(async () => {
     if (!branchId) return;
     setLoading(true);
-    let data: any[] = [];
-    if (tab === "sale") {
-      const r = await supabase.from("invoices").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
-    } else if (tab === "purchase") {
-      const r = await supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
-    } else if (tab === "sale_return") {
-      const r = await supabase.from("returns").select("*, invoices(invoice_number, contact_id, contacts:contact_id(name, phone))").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
-    } else if (tab === "purchase_return") {
-      const r = await supabase.from("purchase_returns" as any).select("*, contacts:contact_id(name, phone)").eq("branch_id", branchId).order("invoice_date" as any, { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
-    } else if (tab === "income") {
-      const r = await supabase.from("vouchers" as any).select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "receipt").eq("status", "active").order("voucher_date", { ascending: false }).limit(500);
-      data = (r.data ?? []).map((v: any) => ({
+    const from = (page - 1) * PAGE_SIZE;
+    const qb = await buildQuery(SELECTS[tab], true);
+    const r = await qb.range(from, from + PAGE_SIZE - 1);
+    if (r.error) toast.error(r.error.message);
+    let data: any[] = r.data ?? [];
+    if (tab === "income" || tab === "expense") {
+      data = data.map((v: any) => ({
         ...v,
         created_at: v.voucher_date ?? v.created_at,
         category: v.voucher_categories?.name ?? "—",
         description: v.description ?? v.voucher_number,
       }));
-    } else if (tab === "expense") {
-      // Exclude system-managed payment types that aren't real business expenses
-      const EXCLUDE = ["customer_return", "supplier_payment", "branch_transfer_out"];
-      const r = await supabase.from("vouchers" as any)
-        .select("*, voucher_categories(name, system_key)")
-        .eq("branch_id", branchId).eq("type", "payment").eq("status", "active")
-        .order("voucher_date", { ascending: false }).limit(500);
-      data = (r.data ?? [])
-        .filter((v: any) => !EXCLUDE.includes(v.voucher_categories?.system_key))
-        .map((v: any) => ({
-          ...v,
-          created_at: v.voucher_date ?? v.created_at,
-          category: v.voucher_categories?.name ?? "—",
-          description: v.description ?? v.voucher_number,
-        }));
-    } else if (tab === "transfer") {
-      const r = await supabase.from("stock_transfers").select("*").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
-    } else if (tab === "quote") {
-      const r = await supabase.from("quotes" as any).select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
-      data = r.data ?? [];
     }
     setRows(data);
+    setTotalCount(r.count ?? data.length);
+    if (tab === "sale_return" || tab === "purchase_return") {
+      const col = tab === "sale_return" ? "total_refund" : "total_amount";
+      let sum = 0; let off = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const sq = await buildQuery(col, false);
+        const { data: part } = await sq.range(off, off + 999);
+        (part ?? []).forEach((x: any) => { sum += Number(x[col] ?? 0); });
+        if (!part || part.length < 1000) break;
+        off += 1000;
+      }
+      setReturnsTotal(sum);
+    }
     setLoading(false);
-  }, [tab, branchId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, branchId, page, buildQuery]);
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["invoices", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
 
-
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
 
-  // Apply filters client-side
-  const filteredRows = useMemo(() => {
-    const q = filters.q.trim().toLowerCase();
-    const fromTs = filters.from ? new Date(filters.from + "T00:00:00").getTime() : null;
-    const toTs = filters.to ? new Date(filters.to + "T23:59:59").getTime() : null;
-    const min = filters.amountMin ? Number(filters.amountMin) : null;
-    const max = filters.amountMax ? Number(filters.amountMax) : null;
-
-    const searchableText = (r: any): string => {
-      switch (tab) {
-        case "sale": return [r.invoice_number, r.contacts?.name].filter(Boolean).join(" ").toLowerCase();
-        case "purchase": return [r.contacts?.name, r.received_by, r.shipment_number].filter(Boolean).join(" ").toLowerCase();
-        case "sale_return": return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
-        case "purchase_return": return [r.return_number, r.contacts?.name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
-        case "income":
-        case "expense": return [r.voucher_number, r.description, r.category, r.party_name].filter(Boolean).join(" ").toLowerCase();
-        case "quote": return [r.quote_number, r.contacts?.name, r.customer_name].filter(Boolean).join(" ").toLowerCase();
-        default: return "";
-      }
-    };
-
-    const getAmount = (r: any): number | null => {
-      switch (tab) {
-        case "sale": case "quote": return Number(r.total ?? 0);
-        case "purchase": return Number(r.total_cost ?? 0);
-        case "sale_return": return Number(r.total_refund ?? 0);
-        case "purchase_return": return Number(r.total_amount ?? 0);
-        case "income": case "expense": return Number(r.amount ?? 0);
-        default: return null;
-      }
-    };
-
-    const getDate = (r: any): number => {
-      // Prefer invoice_date (transaction date) for sale/purchase/returns; fall back to legacy fields.
-      const d = r.invoice_date ?? r.voucher_date ?? r.arrival_date ?? r.created_at;
-      return d ? new Date(d).getTime() : 0;
-    };
-
-    return rows.filter((r) => {
-      if (q && active.search && !searchMatch(q, searchableText(r))) return false;
-      if ((fromTs || toTs) && active.date) {
-        const d = getDate(r);
-        if (fromTs && d < fromTs) return false;
-        if (toTs && d > toTs) return false;
-      }
-      if (filters.status && active.status && r.status !== filters.status) return false;
-      if (active.amount && (min !== null || max !== null)) {
-        const a = getAmount(r) ?? 0;
-        if (min !== null && a < min) return false;
-        if (max !== null && a > max) return false;
-      }
-      if (filters.payment && active.payment && r.payment_method !== filters.payment) return false;
-      if (filters.categoryId && active.category && r.category_id !== filters.categoryId) return false;
-      if (active.transferBranch) {
-        if (filters.fromBranch && r.from_branch_id !== filters.fromBranch) return false;
-        if (filters.toBranch && r.to_branch_id !== filters.toBranch) return false;
-      }
-      if (filters.partyId && active.party) {
-        if (active.party === "customer" && r.invoices?.contact_id !== filters.partyId) return false;
-        if (active.party === "supplier" && r.contact_id !== filters.partyId) return false;
-      }
-      return true;
-    });
-  }, [rows, filters, tab, active]);
+  // Filtering now happens in the database; the current page is what we show.
+  const filteredRows = rows;
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const attRecordType = useMemo<RecordType | null>(() => {
     switch (tab) {
@@ -327,9 +352,9 @@ export default function Invoices() {
   // 1-based visual sequence index — pure UI helper, decoupled from document IDs/codes
   const rowIndexById = useMemo(() => {
     const m = new Map<string, number>();
-    (filteredRows as any[]).forEach((r, i) => m.set(r.id, i));
+    (filteredRows as any[]).forEach((r, i) => m.set(r.id, (page - 1) * PAGE_SIZE + i));
     return m;
-  }, [filteredRows]);
+  }, [filteredRows, page]);
   const seqColumn = {
     key: "row_seq", header: "#", align: "center" as const, width: "4rem",
     render: (r: any) => (
@@ -714,9 +739,8 @@ export default function Invoices() {
   // Summary (count + total) for return tabs
   const summary = useMemo(() => {
     if (!isReturnTab) return null;
-    const total = filteredRows.reduce((s, r) => s + Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0), 0);
-    return { count: filteredRows.length, total };
-  }, [isReturnTab, tab, filteredRows]);
+    return { count: totalCount, total: returnsTotal };
+  }, [isReturnTab, totalCount, returnsTotal]);
 
   const selectedParty = parties.find((p) => p.id === inputF.partyId);
 
@@ -771,7 +795,7 @@ export default function Invoices() {
             <Search className="w-4 h-4 text-muted-foreground" />
             <span>فلاتر {currentTabLabel}</span>
             <span className="text-xs text-muted-foreground font-normal">
-              ({filteredRows.length} من {rows.length})
+              (يعرض {rows.length.toLocaleString("en-US")} من أصل {totalCount.toLocaleString("en-US")} مستند)
             </span>
           </div>
           {hasAnyFilter && (
@@ -979,7 +1003,7 @@ export default function Invoices() {
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-card border rounded-lg p-3">
             <div className="text-xs text-muted-foreground">عدد المرتجعات</div>
-            <div className="text-xl font-bold text-primary">{summary.count}</div>
+            <div className="text-xl font-bold text-primary">{summary.count.toLocaleString("en-US")}</div>
           </div>
           <div className="bg-card border rounded-lg p-3">
             <div className="text-xs text-muted-foreground">إجمالي المبلغ المسترد</div>
@@ -1016,6 +1040,15 @@ export default function Invoices() {
         ) : undefined}
       />
 
+      {totalCount > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-sm">
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(1)}>الصفحة الأولى</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>السابقة</Button>
+          <span className="px-2 tabular-nums text-muted-foreground">صفحة {page.toLocaleString("en-US")} من {pageCount.toLocaleString("en-US")}</span>
+          <Button variant="outline" size="sm" disabled={page >= pageCount || loading} onClick={() => setPage(page + 1)}>التالية</Button>
+          <Button variant="outline" size="sm" disabled={page >= pageCount || loading} onClick={() => setPage(pageCount)}>الصفحة الأخيرة</Button>
+        </div>
+      )}
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setDelReason(""); } }}>
         <AlertDialogContent>
