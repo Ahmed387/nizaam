@@ -7699,6 +7699,7 @@ export type Database = {
         }
         Returns: string
       }
+      normalize_ar_name: { Args: { t: string }; Returns: string }
       notify_tenant_admins: {
         Args: {
           p_body: string

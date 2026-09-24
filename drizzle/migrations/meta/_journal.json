@@ -85,6 +85,13 @@
       "when": 1790273666277,
       "tag": "0011_documents_pagination_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790276839521,
+      "tag": "0012_contacts_arabic_duplicate_guard",
+      "breakpoints": true
     }
   ]
 }
