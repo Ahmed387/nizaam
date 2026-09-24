@@ -310,21 +310,16 @@ export default function Invoices() {
     setTotalCount(r.count ?? data.length);
     if (tab === "sale_return" || tab === "purchase_return") {
       const col = tab === "sale_return" ? "total_refund" : "total_amount";
-      try {
-        const sums = await fetchAllRows<any>(() => { throw new Error("async"); });
-        void sums;
-      } catch {
-        let sum = 0; let off = 0;
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const sq = await buildQuery(col, false);
-          const { data: part } = await sq.range(off, off + 999);
-          (part ?? []).forEach((x: any) => { sum += Number(x[col] ?? 0); });
-          if (!part || part.length < 1000) break;
-          off += 1000;
-        }
-        setReturnsTotal(sum);
+      let sum = 0; let off = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const sq = await buildQuery(col, false);
+        const { data: part } = await sq.range(off, off + 999);
+        (part ?? []).forEach((x: any) => { sum += Number(x[col] ?? 0); });
+        if (!part || part.length < 1000) break;
+        off += 1000;
       }
+      setReturnsTotal(sum);
     }
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -357,9 +352,9 @@ export default function Invoices() {
   // 1-based visual sequence index — pure UI helper, decoupled from document IDs/codes
   const rowIndexById = useMemo(() => {
     const m = new Map<string, number>();
-    (filteredRows as any[]).forEach((r, i) => m.set(r.id, i));
+    (filteredRows as any[]).forEach((r, i) => m.set(r.id, (page - 1) * PAGE_SIZE + i));
     return m;
-  }, [filteredRows]);
+  }, [filteredRows, page]);
   const seqColumn = {
     key: "row_seq", header: "#", align: "center" as const, width: "4rem",
     render: (r: any) => (
@@ -744,9 +739,8 @@ export default function Invoices() {
   // Summary (count + total) for return tabs
   const summary = useMemo(() => {
     if (!isReturnTab) return null;
-    const total = filteredRows.reduce((s, r) => s + Number(tab === "sale_return" ? r.total_refund ?? 0 : r.total_amount ?? 0), 0);
-    return { count: filteredRows.length, total };
-  }, [isReturnTab, tab, filteredRows]);
+    return { count: totalCount, total: returnsTotal };
+  }, [isReturnTab, totalCount, returnsTotal]);
 
   const selectedParty = parties.find((p) => p.id === inputF.partyId);
 
@@ -801,7 +795,7 @@ export default function Invoices() {
             <Search className="w-4 h-4 text-muted-foreground" />
             <span>فلاتر {currentTabLabel}</span>
             <span className="text-xs text-muted-foreground font-normal">
-              ({filteredRows.length} من {rows.length})
+              (يعرض {rows.length.toLocaleString("en-US")} من أصل {totalCount.toLocaleString("en-US")} مستند)
             </span>
           </div>
           {hasAnyFilter && (
@@ -1009,7 +1003,7 @@ export default function Invoices() {
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-card border rounded-lg p-3">
             <div className="text-xs text-muted-foreground">عدد المرتجعات</div>
-            <div className="text-xl font-bold text-primary">{summary.count}</div>
+            <div className="text-xl font-bold text-primary">{summary.count.toLocaleString("en-US")}</div>
           </div>
           <div className="bg-card border rounded-lg p-3">
             <div className="text-xs text-muted-foreground">إجمالي المبلغ المسترد</div>
