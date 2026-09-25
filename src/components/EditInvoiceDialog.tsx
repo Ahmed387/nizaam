@@ -61,7 +61,7 @@ export function EditInvoiceDialog({
       );
       setCustomerId(invoice.contact_id ?? null);
       const [{ data: c }, { data: p }] = await Promise.all([
-        supabase.from("contacts").select("id, name").eq("branch_id", branchId).order("name"),
+        supabase.from("contacts").select("id, name").eq("is_archived", false).eq("branch_id", branchId).order("name"),
         supabase.from("products").select("id, name, sku, quantity, cost_price, selling_price, market_price").eq("branch_id", branchId).order("name"),
       ]);
       setCustomers(c ?? []);

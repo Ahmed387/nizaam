@@ -113,6 +113,13 @@
       "when": 1790300285291,
       "tag": "0015_unify_contact_balances_all_branches",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790348881526,
+      "tag": "0016_contacts_is_archived",
+      "breakpoints": true
     }
   ]
 }

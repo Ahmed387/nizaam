@@ -126,7 +126,7 @@ export default function EditSaleInvoice() {
       const [{ data: inv }, { data: its }, { data: c }, { data: p }, { data: pays }, { data: plan }] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", invoiceId).maybeSingle(),
         supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId),
-        supabase.from("contacts").select("id, name").eq("branch_id", branchId).order("name"),
+        supabase.from("contacts").select("id, name").eq("is_archived", false).eq("branch_id", branchId).order("name"),
         supabase
           .from("products")
           .select("id, name, sku, quantity, cost_price, selling_price, market_price")

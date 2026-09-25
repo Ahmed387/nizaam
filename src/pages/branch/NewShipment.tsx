@@ -169,7 +169,7 @@ export default function NewShipment() {
 
   useEffect(() => {
     if (!branchId) return;
-    supabase.from("contacts").select("*").order("name").then(({ data }) => setSuppliers(data ?? []));
+    supabase.from("contacts").select("*").eq("is_archived", false).order("name").then(({ data }) => setSuppliers(data ?? []));
     loadProducts();
     supabase.from("price_list_items_public").select("product_name, display_price").order("product_name").then(({ data }) => setPriceList((data ?? []).map((d: any) => ({ product_name: d.product_name, market_price: d.display_price, new_price: d.display_price }))));
   }, [branchId]);

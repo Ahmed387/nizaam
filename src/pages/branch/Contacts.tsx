@@ -75,7 +75,7 @@ export default function Contacts() {
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("contacts").select("*").order("created_at", { ascending: false });
+    let q = supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false });
     // الموردين بدون فرع، العملاء عادة بفرع — هنعرض كل الجهات للفرع + الجهات اللي ملهاش فرع
     q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
     const { data } = await q;

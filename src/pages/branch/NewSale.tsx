@@ -298,7 +298,7 @@ export default function NewSale() {
   useEffect(() => {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("name").then(({ data }) => setProducts(data ?? []));
-    supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
+    supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
     loadCatalog();
     // Load branch default bank account (settings key scoped by branch)
     supabase.from("settings" as any).select("value").eq("key", `branch_default_bank:${branchId}`).maybeSingle()
