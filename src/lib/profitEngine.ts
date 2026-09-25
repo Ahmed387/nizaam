@@ -127,6 +127,8 @@ export interface ProfitTotals {
   otherIncomes: number;
   net: number;
   margin: number; // 0..100
+  /** عدد سندات المصروفات المحتسبة */
+  expensesCount?: number;
 }
 
 export function aggregateTotals(
@@ -175,8 +177,8 @@ export async function fetchProfitWindow(params: {
   const prevFromIso = range.prevFrom.toISOString();
   const prevToIso = range.prevTo.toISOString();
   // تواريخ محلية (وليس UTC) عشان voucher_date عمود date ويتطابق مع يوم المستخدم
-  const localDay = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // توحيد اليوم بتوقيت القاهرة (يوم كامل 00:00:00.000 → 23:59:59.999)
+  const localDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
   const fromDate = localDay(range.from);
   const toDate = localDay(range.to);
   const prevFromDate = localDay(range.prevFrom);
@@ -275,6 +277,7 @@ export async function fetchProfitWindow(params: {
     otherIncomes,
     net: netNow,
     margin: cur.revenue > 0 ? (netNow / cur.revenue) * 100 : 0,
+    expensesCount: expRows.length,
   };
   const prevNet = prev.revenue - prev.cost - prevExpenses + prevOtherIncomes;
 
