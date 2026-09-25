@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Checkbox } from "./ui/checkbox";
 import { VoucherDialog } from "./VoucherDialog";
+import { InlineVoucherDate } from "./InlineVoucherDate";
 import { VoucherViewDialog } from "./VoucherViewDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -330,7 +331,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
             <span className="font-mono">{r.voucher_number}</span>
           ) },
-          { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => formatDate(r.voucher_date) },
+          { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => <InlineVoucherDate voucher={r} onSaved={load} /> },
           ...(!type ? [{ key: "type", header: "النوع", render: (r: Voucher) => (
             <Badge variant={r.type === "receipt" ? "default" : "destructive"}>{VOUCHER_TYPE_LABEL[r.type]}</Badge>
           ) }] : []),

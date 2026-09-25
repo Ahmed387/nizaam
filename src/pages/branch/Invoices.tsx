@@ -31,6 +31,7 @@ import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
 import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton } from "@/components/CancelReturnButton";
+import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
@@ -581,7 +582,7 @@ export default function Invoices() {
           { key: "description", header: "البيان", align: "right" },
           { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
           { key: "category", header: "التصنيف", align: "right", width: "10rem" },
-          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
+          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => r.voucher_date ? <InlineVoucherDate voucher={r} onSaved={() => load()} /> : formatDateTime(r.created_at) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
               const canCancel = r.status === "active" && (isAdmin || (isManager && r.source === "manual"));
