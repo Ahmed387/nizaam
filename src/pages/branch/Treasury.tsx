@@ -57,11 +57,23 @@ export default function Treasury() {
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const load = async () => {
     setLoading(true);
+    // Cairo full-day bounds (UTC+2/+3 handled via explicit offset from Intl)
+    const cairoBound = (d: string, end: boolean) => {
+      const probe = new Date(`${d}T12:00:00Z`);
+      const tz = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Cairo", timeZoneName: "longOffset" })
+        .formatToParts(probe).find((p) => p.type === "timeZoneName")?.value.replace("GMT", "") || "+02:00";
+      return `${d}T${end ? "23:59:59.999" : "00:00:00.000"}${tz}`;
+    };
+    let tq = supabase.from("treasury").select("*").eq("branch_id", branchId!);
+    if (fromDate) tq = tq.gte("created_at", cairoBound(fromDate, false));
+    if (toDate) tq = tq.lte("created_at", cairoBound(toDate, true));
     const [tr, tt, wb, br] = await Promise.all([
-      supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
+      tq.order("created_at", { ascending: false }).limit(fromDate || toDate ? 5000 : 500),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
@@ -284,6 +296,16 @@ export default function Treasury() {
                 {PAYMENT_METHOD_LABELS[m]}
               </Button>
             ))}
+            <div className="w-px bg-border mx-1" />
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-muted-foreground">من</span>
+              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-8 w-36" />
+              <span className="text-muted-foreground">إلى</span>
+              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-8 w-36" />
+              {(fromDate || toDate) && (
+                <Button size="sm" variant="ghost" onClick={() => { setFromDate(""); setToDate(""); }}>مسح</Button>
+              )}
+            </div>
           </div>
 
           <DataTable loading={loading} rows={filtered}
