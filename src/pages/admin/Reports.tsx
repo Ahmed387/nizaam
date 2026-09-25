@@ -71,7 +71,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),
       // سحب كل الفواتير على دفعات (الحد الافتراضي 1000 صف كان بيقص التقارير في الفترات الكبيرة)
       fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").gte("invoice_date", fromIso).lte("invoice_date", toIso)).then((rows) => ({ data: rows })),
-      supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
+      fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to)).then((rows) => ({ data: rows })),
       // المنتجات المؤرشفة مش بتتحسب في قيمة المخزون ولا تنبيهات النقص
       supabase.from("products").select("*").is("archived_at", null),
       supabase.from("contacts").select("*"),

@@ -20,6 +20,7 @@ export function ExecutiveProfitSummary() {
   const [sales, setSales] = useState(0);
   const [cost, setCost] = useState(0);
   const [expenses, setExpenses] = useState(0);
+  const [expCount, setExpCount] = useState(0);
   const [otherIncomes, setOtherIncomes] = useState(0);
   const [prevNet, setPrevNet] = useState(0);
   const [branchProfits, setBranchProfits] = useState<{ id: string; name: string; profit: number }[]>([]);
@@ -34,6 +35,7 @@ export function ExecutiveProfitSummary() {
     setSales(w.totals.revenue);
     setCost(w.totals.cost);
     setExpenses(w.totals.expenses);
+    setExpCount(w.totals.expensesCount ?? 0);
     setOtherIncomes(w.totals.otherIncomes);
     setPrevNet(w.prevNet);
     setBranchProfits(w.perBranch.map((b) => ({ id: b.id, name: b.name, profit: b.net })));
@@ -124,6 +126,7 @@ export function ExecutiveProfitSummary() {
             <div className="p-5 rounded-xl bg-destructive/5 border border-destructive/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المصروفات التشغيلية</p>
                <FinancialAmount value={expenses} size="lg" className="relative z-10 justify-start font-extrabold text-destructive" />
+              <p className="relative z-10 text-xs text-muted-foreground mt-1">عدد السندات: {expCount.toLocaleString("en-US")}</p>
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-destructive/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
           </div>
