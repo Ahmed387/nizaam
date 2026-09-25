@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -11,17 +11,9 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ArrowRight, Download, Printer } from "lucide-react";
+import { fetchContactLedger, filterLedgerByBranches, withRunningBalance, ledgerSum, type LedgerRow } from "@/lib/contactLedger";
 
-type Row = {
-  date: string;
-  type: string;
-  reference: string;
-  description: string;
-  debit: number;  // عليه (له علينا) / زيادة في رصيد العميل لصالحنا
-  credit: number; // له (لنا عنده)
-  balance?: number;
-  link?: string;
-};
+type Row = LedgerRow;
 
 export default function ContactStatement() {
   const params = useParams<{ id: string; contactId: string }>();
@@ -30,6 +22,15 @@ export default function ContactStatement() {
   const nav = useNavigate();
   const isAdminView = !branchId;
   const Layout = isAdminView ? AdminLayout : BranchLayout;
+  const [sp] = useSearchParams();
+  const branchesParam = sp.get("branches") ?? "";
+  const selBranches = useMemo(() => branchesParam.split(",").filter(Boolean), [branchesParam]);
+  const [branchNames, setBranchNames] = useState<string>("");
+  useEffect(() => {
+    if (!selBranches.length) { setBranchNames(""); return; }
+    supabase.from("branches").select("name").in("id", selBranches).then(({ data }) =>
+      setBranchNames((data ?? []).map((b: any) => b.name).join("، ")));
+  }, [selBranches]);
 
   const [contact, setContact] = useState<any>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -39,155 +40,16 @@ export default function ContactStatement() {
 
   const load = async () => {
     setLoading(true);
-    const { data: c } = await supabase.from("contacts").select("*").eq("id", contactId).maybeSingle();
-    // الرصيد الرسمي مصدره الوحيد هو v_contact_balances
-    const { data: bal } = await supabase
-      .from("v_contact_balances" as any)
-      .select("*")
-      .eq("contact_id", contactId)
-      .maybeSingle();
-    const bRow: any = bal ?? null;
-    setContact(c ? { ...c, balance: Number(bRow?.total_balance ?? 0) } : c);
-
-    const list: Row[] = [];
-    const opening = Number(bRow?.opening_balance ?? 0);
-    if (Math.abs(opening) > 0.001) {
-      list.push({
-        date: (c as any)?.created_at ?? new Date(0).toISOString(),
-        type: "رصيد افتتاحي", reference: "—", description: "—",
-        debit: opening > 0 ? opening : 0,
-        credit: opening < 0 ? Math.abs(opening) : 0,
-      });
-    }
-
-    const cType = c?.type as string;
-    const isCustomer = cType === "customer" || cType === "both";
-    const isSupplier = cType === "supplier" || cType === "both";
-
-    // Customer flows
-    if (isCustomer) {
-      const [{ data: invs }, { data: rets }] = await Promise.all([
-        supabase.from("invoices")
-          .select("id, invoice_number, total, created_at, invoice_date, status, is_migrated, branch_id")
-          .eq("contact_id", contactId)
-          .eq("status", "active"),
-        supabase.from("returns")
-          .select("id, return_number, total_refund, refund_cash_amount, refund_transfer_amount, refund_method, status, created_at, invoice_date, invoice_id, invoices!inner(contact_id, invoice_number)")
-          .eq("invoices.contact_id", contactId),
-      ]);
-
-      const invIds = (invs ?? []).map((r: any) => r.id);
-      const invNumberById = new Map<string, string>((invs ?? []).map((r: any) => [r.id, r.invoice_number]));
-      let pays: any[] = [];
-      if (invIds.length) {
-        const { data } = await supabase.from("invoice_payments")
-          .select("id, amount, payment_method, created_at, invoice_id, voided_at, reverses_payment_id")
-          .in("invoice_id", invIds);
-        pays = (data ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id);
-      }
-
-      (invs ?? []).forEach((r: any) => list.push({
-        date: r.invoice_date ?? r.created_at, type: "فاتورة بيع", reference: r.invoice_number,
-        description: r.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
-        debit: Number(r.total ?? 0), credit: 0, link: r.branch_id ? `/branch/${r.branch_id}/sales/${r.id}` : undefined,
-      }));
-      pays.forEach((p: any) => {
-        const amt = Number(p.amount ?? 0);
-        const isSettle = p.payment_method === "settlement";
-        // المقاصة: قفل التزام مقابل التزام — بتتسجل مدين ودائن بنفس القيمة فصافي أثرها صفر
-        list.push({
-          date: p.created_at,
-          type: isSettle ? "مقاصة (تسوية بين الحسابين)" : "تحصيل من عميل",
-          reference: invNumberById.get(p.invoice_id) ?? "—",
-          description: isSettle ? "خصم من رصيد الجهة الدائن" : (p.payment_method ?? "—"),
-          debit: isSettle ? amt : 0,
-          credit: amt,
-        });
-      });
-      (rets ?? []).forEach((r: any) => {
-        if (["draft", "cancelled"].includes(String(r.status ?? "active"))) return;
-        const creditNote = Math.max(
-          0,
-          Number(r.total_refund ?? 0) - Number(r.refund_cash_amount ?? 0) - Number(r.refund_transfer_amount ?? 0),
-        );
-        list.push({
-          date: r.invoice_date ?? r.created_at, type: "مرتجع بيع", reference: r.return_number ?? r.invoices?.invoice_number ?? "—",
-          description: r.refund_method ?? "—",
-          debit: 0, credit: creditNote,
-        });
-      });
-    }
-
-    // Supplier flows
-    if (isSupplier) {
-      const [{ data: ships }, { data: sp }, { data: prets }] = await Promise.all([
-        supabase.from("shipments")
-          .select("id, shipment_number, total_cost, arrival_date, invoice_date, created_at, is_migrated, branch_id")
-          .eq("contact_id", contactId),
-        supabase.from("supplier_payments" as any)
-          .select("id, amount, paid_at, notes")
-          .eq("contact_id", contactId),
-        supabase.from("purchase_returns")
-          .select("id, return_number, total_amount, refund_cash_amount, refund_transfer_amount, status, created_at, invoice_date, refund_method")
-          .eq("contact_id", contactId)
-          .eq("status", "active"),
-      ]);
-
-      (ships ?? []).forEach((s: any) => list.push({
-        date: s.invoice_date ?? s.arrival_date ?? s.created_at, type: "فاتورة شراء", reference: s.shipment_number ?? "—",
-        description: s.is_migrated ? "فاتورة قديمة مرحّلة" : "—",
-        debit: 0, credit: Number(s.total_cost ?? 0), link: s.branch_id ? `/branch/${s.branch_id}/shipments/${s.id}` : undefined,
-      }));
-      (sp as any[] ?? []).forEach((p: any) => list.push({
-        date: p.paid_at, type: "دفع لمورد", reference: "—",
-        description: p.notes ?? "—",
-        debit: Number(p.amount ?? 0), credit: 0,
-      }));
-      (prets ?? []).forEach((r: any) => list.push({
-        date: r.invoice_date ?? r.created_at, type: "مرتجع شراء", reference: r.return_number ?? "—",
-        description: r.refund_method ?? "—",
-        debit: Math.max(
-          0,
-          Number(r.total_amount ?? 0) - Number(r.refund_cash_amount ?? 0) - Number(r.refund_transfer_amount ?? 0),
-        ),
-        credit: 0,
-      }));
-    }
-
-    // Vouchers — نفس منطق v_contact_balances بالضبط: قبض يقلّل الرصيد، صرف يزوّده
-    const { data: vchs } = await supabase.from("vouchers" as any)
-      .select("id, voucher_number, type, amount, voucher_date, party_type, source, description")
-      .eq("party_id", contactId)
-      .in("party_type", ["customer", "supplier"])
-      .eq("status", "active");
-
-    (vchs as any[] ?? []).forEach((v: any) => {
-      const amt = Number(v.amount ?? 0);
-      list.push({
-        date: v.voucher_date, type: v.type === "receipt" ? "سند قبض" : "سند صرف",
-        reference: v.voucher_number ?? "—",
-        description: v.description ?? "—",
-        debit: v.type === "payment" ? amt : 0,
-        credit: v.type === "receipt" ? amt : 0,
-      });
-    });
-
-    list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Compute running balance (matches ledger_balance in v_contact_balances)
-    let run = 0;
-    for (const r of list) {
-      run += r.debit - r.credit;
-      r.balance = run;
-    }
-    list.reverse(); // newest first for display
-
-    setRows(list);
+    const l = await fetchContactLedger(contactId);
+    const scoped = filterLedgerByBranches(l.rows, selBranches);
+    const bal = selBranches.length ? ledgerSum(scoped) : l.totalBalance;
+    setContact(l.contact ? { ...l.contact, balance: bal } : l.contact);
+    setRows(withRunningBalance(scoped).reverse() as Row[]);
     setLoading(false);
   };
 
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [contactId]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [contactId, branchesParam]);
   useRealtimeRefresh(
     ["invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "contacts"],
     load
@@ -219,7 +81,10 @@ export default function ContactStatement() {
       "دائن (عليه لنا)": r.credit || "",
       "الرصيد": r.balance ?? 0,
     }));
-    exportToExcel(`كشف_حساب_${contact?.name ?? contactId}`, [{ name: "كشف الحساب", rows: sheet }]);
+    exportToExcel(`كشف_حساب_${contact?.name ?? contactId}${branchNames ? "_" + branchNames : ""}`, [
+      { name: "ملخص", rows: [{ البيان: "الفرع", القيمة: branchNames || "كل الفروع" }, { البيان: "صافي الرصيد", القيمة: finalBalance }] },
+      { name: "كشف الحساب", rows: sheet },
+    ]);
   };
 
   const printPdf = () => {
@@ -235,7 +100,7 @@ export default function ContactStatement() {
       </tr>`).join("");
     const html = `
       <h1>كشف حساب: ${contact?.name ?? "—"}</h1>
-      <div class="meta">النوع: ${contact?.type ?? "—"} · الهاتف: ${contact?.phone ?? "—"}</div>
+      <div class="meta">النوع: ${contact?.type ?? "—"} · الهاتف: ${contact?.phone ?? "—"} · الفرع: ${branchNames || "كل الفروع"}</div>
       <div class="kpi">
         <div><span class="muted">إجمالي مدين</span><b>${formatEGP(totals.debit)}</b></div>
         <div><span class="muted">إجمالي دائن</span><b>${formatEGP(totals.credit)}</b></div>
@@ -254,7 +119,7 @@ export default function ContactStatement() {
     <Layout>
       <PageHeader
         title={`كشف حساب: ${contact?.name ?? "..."}`}
-        subtitle={contact ? `${contact.type === "customer" ? "عميل" : contact.type === "supplier" ? "مورد" : "عميل ومورد"} · ${contact.phone ?? ""}` : ""}
+        subtitle={contact ? `${contact.type === "customer" ? "عميل" : contact.type === "supplier" ? "مورد" : "عميل ومورد"} · ${contact.phone ?? ""} · الفرع: ${branchNames || "كل الفروع"}` : ""}
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => nav(-1)}><ArrowRight className="w-4 h-4 ml-1" /> رجوع</Button>
