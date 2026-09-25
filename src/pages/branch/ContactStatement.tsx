@@ -49,7 +49,7 @@ export default function ContactStatement() {
   };
 
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [contactId]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [contactId, branchesParam]);
   useRealtimeRefresh(
     ["invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "contacts"],
     load
@@ -81,7 +81,10 @@ export default function ContactStatement() {
       "دائن (عليه لنا)": r.credit || "",
       "الرصيد": r.balance ?? 0,
     }));
-    exportToExcel(`كشف_حساب_${contact?.name ?? contactId}`, [{ name: "كشف الحساب", rows: sheet }]);
+    exportToExcel(`كشف_حساب_${contact?.name ?? contactId}${branchNames ? "_" + branchNames : ""}`, [
+      { name: "ملخص", rows: [{ البيان: "الفرع", القيمة: branchNames || "كل الفروع" }, { البيان: "صافي الرصيد", القيمة: finalBalance }] },
+      { name: "كشف الحساب", rows: sheet },
+    ]);
   };
 
   const printPdf = () => {
@@ -97,7 +100,7 @@ export default function ContactStatement() {
       </tr>`).join("");
     const html = `
       <h1>كشف حساب: ${contact?.name ?? "—"}</h1>
-      <div class="meta">النوع: ${contact?.type ?? "—"} · الهاتف: ${contact?.phone ?? "—"}</div>
+      <div class="meta">النوع: ${contact?.type ?? "—"} · الهاتف: ${contact?.phone ?? "—"} · الفرع: ${branchNames || "كل الفروع"}</div>
       <div class="kpi">
         <div><span class="muted">إجمالي مدين</span><b>${formatEGP(totals.debit)}</b></div>
         <div><span class="muted">إجمالي دائن</span><b>${formatEGP(totals.credit)}</b></div>
@@ -116,7 +119,7 @@ export default function ContactStatement() {
     <Layout>
       <PageHeader
         title={`كشف حساب: ${contact?.name ?? "..."}`}
-        subtitle={contact ? `${contact.type === "customer" ? "عميل" : contact.type === "supplier" ? "مورد" : "عميل ومورد"} · ${contact.phone ?? ""}` : ""}
+        subtitle={contact ? `${contact.type === "customer" ? "عميل" : contact.type === "supplier" ? "مورد" : "عميل ومورد"} · ${contact.phone ?? ""} · الفرع: ${branchNames || "كل الفروع"}` : ""}
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => nav(-1)}><ArrowRight className="w-4 h-4 ml-1" /> رجوع</Button>
