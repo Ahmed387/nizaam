@@ -106,6 +106,13 @@
       "when": 1790284634824,
       "tag": "0014_stock_transfers_branch_hide",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790300285291,
+      "tag": "0015_unify_contact_balances_all_branches",
+      "breakpoints": true
     }
   ]
 }
