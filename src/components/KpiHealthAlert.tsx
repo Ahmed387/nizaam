@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildKpiAlerts, KpiAlert, KpiSnapshot } from "@/lib/kpiAlerts";
 import { notifyMany, getTenantAdmins } from "@/lib/notifications";
-import { AlertOctagon, AlertTriangle, ShieldCheck, ArrowLeft, Siren } from "lucide-react";
+import { AlertTriangle, ShieldCheck, ArrowLeft, Siren, ChevronDown } from "lucide-react";
 
 // Realtime on GL — no polling. Debounce to coalesce rapid changes.
 const DEBOUNCE_MS = 3_000;
@@ -12,6 +12,7 @@ const DEBOUNCE_MS = 3_000;
 export function KpiHealthAlert() {
   const { tenantId } = useAuth();
   const [alerts, setAlerts] = useState<KpiAlert[] | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -80,97 +81,69 @@ export function KpiHealthAlert() {
 
   const hasDanger = dangers.length > 0;
   const topAlerts = [...dangers, ...warnings].slice(0, 3);
+  const title = hasDanger
+    ? `${dangers.length} تنبيه خطر${warnings.length ? ` + ${warnings.length} تحذير` : ""}`
+    : `${warnings.length} تحذير مالي`;
 
   return (
     <div
-      className={`relative mb-4 rounded-2xl border-2 p-4 overflow-hidden animate-fade-in ${
-        hasDanger
-          ? "border-destructive/60 bg-destructive/5"
-          : "border-warning/60 bg-warning/5"
+      className={`mb-4 rounded-xl border overflow-hidden animate-fade-in ${
+        hasDanger ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"
       }`}
     >
-      {/* Pulsing halo — always visible until resolved */}
-      <div
-        className={`pointer-events-none absolute inset-0 rounded-2xl animate-pulse ${
-          hasDanger ? "shadow-[0_0_40px_-8px_hsl(var(--destructive)/0.55)] ring-1 ring-destructive/30"
-                    : "shadow-[0_0_40px_-8px_hsl(var(--warning)/0.55)] ring-1 ring-warning/30"
-        }`}
-      />
-      {/* Rotating shimmer strip */}
-      <div className="pointer-events-none absolute -inset-x-4 top-0 h-1 overflow-hidden">
-        <div
-          className={`h-full w-1/3 animate-[slide-in-right_2.4s_ease-in-out_infinite] ${
-            hasDanger ? "bg-gradient-to-r from-transparent via-destructive to-transparent"
-                      : "bg-gradient-to-r from-transparent via-warning to-transparent"
-          }`}
-        />
-      </div>
-
-      <div className="relative flex items-start gap-3">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 px-3 py-2 text-right hover:bg-muted/30 transition-colors"
+      >
         {hasDanger ? (
-          <div className="relative shrink-0 w-14 h-14 flex items-center justify-center">
-            {/* Rotating red beacon cone behind the siren */}
-            <div
-              className="absolute inset-0 rounded-full animate-spin"
-              style={{
-                animationDuration: "1.6s",
-                background:
-                  "conic-gradient(from 0deg, hsl(var(--destructive)/0.85) 0deg, hsl(var(--destructive)/0.1) 60deg, transparent 120deg, transparent 240deg, hsl(var(--destructive)/0.1) 300deg, hsl(var(--destructive)/0.85) 360deg)",
-                filter: "blur(2px)",
-              }}
-            />
-            {/* Pulsing red halo */}
-            <div className="absolute inset-0 rounded-full bg-destructive/30 animate-ping" />
-            {/* Siren body */}
-            <div className="relative w-11 h-11 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-[0_0_18px_hsl(var(--destructive)/0.7)]">
-              <Siren className="w-6 h-6" />
-            </div>
-          </div>
+          <Siren className="w-4 h-4 text-destructive shrink-0" />
         ) : (
-          <div className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center animate-pulse bg-warning/15 text-warning">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
         )}
+        <span className={`flex-1 text-sm font-semibold ${hasDanger ? "text-destructive" : "text-warning"}`}>
+          {title}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+      </button>
 
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className={`font-bold text-base ${hasDanger ? "text-destructive" : "text-warning"}`}>
-              {hasDanger
-                ? `🚨 ${dangers.length} تنبيه خطر ${warnings.length ? `+ ${warnings.length} تحذير` : ""}`
-                : `⚠️ ${warnings.length} تحذير مالي`}
+      <div className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-3 pt-1 space-y-2 border-t border-border/50">
+            <ul className="space-y-1.5 pt-2">
+              {topAlerts.map((a) => (
+                <li key={a.key} className="flex items-start gap-2 text-sm">
+                  <span className={`mt-1.5 inline-block w-2 h-2 rounded-full shrink-0 ${
+                    a.level === "danger" ? "bg-destructive" : "bg-warning"
+                  }`} />
+                  <div>
+                    <span className={`font-semibold ${a.level === "danger" ? "text-destructive" : "text-warning"}`}>
+                      {a.title}
+                    </span>
+                    <span className="text-muted-foreground"> — {a.advice}</span>
+                  </div>
+                </li>
+              ))}
+              {alerts.length > topAlerts.length && (
+                <li className="text-xs text-muted-foreground pr-4">
+                  +{alerts.length - topAlerts.length} تنبيه إضافي…
+                </li>
+              )}
+            </ul>
+            <div className="flex justify-end">
+              <Link
+                to="/admin/accounting/kpis"
+                className={`text-xs font-semibold inline-flex items-center gap-1 rounded-lg px-3 py-1.5 transition-colors ${
+                  hasDanger
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : "bg-warning text-warning-foreground hover:bg-warning/90"
+                }`}
+              >
+                التفاصيل الكاملة <ArrowLeft className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <Link
-              to="/admin/accounting/kpis"
-              className={`text-xs font-semibold inline-flex items-center gap-1 rounded-lg px-3 py-1.5 transition-colors ${
-                hasDanger
-                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : "bg-warning text-warning-foreground hover:bg-warning/90"
-              }`}
-            >
-              التفاصيل الكاملة <ArrowLeft className="w-3.5 h-3.5" />
-            </Link>
           </div>
-
-          <ul className="space-y-1.5">
-            {topAlerts.map((a) => (
-              <li key={a.key} className="flex items-start gap-2 text-sm">
-                <span className={`mt-1 inline-block w-2 h-2 rounded-full shrink-0 animate-pulse ${
-                  a.level === "danger" ? "bg-destructive" : "bg-warning"
-                }`} />
-                <div>
-                  <span className={`font-semibold ${a.level === "danger" ? "text-destructive" : "text-warning"}`}>
-                    {a.title}
-                  </span>
-                  <span className="text-muted-foreground"> — {a.advice}</span>
-                </div>
-              </li>
-            ))}
-            {alerts.length > topAlerts.length && (
-              <li className="text-xs text-muted-foreground pr-4">
-                +{alerts.length - topAlerts.length} تنبيه إضافي…
-              </li>
-            )}
-          </ul>
         </div>
       </div>
     </div>
