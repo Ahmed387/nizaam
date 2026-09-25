@@ -35,6 +35,31 @@ type Installment = {
   paid_amount: number;
   status: string;
 };
+const ROLE_OPTIONS = [
+  { value: "all", label: "جميع الجهات" },
+  { value: "customer", label: "عملاء فقط" },
+  { value: "supplier", label: "موردين فقط" },
+  { value: "both", label: "مورد وعميل معًا" },
+] as const;
+
+type RoleFilter = (typeof ROLE_OPTIONS)[number]["value"];
+
+/** قراءة فقط لتصنيف كل جهة (عميل / مورد / الاثنين) من جدول الجهات. */
+async function loadContactTypes(rows: any[]): Promise<Record<string, string>> {
+  const ids = Array.from(
+    new Set(
+      (rows ?? [])
+        .filter((r: any) => r.entity_id && r.entity_type !== "employee")
+        .map((r: any) => String(r.entity_id))
+    )
+  );
+  const types: Record<string, string> = {};
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await supabase.from("contacts").select("id,type").in("id", ids.slice(i, i + 200));
+    ((data ?? []) as any[]).forEach((c: any) => { types[c.id] = c.type; });
+  }
+  return types;
+}
 
 export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -44,6 +69,8 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [contactTypes, setContactTypes] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
@@ -62,18 +89,40 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     const map: Record<string, string> = {};
     filterBranches((br ?? []) as any).forEach((b: any) => (map[b.id] = b.name));
     setBranches(map);
+    setContactTypes(await loadContactTypes(((pp as any) ?? []) as any[]));
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["payment_plans", "payment_installments", "invoice_payments", "invoices"], load);
 
+  const matchesSearchAndBranch = (p: Plan) => {
+    if (branchFilter !== "all" && p.branch_id !== branchFilter) return false;
+    if (q && !p.entity_name.toLowerCase().includes(q.toLowerCase())) return false;
+    return true;
+  };
+
+  /** تصنيف الجهة من جدول الجهات — الموظفين ليهم تبويب مستقل، فملهمش تصنيف جهة. */
+  const roleOf = (p: Plan) => (p.entity_type === "employee" ? "" : contactTypes[p.entity_id] ?? "");
+
   const filtered = useMemo(() => {
     return plans.filter((p) => {
-      if (branchFilter !== "all" && p.branch_id !== branchFilter) return false;
-      if (q && !p.entity_name.toLowerCase().includes(q.toLowerCase())) return false;
+      if (!matchesSearchAndBranch(p)) return false;
+      if (roleFilter !== "all" && roleOf(p) !== roleFilter) return false;
       return true;
     });
-  }, [plans, q, branchFilter]);
+  }, [plans, q, branchFilter, roleFilter, contactTypes]);
+
+  /** عدد السطور اللي هتظهر لو اخترت كل تصنيف، مع احترام البحث والفلتر الحاليين. */
+  const roleCounts = useMemo(() => {
+    const counts: Record<RoleFilter, number> = { all: 0, customer: 0, supplier: 0, both: 0 };
+    plans.forEach((p) => {
+      if (!matchesSearchAndBranch(p)) return;
+      counts.all += 1;
+      const role = roleOf(p);
+      if (role === "customer" || role === "supplier" || role === "both") counts[role] += 1;
+    });
+    return counts;
+  }, [plans, q, branchFilter, contactTypes]);
 
   const byType = (t: string) => filtered.filter((p) => p.entity_type === t);
 
@@ -256,6 +305,28 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
+          <div className="flex flex-wrap gap-1.5 items-center" role="group" aria-label="فلتر تصنيف الجهة">
+            {ROLE_OPTIONS.map((o) => {
+              const active = roleFilter === o.value;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  aria-pressed={active}
+                  title="فلتر تصنيف الجهة"
+                  onClick={() => setRoleFilter(o.value)}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border bg-background text-foreground hover:bg-surface-2"
+                  }`}
+                >
+                  {o.label}
+                  <span className="mr-1.5 text-[10px] font-semibold opacity-70">{roleCounts[o.value]}</span>
+                </button>
+              );
+            })}
+          </div>
           <Button variant="outline" onClick={async () => { setRefreshing(true); await load(); setRefreshing(false); }} disabled={refreshing}>
             <RefreshCw className={`w-4 h-4 ml-1 ${refreshing ? "animate-spin" : ""}`} />تحديث
           </Button>
