@@ -50,7 +50,7 @@ const FIELD_LABELS_AR: Record<string, string> = {
 
 interface PartyOption { id: string; name: string; }
 
-export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher, initialParty }: Props) {
+export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher, initialParty, focusDate }: Props) {
   const { user, branches } = useAuth();
   const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
