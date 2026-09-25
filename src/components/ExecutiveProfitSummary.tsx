@@ -126,7 +126,13 @@ export function ExecutiveProfitSummary() {
             <div className="p-5 rounded-xl bg-destructive/5 border border-destructive/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المصروفات التشغيلية</p>
                <FinancialAmount value={expenses} size="lg" className="relative z-10 justify-start font-extrabold text-destructive" />
-              <p className="relative z-10 text-xs text-muted-foreground mt-1">عدد السندات: {expCount.toLocaleString("en-US")}</p>
+              <Link
+                to={`/admin/finance?tab=vouchers&type=payment&only_deducted_from_profit=true&startDate=${range.from}&endDate=${range.to}`}
+                className="relative z-10 inline-block text-xs text-muted-foreground mt-1 cursor-pointer hover:underline hover:text-destructive"
+                title="عرض السندات المحتسبة"
+              >
+                عدد السندات: {expCount.toLocaleString("en-US")}
+              </Link>
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-destructive/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
           </div>

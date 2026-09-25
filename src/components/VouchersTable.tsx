@@ -17,7 +17,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2, Trash2, Eye, FileDown, ChevronDown, Check } from "lucide-react";
+import { Plus, XCircle, Loader2, Trash2, Eye, Printer, FileDown, ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
@@ -30,9 +30,13 @@ interface Props {
   type?: VoucherType; // undefined => show all
   adminAllBranches?: boolean;
   tenantId?: string;
+  initialFrom?: string;
+  initialTo?: string;
+  /** يقصر القائمة على سندات الصرف النشطة في تصنيفات «تُخصم من الربح» (نفس معادلة الداشبورد) */
+  onlyDeductedFromProfit?: boolean;
 }
 
-export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Props) {
+export function VouchersTable({ branchId, type, adminAllBranches, tenantId, initialFrom, initialTo, onlyDeductedFromProfit }: Props) {
   const { isAdmin, hasRole, user, profile } = useAuth();
   const [rows, setRows] = useState<Voucher[]>([]);
   const [cats, setCats] = useState<VoucherCategory[]>([]);
@@ -47,8 +51,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
   const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
   const [editTarget, setEditTarget] = useState<Voucher | null>(null);
   const [filters, setFilters] = useState({
-    from: "",
-    to: "",
+    from: initialFrom ?? "",
+    to: initialTo ?? "",
     category_ids: [] as string[],
     payment_method: "",
     source: "",
@@ -71,6 +75,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     if (filters.payment_method) q = q.eq("payment_method", filters.payment_method);
     if (filters.source) q = q.eq("source", filters.source);
     if (filters.branch_id) q = q.eq("branch_id", filters.branch_id);
+    if (onlyDeductedFromProfit) {
+      const { data: dc } = await supabase.from("voucher_categories").select("id").eq("is_deductible_from_profit", true);
+      const ids = (dc ?? []).map((c: any) => c.id);
+      q = q.eq("type", "payment").eq("status", "active").in("category_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    }
     const { data, error } = await q;
     if (error) toast.error(error.message);
     setRows((data ?? []) as unknown as Voucher[]);
@@ -84,7 +93,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     }
   }, [type, adminAllBranches]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, onlyDeductedFromProfit]);
 
   useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); });
 
@@ -125,6 +134,20 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
     toast.success("تم حذف السند نهائياً");
     setDeleteTarget(null);
     load();
+  };
+
+  const printVoucher = (r: Voucher) => {
+    const w = window.open("", "_blank", "width=720,height=800");
+    if (!w) return toast.error("المتصفح منع نافذة الطباعة");
+    const esc = (x: any) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const row = (k: string, v: any) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`;
+    w.document.write(`<html dir="rtl"><head><title>سند ${esc(r.voucher_number)}</title><style>body{font-family:Tahoma,sans-serif;padding:24px}h2{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:8px;text-align:right}th{width:30%;background:#f2f2f2}</style></head><body>
+      <h2>${esc(VOUCHER_TYPE_LABEL[r.type])} رقم ${esc(r.voucher_number)}</h2><table>
+      ${row("التاريخ", formatDate(r.voucher_date))}${row("المبلغ", formatEGP(Number(r.amount)))}
+      ${row("التصنيف", catMap[r.category_id] ?? "")}${row("الجهة", r.party_name ?? "")}
+      ${row("طريقة الدفع", PAYMENT_METHOD_LABELS[r.payment_method] ?? "")}${row("الحالة", r.status === "active" ? "نشط" : "ملغي")}
+      ${row("الوصف", r.description ?? "")}</table><script>window.onload=()=>window.print()</script></body></html>`);
+    w.document.close();
   };
 
   const exportRows = rows.map((r) => ({
@@ -335,6 +358,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId }: Pr
               <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
                   <Eye className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => printVoucher(r)} title="طباعة السند">
+                  <Printer className="w-4 h-4" />
                 </Button>
                 <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canCancel && (
