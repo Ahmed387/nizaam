@@ -32,6 +32,8 @@ interface Props {
   editingVoucher?: Voucher | null;
   /** Pre-select a party (e.g. opened from the contacts table) */
   initialParty?: { type: VoucherPartyType; id: string; name: string } | null;
+  /** Autofocus the date input on open (edit from date card) */
+  focusDate?: boolean;
 }
 
 const FIELD_LABELS_AR: Record<string, string> = {
@@ -48,7 +50,7 @@ const FIELD_LABELS_AR: Record<string, string> = {
 
 interface PartyOption { id: string; name: string; }
 
-export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher, initialParty }: Props) {
+export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher, initialParty, focusDate }: Props) {
   const { user, branches } = useAuth();
   const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
@@ -401,7 +403,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
               </div>
               <div>
                 <Label className="text-xs font-medium flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> تاريخ السند</Label>
-                <Input type="date" value={form.voucher_date}
+                <Input type="date" autoFocus={focusDate} value={form.voucher_date}
                   onChange={(e) => setForm({ ...form, voucher_date: e.target.value })} className="mt-1.5 h-11" />
               </div>
             </div>

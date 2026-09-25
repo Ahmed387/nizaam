@@ -134,6 +134,20 @@
       "when": 1790353653993,
       "tag": "0018_exact_transfer_dates_and_voucher_date_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790354515756,
+      "tag": "0019_update_return_sovereign",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790354558080,
+      "tag": "0020_update_return_sovereign_keep_notes",
+      "breakpoints": true
     }
   ]
 }

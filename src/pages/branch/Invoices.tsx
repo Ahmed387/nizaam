@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
-import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Pencil, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -29,6 +29,8 @@ import { InvoiceItemsAccordion } from "@/components/InvoiceItemsAccordion";
 import { DocumentItemsAccordion } from "@/components/DocumentItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
+import { VoucherDialog } from "@/components/VoucherDialog";
+import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -81,6 +83,8 @@ export default function Invoices() {
   const [delBusy, setDelBusy] = useState(false);
   const [delReason, setDelReason] = useState("");
   const canDeleteInvoice = isAdmin || isManager;
+  const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
+  const [returnEdit, setReturnEdit] = useState<{ kind: "sale_return" | "purchase_return"; rec: any } | null>(null);
   // Voucher actions (income/expense tabs)
   const [viewVoucher, setViewVoucher] = useState<any>(null);
   const [cancelVoucher, setCancelVoucher] = useState<any>(null);
@@ -291,7 +295,7 @@ export default function Invoices() {
   const SELECTS: Record<TabKey, string> = {
     sale: "*, contacts:contact_id(name)",
     purchase: "*, contacts:contact_id(name)",
-    sale_return: "*, invoices(invoice_number, contact_id, contacts:contact_id(name, phone))",
+    sale_return: "*, invoices(invoice_number, invoice_date, contact_id, contacts:contact_id(name, phone))",
     purchase_return: "*, contacts:contact_id(name, phone)",
     income: "*, voucher_categories(name)",
     expense: "*, voucher_categories(name, system_key)",
@@ -512,6 +516,11 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/sale-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل تاريخ وملاحظات المرتجع" onClick={() => setReturnEdit({ kind: "sale_return", rec: r })}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
                 <AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
               </div>
             ),
@@ -550,6 +559,11 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/purchase-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل تاريخ وملاحظات المرتجع" onClick={() => setReturnEdit({ kind: "purchase_return", rec: r })}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
                 <AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
               </div>
             ),
@@ -573,6 +587,11 @@ export default function Invoices() {
                   <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض السند" onClick={() => setViewVoucher(r)}>
                     <Eye className="w-4 h-4" />
                   </Button>
+                  {isAdmin && r.status === "active" && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل السند" onClick={() => setEditVoucher({ v: r, focus: false })}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
                   <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                   {canCancel && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي." onClick={() => setCancelVoucher(r)}>
@@ -1135,7 +1154,12 @@ export default function Invoices() {
       </AlertDialog>
 
       {/* Voucher view dialog */}
-      <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)} />
+      <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)}
+        onEdit={isAdmin ? (v, focus) => { setViewVoucher(null); setEditVoucher({ v, focus: !!focus }); } : undefined} />
+      {editVoucher && (
+        <VoucherDialog open onOpenChange={(o) => !o && setEditVoucher(null)} branchId={editVoucher.v.branch_id}
+          type={editVoucher.v.type} editingVoucher={editVoucher.v} focusDate={editVoucher.focus} onSuccess={() => load()} />
+      )}
 
       {/* Cancel voucher */}
       <Dialog open={!!cancelVoucher} onOpenChange={(o) => { if (!o) { setCancelVoucher(null); setCancelVoucherReason(""); } }}>
@@ -1192,6 +1216,13 @@ export default function Invoices() {
         </DialogContent>
       </Dialog>
 
+      <ReturnEditDialog
+        kind={returnEdit?.kind ?? "sale_return"}
+        record={returnEdit?.rec ?? null}
+        originalInvoiceDate={returnEdit?.kind === "sale_return" ? returnEdit?.rec?.invoices?.invoice_date : null}
+        onOpenChange={(o) => !o && setReturnEdit(null)}
+        onSaved={() => load()}
+      />
     </BranchLayout>
   );
 }
