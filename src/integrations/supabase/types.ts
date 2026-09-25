@@ -5812,6 +5812,7 @@ export type Database = {
           tenant_id: string | null
           to_branch_id: string
           total_value_at_transfer: number | null
+          transfer_date: string | null
           transferred_by: string
         }
         Insert: {
@@ -5838,6 +5839,7 @@ export type Database = {
           tenant_id?: string | null
           to_branch_id: string
           total_value_at_transfer?: number | null
+          transfer_date?: string | null
           transferred_by: string
         }
         Update: {
@@ -5864,6 +5866,7 @@ export type Database = {
           tenant_id?: string | null
           to_branch_id?: string
           total_value_at_transfer?: number | null
+          transfer_date?: string | null
           transferred_by?: string
         }
         Relationships: [
@@ -8256,6 +8259,10 @@ export type Database = {
       set_scheduled_reports_cron: {
         Args: { _day: number; _hour: number }
         Returns: undefined
+      }
+      set_transfer_group_date: {
+        Args: { p_date: string; p_group_id: string }
+        Returns: Json
       }
       settle_contact_invoices_sovereign: {
         Args: {
