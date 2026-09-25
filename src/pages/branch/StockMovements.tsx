@@ -101,7 +101,7 @@ export default function StockMovements() {
 
       const { data: transfers } = await supabase
         .from("stock_transfers")
-        .select("id, quantity, received_quantity, status, created_at, confirmed_at, reason, from_branch_id, to_branch_id, product_id")
+        .select("id, quantity, received_quantity, status, created_at, confirmed_at, transfer_date, reason, from_branch_id, to_branch_id, product_id")
         .in("product_id", productIds)
         .eq("status", "confirmed")
         .or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
@@ -109,10 +109,14 @@ export default function StockMovements() {
       // تحويلات معلقة صادرة — الكمية اتخصمت من رصيد الفرع بالفعل وبتستنى تأكيد المستلم
       const { data: pendingOut } = await supabase
         .from("stock_transfers")
-        .select("id, quantity, created_at, reason, to_branch_id, product_id")
+        .select("id, quantity, created_at, transfer_date, reason, to_branch_id, product_id")
         .in("product_id", productIds)
         .eq("status", "pending")
         .eq("from_branch_id", branchId!);
+
+      // التاريخ التشغيلي للتحويل = transfer_date (مش تاريخ إنشاء السجل)
+      const transferDay = (t: any) =>
+        t.transfer_date ? `${t.transfer_date}T12:00:00` : (t.confirmed_at ?? t.created_at);
 
       // Resolve branch names for transfer rows
       const branchIds = Array.from(new Set([
@@ -231,7 +235,7 @@ export default function StockMovements() {
           ? ` (مرسل ${sent} / مستلم ${actualQty})` : "";
         if (t.from_branch_id === branchId) {
           list.push({
-            date: t.confirmed_at ?? t.created_at,
+            date: transferDay(t),
             type: "نقل صادر",
             qty: -actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -241,7 +245,7 @@ export default function StockMovements() {
           });
         } else if (t.to_branch_id === branchId) {
           list.push({
-            date: t.confirmed_at ?? t.created_at,
+            date: transferDay(t),
             type: "نقل وارد",
             qty: actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -259,7 +263,7 @@ export default function StockMovements() {
         if (!q) return;
         pendingTotal += q;
         list.push({
-          date: t.created_at,
+          date: transferDay(t),
           type: "نقل صادر (معلق)",
           qty: -q,
           reason: `${t.reason ?? "—"} — بانتظار تأكيد الاستلام`,

@@ -127,37 +127,18 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       if (it.quantity > prod.quantity) return toast.error(`${prod.name}: المتاح ${prod.quantity} فقط`);
     }
 
-    const backdated = isAdmin && transferDate && transferDate !== cairoToday();
-    if (backdated && transferDate > cairoToday()) return toast.error("مينفعش تسجّل تحويل بتاريخ في المستقبل");
-    if (backdated) {
-      // Historical stock check: sales/transfers out since the chosen date
-      const since = `${transferDate}T00:00:00+02:00`;
-      const { data: outs } = await supabase.from("invoice_items")
-        .select("product_id, quantity, invoices!inner(branch_id, invoice_date, status)")
-        .eq("invoices.branch_id", branchId!).gte("invoices.invoice_date", since).neq("invoices.status", "cancelled")
-        .in("product_id", cleaned.map((c) => c.product_id));
-      const soldSince: Record<string, number> = {};
-      for (const r of (outs ?? []) as any[]) soldSince[r.product_id] = (soldSince[r.product_id] ?? 0) + Number(r.quantity);
-      for (const it of cleaned) {
-        const prod = products.find((p) => p.id === it.product_id);
-        const approxThen = Number(prod?.quantity ?? 0) + (soldSince[it.product_id] ?? 0);
-        if (it.quantity > approxThen) {
-          const ok = await confirmAlert({ title: "تحذير رصيد تاريخي", description: `${prod?.name}: الرصيد التقريبي للفرع المرسل يوم ${transferDate} كان ${approxThen} فقط، والتحويل ${it.quantity}. هل تريد المتابعة؟` } as any);
-          if (!ok) return;
-        }
-      }
-    }
-    const { data: groupId, error } = await supabase.rpc("transfer_stock_multi_atomic", {
+    if (transferDate && transferDate > cairoToday()) return toast.error("مينفعش تسجّل تحويل بتاريخ في المستقبل");
+
+    // التاريخ يُمرَّر مع التحويل نفسه: الرصيد التاريخي بيتحقق منه داخل نفس المعاملة
+    // ولو الرصيد في اليوم المختار مش كافي التحويل بيترفض تمامًا (بدون تجاوز).
+    const { data: groupId, error } = await supabase.rpc("transfer_stock_multi_atomic" as any, {
       p_from_branch: branchId!,
       p_to_branch: toBranch,
       p_items: cleaned as any,
       p_reason: reason || null,
+      p_transfer_date: transferDate || null,
     });
     if (error) return toast.error(error.message);
-    if (backdated && groupId) {
-      const { error: dErr } = await supabase.rpc("set_transfer_group_date" as any, { p_group_id: groupId, p_date: transferDate });
-      if (dErr) toast.error(`تم التحويل بتاريخ اليوم — تعذّر ضبط التاريخ: ${dErr.message}`);
-    }
 
     const toBr = branches.find((b) => b.id === toBranch);
     const fromBr = { name: profile?.name ? "فرعك" : "فرع آخر" };
