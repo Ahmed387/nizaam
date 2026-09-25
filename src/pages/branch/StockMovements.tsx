@@ -235,7 +235,7 @@ export default function StockMovements() {
           ? ` (مرسل ${sent} / مستلم ${actualQty})` : "";
         if (t.from_branch_id === branchId) {
           list.push({
-            date: t.confirmed_at ?? t.created_at,
+            date: transferDay(t),
             type: "نقل صادر",
             qty: -actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -245,7 +245,7 @@ export default function StockMovements() {
           });
         } else if (t.to_branch_id === branchId) {
           list.push({
-            date: t.confirmed_at ?? t.created_at,
+            date: transferDay(t),
             type: "نقل وارد",
             qty: actualQty,
             reason: (t.reason ?? "—") + partialNote,
@@ -263,7 +263,7 @@ export default function StockMovements() {
         if (!q) return;
         pendingTotal += q;
         list.push({
-          date: t.created_at,
+          date: transferDay(t),
           type: "نقل صادر (معلق)",
           qty: -q,
           reason: `${t.reason ?? "—"} — بانتظار تأكيد الاستلام`,
