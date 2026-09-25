@@ -22,7 +22,7 @@ export function VoucherViewDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   categoryName?: string;
-  onEdit?: (voucher: Voucher) => void;
+  onEdit?: (voucher: Voucher, focusDate?: boolean) => void;
 }) {
   const { isAdmin, hasRole } = useAuth();
   const canEdit = isAdmin || hasRole("branch_manager") || hasRole("accountant") || hasRole("cashier");
@@ -77,7 +77,14 @@ export function VoucherViewDialog({
         {/* Body */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field icon={<Calendar className="w-4 h-4" />} label="التاريخ" value={formatDate(voucher.voucher_date)} />
+            {canEdit && voucher.status === "active" && onEdit ? (
+              <button type="button" onClick={() => onEdit(voucher, true)} title="اضغط لتعديل التاريخ"
+                className="text-right cursor-pointer rounded-lg transition hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <Field icon={<Calendar className="w-4 h-4" />} label="التاريخ" value={<span className="inline-flex items-center gap-1">{formatDate(voucher.voucher_date)}<Pencil className="w-3 h-3 text-primary" /></span>} />
+              </button>
+            ) : (
+              <Field icon={<Calendar className="w-4 h-4" />} label="التاريخ" value={formatDate(voucher.voucher_date)} />
+            )}
             <Field icon={<CreditCard className="w-4 h-4" />} label="طريقة الدفع" value={PAYMENT_METHOD_LABELS[voucher.payment_method] ?? voucher.payment_method} />
             <Field icon={<Tag className="w-4 h-4" />} label="التصنيف" value={categoryName ?? "—"} />
             <Field icon={<User2 className="w-4 h-4" />} label="الجهة" value={voucher.party_name ?? "—"} />

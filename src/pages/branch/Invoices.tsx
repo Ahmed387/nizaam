@@ -29,6 +29,7 @@ import { InvoiceItemsAccordion } from "@/components/InvoiceItemsAccordion";
 import { DocumentItemsAccordion } from "@/components/DocumentItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
+import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -1203,6 +1204,13 @@ export default function Invoices() {
         </DialogContent>
       </Dialog>
 
+      <ReturnEditDialog
+        kind={returnEdit?.kind ?? "sale_return"}
+        record={returnEdit?.rec ?? null}
+        originalInvoiceDate={returnEdit?.kind === "sale_return" ? returnEdit?.rec?.invoices?.invoice_date : null}
+        onOpenChange={(o) => !o && setReturnEdit(null)}
+        onSaved={() => load()}
+      />
     </BranchLayout>
   );
 }

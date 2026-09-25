@@ -17,7 +17,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2, Trash2, Eye, Printer, FileDown, ChevronDown, Check } from "lucide-react";
+import { Plus, XCircle, Loader2, Trash2, Eye, Pencil, Printer, FileDown, ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
@@ -50,6 +50,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const [deleting, setDeleting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
   const [editTarget, setEditTarget] = useState<Voucher | null>(null);
+  const [editFocusDate, setEditFocusDate] = useState(false);
   const [filters, setFilters] = useState({
     from: initialFrom ?? "",
     to: initialTo ?? "",
@@ -359,6 +360,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
                 <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
                   <Eye className="w-4 h-4" />
                 </Button>
+                {isAdmin && r.status === "active" && (
+                  <Button size="sm" variant="ghost" onClick={() => setEditTarget(r)} title="تعديل السند">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => printVoucher(r)} title="طباعة السند">
                   <Printer className="w-4 h-4" />
                 </Button>
@@ -400,10 +406,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       {editTarget && (
         <VoucherDialog
           open={!!editTarget}
-          onOpenChange={(o) => !o && setEditTarget(null)}
+          onOpenChange={(o) => { if (!o) { setEditTarget(null); setEditFocusDate(false); } }}
           branchId={editTarget.branch_id}
           type={editTarget.type}
           editingVoucher={editTarget}
+          focusDate={editFocusDate}
           onSuccess={load}
         />
       )}
@@ -463,7 +470,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
         open={!!viewTarget}
         onOpenChange={(o) => !o && setViewTarget(null)}
         categoryName={viewTarget ? catMap[viewTarget.category_id] : undefined}
-        onEdit={(v) => { setViewTarget(null); setEditTarget(v); }}
+        onEdit={(v, focus) => { setViewTarget(null); setEditFocusDate(!!focus); setEditTarget(v); }}
       />
     </div>
   );
