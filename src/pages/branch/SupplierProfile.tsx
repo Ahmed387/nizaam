@@ -1,5 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { fetchContactLedger, balanceForSelection, type ContactLedger } from "@/lib/contactLedger";
+import { VoucherViewDialog } from "@/components/VoucherViewDialog";
+import { VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
+import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
@@ -50,6 +54,9 @@ import {
   Download,
   Package,
   Percent,
+  Eye,
+  Printer,
+  Building2,
 } from "lucide-react";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 
@@ -63,10 +70,14 @@ export default function SupplierProfile() {
   const Layout = isAdminView ? AdminLayout : BranchLayout;
   const backTo = isAdminView ? `/admin/contacts` : `/branch/${branchId}/contacts`;
   const [supplier, setSupplier] = useState<any>(null);
-  const [shipments, setShipments] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [custPayments, setCustPayments] = useState<any[]>([]);
+  const [shipmentsAll, setShipments] = useState<any[]>([]);
+  const [paymentsAll, setPayments] = useState<any[]>([]);
+  const [invoicesAll, setInvoices] = useState<any[]>([]);
+  const [custPaymentsAll, setCustPayments] = useState<any[]>([]);
+  const [ledger, setLedger] = useState<ContactLedger | null>(null);
+  const [selBranches, setSelBranches] = useState<string[]>([]);
+  const [branchNameMap, setBranchNameMap] = useState<Record<string, string>>({});
+  const [viewVoucher, setViewVoucher] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [payOpen, setPayOpen] = useState(false);
@@ -97,9 +108,17 @@ export default function SupplierProfile() {
         .order("created_at", { ascending: false }),
     ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — override with live ledger balance
-    const { fetchContactBalance } = await import("@/lib/contactBalances");
-    const liveBal = await fetchContactBalance(supplierId!);
-    setSupplier(s ? { ...s, balance: liveBal } : s);
+    const l = await fetchContactLedger(supplierId!);
+    setLedger(l);
+    setSupplier(s ? { ...s, balance: l.totalBalance } : s);
+    const ids = Array.from(new Set([
+      ...l.rows.map((r) => r.branch_id),
+      ...((ledger as any[]) ?? []).map((r: any) => r.branch_id),
+    ].filter(Boolean))) as string[];
+    if (ids.length) {
+      const { data: bs } = await supabase.from("branches").select("id, name").in("id", ids);
+      setBranchNameMap(Object.fromEntries((bs ?? []).map((b: any) => [b.id, b.name])));
+    } else setBranchNameMap({});
     setShipments(ships ?? []);
     setInvoices(invs ?? []);
     // Split unified ledger by direction (server-side view handles merging)
@@ -111,6 +130,7 @@ export default function SupplierProfile() {
       profiles: { name: r.received_by_name },
       notes: r.notes ?? (r.payment_method ? `${r.payment_method}${r.reference_number ? " #" + r.reference_number : ""}` : ""),
       direction: r.direction,
+      branch_id: r.branch_id ?? null,
       _new: r.source === "payment_transaction",
     }));
     setPayments(rows.filter((r) => r.direction === "out"));
@@ -147,6 +167,11 @@ export default function SupplierProfile() {
         { event: "*", schema: "public", table: "payment_plans", filter: `entity_id=eq.${supplierId}` },
         () => load()
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vouchers", filter: `party_id=eq.${supplierId}` },
+        () => load()
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -166,11 +191,32 @@ export default function SupplierProfile() {
     }
   }, [supplier]);
 
+  const inSel = (bid: string | null | undefined) => !selBranches.length || (!!bid && selBranches.includes(bid));
+  const shipments = useMemo(() => shipmentsAll.filter((x) => inSel(x.branch_id)), [shipmentsAll, selBranches]);
+  const payments = useMemo(() => paymentsAll.filter((x) => inSel(x.branch_id)), [paymentsAll, selBranches]);
+  const invoices = useMemo(() => invoicesAll.filter((x) => inSel(x.branch_id)), [invoicesAll, selBranches]);
+  const custPayments = useMemo(() => custPaymentsAll.filter((x) => inSel(x.branch_id)), [custPaymentsAll, selBranches]);
+  const vouchers = useMemo(() => (ledger?.vouchers ?? []).filter((v: any) => inSel(v.branch_id)), [ledger, selBranches]);
+  const scopedRows = useMemo(() => (ledger?.rows ?? []).filter((r) => r.kind !== "opening" && inSel(r.branch_id)), [ledger, selBranches]);
+  const branchOptions = useMemo(() => {
+    const ids = new Set<string>();
+    (ledger?.rows ?? []).forEach((r) => r.branch_id && ids.add(r.branch_id));
+    paymentsAll.forEach((p) => p.branch_id && ids.add(p.branch_id));
+    custPaymentsAll.forEach((p) => p.branch_id && ids.add(p.branch_id));
+    return Array.from(ids).map((id) => ({ id, name: branchNameMap[id] ?? "فرع" })).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  }, [ledger, paymentsAll, custPaymentsAll, branchNameMap]);
+  const selLabel = selBranches.length ? selBranches.map((id) => branchNameMap[id] ?? "").join("، ") : "كل الفروع";
+  const toggleBranch = (id: string) =>
+    setSelBranches((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  const paymentVouchersTotal = vouchers.filter((v: any) => v.type === "payment").reduce((s: number, v: any) => s + Number(v.amount ?? 0), 0);
+  const purchaseReturnsTotal = scopedRows.filter((r) => r.kind === "purchase_return").reduce((s, r) => s + r.debit, 0);
+  const saleReturnsTotal = scopedRows.filter((r) => r.kind === "sale_return").reduce((s, r) => s + r.credit, 0);
   const totalShipments = shipments.reduce((s, x) => s + Number(x.total_cost), 0);
-  const totalPaid = payments.reduce((s, x) => s + Number(x.amount), 0);
+  const supplierPaid = payments.reduce((s, x) => s + Number(x.amount), 0);
+  const totalPaid = supplierPaid + paymentVouchersTotal;
   // الاتفاقية الجديدة: +balance = لنا، −balance = علينا.
   // المتبقي علينا = max(0, -balance)
-  const balance = Number(supplier?.balance ?? 0);
+  const balance = balanceForSelection(ledger, selBranches);
   const owedByUs = balance < 0 ? Math.abs(balance) : 0;
   const creditAtSupplier = balance > 0 ? balance : 0;
   const totalItemsCount = shipments.reduce(
@@ -262,6 +308,20 @@ export default function SupplierProfile() {
     nav(backTo);
   };
 
+  const retRows = scopedRows.filter((r) => r.kind === "purchase_return" || r.kind === "sale_return");
+  const printVoucher = (v: any) => {
+    const w = window.open("", "_blank", "width=720,height=800");
+    if (!w) return toast.error("المتصفح منع نافذة الطباعة");
+    const esc = (x: any) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const row = (k: string, val: any) => `<tr><th>${k}</th><td>${esc(val)}</td></tr>`;
+    w.document.write(`<html dir="rtl"><head><title>سند ${esc(v.voucher_number)}</title><style>body{font-family:Tahoma,sans-serif;padding:24px}h2{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:8px;text-align:right}th{width:30%;background:#f2f2f2}</style></head><body>
+      <h2>${esc((VOUCHER_TYPE_LABEL as any)[v.type])} رقم ${esc(v.voucher_number)}</h2><table>
+      ${row("التاريخ", formatDate(v.voucher_date))}${row("المبلغ", formatEGP(Number(v.amount)))}
+      ${row("الجهة", v.party_name ?? supplier?.name ?? "")}${row("الفرع", v.branches?.name ?? "")}
+      ${row("طريقة الدفع", (PAYMENT_METHOD_LABELS as any)[v.payment_method] ?? "")}${row("الوصف", v.description ?? "")}</table><script>window.onload=()=>window.print()</script></body></html>`);
+    w.document.close();
+  };
+
   const printStatement = () => {
     const ship = shipments
       .map(
@@ -289,11 +349,12 @@ export default function SupplierProfile() {
       .join("");
 
     const html = `
+      <div class="meta">الفرع: ${selLabel}</div>
       <div class="kpi">
         <div>عدد فواتير الشراء <b>${shipments.length}</b></div>
         <div>إجمالي فواتير الشراء <b>${formatEGP(totalShipments)}</b></div>
         <div>إجمالي المدفوع <b class="pos">${formatEGP(totalPaid)}</b></div>
-        <div>المتبقي عليك <b class="${owedByUs > 0 ? "neg" : "pos"}">${formatEGP(owedByUs)}</b></div>
+        <div>${creditAtSupplier > 0 ? "رصيد لك" : "المتبقي عليك"} <b class="${owedByUs > 0 ? "neg" : "pos"}">${formatEGP(creditAtSupplier > 0 ? creditAtSupplier : owedByUs)}</b></div>
       </div>
 
       <h3>بيانات المورد</h3>
@@ -313,14 +374,27 @@ export default function SupplierProfile() {
         <thead><tr><th>التاريخ</th><th>الفرع</th><th>دفع بواسطة</th><th>ملاحظات</th><th>المبلغ</th></tr></thead>
         <tbody>${pays || '<tr><td colspan="5" style="text-align:center">لا توجد مدفوعات</td></tr>'}</tbody>
       </table>
+
+      <h3>المرتجعات (${retRows.length})</h3>
+      <table>
+        <thead><tr><th>التاريخ</th><th>النوع</th><th>المرجع</th><th>الفرع</th><th>القيمة</th></tr></thead>
+        <tbody>${retRows.map((r) => `<tr><td>${formatDate(r.date)}</td><td>${r.type}</td><td>${r.reference}</td><td>${branchNameMap[r.branch_id ?? ""] ?? "—"}</td><td>${formatEGP(r.debit || r.credit)}</td></tr>`).join("") || '<tr><td colspan="5" style="text-align:center">لا توجد مرتجعات</td></tr>'}</tbody>
+      </table>
+
+      <h3>سندات القبض والصرف (${vouchers.length})</h3>
+      <table>
+        <thead><tr><th>رقم السند</th><th>النوع</th><th>التاريخ</th><th>الفرع</th><th>البيان</th><th>المبلغ</th></tr></thead>
+        <tbody>${vouchers.map((v: any) => `<tr><td>${v.voucher_number}</td><td>${v.type === "receipt" ? "قبض" : "صرف"}</td><td>${formatDate(v.voucher_date)}</td><td>${v.branches?.name ?? "—"}</td><td>${v.description ?? "—"}</td><td>${formatEGP(v.amount)}</td></tr>`).join("") || '<tr><td colspan="6" style="text-align:center">لا توجد سندات</td></tr>'}</tbody>
+      </table>
     `;
-    printReport(`كشف حساب المورد — ${supplier.name}`, html);
+    printReport(`كشف حساب المورد — ${supplier.name} — ${selLabel}`, html);
   };
 
   const exportExcel = () => {
     if (!supplier) return;
     const summary = [
       { البيان: "اسم الشركة", القيمة: supplier.name },
+      { البيان: "الفرع", القيمة: selLabel },
       { البيان: "المسؤول", القيمة: supplier.contact_person ?? "—" },
       { البيان: "التليفون", القيمة: supplier.phone ?? "—" },
       { البيان: "العنوان", القيمة: supplier.address ?? "—" },
@@ -328,8 +402,12 @@ export default function SupplierProfile() {
       { البيان: "عدد الأصناف (إجمالي)", القيمة: totalItemsCount },
       { البيان: "إجمالي الوحدات", القيمة: totalUnits },
       { البيان: "إجمالي فواتير الشراء (جنيه)", القيمة: totalShipments },
+      { البيان: "دفعات للمورد (جنيه)", القيمة: supplierPaid },
+      { البيان: "سندات صرف (جنيه)", القيمة: paymentVouchersTotal },
       { البيان: "إجمالي المدفوع (جنيه)", القيمة: totalPaid },
-      { البيان: "المتبقي عليك (جنيه)", القيمة: owedByUs },
+      { البيان: "مرتجعات الشراء (جنيه)", القيمة: purchaseReturnsTotal },
+      { البيان: "مرتجعات البيع (جنيه)", القيمة: saleReturnsTotal },
+      { البيان: "صافي الرصيد (جنيه)", القيمة: balance },
     ];
     const shipRows = shipments.map((s) => ({
       التاريخ: formatDate(s.arrival_date),
@@ -353,6 +431,9 @@ export default function SupplierProfile() {
       { name: "ملخص", rows: summary },
       { name: "فواتير الشراء", rows: shipRows },
       { name: "المدفوعات", rows: payRows },
+      { name: "المبيعات", rows: invoices.map((i) => ({ الرقم: i.invoice_number, الفرع: i.branches?.name ?? "—", التاريخ: formatDate(i.invoice_date ?? i.created_at), الإجمالي: Number(i.total), الحالة: i.status === "active" ? "نشطة" : "ملغاة" })) },
+      { name: "المرتجعات", rows: retRows.map((r) => ({ التاريخ: formatDate(r.date), النوع: r.type, المرجع: r.reference, الفرع: branchNameMap[r.branch_id ?? ""] ?? "—", القيمة: r.debit || r.credit })) },
+      { name: "السندات", rows: vouchers.map((v: any) => ({ "رقم السند": v.voucher_number, النوع: v.type === "receipt" ? "قبض" : "صرف", التاريخ: formatDate(v.voucher_date), المبلغ: Number(v.amount), الفرع: v.branches?.name ?? "—", البيان: v.description ?? "" })) },
     ]);
   };
   return (
@@ -365,7 +446,7 @@ export default function SupplierProfile() {
             <Button className="btn-gradient" onClick={() => setPayOpen(true)}>
               <DollarSign className="w-4 h-4 ml-1" /> سداد دفعة
             </Button>
-            <Button variant="outline" onClick={() => nav(isAdminView ? `/admin/contacts/${supplierId}/statement` : `/branch/${branchId}/contacts/${supplierId}/statement`)}>
+            <Button variant="outline" onClick={() => nav(`${isAdminView ? `/admin/contacts/${supplierId}/statement` : `/branch/${branchId}/contacts/${supplierId}/statement`}${selBranches.length ? `?branches=${selBranches.join(",")}` : ""}`)}>
               <Activity className="w-4 h-4 ml-1" /> كشف حساب تفصيلي
             </Button>
             <Button variant="outline" onClick={printStatement}>
@@ -416,11 +497,25 @@ export default function SupplierProfile() {
         </div>
       )}
 
+      {branchOptions.length > 0 && (
+        <div className="card-elevated p-3 mb-4 flex flex-wrap items-center gap-2">
+          <Building2 className="w-4 h-4 text-muted-foreground" />
+          <Button size="sm" variant={selBranches.length === 0 ? "default" : "outline"} className="rounded-full" onClick={() => setSelBranches([])}>
+            كل الفروع
+          </Button>
+          {branchOptions.map((b) => (
+            <Button key={b.id} size="sm" variant={selBranches.includes(b.id) ? "default" : "outline"} className="rounded-full" onClick={() => toggleBranch(b.id)}>
+              {b.name}
+            </Button>
+          ))}
+          {selBranches.length > 0 && <span className="text-xs text-muted-foreground mr-2">الأرقام محسوبة للفروع المختارة فقط</span>}
+        </div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <StatCard label="عدد فواتير الشراء" value={shipments.length} icon={<Truck className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي الأصناف" value={`${totalItemsCount} (${totalUnits} وحدة)`} icon={<Package className="w-5 h-5" />} accent="primary" />
         <StatCard label="إجمالي فواتير الشراء" value={formatEGP(totalShipments)} icon={<DollarSign className="w-5 h-5" />} accent="secondary" />
-        <StatCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
+        <StatCard label="إجمالي المدفوع (دفعات + سندات صرف)" value={formatEGP(totalPaid)} icon={<Wallet className="w-5 h-5" />} accent="success" />
         <StatCard
           label={`إجمالي الخصومات (${discountPct.toFixed(1)}%)`}
           value={formatEGP(totalDiscounts)}
@@ -469,6 +564,7 @@ export default function SupplierProfile() {
           {(supplier?.type === "customer" || supplier?.type === "both") && (
             <TabsTrigger value="sales" className="gap-2"><Receipt className="w-4 h-4" /> المبيعات ({invoices.length})</TabsTrigger>
           )}
+          <TabsTrigger value="vouchers" className="gap-2"><FileText className="w-4 h-4" /> سندات القبض والصرف ({vouchers.length})</TabsTrigger>
           <TabsTrigger value="plans" className="gap-2"><DollarSign className="w-4 h-4" /> خطط الدفع</TabsTrigger>
         </TabsList>
 
@@ -504,6 +600,34 @@ export default function SupplierProfile() {
               />
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="vouchers" className="mt-4">
+          <DataTable
+            loading={loading}
+            rows={vouchers}
+            empty="لا توجد سندات قبض أو صرف"
+            columns={[
+              { key: "voucher_number", header: "رقم السند", render: (r: any) => <span className="font-mono font-semibold">{r.voucher_number}</span> },
+              { key: "type", header: "النوع", render: (r: any) => (
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${r.type === "receipt" ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}`}>
+                  {r.type === "receipt" ? "قبض" : "صرف"}
+                </span>
+              )},
+              { key: "voucher_date", header: "التاريخ", render: (r: any) => formatDate(r.voucher_date) },
+              { key: "amount", header: "المبلغ", render: (r: any) => <span className="font-bold">{formatEGP(r.amount)}</span> },
+              { key: "branch", header: "الفرع", render: (r: any) => <span className="px-2 py-0.5 rounded bg-muted text-xs">{r.branches?.name ?? "—"}</span> },
+              { key: "treasury", header: "الخزينة", render: (r: any) => (r.treasury_id ? `خزينة ${r.branches?.name ?? ""}` : "—") },
+              { key: "description", header: "البيان", render: (r: any) => r.description ?? "—" },
+              { key: "actions", header: "الإجراءات", render: (r: any) => (
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={() => setViewVoucher(r)}><Eye className="w-4 h-4" /></Button>
+                  <Button size="icon" variant="ghost" title="طباعة السند" onClick={() => printVoucher(r)}><Printer className="w-4 h-4" /></Button>
+                </div>
+              )},
+            ]}
+          />
+          <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)} />
         </TabsContent>
 
         <TabsContent value="plans" className="mt-4">
