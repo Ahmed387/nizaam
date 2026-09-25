@@ -21,9 +21,9 @@ BEGIN
   END IF;
   -- guard_return_dates trigger enforces: not future, not before original invoice
   IF p_kind = 'sale_return' THEN
-    UPDATE public.returns SET invoice_date = v_new, notes = CASE WHEN p_notes IS NULL THEN notes ELSE __X__ id = p_return_id;
+    UPDATE public.returns SET invoice_date = v_new, notes = p_notes WHERE id = p_return_id;
   ELSE
-    UPDATE public.purchase_returns SET invoice_date = v_new, notes = CASE WHEN p_notes IS NULL THEN notes ELSE __X__ id = p_return_id;
+    UPDATE public.purchase_returns SET invoice_date = v_new, notes = p_notes WHERE id = p_return_id;
   END IF;
   IF v_new IS DISTINCT FROM v_old THEN
     UPDATE public.journal_entries SET entry_date = p_date, updated_at = now()
