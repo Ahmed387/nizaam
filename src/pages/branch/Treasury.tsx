@@ -109,7 +109,7 @@ export default function Treasury() {
       }
     }
   };
-  useEffect(() => { load(); }, [branchId]);
+  useEffect(() => { load(); }, [branchId, fromDate, toDate]);
   useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], load);
 
   const filtered = rows.filter((r) =>
