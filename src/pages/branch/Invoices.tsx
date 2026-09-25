@@ -29,6 +29,7 @@ import { InvoiceItemsAccordion } from "@/components/InvoiceItemsAccordion";
 import { DocumentItemsAccordion } from "@/components/DocumentItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
+import { VoucherDialog } from "@/components/VoucherDialog";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
@@ -82,6 +83,7 @@ export default function Invoices() {
   const [delBusy, setDelBusy] = useState(false);
   const [delReason, setDelReason] = useState("");
   const canDeleteInvoice = isAdmin || isManager;
+  const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
   const [returnEdit, setReturnEdit] = useState<{ kind: "sale_return" | "purchase_return"; rec: any } | null>(null);
   // Voucher actions (income/expense tabs)
   const [viewVoucher, setViewVoucher] = useState<any>(null);
@@ -585,6 +587,11 @@ export default function Invoices() {
                   <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض السند" onClick={() => setViewVoucher(r)}>
                     <Eye className="w-4 h-4" />
                   </Button>
+                  {isAdmin && r.status === "active" && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل السند" onClick={() => setEditVoucher({ v: r, focus: false })}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
                   <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                   {canCancel && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي." onClick={() => setCancelVoucher(r)}>
@@ -1147,7 +1154,12 @@ export default function Invoices() {
       </AlertDialog>
 
       {/* Voucher view dialog */}
-      <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)} />
+      <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)}
+        onEdit={isAdmin ? (v, focus) => { setViewVoucher(null); setEditVoucher({ v, focus: !!focus }); } : undefined} />
+      {editVoucher && (
+        <VoucherDialog open onOpenChange={(o) => !o && setEditVoucher(null)} branchId={editVoucher.v.branch_id}
+          type={editVoucher.v.type} editingVoucher={editVoucher.v} focusDate={editVoucher.focus} onSuccess={() => load()} />
+      )}
 
       {/* Cancel voucher */}
       <Dialog open={!!cancelVoucher} onOpenChange={(o) => { if (!o) { setCancelVoucher(null); setCancelVoucherReason(""); } }}>
