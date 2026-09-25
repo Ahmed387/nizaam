@@ -1318,7 +1318,9 @@ export type Database = {
           credit_balance: number
           email: string | null
           id: string
+          is_archived: boolean
           is_migrated: boolean
+          merged_into: string | null
           name: string
           notes: string | null
           opening_balance: number
@@ -1335,7 +1337,9 @@ export type Database = {
           credit_balance?: number
           email?: string | null
           id?: string
+          is_archived?: boolean
           is_migrated?: boolean
+          merged_into?: string | null
           name: string
           notes?: string | null
           opening_balance?: number
@@ -1352,7 +1356,9 @@ export type Database = {
           credit_balance?: number
           email?: string | null
           id?: string
+          is_archived?: boolean
           is_migrated?: boolean
+          merged_into?: string | null
           name?: string
           notes?: string | null
           opening_balance?: number
