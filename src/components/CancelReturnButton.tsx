@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ban, Loader2, ShieldAlert } from "lucide-react";
+import { Ban, Loader2, ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,8 @@ interface Props {
   total: number;
   status: string;
   onDone?: () => void;
+  /** Compact red trash icon for table action columns */
+  iconOnly?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  * الإلغاء بيعكس المخزون والخزنة والديْن، والداتابيز بترفض لو:
  * الكمية اتباعت تاني، الخزنة مش كفاية، أو الفترة المحاسبية مقفولة.
  */
-export function CancelReturnButton({ kind, returnId, returnNumber, total, status, onDone }: Props) {
+export function CancelReturnButton({ kind, returnId, returnNumber, total, status, onDone, iconOnly }: Props) {
   const { isOwner, isSuperAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -55,9 +57,15 @@ export function CancelReturnButton({ kind, returnId, returnNumber, total, status
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)} className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10">
-        <Ban className="w-4 h-4" /> إلغاء المرتجع
-      </Button>
+      {iconOnly ? (
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="حذف المرتجع — يعكس المخزون والخزنة والقيد" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)} className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10">
+          <Ban className="w-4 h-4" /> إلغاء المرتجع
+        </Button>
+      )}
 
       {open && (
         <div dir="rtl" className="fixed inset-0 z-[200] flex items-center justify-center bg-background/70 backdrop-blur-sm p-4" onClick={() => !busy && setOpen(false)}>
@@ -76,12 +84,15 @@ export function CancelReturnButton({ kind, returnId, returnNumber, total, status
                         <li>الكمية اللي رجعت هتتسحب تاني من المخزن</li>
                         <li>الفلوس اللي اترجعت للعميل هتدخل الخزنة تاني</li>
                         <li>الديْن اللي اتخصم هيرجع على الفاتورة زي ما كان</li>
+                        <li>الكميات هترجع متاحة للإرجاع تاني على الفاتورة الأصلية</li>
+                        <li>القيد المحاسبي للمرتجع هيتشال</li>
                       </>
                     ) : (
                       <>
                         <li>الكمية هترجع للمخزن تاني</li>
                         <li>الفلوس اللي المورد ردّها هتخرج من الخزنة</li>
                         <li>ذمة المورد هترجع زي ما كانت</li>
+                        <li>القيد المحاسبي للمرتجع هيتشال</li>
                       </>
                     )}
                   </ul>

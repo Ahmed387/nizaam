@@ -30,6 +30,7 @@ import { DocumentItemsAccordion } from "@/components/DocumentItemsAccordion";
 import { VoucherViewDialog } from "@/components/VoucherViewDialog";
 import { searchMatch } from "@/lib/search";
 import { VoucherDialog } from "@/components/VoucherDialog";
+import { CancelReturnButton } from "@/components/CancelReturnButton";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
@@ -522,6 +523,7 @@ export default function Invoices() {
                   </Button>
                 )}
                 <AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <CancelReturnButton iconOnly kind="sale" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_refund ?? 0)} status={r.status ?? "active"} onDone={() => load()} />
               </div>
             ),
           },
@@ -565,6 +567,7 @@ export default function Invoices() {
                   </Button>
                 )}
                 <AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <CancelReturnButton iconOnly kind="purchase" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_amount ?? 0)} status={r.status ?? "active"} onDone={() => load()} />
               </div>
             ),
           },
