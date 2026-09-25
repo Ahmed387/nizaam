@@ -148,6 +148,13 @@
       "when": 1790354558080,
       "tag": "0020_update_return_sovereign_keep_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790355193642,
+      "tag": "0021_reverse_returned_qty_on_return_cancel",
+      "breakpoints": true
     }
   ]
 }
