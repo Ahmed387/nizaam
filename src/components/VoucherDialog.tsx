@@ -160,6 +160,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           .from("contacts")
           .select("id, name")
           .in("type", [form.party_type, "both"])
+          .eq("is_archived", false)
           .order("name");
         if (error) { toast.error(error.message); return; }
         setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
