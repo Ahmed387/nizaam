@@ -27,10 +27,10 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
 
   const loadItems = useCallback(async () => {
     if (type === "supplier") {
-      const { data } = await supabase.from("contacts").select("id, name").order("name");
+      const { data } = await supabase.from("contacts").select("id, name").eq("is_archived", false).order("name");
       setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
     } else if (type === "customer") {
-      const { data } = await supabase.from("contacts").select("id, name").order("name");
+      const { data } = await supabase.from("contacts").select("id, name").eq("is_archived", false).order("name");
       setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
     } else {
       const { data } = await supabase.from("employees").select("id, name").order("name");

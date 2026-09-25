@@ -179,10 +179,10 @@ export default function Invoices() {
   const loadParties = useCallback(async () => {
     if (!active.party || !branchId) { setParties([]); return; }
     if (active.party === "customer") {
-      const { data } = await supabase.from("contacts").select("id, name, phone").eq("branch_id", branchId).order("name");
+      const { data } = await supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("name");
       setParties((data ?? []) as any);
     } else {
-      const { data } = await supabase.from("contacts").select("id, name, phone").order("name");
+      const { data } = await supabase.from("contacts").select("id, name, phone").eq("is_archived", false).order("name");
       setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.name, phone: d.phone })));
     }
   }, [active.party, branchId]);
