@@ -8404,6 +8404,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_return_sovereign: {
+        Args: {
+          p_date: string
+          p_kind: string
+          p_notes: string
+          p_return_id: string
+        }
+        Returns: undefined
+      }
       upsert_inventory_counts: {
         Args: { _items: Json; _session_id: string }
         Returns: number
