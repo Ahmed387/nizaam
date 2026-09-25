@@ -56,6 +56,13 @@ export function EditableInvoiceDate({ table, recordId, value, fallback, compact,
           p_new_date: isoValue,
           p_reason: "تعديل تاريخ الفاتورة من شاشة المستندات",
         })
+      : table === "returns" || table === "purchase_returns"
+      ? await supabase.rpc("update_return_sovereign" as any, {
+          p_kind: table === "returns" ? "sale_return" : "purchase_return",
+          p_return_id: recordId,
+          p_date: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date(draft)),
+          p_notes: null,
+        })
       : await (supabase.from(table as any) as any)
           .update({ invoice_date: isoValue })
           .eq("id", recordId);
