@@ -8310,6 +8310,20 @@ export type Database = {
           shift_id: string
         }[]
       }
+      stock_balance_as_of: {
+        Args: { _as_of: string; _branch_id: string; _product_id: string }
+        Returns: number
+      }
+      stock_mv_ctx: {
+        Args: {
+          _date: string
+          _prod: string
+          _ref: string
+          _ref_type: string
+          _type: string
+        }
+        Returns: undefined
+      }
       supplier_outstanding_payable: {
         Args: { _contact_id: string }
         Returns: number
@@ -8342,15 +8356,26 @@ export type Database = {
         }
         Returns: string
       }
-      transfer_stock_multi_atomic: {
-        Args: {
-          p_from_branch: string
-          p_items: Json
-          p_reason: string
-          p_to_branch: string
-        }
-        Returns: string
-      }
+      transfer_stock_multi_atomic:
+        | {
+            Args: {
+              p_from_branch: string
+              p_items: Json
+              p_reason: string
+              p_to_branch: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_from_branch: string
+              p_items: Json
+              p_reason: string
+              p_to_branch: string
+              p_transfer_date: string
+            }
+            Returns: string
+          }
       transfer_treasury_atomic: {
         Args: {
           p_amount: number
