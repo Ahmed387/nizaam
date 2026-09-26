@@ -1,3 +1,4 @@
+import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { applyCairoRange } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
@@ -440,7 +441,8 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / إدارة" onClick={() => nav(`${base}/sales/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
-                <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <DocAnnotationsButton kind="invoice" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+<AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canDeleteInvoice && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي" onClick={() => setDelTarget(r)}>
                     <Trash2 className="w-4 h-4" />
@@ -485,7 +487,8 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
-                <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <DocAnnotationsButton kind="shipment" id={r.id} recipient={r.received_by} notes={r.notes} onSaved={() => load()} />
+<AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canDeleteInvoice && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف فاتورة الشراء" : "طلب حذف"} onClick={() => setDelShipment(r)}>
                     <Trash2 className="w-4 h-4" />
@@ -536,7 +539,8 @@ export default function Invoices() {
                     <Pencil className="w-4 h-4" />
                   </Button>
                 )}
-                <AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <DocAnnotationsButton kind="sale_return" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+<AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <CancelReturnButton iconOnly kind="sale" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_refund ?? 0)} status={r.status ?? "active"} onDone={() => load()} />
               </div>
             ),
@@ -582,7 +586,8 @@ export default function Invoices() {
                     <Pencil className="w-4 h-4" />
                   </Button>
                 )}
-                <AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <DocAnnotationsButton kind="purchase_return" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+<AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <CancelReturnButton iconOnly kind="purchase" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_amount ?? 0)} status={r.status ?? "active"} onDone={() => load()} />
               </div>
             ),
@@ -612,7 +617,8 @@ export default function Invoices() {
                       <Pencil className="w-4 h-4" />
                     </Button>
                   )}
-                  <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                  <DocAnnotationsButton kind="voucher" id={r.id} recipient={r.recipient_name} notes={r.description} onSaved={() => load()} />
+<AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                   {canCancel && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="إلغاء السند — يفضل ظاهر في السجلات كـ (ملغي) ويعكس أثره المحاسبي." onClick={() => setCancelVoucher(r)}>
                       <XCircle className="w-4 h-4" />
@@ -645,7 +651,8 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/transfers/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
-                <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <DocAnnotationsButton kind="stock_transfer" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+<AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
               </div>
             ),
           },
