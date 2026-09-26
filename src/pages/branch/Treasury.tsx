@@ -583,6 +583,13 @@ export default function Treasury() {
           )}
         </DialogContent>
       </Dialog>
+      <TreasuryMovementDialog
+        movement={viewMovement}
+        open={!!viewMovement}
+        onOpenChange={(o) => { if (!o) setViewMovement(null); }}
+        branchName={branches.find((b) => b.id === branchId)?.name}
+      />
+
 
     </BranchLayout>
   );
