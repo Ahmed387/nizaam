@@ -1265,6 +1265,10 @@ export default function Invoices() {
         onOpenChange={(o) => !o && setReturnEdit(null)}
         onSaved={() => load()}
       />
+
+      {/* One hoisted cancel-return window for every row (portal to <body>, no scroll lock). */}
+      <CancelReturnDialog target={selectedReturnForCancel} onClose={() => setSelectedReturnForCancel(null)} onDone={() => load()} />
+
     </BranchLayout>
   );
 }
