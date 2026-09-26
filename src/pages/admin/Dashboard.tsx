@@ -21,6 +21,7 @@ import { KpiHealthAlert } from "@/components/KpiHealthAlert";
 import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { DetailsChevron } from "@/components/DetailsChevron";
+import { RecentDocDetails } from "@/components/RecentDocDetails";
 
 export default function AdminDashboard() {
   const nav = useNavigate();
@@ -32,6 +33,8 @@ export default function AdminDashboard() {
   const [activeSessions, setActiveSessions] = useState(0);
   const [branchSummary, setBranchSummary] = useState<any[]>([]);
   const [recent, setRecent] = useState<RecentDoc[]>([]);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const toggleRow = (key: string) => setExpandedRowId((prev) => (prev === key ? null : key));
   const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -251,6 +254,9 @@ export default function AdminDashboard() {
           empty="لا توجد حركات"
           onRowClick={(r: RecentDoc) => nav(r.path)}
           indexColumn
+          getRowKey={(r: RecentDoc) => `${r.kind}-${r.id}`}
+          isRowExpanded={(r: RecentDoc) => expandedRowId === `${r.kind}-${r.id}`}
+          renderExpandedRow={(r: RecentDoc) => <RecentDocDetails doc={r} />}
           columns={[
             {
               key: "kind",
@@ -264,8 +270,8 @@ export default function AdminDashboard() {
               header: "رقم",
               render: (r: RecentDoc) => (
                 <span className="inline-flex items-center gap-1">
-                  <span className="text-primary font-medium hover:underline">{r.number}</span>
-                  <DetailsChevron label="عرض تفاصيل المستند" onClick={() => nav(r.path)} />
+                  <button type="button" className="text-primary font-medium hover:underline" onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleRow(`${r.kind}-${r.id}`); }}>{r.number}</button>
+                  <DetailsChevron label="عرض تفاصيل المستند" expanded={expandedRowId === `${r.kind}-${r.id}`} onClick={() => toggleRow(`${r.kind}-${r.id}`)} />
                 </span>
               ),
             },
