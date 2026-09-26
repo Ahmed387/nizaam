@@ -114,13 +114,6 @@ export default function Contacts() {
     return r;
   }, [rows, filter, balanceFilters, search]);
 
-  // ترقيم تسلسلي 1-based يحترم الفلاتر والبحث الحاليين (بصري فقط)
-  const rowIndexById = useMemo(() => {
-    const m = new Map<string, number>();
-    filtered.forEach((r: any, i: number) => m.set(r.id, i + 1));
-    return m;
-  }, [filtered]);
-
 
 
   const counts = useMemo(() => ({
@@ -432,6 +425,7 @@ export default function Contacts() {
         loading={loading}
         rows={filtered}
         pageSize={50}
+        indexColumn
         onRowClick={goToProfile}
         getRowKey={(r: any) => r.id}
         isRowExpanded={(r: any) => expandedId === r.id}
@@ -450,15 +444,6 @@ export default function Contacts() {
           ) : null
         )}
         columns={[
-          {
-            key: "row_seq",
-            header: "#",
-            width: "4rem",
-            align: "center",
-            render: (r: any) => (
-              <span className="tabular-nums font-bold text-muted-foreground">{rowIndexById.get(r.id) ?? "—"}</span>
-            ),
-          },
           {
             key: "name",
             header: "الاسم",

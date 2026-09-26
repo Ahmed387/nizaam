@@ -1,6 +1,48 @@
 // كل الأرقام في النظام بتتكتب بالأرقام الإنجليزية (1,234.56) عشان تبقى واضحة ومقروءة
 const AR = "ar-EG-u-nu-latn";
 
+const ARABIC_ALPHABET = [
+  "أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي",
+  "ك", "ل", "م", "ن", "س", "ع", "ف", "ص", "ق", "ر",
+  "ش", "ت", "ث", "خ", "ذ", "ض", "ظ", "غ",
+] as const;
+
+/** Visual-only Arabic row label. Keeps working after the first 28 rows: أ2، ب2... */
+export const toArabicAlphabetIndex = (zeroBasedIndex: number): string => {
+  const safeIndex = Math.max(0, Math.floor(zeroBasedIndex));
+  const cycle = Math.floor(safeIndex / ARABIC_ALPHABET.length);
+  const letter = ARABIC_ALPHABET[safeIndex % ARABIC_ALPHABET.length];
+  return cycle === 0 ? letter : `${letter}${cycle + 1}`;
+};
+
+/** Removes only the legacy payment-plan UUID tag from displayed text; stored data is untouched. */
+export const sanitizeOperationalDescription = (value: string | null | undefined): string =>
+  String(value ?? "")
+    .replace(/دفعة خطة\s*#[0-9a-f]{8}(?:-[0-9a-f-]{27})?/gi, "دفعة خطة سداد")
+    .replace(/\s+—\s+/g, " — ")
+    .trim();
+
+const OPERATION_REFERENCE_PATTERNS = [
+  /\b(?:INV|IN|RET|TR|VOU|VCH|REC|PAY|PUR|SAL)[-_]?\d+[\w-]*\b/i,
+  /(?:فاتورة|سند|مرتجع|تحويل|عملية)(?:\s+(?:رقم|شراء|بيع|قبض|صرف))?\s*[:#№-]?\s*([\p{L}\d][\p{L}\d/_-]*)/u,
+] as const;
+
+/** Resolves a readable operation number from structured data first, then legacy descriptions. */
+export const extractOperationReference = (
+  referenceNumber?: string | null,
+  description?: string | null,
+  installmentReference?: string | null,
+): string => {
+  const direct = String(referenceNumber ?? "").trim();
+  if (direct) return direct;
+  const text = String(description ?? "");
+  for (const pattern of OPERATION_REFERENCE_PATTERNS) {
+    const match = text.match(pattern);
+    if (match) return String(match[1] ?? match[0]).trim();
+  }
+  return String(installmentReference ?? "").trim() || "—";
+};
+
 export const formatEGP = (n: number | string | null | undefined) => {
   const v = Number(n ?? 0);
   const txt = new Intl.NumberFormat(AR, {

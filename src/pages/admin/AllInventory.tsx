@@ -110,11 +110,6 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     return true;
   }), [rows, search, branchFilter, catFilter, stockFilter]);
 
-  const rowIndexById = useMemo(
-    () => new Map(filtered.map((row, index) => [row.id, index])),
-    [filtered],
-  );
-
   const stats = useMemo(() => ({
     total: rows.length,
     out: rows.filter((r) => r.quantity === 0).length,
@@ -343,20 +338,8 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
         </div>
       )}
 
-      <DataTable loading={loading} rows={filtered}
+      <DataTable loading={loading} rows={filtered} indexColumn
         columns={[
-          {
-            key: "row_seq",
-            header: "#",
-            width: "4rem",
-            align: "center",
-            numeric: true,
-            render: (r: Row) => (
-              <span className="font-semibold text-muted-foreground">
-                {(rowIndexById.get(r.id) ?? 0) + 1}
-              </span>
-            ),
-          },
           {
             key: "select",
             width: "3rem",
