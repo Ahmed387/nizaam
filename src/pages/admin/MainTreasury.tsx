@@ -1,4 +1,6 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { applyCairoRange, cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { NumberedPagination } from "@/components/NumberedPagination";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -23,8 +25,17 @@ type TxRow = {
 };
 type ViewBal = { branch_id: string; current_balance: number; last_transaction_date: string | null };
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const daysAgoStr = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const PAGE_SIZE = 50;
+const safeLike = (s: string) => s.replace(/[,()%*_\\]/g, " ").trim();
+/** Cairo-day shortcut pills; bounds applied by applyCairoRange. */
+const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
+  { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
+  { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
+  { label: "آخر 7 أيام", range: () => { const d = cairoTodayDay(); return [addDaysDay(d, -6), d]; } },
+  { label: "الشهر ده", range: () => { const d = cairoTodayDay(); return [monthStartDay(d), d]; } },
+  { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
+];
+const defaultFrom = () => addDaysDay(cairoTodayDay(), -29);
 
 export default function MainTreasury() {
   const { tenantId } = useAuth();
@@ -32,16 +43,33 @@ export default function MainTreasury() {
   const [rows, setRows] = useState<TxRow[]>([]);
   const [glBalances, setGlBalances] = useState<Record<string, ViewBal>>({});
   const [loading, setLoading] = useState(true);
-  const [from, setFrom] = useState(daysAgoStr(30));
-  const [to, setTo] = useState(todayStr());
+  const [from, setFrom] = useState(defaultFrom());
+  const [to, setTo] = useState(cairoTodayDay());
   const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [notes, setNotes] = useState("");
-  const [notesQ, setNotesQ] = useState("");
+  const [typeF, setTypeF] = useState<"all" | "income" | "expense">("all");
+  const [methodF, setMethodF] = useState<string>("all");
+  const [minAmt, setMinAmt] = useState("");
+  const [maxAmt, setMaxAmt] = useState("");
+  const [dq, setDq] = useState({ search: "", notes: "", minAmt: "", maxAmt: "" });
+  const [page, setPage] = useState(1);
+  const [pageRows, setPageRows] = useState<TxRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [tableLoading, setTableLoading] = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => setNotesQ(notes.trim()), 300);
+    const t = setTimeout(() => setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }), 300);
     return () => clearTimeout(t);
-  }, [notes]);
+  }, [search, notes, minAmt, maxAmt]);
+
+  // Any filter change resets to page 1
+  useEffect(() => { setPage(1); }, [from, to, branchFilter, typeF, methodF, dq]);
+
+  const clearFilters = () => {
+    setFrom(defaultFrom()); setTo(cairoTodayDay()); setSearch(""); setNotes("");
+    setTypeF("all"); setMethodF("all"); setMinAmt(""); setMaxAmt("");
+  };
 
   const load = useCallback(async () => {
     if (!tenantId) return;
@@ -57,14 +85,13 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
-    let tq = supabase
-      .from("treasury")
-      .select("id,branch_id,type,category,amount,description,payment_method,created_at")
-      .in("branch_id", branchList.map(b => b.id))
-      .gte("created_at", getCairoDayBounds(from).startIso!)
-      .lte("created_at", getCairoDayBounds(undefined, to).endIso!)
-      .order("created_at", { ascending: false });
-    if (notesQ) tq = tq.ilike("description", `%${notesQ.replace(/[%_,()\\]/g, " ")}%`);
+    const tq = applyCairoRange(
+      supabase
+        .from("treasury")
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at")
+        .in("branch_id", branchList.map(b => b.id)),
+      "created_at", from, to,
+    ).order("created_at", { ascending: false });
     const [{ data: tr }, { data: vb }] = await Promise.all([
       tq,
       // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
@@ -78,10 +105,43 @@ export default function MainTreasury() {
     for (const r of ((vb ?? []) as any[])) map[r.branch_id] = r as ViewBal;
     setGlBalances(map);
     setLoading(false);
-  }, [tenantId, from, to, notesQ]);
+  }, [tenantId, from, to]);
+
+  // Paginated movements table — all filters server-side, combined with branch tab
+  const loadTable = useCallback(async () => {
+    if (!tenantId || branches.length === 0) { setPageRows([]); setTotalCount(0); setTableLoading(false); return; }
+    setTableLoading(true);
+    let q = applyCairoRange(
+      supabase
+        .from("treasury")
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at", { count: "exact" })
+        .in("branch_id", branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
+      "created_at", from, to,
+    );
+    if (typeF !== "all") q = q.eq("type", typeF);
+    if (methodF !== "all") q = q.eq("payment_method", methodF);
+    const s = safeLike(dq.search);
+    if (s) q = q.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%`);
+    const n = safeLike(dq.notes);
+    if (n) q = q.ilike("description", `%${n}%`);
+    if (dq.minAmt !== "" && !isNaN(Number(dq.minAmt))) q = q.gte("amount", Number(dq.minAmt));
+    if (dq.maxAmt !== "" && !isNaN(Number(dq.maxAmt))) q = q.lte("amount", Number(dq.maxAmt));
+    const start = (page - 1) * PAGE_SIZE;
+    const { data, count } = await q.order("created_at", { ascending: false }).range(start, start + PAGE_SIZE - 1);
+    setPageRows((data ?? []) as TxRow[]);
+    setTotalCount(count ?? 0);
+    setTableLoading(false);
+  }, [tenantId, branches, branchFilter, from, to, typeF, methodF, dq, page]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], load);
+  useEffect(() => { loadTable(); }, [loadTable]);
+  const refreshAll = useCallback(() => { load(); loadTable(); }, [load, loadTable]);
+  useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], refreshAll);
+
+  const methods = useMemo(() => Array.from(new Set(["cash", "vodafone", "instapay", "bank", ...rows.map(r => r.payment_method).filter(Boolean)])), [rows]);
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, totalCount);
 
   const filtered = useMemo(
     () => branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter),
@@ -130,27 +190,6 @@ export default function MainTreasury() {
         <b> لتحويل فلوس فعلي</b>، استخدم زرار <b>«تحويل فلوس من خزنة الشركاء للفروع»</b> فوق، أو روح لخزنة الفرع نفسه.
       </div>
 
-
-      {/* Filters */}
-      <div className="card-elevated p-4 mb-6 flex flex-wrap items-end gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">من تاريخ</label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">إلى تاريخ</label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">بحث الملاحظات</label>
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="كلمة من الوصف…" className="w-48" />
-        </div>
-        <div className="flex gap-2 mr-auto">
-          <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgoStr(7)); setTo(todayStr()); }}>آخر 7 أيام</Button>
-          <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgoStr(30)); setTo(todayStr()); }}>30 يوم</Button>
-          <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgoStr(90)); setTo(todayStr()); }}>90 يوم</Button>
-        </div>
-      </div>
 
       {/* Overall totals */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -224,10 +263,72 @@ export default function MainTreasury() {
           </Tabs>
         </div>
 
+        <div className="rounded-lg border bg-muted/30 p-3 mb-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-bold text-sm">
+              فلاتر حركات الخزينة <span className="text-muted-foreground font-normal">(يعرض {rangeStart} - {rangeEnd} من أصل {totalCount} حركة)</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {DATE_SHORTCUTS.map((sc) => (
+                <Button key={sc.label} variant="outline" size="sm" onClick={() => { const [f, t] = sc.range(); setFrom(f); setTo(t); }}>{sc.label}</Button>
+              ))}
+              <Button variant="ghost" size="sm" onClick={clearFilters}>مسح الفلاتر</Button>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">بحث (رقم العملية / البيان / التصنيف...)</label>
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="اكتب للبحث…" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">من تاريخ</label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">إلى تاريخ</label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">النوع</label>
+              <Select value={typeF} onValueChange={(v) => setTypeF(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="income">وارد / دخول</SelectItem>
+                  <SelectItem value="expense">صادر / خروج</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">بحث الملاحظات</label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="كلمة من البيان…" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">المبلغ من</label>
+              <Input type="number" min={0} value={minAmt} onChange={(e) => setMinAmt(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">طريقة الدفع / الوعاء</label>
+              <Select value={methodF} onValueChange={setMethodF}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  {methods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-start-3">
+              <label className="text-xs text-muted-foreground block mb-1">المبلغ إلى</label>
+              <Input type="number" min={0} value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        <TooltipProvider delayDuration={200}>
         <DataTable
-          loading={loading}
-          rows={filtered}
-          empty="لا توجد حركات في الفترة المحددة"
+          loading={tableLoading}
+          rows={pageRows}
+          empty="لا توجد حركات مطابقة للفلاتر"
           columns={[
             { key: "created_at", header: "التاريخ", render: (r: TxRow) => formatDate(r.created_at) },
             { key: "branch", header: "الفرع", render: (r: TxRow) => branches.find(b => b.id === r.branch_id)?.name ?? "—" },
@@ -238,12 +339,25 @@ export default function MainTreasury() {
             )},
             { key: "category", header: "التصنيف" },
             { key: "payment_method", header: "طريقة الدفع" },
-            { key: "description", header: "الوصف", render: (r: TxRow) => r.description ?? "—" },
+            { key: "description", header: "الملاحظات / البيان", render: (r: TxRow) => r.description ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="block max-w-[240px] truncate cursor-help">{r.description}</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{r.description}</TooltipContent>
+              </Tooltip>
+            ) : "—" },
             { key: "amount", header: "المبلغ", render: (r: TxRow) => (
               <b className={r.type === "income" ? "text-success" : "text-destructive"}>{formatEGP(Number(r.amount))}</b>
             )},
           ]}
         />
+        </TooltipProvider>
+        {pageCount > 1 && (
+          <div className="mt-3 flex justify-center">
+            <NumberedPagination page={page} pageCount={pageCount} onChange={setPage} disabled={tableLoading} />
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
