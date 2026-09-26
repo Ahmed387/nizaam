@@ -18,6 +18,7 @@ import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
 import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Pencil, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
 import { toast } from "sonner";
+import { confirmAlert } from "@/components/ConfirmDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,7 +92,14 @@ export default function Invoices() {
   const canDeleteInvoice = isAdmin || isManager;
   const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
   const [selectedReturnForCancel, setSelectedReturnForCancel] = useState<CancelReturnTarget | null>(null);
-  const [deleteRejectedTransfer, setDeleteRejectedTransfer] = useState<any | null>(null);
+  const deleteRejectedTransfer = async (t: any) => {
+    const ok = await confirmAlert({ title: "حذف التحويل المرفوض؟", description: "التحويل ده مرفوض ومفيش ليه أي أثر على المخزون. هيتشال من القائمة نهائيًا.", confirmLabel: "أيوه، احذف", tone: "danger" });
+    if (!ok) return;
+    const { error } = await supabase.from("stock_transfers").delete().eq("id", t.id).eq("status", "rejected");
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حذف التحويل المرفوض");
+    load();
+  };
   const [returnEdit, setReturnEdit] = useState<{ kind: "sale_return" | "purchase_return"; rec: any } | null>(null);
   // Voucher actions (income/expense tabs)
   const [viewVoucher, setViewVoucher] = useState<any>(null);
@@ -650,7 +658,7 @@ export default function Invoices() {
                 <DocAnnotationsButton kind="stock_transfer" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
 <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {r.status === "rejected" && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="حذف التحويل المرفوض" onClick={() => setDeleteRejectedTransfer(r)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="حذف التحويل المرفوض" onClick={() => deleteRejectedTransfer(r)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -1268,23 +1276,6 @@ export default function Invoices() {
       />
 
       {/* One hoisted cancel-return window for every row (portal to <body>, no scroll lock). */}
-      <ConfirmDialog
-        open={!!deleteRejectedTransfer}
-        onOpenChange={(o) => !o && setDeleteRejectedTransfer(null)}
-        title="حذف التحويل المرفوض؟"
-        description="التحويل ده مرفوض ومفيش ليه أي أثر على المخزون. هيتشال من القائمة نهائيًا."
-        confirmText="أيوه، احذف"
-        destructive
-        onConfirm={async () => {
-          const t = deleteRejectedTransfer;
-          if (!t) return;
-          const { error } = await supabase.from("stock_transfers").delete().eq("id", t.id).eq("status", "rejected");
-          if (error) { toast.error(error.message); return; }
-          toast.success("تم حذف التحويل المرفوض");
-          setDeleteRejectedTransfer(null); load();
-        }}
-      />
-
       <CancelReturnDialog target={selectedReturnForCancel} onClose={() => setSelectedReturnForCancel(null)} onDone={() => load()} />
 
     </BranchLayout>
