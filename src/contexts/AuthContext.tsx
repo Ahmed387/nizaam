@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const [connError, setConnError] = useState(false);
-  const withTimeout = <T,>(p: PromiseLike<T>, ms = 5000): Promise<T> =>
+  const withTimeout = <T,>(p: PromiseLike<T>, ms = 45000): Promise<T> =>
     Promise.race([
       Promise.resolve(p),
       new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
@@ -273,24 +273,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   };
 
-  if (connError) {
-    return (
-      <div dir="rtl" className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="max-w-md w-full card-elevated p-6 text-center space-y-4">
-          <h1 className="text-xl font-bold text-foreground">تعذّر الاتصال بالخادم</h1>
-          <p className="text-sm text-muted-foreground">الخادم لم يستجب خلال 5 ثوانٍ. تأكد من الإنترنت ثم أعد المحاولة.</p>
-          <button
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground"
-            onClick={retryConnection}
-          >
-            إعادة المحاولة
-          </button>
+  return (
+    <Ctx.Provider value={value}>
+      {connError && (
+        <div dir="rtl" role="status" className="fixed top-2 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-3 rounded-md border border-warning/40 bg-card px-4 py-2 text-sm shadow-lg">
+          <span className="text-foreground">الاتصال بطيء — جاري المحاولة</span>
+          <button className="font-semibold text-primary" onClick={retryConnection}>إعادة المحاولة</button>
         </div>
-      </div>
-    );
-  }
-
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+      )}
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export const useAuth = () => {

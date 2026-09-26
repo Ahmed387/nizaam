@@ -178,7 +178,13 @@ import BranchCapital from "./pages/admin/BranchCapital";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 2 * 60 * 1000, refetchOnWindowFocus: false, retry: 1 },
+    queries: {
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+      staleTime: 30 * 1000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: { retry: 0 },
   },
 });
 
