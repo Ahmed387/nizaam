@@ -7,3 +7,4 @@
 - All date-range filters go through `src/lib/cairoDate.ts` (`getCairoDayBounds` / `applyCairoRange`): timestamp columns get Cairo 00:00 → 23:59:59.999, SQL `date` columns compare plain days — prevents dropping the last day or leaking the next.
 - «المستلم»/«الملاحظات» are written only via `public.set_document_annotations(kind, id, recipient, notes)` (`src/lib/docAnnotations.ts`) — touches just those two columns so amounts, dates and journal entries stay untouched.
 - «المستلم» on new documents is always the signed-in user via `useCurrentUserName()` / `LockedRecipientInput` (`src/components/LockedRecipient.tsx`) and is read-only in edit dialogs — keeps an untamperable audit trail.
+- Contact-statement running balances are calculated over the full chronological ledger before UI filters; a date-filtered view adds a synthetic «رصيد ما قبل الفترة» row — preserves the financial carry-over without changing ledger data.
