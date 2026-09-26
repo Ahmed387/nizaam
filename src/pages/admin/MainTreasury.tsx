@@ -35,6 +35,13 @@ export default function MainTreasury() {
   const [from, setFrom] = useState(daysAgoStr(30));
   const [to, setTo] = useState(todayStr());
   const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [notes, setNotes] = useState("");
+  const [notesQ, setNotesQ] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setNotesQ(notes.trim()), 300);
+    return () => clearTimeout(t);
+  }, [notes]);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
@@ -50,14 +57,16 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
+    let tq = supabase
+      .from("treasury")
+      .select("id,branch_id,type,category,amount,description,payment_method,created_at")
+      .in("branch_id", branchList.map(b => b.id))
+      .gte("created_at", getCairoDayBounds(from).startIso!)
+      .lte("created_at", getCairoDayBounds(undefined, to).endIso!)
+      .order("created_at", { ascending: false });
+    if (notesQ) tq = tq.ilike("description", `%${notesQ.replace(/[%_,()\\]/g, " ")}%`);
     const [{ data: tr }, { data: vb }] = await Promise.all([
-      supabase
-        .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at")
-        .in("branch_id", branchList.map(b => b.id))
-        .gte("created_at", getCairoDayBounds(from).startIso!)
-        .lte("created_at", getCairoDayBounds(undefined, to).endIso!)
-        .order("created_at", { ascending: false }),
+      tq,
       // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
       supabase
         .from("v_treasury_balances" as any)
