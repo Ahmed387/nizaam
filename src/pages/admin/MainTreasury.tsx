@@ -35,6 +35,13 @@ export default function MainTreasury() {
   const [from, setFrom] = useState(daysAgoStr(30));
   const [to, setTo] = useState(todayStr());
   const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [notes, setNotes] = useState("");
+  const [notesQ, setNotesQ] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setNotesQ(notes.trim()), 300);
+    return () => clearTimeout(t);
+  }, [notes]);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
@@ -50,14 +57,16 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
+    let tq = supabase
+      .from("treasury")
+      .select("id,branch_id,type,category,amount,description,payment_method,created_at")
+      .in("branch_id", branchList.map(b => b.id))
+      .gte("created_at", getCairoDayBounds(from).startIso!)
+      .lte("created_at", getCairoDayBounds(undefined, to).endIso!)
+      .order("created_at", { ascending: false });
+    if (notesQ) tq = tq.ilike("description", `%${notesQ.replace(/[%_,()\\]/g, " ")}%`);
     const [{ data: tr }, { data: vb }] = await Promise.all([
-      supabase
-        .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at")
-        .in("branch_id", branchList.map(b => b.id))
-        .gte("created_at", getCairoDayBounds(from).startIso!)
-        .lte("created_at", getCairoDayBounds(undefined, to).endIso!)
-        .order("created_at", { ascending: false }),
+      tq,
       // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
       supabase
         .from("v_treasury_balances" as any)
@@ -69,7 +78,7 @@ export default function MainTreasury() {
     for (const r of ((vb ?? []) as any[])) map[r.branch_id] = r as ViewBal;
     setGlBalances(map);
     setLoading(false);
-  }, [tenantId, from, to]);
+  }, [tenantId, from, to, notesQ]);
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], load);
@@ -131,6 +140,10 @@ export default function MainTreasury() {
         <div>
           <label className="text-xs text-muted-foreground block mb-1">إلى تاريخ</label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">بحث الملاحظات</label>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="كلمة من الوصف…" className="w-48" />
         </div>
         <div className="flex gap-2 mr-auto">
           <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgoStr(7)); setTo(todayStr()); }}>آخر 7 أيام</Button>
