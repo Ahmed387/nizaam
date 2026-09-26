@@ -1,3 +1,4 @@
+import { cairoStart, cairoTodayDay } from "@/lib/cairoDate";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -33,8 +34,8 @@ export default function AdminDashboard() {
   const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز
+    const today = cairoStart(cairoTodayDay());
     const todayIso = today.toISOString();
 
     const [

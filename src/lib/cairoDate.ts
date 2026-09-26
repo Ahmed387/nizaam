@@ -59,3 +59,25 @@ export function inCairoRange(iso: string | null | undefined, from?: string | nul
   if (endIso && t > new Date(endIso).getTime()) return false;
   return true;
 }
+
+/** Today's day (YYYY-MM-DD) in Cairo, independent of the device clock's timezone. */
+export const cairoTodayDay = (): string => dayStr(new Date());
+
+/** Shift a YYYY-MM-DD day by n days (calendar arithmetic, no timezone drift). */
+export function addDaysDay(day: string, n: number): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return t.toISOString().slice(0, 10);
+}
+
+/** First day of the month containing `day`, shifted by `monthOffset` months. */
+export function monthStartDay(day: string, monthOffset = 0): string {
+  const [y, m] = day.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + monthOffset, 1));
+  return t.toISOString().slice(0, 10);
+}
+
+/** Cairo midnight of a day as a Date instant. */
+export const cairoStart = (day: string) => new Date(getCairoDayBounds(day).startIso!);
+/** Cairo 23:59:59.999 of a day as a Date instant. */
+export const cairoEnd = (day: string) => new Date(getCairoDayBounds(undefined, day).endIso!);

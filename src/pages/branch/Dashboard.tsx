@@ -1,3 +1,4 @@
+import { addDaysDay, cairoEnd, cairoStart, cairoTodayDay, monthStartDay } from "@/lib/cairoDate";
 import { useCallback, useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -49,12 +50,14 @@ export default function BranchDashboard() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
-    const last30 = new Date(today); last30.setDate(last30.getDate() - 29);
+    // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز
+    const td = cairoTodayDay();
+    const today = cairoStart(td);
+    const yesterday = cairoStart(addDaysDay(td, -1));
+    const monthStart = cairoStart(monthStartDay(td));
+    const lastMonthStart = cairoStart(monthStartDay(td, -1));
+    const lastMonthEnd = cairoEnd(addDaysDay(monthStartDay(td), -1));
+    const last30 = cairoStart(addDaysDay(td, -29));
 
     const [
       invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentDocs,
