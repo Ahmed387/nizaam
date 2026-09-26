@@ -162,6 +162,13 @@
       "when": 1790442606063,
       "tag": "0022_recipient_and_notes_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790442905511,
+      "tag": "0023_set_document_annotations",
+      "breakpoints": true
     }
   ]
 }
