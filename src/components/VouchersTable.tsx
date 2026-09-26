@@ -326,8 +326,12 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       <DataTable
         loading={loading}
         rows={rows}
+        indexColumn
         onRowClick={(r: Voucher) => setViewTarget(r)}
         columns={[
+          { key: "details", header: "تفاصيل", render: (r: Voucher) => (
+            <DetailsChevron label="عرض تفاصيل السند" onClick={() => setViewTarget(r)} />
+          ) },
           { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
             <span className="font-mono">{r.voucher_number}</span>
           ) },
