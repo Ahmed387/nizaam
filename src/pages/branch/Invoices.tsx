@@ -91,6 +91,7 @@ export default function Invoices() {
   const canDeleteInvoice = isAdmin || isManager;
   const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
   const [selectedReturnForCancel, setSelectedReturnForCancel] = useState<CancelReturnTarget | null>(null);
+  const [deleteRejectedTransfer, setDeleteRejectedTransfer] = useState<any | null>(null);
   const [returnEdit, setReturnEdit] = useState<{ kind: "sale_return" | "purchase_return"; rec: any } | null>(null);
   // Voucher actions (income/expense tabs)
   const [viewVoucher, setViewVoucher] = useState<any>(null);
@@ -535,12 +536,9 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/sale-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
-                {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل تاريخ وملاحظات المرتجع" onClick={() => setReturnEdit({ kind: "sale_return", rec: r })}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                )}
-                <DocAnnotationsButton kind="sale_return" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل التاريخ والمستلم والملاحظات" onClick={() => setReturnEdit({ kind: "sale_return", rec: r })}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
 <AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <CancelReturnButton iconOnly kind="sale" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_refund ?? 0)} status={r.status ?? "active"} onRequest={setSelectedReturnForCancel} />
               </div>
@@ -582,12 +580,9 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/purchase-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
-                {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل تاريخ وملاحظات المرتجع" onClick={() => setReturnEdit({ kind: "purchase_return", rec: r })}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                )}
-                <DocAnnotationsButton kind="purchase_return" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل التاريخ والمستلم والملاحظات" onClick={() => setReturnEdit({ kind: "purchase_return", rec: r })}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
 <AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <CancelReturnButton iconOnly kind="purchase" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_amount ?? 0)} status={r.status ?? "active"} onRequest={setSelectedReturnForCancel} />
               </div>
@@ -654,6 +649,11 @@ export default function Invoices() {
                 </Button>
                 <DocAnnotationsButton kind="stock_transfer" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
 <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                {r.status === "rejected" && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="حذف التحويل المرفوض" onClick={() => setDeleteRejectedTransfer(r)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             ),
           },
@@ -1262,11 +1262,29 @@ export default function Invoices() {
         kind={returnEdit?.kind ?? "sale_return"}
         record={returnEdit?.rec ?? null}
         originalInvoiceDate={returnEdit?.kind === "sale_return" ? returnEdit?.rec?.invoices?.invoice_date : null}
+        canEditDate={isAdmin}
         onOpenChange={(o) => !o && setReturnEdit(null)}
         onSaved={() => load()}
       />
 
       {/* One hoisted cancel-return window for every row (portal to <body>, no scroll lock). */}
+      <ConfirmDialog
+        open={!!deleteRejectedTransfer}
+        onOpenChange={(o) => !o && setDeleteRejectedTransfer(null)}
+        title="حذف التحويل المرفوض؟"
+        description="التحويل ده مرفوض ومفيش ليه أي أثر على المخزون. هيتشال من القائمة نهائيًا."
+        confirmText="أيوه، احذف"
+        destructive
+        onConfirm={async () => {
+          const t = deleteRejectedTransfer;
+          if (!t) return;
+          const { error } = await supabase.from("stock_transfers").delete().eq("id", t.id).eq("status", "rejected");
+          if (error) { toast.error(error.message); return; }
+          toast.success("تم حذف التحويل المرفوض");
+          setDeleteRejectedTransfer(null); load();
+        }}
+      />
+
       <CancelReturnDialog target={selectedReturnForCancel} onClose={() => setSelectedReturnForCancel(null)} onDone={() => load()} />
 
     </BranchLayout>
