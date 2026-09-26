@@ -29,7 +29,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatEGP, formatDateTime } from "@/lib/format";
+import { formatEGP, formatDateTime, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
+import { DetailsChevron } from "@/components/DetailsChevron";
 import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
