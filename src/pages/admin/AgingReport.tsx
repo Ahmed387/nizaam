@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { fin } from "@/lib/financeTerms";
@@ -60,7 +61,7 @@ export default function AgingReport() {
           .select("invoice_id,amount,voided_at,created_at")
           .in("invoice_id", invIds)
           .is("voided_at", null)
-          .lte("created_at", asOf + "T23:59:59");
+          .lte("created_at", getCairoDayBounds(undefined, asOf).endIso!);
         for (const p of pays ?? []) {
           paidMap.set(p.invoice_id, (paidMap.get(p.invoice_id) || 0) + Number(p.amount || 0));
         }
@@ -103,7 +104,7 @@ export default function AgingReport() {
         const { data: sp } = await supabase.from("supplier_payments")
           .select("contact_id,amount,paid_at")
           .in("contact_id", contactIds)
-          .lte("paid_at", asOf + "T23:59:59");
+          .lte("paid_at", getCairoDayBounds(undefined, asOf).endIso!);
         for (const p of sp ?? []) {
           paidByContact.set(p.contact_id, (paidByContact.get(p.contact_id) || 0) + Number(p.amount || 0));
         }

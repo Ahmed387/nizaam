@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -94,8 +95,8 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
           .select("id,total,invoice_payments(amount,voided_at)")
           .eq("tenant_id", tenantId)
           .eq("status", "active")
-          .gte("invoice_date", new Date(f + "T00:00:00").toISOString())
-          .lte("invoice_date", new Date(t + "T23:59:59.999").toISOString())
+          .gte("invoice_date", getCairoDayBounds(f).startIso!)
+          .lte("invoice_date", getCairoDayBounds(undefined, t).endIso!)
       ),
       supabase.from("v_contact_balances" as any).select("type,total_balance"),
       supabase.from("treasury" as any).select("type,amount").eq("tenant_id", tenantId),

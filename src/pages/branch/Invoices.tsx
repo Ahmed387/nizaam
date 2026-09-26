@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -220,8 +221,8 @@ export default function Invoices() {
     };
     const inList = (ids: string[]) => `(${(ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).join(",")})`;
     const dateRange = (qb: any, col: string, isDate: boolean) => {
-      if (f.from) qb = qb.gte(col, isDate ? f.from : `${f.from}T00:00:00`);
-      if (f.to) qb = qb.lte(col, isDate ? f.to : `${f.to}T23:59:59.999`);
+      if (f.from) qb = qb.gte(col, isDate ? f.from : getCairoDayBounds(f.from).startIso!);
+      if (f.to) qb = qb.lte(col, isDate ? f.to : getCairoDayBounds(undefined, f.to).endIso!);
       return qb;
     };
     const amountRange = (qb: any, col: string) => {

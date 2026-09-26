@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { PartnerLayout } from "@/components/layout/PartnerLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -25,7 +26,7 @@ export default function PartnerLedger() {
     if (!link) return;
     let q = supabase.from("partner_transactions" as any).select("*").eq("partner_id", (link as any).partner_id).order("created_at");
     if (from) q = q.gte("created_at", from);
-    if (to) q = q.lte("created_at", `${to}T23:59:59`);
+    if (to) q = q.lte("created_at", getCairoDayBounds(undefined, to).endIso!);
     if (type !== "all") q = q.eq("transaction_type", type);
     const { data } = await q;
     setTxs((data ?? []) as any[]);

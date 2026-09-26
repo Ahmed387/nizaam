@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -54,8 +55,8 @@ export default function MainTreasury() {
         .from("treasury")
         .select("id,branch_id,type,category,amount,description,payment_method,created_at")
         .in("branch_id", branchList.map(b => b.id))
-        .gte("created_at", `${from}T00:00:00`)
-        .lte("created_at", `${to}T23:59:59`)
+        .gte("created_at", getCairoDayBounds(from).startIso!)
+        .lte("created_at", getCairoDayBounds(undefined, to).endIso!)
         .order("created_at", { ascending: false }),
       // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
       supabase

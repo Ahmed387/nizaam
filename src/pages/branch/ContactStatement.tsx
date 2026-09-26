@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
@@ -58,7 +59,7 @@ export default function ContactStatement() {
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
-      if (toDate && new Date(r.date) > new Date(toDate + "T23:59:59")) return false;
+      if (toDate && new Date(r.date) > new Date(getCairoDayBounds(undefined, toDate).endIso!)) return false;
       return true;
     });
   }, [rows, fromDate, toDate]);

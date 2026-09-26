@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { supabase } from "@/integrations/supabase/client";
 import { withPartnerBalance } from "@/lib/partnerBalances";
 import { generatePartnerStatementReport } from "@/utils/generatePDFReport";
@@ -41,7 +42,7 @@ export async function downloadPartnerStatementPdf(opts: {
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: true });
   if (from) q = q.gte("created_at", from);
-  if (to) q = q.lte("created_at", `${to}T23:59:59`);
+  if (to) q = q.lte("created_at", getCairoDayBounds(undefined, to).endIso!);
   const { data: txs } = await q;
 
   // Last profit share globally (regardless of filter) to satisfy "آخر أرباح"
