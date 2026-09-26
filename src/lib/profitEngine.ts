@@ -195,8 +195,8 @@ export async function fetchProfitWindow(params: {
       .select(invSelect)
       .eq("tenant_id", tenantId)
       .eq("status", "active")
-      .gte("invoice_date", f)
-      .lte("invoice_date", t);
+      .gte("invoice_date", getCairoDayBounds(f).startIso!)
+      .lte("invoice_date", getCairoDayBounds(undefined, t).endIso!);
     if (branchId) q = q.eq("branch_id", branchId);
     return q;
   };
@@ -351,7 +351,7 @@ export function rangeFor(p: ProfitPeriod): ProfitRange {
 }
 
 export function rangeForDates(fromDate: string, toDate: string): ProfitRange {
-  const from = new Date(fromDate + "T00:00:00");
+  const from = new Date(getCairoDayBounds(fromDate).startIso!);
   const to = new Date(getCairoDayBounds(undefined, toDate).endIso!);
   const spanMs = to.getTime() - from.getTime() + 1;
   const prevTo = new Date(from.getTime() - 1);
