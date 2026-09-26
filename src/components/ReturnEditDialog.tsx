@@ -84,7 +84,8 @@ export function ReturnEditDialog({
           </div>
           <div>
             <Label>المستلم</Label>
-            <Input value={recipient} onChange={(e) => setRecipient(e.target.value)} className="mt-1.5" />
+            <Input value={recipient} readOnly disabled className="mt-1.5 bg-muted cursor-not-allowed select-none" />
+            <p className="text-[11px] text-muted-foreground mt-1">🔒 المستلم الأصلي لا يمكن تعديله بعد إصدار المستند</p>
           </div>
           <div>
             <Label>الملاحظات</Label>

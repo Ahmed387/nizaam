@@ -38,7 +38,7 @@ export function DocAnnotationsButton({ kind, id, recipient, notes, onSaved }: Pr
 
   return (
     <>
-      <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل المستلم والملاحظات" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+      <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل الملاحظات" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
         <StickyNote className="w-4 h-4" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -47,7 +47,8 @@ export function DocAnnotationsButton({ kind, id, recipient, notes, onSaved }: Pr
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>المستلم</Label>
-              <Input value={r} onChange={(e) => setR(e.target.value)} maxLength={120} placeholder="اسم الشخص اللي استلم" />
+              <Input value={r} readOnly disabled className="bg-muted cursor-not-allowed select-none" />
+              <p className="text-[11px] text-muted-foreground">🔒 المستلم الأصلي لا يمكن تعديله بعد إصدار المستند</p>
             </div>
             <div className="space-y-1.5">
               <Label>الملاحظات</Label>

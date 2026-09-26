@@ -1,3 +1,4 @@
+import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -45,6 +46,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [toBranch, setToBranch] = useState("");
   const [reason, setReason] = useState("");
   const [recipientName, setRecipientName] = useState("");
+  const __me = useCurrentUserName();
+  useEffect(() => { if (true && __me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
   const [transferNotes, setTransferNotes] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
@@ -805,7 +808,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             </div>
 
             <div className="min-w-0"><Label>السبب</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5 w-full" /></div>
-            <div className="min-w-0"><Label>المستلم</Label><Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="مين هيستلم في الفرع التاني" className="mt-1.5 w-full" /></div>
+            <div className="min-w-0"><Label>المستلم</Label><LockedRecipientInput value={recipientName} className="mt-1.5 w-full" /></div>
             <div className="min-w-0"><Label>الملاحظات</Label><Textarea rows={2} value={transferNotes} onChange={(e) => setTransferNotes(e.target.value)} className="mt-1.5 w-full" /></div>
             {isAdmin && (
               <div className="min-w-0">

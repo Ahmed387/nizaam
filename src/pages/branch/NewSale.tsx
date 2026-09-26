@@ -1,3 +1,4 @@
+import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { focusSection } from "@/lib/sectionFocus";
@@ -128,6 +129,8 @@ export default function NewSale() {
   const [vatRate, setVatRate] = useState<number>(14);
   const [invoiceNotes, setInvoiceNotes] = useState<string>("");
   const [recipientName, setRecipientName] = useState<string>("");
+  const __me = useCurrentUserName();
+  useEffect(() => { if (true && __me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
   // Invoice-level discount
   const [invoiceDiscountMode, setInvoiceDiscountMode] = useState<"amount" | "percent">("amount");
   const [invoiceDiscountInput, setInvoiceDiscountInput] = useState<number>(0);
@@ -2176,7 +2179,7 @@ export default function NewSale() {
                 )}
             </div>
 
-<div className="mt-3 space-y-1"><Label className="text-xs font-bold">المستلم</Label><Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="اسم الشخص اللي استلم" /></div>
+<div className="mt-3 space-y-1"><Label className="text-xs font-bold">المستلم</Label><LockedRecipientInput value={recipientName} className="" /></div>
             <div className="mt-3 space-y-1">
               <Label className="text-xs font-bold">ملاحظات (تظهر في الفاتورة المطبوعة)</Label>
               <Textarea

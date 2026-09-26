@@ -1,3 +1,4 @@
+import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -57,6 +58,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
   const [recipient, setRecipient] = useState("");
+  const __me = useCurrentUserName();
+  useEffect(() => { if (!editRef.current && __me && recipient !== __me) setRecipient(__me); }, [__me, recipient]);
   const [editReason, setEditReason] = useState("");
   const [wallets, setWallets] = useState<Record<string, number> | null>(null);
   const [form, setForm] = useState({
@@ -513,8 +516,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
 
           {/* 4. Notes */}
           <section className="rounded-lg border bg-card p-4 space-y-2">
-            <Label className="text-sm font-semibold">المستلم <span className="text-xs font-normal text-muted-foreground">(اختياري)</span></Label>
-            <Input value={recipient} onChange={(e) => setRecipient(e.target.value)} maxLength={120} placeholder={isReceipt ? "مين استلم الفلوس في الفرع" : "مين استلم الفلوس فعليًا"} className="h-10" />
+            <Label className="text-sm font-semibold">المستلم</Label>
+            <LockedRecipientInput value={recipient} className="" />
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <StickyNote className="w-4 h-4 text-primary" /> وصف / ملاحظات
               <span className="text-xs font-normal text-muted-foreground">(اختياري)</span>
