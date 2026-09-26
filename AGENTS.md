@@ -8,3 +8,5 @@
 - «المستلم»/«الملاحظات» are written only via `public.set_document_annotations(kind, id, recipient, notes)` (`src/lib/docAnnotations.ts`) — touches just those two columns so amounts, dates and journal entries stay untouched.
 - «المستلم» on new documents is always the signed-in user via `useCurrentUserName()` / `LockedRecipientInput` (`src/components/LockedRecipient.tsx`) and is read-only in edit dialogs — keeps an untamperable audit trail.
 - Contact-statement running balances are calculated over the full chronological ledger before UI filters; a date-filtered view adds a synthetic «رصيد ما قبل الفترة» row — preserves the financial carry-over without changing ledger data.
+- Row `#` columns are rendered only by `DataTable`'s `indexColumn` prop using `toArabicAlphabetIndex` from `src/lib/format.ts` — one central visual indexer instead of per-page index maps.
+- Treasury operation numbers and notes are display-derived via `extractOperationReference` / `sanitizeOperationalDescription` in `src/lib/format.ts` — legacy UUID tags are hidden on screen while stored ledger text stays untouched.
