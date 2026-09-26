@@ -65,6 +65,7 @@ export default function NewPurchaseReturn() {
   const [reasonPick, setReasonPick] = useState(COMMON_REASONS[0]);
   const [reasonOther, setReasonOther] = useState("");
   const [notes, setNotes] = useState("");
+  const [recipientName, setRecipientName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
@@ -282,6 +283,7 @@ export default function NewPurchaseReturn() {
         shipment_id: shipment.id,
         reason: finalReason,
         notes: notes.trim() || null,
+        recipient_name: recipientName.trim() || null,
         created_by: user!.id,
         total_amount: total,
         status: "active",
@@ -543,6 +545,10 @@ export default function NewPurchaseReturn() {
                 {reasonPick === "أخرى" && (
                   <Input value={reasonOther} onChange={(e) => setReasonOther(e.target.value)} placeholder="اكتب السبب" className="mt-2" />
                 )}
+              </div>
+              <div>
+                <Label>المستلم</Label>
+                <Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="مين استلم البضاعة من المورد" className="mt-1.5" />
               </div>
               <div>
                 <Label>ملاحظات</Label>

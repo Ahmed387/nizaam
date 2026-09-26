@@ -1,3 +1,4 @@
+import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useParams } from "react-router-dom";
@@ -43,6 +44,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [open, setOpen] = useState(false);
   const [toBranch, setToBranch] = useState("");
   const [reason, setReason] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [transferNotes, setTransferNotes] = useState("");
   const [items, setItems] = useState<Item[]>([{ product_id: "", quantity: "" }]);
   const [recvQty, setRecvQty] = useState<Record<string, string>>({});
   // نافذة الاستلام / الرفض الموحدة
@@ -107,7 +110,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   useRealtimeRefresh(["stock_transfers"], load);
 
   const resetForm = () => {
-    setToBranch(""); setReason(""); setItems([{ product_id: "", quantity: "" }]); setTransferDate(cairoToday());
+    setToBranch(""); setReason(""); setRecipientName(""); setTransferNotes(""); setItems([{ product_id: "", quantity: "" }]); setTransferDate(cairoToday());
   };
 
   const submit = async () => {
@@ -139,6 +142,10 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       p_transfer_date: transferDate || null,
     });
     if (error) return toast.error(error.message);
+    if (groupId && (recipientName.trim() || transferNotes.trim())) {
+      try { await saveDocAnnotations("stock_transfer", groupId as string, recipientName, transferNotes); }
+      catch (e: any) { toast.error("تعذر حفظ المستلم والملاحظات: " + (e?.message ?? "")); }
+    }
 
     const toBr = branches.find((b) => b.id === toBranch);
     const fromBr = { name: profile?.name ? "فرعك" : "فرع آخر" };
@@ -798,6 +805,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             </div>
 
             <div className="min-w-0"><Label>السبب</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5 w-full" /></div>
+            <div className="min-w-0"><Label>المستلم</Label><Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="مين هيستلم في الفرع التاني" className="mt-1.5 w-full" /></div>
+            <div className="min-w-0"><Label>الملاحظات</Label><Textarea rows={2} value={transferNotes} onChange={(e) => setTransferNotes(e.target.value)} className="mt-1.5 w-full" /></div>
             {isAdmin && (
               <div className="min-w-0">
                 <Label>تاريخ التحويل (للإدارة)</Label>

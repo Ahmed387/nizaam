@@ -1,3 +1,4 @@
+import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { focusSection } from "@/lib/sectionFocus";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -126,6 +127,7 @@ export default function NewSale() {
   const restoredDraftRef = useRef(false);
   const [vatRate, setVatRate] = useState<number>(14);
   const [invoiceNotes, setInvoiceNotes] = useState<string>("");
+  const [recipientName, setRecipientName] = useState<string>("");
   // Invoice-level discount
   const [invoiceDiscountMode, setInvoiceDiscountMode] = useState<"amount" | "percent">("amount");
   const [invoiceDiscountInput, setInvoiceDiscountInput] = useState<number>(0);
@@ -1057,6 +1059,10 @@ export default function NewSale() {
         } catch (e) { console.warn("link discount requests failed", e); }
       }
 
+      if (recipientName.trim()) {
+        try { await saveDocAnnotations("invoice", invId as string, recipientName, invoiceNotes); }
+        catch (e) { console.warn("save recipient failed", e); }
+      }
       // Save cashier notes on the invoice (printed on the receipt)
       if (invoiceNotes.trim()) {
         try {
@@ -2170,6 +2176,7 @@ export default function NewSale() {
                 )}
             </div>
 
+<div className="mt-3 space-y-1"><Label className="text-xs font-bold">المستلم</Label><Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="اسم الشخص اللي استلم" /></div>
             <div className="mt-3 space-y-1">
               <Label className="text-xs font-bold">ملاحظات (تظهر في الفاتورة المطبوعة)</Label>
               <Textarea

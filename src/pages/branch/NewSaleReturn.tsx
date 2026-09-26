@@ -1,3 +1,4 @@
+import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PickerItemsToggle } from "@/components/PickerItemsPreview";
 import { focusSection } from "@/lib/sectionFocus";
@@ -65,6 +66,7 @@ export default function NewSaleReturn() {
   const [reasonPick, setReasonPick] = useState(COMMON_REASONS[0]);
   const [reasonOther, setReasonOther] = useState("");
   const [notes, setNotes] = useState("");
+  const [recipientName, setRecipientName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع بيع غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
@@ -319,6 +321,9 @@ export default function NewSaleReturn() {
       });
       if (error || !rr) throw error ?? new Error("فشل الحفظ");
       const number = (rr as any).return_number as string;
+      if (recipientName.trim() && (rr as any).id) {
+        try { await saveDocAnnotations("sale_return", (rr as any).id, recipientName, notes); } catch (e) { console.warn(e); }
+      }
       const appliedToDebt = Number((rr as any).applied_to_debt ?? 0);
       const cashBack = Number((rr as any).cash_refund ?? 0) + Number((rr as any).transfer_refund ?? 0);
 
@@ -601,6 +606,10 @@ export default function NewSaleReturn() {
                 {reasonPick === "أخرى" && (
                   <Input value={reasonOther} onChange={(e) => setReasonOther(e.target.value)} placeholder="اكتب السبب" className="mt-2" />
                 )}
+              </div>
+              <div>
+                <Label>المستلم</Label>
+                <Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="مين استلم البضاعة المرتجعة" className="mt-1.5" />
               </div>
               <div>
                 <Label>ملاحظات</Label>
