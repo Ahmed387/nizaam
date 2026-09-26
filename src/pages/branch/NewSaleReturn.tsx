@@ -1,3 +1,4 @@
+import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PickerItemsToggle } from "@/components/PickerItemsPreview";
@@ -67,6 +68,8 @@ export default function NewSaleReturn() {
   const [reasonOther, setReasonOther] = useState("");
   const [notes, setNotes] = useState("");
   const [recipientName, setRecipientName] = useState("");
+  const __me = useCurrentUserName();
+  useEffect(() => { if (true && __me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع بيع غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
@@ -609,7 +612,7 @@ export default function NewSaleReturn() {
               </div>
               <div>
                 <Label>المستلم</Label>
-                <Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} maxLength={120} placeholder="مين استلم البضاعة المرتجعة" className="mt-1.5" />
+                <LockedRecipientInput value={recipientName} className="mt-1.5" />
               </div>
               <div>
                 <Label>ملاحظات</Label>

@@ -1,3 +1,4 @@
+import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { focusSection } from "@/lib/sectionFocus";
@@ -206,6 +207,8 @@ export default function NewShipment() {
 
   const [editReason, setEditReason] = useState("");
   const [loadedEdit, setLoadedEdit] = useState(false);
+  const __me = useCurrentUserName();
+  useEffect(() => { if (!isEdit && __me && receivedBy !== __me) setReceivedBy(__me); }, [__me, receivedBy]);
 
   // Load shipment data in edit mode
   useEffect(() => {
@@ -701,7 +704,7 @@ export default function NewShipment() {
               <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-sky-500 shadow-sm shadow-sky-500/30" /> اسم المستلم
               </Label>
-              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="اكتب اسم المستلم" className="border-sky-500/20 focus-visible:ring-sky-500/30" />
+              <LockedRecipientInput value={receivedBy} className="" />
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
