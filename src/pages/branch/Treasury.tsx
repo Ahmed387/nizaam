@@ -1,4 +1,19 @@
-import { applyCairoRange } from "@/lib/cairoDate";
+import { applyCairoRange, cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { NumberedPagination } from "@/components/NumberedPagination";
+
+const PAGE_SIZE = 50;
+/** Strip PostgREST or()/ilike metacharacters from free text. */
+const safeLike = (s: string) => s.replace(/[,()%*\\]/g, " ").trim();
+/** Cairo-day shortcut pills; bounds are applied by applyCairoRange in load(). */
+const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
+  { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
+  { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
+  { label: "آخر 7 أيام", range: () => { const d = cairoTodayDay(); return [addDaysDay(d, -6), d]; } },
+  { label: "الشهر ده", range: () => { const d = cairoTodayDay(); return [monthStartDay(d), d]; } },
+  { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
+];
 import { useEffect, useState, useMemo } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -60,19 +75,44 @@ export default function Treasury() {
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [notesText, setNotesText] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [search, setSearch] = useState("");
+  const [notesSearch, setNotesSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
+  useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
+  useEffect(() => { setPage(1); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter]);
+  const resetFilters = () => {
+    setFromDate(""); setToDate(""); setSearchText(""); setNotesText("");
+    setMinAmount(""); setMaxAmount(""); setTab("all"); setMethodFilter("all");
+  };
 
   const load = async () => {
     setLoading(true);
-    // Cairo full-day bounds (UTC+2/+3 handled via explicit offset from Intl)
-    let tq = supabase.from("treasury").select("*").eq("branch_id", branchId!);
+    // Server-side filters; dates via canonical Cairo bounds
+    let tq = supabase.from("treasury").select("*", { count: "exact" }).eq("branch_id", branchId!);
     tq = applyCairoRange(tq, "created_at", fromDate, toDate);
+    if (tab !== "all") tq = tq.eq("type", tab);
+    if (methodFilter !== "all") tq = tq.eq("payment_method", methodFilter);
+    const s = safeLike(search);
+    if (s) tq = tq.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%`);
+    const n = safeLike(notesSearch);
+    if (n) tq = tq.ilike("description", `%${n}%`);
+    if (minAmount !== "" && !isNaN(Number(minAmount))) tq = tq.gte("amount", Number(minAmount));
+    if (maxAmount !== "" && !isNaN(Number(maxAmount))) tq = tq.lte("amount", Number(maxAmount));
+    const offset = (page - 1) * PAGE_SIZE;
     const [tr, tt, wb, br] = await Promise.all([
-      tq.order("created_at", { ascending: false }).limit(fromDate || toDate ? 5000 : 500),
+      tq.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
     ]);
     setRows(tr.data ?? []);
+    setTotalCount(tr.count ?? 0);
     setTransfers(tt.data ?? []);
     const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
     if (balances) setWalletBalances(balances);
@@ -103,13 +143,12 @@ export default function Treasury() {
       }
     }
   };
-  useEffect(() => { load(); }, [branchId, fromDate, toDate]);
+  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, page]);
   useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], load);
 
-  const filtered = rows.filter((r) =>
-    (tab === "all" || r.type === tab) &&
-    (methodFilter === "all" || r.payment_method === methodFilter)
-  );
+  const filtered = rows;
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
 
   const transfer = async () => {
     if (!tForm.to || !tForm.amount) return toast.error("املأ البيانات");
@@ -277,31 +316,62 @@ export default function Treasury() {
 
 
         <TabsContent value="movements" className="mt-4">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {(["all", "income", "expense"] as const).map((t) => (
-              <Button key={t} variant={tab === t ? "default" : "outline"} size="sm" onClick={() => setTab(t)}>
-                {t === "all" ? "الكل" : t === "income" ? "دخول" : "خروج"}
-              </Button>
-            ))}
-            <div className="w-px bg-border mx-1" />
-            <Button variant={methodFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setMethodFilter("all")}>كل الأوعية</Button>
-            {(["cash","vodafone","instapay","bank"] as PaymentMethod[]).map((m) => (
-              <Button key={m} variant={methodFilter === m ? "default" : "outline"} size="sm" onClick={() => setMethodFilter(m)}>
-                {PAYMENT_METHOD_LABELS[m]}
-              </Button>
-            ))}
-            <div className="w-px bg-border mx-1" />
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-muted-foreground">من</span>
-              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-8 w-36" />
-              <span className="text-muted-foreground">إلى</span>
-              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-8 w-36" />
-              {(fromDate || toDate) && (
-                <Button size="sm" variant="ghost" onClick={() => { setFromDate(""); setToDate(""); }}>مسح</Button>
-              )}
+          <div className="card-elevated p-4 mb-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-bold text-sm">
+                فلاتر حركات الخزينة{" "}
+                <span className="text-muted-foreground font-normal">
+                  (يعرض {totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, totalCount)} من أصل {totalCount} حركة)
+                </span>
+              </h3>
+              <Button size="sm" variant="ghost" onClick={resetFilters}>مسح الفلاتر</Button>
+            </div>
+            <div className="flex flex-wrap gap-2 items-center text-xs">
+              <span className="text-muted-foreground">اختصارات:</span>
+              {DATE_SHORTCUTS.map((s) => (
+                <Button key={s.label} size="sm" variant="outline" className="h-7 rounded-full" onClick={() => { const [f, t] = s.range(); setFromDate(f); setToDate(t); }}>
+                  {s.label}
+                </Button>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div><Label className="text-xs">بحث (رقم العملية / البيان / التصنيف...)</Label>
+                <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">من تاريخ</Label>
+                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">إلى تاريخ</Label>
+                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 h-9" /></div>
+
+              <div><Label className="text-xs">النوع</Label>
+                <Select value={tab} onValueChange={(v) => setTab(v as any)}>
+                  <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="income">دخول</SelectItem>
+                    <SelectItem value="expense">خروج</SelectItem>
+                  </SelectContent>
+                </Select></div>
+              <div><Label className="text-xs">بحث الملاحظات</Label>
+                <Input value={notesText} onChange={(e) => setNotesText(e.target.value)} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">المبلغ من</Label>
+                <Input type="number" min={0} placeholder="0" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="mt-1 h-9" /></div>
+
+              <div><Label className="text-xs">الوعاء / طريقة الدفع</Label>
+                <Select value={methodFilter} onValueChange={(v) => setMethodFilter(v as any)}>
+                  <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الأوعية</SelectItem>
+                    {(["cash","vodafone","instapay","bank"] as PaymentMethod[]).map((m) => (
+                      <SelectItem key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select></div>
+              <div><Label className="text-xs">المبلغ إلى</Label>
+                <Input type="number" min={0} value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="mt-1 h-9" /></div>
             </div>
           </div>
 
+          <TooltipProvider delayDuration={200}>
           <DataTable loading={loading} rows={filtered}
             columns={[
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
@@ -316,7 +386,14 @@ export default function Treasury() {
               { key: "category", header: "التصنيف", render: (r: any) => (
                 <span>{r.category}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
               )},
-              { key: "description", header: "الوصف" },
+              { key: "description", header: "الملاحظات / البيان", render: (r: any) => r.description ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block max-w-[260px] truncate cursor-help">{r.description}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{r.description}</TooltipContent>
+                </Tooltip>
+              ) : "—" },
               { key: "reference_number", header: "رقم العملية", render: (r: any) => r.reference_number ?? "—" },
               { key: "amount", header: "المبلغ", render: (r: any) => (
                 <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
@@ -324,6 +401,13 @@ export default function Treasury() {
                 </span>
               )},
             ]} />
+          </TooltipProvider>
+          {pageCount > 1 && (
+            <div className="mt-4 flex justify-center">
+              <NumberedPagination page={page} pageCount={pageCount} onChange={setPage} disabled={loading} />
+            </div>
+          )}
+
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-4">
