@@ -117,7 +117,7 @@ export default function MainTreasury() {
     let q = applyCairoRange(
       supabase
         .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at", { count: "exact" })
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at,reference_number", { count: "exact" })
         .in("branch_id", branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
       "created_at", from, to,
     );
