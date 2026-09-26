@@ -1,5 +1,6 @@
 import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toArabicAlphabetIndex } from "@/lib/format";
 
 type Align = "right" | "left" | "center";
 
@@ -26,6 +27,8 @@ interface DataTableProps<T> {
   renderExpandedRow?: (row: T) => ReactNode;
   /** Optional client-side pagination (rows per page). */
   pageSize?: number;
+  /** Optional visual-only index column, generated centrally from the visible row order. */
+  indexColumn?: boolean | { offset?: number; width?: string };
 }
 
 function DataTableInner<T>(
@@ -42,6 +45,7 @@ function DataTableInner<T>(
     isRowExpanded,
     renderExpandedRow,
     pageSize,
+    indexColumn,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
@@ -50,6 +54,8 @@ function DataTableInner<T>(
   const pageCount = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
   const safePage = Math.min(page, pageCount - 1);
   const visibleRows = pageSize ? rows.slice(safePage * pageSize, (safePage + 1) * pageSize) : rows;
+  const indexOffset = typeof indexColumn === "object" ? (indexColumn.offset ?? 0) : 0;
+  const indexWidth = typeof indexColumn === "object" ? (indexColumn.width ?? "4rem") : "4rem";
   const alignClass = (a?: Align) =>
     a === "right" ? "text-right" : a === "left" ? "text-left" : "text-center";
 
@@ -86,6 +92,9 @@ function DataTableInner<T>(
         <table className="w-full text-sm md:text-base border-collapse table-fixed">
           <thead>
             <tr className="bg-surface-2 border-b-2 border-border">
+              {indexColumn && (
+                <th style={{ width: indexWidth }} className="px-2 py-3.5 text-center text-xs font-extrabold text-foreground border-l border-border/60">#</th>
+              )}
               {columns.map((c, idx) => (
                 <th
                   key={c.key}
@@ -108,6 +117,11 @@ function DataTableInner<T>(
                     aria-expanded={renderExpandedRow ? expanded : undefined}
                     className={`border-b border-border/60 transition-colors hover:bg-primary/5 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface-2/30" : "bg-card"}`}
                   >
+                    {indexColumn && (
+                      <td className="px-2 py-3 text-center align-middle font-semibold text-muted-foreground border-l border-border/40">
+                        {toArabicAlphabetIndex(indexOffset + safePage * (pageSize ?? rows.length) + i)}
+                      </td>
+                    )}
                     {columns.map((c, idx) => (
                       <td
                         key={c.key}
@@ -119,7 +133,7 @@ function DataTableInner<T>(
                   </tr>
                   {expanded && renderExpandedRow && (
                     <tr className="border-b border-border bg-muted/20">
-                      <td colSpan={columns.length} className="p-0">
+                      <td colSpan={columns.length + (indexColumn ? 1 : 0)} className="p-0">
                         {renderExpandedRow(row)}
                       </td>
                     </tr>

@@ -399,21 +399,6 @@ export default function Invoices() {
   const attIds = useMemo(() => attRecordType ? filteredRows.map((r: any) => r.id) : [], [attRecordType, filteredRows]);
   const attCounts = useAttachmentCounts((attRecordType ?? "voucher") as RecordType, attIds);
 
-  // 1-based visual sequence index — pure UI helper, decoupled from document IDs/codes
-  const rowIndexById = useMemo(() => {
-    const m = new Map<string, number>();
-    (filteredRows as any[]).forEach((r, i) => m.set(r.id, (page - 1) * PAGE_SIZE + i));
-    return m;
-  }, [filteredRows, page]);
-  const seqColumn = {
-    key: "row_seq", header: "#", align: "center" as const, width: "4rem",
-    render: (r: any) => (
-      <span className="font-mono text-xs font-semibold text-muted-foreground" title="ترتيب الصف">
-        {(rowIndexById.get(r.id) ?? 0) + 1}
-      </span>
-    ),
-  };
-
   const textCell = (v: any) => v ? <span className="block truncate max-w-[12rem] mx-auto" title={String(v)}>{v}</span> : <span className="text-muted-foreground">—</span>;
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
@@ -421,7 +406,6 @@ export default function Invoices() {
       case "sale": return {
         newLink: `${base}/sales/new`, newLabel: "فاتورة بيع جديدة", newPerm: "sales.create",
         columns: [
-          seqColumn,
           { key: "invoice_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="flex items-center justify-center gap-1.5">
               <button
@@ -467,7 +451,6 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "فاتورة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          seqColumn,
           { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
             <span className="inline-flex items-center justify-end gap-1.5">
               <button
@@ -513,7 +496,6 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          seqColumn,
           { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => (
             <span className="inline-flex items-center justify-end gap-1.5">
               <button
@@ -558,7 +540,6 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          seqColumn,
           { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
             <span className="inline-flex items-center justify-end gap-1.5">
               <button
@@ -680,7 +661,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId, rowIndexById]);
+  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -1111,6 +1092,7 @@ export default function Invoices() {
       <DataTable
         loading={loading}
         rows={filteredRows}
+        indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
