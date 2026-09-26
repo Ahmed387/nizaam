@@ -29,7 +29,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatEGP, formatDateTime } from "@/lib/format";
+import { formatEGP, formatDateTime, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
+import { DetailsChevron } from "@/components/DetailsChevron";
 import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
@@ -73,6 +75,7 @@ export default function Treasury() {
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
+  const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -372,8 +375,11 @@ export default function Treasury() {
           </div>
 
           <TooltipProvider delayDuration={200}>
-          <DataTable loading={loading} rows={filtered}
+          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
             columns={[
+              { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
+                <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
+              )},
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "type", header: "النوع", render: (r: any) => (
                 <span className={`px-2 py-1 rounded text-xs font-bold ${r.type === "income" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
@@ -386,15 +392,22 @@ export default function Treasury() {
               { key: "category", header: "التصنيف", render: (r: any) => (
                 <span>{r.category}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
               )},
-              { key: "description", header: "الملاحظات / البيان", render: (r: any) => r.description ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="block max-w-[260px] truncate cursor-help">{r.description}</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{r.description}</TooltipContent>
-                </Tooltip>
-              ) : "—" },
-              { key: "reference_number", header: "رقم العملية", render: (r: any) => r.reference_number ?? "—" },
+              { key: "description", header: "الملاحظات / البيان", render: (r: any) => {
+                const text = sanitizeOperationalDescription(r.description);
+                return text ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span dir="rtl" className="unicode-isolate inline-block max-w-[260px] truncate text-right cursor-help" title={text}>{text}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{text}</TooltipContent>
+                  </Tooltip>
+                ) : "—";
+              }},
+              { key: "reference_number", header: "رقم العملية", render: (r: any) => (
+                <span dir="ltr" className="unicode-isolate inline-block font-mono text-xs">
+                  {extractOperationReference(r.reference_number, r.description)}
+                </span>
+              )},
               { key: "amount", header: "المبلغ", render: (r: any) => (
                 <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
@@ -408,12 +421,16 @@ export default function Treasury() {
             </div>
           )}
 
+
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-4">
-          <DataTable loading={loading} rows={transfers}
+          <DataTable loading={loading} rows={transfers} indexColumn
             onRowClick={(r: any) => setViewTransfer(r)}
             columns={[
+              { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
+                <DetailsChevron label="عرض تفاصيل التحويل" onClick={() => setViewTransfer(r)} />
+              )},
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "direction", header: "الاتجاه", render: (r: any) => (
                 r.from_branch_id === branchId
@@ -566,6 +583,13 @@ export default function Treasury() {
           )}
         </DialogContent>
       </Dialog>
+      <TreasuryMovementDialog
+        movement={viewMovement}
+        open={!!viewMovement}
+        onOpenChange={(o) => { if (!o) setViewMovement(null); }}
+        branchName={branches.find((b) => b.id === branchId)?.name}
+      />
+
 
     </BranchLayout>
   );

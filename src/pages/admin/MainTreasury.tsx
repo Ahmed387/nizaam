@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { formatEGP, formatDate } from "@/lib/format";
+import { formatEGP, formatDate, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
+import { DetailsChevron } from "@/components/DetailsChevron";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { FinancialAmount } from "@/components/FinancialAmount";
@@ -22,6 +24,7 @@ type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
   id: string; branch_id: string; type: "income" | "expense"; category: string;
   amount: number; description: string | null; payment_method: string; created_at: string;
+  reference_number?: string | null;
 };
 type ViewBal = { branch_id: string; current_balance: number; last_transaction_date: string | null };
 
@@ -57,6 +60,7 @@ export default function MainTreasury() {
   const [pageRows, setPageRows] = useState<TxRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [tableLoading, setTableLoading] = useState(true);
+  const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }), 300);
@@ -114,7 +118,7 @@ export default function MainTreasury() {
     let q = applyCairoRange(
       supabase
         .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at", { count: "exact" })
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at,reference_number", { count: "exact" })
         .in("branch_id", branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
       "created_at", from, to,
     );
@@ -328,8 +332,12 @@ export default function MainTreasury() {
         <DataTable
           loading={tableLoading}
           rows={pageRows}
+          indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
           empty="لا توجد حركات مطابقة للفلاتر"
           columns={[
+            { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: TxRow) => (
+              <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
+            )},
             { key: "created_at", header: "التاريخ", render: (r: TxRow) => formatDate(r.created_at) },
             { key: "branch", header: "الفرع", render: (r: TxRow) => branches.find(b => b.id === r.branch_id)?.name ?? "—" },
             { key: "type", header: "النوع", render: (r: TxRow) => (
@@ -339,14 +347,22 @@ export default function MainTreasury() {
             )},
             { key: "category", header: "التصنيف" },
             { key: "payment_method", header: "طريقة الدفع" },
-            { key: "description", header: "الملاحظات / البيان", render: (r: TxRow) => r.description ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="block max-w-[240px] truncate cursor-help">{r.description}</span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{r.description}</TooltipContent>
-              </Tooltip>
-            ) : "—" },
+            { key: "reference_number", header: "رقم العملية", render: (r: TxRow) => (
+              <span dir="ltr" className="unicode-isolate inline-block font-mono text-xs">
+                {extractOperationReference(r.reference_number, r.description)}
+              </span>
+            )},
+            { key: "description", header: "الملاحظات / البيان", render: (r: TxRow) => {
+              const text = sanitizeOperationalDescription(r.description);
+              return text ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span dir="rtl" className="unicode-isolate inline-block max-w-[240px] truncate text-right cursor-help" title={text}>{text}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{text}</TooltipContent>
+                </Tooltip>
+              ) : "—";
+            }},
             { key: "amount", header: "المبلغ", render: (r: TxRow) => (
               <b className={r.type === "income" ? "text-success" : "text-destructive"}>{formatEGP(Number(r.amount))}</b>
             )},
@@ -358,6 +374,12 @@ export default function MainTreasury() {
             <NumberedPagination page={page} pageCount={pageCount} onChange={setPage} disabled={tableLoading} />
           </div>
         )}
+        <TreasuryMovementDialog
+          movement={viewMovement}
+          open={!!viewMovement}
+          onOpenChange={(o) => { if (!o) setViewMovement(null); }}
+          branchName={viewMovement ? branches.find(b => b.id === (viewMovement as any).branch_id)?.name : undefined}
+        />
       </div>
     </AdminLayout>
   );

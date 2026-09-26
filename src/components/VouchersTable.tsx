@@ -19,6 +19,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, XCircle, Loader2, Trash2, Eye, Pencil, Printer, FileDown, ChevronDown, Check } from "lucide-react";
+import { DetailsChevron } from "@/components/DetailsChevron";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
@@ -326,8 +327,12 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       <DataTable
         loading={loading}
         rows={rows}
+        indexColumn
         onRowClick={(r: Voucher) => setViewTarget(r)}
         columns={[
+          { key: "details", header: "تفاصيل", render: (r: Voucher) => (
+            <DetailsChevron label="عرض تفاصيل السند" onClick={() => setViewTarget(r)} />
+          ) },
           { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
             <span className="font-mono">{r.voucher_number}</span>
           ) },
