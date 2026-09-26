@@ -515,3 +515,8 @@ table [data-num] {
 
 /* Keep inline controls compact inside tables */
 table td .h-9 { height: 2rem; }
+
+/* Mixed Arabic/Latin cells keep their own direction and trailing ellipsis */
+.unicode-isolate {
+  unicode-bidi: isolate;
+}
