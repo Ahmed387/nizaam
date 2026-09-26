@@ -1,4 +1,4 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { applyCairoRange } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -75,8 +75,10 @@ type Filters = {
   fromBranch: string;
   toBranch: string;
   partyId: string;
+  recipient: string;
+  notes: string;
 };
-const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "" };
+const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", recipient: "", notes: "" };
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -203,11 +205,11 @@ export default function Invoices() {
   const [returnsTotal, setReturnsTotal] = useState(0);
   const tableTopRef = useRef<HTMLDivElement>(null);
   // 300ms debounce on the text search; other filters apply instantly.
-  const [debouncedQ, setDebouncedQ] = useState(filters.q);
-  useEffect(() => { const t = setTimeout(() => setDebouncedQ(filters.q), 300); return () => clearTimeout(t); }, [filters.q]);
-  const queryFilters = useMemo(() => ({ ...filters, q: debouncedQ }),
+  const [debounced, setDebounced] = useState({ q: filters.q, recipient: filters.recipient, notes: filters.notes });
+  useEffect(() => { const t = setTimeout(() => setDebounced({ q: filters.q, recipient: filters.recipient, notes: filters.notes }), 300); return () => clearTimeout(t); }, [filters.q, filters.recipient, filters.notes]);
+  const queryFilters = useMemo(() => ({ ...filters, ...debounced }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify({ ...filters, q: "" }), debouncedQ]);
+    [JSON.stringify({ ...filters, q: "", recipient: "", notes: "" }), JSON.stringify(debounced)]);
   useEffect(() => { setPage(1); }, [tab, branchId, queryFilters]);
 
   /** Applies every active filter directly to the Supabase query (database-level). */
@@ -220,9 +222,13 @@ export default function Invoices() {
       return (data ?? []).map((d: any) => d.id as string);
     };
     const inList = (ids: string[]) => `(${(ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).join(",")})`;
-    const dateRange = (qb: any, col: string, isDate: boolean) => {
-      if (f.from) qb = qb.gte(col, isDate ? f.from : getCairoDayBounds(f.from).startIso!);
-      if (f.to) qb = qb.lte(col, isDate ? f.to : getCairoDayBounds(undefined, f.to).endIso!);
+    /** dateOnly = true for SQL `date` columns; timestamps get Cairo 00:00 → 23:59:59.999. */
+    const dateRange = (qb: any, col: string, dateOnly: boolean) => applyCairoRange(qb, col, f.from, f.to, dateOnly);
+    const clean = (v: string) => v.trim().replace(/[,()%*]/g, " ").trim();
+    const textCols = (qb: any, recipientCol: string | null, notesCol: string | null) => {
+      const rc = clean(f.recipient), nc = clean(f.notes);
+      if (rc && recipientCol) qb = qb.ilike(recipientCol, `%${rc}%`);
+      if (nc && notesCol) qb = qb.ilike(notesCol, `%${nc}%`);
       return qb;
     };
     const amountRange = (qb: any, col: string) => {
@@ -234,14 +240,14 @@ export default function Invoices() {
     if (tab === "sale") {
       qb = supabase.from("invoices").select(select, opts).eq("branch_id", branchId!);
       if (q) { const ids = await contactIdsFor(q); qb = qb.or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
-      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total");
+      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
       if (f.status) qb = qb.eq("status", f.status);
       if (f.payment) qb = qb.eq("payment_method", f.payment);
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase") {
       qb = supabase.from("shipments").select(select, opts).eq("branch_id", branchId!);
       if (q) { const ids = await contactIdsFor(q); qb = qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
-      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total_cost");
+      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_cost"); qb = textCols(qb, "received_by", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "sale_return") {
       qb = supabase.from("returns").select(select, opts).eq("branch_id", branchId!);
@@ -254,14 +260,14 @@ export default function Invoices() {
         const { data: invs } = await supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).limit(1000);
         qb = qb.in("invoice_id", (invs ?? []).map((i: any) => i.id).concat(["00000000-0000-0000-0000-000000000000"]));
       }
-      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total_refund");
+      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_refund"); qb = textCols(qb, "recipient_name", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase_return") {
       qb = supabase.from("purchase_returns" as any).select(select, opts).eq("branch_id", branchId!);
       if (q) { const ids = await contactIdsFor(q); qb = qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
       if (f.partyId) qb = qb.eq("contact_id", f.partyId);
       if (f.status) qb = qb.eq("status", f.status);
-      qb = dateRange(qb, "invoice_date", true); qb = amountRange(qb, "total_amount");
+      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_amount"); qb = textCols(qb, "recipient_name", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "income" || tab === "expense") {
       qb = supabase.from("vouchers" as any).select(select, opts).eq("branch_id", branchId!)
@@ -273,17 +279,17 @@ export default function Invoices() {
         if (exIds.length) qb = qb.or(`category_id.is.null,category_id.not.in.${inList(exIds)}`);
       }
       if (q) qb = qb.or(`voucher_number.ilike.%${q}%,description.ilike.%${q}%,party_name.ilike.%${q}%`);
-      qb = dateRange(qb, "voucher_date", false); qb = amountRange(qb, "amount");
+      qb = dateRange(qb, "voucher_date", true); qb = amountRange(qb, "amount"); qb = textCols(qb, "recipient_name", "description");
       if (f.payment) qb = qb.eq("payment_method", f.payment);
       if (f.categoryId) qb = qb.eq("category_id", f.categoryId);
       qb = qb.order("voucher_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "transfer") {
       qb = supabase.from("stock_transfers").select(select, opts).or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
-      qb = dateRange(qb, "created_at", false);
+      qb = dateRange(qb, "transfer_date", true); qb = textCols(qb, "recipient_name", "notes");
       if (f.status) qb = qb.eq("status", f.status);
       if (f.fromBranch) qb = qb.eq("from_branch_id", f.fromBranch);
       if (f.toBranch) qb = qb.eq("to_branch_id", f.toBranch);
-      qb = qb.order("created_at", { ascending: false });
+      qb = qb.order("transfer_date", { ascending: false }).order("created_at", { ascending: false });
     } else {
       qb = supabase.from("quotes" as any).select(select, opts).eq("branch_id", branchId!);
       if (q) { const ids = await contactIdsFor(q); qb = qb.or(`quote_number.ilike.%${q}%,customer_name.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
@@ -397,6 +403,7 @@ export default function Invoices() {
     ),
   };
 
+  const textCell = (v: any) => v ? <span className="block truncate max-w-[12rem] mx-auto" title={String(v)}>{v}</span> : <span className="text-muted-foreground">—</span>;
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
     switch (tab) {
@@ -424,6 +431,8 @@ export default function Invoices() {
           { key: "customer", header: "العميل", align: "center", render: (r: any) => r.contacts?.name ?? "نقدي" },
           { key: "total", header: "المبلغ", align: "center", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
           { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
+{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", width: "10rem", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
@@ -465,8 +474,9 @@ export default function Invoices() {
             </span>
           ) },
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
-          { key: "received_by", header: "استلم بواسطة", align: "right" },
-          { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.received_by) },
+          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
+                    { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           { key: "arrival_date", header: "تاريخ الوصول", align: "right", width: "10rem", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
           {
@@ -512,6 +522,8 @@ export default function Invoices() {
           { key: "customer", header: "العميل", align: "right", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب", align: "right" },
           { key: "total_refund", header: "المرتجع", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_refund) },
+{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
@@ -556,6 +568,8 @@ export default function Invoices() {
           { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
           { key: "reason", header: "السبب", align: "right" },
           { key: "total_amount", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
+{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
@@ -583,6 +597,7 @@ export default function Invoices() {
           { key: "description", header: "البيان", align: "right" },
           { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
           { key: "category", header: "التصنيف", align: "right", width: "10rem" },
+          { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name ?? r.party_name) },
           { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => r.voucher_date ? <InlineVoucherDate voucher={r} onSaved={() => load()} /> : formatDateTime(r.created_at) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
@@ -621,7 +636,9 @@ export default function Invoices() {
           { key: "from_branch_id", header: "من", align: "right", width: "10rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5">{branchName(r.from_branch_id)}</span> },
           { key: "to_branch_id", header: "إلى", align: "right", width: "10rem", render: (r: any) => branchName(r.to_branch_id) },
           { key: "status", header: "الحالة", align: "center", width: "7rem" },
-          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
+{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
+          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => r.transfer_date ? formatDate(r.transfer_date) : formatDateTime(r.created_at) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -736,7 +753,7 @@ export default function Invoices() {
   const hasAnyFilter =
     filters.q || filters.from || filters.to || filters.status ||
     filters.amountMin || filters.amountMax || filters.payment ||
-    filters.categoryId || filters.fromBranch || filters.toBranch || filters.partyId;
+    filters.categoryId || filters.fromBranch || filters.toBranch || filters.partyId || filters.recipient || filters.notes;
 
   // For return tabs: use draft filters (apply only when search button clicked)
   const inputF = isReturnTab ? draftFilters : filters;
@@ -972,6 +989,18 @@ export default function Invoices() {
                 </SelectContent>
               </Select>
             </div>
+          )}
+          {tab !== "quote" && (
+            <>
+              <div className="space-y-1">
+                <Label className="text-xs">بحث المستلم</Label>
+                <Input value={inputF.recipient} onChange={(e) => setInputF({ ...inputF, recipient: e.target.value })} className="h-9" placeholder="اسم المستلم" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">بحث الملاحظات</Label>
+                <Input value={inputF.notes} onChange={(e) => setInputF({ ...inputF, notes: e.target.value })} className="h-9" placeholder="نص في الملاحظات" />
+              </div>
+            </>
           )}
           {active.amount && (
             <>
