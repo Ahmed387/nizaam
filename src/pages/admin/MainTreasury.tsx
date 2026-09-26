@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { formatEGP, formatDate } from "@/lib/format";
+import { formatEGP, formatDate, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
+import { DetailsChevron } from "@/components/DetailsChevron";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { FinancialAmount } from "@/components/FinancialAmount";
@@ -22,6 +24,7 @@ type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
   id: string; branch_id: string; type: "income" | "expense"; category: string;
   amount: number; description: string | null; payment_method: string; created_at: string;
+  reference_number?: string | null;
 };
 type ViewBal = { branch_id: string; current_balance: number; last_transaction_date: string | null };
 
