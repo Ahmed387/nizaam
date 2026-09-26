@@ -8223,6 +8223,15 @@ export type Database = {
         Returns: undefined
       }
       seed_voucher_categories: { Args: { _tenant: string }; Returns: undefined }
+      set_document_annotations: {
+        Args: {
+          p_id: string
+          p_kind: string
+          p_notes: string
+          p_recipient: string
+        }
+        Returns: undefined
+      }
       set_invoice_meta: {
         Args: {
           p_invoice_date?: string

@@ -1,3 +1,4 @@
+import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
   const isEdit = !!editingVoucher;
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [busy, setBusy] = useState(false);
+  const [recipient, setRecipient] = useState("");
   const [editReason, setEditReason] = useState("");
   const [wallets, setWallets] = useState<Record<string, number> | null>(null);
   const [form, setForm] = useState({
@@ -113,6 +115,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
         description: ev.description ?? "",
         voucher_date: ev.voucher_date,
       });
+      setRecipient((ev as any).recipient_name ?? "");
       const initPm = emptyPaymentValue(ev.payment_method as any);
       initPm.reference_number = ev.reference_number ?? undefined;
       initPm.transfer_to_account = ev.transferred_to ?? undefined;
@@ -286,6 +289,10 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
       }
 
       // Upload any pending attachments (create + edit both support adding new attachments)
+      if (voucherId && (recipient.trim() || (isEdit && (editingVoucher as any)?.recipient_name))) {
+        try { await saveDocAnnotations("voucher", voucherId, recipient, form.description); }
+        catch (e: any) { toast.error("تعذر حفظ المستلم: " + (e?.message ?? "")); }
+      }
       if (voucherId && attachFiles.length > 0) {
         const { compressImage } = await import("@/lib/compressImage");
         let okCount = 0;
@@ -506,6 +513,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
 
           {/* 4. Notes */}
           <section className="rounded-lg border bg-card p-4 space-y-2">
+            <Label className="text-sm font-semibold">المستلم <span className="text-xs font-normal text-muted-foreground">(اختياري)</span></Label>
+            <Input value={recipient} onChange={(e) => setRecipient(e.target.value)} maxLength={120} placeholder={isReceipt ? "مين استلم الفلوس في الفرع" : "مين استلم الفلوس فعليًا"} className="h-10" />
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <StickyNote className="w-4 h-4 text-primary" /> وصف / ملاحظات
               <span className="text-xs font-normal text-muted-foreground">(اختياري)</span>
