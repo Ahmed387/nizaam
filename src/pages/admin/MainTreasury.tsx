@@ -60,6 +60,7 @@ export default function MainTreasury() {
   const [pageRows, setPageRows] = useState<TxRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [tableLoading, setTableLoading] = useState(true);
+  const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }), 300);
