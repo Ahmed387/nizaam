@@ -19,6 +19,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, XCircle, Loader2, Trash2, Eye, Pencil, Printer, FileDown, ChevronDown, Check } from "lucide-react";
+import { DetailsChevron } from "@/components/DetailsChevron";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
