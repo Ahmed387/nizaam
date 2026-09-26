@@ -375,8 +375,11 @@ export default function Treasury() {
           </div>
 
           <TooltipProvider delayDuration={200}>
-          <DataTable loading={loading} rows={filtered}
+          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
             columns={[
+              { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
+                <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
+              )},
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "type", header: "النوع", render: (r: any) => (
                 <span className={`px-2 py-1 rounded text-xs font-bold ${r.type === "income" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
@@ -389,15 +392,22 @@ export default function Treasury() {
               { key: "category", header: "التصنيف", render: (r: any) => (
                 <span>{r.category}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
               )},
-              { key: "description", header: "الملاحظات / البيان", render: (r: any) => r.description ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="block max-w-[260px] truncate cursor-help">{r.description}</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{r.description}</TooltipContent>
-                </Tooltip>
-              ) : "—" },
-              { key: "reference_number", header: "رقم العملية", render: (r: any) => r.reference_number ?? "—" },
+              { key: "description", header: "الملاحظات / البيان", render: (r: any) => {
+                const text = sanitizeOperationalDescription(r.description);
+                return text ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span dir="rtl" className="unicode-isolate inline-block max-w-[260px] truncate text-right cursor-help" title={text}>{text}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{text}</TooltipContent>
+                  </Tooltip>
+                ) : "—";
+              }},
+              { key: "reference_number", header: "رقم العملية", render: (r: any) => (
+                <span dir="ltr" className="unicode-isolate inline-block font-mono text-xs">
+                  {extractOperationReference(r.reference_number, r.description)}
+                </span>
+              )},
               { key: "amount", header: "المبلغ", render: (r: any) => (
                 <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
                   {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
@@ -410,6 +420,7 @@ export default function Treasury() {
               <NumberedPagination page={page} pageCount={pageCount} onChange={setPage} disabled={loading} />
             </div>
           )}
+
 
         </TabsContent>
 
