@@ -78,7 +78,7 @@ export default function MainTreasury() {
     for (const r of ((vb ?? []) as any[])) map[r.branch_id] = r as ViewBal;
     setGlBalances(map);
     setLoading(false);
-  }, [tenantId, from, to]);
+  }, [tenantId, from, to, notesQ]);
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], load);
@@ -140,6 +140,10 @@ export default function MainTreasury() {
         <div>
           <label className="text-xs text-muted-foreground block mb-1">إلى تاريخ</label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">بحث الملاحظات</label>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="كلمة من الوصف…" className="w-48" />
         </div>
         <div className="flex gap-2 mr-auto">
           <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgoStr(7)); setTo(todayStr()); }}>آخر 7 أيام</Button>
