@@ -20,6 +20,7 @@ import { ExecutiveProfitSummary } from "@/components/ExecutiveProfitSummary";
 import { KpiHealthAlert } from "@/components/KpiHealthAlert";
 import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { DetailsChevron } from "@/components/DetailsChevron";
 
 export default function AdminDashboard() {
   const nav = useNavigate();
@@ -249,6 +250,7 @@ export default function AdminDashboard() {
           rows={recent}
           empty="لا توجد حركات"
           onRowClick={(r: RecentDoc) => nav(r.path)}
+          indexColumn
           columns={[
             {
               key: "kind",
@@ -257,7 +259,16 @@ export default function AdminDashboard() {
                 <span className={`px-2 py-0.5 rounded-full border text-xs font-semibold ${RECENT_DOC_KIND_CLASS[r.kind]}`}>{r.kindLabel}</span>
               ),
             },
-            { key: "number", header: "رقم", render: (r: RecentDoc) => <span className="text-primary font-medium hover:underline">{r.number}</span> },
+            {
+              key: "number",
+              header: "رقم",
+              render: (r: RecentDoc) => (
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-primary font-medium hover:underline">{r.number}</span>
+                  <DetailsChevron label="عرض تفاصيل المستند" onClick={() => nav(r.path)} />
+                </span>
+              ),
+            },
             { key: "branch", header: "الفرع", render: (r: RecentDoc) => r.branch_name ?? "—" },
             { key: "party", header: "الطرف", render: (r: RecentDoc) => r.party },
             { key: "amount", header: "المبلغ", render: (r: RecentDoc) => formatEGP(r.amount) },
