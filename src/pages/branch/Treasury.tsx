@@ -425,9 +425,12 @@ export default function Treasury() {
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-4">
-          <DataTable loading={loading} rows={transfers}
+          <DataTable loading={loading} rows={transfers} indexColumn
             onRowClick={(r: any) => setViewTransfer(r)}
             columns={[
+              { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
+                <DetailsChevron label="عرض تفاصيل التحويل" onClick={() => setViewTransfer(r)} />
+              )},
               { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
               { key: "direction", header: "الاتجاه", render: (r: any) => (
                 r.from_branch_id === branchId
