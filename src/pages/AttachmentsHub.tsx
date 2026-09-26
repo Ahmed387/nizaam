@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AdminLayout, BranchLayout } from "@/components/layout/Layouts";
@@ -236,8 +237,8 @@ export default function AttachmentsHub({ scope }: Props) {
       const keys = typeGroups[typeFilter] ?? [typeFilter];
       out = out.filter((r) => keys.includes(r.record_type));
     }
-    if (from) out = out.filter((r) => r.uploaded_at >= from);
-    if (to) out = out.filter((r) => r.uploaded_at <= to + "T23:59:59");
+    if (from) out = out.filter((r) => new Date(r.uploaded_at).getTime() >= new Date(getCairoDayBounds(from).startIso!).getTime());
+    if (to) out = out.filter((r) => new Date(r.uploaded_at).getTime() <= new Date(getCairoDayBounds(undefined, to).endIso!).getTime());
     if (q) out = out.filter((r) =>
       searchMatch(q, r.file_name, r.doc_number ?? "", r.branch_name ?? "", r.uploader_name ?? "")
     );

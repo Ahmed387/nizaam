@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { fin } from "@/lib/financeTerms";
@@ -52,7 +53,7 @@ export default function AgingReport() {
         .select("id,invoice_number,invoice_date,total,contact_id,status,contacts(name)")
         .eq("tenant_id", tenantId)
         .neq("status", "cancelled")
-        .lte("invoice_date", asOf);
+        .lte("invoice_date", getCairoDayBounds(undefined, asOf).endIso!);
       const invIds = (invs ?? []).map(i => i.id);
       let paidMap = new Map<string, number>();
       if (invIds.length) {
@@ -60,7 +61,7 @@ export default function AgingReport() {
           .select("invoice_id,amount,voided_at,created_at")
           .in("invoice_id", invIds)
           .is("voided_at", null)
-          .lte("created_at", asOf + "T23:59:59");
+          .lte("created_at", getCairoDayBounds(undefined, asOf).endIso!);
         for (const p of pays ?? []) {
           paidMap.set(p.invoice_id, (paidMap.get(p.invoice_id) || 0) + Number(p.amount || 0));
         }
@@ -88,7 +89,7 @@ export default function AgingReport() {
       const { data: shipments } = await supabase.from("shipments")
         .select("id,shipment_number,invoice_date,total_cost,contact_id,contacts(name)")
         .eq("tenant_id", tenantId)
-        .lte("invoice_date", asOf);
+        .lte("invoice_date", getCairoDayBounds(undefined, asOf).endIso!);
       // group shipments by contact, sort oldest first
       const byContact = new Map<string, any[]>();
       for (const s of shipments ?? []) {
@@ -103,7 +104,7 @@ export default function AgingReport() {
         const { data: sp } = await supabase.from("supplier_payments")
           .select("contact_id,amount,paid_at")
           .in("contact_id", contactIds)
-          .lte("paid_at", asOf + "T23:59:59");
+          .lte("paid_at", getCairoDayBounds(undefined, asOf).endIso!);
         for (const p of sp ?? []) {
           paidByContact.set(p.contact_id, (paidByContact.get(p.contact_id) || 0) + Number(p.amount || 0));
         }

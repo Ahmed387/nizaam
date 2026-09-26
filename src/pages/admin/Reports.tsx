@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -64,8 +65,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
   const load = async () => {
     setLoading(true);
-    const fromIso = new Date(from).toISOString();
-    const toIso = new Date(to + "T23:59:59").toISOString();
+    const fromIso = getCairoDayBounds(from).startIso!;
+    const toIso = getCairoDayBounds(undefined, to).endIso!;
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
       // خزينة الشركاء (PARTNER-CASH) فرع افتراضي محاسبي — مش فرع تشغيلي، بيتستبعد من تقارير الفروع
       supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),

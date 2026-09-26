@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useState, useCallback } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -36,8 +37,8 @@ type Stats = {
 const emptyStats: Stats = { sales: 0, cost: 0, profit: 0, expenses: 0, net: 0, invoiceCount: 0, cashIn: 0, cashOut: 0 };
 
 async function loadStats(p: Period, branchId: string): Promise<Stats> {
-  const fromIso = new Date(p.from).toISOString();
-  const toIso = new Date(p.to + "T23:59:59").toISOString();
+  const fromIso = getCairoDayBounds(p.from).startIso!;
+  const toIso = getCairoDayBounds(undefined, p.to).endIso!;
 
   let invQ = supabase
     .from("invoices")

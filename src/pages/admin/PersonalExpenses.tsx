@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -365,7 +366,7 @@ export default function PersonalExpenses() {
     const min = minAmount ? Number(minAmount) : null;
     const max = maxAmount ? Number(maxAmount) : null;
     const from = fromDate ? new Date(fromDate).getTime() : null;
-    const to = toDate ? new Date(toDate + "T23:59:59").getTime() : null;
+    const to = toDate ? new Date(getCairoDayBounds(undefined, toDate).endIso!).getTime() : null;
     return rows.filter(r => {
       if (qq) {
         const hay = `${r.description} ${r.category ?? ""} ${r.notes ?? ""}`.toLowerCase();
@@ -464,8 +465,8 @@ export default function PersonalExpenses() {
 
   const catRows = useMemo(() => {
     if (catDetail === null) return [] as Row[];
-    const from = catFrom ? new Date(catFrom + "T00:00:00").getTime() : null;
-    const to = catTo ? new Date(catTo + "T23:59:59").getTime() : null;
+    const from = catFrom ? new Date(getCairoDayBounds(catFrom).startIso!).getTime() : null;
+    const to = catTo ? new Date(getCairoDayBounds(undefined, catTo).endIso!).getTime() : null;
     return rows
       .filter(r => (r.category?.trim() || "") === catDetail)
       .filter(r => {

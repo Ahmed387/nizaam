@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -118,8 +119,8 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
     setLoading(true);
     let q = supabase.from("v_shifts_history" as any).select("*").order("opened_at", { ascending: false }).limit(500);
     if (branchId) q = q.eq("branch_id", branchId);
-    if (from) q = q.gte("opened_at", `${from}T00:00:00`);
-    if (to) q = q.lte("opened_at", `${to}T23:59:59`);
+    if (from) q = q.gte("opened_at", getCairoDayBounds(from).startIso!);
+    if (to) q = q.lte("opened_at", getCairoDayBounds(undefined, to).endIso!);
     const { data, error } = await q;
     if (error) toast.error(error.message);
     setRows((data ?? []) as any);

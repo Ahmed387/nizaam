@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { VariantLine } from "@/components/VariantChips";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -104,8 +105,8 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, invoice_date, status, cashier_id, is_migrated)")
         .eq("tenant_id", tenantId)
         .neq("invoice.status", "cancelled");
-      if (from) q = q.gte("invoice.invoice_date", new Date(from + "T00:00:00").toISOString());
-      if (to) q = q.lte("invoice.invoice_date", new Date(to + "T23:59:59.999").toISOString());
+      if (from) q = q.gte("invoice.invoice_date", getCairoDayBounds(from).startIso!);
+      if (to) q = q.lte("invoice.invoice_date", getCairoDayBounds(undefined, to).endIso!);
       if (branchId) q = q.eq("invoice.branch_id", branchId);
       return q;
     };

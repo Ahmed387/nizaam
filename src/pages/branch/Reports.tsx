@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -66,8 +67,8 @@ export default function BranchReports() {
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
-    const fromIso = new Date(from).toISOString();
-    const toIso = new Date(to + "T23:59:59").toISOString();
+    const fromIso = getCairoDayBounds(from).startIso!;
+    const toIso = getCairoDayBounds(undefined, to).endIso!;
     const [b, inv, exp, tr, pr, rt] = await Promise.all([
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
       supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("invoice_date", fromIso).lte("invoice_date", toIso).order("invoice_date", { ascending: false }),

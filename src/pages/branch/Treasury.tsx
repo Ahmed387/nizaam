@@ -1,3 +1,4 @@
+import { applyCairoRange } from "@/lib/cairoDate";
 import { useEffect, useState, useMemo } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -63,15 +64,8 @@ export default function Treasury() {
   const load = async () => {
     setLoading(true);
     // Cairo full-day bounds (UTC+2/+3 handled via explicit offset from Intl)
-    const cairoBound = (d: string, end: boolean) => {
-      const probe = new Date(`${d}T12:00:00Z`);
-      const tz = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Cairo", timeZoneName: "longOffset" })
-        .formatToParts(probe).find((p) => p.type === "timeZoneName")?.value.replace("GMT", "") || "+02:00";
-      return `${d}T${end ? "23:59:59.999" : "00:00:00.000"}${tz}`;
-    };
     let tq = supabase.from("treasury").select("*").eq("branch_id", branchId!);
-    if (fromDate) tq = tq.gte("created_at", cairoBound(fromDate, false));
-    if (toDate) tq = tq.lte("created_at", cairoBound(toDate, true));
+    tq = applyCairoRange(tq, "created_at", fromDate, toDate);
     const [tr, tt, wb, br] = await Promise.all([
       tq.order("created_at", { ascending: false }).limit(fromDate || toDate ? 5000 : 500),
       supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),

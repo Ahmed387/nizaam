@@ -2720,6 +2720,7 @@ export type Database = {
           notes: string | null
           payment_method: string
           previous_balance: number | null
+          recipient_name: string | null
           refund_amount: number
           refund_method: string | null
           refund_processed_at: string | null
@@ -2754,6 +2755,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           previous_balance?: number | null
+          recipient_name?: string | null
           refund_amount?: number
           refund_method?: string | null
           refund_processed_at?: string | null
@@ -2788,6 +2790,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           previous_balance?: number | null
+          recipient_name?: string | null
           refund_amount?: number
           refund_method?: string | null
           refund_processed_at?: string | null
@@ -4675,6 +4678,7 @@ export type Database = {
           migration_batch_id: string | null
           notes: string | null
           reason: string
+          recipient_name: string | null
           refund_account: string | null
           refund_balance_amount: number
           refund_cash_amount: number
@@ -4701,6 +4705,7 @@ export type Database = {
           migration_batch_id?: string | null
           notes?: string | null
           reason: string
+          recipient_name?: string | null
           refund_account?: string | null
           refund_balance_amount?: number
           refund_cash_amount?: number
@@ -4727,6 +4732,7 @@ export type Database = {
           migration_batch_id?: string | null
           notes?: string | null
           reason?: string
+          recipient_name?: string | null
           refund_account?: string | null
           refund_balance_amount?: number
           refund_cash_amount?: number
@@ -5016,6 +5022,7 @@ export type Database = {
           migration_batch_id: string | null
           notes: string | null
           reason: string
+          recipient_name: string | null
           refund_account: string | null
           refund_balance_amount: number
           refund_cash_amount: number
@@ -5041,6 +5048,7 @@ export type Database = {
           migration_batch_id?: string | null
           notes?: string | null
           reason: string
+          recipient_name?: string | null
           refund_account?: string | null
           refund_balance_amount?: number
           refund_cash_amount?: number
@@ -5066,6 +5074,7 @@ export type Database = {
           migration_batch_id?: string | null
           notes?: string | null
           reason?: string
+          recipient_name?: string | null
           refund_account?: string | null
           refund_balance_amount?: number
           refund_cash_amount?: number
@@ -5801,11 +5810,13 @@ export type Database = {
           hidden_for_branches: string[]
           id: string
           model: string | null
+          notes: string | null
           product_id: string
           product_type: string | null
           quantity: number
           reason: string | null
           received_quantity: number | null
+          recipient_name: string | null
           rejection_reason: string | null
           size: string | null
           status: Database["public"]["Enums"]["transfer_status"]
@@ -5828,11 +5839,13 @@ export type Database = {
           hidden_for_branches?: string[]
           id?: string
           model?: string | null
+          notes?: string | null
           product_id: string
           product_type?: string | null
           quantity: number
           reason?: string | null
           received_quantity?: number | null
+          recipient_name?: string | null
           rejection_reason?: string | null
           size?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
@@ -5855,11 +5868,13 @@ export type Database = {
           hidden_for_branches?: string[]
           id?: string
           model?: string | null
+          notes?: string | null
           product_id?: string
           product_type?: string | null
           quantity?: number
           reason?: string | null
           received_quantity?: number | null
+          recipient_name?: string | null
           rejection_reason?: string | null
           size?: string | null
           status?: Database["public"]["Enums"]["transfer_status"]
@@ -6547,6 +6562,7 @@ export type Database = {
           party_name: string | null
           party_type: Database["public"]["Enums"]["voucher_party_type"] | null
           payment_method: string
+          recipient_name: string | null
           reference_number: string | null
           source: Database["public"]["Enums"]["voucher_source"]
           source_id: string | null
@@ -6577,6 +6593,7 @@ export type Database = {
           party_name?: string | null
           party_type?: Database["public"]["Enums"]["voucher_party_type"] | null
           payment_method: string
+          recipient_name?: string | null
           reference_number?: string | null
           source: Database["public"]["Enums"]["voucher_source"]
           source_id?: string | null
@@ -6607,6 +6624,7 @@ export type Database = {
           party_name?: string | null
           party_type?: Database["public"]["Enums"]["voucher_party_type"] | null
           payment_method?: string
+          recipient_name?: string | null
           reference_number?: string | null
           source?: Database["public"]["Enums"]["voucher_source"]
           source_id?: string | null
@@ -8233,6 +8251,7 @@ export type Database = {
           notes: string | null
           payment_method: string
           previous_balance: number | null
+          recipient_name: string | null
           refund_amount: number
           refund_method: string | null
           refund_processed_at: string | null

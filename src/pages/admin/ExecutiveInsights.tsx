@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -53,8 +54,8 @@ export default function ExecutiveInsights({ embedded }: Props) {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const fromIso = new Date(from + "T00:00:00").toISOString();
-    const toIso = new Date(to + "T23:59:59").toISOString();
+    const fromIso = getCairoDayBounds(from).startIso!;
+    const toIso = getCairoDayBounds(undefined, to).endIso!;
 
     let cQ = supabase.from("contacts").select("id, name, type, branch_id").eq("tenant_id", tenantId).in("type", ["supplier", "both"]);
     let iQ = supabase.from("invoices")

@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -51,7 +52,7 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
     return rows.filter((r) => {
       const d = r.details ?? {};
       if (from && new Date(r.created_at) < new Date(from)) return false;
-      if (to && new Date(r.created_at) > new Date(`${to}T23:59:59`)) return false;
+      if (to && new Date(r.created_at) > new Date(getCairoDayBounds(undefined, to).endIso!)) return false;
       if (!term) return true;
       return [r.user_name, d.invoice_number, d.reason, r.branches?.name]
         .filter(Boolean)

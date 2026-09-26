@@ -1,3 +1,4 @@
+import { getCairoDayBounds } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -94,7 +95,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (from && new Date(r.created_at) < new Date(from)) return false;
-      if (to && new Date(r.created_at) > new Date(to + "T23:59:59")) return false;
+      if (to && new Date(r.created_at) > new Date(getCairoDayBounds(undefined, to).endIso!)) return false;
       if (productId !== "all" && r.entity_id !== productId) return false;
       if (priceType !== "all" && r.price_type !== priceType) return false;
       if (user && !(r.changed_by_name ?? "").toLowerCase().includes(user.toLowerCase())) return false;
