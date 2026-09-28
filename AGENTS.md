@@ -10,3 +10,4 @@
 - Contact-statement running balances are calculated over the full chronological ledger before UI filters; a date-filtered view adds a synthetic «رصيد ما قبل الفترة» row — preserves the financial carry-over without changing ledger data.
 - Row `#` columns are rendered only by `DataTable`'s `indexColumn` prop using `toArabicAlphabetIndex` from `src/lib/format.ts` — one central visual indexer instead of per-page index maps.
 - Treasury operation numbers and notes are display-derived via `extractOperationReference` / `sanitizeOperationalDescription` in `src/lib/format.ts` — legacy UUID tags are hidden on screen while stored ledger text stays untouched.
+- Any read that can exceed 1,000 rows (totals, reports, statements, exports) goes through `fetchAllRows` (`src/lib/fetchAll.ts`) with a stable `.order("id")` and lean columns — PostgREST silently caps responses at 1,000 rows.
