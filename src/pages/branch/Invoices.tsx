@@ -229,10 +229,8 @@ export default function Invoices() {
     const f = queryFilters;
     const q = f.q.trim().replace(/[,()%*]/g, " ").trim();
     const opts = withCount ? { count: "exact" as const } : undefined;
-    const contactIdsFor = async (text: string) => {
-      const data = await fetchAllRows<any>(() => supabase.from("contacts").select("id").or(`name.ilike.%${text}%,phone.ilike.%${text}%`).order("id"));
-      return data.map((d: any) => d.id as string);
-    };
+    const looksLikeDocumentNumber = /\d/.test(q) || /^(IN|SH|RT|PR|RV|PV|QT)/i.test(q);
+    const contactSearch = `name.ilike.%${q}%,phone.ilike.%${q}%`;
     const inList = (ids: string[]) => `(${(ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).join(",")})`;
     /** dateOnly = true for SQL `date` columns; timestamps get Cairo 00:00 → 23:59:59.999. */
     const dateRange = (qb: any, col: string, dateOnly: boolean) => applyCairoRange(qb, col, f.from, f.to, dateOnly);
@@ -250,24 +248,25 @@ export default function Invoices() {
     };
     let qb: any;
     if (tab === "sale") {
-      qb = supabase.from("invoices").select(select, opts).eq("branch_id", branchId!);
-      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
+      qb = supabase.from("invoices").select(projection, opts).eq("branch_id", branchId!);
+      if (q) qb = looksLikeDocumentNumber ? qb.ilike("invoice_number", `%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
       if (f.status) qb = qb.eq("status", f.status);
       if (f.payment) qb = qb.eq("payment_method", f.payment);
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase") {
-      qb = supabase.from("shipments").select(select, opts).eq("branch_id", branchId!);
-      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
+      qb = supabase.from("shipments").select(projection, opts).eq("branch_id", branchId!);
+      if (q) qb = looksLikeDocumentNumber ? qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_cost"); qb = textCols(qb, "received_by", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "sale_return") {
-      qb = supabase.from("returns").select(select, opts).eq("branch_id", branchId!);
-      if (q) {
-        const ids = await contactIdsFor(q);
-        const invs = await fetchAllRows<any>(() => supabase.from("invoices").select("id").eq("branch_id", branchId!).or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`).order("id"));
-        qb = qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%,invoice_id.in.${inList((invs ?? []).map((i: any) => i.id))}`);
-      }
+      const projection = q && !looksLikeDocumentNumber ? `${select}, search_invoice:invoice_id!inner(search_contact:contact_id!inner(id))` : select;
+      qb = supabase.from("returns").select(projection, opts).eq("branch_id", branchId!);
+      if (q) qb = looksLikeDocumentNumber
+        ? qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%`)
+        : qb.or(contactSearch, { referencedTable: "search_invoice.search_contact" });
       if (f.partyId) {
         const invs = await fetchAllRows<any>(() => supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).order("id"));
         qb = qb.in("invoice_id", (invs ?? []).map((i: any) => i.id).concat(["00000000-0000-0000-0000-000000000000"]));
@@ -275,8 +274,11 @@ export default function Invoices() {
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_refund"); qb = textCols(qb, "recipient_name", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase_return") {
-      qb = supabase.from("purchase_returns" as any).select(select, opts).eq("branch_id", branchId!);
-      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
+      qb = supabase.from("purchase_returns" as any).select(projection, opts).eq("branch_id", branchId!);
+      if (q) qb = looksLikeDocumentNumber
+        ? qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%`)
+        : qb.or(contactSearch, { referencedTable: "search_contact" });
       if (f.partyId) qb = qb.eq("contact_id", f.partyId);
       if (f.status) qb = qb.eq("status", f.status);
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_amount"); qb = textCols(qb, "recipient_name", "notes");
@@ -303,8 +305,11 @@ export default function Invoices() {
       if (f.toBranch) qb = qb.eq("to_branch_id", f.toBranch);
       qb = qb.order("transfer_date", { ascending: false }).order("created_at", { ascending: false });
     } else {
-      qb = supabase.from("quotes" as any).select(select, opts).eq("branch_id", branchId!);
-      if (q) { const ids = await contactIdsFor(q); qb = qb.or(`quote_number.ilike.%${q}%,customer_name.ilike.%${q}%,contact_id.in.${inList(ids)}`); }
+      const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
+      qb = supabase.from("quotes" as any).select(projection, opts).eq("branch_id", branchId!);
+      if (q) qb = looksLikeDocumentNumber
+        ? qb.or(`quote_number.ilike.%${q}%,customer_name.ilike.%${q}%`)
+        : qb.or(contactSearch, { referencedTable: "search_contact" });
       qb = dateRange(qb, "created_at", false); qb = amountRange(qb, "total");
       if (f.status) qb = qb.eq("status", f.status);
       qb = qb.order("created_at", { ascending: false });
