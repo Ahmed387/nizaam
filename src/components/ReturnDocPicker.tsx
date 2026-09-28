@@ -45,31 +45,32 @@ export function ReturnDocPicker({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const pat = toIlikePattern(debounced);
+      // Same query shape as Invoices.tsx: plain %term% ILIKE, contacts resolved first, empty-list guarded.
+      const term = debounced.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).replace(/[,()%*"\\]/g, " ").trim();
       const table = kind === "sale" ? "invoices" : "shipments";
       const numCol = kind === "sale" ? "invoice_number" : "shipment_number";
       let contactIds: string[] = [];
-      if (pat) {
-        // Step 1: resolve matching contacts separately (PostgREST can't OR across joined tables).
+      if (term) {
         const { data: cs } = await supabase.from("contacts").select("id")
-          .or(`name.ilike."${pat}",phone.ilike."${pat}"`).limit(300);
-        contactIds = (cs ?? []).map((c: any) => c.id);
+          .or(`name.ilike.%${term}%,phone.ilike.%${term}%`).limit(500);
+        contactIds = (cs ?? []).map((c: any) => c.id).filter(Boolean);
       }
       const select = kind === "sale"
-        ? "id, invoice_number, total, invoice_date, created_at, contacts:contact_id(name, phone)"
-        : "id, shipment_number, total_cost, invoice_date, arrival_date, contacts:contact_id(name, phone)";
+        ? "id, invoice_number, total, status, invoice_date, created_at, recipient_name, contact_id, contacts:contact_id(id, name, phone)"
+        : "id, shipment_number, total_cost, invoice_date, arrival_date, contact_id, contacts:contact_id(id, name, phone)";
       let qb: any = supabase.from(table as any).select(select, { count: "exact" }).eq("branch_id", branchId);
       if (kind === "sale") qb = qb.in("status", RETURNABLE_STATUSES);
-      if (pat) {
-        const ors = [`${numCol}.ilike."${pat}"`];
-        if (kind === "sale") ors.push(`recipient_name.ilike."${pat}"`);
-        if (contactIds.length) ors.push(`contact_id.in.(${contactIds.join(",")})`);
+      if (term) {
+        const ors = [`${numCol}.ilike.%${term}%`];
+        if (kind === "sale") ors.push(`recipient_name.ilike.%${term}%`);
+        if (contactIds.length > 0) ors.push(`contact_id.in.(${contactIds.join(",")})`);
         qb = qb.or(ors.join(","));
       }
       qb = qb.order("invoice_date", { ascending: false, nullsFirst: false })
         .order(kind === "sale" ? "created_at" : "arrival_date", { ascending: false })
         .range((page - 1) * PAGE, page * PAGE - 1);
-      const { data, count: c } = await qb;
+      const { data, count: c, error } = await qb;
+      if (error) console.error("[ReturnDocPicker Query Error]:", error);
       if (cancelled) return;
       setRows((data ?? []).map((r: any) => ({
         id: r.id,
