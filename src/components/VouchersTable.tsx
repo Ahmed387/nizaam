@@ -54,6 +54,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
   const [editTarget, setEditTarget] = useState<Voucher | null>(null);
   const [editFocusDate, setEditFocusDate] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const deductibleRef = useRef<string[] | null>(null);
   const [filters, setFilters] = useState({
     from: initialFrom ?? "",
     to: initialTo ?? "",
@@ -93,6 +95,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       const { data: dc } = await supabase.from("voucher_categories").select("id").eq("is_deductible_from_profit", true);
       deductibleIds = (dc ?? []).map((c: any) => c.id);
     }
+    deductibleRef.current = deductibleIds;
     const rowsQ = applyFilters(
       supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500),
       deductibleIds,
@@ -173,7 +176,19 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     w.document.close();
   };
 
-  const exportRows = rows.map((r) => ({
+  // Exports fetch every voucher matching the active filters (not only the 500 loaded rows).
+  const fetchAllFiltered = () => fetchAllRows<Voucher>(() =>
+    applyFilters(supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).order("id"), deductibleRef.current),
+  );
+  const runExport = async (fn: (list: Voucher[]) => void) => {
+    if (isExporting) return;
+    setIsExporting(true);
+    const t = toast.loading("جاري تصدير كافة البيانات...");
+    try { fn(await fetchAllFiltered()); toast.success("تم التصدير", { id: t }); }
+    catch (e: any) { toast.error(e?.message ?? "تعذر التصدير", { id: t }); }
+    finally { setIsExporting(false); }
+  };
+  const toExportRows = (list: Voucher[]) => list.map((r) => ({
     "رقم السند": r.voucher_number,
     "النوع": VOUCHER_TYPE_LABEL[r.type],
     "التاريخ": formatDate(r.voucher_date),
@@ -336,21 +351,21 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
         </div>
 
         <div className="flex flex-wrap gap-2 items-center justify-end pt-2 border-t">
-          <Button size="sm" variant="outline" onClick={() => exportToExcel("vouchers", [{ name: "السندات", rows: exportRows }])}>
+          <Button size="sm" variant="outline" disabled={isExporting} onClick={() => runExport((list) => exportToExcel("vouchers", [{ name: "السندات", rows: toExportRows(list) }]))}>
             <FileDown className="w-4 h-4 ms-1" /> Excel
           </Button>
-          <Button size="sm" variant="outline" onClick={() => {
+          <Button size="sm" variant="outline" disabled={isExporting} onClick={() => runExport((list) => {
             const branchName = branchId ? (branchMap[branchId] ?? "الفرع") : "كل الفروع";
             generateVouchersReport({
               branchName,
-              vouchers: rows,
+              vouchers: list,
               categoriesMap: catMap,
               branchesMap: branchMap,
               showBranch: !!adminAllBranches,
               filters: { from: filters.from, to: filters.to, type: (filters.type || type || "") as any },
               userName: profile?.name || user?.email || "مستخدم",
             });
-          }}>
+          })}>
             <FileDown className="w-4 h-4 ms-1" /> PDF تفصيلي
           </Button>
           {canAdd && (
