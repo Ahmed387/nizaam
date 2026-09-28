@@ -981,10 +981,17 @@ export default function NewSale() {
     try {
       const custId = customerId || null;
       // إذا لم يُدخل الكاشير أي دفعة فالفاتورة فعلياً آجل — لا نسمّيها "نقدي"
+      // المقاصة/الرصيد السابق لا يحرّكان الخزينة: لو مفيش دفعات فعلية نبعت قائمة فاضية
+      // (مش null) عشان process_sale ما يفترضش إن الفاتورة كلها اتدفعت كاش.
+      const hasNonCashSettlement = effectiveSettlement > 0 || creditToApply > 0;
       const primaryMethod =
         payments.length > 0
           ? payments[0].payment_method
-          : (creditRemaining > 0 ? "credit" : "cash");
+          : creditRemaining > 0
+            ? "credit"
+            : hasNonCashSettlement
+              ? (effectiveSettlement > 0 ? "settlement" : "credit_balance")
+              : "cash";
 
       const payload = {
         p_branch_id: branchId!,
@@ -996,7 +1003,7 @@ export default function NewSale() {
         p_total: total,
         p_payment_method: primaryMethod,
         p_items: items as any,
-        p_payments: payments.length > 0 ? payments : null,
+        p_payments: payments.length > 0 ? payments : (hasNonCashSettlement ? [] : null),
         p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
         p_vat_amount: vatAmount,
         p_invoice_date: invoiceDate || null,
