@@ -1226,10 +1226,7 @@ export default function NewSale() {
                 <div>
                   <Label className="mb-1 block">العميل</Label>
                   <div className="flex gap-2">
-                    <select className="flex-1 bg-input border border-border rounded-lg p-2 text-sm" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                      <option value="">— اختر عميل (اختياري) —</option>
-                      {customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ""}</option>)}
-                    </select>
+                    <CustomerSelect className="flex-1" customers={customers} value={customerId} onChange={setCustomerId} />
                     <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
                       <UserPlus className="w-4 h-4" />
                     </Button>
