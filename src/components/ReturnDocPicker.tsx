@@ -13,20 +13,6 @@ const RETURNABLE_STATUSES = ["active", "نشطة", "completed", "paid"];
 type Kind = "sale" | "purchase";
 type Row = { id: string; number: string; name: string; phone: string; date: string | null; total: number };
 
-/**
- * Turns a user query into a tolerant ILIKE pattern: Arabic letter variants
- * (أ/إ/آ/ا، ى/ي، ة/ه) become single-char wildcards and words are joined with %.
- */
-function toIlikePattern(raw: string): string {
-  const cleaned = raw
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
-    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
-    .replace(/[,()%*_"\\]/g, " ")
-    .trim();
-  const words = cleaned.split(/\s+/).filter(Boolean).map((w) => w.replace(/[إأآاىيةه]/g, "_"));
-  return words.length ? `%${words.join("%")}%` : "";
-}
-
 /** Inline, server-paginated invoice combobox for sale & purchase returns (branch-scoped). */
 export function ReturnDocPicker({
   kind, branchId, open, onOpenChange, onPick, children,
