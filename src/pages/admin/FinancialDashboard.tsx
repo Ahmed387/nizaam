@@ -7,6 +7,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDate } from "@/lib/format";
 import { invoiceProfit } from "@/lib/profitEngine";
 import {
@@ -38,8 +39,8 @@ export default function FinancialDashboard() {
     const next30 = fmtDay(new Date(Date.now() + 30 * 86400000));
 
     const [vAll, vRange, contactsRes, instUp, instOv, inv90] = await Promise.all([
-      supabase.from("vouchers").select("type, amount").eq("status", "active"),
-      supabase.from("vouchers").select("type, amount, voucher_date").eq("status", "active").gte("voucher_date", last30),
+      fetchAllRows<any>(() => supabase.from("vouchers").select("id, type, amount").eq("status", "active").order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("vouchers").select("id, type, amount, voucher_date").eq("status", "active").gte("voucher_date", last30).order("id")).then((data) => ({ data })),
       // TODO Phase 2.2B: Remove after contacts.balance column is dropped
       supabase.from("v_contact_balances" as any).select("type, total_balance"),
       supabase
@@ -56,11 +57,12 @@ export default function FinancialDashboard() {
         .or("status.eq.overdue,and(status.eq.pending,due_date.lt." + fmtDay(new Date()) + ")")
         .order("due_date", { ascending: true })
         .limit(20),
-      supabase
+      fetchAllRows<any>(() => supabase
         .from("invoices")
-        .select("created_at, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+        .select("id, created_at, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
         .eq("status", "active")
-        .gte("invoice_date", daysAgo(180)),
+        .gte("invoice_date", daysAgo(180))
+        .order("id")).then((data) => ({ data })),
     ]);
 
     // Treasury net
