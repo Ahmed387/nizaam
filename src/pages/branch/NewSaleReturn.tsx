@@ -493,9 +493,11 @@ export default function NewSaleReturn() {
                 <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" /> الفاتورة الأصلية
                 </Label>
-                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
-                  <FileText className="w-4 h-4" /> {invoice ? "تغيير الفاتورة" : "اختيار من فاتورة بيع"}
-                </Button>
+                <ReturnDocPicker kind="sale" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickInvoice}>
+                  <Button variant="outline" className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
+                    <FileText className="w-4 h-4" /> {invoice ? "تغيير الفاتورة" : "اختر فاتورة البيع"}
+                  </Button>
+                </ReturnDocPicker>
               </div>
             </div>
             {invoice && (
@@ -722,7 +724,6 @@ export default function NewSaleReturn() {
 
 
       {/* Invoice picker */}
-      <ReturnDocPicker kind="sale" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickInvoice} />
 
       {/* Owner override — return window exceeded */}
       <Dialog open={overrideOpen} onOpenChange={(o) => { setOverrideOpen(o); if (!o) setPendingDraft(false); }}>

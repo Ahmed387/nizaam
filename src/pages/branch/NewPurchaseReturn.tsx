@@ -432,9 +432,11 @@ export default function NewPurchaseReturn() {
                 <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" /> فاتورة الشراء
                 </Label>
-                <Button variant="outline" onClick={() => setPickOpen(true)} className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
-                  <FileText className="w-4 h-4" /> {shipment ? "تغيير الفاتورة" : "اختيار فاتورة شراء"}
-                </Button>
+                <ReturnDocPicker kind="purchase" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickShipment}>
+                  <Button variant="outline" className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
+                    <FileText className="w-4 h-4" /> {shipment ? "تغيير الفاتورة" : "اختر فاتورة الشراء"}
+                  </Button>
+                </ReturnDocPicker>
               </div>
             </div>
             {shipment && (
@@ -660,7 +662,6 @@ export default function NewPurchaseReturn() {
 
 
       {/* Shipment picker */}
-      <ReturnDocPicker kind="purchase" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickShipment} />
 
       {/* Print dialog */}
       <Dialog open={printOpen} onOpenChange={(o) => { setPrintOpen(o); if (!o) nav(`/branch/${branchId}/invoices?tab=purchase_return`); }}>
