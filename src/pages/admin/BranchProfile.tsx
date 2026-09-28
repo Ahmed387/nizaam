@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
@@ -56,11 +57,11 @@ export default function BranchProfile() {
       supabase.from("branches").select("*").eq("id", branchId).maybeSingle(),
       supabase.from("employees").select("*").eq("branch_id", branchId).order("name"),
       supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("quantity"),
-      supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
-      supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).limit(200),
-      supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).limit(200),
-      supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500),
-      supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(200),
+      fetchAllRows<any>(() => supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
     ]);
     const cashierIds = [...new Set((invs ?? []).map((r: any) => r.cashier_id).filter(Boolean))];
     const { data: cashiers } = cashierIds.length
