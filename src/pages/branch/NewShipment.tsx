@@ -37,6 +37,7 @@ import { VariantAttributesFields } from "@/components/VariantAttributesFields";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 interface Line {
   id?: string | null;
@@ -80,8 +81,8 @@ export default function NewShipment() {
   const [products, setProducts] = useState<any[]>([]);
   const [priceList, setPriceList] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
-  const [arrival, setArrival] = useState(new Date().toISOString().split("T")[0]);
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [arrival, setArrival] = useState(cairoTodayDay());
+  const [invoiceDate, setInvoiceDate] = useState(cairoTodayDay());
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
   const [shipping, setShipping] = useState(0);
   const [customs, setCustoms] = useState(0);
@@ -568,7 +569,7 @@ export default function NewShipment() {
       const ship = { id: (rpcRes as any).shipment_id } as { id: string };
 
       // Persist invoice_date (DB trigger restricts non-today changes to admin/super_admin)
-      const today = new Date().toISOString().slice(0, 10);
+      const today = cairoTodayDay();
       if (invoiceDate && invoiceDate !== today) {
         const { error: dErr } = await supabase.from("shipments").update({ invoice_date: invoiceDate } as any).eq("id", ship.id);
         if (dErr) console.warn("invoice_date update blocked:", dErr.message);
@@ -642,7 +643,7 @@ export default function NewShipment() {
       });
       // Reset form for a new shipment
       setSupplierId("");
-      setArrival(new Date().toISOString().split("T")[0]);
+      setArrival(cairoTodayDay());
       setShipping(0);
       setCustoms(0);
       setOtherCost(0);

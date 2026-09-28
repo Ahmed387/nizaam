@@ -26,6 +26,7 @@ import ShiftsHistory from "./ShiftsHistory";
 import Presence from "./Presence";
 import MonthlyAttendanceReport from "./MonthlyAttendanceReport";
 import { useBranchScope } from "@/lib/branchScope";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" },
@@ -66,7 +67,7 @@ export default function AllEmployees() {
   const [form, setForm] = useState({
     name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "",
     base_salary: "",
-    hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true,
+    hire_date: cairoTodayDay(), branch_id: "", role: "", is_active: true,
   });
   const [shift, setShift] = useState<ShiftValue>(emptyShift());
   const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>([]);
@@ -138,7 +139,7 @@ export default function AllEmployees() {
   const netSalaryTotal = Math.max(0, stats.salaryTotal - stats.advanceDue);
 
   const openNew = () => {
-    setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: new Date().toISOString().slice(0, 10), branch_id: "", role: "", is_active: true });
+    setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: cairoTodayDay(), branch_id: "", role: "", is_active: true });
     setShift(emptyShift());
     setAllowedBranchIds([]);
     setEditing(null);
@@ -149,7 +150,7 @@ export default function AllEmployees() {
     setForm({
       name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "", email: e.email ?? "", login_password: "",
       national_id: e.national_id ?? "",
-      base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? new Date().toISOString().slice(0, 10),
+      base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? cairoTodayDay(),
       branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
     });
     setAllowedBranchIds(e.user_id ? (userBranches[e.user_id] ?? []).map((b) => b.branch_id) : (e.branch_id ? [e.branch_id] : []));
@@ -242,7 +243,7 @@ export default function AllEmployees() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "الموظفين");
-    XLSX.writeFile(wb, `employees-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `employees-${cairoTodayDay()}.xlsx`);
     toast.success(`تم تصدير ${data.length} موظف`);
   };
 

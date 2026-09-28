@@ -1,4 +1,4 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -131,7 +131,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
     XLSX.utils.sheet_add_json(ws, data, { origin: -1 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "سجل الأسعار");
-    XLSX.writeFile(wb, `price-audit-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `price-audit-${cairoTodayDay()}.xlsx`);
     toast.success(`تم تصدير ${data.length} سجل`);
   };
 

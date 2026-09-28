@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const TX_LABEL: Record<string, { label: string; sign: number; color: string }> = {
   contribution: { label: "مساهمة", sign: 1, color: "text-success" },
@@ -37,7 +38,7 @@ export default function PartnerProfile() {
   const [openTx, setOpenTx] = useState(false);
   const [tx, setTx] = useState({ type: "contribution", amount: "", description: "", month_year: new Date().toISOString().slice(0, 7) });
   const [openWd, setOpenWd] = useState(false);
-  const [wd, setWd] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
+  const [wd, setWd] = useState({ amount: "", date: cairoTodayDay(), notes: "" });
   const [wdLoading, setWdLoading] = useState(false);
   const [editTx, setEditTx] = useState<any | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
@@ -127,7 +128,7 @@ export default function PartnerProfile() {
       toast.error(`لا يوجد صافي متاح — الرصيد ${Number(partner?.current_balance || 0)} والسلف القائمة ${outstandingAdvances}`);
       return;
     }
-    setWd({ amount: String(netAvailable), date: new Date().toISOString().slice(0, 10), notes: "" });
+    setWd({ amount: String(netAvailable), date: cairoTodayDay(), notes: "" });
     setOpenWd(true);
   };
 
@@ -149,7 +150,7 @@ export default function PartnerProfile() {
     if (error) return toast.error(error.message);
     toast.success("تم السحب — اتخصم من الخزينة وقيد اليومية اتسجّل");
     setOpenWd(false);
-    setWd({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
+    setWd({ amount: "", date: cairoTodayDay(), notes: "" });
     load();
   };
 

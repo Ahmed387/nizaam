@@ -21,6 +21,7 @@ import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Attendance from "./Attendance";
 import AdvanceRequests from "./AdvanceRequests";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 
 const POSITIONS = [
@@ -53,7 +54,7 @@ export default function Employees() {
     base_salary: "",
     login_password: "",
     role: "cashier",
-    hire_date: new Date().toISOString().slice(0, 10),
+    hire_date: cairoTodayDay(),
   });
   const [shift, setShift] = useState<ShiftValue>(emptyShift());
 
@@ -115,7 +116,7 @@ export default function Employees() {
     setForm({
       name: "", job_title: "", email: "", phone: "", national_id: "", address: "",
       base_salary: "", login_password: "", role: "cashier",
-      hire_date: new Date().toISOString().slice(0, 10),
+      hire_date: cairoTodayDay(),
     });
     setShift(emptyShift());
     load();
@@ -308,7 +309,7 @@ export default function Employees() {
           { key: "base_salary", header: "الراتب الأساسي", type: "number" },
           { key: "hire_date", header: "تاريخ التعيين", type: "date" },
         ]}
-        sampleRow={{ name: "أحمد محمد", job_title: "كاشير", role: "cashier", phone: "01000000000", base_salary: 5000, hire_date: new Date().toISOString().slice(0, 10) }}
+        sampleRow={{ name: "أحمد محمد", job_title: "كاشير", role: "cashier", phone: "01000000000", base_salary: 5000, hire_date: cairoTodayDay() }}
         onImport={async (importRows) => {
           let inserted = 0;
           for (const r of importRows) {
@@ -317,7 +318,7 @@ export default function Employees() {
               name: r.name, job_title: r.job_title,
               role: r.role || null, phone: r.phone || null,
               base_salary: r.base_salary ?? 0,
-              hire_date: r.hire_date ?? new Date().toISOString().slice(0, 10),
+              hire_date: r.hire_date ?? cairoTodayDay(),
             });
             if (!error) inserted++;
           }

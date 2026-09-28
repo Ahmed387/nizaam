@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { CalendarClock, Lock, PieChart, Plus, ExternalLink, Save, ShieldAlert } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -34,7 +35,7 @@ export default function FiscalClosing() {
   const [closeMMDD, setCloseMMDD] = useState<string>(DEFAULT_CLOSE_MMDD);
   const [savingSetting, setSavingSetting] = useState(false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = cairoTodayDay();
   const [openPeriod, setOpenPeriod] = useState(false);
   const [openDist, setOpenDist] = useState(false);
   const [closeTarget, setCloseTarget] = useState<Period | null>(null);

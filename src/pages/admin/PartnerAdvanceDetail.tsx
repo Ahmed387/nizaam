@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, PlusCircle } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const INST_STATUS: Record<string, { label: string; cls: string }> = {
   pending: { label: "منتظر", cls: "bg-muted text-muted-foreground" },
@@ -30,7 +31,7 @@ export default function PartnerAdvanceDetail() {
   const [pays, setPays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openPay, setOpenPay] = useState(false);
-  const [pay, setPay] = useState({ amount: "", payment_method: "treasury", payment_date: new Date().toISOString().slice(0, 10), notes: "" });
+  const [pay, setPay] = useState({ amount: "", payment_method: "treasury", payment_date: cairoTodayDay(), notes: "" });
 
   const load = async () => {
     if (!id) return;
@@ -70,7 +71,7 @@ export default function PartnerAdvanceDetail() {
     if (error) return toast.error(error.message);
     toast.success("تم تسجيل الدفعة");
     setOpenPay(false);
-    setPay({ amount: "", payment_method: "treasury", payment_date: new Date().toISOString().slice(0, 10), notes: "" });
+    setPay({ amount: "", payment_method: "treasury", payment_date: cairoTodayDay(), notes: "" });
     load();
   };
   const [cancelOpen, setCancelOpen] = useState(false);

@@ -18,6 +18,7 @@ import { fetchSchedules, fetchClosures, offDayReason, countWorkingDays } from "@
 
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 import { workedMinutes, formatHours, sumWorkedMinutes } from "@/lib/attendanceHours";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const STATUS = {
   present: "حاضر",
@@ -40,7 +41,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     if (targetRole === "cashier") return roles.includes("branch_manager");
     return false;
   };
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(cairoTodayDay());
   const [employees, setEmployees] = useState<any[]>([]);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

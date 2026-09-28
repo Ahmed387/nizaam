@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Landmark, Plus, ArrowLeftRight, FileSpreadsheet } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type BankAccount = { id: string; name: string; bank_name: string | null; account_number: string | null; currency: string; gl_account_id: string | null; opening_balance: number; is_active: boolean };
 type COA = { id: string; code: string; name: string; name_ar: string | null };
@@ -31,7 +32,7 @@ export default function BankReconciliation() {
   const [selectedAcct, setSelectedAcct] = useState<string>("");
 
   const [acctForm, setAcctForm] = useState({ name: "", bank_name: "", account_number: "", currency: "EGP", gl_account_id: "", opening_balance: "0" });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = cairoTodayDay();
   const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const [stmtForm, setStmtForm] = useState({ bank_account_id: "", statement_date: today, period_start: firstOfMonth, period_end: today, opening_balance: "0", closing_balance: "0" });
 

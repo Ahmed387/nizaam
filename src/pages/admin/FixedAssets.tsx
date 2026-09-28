@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Package, PlayCircle, Trash2, CalendarClock } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
@@ -49,7 +50,7 @@ export default function FixedAssets() {
     code: "",
     name: "",
     category: "",
-    acquisition_date: new Date().toISOString().slice(0, 10),
+    acquisition_date: cairoTodayDay(),
     cost: "",
     salvage_value: "0",
     useful_life_months: "60",
@@ -58,7 +59,7 @@ export default function FixedAssets() {
     depreciation_expense_account_id: "",
     notes: "",
   });
-  const [disposal, setDisposal] = useState({ disposal_date: new Date().toISOString().slice(0, 10), disposal_amount: "0" });
+  const [disposal, setDisposal] = useState({ disposal_date: cairoTodayDay(), disposal_amount: "0" });
 
   const load = async () => {
     if (!tenantId) return;
@@ -123,7 +124,7 @@ export default function FixedAssets() {
     setOpen(false);
     setForm({
       code: "", name: "", category: "",
-      acquisition_date: new Date().toISOString().slice(0, 10),
+      acquisition_date: cairoTodayDay(),
       cost: "", salvage_value: "0", useful_life_months: "60",
       asset_account_id: defaults.asset,
       accum_depreciation_account_id: defaults.accum,
@@ -158,7 +159,7 @@ export default function FixedAssets() {
     if (error) { toast.error(error.message); return; }
     toast.success("تم التخلص من الأصل");
     setDisposeOpen(null);
-    setDisposal({ disposal_date: new Date().toISOString().slice(0, 10), disposal_amount: "0" });
+    setDisposal({ disposal_date: cairoTodayDay(), disposal_amount: "0" });
     load();
   };
 

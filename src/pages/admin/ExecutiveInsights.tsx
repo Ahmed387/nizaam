@@ -1,4 +1,4 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -19,7 +19,7 @@ import { RankBars, ShareBreakdown } from "@/components/charts/RankBars";
 import { Printer, TrendingUp, TrendingDown, Package, Wallet, Users, AlertCircle } from "lucide-react";
 import { useBranchScope } from "@/lib/branchScope";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => cairoTodayDay();
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 
 // Same exclusion list used by branch reports — keeps numbers consistent

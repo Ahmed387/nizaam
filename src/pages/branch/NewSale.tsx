@@ -1017,7 +1017,15 @@ export default function NewSale() {
         return;
       }
 
-      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale", payload as any);
+      // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق + المقاصة في معاملة واحدة
+      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale_full" as any, {
+        ...payload,
+        p_recipient: recipientName.trim() || null,
+        p_notes: invoiceNotes.trim() || null,
+        p_credit_to_apply: creditToApply > 0 && custId ? creditToApply : 0,
+        p_settlement_amount: effectiveSettlement > 0 && custId ? effectiveSettlement : 0,
+        p_received_by_name: profile?.name ?? null,
+      });
       if (rpcErr) {
         if (rpcErr.message?.includes("Failed to fetch") || rpcErr.message?.includes("NetworkError")) {
           await enqueueSale(payload);
@@ -1070,16 +1078,7 @@ export default function NewSale() {
         } catch (e) { console.warn("link discount requests failed", e); }
       }
 
-      if (recipientName.trim()) {
-        try { await saveDocAnnotations("invoice", invId as string, recipientName, invoiceNotes); }
-        catch (e) { console.warn("save recipient failed", e); }
-      }
-      // Save cashier notes on the invoice (printed on the receipt)
-      if (invoiceNotes.trim()) {
-        try {
-          await supabase.rpc("set_invoice_meta" as any, { p_invoice_id: invId as string, p_invoice_date: null, p_notes: invoiceNotes.trim() });
-        } catch (e) { console.warn("save invoice notes failed", e); }
-      }
+      // المستلم والملاحظات والرصيد السابق والمقاصة اتحفظوا جوه process_sale_full
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
@@ -1104,58 +1103,6 @@ export default function NewSale() {
           });
         } catch (e: any) {
           toast.error("الفاتورة اتسجلت لكن خطة الأقساط فشلت: " + e.message);
-        }
-      }
-
-      // Apply customer credit balance, if any was used
-      if (creditToApply > 0 && custId) {
-        try {
-          const { error: ipErr } = await supabase.from("invoice_payments").insert({
-            invoice_id: invId as string,
-            tenant_id: (profile as any)?.tenant_id ?? null,
-            branch_id: branchId!,
-            payment_method: "credit_balance",
-            amount: creditToApply,
-            received_by_name: profile?.name ?? "رصيد سابق",
-          } as any);
-          if (ipErr) throw ipErr;
-          const newBal = Math.max(0, customerCredit - creditToApply);
-          await supabase.from("contacts").update({ credit_balance: newBal, refund_status: newBal === 0 ? "credit_used" : "credit_added" } as any).eq("id", custId);
-          await supabase.from("customer_credit_log" as any).insert({
-            contact_id: custId, invoice_id: invId as string,
-            amount: creditToApply, type: "credit_used",
-            notes: "استخدام رصيد سابق في فاتورة جديدة",
-            created_by: user!.id,
-          });
-        } catch (e: any) {
-          toast.error("الفاتورة اتسجلت لكن استخدام الرصيد فشل: " + e.message);
-        }
-      }
-
-      // Apply settlement against what we owe this contact (مقاصة)
-      // بيتوجّه من خلال record_contact_payment عشان يظهر في تقرير المعاملات (payment_transactions)
-      // ومش بيحرّك الخزنة — الـ RPC بيتخطى treasury لما payment_method='settlement'
-      if (effectiveSettlement > 0 && custId) {
-        try {
-          const { error: rpcErr } = await supabase.rpc("record_contact_payment" as any, {
-            p_contact_id: custId,
-            p_branch_id: branchId!,
-            p_direction: "in",
-            p_amount: effectiveSettlement,
-            p_payment_method: "settlement",
-            p_reference_number: null,
-            p_transfer_to_account: null,
-            p_received_by_name: profile?.name ?? "مقاصة",
-            p_fee_amount: 0,
-            p_fee_type: null,
-            p_fee_on_customer: false,
-            p_notes: "مقاصة على فاتورة " + (invId as string),
-            p_transfer_from_account: null,
-            p_invoice_id: invId as string,
-          });
-          if (rpcErr) throw rpcErr;
-        } catch (e: any) {
-          toast.error("الفاتورة اتسجلت لكن المقاصة فشلت: " + e.message);
         }
       }
 

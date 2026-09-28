@@ -1,4 +1,4 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { VariantLine } from "@/components/VariantChips";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -58,7 +58,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
   const canViewNetProfit = useCanViewNetProfit();
   const Wrapper: any = embedded ? Fragment : AdminLayout;
   const { tenantId, profile } = useAuth();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = cairoTodayDay();
   const monthAgo = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
   const [to, setTo] = useState(today);

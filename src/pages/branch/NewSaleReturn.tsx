@@ -32,6 +32,7 @@ import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { evaluateReturnPolicy } from "@/lib/returnPolicy";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 interface Line extends VariantAttrs {
   invoice_item_id: string;
@@ -70,7 +71,7 @@ export default function NewSaleReturn() {
   const [recipientName, setRecipientName] = useState("");
   const __me = useCurrentUserName();
   useEffect(() => { if (__me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [invoiceDate, setInvoiceDate] = useState(cairoTodayDay());
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع بيع غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
   const [openSections, setOpenSections] = useState({ customer: true, products: true, payment: true, summary: true });
@@ -311,7 +312,7 @@ export default function NewSaleReturn() {
       const cashBack = Number((rr as any).cash_refund ?? 0) + Number((rr as any).transfer_refund ?? 0);
 
       // Persist invoice_date if backdated (DB trigger enforces admin-only)
-      const today = new Date().toISOString().slice(0, 10);
+      const today = cairoTodayDay();
       if (invoiceDate && invoiceDate !== today && number) {
         const { error: dErr } = await supabase
           .from("returns")

@@ -11,3 +11,7 @@
 - Row `#` columns are rendered only by `DataTable`'s `indexColumn` prop using `toArabicAlphabetIndex` from `src/lib/format.ts` — one central visual indexer instead of per-page index maps.
 - Treasury operation numbers and notes are display-derived via `extractOperationReference` / `sanitizeOperationalDescription` in `src/lib/format.ts` — legacy UUID tags are hidden on screen while stored ledger text stays untouched.
 - Any read that can exceed 1,000 rows (totals, reports, statements, exports) goes through `fetchAllRows` (`src/lib/fetchAll.ts`) with a stable `.order("id")` and lean columns — PostgREST silently caps responses at 1,000 rows.
+- Sales are saved only through `public.process_sale_full` (invoice, treasury, notes, recipient, earlier credit, offset in one transaction; enforces open shift and admin-only backdating) — a dropped connection can't leave a half-saved invoice.
+- Cancelling a voucher never deletes its treasury row; `cancel_voucher` posts a reversing row (category «إلغاء سند») — the drawer keeps a full audit trail.
+- Sale-return money refunds are capped server-side (`allocate_sale_return_settlement`) at cash/transfer actually paid on the invoice; the rest becomes customer credit — offset/credit sales can't pay out cash.
+- Default "today" values use `cairoTodayDay()` from `src/lib/cairoDate.ts`, never `toISOString().slice(0,10)` — UTC shows yesterday between 00:00 and 03:00 Cairo.

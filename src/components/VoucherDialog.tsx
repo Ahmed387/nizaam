@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { tenantStoragePath } from "@/lib/attachmentPath";
 import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const ATT_BUCKET = "record-attachments";
 const ATT_MAX_SIZE = 5 * 1024 * 1024;
@@ -69,7 +70,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     party_id: "" as string,
     party_name: "",
     description: "",
-    voucher_date: new Date().toISOString().slice(0, 10),
+    voucher_date: cairoTodayDay(),
   });
   const [pm, setPm] = useState<PaymentMethodValue>(emptyPaymentValue());
   const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
@@ -134,7 +135,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
         party_id: ip?.id ?? "",
         party_name: ip?.name ?? "",
         description: "",
-        voucher_date: new Date().toISOString().slice(0, 10),
+        voucher_date: cairoTodayDay(),
       });
       setPm(emptyPaymentValue());
     }

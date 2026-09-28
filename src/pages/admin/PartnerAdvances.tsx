@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { PlusCircle, Wallet, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   active: { label: "نشطة", cls: "bg-primary/15 text-primary" },
@@ -32,9 +33,9 @@ export default function PartnerAdvances({ embedded }: { embedded?: boolean } = {
   const [form, setForm] = useState({
     partner_id: "",
     amount: "",
-    advance_date: new Date().toISOString().slice(0, 10),
+    advance_date: cairoTodayDay(),
     installments_count: "1",
-    first_due_date: new Date().toISOString().slice(0, 10),
+    first_due_date: cairoTodayDay(),
     reason: "",
     notes: "",
   });

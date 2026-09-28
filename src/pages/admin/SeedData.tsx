@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, Database, Trash2, Sparkles } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const SAMPLE_CATEGORIES = ["إلكترونيات", "ملابس", "مواد غذائية", "أدوات منزلية", "مستلزمات مكتبية"];
 
@@ -110,7 +111,7 @@ export default function SeedData() {
           { name: "حسام أبو زيد", job_title: "أمين مخزن", base_salary: 5000, phone: "01005556666" },
         ];
         await supabase.from("employees").insert(
-          employees.map((e) => ({ ...e, branch_id: branch.id, hire_date: new Date().toISOString().slice(0, 10) }))
+          employees.map((e) => ({ ...e, branch_id: branch.id, hire_date: cairoTodayDay() }))
         );
         addLog(`    ✓ ${employees.length} موظف`);
 
