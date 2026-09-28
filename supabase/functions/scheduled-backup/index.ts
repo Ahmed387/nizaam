@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
               "x-upsert": "true",
             },
             body: counted,
-            // @ts-ignore Deno streaming request body
+            // @ts-expect-error Deno supports the streaming request-body duplex option.
             duplex: "half",
           });
           uploadOk = res.ok;
@@ -480,7 +480,7 @@ async function syncToDrive(
       method: id ? "PATCH" : "POST",
       headers: { ...gwHeaders, "Content-Type": "application/x-tar" },
       body,
-      // @ts-ignore Deno streaming request body
+      // @ts-expect-error Deno supports the streaming request-body duplex option.
       duplex: "half",
     });
   };
