@@ -695,6 +695,22 @@ export default function Invoices() {
   };
 
   const handleExportPDF = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    const t = toast.loading("جاري تصدير كافة البيانات...");
+    try {
+      const { qb } = await buildQuery(SELECTS[tab], false);
+      const all = await fetchAllRows<any>(() => qb.order("id"));
+      await exportPdfRows(all);
+      toast.success(`تم تجهيز ${all.length} مستند`, { id: t });
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذر التصدير", { id: t });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportPdfRows = async (filteredRows: any[]) => {
     const branchName = branches.find((b) => b.id === branchId)?.name ?? "—";
     const userName = profile?.name ?? user?.email ?? "—";
     if (tab === "sale") {
@@ -833,7 +849,7 @@ export default function Invoices() {
             <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filteredRows.length || isExporting} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length || isExporting} className="gap-2">
               <Printer className="w-4 h-4" /> {pdfBtnLabel}
             </Button>
             <PermGate perm="preorders.view">
