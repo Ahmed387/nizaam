@@ -8,7 +8,7 @@ import { PickerItemsToggle } from "@/components/PickerItemsPreview";
 import { formatDate, formatEGP } from "@/lib/format";
 
 const PAGE = 10;
-const RETURNABLE_STATUSES = ["active", "نشطة", "completed", "paid"];
+const RETURNABLE_STATUSES = ["active"]; // invoice_status enum: active | cancelled
 
 type Kind = "sale" | "purchase";
 type Row = { id: string; number: string; name: string; phone: string; date: string | null; total: number };
