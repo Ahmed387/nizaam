@@ -8,6 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
@@ -33,16 +34,15 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
 
   const load = () => {
     setLoading(true);
-    supabase
+    fetchAllRows<any>(() => supabase
       .from("audit_log")
       .select("*, branches(name)")
       .eq("entity", "return_owner_override")
       .order("created_at", { ascending: false })
-      .limit(500)
-      .then(({ data }) => {
-        setRows((data as any) ?? []);
-        setLoading(false);
-      });
+      .order("id"))
+      .then((data) => setRows((data as any) ?? []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["audit_log"], () => load());
@@ -123,6 +123,7 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
       <DataTable
         loading={loading}
         rows={filtered}
+        pageSize={50}
         empty="لا توجد تجاوزات مسجّلة — كل المرتجعات تمت داخل الفترة المسموحة ✅"
         columns={[
           { key: "created_at", header: "التاريخ", render: (r: Row) => formatDateTime(r.created_at) },

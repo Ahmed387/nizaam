@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown, HandCoins } from "lucide-react";
@@ -43,6 +44,8 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE = 50;
   const [breakdowns, setBreakdowns] = useState<Record<string, ShiftPaymentLine[]>>({});
   const [handovers, setHandovers] = useState<Record<string, ShiftHandover[]>>({});
   const [hoShift, setHoShift] = useState<Row | null>(null);
@@ -117,11 +120,16 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("v_shifts_history" as any).select("*").order("opened_at", { ascending: false }).limit(500);
-    if (branchId) q = q.eq("branch_id", branchId);
-    if (from) q = q.gte("opened_at", getCairoDayBounds(from).startIso!);
-    if (to) q = q.lte("opened_at", getCairoDayBounds(undefined, to).endIso!);
-    const { data, error } = await q;
+    const build = () => {
+      let q = supabase.from("v_shifts_history" as any).select("*").order("opened_at", { ascending: false }).order("id");
+      if (branchId) q = q.eq("branch_id", branchId);
+      if (from) q = q.gte("opened_at", getCairoDayBounds(from).startIso!);
+      if (to) q = q.lte("opened_at", getCairoDayBounds(undefined, to).endIso!);
+      return q;
+    };
+    let data: any[] = []; let error: any = null;
+    try { data = await fetchAllRows<any>(build); } catch (e) { error = e; }
+    setPage(1);
     if (error) toast.error(error.message);
     setRows((data ?? []) as any);
     setLoading(false);
@@ -244,7 +252,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
             </thead>
             <tbody>
               {rows.length === 0 && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">لا توجد ورديات</td></tr>}
-              {rows.map((r) => (
+              {rows.slice((page - 1) * PAGE, page * PAGE).map((r) => (
                 <Fragment key={r.id}>
                   <tr className="border-t border-border">
                     <td className="p-3 font-semibold">{r.cashier_name ?? "—"}</td>

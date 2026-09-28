@@ -23,13 +23,17 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
   const [confirmWord, setConfirmWord] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const PAGE = 50;
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const load = () => {
     setLoading(true);
-    supabase.from("audit_log").select("*, branches(name)").order("created_at", { ascending: false }).limit(500).then(({ data }) => {
-      setRows(data ?? []); setLoading(false);
+    const start = (page - 1) * PAGE;
+    supabase.from("audit_log").select("*, branches(name)", { count: "exact" }).order("created_at", { ascending: false }).order("id").range(start, start + PAGE - 1).then(({ data, count }) => {
+      setRows(data ?? []); setTotal(count ?? 0); setLoading(false);
     });
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [page]);
   useRealtimeRefresh(["audit_log"], () => load());
 
   const exportExcel = () => {
@@ -104,7 +108,7 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
     <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="سجل العمليات"
-        subtitle={`${rows.length} عملية مسجلة`}
+        subtitle={`${total} عملية مسجلة`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
@@ -117,6 +121,11 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
         }
       />
       <DataTable loading={loading} rows={rows} columns={columns} />
+      <div className="flex items-center justify-center gap-2 mt-3 text-sm">
+        <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>السابق</Button>
+        <span className="text-muted-foreground">صفحة {page} من {Math.max(1, Math.ceil(total / PAGE))}</span>
+        <Button variant="outline" size="sm" disabled={page >= Math.ceil(total / PAGE) || loading} onClick={() => setPage((p) => p + 1)}>التالي</Button>
+      </div>
 
       <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
         <AlertDialogContent>
