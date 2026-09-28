@@ -8,6 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
 import {
@@ -50,7 +51,7 @@ export default function AdminDashboard() {
       { data: sessions },
     ] = await Promise.all([
       supabase.from("invoices").select("total").eq("status", "active").not("is_migrated","is",true).gte("invoice_date", todayIso),
-      supabase.from("products").select("quantity, low_stock_alert").is("archived_at", null),
+      fetchAllRows<any>(() => supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null).order("id")).then((data) => ({ data })),
       supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
       supabase.from("approval_requests" as any).select("id").eq("status", "pending"),
       supabase

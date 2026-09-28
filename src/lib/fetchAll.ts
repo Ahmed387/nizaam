@@ -18,7 +18,13 @@ export async function fetchAllRows<T = any>(
     if (error) throw error;
     const batch = (data ?? []) as T[];
     out.push(...batch);
-    if (batch.length < pageSize || out.length >= maxRows) break;
+    if (batch.length < pageSize) break;
+    if (out.length >= maxRows) {
+      console.error(
+        `[fetchAllRows] Safety cutoff reached: ${maxRows} rows loaded; remaining rows were NOT fetched. Results may be incomplete.`,
+      );
+      break;
+    }
     from += pageSize;
   }
   return out;

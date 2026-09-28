@@ -56,7 +56,7 @@ export default function BranchProfile() {
     ] = await Promise.all([
       supabase.from("branches").select("*").eq("id", branchId).maybeSingle(),
       supabase.from("employees").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("quantity"),
+      fetchAllRows<any>(() => supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("quantity").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).order("id")).then((data) => ({ data })),

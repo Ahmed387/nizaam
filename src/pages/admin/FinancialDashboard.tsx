@@ -42,21 +42,21 @@ export default function FinancialDashboard() {
       fetchAllRows<any>(() => supabase.from("vouchers").select("id, type, amount").eq("status", "active").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("vouchers").select("id, type, amount, voucher_date").eq("status", "active").gte("voucher_date", last30).order("id")).then((data) => ({ data })),
       // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-      supabase.from("v_contact_balances" as any).select("type, total_balance"),
-      supabase
+      fetchAllRows<any>(() => supabase.from("v_contact_balances" as any).select("contact_id, type, total_balance").order("contact_id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase
         .from("payment_installments")
         .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
         .in("status", ["pending", "partial"])
         .gte("due_date", fmtDay(new Date()))
         .lte("due_date", next30)
         .order("due_date", { ascending: true })
-        .limit(20),
-      supabase
+        .order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase
         .from("payment_installments")
         .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
         .or("status.eq.overdue,and(status.eq.pending,due_date.lt." + fmtDay(new Date()) + ")")
         .order("due_date", { ascending: true })
-        .limit(20),
+        .order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase
         .from("invoices")
         .select("id, created_at, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
