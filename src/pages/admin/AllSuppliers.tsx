@@ -289,13 +289,17 @@ export default function AllSuppliers() {
     setShipBranchFilter("all");
     setShipmentsLoading(true);
     setShipmentsList([]);
-    const { data, error } = await supabase
-      .from("shipments")
-      .select("id, arrival_date, branch_id, total_cost, shipping_cost, admin_cost, received_by, notes, created_at, branches(name), shipment_items(product_name, quantity, cost_price, total)")
-      .eq("contact_id", s.id)
-      .order("arrival_date", { ascending: false });
-    if (error) toast.error(error.message);
-    setShipmentsList(data ?? []);
+    try {
+      const data = await fetchAllRows<any>(() => supabase
+        .from("shipments")
+        .select("id, arrival_date, branch_id, total_cost, shipping_cost, admin_cost, received_by, notes, created_at, branches(name), shipment_items(product_name, quantity, cost_price, total)")
+        .eq("contact_id", s.id)
+        .order("arrival_date", { ascending: false })
+        .order("id"));
+      setShipmentsList(data);
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذر تحميل فواتير الشراء");
+    }
     setShipmentsLoading(false);
   };
 

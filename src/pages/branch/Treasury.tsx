@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
 import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
@@ -110,7 +111,7 @@ export default function Treasury() {
     const offset = (page - 1) * PAGE_SIZE;
     const [tr, tt, wb, br] = await Promise.all([
       tq.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
-      supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }),
+      fetchAllRows<any>(() => supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).order("id")).then((data) => ({ data, error: null })),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
     ]);

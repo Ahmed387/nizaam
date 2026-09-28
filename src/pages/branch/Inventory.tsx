@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
@@ -112,8 +113,8 @@ export default function Inventory() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("products").select("*, categories(name)").eq("branch_id", branchId).order("created_at", { ascending: false });
-    setRows(data ?? []); setLoading(false);
+    const data = await fetchAllRows<any>(() => supabase.from("products").select("*, categories(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).catch(() => [] as any[]);
+    setRows(data); setLoading(false);
   };
   useEffect(() => {
     load();
