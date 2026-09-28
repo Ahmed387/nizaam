@@ -329,6 +329,13 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
 
           </table>
         )}
+        {rows.length > PAGE && (
+          <div className="flex items-center justify-center gap-2 p-3 text-sm">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>السابق</Button>
+            <span className="text-muted-foreground">صفحة {page} من {Math.ceil(rows.length / PAGE)}</span>
+            <Button variant="outline" size="sm" disabled={page >= Math.ceil(rows.length / PAGE)} onClick={() => setPage((p) => p + 1)}>التالي</Button>
+          </div>
+        )}
       </Card>
 
       {stats.ranking.length > 0 && (
