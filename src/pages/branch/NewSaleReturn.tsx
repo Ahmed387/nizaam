@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ReturnDocPicker } from "@/components/ReturnDocPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -721,43 +722,7 @@ export default function NewSaleReturn() {
 
 
       {/* Invoice picker */}
-      <Dialog open={pickOpen} onOpenChange={setPickOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>اختر فاتورة لإنشاء مرتجع</DialogTitle>
-            <DialogDescription>كل مرتجع بيع لازم يكون مربوط بفاتورة موجودة.</DialogDescription>
-          </DialogHeader>
-          <Input
-            placeholder="ابحث برقم الفاتورة أو اسم العميل أو رقم التليفون..."
-            value={pickQuery}
-            onChange={(e) => setPickQuery(e.target.value)}
-            autoFocus
-          />
-          <div className="max-h-[420px] overflow-y-auto border border-border rounded-lg">
-            {filteredInvoices.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground text-sm">مفيش فواتير مطابقة</div>
-            ) : (
-              filteredInvoices.map((r: any) => (
-                <PickerItemsToggle key={r.id} kind="sale" branchId={branchId!} docId={r.id}>
-                <button
-                  onClick={() => pickInvoice(r.id)}
-                  className="w-full flex items-center justify-between gap-3 p-3 hover:bg-accent text-right transition-colors"
-                >
-                  <div className="flex flex-col items-start gap-0.5">
-                    <span className="font-mono font-bold text-primary">{r.invoice_number}</span>
-                    <span className="text-xs text-muted-foreground">{r.contacts?.name ?? "نقدي"}{r.contacts?.phone ? ` • ${r.contacts.phone}` : ""}</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="font-bold">{formatEGP(r.total)}</span>
-                    <span className="text-xs text-muted-foreground">{formatDateTime(r.created_at)}</span>
-                  </div>
-                </button>
-                </PickerItemsToggle>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReturnDocPicker kind="sale" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickInvoice} />
 
       {/* Owner override — return window exceeded */}
       <Dialog open={overrideOpen} onOpenChange={(o) => { setOverrideOpen(o); if (!o) setPendingDraft(false); }}>

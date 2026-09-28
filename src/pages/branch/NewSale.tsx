@@ -1175,7 +1175,7 @@ export default function NewSale() {
 
   return (
     <BranchLayout>
-      <PageHeader title="فاتورة جديدة" subtitle="نقطة البيع" />
+      <PageHeader title="فاتورة بيع جديدة" subtitle="نقطة البيع" />
 
       {localDraft.draft && !localDraftDismissed && items.length === 0 && (
         <DraftRestoreBar
