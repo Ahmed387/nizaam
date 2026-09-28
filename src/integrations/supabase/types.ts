@@ -8004,6 +8004,29 @@ export type Database = {
         }
         Returns: string
       }
+      process_sale_full: {
+        Args: {
+          p_branch_id: string
+          p_credit_to_apply?: number
+          p_customer_id: string
+          p_discount_amount: number
+          p_discount_percent: number
+          p_discount_reason: string
+          p_invoice_date: string
+          p_items: Json
+          p_notes?: string
+          p_payment_method: string
+          p_payments: Json
+          p_received_by_name?: string
+          p_recipient?: string
+          p_settlement_amount?: number
+          p_subtotal: number
+          p_total: number
+          p_vat_amount: number
+          p_vat_rate: number
+        }
+        Returns: string
+      }
       purge_ai_ask_log: { Args: never; Returns: number }
       purge_orphan_journal_entries: {
         Args: { p_tenant: string }
