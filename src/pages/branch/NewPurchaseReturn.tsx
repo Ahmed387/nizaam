@@ -68,7 +68,7 @@ export default function NewPurchaseReturn() {
   const [notes, setNotes] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const __me = useCurrentUserName();
-  useEffect(() => { if (true && __me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
+  useEffect(() => { if (__me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
@@ -114,7 +114,7 @@ export default function NewPurchaseReturn() {
     const { data: prevReturns } = await supabase
       .from("purchase_returns" as any).select("id, status").eq("shipment_id", shipId).eq("status", "active");
     const prevIds = (prevReturns ?? []).map((r: any) => r.id);
-    let prevByProduct: Record<string, number> = {};
+    const prevByProduct: Record<string, number> = {};
     if (prevIds.length) {
       const { data: prevItems } = await supabase
         .from("purchase_return_items" as any)
@@ -127,7 +127,7 @@ export default function NewPurchaseReturn() {
 
     // Stock for cap
     const productIds = ((sh as any).shipment_items ?? []).map((it: any) => it.product_id).filter(Boolean);
-    let stockById: Record<string, number> = {};
+    const stockById: Record<string, number> = {};
     if (productIds.length) {
       const { data: prods } = await supabase.from("products").select("id, quantity").in("id", productIds);
       (prods ?? []).forEach((p: any) => { stockById[p.id] = Number(p.quantity ?? 0); });
