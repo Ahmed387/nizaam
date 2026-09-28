@@ -60,7 +60,6 @@ export default function NewSaleReturn() {
   const presetInvoiceId = params.get("invoice");
   const nav = useNavigate();
 
-  const [invoices, setInvoices] = useState<any[]>([]);
   const [invoice, setInvoice] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [lines, setLines] = useState<Line[]>([]);
@@ -90,7 +89,6 @@ export default function NewSaleReturn() {
 
   // Invoice picker
   const [pickOpen, setPickOpen] = useState(false);
-  const [pickQuery, setPickQuery] = useState("");
 
   // Print dialog
   const [printOpen, setPrintOpen] = useState(false);
@@ -104,28 +102,9 @@ export default function NewSaleReturn() {
   const [overrideApproved, setOverrideApproved] = useState<{ reason: string; daysSince: number; windowDays: number } | null>(null);
   const [pendingDraft, setPendingDraft] = useState<boolean>(false);
 
-  const loadInvoices = useCallback(async () => {
-    if (!branchId) return;
-    const { data } = await supabase
-      .from("invoices")
-      .select("id, invoice_number, total, created_at, contact_id, contacts:contact_id(name, phone)")
-      .eq("branch_id", branchId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(300);
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge live balances
-    const list = (data ?? []) as any[];
-    const { fetchContactBalanceMap } = await import("@/lib/contactBalances");
-    const balMap = await fetchContactBalanceMap(list.map((r) => r.contact_id));
-    list.forEach((r) => { if (r.contacts && r.contact_id) r.contacts.balance = balMap[r.contact_id] ?? 0; });
-    setInvoices(list);
-  }, [branchId]);
-
   useEffect(() => {
-    loadInvoices();
     loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
-  }, [loadInvoices]);
-  useRealtimeRefresh(["invoices", "returns"], loadInvoices);
+  }, []);
 
   const pickInvoice = useCallback(async (invId: string) => {
     setPickOpen(false);
@@ -415,14 +394,6 @@ export default function NewSaleReturn() {
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, lines, invoice, refundMode, cashPart, transferPart, balancePart, refundRef, finalReason, pickOpen]);
-
-  const filteredInvoices = useMemo(() => {
-    const q = pickQuery.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter((r: any) =>
-      [r.invoice_number, r.contacts?.name, r.contacts?.phone].filter(Boolean).join(" ").toLowerCase().includes(q)
-    );
-  }, [pickQuery, invoices]);
 
   const printReceipt = (size: "thermal" | "a4") => {
     const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${savedNumber}</title>

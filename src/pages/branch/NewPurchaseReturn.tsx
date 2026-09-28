@@ -59,7 +59,6 @@ export default function NewPurchaseReturn() {
   const { user } = useAuth();
   const nav = useNavigate();
 
-  const [shipments, setShipments] = useState<any[]>([]);
   const [shipment, setShipment] = useState<any>(null);
   const [supplier, setSupplier] = useState<any>(null);
   const [lines, setLines] = useState<Line[]>([]);
@@ -89,33 +88,14 @@ export default function NewPurchaseReturn() {
 
   // Shipment picker
   const [pickOpen, setPickOpen] = useState(false);
-  const [pickQuery, setPickQuery] = useState("");
 
   // Print dialog
   const [printOpen, setPrintOpen] = useState(false);
   const [savedNumber, setSavedNumber] = useState("");
 
-  const loadShipments = useCallback(async () => {
-    if (!branchId) return;
-    const { data } = await supabase
-      .from("shipments")
-      .select("id, arrival_date, total_cost, notes, contact_id, contacts:contact_id(id, name, phone)")
-      .eq("branch_id", branchId)
-      .order("arrival_date", { ascending: false })
-      .limit(300);
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-    const list = (data ?? []) as any[];
-    const { fetchContactBalanceMap } = await import("@/lib/contactBalances");
-    const balMap = await fetchContactBalanceMap(list.map((r) => r.contact_id));
-    list.forEach((r) => { if (r.contacts && r.contact_id) r.contacts.balance = balMap[r.contact_id] ?? 0; });
-    setShipments(list);
-  }, [branchId]);
-
   useEffect(() => {
-    loadShipments();
     loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
-  }, [loadShipments]);
-  useRealtimeRefresh(["shipments", "purchase_returns"], loadShipments);
+  }, []);
 
   const pickShipment = useCallback(async (shipId: string) => {
     setPickOpen(false);
@@ -355,14 +335,6 @@ export default function NewPurchaseReturn() {
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, lines, shipment, refundMode, cashPart, transferPart, balancePart, refundRef, finalReason, pickOpen]);
-
-  const filteredShipments = useMemo(() => {
-    const q = pickQuery.trim().toLowerCase();
-    if (!q) return shipments;
-    return shipments.filter((r: any) =>
-      [r.arrival_date, r.contacts?.name, r.contacts?.phone, r.notes].filter(Boolean).join(" ").toLowerCase().includes(q)
-    );
-  }, [pickQuery, shipments]);
 
   const printReceipt = (size: "thermal" | "a4") => {
     const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${savedNumber}</title>
