@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { AlertTriangle, TrendingUp, Target, ArrowRight, Flame } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type VarianceRow = {
   account_id: string;
@@ -34,7 +35,7 @@ export function BudgetAlertsWidget() {
     (async () => {
       if (!tenantId) return;
       setLoading(true);
-      const today = new Date().toISOString().slice(0, 10);
+      const today = cairoTodayDay();
       const { data: periods } = await supabase
         .from("fiscal_periods" as any)
         .select("id,name,period_start,period_end,status")

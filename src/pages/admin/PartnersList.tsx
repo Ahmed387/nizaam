@@ -21,6 +21,7 @@ import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Tras
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 
 type Partner = {
@@ -77,7 +78,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
   const [empLoading, setEmpLoading] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [empSearch, setEmpSearch] = useState("");
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(() => cairoTodayDay());
   const [partnerNotes, setPartnerNotes] = useState("");
   const selectedEmp = eligibleEmps.find((e) => e.id === selectedEmpId) || null;
   const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? "-";
@@ -103,7 +104,7 @@ export default function PartnersList({ embedded }: { embedded?: boolean } = {}) 
   const openAddDialog = () => {
     setAddMode("employee");
     setSelectedEmpId(""); setEmpSearch(""); setPartnerNotes("");
-    setStartDate(new Date().toISOString().slice(0, 10));
+    setStartDate(cairoTodayDay());
     setTab("data");
     setOpen(true);
     loadEligibleEmployees();

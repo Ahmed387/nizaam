@@ -23,6 +23,7 @@ import { createApprovalRequest } from "@/lib/approvalRequests";
 import { useBranchScope } from "@/lib/branchScope";
 import { VoucherDialog } from "@/components/VoucherDialog";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 interface Supplier {
   id: string;
@@ -84,7 +85,7 @@ export default function AllSuppliers() {
   const [shipForm, setShipForm] = useState({
     contact_id: "",
     branch_id: "",
-    arrival_date: new Date().toISOString().split("T")[0],
+    arrival_date: cairoTodayDay(),
     received_by: "",
     shipping_cost: 0,
     admin_cost: 0,
@@ -280,7 +281,7 @@ export default function AllSuppliers() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "الموردين");
-    XLSX.writeFile(wb, `suppliers-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `suppliers-${cairoTodayDay()}.xlsx`);
     toast.success(`تم تصدير ${data.length} مورد`);
   };
 
@@ -331,7 +332,7 @@ export default function AllSuppliers() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "فواتير شراء المورد");
-    XLSX.writeFile(wb, `shipments-${shipmentsView.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `shipments-${shipmentsView.name}-${cairoTodayDay()}.xlsx`);
     toast.success(`تم تصدير ${rows.length} سطر`);
   };
 
@@ -339,7 +340,7 @@ export default function AllSuppliers() {
     setShipForm({
       contact_id: preSupplierId ?? "",
       branch_id: "",
-      arrival_date: new Date().toISOString().split("T")[0],
+      arrival_date: cairoTodayDay(),
       received_by: "",
       shipping_cost: 0,
       admin_cost: 0,

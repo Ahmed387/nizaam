@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const STATUS_LABEL: Record<string, string> = {
   present: "حاضر", late: "متأخر", absent: "غائب", leave: "إجازة",
@@ -15,7 +16,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function AllAttendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { branches } = useAuth();
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(cairoTodayDay());
   const [branchId, setBranchId] = useState<string>("all");
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/format";
 import { FileSpreadsheet, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
   const { tenant, profile, isAdmin } = useAuth();
@@ -54,7 +55,7 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
     XLSX.utils.sheet_add_json(ws, data, { origin: -1 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "سجل العمليات");
-    XLSX.writeFile(wb, `audit-log-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `audit-log-${cairoTodayDay()}.xlsx`);
     toast.success(`تم تصدير ${data.length} عملية`);
   };
 

@@ -1,4 +1,4 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { fin } from "@/lib/financeTerms";
@@ -38,7 +38,7 @@ function bucketOf(days: number): Bucket {
 
 export default function AgingReport() {
   const { tenantId } = useAuth();
-  const [asOf, setAsOf] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [asOf, setAsOf] = useState<string>(() => cairoTodayDay());
   const [ar, setAR] = useState<Row[]>([]);
   const [ap, setAP] = useState<Row[]>([]);
   const [search, setSearch] = useState("");

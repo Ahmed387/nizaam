@@ -17,6 +17,7 @@ import { Building2, PlusCircle, TrendingUp, TrendingDown, Wallet, Package, Users
 import { formatDate } from "@/lib/format";
 import { useBranchScope } from "@/lib/branchScope";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type Branch = { id: string; name: string; code: string };
 type Allocation = { id: string; branch_id: string; amount: number; allocation_date: string; notes: string | null; created_at: string };
@@ -46,7 +47,7 @@ export default function BranchCapital() {
   const [positions, setPositions] = useState<Record<string, Position>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ branch_id: "", amount: "", allocation_date: new Date().toISOString().slice(0, 10), notes: "" });
+  const [form, setForm] = useState({ branch_id: "", amount: "", allocation_date: cairoTodayDay(), notes: "" });
   const [saving, setSaving] = useState(false);
   const [partnerCash, setPartnerCash] = useState<number | null>(null);
 
@@ -115,7 +116,7 @@ export default function BranchCapital() {
       duration: 8000,
     });
     setOpen(false);
-    setForm({ branch_id: "", amount: "", allocation_date: new Date().toISOString().slice(0, 10), notes: "" });
+    setForm({ branch_id: "", amount: "", allocation_date: cairoTodayDay(), notes: "" });
     load();
   };
 

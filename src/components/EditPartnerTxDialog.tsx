@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type Tx = {
   id: string;
@@ -40,7 +41,7 @@ export function EditPartnerTxDialog({
         amount: String(tx.amount),
         description: tx.description || "",
         month_year: tx.month_year || "",
-        date: tx.created_at ? new Date(tx.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+        date: tx.created_at ? new Date(tx.created_at).toISOString().slice(0, 10) : cairoTodayDay(),
       });
     }
   }, [tx, open]);

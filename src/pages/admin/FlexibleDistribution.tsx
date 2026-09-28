@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Calculator, PieChart, TrendingUp, Wallet, Loader2 } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -34,7 +35,7 @@ type Preview = {
   partners: PartnerRow[];
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => cairoTodayDay();
 const monthAgo = () => {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);

@@ -12,6 +12,7 @@ import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { Scale } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type Line = {
   debit: number;
@@ -32,7 +33,7 @@ const typeLabels: Record<string, string> = {
 
 export default function BalanceSheet() {
   const { tenantId } = useAuth();
-  const [asOf, setAsOf] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [asOf, setAsOf] = useState<string>(() => cairoTodayDay());
   const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(false);
 

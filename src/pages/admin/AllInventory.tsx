@@ -29,6 +29,7 @@ import { PRODUCT_BUCKET } from "@/lib/productImage";
 import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { ProductCell } from "@/components/VariantChips";
 import { useBranchScope } from "@/lib/branchScope";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 interface Row {
   id: string;
@@ -226,7 +227,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "المخزون");
-    const date = new Date().toISOString().slice(0, 10);
+    const date = cairoTodayDay();
     XLSX.writeFile(wb, `inventory-${date}.xlsx`);
     toast.success(`تم تصدير ${data.length} منتج`);
   };

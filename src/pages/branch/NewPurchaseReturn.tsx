@@ -29,6 +29,7 @@ import { Loader2, Link2, Printer, AlertTriangle, FileText, User as UserIcon, Pac
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 interface Line extends VariantAttrs {
   shipment_item_id?: string;
@@ -69,7 +70,7 @@ export default function NewPurchaseReturn() {
   const [recipientName, setRecipientName] = useState("");
   const __me = useCurrentUserName();
   useEffect(() => { if (__me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [invoiceDate, setInvoiceDate] = useState(cairoTodayDay());
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع شراء غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
   const [openSections, setOpenSections] = useState({ supplier: true, products: true, payment: true, summary: true });

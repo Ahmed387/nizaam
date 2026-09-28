@@ -18,6 +18,7 @@ import {
 import { buildKpiAlerts } from "@/lib/kpiAlerts";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type Alert = ReturnType<typeof buildKpiAlerts>[number];
 const buildAlerts = buildKpiAlerts;
@@ -63,7 +64,7 @@ function KpiCard({ icon: Icon, label, value, monetary = false, tone = "default",
 export default function KpiDashboard() {
   const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = cairoTodayDay();
   const y = new Date().getFullYear();
   const [start, setStart] = useState(`${y}-01-01`);
   const [end, setEnd] = useState(today);

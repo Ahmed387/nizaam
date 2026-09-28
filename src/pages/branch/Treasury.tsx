@@ -125,7 +125,7 @@ export default function Treasury() {
     setLoading(false);
     // Low balance alert + once-per-day notification
     if (balances && threshold > 0 && Number(balances.total_balance) < threshold) {
-      const key = `low_balance_notified_${branchId}_${new Date().toISOString().slice(0, 10)}`;
+      const key = `low_balance_notified_${branchId}_${cairoTodayDay()}`;
       if (!localStorage.getItem(key)) {
         localStorage.setItem(key, "1");
         const brName = (br.data as any)?.name ?? "الفرع";

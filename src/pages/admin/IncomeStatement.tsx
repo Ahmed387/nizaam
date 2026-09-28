@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 type Line = {
   debit: number;
@@ -36,7 +37,7 @@ export default function IncomeStatement() {
   const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
   const [from, setFrom] = useState<string>(firstOfMonth());
-  const [to, setTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [to, setTo] = useState<string>(() => cairoTodayDay());
   const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(false);
 

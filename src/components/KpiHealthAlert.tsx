@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { buildKpiAlerts, KpiAlert, KpiSnapshot } from "@/lib/kpiAlerts";
 import { notifyMany, getTenantAdmins } from "@/lib/notifications";
 import { AlertTriangle, ShieldCheck, ArrowLeft, Siren, ChevronDown } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 // Realtime on GL — no polling. Debounce to coalesce rapid changes.
 const DEBOUNCE_MS = 3_000;
@@ -21,7 +22,7 @@ export function KpiHealthAlert() {
     const run = async () => {
       const y = new Date().getFullYear();
       const start = `${y}-01-01`;
-      const end = new Date().toISOString().slice(0, 10);
+      const end = cairoTodayDay();
       const { data, error } = await supabase.rpc("get_financial_kpis" as any, { _start_date: start, _end_date: end });
       if (cancelled || error || !data) return;
       const next = buildKpiAlerts(data as KpiSnapshot);

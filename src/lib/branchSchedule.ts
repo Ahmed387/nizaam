@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 export interface BranchSchedule {
   id?: string;
@@ -58,7 +59,7 @@ export async function fetchClosures(branchId?: string): Promise<BranchClosure[]>
   return ((data ?? []) as any[]) as BranchClosure[];
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => cairoTodayDay();
 
 /** Why is the branch closed today (weekly off / exceptional closure)? null = open. */
 export function offDayReason(schedule: BranchSchedule | undefined, closures: BranchClosure[], date = todayStr()): string | null {

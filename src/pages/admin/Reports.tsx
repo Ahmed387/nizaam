@@ -1,4 +1,4 @@
-import { getCairoDayBounds } from "@/lib/cairoDate";
+import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -29,7 +29,7 @@ import {
 import { useBranchScope } from "@/lib/branchScope";
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))", "#8b5cf6", "#06b6d4"];
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => cairoTodayDay();
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 
 type Branch = { id: string; name: string; code: string };

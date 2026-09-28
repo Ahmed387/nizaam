@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowDownRight, ArrowUpRight, Wallet } from "lucide-react";
+import { cairoTodayDay } from "@/lib/cairoDate";
 
 /**
  * Cash Flow Statement — Indirect approach via cash-touching journal entries.
@@ -57,7 +58,7 @@ function classify(code: string, type: string): Bucket {
 export default function CashFlowStatement() {
   const { tenantId } = useAuth();
   const [from, setFrom] = useState<string>(firstOfMonth());
-  const [to, setTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [to, setTo] = useState<string>(() => cairoTodayDay());
   const [entries, setEntries] = useState<Entry[]>([]);
   const [openingCash, setOpeningCash] = useState(0);
   const [loading, setLoading] = useState(false);
