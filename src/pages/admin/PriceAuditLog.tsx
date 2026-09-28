@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime, formatEGP } from "@/lib/format";
 import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles, Trash2, AlertTriangle } from "lucide-react";
@@ -77,7 +78,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
   useEffect(() => {
     load();
     supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH").then(({ data }) => setBranches(filterBranches((data ?? [])) as any) as any);
-    supabase.from("products").select("id,name").limit(1000).then(({ data }) => setProducts(data ?? []));
+    fetchAllRows<any>(() => supabase.from("products").select("id,name").order("id")).then((data) => setProducts(data ?? [])).catch(() => setProducts([]));
 
     const ch = supabase
       .channel("price-audit-realtime")

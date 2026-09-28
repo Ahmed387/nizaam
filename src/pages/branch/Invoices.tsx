@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
 import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Pencil, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { toast } from "sonner";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -229,8 +230,8 @@ export default function Invoices() {
     const q = f.q.trim().replace(/[,()%*]/g, " ").trim();
     const opts = withCount ? { count: "exact" as const } : undefined;
     const contactIdsFor = async (text: string) => {
-      const { data } = await supabase.from("contacts").select("id").or(`name.ilike.%${text}%,phone.ilike.%${text}%`).limit(500);
-      return (data ?? []).map((d: any) => d.id as string);
+      const data = await fetchAllRows<any>(() => supabase.from("contacts").select("id").or(`name.ilike.%${text}%,phone.ilike.%${text}%`).order("id"));
+      return data.map((d: any) => d.id as string);
     };
     const inList = (ids: string[]) => `(${(ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).join(",")})`;
     /** dateOnly = true for SQL `date` columns; timestamps get Cairo 00:00 → 23:59:59.999. */
@@ -264,11 +265,11 @@ export default function Invoices() {
       qb = supabase.from("returns").select(select, opts).eq("branch_id", branchId!);
       if (q) {
         const ids = await contactIdsFor(q);
-        const { data: invs } = await supabase.from("invoices").select("id").eq("branch_id", branchId!).or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`).limit(500);
+        const invs = await fetchAllRows<any>(() => supabase.from("invoices").select("id").eq("branch_id", branchId!).or(`invoice_number.ilike.%${q}%,contact_id.in.${inList(ids)}`).order("id"));
         qb = qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%,invoice_id.in.${inList((invs ?? []).map((i: any) => i.id))}`);
       }
       if (f.partyId) {
-        const { data: invs } = await supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).limit(1000);
+        const invs = await fetchAllRows<any>(() => supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).order("id"));
         qb = qb.in("invoice_id", (invs ?? []).map((i: any) => i.id).concat(["00000000-0000-0000-0000-000000000000"]));
       }
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_refund"); qb = textCols(qb, "recipient_name", "notes");
@@ -360,17 +361,10 @@ export default function Invoices() {
     setLoading(false);
     if (tab === "sale_return" || tab === "purchase_return") {
       const col = tab === "sale_return" ? "total_refund" : "total_amount";
-      let sum = 0; let off = 0;
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { qb: sq } = await buildQuery(col, false);
-        const { data: part } = await sq.range(off, off + 999).abortSignal(ctrl.signal);
-        if (stale()) return;
-        (part ?? []).forEach((x: any) => { sum += Number(x[col] ?? 0); });
-        if (!part || part.length < 1000) break;
-        off += 1000;
-      }
-      setReturnsTotal(sum);
+      const { qb: sq } = await buildQuery(col, false);
+      const part = await fetchAllRows<any>(() => sq.abortSignal(ctrl.signal)).catch(() => [] as any[]);
+      if (stale()) return;
+      setReturnsTotal(part.reduce((s: number, x: any) => s + Number(x[col] ?? 0), 0));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, branchId, page, buildQuery]);
@@ -665,8 +659,22 @@ export default function Invoices() {
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
-  const handleExportExcel = () => {
-    const exportRows = filteredRows.map((r) => {
+  const [isExporting, setIsExporting] = useState(false);
+  // Excel exports every document matching the active filters — not just the visible page.
+  const handleExportExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    const t = toast.loading("جاري تصدير كافة البيانات...");
+    let all: any[];
+    try {
+      const { qb } = await buildQuery(SELECTS[tab], false);
+      all = await fetchAllRows<any>(() => qb.order("id"));
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذر التصدير", { id: t });
+      setIsExporting(false);
+      return;
+    }
+    const exportRows = all.map((r) => {
       const out: any = {};
       for (const c of cfg.columns as any[]) {
         let v: any;
@@ -677,6 +685,8 @@ export default function Invoices() {
       return out;
     });
     exportToExcel(currentTabLabel, [{ name: currentTabLabel, rows: exportRows }]);
+    toast.success(`تم تصدير ${all.length} مستند`, { id: t });
+    setIsExporting(false);
   };
 
   const handleExportPDF = async () => {
@@ -815,7 +825,7 @@ export default function Invoices() {
         subtitle="كل فواتير ومستندات الفرع في مكان واحد"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filteredRows.length} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filteredRows.length || isExporting} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length} className="gap-2">

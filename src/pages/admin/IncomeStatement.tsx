@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
@@ -42,17 +43,19 @@ export default function IncomeStatement() {
   useEffect(() => {
     if (!tenantId) return;
     setLoading(true);
-    supabase.from("journal_entry_lines" as any)
-      .select("debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
+    fetchAllRows<any>(() => supabase.from("journal_entry_lines" as any)
+      .select("id,debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
       .eq("journal_entries.tenant_id", tenantId)
       .eq("journal_entries.status", "posted")
       .gte("journal_entries.entry_date", from)
       .lte("journal_entries.entry_date", to)
-      .then(({ data }) => {
+      .order("id"))
+      .then((data) => {
         const all = (data ?? []) as any[];
         setLines(all.filter(l => l.chart_of_accounts && ["revenue", "expense"].includes(l.chart_of_accounts.account_type)));
-        setLoading(false);
-      });
+      })
+      .catch(() => setLines([]))
+      .finally(() => setLoading(false));
   }, [tenantId, from, to]);
 
   const { revenues, expenses } = useMemo(() => {

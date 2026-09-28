@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { searchMatch } from "@/lib/search";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
@@ -96,10 +97,10 @@ export default function AllSuppliers() {
   const load = async () => {
     setLoading(true);
     const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
-      supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }),
+      fetchAllRows<any>(() => supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       supabase.from("branches").select("id, name").eq("is_active", true).neq("code", "PARTNER-CASH").order("name"),
-      supabase.from("shipments").select("contact_id, branch_id, total_cost, branches(name)"),
-      supabase.from("supplier_payments").select("contact_id, branch_id, amount, branches(name)"),
+      fetchAllRows<any>(() => supabase.from("shipments").select("id, contact_id, branch_id, total_cost, branches(name)").order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("supplier_payments").select("id, contact_id, branch_id, amount, branches(name)").order("id")).then((data) => ({ data })),
     ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
     const list = (sups ?? []) as any[];

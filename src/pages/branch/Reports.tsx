@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
 import { generateProfitReport, generateBranchTabReport, type ReportsTabKey } from "@/utils/generatePDFReport";
@@ -71,11 +72,11 @@ export default function BranchReports() {
     const toIso = getCairoDayBounds(undefined, to).endIso!;
     const [b, inv, exp, tr, pr, rt] = await Promise.all([
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
-      supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("invoice_date", fromIso).lte("invoice_date", toIso).order("invoice_date", { ascending: false }),
-      supabase.from("vouchers").select("*, voucher_categories!inner(name, system_key, is_deductible_from_profit)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("vouchers" as any).select("type, amount, voucher_date, voucher_categories(system_key)").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to),
-      supabase.from("products").select("*").eq("branch_id", branchId),
-      supabase.from("returns" as any).select("total_refund, created_at, invoice_date").eq("branch_id", branchId).eq("status", "active").gte("invoice_date", fromIso).lte("invoice_date", toIso),
+      fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").eq("branch_id", branchId).gte("invoice_date", fromIso).lte("invoice_date", toIso).order("invoice_date", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories!inner(name, system_key, is_deductible_from_profit)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("vouchers" as any).select("id, type, amount, voucher_date, voucher_categories(system_key)").eq("branch_id", branchId).eq("status", "active").gte("voucher_date", from).lte("voucher_date", to).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("products").select("*").eq("branch_id", branchId).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("returns" as any).select("id, total_refund, created_at, invoice_date").eq("branch_id", branchId).eq("status", "active").gte("invoice_date", fromIso).lte("invoice_date", toIso).order("id")).then((data) => ({ data })),
     ]);
     setBranchName(b.data?.name ?? "");
     setInvoices(inv.data ?? []);

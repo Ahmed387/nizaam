@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Building2, PlusCircle, TrendingUp, TrendingDown, Wallet, Package, Users, PieChart } from "lucide-react";
@@ -55,8 +56,8 @@ export default function BranchCapital() {
     const { data: pb } = await (supabase.from("branches") as any)
       .select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle();
     if (!pb?.id) { setPartnerCash(0); return; }
-    const { data: tx } = await (supabase.from("treasury") as any)
-      .select("type,amount").eq("branch_id", pb.id).eq("payment_method", "cash").limit(20000);
+    const tx = await fetchAllRows<any>(() => (supabase.from("treasury") as any)
+      .select("id,type,amount").eq("branch_id", pb.id).eq("payment_method", "cash").order("id")).catch(() => [] as any[]);
     const bal = ((tx ?? []) as any[]).reduce(
       (s, r) => s + (r.type === "income" ? Number(r.amount || 0) : -Number(r.amount || 0)), 0);
     setPartnerCash(bal);

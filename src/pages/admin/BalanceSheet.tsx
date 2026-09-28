@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { Scale } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
@@ -38,12 +39,15 @@ export default function BalanceSheet() {
   useEffect(() => {
     if (!tenantId) return;
     setLoading(true);
-    supabase.from("journal_entry_lines" as any)
-      .select("debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
+    fetchAllRows<any>(() => supabase.from("journal_entry_lines" as any)
+      .select("id,debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
       .eq("journal_entries.tenant_id", tenantId)
       .eq("journal_entries.status", "posted")
       .lte("journal_entries.entry_date", asOf)
-      .then(({ data }) => { setLines((data ?? []) as any); setLoading(false); });
+      .order("id"))
+      .then((data) => { setLines((data ?? []) as any); })
+      .catch(() => setLines([]))
+      .finally(() => setLoading(false));
   }, [tenantId, asOf]);
 
   const { assets, liabilities, equity, netIncome } = useMemo(() => {

@@ -9,6 +9,7 @@ import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { invoiceProfit } from "@/lib/profitEngine";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { fetchRecentDocs, RECENT_DOC_KIND_CLASS, type RecentDoc } from "@/lib/recentDocs";
 import { DollarSign, Wallet, AlertTriangle, UserPlus, TrendingUp, TrendingDown, Package, ShoppingBag, Target, ShoppingCart, RotateCcw, PackagePlus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, Undo2, BookmarkPlus, Truck, Paperclip } from "lucide-react";
@@ -50,6 +51,7 @@ export default function BranchDashboard() {
 
   const load = useCallback(async () => {
     if (!id) return;
+    const allRows = (b: () => any) => fetchAllRows<any>(b).then((data) => ({ data })).catch(() => ({ data: [] as any[] }));
     // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز
     const td = cairoTodayDay();
     const today = cairoStart(td);
@@ -63,18 +65,18 @@ export default function BranchDashboard() {
       invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentDocs,
       invLast30, invItemsToday, invItemsMonth, invAll30, branchRow,
     ] = await Promise.all([
-      supabase.from("invoices").select("total, payment_method, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", today.toISOString()),
-      supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()),
-      supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", monthStart.toISOString()),
-      supabase.from("invoices").select("total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()),
-      supabase.from("treasury").select("type, amount").eq("branch_id", id!),
-      supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id),
+      allRows(() => supabase.from("invoices").select("id, total, payment_method, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", today.toISOString()).order("id")),
+      allRows(() => supabase.from("invoices").select("id, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()).order("id")),
+      allRows(() => supabase.from("invoices").select("id, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", monthStart.toISOString()).order("id")),
+      allRows(() => supabase.from("invoices").select("id, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()).order("id")),
+      allRows(() => supabase.from("treasury").select("id, type, amount").eq("branch_id", id!).order("id")),
+      allRows(() => supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id).order("id")),
       supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
       fetchRecentDocs(5, id),
-      supabase.from("invoices").select("created_at, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", last30.toISOString()),
-      supabase.from("invoice_items").select("product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated","is",true).gte("invoices.created_at", today.toISOString()),
-      supabase.from("invoice_items").select("quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated","is",true).gte("invoices.created_at", monthStart.toISOString()),
-      supabase.from("invoices").select("contact_id, total, discount_amount, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", last30.toISOString()).not("contact_id", "is", null),
+      allRows(() => supabase.from("invoices").select("id, created_at, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", last30.toISOString()).order("id")),
+      allRows(() => supabase.from("invoice_items").select("id, product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated","is",true).gte("invoices.created_at", today.toISOString()).order("id")),
+      allRows(() => supabase.from("invoice_items").select("id, quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated","is",true).gte("invoices.created_at", monthStart.toISOString()).order("id")),
+      allRows(() => supabase.from("invoices").select("id, contact_id, total, discount_amount, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", last30.toISOString()).not("contact_id", "is", null).order("id")),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
     const netInvoiceTotal = (inv: any) => {

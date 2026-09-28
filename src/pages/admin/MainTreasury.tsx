@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
@@ -89,15 +90,15 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
-    const tq = applyCairoRange(
+    const tq = () => applyCairoRange(
       supabase
         .from("treasury")
         .select("id,branch_id,type,category,amount,description,payment_method,created_at")
         .in("branch_id", branchList.map(b => b.id)),
       "created_at", from, to,
-    ).order("created_at", { ascending: false });
+    ).order("created_at", { ascending: false }).order("id");
     const [{ data: tr }, { data: vb }] = await Promise.all([
-      tq,
+      fetchAllRows<any>(tq).then((data) => ({ data })).catch(() => ({ data: [] as any[] })),
       // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
       supabase
         .from("v_treasury_balances" as any)

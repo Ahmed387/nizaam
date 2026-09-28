@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowDownRight, ArrowUpRight, Wallet } from "lucide-react";
 
@@ -66,11 +67,12 @@ export default function CashFlowStatement() {
     setLoading(true);
     (async () => {
       // 1. Opening cash balance (before `from`)
-      const { data: openLines } = await supabase.from("journal_entry_lines" as any)
-        .select("debit,credit,chart_of_accounts!inner(code),journal_entries!inner(entry_date,status,tenant_id)")
+      const openLines = await fetchAllRows<any>(() => supabase.from("journal_entry_lines" as any)
+        .select("id,debit,credit,chart_of_accounts!inner(code),journal_entries!inner(entry_date,status,tenant_id)")
         .eq("journal_entries.tenant_id", tenantId)
         .eq("journal_entries.status", "posted")
-        .lt("journal_entries.entry_date", from);
+        .lt("journal_entries.entry_date", from)
+        .order("id")).catch(() => [] as any[]);
       let open = 0;
       for (const l of (openLines ?? []) as any[]) {
         if (l.chart_of_accounts && CASH_CODES.has(l.chart_of_accounts.code)) {
@@ -80,12 +82,13 @@ export default function CashFlowStatement() {
       setOpeningCash(open);
 
       // 2. Entries in the period with all lines
-      const { data: ents } = await supabase.from("journal_entries" as any)
+      const ents = await fetchAllRows<any>(() => supabase.from("journal_entries" as any)
         .select("id,entry_date,description,journal_entry_lines(debit,credit,chart_of_accounts(id,code,name,name_ar,account_type))")
         .eq("tenant_id", tenantId)
         .eq("status", "posted")
         .gte("entry_date", from)
-        .lte("entry_date", to);
+        .lte("entry_date", to)
+        .order("id")).catch(() => [] as any[]);
       setEntries((ents ?? []) as any);
       setLoading(false);
     })();

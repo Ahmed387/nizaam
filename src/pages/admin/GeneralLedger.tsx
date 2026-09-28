@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
@@ -31,13 +32,21 @@ export default function GeneralLedger() {
 
   useEffect(() => {
     if (!accountId) { setLines([]); return; }
+    const build = () => {
     let q = supabase.from("journal_entry_lines" as any)
       .select("*, journal_entries!inner(entry_number,entry_date,description,status)")
       .eq("account_id", accountId).eq("journal_entries.status", "posted")
       .order("entry_date", { referencedTable: "journal_entries", ascending: true });
     if (from) q = q.gte("journal_entries.entry_date", from);
     if (to) q = q.lte("journal_entries.entry_date", to);
-    q.then(({ data }) => setLines((data ?? []) as any));
+    return q.order("id");
+    };
+    fetchAllRows<any>(build)
+      .then((data) => {
+        const sorted = [...data].sort((a, b) => String(a.journal_entries?.entry_date ?? "").localeCompare(String(b.journal_entries?.entry_date ?? "")));
+        setLines(sorted as any);
+      })
+      .catch(() => setLines([]));
   }, [accountId, from, to]);
 
   const account = accounts.find(a => a.id === accountId);
