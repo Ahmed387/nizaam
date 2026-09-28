@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PickerItemsToggle } from "@/components/PickerItemsPreview";
 import { formatDate, formatEGP } from "@/lib/format";
 
-const PAGE = 10;
+const PAGE = 20;
 const RETURNABLE_STATUSES = ["active"]; // invoice_status enum: active | cancelled
 
 type Kind = "sale" | "purchase";

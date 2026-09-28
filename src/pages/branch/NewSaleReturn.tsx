@@ -69,7 +69,7 @@ export default function NewSaleReturn() {
   const [notes, setNotes] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const __me = useCurrentUserName();
-  useEffect(() => { if (true && __me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
+  useEffect(() => { if (__me && recipientName !== __me) setRecipientName(__me); }, [__me, recipientName]);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [busy, setBusy] = useState(false);
   useUnsavedChanges(lines.some((l) => (l.quantity ?? 0) > 0), "لديك مرتجع بيع غير محفوظ. هل تريد المغادرة وفقدان البيانات؟");
@@ -126,7 +126,7 @@ export default function NewSaleReturn() {
     const { data: prevReturns } = await supabase
       .from("returns").select("id, status").eq("invoice_id", invId).eq("status", "active");
     const prevReturnIds = (prevReturns ?? []).map((r: any) => r.id);
-    let prevByProduct: Record<string, number> = {};
+    const prevByProduct: Record<string, number> = {};
     if (prevReturnIds.length) {
       const { data: prevItems } = await supabase
         .from("return_items").select("product_id, quantity").in("return_id", prevReturnIds);
@@ -375,7 +375,9 @@ export default function NewSaleReturn() {
           owner_id: user!.id,
         },
       });
-    } catch {}
+    } catch (error) {
+      console.error("تعذر تسجيل موافقة تجاوز مدة المرتجع", error);
+    }
     await submit(pendingDraft);
     setOverrideApproved(null);
   };
