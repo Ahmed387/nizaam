@@ -26,6 +26,7 @@ import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { generateVouchersReport } from "@/utils/generatePDFReport";
 import { useBranchScope } from "@/lib/branchScope";
+import { fetchAllRows } from "@/lib/fetchAll";
 
 interface Props {
   branchId?: string;
@@ -65,9 +66,10 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   const canAdd = !!branchId && (isAdmin || hasRole("branch_manager"));
 
-  const load = async () => {
-    setLoading(true);
-    let q = supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
+  const [agg, setAgg] = useState({ totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 });
+
+  /** Same filter set for the table rows and the full-scope totals. */
+  const applyFilters = (q: any, deductibleIds: string[] | null) => {
     if (branchId) q = q.eq("branch_id", branchId);
     if (tenantId) q = q.eq("tenant_id", tenantId);
     if (type) q = q.eq("type", type);
@@ -78,14 +80,36 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     if (filters.payment_method) q = q.eq("payment_method", filters.payment_method);
     if (filters.source) q = q.eq("source", filters.source);
     if (filters.branch_id) q = q.eq("branch_id", filters.branch_id);
+    if (deductibleIds) {
+      q = q.eq("type", "payment").eq("status", "active").in("category_id", deductibleIds.length ? deductibleIds : ["00000000-0000-0000-0000-000000000000"]);
+    }
+    return q;
+  };
+
+  const load = async () => {
+    setLoading(true);
+    let deductibleIds: string[] | null = null;
     if (onlyDeductedFromProfit) {
       const { data: dc } = await supabase.from("voucher_categories").select("id").eq("is_deductible_from_profit", true);
-      const ids = (dc ?? []).map((c: any) => c.id);
-      q = q.eq("type", "payment").eq("status", "active").in("category_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+      deductibleIds = (dc ?? []).map((c: any) => c.id);
     }
-    const { data, error } = await q;
+    const rowsQ = applyFilters(
+      supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500),
+      deductibleIds,
+    );
+    // Totals cover every matching active voucher, not just the 500 displayed rows.
+    const totalsP = fetchAllRows<{ type: string; amount: number }>(() =>
+      applyFilters(supabase.from("vouchers" as any).select("type,amount").eq("status", "active").order("id"), deductibleIds),
+    );
+    const [{ data, error }, totals] = await Promise.all([rowsQ, totalsP.catch((e) => { toast.error(e.message); return []; })]);
     if (error) toast.error(error.message);
     setRows((data ?? []) as unknown as Voucher[]);
+    const a = { totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 };
+    for (const t of totals) {
+      const amt = Math.abs(Number(t.amount) || 0);
+      if (t.type === "receipt") { a.totalIn += amt; a.countIn++; } else if (t.type === "payment") { a.totalOut += amt; a.countOut++; }
+    }
+    setAgg(a);
     setLoading(false);
   };
 
@@ -104,12 +128,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const branchMap = useMemo(() => Object.fromEntries(branches.map((b) => [b.id, b.name])), [branches]);
   const attCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r) => r.id), [rows]));
 
-  const summary = useMemo(() => {
-    const active = rows.filter((r) => r.status === "active");
-    const totalIn = active.filter((r) => r.type === "receipt").reduce((s, r) => s + Number(r.amount), 0);
-    const totalOut = active.filter((r) => r.type === "payment").reduce((s, r) => s + Number(r.amount), 0);
-    return { totalIn, totalOut, net: totalIn - totalOut };
-  }, [rows]);
+  const summary = useMemo(() => ({ ...agg, net: agg.totalIn - agg.totalOut }), [agg]);
+  const viewType: VoucherType | "" = type ?? (onlyDeductedFromProfit ? "payment" : filters.type);
 
   const confirmCancel = async () => {
     if (!cancelTarget) return;
@@ -168,22 +188,40 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground">إجمالي القبض</div>
-          <div className="text-xl font-bold text-success">{formatEGP(summary.totalIn)}</div>
-        </div>
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground">إجمالي الصرف</div>
-          <div className="text-xl font-bold text-destructive">{formatEGP(summary.totalOut)}</div>
-        </div>
-        <div className="card-elevated p-4">
-          <div className="text-xs text-muted-foreground">الصافي</div>
-          <div className={`text-xl font-bold ${summary.net >= 0 ? "text-success" : "text-destructive"}`}>
-            {formatEGP(summary.net)}
+      {viewType ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="card-elevated p-4">
+            <div className="text-xs text-muted-foreground">{viewType === "receipt" ? "إجمالي القبض" : "إجمالي الصرف"}</div>
+            <div className={`text-xl font-bold ${viewType === "receipt" ? "text-success" : "text-destructive"}`}>
+              {formatEGP(viewType === "receipt" ? summary.totalIn : summary.totalOut)}
+            </div>
+          </div>
+          <div className="card-elevated p-4">
+            <div className="text-xs text-muted-foreground">عدد السندات</div>
+            <div className="text-xl font-bold tabular-nums">{viewType === "receipt" ? summary.countIn : summary.countOut}</div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="card-elevated p-4">
+            <div className="text-xs text-muted-foreground">إجمالي القبض</div>
+            <div className="text-xl font-bold text-success">{formatEGP(summary.totalIn)}</div>
+          </div>
+          <div className="card-elevated p-4">
+            <div className="text-xs text-muted-foreground">إجمالي الصرف</div>
+            <div className="text-xl font-bold text-destructive">{formatEGP(summary.totalOut)}</div>
+          </div>
+          <div className="card-elevated p-4">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>الصافي (القبض − الصرف)</span>
+              <Badge variant={summary.net >= 0 ? "secondary" : "destructive"}>{summary.net >= 0 ? "فائض" : "عجز"}</Badge>
+            </div>
+            <div className={`text-xl font-bold ${summary.net >= 0 ? "text-success" : "text-destructive"}`}>
+              {formatEGP(Math.abs(summary.net))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card-elevated p-4 space-y-3">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

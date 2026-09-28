@@ -270,7 +270,7 @@ export default function Treasury() {
             })}
           </div>
           <div className="border-t pt-4 text-center">
-            <div className="text-sm text-muted-foreground mb-1">الإجمالي</div>
+            <div className="text-sm text-muted-foreground mb-1">الرصيد الفعلي الحالي للخزينة <span className="text-xs">(كل الفترات — لا يتأثر بفلتر التاريخ)</span></div>
              <FinancialAmount value={walletBalances.total_balance} size="hero" className="gradient-text font-extrabold" />
             {lowThreshold > 0 && walletBalances.total_balance < lowThreshold && (
               <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
