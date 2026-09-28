@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ReturnDocPicker } from "@/components/ReturnDocPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -659,43 +660,7 @@ export default function NewPurchaseReturn() {
 
 
       {/* Shipment picker */}
-      <Dialog open={pickOpen} onOpenChange={setPickOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>اختر فاتورة شراء لإنشاء مرتجع</DialogTitle>
-            <DialogDescription>كل مرتجع شراء لازم يكون مربوط بفاتورة موجودة.</DialogDescription>
-          </DialogHeader>
-          <Input
-            placeholder="ابحث بالتاريخ أو اسم المورد أو رقم التليفون..."
-            value={pickQuery}
-            onChange={(e) => setPickQuery(e.target.value)}
-            autoFocus
-          />
-          <div className="max-h-[420px] overflow-y-auto border border-border rounded-lg">
-            {filteredShipments.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground text-sm">مفيش فواتير مطابقة</div>
-            ) : (
-              filteredShipments.map((r: any) => (
-                <PickerItemsToggle key={r.id} kind="shipment" branchId={branchId!} docId={r.id}>
-                <button
-                  onClick={() => pickShipment(r.id)}
-                  className="w-full flex items-center justify-between gap-3 p-3 hover:bg-accent text-right transition-colors"
-                >
-                  <div className="flex flex-col items-start gap-0.5">
-                    <span className="font-mono font-bold text-primary">{r.arrival_date}</span>
-                    <span className="text-xs text-muted-foreground">{r.contacts?.name ?? "—"}{r.contacts?.phone ? ` • ${r.contacts.phone}` : ""}</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="font-bold">{formatEGP(r.total_cost)}</span>
-                    {r.notes && <span className="text-xs text-muted-foreground">{r.notes}</span>}
-                  </div>
-                </button>
-                </PickerItemsToggle>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReturnDocPicker kind="purchase" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickShipment} />
 
       {/* Print dialog */}
       <Dialog open={printOpen} onOpenChange={(o) => { setPrintOpen(o); if (!o) nav(`/branch/${branchId}/invoices?tab=purchase_return`); }}>
