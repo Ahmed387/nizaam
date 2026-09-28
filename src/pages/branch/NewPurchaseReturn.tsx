@@ -94,10 +94,8 @@ export default function NewPurchaseReturn() {
   const [savedNumber, setSavedNumber] = useState("");
 
   useEffect(() => {
-    loadShipments();
     loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
-  }, [loadShipments]);
-  useRealtimeRefresh(["shipments", "purchase_returns"], loadShipments);
+  }, []);
 
   const pickShipment = useCallback(async (shipId: string) => {
     setPickOpen(false);
@@ -337,14 +335,6 @@ export default function NewPurchaseReturn() {
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, lines, shipment, refundMode, cashPart, transferPart, balancePart, refundRef, finalReason, pickOpen]);
-
-  const filteredShipments = useMemo(() => {
-    const q = pickQuery.trim().toLowerCase();
-    if (!q) return shipments;
-    return shipments.filter((r: any) =>
-      [r.arrival_date, r.contacts?.name, r.contacts?.phone, r.notes].filter(Boolean).join(" ").toLowerCase().includes(q)
-    );
-  }, [pickQuery, shipments]);
 
   const printReceipt = (size: "thermal" | "a4") => {
     const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${savedNumber}</title>
