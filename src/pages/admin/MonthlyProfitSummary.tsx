@@ -98,8 +98,8 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
           .gte("invoice_date", getCairoDayBounds(f).startIso!)
           .lte("invoice_date", getCairoDayBounds(undefined, t).endIso!)
       ),
-      supabase.from("v_contact_balances" as any).select("type,total_balance"),
-      supabase.from("treasury" as any).select("type,amount").eq("tenant_id", tenantId),
+      fetchAllRows<any>(() => supabase.from("v_contact_balances" as any).select("contact_id,type,total_balance").order("contact_id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("treasury" as any).select("id,type,amount").eq("tenant_id", tenantId).order("id")).then((data) => ({ data })),
       supabase
         .from("equity_partners")
         .select("id,name,capital_share,initial_capital")

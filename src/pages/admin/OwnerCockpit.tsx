@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP } from "@/lib/format";
 import { ReportIntro } from "@/components/ReportIntro";
 import { FinancialAmount } from "@/components/FinancialAmount";
@@ -73,20 +74,18 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
         fetchProfitWindow({ tenantId, range: rangeForDates(todayStr, todayStr) }),
         fetchProfitWindow({ tenantId, range: rangeForDates(monthStart, todayStr) }),
         // ملاحظة: جدول treasury مفيهوش عمود status، والنوع بيكون income / expense
-        supabase.from("treasury" as any).select("type, amount").eq("tenant_id", tenantId),
+        fetchAllRows<any>(() => supabase.from("treasury" as any).select("id, type, amount").eq("tenant_id", tenantId).order("id")).then((data) => ({ data })),
         // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-        supabase.from("v_contact_balances" as any).select("type, total_balance"),
-        supabase
-          .from("payment_installments")
-          .select("amount, paid_amount, payment_plans!inner(entity_type)")
-          .eq("status", "overdue"),
-        supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null),
-        supabase
+        fetchAllRows<any>(() => supabase.from("v_contact_balances" as any).select("contact_id, type, total_balance").order("contact_id")).then((data) => ({ data })),
+fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount, paid_amount, payment_plans!inner(entity_type)").eq("status", "overdue").order("id")).then((data) => ({ data })),
+        fetchAllRows<any>(() => supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null).order("id")).then((data) => ({ data })),
+        fetchAllRows<any>(() => supabase
           .from("invoice_items")
-          .select("product_id, quantity, returned_quantity, invoices!inner(tenant_id, status, created_at, invoice_date)")
+          .select("id, product_id, quantity, returned_quantity, invoices!inner(tenant_id, status, created_at, invoice_date)")
           .eq("invoices.tenant_id", tenantId)
           .eq("invoices.status", "active")
-          .gte("invoices.invoice_date", new Date(Date.now() - 30 * 86400000).toISOString()),
+          .gte("invoices.invoice_date", new Date(Date.now() - 30 * 86400000).toISOString())
+          .order("id")).then((data) => ({ data })),
         supabase
           .from("pre_orders")
           .select("id")

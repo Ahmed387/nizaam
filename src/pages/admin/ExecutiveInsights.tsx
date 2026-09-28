@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatNumber } from "@/lib/format";
 import { lineProfit } from "@/lib/profitEngine";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
       .gte("invoice_date", fromIso).lte("invoice_date", toIso);
     let pQ = supabase.from("products").select("id, name, sku, branch_id, quantity, archived_at").eq("tenant_id", tenantId).is("archived_at", null);
     let eQ = supabase.from("vouchers")
-      .select("amount, branch_id, voucher_categories!inner(name, system_key, is_deductible_from_profit)")
+      .select("id, amount, branch_id, voucher_categories!inner(name, system_key, is_deductible_from_profit)")
       .eq("tenant_id", tenantId).eq("type", "payment").eq("status", "active")
       .eq("voucher_categories.is_deductible_from_profit", true)
       .gte("voucher_date", from).lte("voucher_date", to);
@@ -82,7 +83,13 @@ export default function ExecutiveInsights({ embedded }: Props) {
       poQ = poQ.eq("branch_id", branchId);
     }
 
-    const [c, i, p, e, po] = await Promise.all([cQ, iQ, pQ, eQ, poQ]);
+    const [c, i, p, e, po] = await Promise.all([
+      fetchAllRows<any>(() => cQ.order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => iQ.order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => pQ.order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => eQ.order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => poQ.order("id")).then((data) => ({ data })),
+    ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
     const cList = (c.data ?? []) as any[];
     const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");

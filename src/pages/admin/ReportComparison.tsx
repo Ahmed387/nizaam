@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatCard } from "@/components/StatCard";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP } from "@/lib/format";
 import { invoiceProfit } from "@/lib/profitEngine";
 import { TrendingUp, TrendingDown, ShoppingCart, Wallet, ArrowRight } from "lucide-react";
@@ -42,16 +43,16 @@ async function loadStats(p: Period, branchId: string): Promise<Stats> {
 
   let invQ = supabase
     .from("invoices")
-    .select("total, status, branch_id, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+    .select("id, total, status, branch_id, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
     .gte("created_at", fromIso).lte("created_at", toIso);
   let expQ = supabase
-    .from("vouchers").select("amount, branch_id, voucher_categories!inner(is_deductible_from_profit)")
+    .from("vouchers").select("id, amount, branch_id, voucher_categories!inner(is_deductible_from_profit)")
     .eq("type", "payment").eq("status", "active")
     .eq("voucher_categories.is_deductible_from_profit", true)
     .gte("voucher_date", p.from).lte("voucher_date", p.to);
 
   let trQ = supabase
-    .from("vouchers").select("type, amount, branch_id").eq("status", "active")
+    .from("vouchers").select("id, type, amount, branch_id").eq("status", "active")
     .gte("voucher_date", p.from).lte("voucher_date", p.to);
 
   if (branchId !== "global") {
@@ -59,7 +60,11 @@ async function loadStats(p: Period, branchId: string): Promise<Stats> {
     expQ = expQ.eq("branch_id", branchId);
     trQ = trQ.eq("branch_id", branchId);
   }
-  const [inv, exp, tr] = await Promise.all([invQ, expQ, trQ]);
+  const [inv, exp, tr] = await Promise.all([
+    fetchAllRows<any>(() => invQ.order("id")).then((data) => ({ data })),
+    fetchAllRows<any>(() => expQ.order("id")).then((data) => ({ data })),
+    fetchAllRows<any>(() => trQ.order("id")).then((data) => ({ data })),
+  ]);
 
   const s: Stats = { ...emptyStats };
   for (const i of (inv.data ?? []) as any[]) {
