@@ -1,3 +1,4 @@
+import { CustomerSelect } from "@/components/CustomerSelect";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
