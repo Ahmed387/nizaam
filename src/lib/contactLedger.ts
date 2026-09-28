@@ -3,6 +3,7 @@
 //          − (Purchases − PurchaseReturns(credit part) − SupplierPayments)
 //          − ReceiptVouchers + PaymentVouchers (+ credit_balance, contact-level only)
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 
 export type LedgerKind =
   | "opening" | "sale" | "sale_payment" | "sale_return"
@@ -51,21 +52,25 @@ export async function fetchContactLedger(contactId: string): Promise<ContactLedg
 
   if (isCustomer) {
     const [{ data: invs }, { data: rets }] = await Promise.all([
-      supabase.from("invoices")
+      fetchAllRows<any>(() => supabase.from("invoices")
         .select("id, invoice_number, total, created_at, invoice_date, status, is_migrated, branch_id")
-        .eq("contact_id", contactId).eq("status", "active"),
-      supabase.from("returns")
+        .eq("contact_id", contactId).eq("status", "active").order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("returns")
         .select("id, return_number, total_refund, refund_cash_amount, refund_transfer_amount, refund_method, status, created_at, invoice_date, invoice_id, branch_id, invoices!inner(contact_id, invoice_number, branch_id)")
-        .eq("invoices.contact_id", contactId),
+        .eq("invoices.contact_id", contactId).order("id")).then((data) => ({ data })),
     ]);
     const invIds = (invs ?? []).map((r: any) => r.id);
     const invById = new Map<string, any>((invs ?? []).map((r: any) => [r.id, r]));
     let pays: any[] = [];
     if (invIds.length) {
-      const { data } = await supabase.from("invoice_payments")
-        .select("id, amount, payment_method, created_at, invoice_id, voided_at, reverses_payment_id")
-        .in("invoice_id", invIds);
-      pays = (data ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id);
+      const data: any[] = [];
+      for (let i = 0; i < invIds.length; i += 200) {
+        const chunk = invIds.slice(i, i + 200);
+        data.push(...await fetchAllRows<any>(() => supabase.from("invoice_payments")
+          .select("id, amount, payment_method, created_at, invoice_id, voided_at, reverses_payment_id")
+          .in("invoice_id", chunk).order("id")));
+      }
+      pays = data.filter((p: any) => !p.voided_at && !p.reverses_payment_id);
     }
     (invs ?? []).forEach((r: any) => list.push({
       date: r.invoice_date ?? r.created_at, type: "فاتورة بيع", kind: "sale", reference: r.invoice_number,
@@ -99,13 +104,13 @@ export async function fetchContactLedger(contactId: string): Promise<ContactLedg
 
   if (isSupplier) {
     const [{ data: ships }, { data: sp }, { data: prets }] = await Promise.all([
-      supabase.from("shipments")
+      fetchAllRows<any>(() => supabase.from("shipments")
         .select("id, shipment_number, total_cost, arrival_date, invoice_date, created_at, is_migrated, branch_id")
-        .eq("contact_id", contactId),
-      supabase.from("supplier_payments" as any).select("id, amount, paid_at, notes, branch_id").eq("contact_id", contactId),
-      supabase.from("purchase_returns")
+        .eq("contact_id", contactId).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("supplier_payments" as any).select("id, amount, paid_at, notes, branch_id").eq("contact_id", contactId).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("purchase_returns")
         .select("id, return_number, total_amount, refund_cash_amount, refund_transfer_amount, status, created_at, invoice_date, refund_method, branch_id")
-        .eq("contact_id", contactId).eq("status", "active"),
+        .eq("contact_id", contactId).eq("status", "active").order("id")).then((data) => ({ data })),
     ]);
     (ships ?? []).forEach((s: any) => list.push({
       date: s.invoice_date ?? s.arrival_date ?? s.created_at, type: "فاتورة شراء", kind: "purchase",
@@ -125,13 +130,14 @@ export async function fetchContactLedger(contactId: string): Promise<ContactLedg
     }));
   }
 
-  const { data: vchs } = await supabase.from("vouchers" as any)
+  const vchs = await fetchAllRows<any>(() => supabase.from("vouchers" as any)
     .select("*, branches(name)")
     .eq("party_id", contactId)
     .in("party_type", ["customer", "supplier"])
     .eq("status", "active")
     .order("voucher_date", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id"));
   const vouchers = (vchs as any[]) ?? [];
   vouchers.forEach((v: any) => {
     const amt = Number(v.amount ?? 0);
