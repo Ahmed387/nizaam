@@ -80,7 +80,7 @@ export default function AllEmployees() {
     setLoading(true);
     const [{ data: e }, { data: b }, { data: a }] = await Promise.all([
       supabase.from("employees").select("*").order("created_at", { ascending: false }),
-      supabase.from("branches").select("id, name").eq("is_active", true).neq("code", "PARTNER-CASH").order("name"),
+      supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name"),
       supabase.from("advances").select("employee_id, remaining, monthly_deduct"),
     ]);
     setEmps(e ?? []);

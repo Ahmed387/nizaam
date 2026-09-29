@@ -40,7 +40,7 @@ export function ShiftAlertBar() {
     const [{ data: sh }, sc, { data: br }] = await Promise.all([
       supabase.from("cashier_shifts").select("id,branch_id,cashier_id,opened_at").eq("status", "open"),
       fetchSchedules(),
-      supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH"),
+      supabase.from("branches").select("id,name").eq("is_system", false),
     ]);
     setShifts((sh ?? []) as any);
     setSchedules(sc);

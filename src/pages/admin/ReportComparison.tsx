@@ -121,7 +121,7 @@ export default function ReportComparison({ embedded }: { embedded?: boolean } = 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from("branches").select("id,name").eq("is_active", true).neq("code", "PARTNER-CASH").then((r) => {
+    supabase.from("branches").select("id,name").eq("is_active", true).eq("is_system", false).then((r) => {
       setBranches(filterBranches((r.data ?? []) as any) as any);
     });
   }, []);

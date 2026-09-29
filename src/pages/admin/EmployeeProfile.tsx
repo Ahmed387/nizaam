@@ -94,7 +94,7 @@ export default function EmployeeProfile() {
       supabase.from("branches").select("id, name, code").eq("id", e.branch_id).maybeSingle(),
       supabase.from("advances").select("*").eq("employee_id", id).order("created_at", { ascending: false }),
       supabase.from("salaries").select("*").eq("employee_id", id).order("paid_at", { ascending: false }),
-      supabase.from("branches").select("id, name").eq("is_active", true).neq("code", "PARTNER-CASH").order("name"),
+      supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name"),
     ]);
     setBranch(b);
     setAdvances(a ?? []);

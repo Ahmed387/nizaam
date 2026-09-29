@@ -99,7 +99,7 @@ export default function AllSuppliers() {
     setLoading(true);
     const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
       fetchAllRows<any>(() => supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
-      supabase.from("branches").select("id, name").eq("is_active", true).neq("code", "PARTNER-CASH").order("name"),
+      supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name"),
       fetchAllRows<any>(() => supabase.from("shipments").select("id, contact_id, branch_id, total_cost, branches(name)").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("supplier_payments").select("id, contact_id, branch_id, amount, branches(name)").order("id")).then((data) => ({ data })),
     ]);
