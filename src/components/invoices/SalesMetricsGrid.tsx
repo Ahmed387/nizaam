@@ -1,4 +1,4 @@
-import { TrendingUp, XCircle, ArrowDownCircle, Clock, Banknote, CreditCard, Smartphone, Landmark } from "lucide-react";
+import { TrendingUp, XCircle, ArrowDownCircle, Clock, Banknote, CreditCard, Smartphone, Landmark, Scale } from "lucide-react";
 import type { ReactNode } from "react";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import type { SalesMetrics } from "@/hooks/useSalesInvoices";
@@ -23,15 +23,17 @@ export function SalesMetricsGrid({ metrics, loading }: { metrics: SalesMetrics |
         <MetricCardWithHint label="الفواتير الملغاة" value={m.cancelledTotal} icon={<XCircle />} tone="destructive" footer={countFooter(m.cancelledCount, "فاتورة ملغاة")}
           metricHint={{ meaning: "عدد وقيمة الفواتير الملغاة، منفصلة تمامًا عن المبيعات النشطة.", source: SOURCE, formula: "Σ total حيث الحالة = ملغاة" }} />
         <MetricCardWithHint label="المحصل الفعلي (+)" value={m.collected} icon={<ArrowDownCircle />} tone="success"
-          metricHint={{ meaning: "ما دفعه العملاء فعليًا على الفواتير النشطة.", source: SOURCE, formula: "Σ مدفوعات الفواتير النشطة" }} />
+          metricHint={{ meaning: "كل ما سُدّد على الفواتير النشطة (نقدًا أو تحويلًا أو مقاصة من رصيد العميل). لا يُخصم منه أي مصروف.", source: SOURCE, formula: "Σ مدفوعات الفواتير النشطة = نقدي + انستاباي + محفظة + بنكي + مقاصة/أخرى" }} />
         <MetricCardWithHint label="المتبقي / الآجل (-)" value={m.remaining} icon={<Clock />} tone="warning"
           metricHint={{ meaning: "المبالغ الآجلة المتبقية على العملاء في الفواتير النشطة.", source: SOURCE, formula: "Σ max(0, الإجمالي − المدفوع) لكل فاتورة نشطة" }} />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MetricCardWithHint label="نقدي" value={m.byBucket.cash} icon={<Banknote />} tone="success" metricHint={bucketHint("نقدي")} />
         <MetricCardWithHint label="انستاباي" value={m.byBucket.instapay} icon={<CreditCard />} tone="success" metricHint={bucketHint("انستاباي")} />
         <MetricCardWithHint label="محفظة" value={m.byBucket.wallet} icon={<Smartphone />} tone="success" metricHint={bucketHint("محفظة")} />
         <MetricCardWithHint label="بنكي" value={m.byBucket.bank} icon={<Landmark />} tone="success" metricHint={bucketHint("بنكي")} />
+        <MetricCardWithHint label="مقاصة / أخرى" value={m.byBucket.other} icon={<Scale />} tone="warning"
+          metricHint={{ meaning: "ما سُدّد من الفواتير النشطة بغير نقدية فعلية: مقاصة من رصيد العميل تحت الحساب (settlement) أو أي طريقة غير الأوعية الأربعة. لا تدخل الخزينة كاش.", source: SOURCE, formula: "Σ مدفوعات الفواتير النشطة حيث الطريقة ∉ {نقدي، انستاباي، محفظة، بنكي}. والتوازن: المحصل = نقدي + انستاباي + محفظة + بنكي + مقاصة/أخرى" }} />
       </div>
     </div>
   );
