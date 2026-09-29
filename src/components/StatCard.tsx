@@ -1,6 +1,7 @@
 import { forwardRef, ReactNode } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { MetricHint, type MetricHintProps } from "@/components/ui/MetricHint";
 
 type Accent = "primary" | "success" | "warning" | "destructive" | "secondary";
 
@@ -48,11 +49,12 @@ interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
   icon: ReactNode;
   trend?: { positive: boolean; text: string };
   hint?: string;
+  metricHint?: MetricHintProps;
   accent?: Accent;
 }
 
 export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatCard(
-  { label, value, icon, trend, hint, accent = "primary", className, ...rest },
+  { label, value, icon, trend, hint, metricHint, accent = "primary", className, ...rest },
   ref
 ) {
   const a = ACCENTS[accent];
@@ -66,6 +68,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatC
     >
       <div className="flex items-center justify-center gap-2 mb-3 w-full max-w-full min-w-0">
         <span className={`text-sm font-semibold break-words ${a.label}`}>{label}</span>
+        {metricHint && <MetricHint {...metricHint} label={`شرح ${label}`} />}
         <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${a.chip} [&_svg]:w-3.5 [&_svg]:h-3.5`}>
           {icon}
         </div>
