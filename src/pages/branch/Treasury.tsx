@@ -186,7 +186,7 @@ export default function Treasury() {
     }
   };
   useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, page]);
-  useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], load);
+  useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], () => { load(); loadPeriod(); });
 
   const filtered = rows;
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
