@@ -23,7 +23,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { exportToExcel, printReport } from "@/lib/export";
-import { FinancialAmount } from "@/components/FinancialAmount";
+import { MetricCardWithHint } from "@/components/MetricCardWithHint";
+import { Clock } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { VoucherDialog } from "@/components/VoucherDialog";
 
@@ -75,15 +76,15 @@ export default function Contacts() {
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false });
-    // الموردين بدون فرع، العملاء عادة بفرع — هنعرض كل الجهات للفرع + الجهات اللي ملهاش فرع
-    q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
-    const { data } = await q;
-    const list = (data ?? []) as any[];
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge live balances from v_contact_balances
-    const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
-    const balMap = await fetchContactBalanceMap(list.map((c) => c.id));
-    setRows(mergeBalancesById(list, balMap));
+    // دليل جهات موحّد: كل جهات الشركة غير المؤرشفة، والرصيد محسوب من تعاملات هذا الفرع فقط
+    const [{ data }, balRes] = await Promise.all([
+      supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }),
+      supabase.rpc("contact_branch_balances" as any, { p_branch_id: branchId }),
+    ]);
+    const balMap = new Map<string, { balance: number; overdue: number }>();
+    ((balRes.data ?? []) as any[]).forEach((b) => balMap.set(b.contact_id, { balance: Number(b.balance ?? 0), overdue: Number(b.overdue ?? 0) }));
+    const list = ((data ?? []) as any[]).map((c) => ({ ...c, balance: balMap.get(c.id)?.balance ?? 0, overdue: balMap.get(c.id)?.overdue ?? 0 }));
+    setRows(list);
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId]);
@@ -109,7 +110,7 @@ export default function Contacts() {
       });
     }
     if (search.trim()) {
-      r = r.filter((x) => searchMatch(search, x.name, x.phone, x.contact_person, (x as any).email, (x as any).address));
+      r = r.filter((x) => searchMatch(search, x.name, x.phone, x.contact_person, (x as any).email, (x as any).address, (x as any).notes));
     }
     return r;
   }, [rows, filter, balanceFilters, search]);
@@ -125,12 +126,13 @@ export default function Contacts() {
 
   // Balance totals for filtered list
   const balanceTotals = useMemo(() => {
-    let oweUs = 0, weOwe = 0;
+    let oweUs = 0, weOwe = 0, overdue = 0;
     for (const r of filtered) {
       const b = Number(r.balance ?? 0);
       if (b > 0) oweUs += b; else if (b < 0) weOwe += -b;
+      overdue += Number(r.overdue ?? 0);
     }
-    return { oweUs, weOwe, net: oweUs - weOwe };
+    return { oweUs, weOwe, net: oweUs - weOwe, overdue };
   }, [filtered]);
 
   // Excel / PDF export of the current filtered view
@@ -335,26 +337,29 @@ export default function Contacts() {
       </div>
 
 
-      {/* Balance KPIs (always reflect current filtered list) */}
+      {/* Balance KPIs — أرصدة هذا الفرع فقط، وتتبع الفلاتر الحالية */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
-          <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
-            <ArrowDownLeft className="w-5 h-5 text-success" /> مستحق لنا (عملاء + موردين)
-          </div>
-          <FinancialAmount value={balanceTotals.oweUs} size="md" className="mt-2 font-extrabold text-success" />
-        </div>
-        <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
-          <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
-            <ArrowUpRight className="w-5 h-5 text-destructive" /> علينا للغير
-          </div>
-          <FinancialAmount value={balanceTotals.weOwe} size="md" className="mt-2 font-extrabold text-destructive" />
-        </div>
-        <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
-          <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
-            <Scale className="w-5 h-5 text-primary" /> صافي الخصم
-          </div>
-          <FinancialAmount value={balanceTotals.net} size="md" className={`mt-2 font-extrabold ${balanceTotals.net >= 0 ? "text-success" : "text-destructive"}`} />
-        </div>
+        <MetricCardWithHint
+          label="مستحق لنا من العملاء"
+          value={balanceTotals.oweUs}
+          tone="success"
+          icon={<ArrowDownLeft />}
+          hint="طريقة الحساب: إجمالي فواتير المبيعات الآجلة للفرع + سندات الصرف للعملاء − (المدفوعات المحصلة + مرتجعات البيع + سندات القبض). يمثل صافي أموال الفرع القائمة لدى العملاء."
+        />
+        <MetricCardWithHint
+          label="مستحق لموردي الفرع"
+          value={balanceTotals.weOwe}
+          tone="destructive"
+          icon={<ArrowUpRight />}
+          hint="طريقة الحساب: إجمالي فواتير مشتريات وشحنات الفرع − (سندات الصرف المسددة للموردين + مرتجعات الشراء). يمثل التزامات الفرع الحالية للموردين دون خلط مع ديون الفروع الأخرى."
+        />
+        <MetricCardWithHint
+          label="مديونيات متأخرة السداد"
+          value={balanceTotals.overdue}
+          tone="warning"
+          icon={<Clock />}
+          hint="طريقة الحساب: مجموع قيم فواتير وأقساط عملاء الفرع التي تجاوزت تاريخ الاستحقاق المحدد وما زالت معلقة بدون تحصيل."
+        />
       </div>
 
       <div className="flex flex-wrap gap-3 mb-4 items-center justify-between">
@@ -480,6 +485,18 @@ export default function Contacts() {
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "email", header: "الإيميل", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
           { key: "address", header: "العنوان", render: (r: any) => r.address ?? "—" },
+          {
+            key: "notes",
+            header: "الملاحظات",
+            render: (r: any) => (
+              <div className="flex items-start gap-1 max-w-[16rem]" onClick={(e) => e.stopPropagation()}>
+                <span className="text-xs whitespace-pre-wrap break-words line-clamp-3" title={r.notes ?? ""}>{r.notes || "—"}</span>
+                <button type="button" aria-label={`تعديل ملاحظات ${r.name}`} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground" onClick={() => openEdit(r)}>
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            ),
+          },
           {
             key: "balance",
             header: "الرصيد",
