@@ -23,7 +23,7 @@ export function SalesMetricsGrid({ metrics, loading }: { metrics: SalesMetrics |
         <MetricCardWithHint label="الفواتير الملغاة" value={m.cancelledTotal} icon={<XCircle />} tone="destructive" footer={countFooter(m.cancelledCount, "فاتورة ملغاة")}
           metricHint={{ meaning: "عدد وقيمة الفواتير الملغاة، منفصلة تمامًا عن المبيعات النشطة.", source: SOURCE, formula: "Σ total حيث الحالة = ملغاة" }} />
         <MetricCardWithHint label="المحصل الفعلي (+)" value={m.collected} icon={<ArrowDownCircle />} tone="success"
-          metricHint={{ meaning: "ما دفعه العملاء فعليًا على الفواتير النشطة.", source: SOURCE, formula: "Σ مدفوعات الفواتير النشطة" }} />
+          metricHint={{ meaning: "كل ما سُدّد على الفواتير النشطة (نقدًا أو تحويلًا أو مقاصة من رصيد العميل). لا يُخصم منه أي مصروف.", source: SOURCE, formula: "Σ مدفوعات الفواتير النشطة = نقدي + انستاباي + محفظة + بنكي + مقاصة/أخرى" }} />
         <MetricCardWithHint label="المتبقي / الآجل (-)" value={m.remaining} icon={<Clock />} tone="warning"
           metricHint={{ meaning: "المبالغ الآجلة المتبقية على العملاء في الفواتير النشطة.", source: SOURCE, formula: "Σ max(0, الإجمالي − المدفوع) لكل فاتورة نشطة" }} />
       </div>
