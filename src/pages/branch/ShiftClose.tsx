@@ -147,6 +147,15 @@ export default function ShiftClose() {
                 <span>الإجمالي</span>
                 <span>{formatEGP(breakdown.reduce((s, b) => s + b.total, 0))}</span>
               </div>
+              {(() => {
+                const onAccount = breakdown.filter((b) => ["settlement", "credit_balance"].includes(b.payment_method)).reduce((s, b) => s + b.total, 0);
+                return onAccount > 0 ? (
+                  <div className="flex items-center justify-between text-sm rounded bg-muted/60 px-2 py-1" title="تمت تسوية هذه المبالغ خصماً من رصيد العميل المودع مسبقاً لدى الإدارة، ولا تمثل نقدية ورقية داخل درج الكاشير">
+                    <span>مبيعات مسددة من أرصدة تحت الحساب <span className="text-[11px] text-muted-foreground">(ليست نقدية في الدرج)</span></span>
+                    <span className="font-semibold">{formatEGP(onAccount)}</span>
+                  </div>
+                ) : null;
+              })()}
               <div className="text-[11px] text-muted-foreground pt-1">
                 الكاش بس هو اللي بيتحسب في الدرج — باقي الوسائل بتروح للمحفظة بتاعتها.
               </div>

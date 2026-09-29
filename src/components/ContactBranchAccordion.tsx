@@ -208,7 +208,7 @@ export function ContactBranchAccordion({
             <Badge variant="secondary" className="font-bold">{branches.length}</Badge>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">رصيد دائن للجهة:</span>
+            <span className="text-muted-foreground">الموقف المالي الإجمالي — رصيد تحت الحساب (طرف الإدارة):</span>
             <span className="font-extrabold">{formatEGP(Math.abs(totals.credit_balance))}</span>
           </div>
           <div className="flex items-center gap-1.5">
