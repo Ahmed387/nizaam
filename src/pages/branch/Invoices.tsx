@@ -38,7 +38,7 @@ import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from 
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 import { SalesMetricsGrid } from "@/components/invoices/SalesMetricsGrid";
-import { useSalesMetrics, fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { useSalesMetrics, fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, matchesCardFilter, type SalesCardFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
