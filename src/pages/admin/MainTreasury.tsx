@@ -17,9 +17,11 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
 import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
 import { DetailsChevron } from "@/components/DetailsChevron";
-import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2, Landmark } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesDrawer";
+import { useContactCreditBalances } from "@/hooks/useContactCreditBalances";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
@@ -62,6 +64,8 @@ export default function MainTreasury() {
   const [totalCount, setTotalCount] = useState(0);
   const [tableLoading, setTableLoading] = useState(true);
   const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
+  const [creditDrawerOpen, setCreditDrawerOpen] = useState(false);
+  const contactCredits = useContactCreditBalances(tenantId);
 
   useEffect(() => {
     const t = setTimeout(() => setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }), 300);
@@ -203,6 +207,30 @@ export default function MainTreasury() {
         <StatCard label="صافي التدفق" value={formatEGP(totals.net)} icon={<TrendingUp className="w-5 h-5" />} accent={totals.net >= 0 ? "success" : "destructive"} />
         <StatCard label="عدد الخزائن" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
       </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        className="mb-6 block h-auto w-full rounded-2xl p-0 text-right"
+        onClick={() => setCreditDrawerOpen(true)}
+        aria-label="عرض تفاصيل أرصدة تحت الحساب"
+      >
+        <StatCard
+          label="أرصدة تحت الحساب (مقدمات العملاء والموردين)"
+          value={formatEGP(contactCredits.total)}
+          icon={<Landmark className="w-5 h-5" />}
+          hint={`${contactCredits.contacts.length} جهة لديها رصيد نشط · اضغط لعرض التفاصيل`}
+          accent="warning"
+          className="cursor-pointer"
+        />
+      </Button>
+
+      <ContactCreditBalancesDrawer
+        open={creditDrawerOpen}
+        onOpenChange={setCreditDrawerOpen}
+        contacts={contactCredits.contacts}
+        summaryLoading={contactCredits.loading}
+      />
 
       {/* Per-branch rollup cards */}
       <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4" /> تفصيل الخزائن</h3>
