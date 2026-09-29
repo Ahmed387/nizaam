@@ -23,6 +23,7 @@ import { ShareBreakdown } from "@/components/charts/RankBars";
 import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { MetricHint } from "@/components/ui/MetricHint";
 
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
@@ -208,7 +209,7 @@ export default function BranchDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-base font-bold text-foreground">مبيعات اليوم</span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات اليوم <MetricHint meaning="صافي مبيعات الفرع المسجلة اليوم وفق حدود يوم القاهرة." source="فواتير invoices النشطة غير المرحّلة وبنود invoice_items للفرع، مع الكميات المرتجعة وخصم الفاتورة." formula="إجمالي بنود البيع بعد المرتجعات − خصم الفواتير" /></span>
             <DollarSign className="w-6 h-6 text-success" />
           </div>
            <FinancialAmount value={salesToday} size="lg" className="justify-start font-extrabold" />
@@ -223,7 +224,7 @@ export default function BranchDashboard() {
 
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-base font-bold text-foreground">مبيعات الشهر</span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات الشهر <MetricHint meaning="صافي مبيعات الفرع من بداية الشهر الحالي حتى الآن بتوقيت القاهرة." source="فواتير invoices النشطة غير المرحّلة وبنود invoice_items للفرع خلال الشهر، مع الكميات المرتجعة وخصم الفاتورة." formula="إجمالي بنود بيع الشهر بعد المرتجعات − خصم الفواتير" /></span>
             <ShoppingBag className="w-6 h-6 text-primary" />
           </div>
            <FinancialAmount value={salesMonth} size="lg" className="justify-start font-extrabold" />
@@ -238,7 +239,7 @@ export default function BranchDashboard() {
 
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-base font-bold text-foreground">صافي الربح اليوم</span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">صافي الربح اليوم <MetricHint meaning="ربح مبيعات الفرع لليوم بعد استبعاد تكلفة الكميات المباعة فعلياً والمرتجعة." source="بنود invoice_items التابعة لفواتير اليوم النشطة غير المرحّلة، باستخدام total وcost_price والكميات المرتجعة." formula="صافي إيراد المبيعات − تكلفة البضاعة المباعة (COGS)" /></span>
             <TrendingUp className="w-6 h-6 text-success" />
           </div>
            <FinancialAmount value={canViewNetProfit ? profitToday : NET_PROFIT_MASK} currency={canViewNetProfit} size="lg" className={`justify-start font-extrabold ${canViewNetProfit ? (profitToday >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground"}`} />

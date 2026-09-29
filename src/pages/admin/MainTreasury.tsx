@@ -202,9 +202,9 @@ export default function MainTreasury() {
 
       {/* Overall totals */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="إجمالي الوارد" value={formatEGP(totals.cin)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="success" />
-        <StatCard label="إجمالي الصادر" value={formatEGP(totals.cout)} icon={<ArrowUpCircle className="w-5 h-5" />} accent="destructive" />
-        <StatCard label="صافي التدفق" value={formatEGP(totals.net)} icon={<TrendingUp className="w-5 h-5" />} accent={totals.net >= 0 ? "success" : "destructive"} />
+        <StatCard label="إجمالي الوارد" value={formatEGP(totals.cin)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="success" metricHint={{ meaning: "إجمالي الأموال الداخلة إلى الخزائن المحددة خلال الفترة المعروضة.", source: "سجل treasury الناتج عن سندات القبض والإيداعات والمستندات المحققة، وفق الفرع وحدود أيام القاهرة.", formula: "مجموع مبالغ الحركات التي نوعها وارد (income)" }} />
+        <StatCard label="إجمالي الصادر" value={formatEGP(totals.cout)} icon={<ArrowUpCircle className="w-5 h-5" />} accent="destructive" metricHint={{ meaning: "إجمالي الأموال الخارجة من الخزائن المحددة خلال الفترة المعروضة.", source: "سجل treasury الناتج عن سندات الصرف والمصروفات والمستندات المحققة، وفق الفرع وحدود أيام القاهرة.", formula: "مجموع مبالغ الحركات التي نوعها صادر (expense)" }} />
+        <StatCard label="صافي التدفق" value={formatEGP(totals.net)} icon={<TrendingUp className="w-5 h-5" />} accent={totals.net >= 0 ? "success" : "destructive"} metricHint={{ meaning: "صافي حركة النقد خلال الفترة، وليس الرصيد الدفتري الحالي للخزائن.", source: "إجمالي حركات الوارد والصادر في سجل treasury بعد تطبيق الفترة والفرع المحددين.", formula: "إجمالي الوارد − إجمالي الصادر" }} />
         <StatCard label="عدد الخزائن" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
       </div>
 
@@ -220,6 +220,7 @@ export default function MainTreasury() {
           value={formatEGP(contactCredits.total)}
           icon={<Landmark className="w-5 h-5" />}
           hint={`${contactCredits.contacts.length} جهة لديها رصيد نشط · اضغط لعرض التفاصيل`}
+          metricHint={{ meaning: "مقدمات العملاء والموردين المتاحة للاستخدام لاحقاً والمحتفظ بها طرف الإدارة.", source: "حقل credit_balance السالب في العرض v_contact_balances لجميع الجهات ذات الرصيد النشط.", formula: "Σ |credit_balance| حيث credit_balance < 0" }}
           accent="warning"
           className="cursor-pointer"
         />
