@@ -24,6 +24,7 @@ import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { MetricHint } from "@/components/ui/MetricHint";
+import { InvoiceQuickDialog } from "@/components/InvoiceQuickDialog";
 
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
@@ -42,6 +43,7 @@ export default function BranchDashboard() {
   const [lowStock, setLowStock] = useState<any[]>([]);
   const [newCust, setNewCust] = useState(0);
   const [recent, setRecent] = useState<RecentDoc[]>([]);
+  const [openInvoice, setOpenInvoice] = useState<string | null>(null);
   const [salesByDay, setSalesByDay] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
@@ -434,13 +436,14 @@ export default function BranchDashboard() {
       <div className="grid lg:grid-cols-2 gap-6">
         <div>
           <h3 className="font-bold mb-3 text-lg">آخر الحركات</h3>
-          <DataTable rows={recent} empty="لا توجد حركات" onRowClick={(r: RecentDoc) => nav(r.path)} columns={[
+          <DataTable rows={recent} empty="لا توجد حركات" onRowClick={(r: RecentDoc) => (r.kind === "sale" ? setOpenInvoice(r.id) : nav(r.path))} columns={[
             { key: "kind", header: "النوع", render: (r: RecentDoc) => <span className={`px-2 py-0.5 rounded-full border text-xs font-semibold ${RECENT_DOC_KIND_CLASS[r.kind]}`}>{r.kindLabel}</span> },
-            { key: "number", header: "رقم", render: (r: RecentDoc) => <span className="font-mono text-primary">{r.number}</span> },
-            { key: "party", header: "الطرف", render: (r: RecentDoc) => r.party },
+            { key: "number", header: "رقم", render: (r: RecentDoc) => <button type="button" className="font-mono text-primary hover:underline" onClick={(e) => { e.stopPropagation(); if (r.kind === "sale") setOpenInvoice(r.id); else nav(r.path); }}>{r.number}</button> },
+            { key: "party", header: "الطرف", render: (r: RecentDoc) => r.contact_id ? <button type="button" className="hover:underline hover:text-primary" onClick={(e) => { e.stopPropagation(); nav(`/branch/${id}/contacts/${r.contact_id}/statement`); }}>{r.party}</button> : r.party },
             { key: "amount", header: "المبلغ", render: (r: RecentDoc) => formatEGP(r.amount) },
             { key: "created_at", header: "الوقت", render: (r: RecentDoc) => formatDateTime(r.created_at) },
           ]} />
+          {id && <InvoiceQuickDialog invoiceId={openInvoice} branchId={id} onClose={() => setOpenInvoice(null)} />}
         </div>
 
         <div>
