@@ -393,7 +393,15 @@ export default function Invoices() {
       setSalePays(pays);
     } else setSalePays(null);
     setRows(data);
-    setTotalCount(r.count ?? data.length);
+    if (joinedDupes) {
+      // Exact distinct-invoice count for the joined query (r.count would count join rows).
+      const { qb: cq } = await buildQuery("id", false);
+      const idRows = await fetchAllRows<{ id: string }>(() => cq.abortSignal(ctrl.signal)).catch(() => [] as { id: string }[]);
+      if (stale()) return;
+      setTotalCount(new Set(idRows.map((x) => x.id)).size);
+    } else {
+      setTotalCount(r.count ?? data.length);
+    }
     setLoading(false);
     if (tab === "sale_return" || tab === "purchase_return") {
       const col = tab === "sale_return" ? "total_refund" : "total_amount";
