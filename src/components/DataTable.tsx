@@ -31,6 +31,8 @@ interface DataTableProps<T> {
   indexColumn?: boolean | { offset?: number; width?: string };
   /** Optional table-level sizing for wide, column-dense tables. */
   tableClassName?: string;
+  /** Floor width for column-dense tables: enables horizontal scroll, auto layout and one-line cells. */
+  minTableWidth?: string;
 }
 
 function DataTableInner<T>(
@@ -49,6 +51,7 @@ function DataTableInner<T>(
     pageSize,
     indexColumn,
     tableClassName,
+    minTableWidth,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
@@ -61,6 +64,12 @@ function DataTableInner<T>(
   const indexWidth = typeof indexColumn === "object" ? (indexColumn.width ?? "4rem") : "4rem";
   const alignClass = (a?: Align) =>
     a === "right" ? "text-right" : a === "left" ? "text-left" : "text-center";
+
+  /** Wide mode: content-driven columns inside a horizontal scroll region, never character-wrapped. */
+  const wide = Boolean(minTableWidth);
+  const headPad = wide ? "px-4 py-3" : "px-2 md:px-3 py-3.5";
+  const cellPad = wide ? "px-4 py-3" : "px-2 md:px-3 py-3 md:py-3.5";
+  const textMode = wide ? "whitespace-nowrap" : "break-words whitespace-normal";
 
   const isActionsColumn = (c: { key: string; header: any }) =>
     c.key === "actions" || (typeof c.header === "string" && c.header.includes("إجراءات"));
@@ -91,8 +100,11 @@ function DataTableInner<T>(
       return <div className="p-12 text-center text-muted-foreground">{empty}</div>;
     }
     return (
-      <div className="w-full overflow-x-auto">
-        <table className={`w-full text-sm md:text-base border-collapse table-fixed ${tableClassName ?? ""}`}>
+      <div className="w-full overflow-x-auto" data-wide={wide ? "" : undefined}>
+        <table
+          className={`w-full text-sm md:text-base border-collapse ${wide ? "table-auto" : "table-fixed"} ${tableClassName ?? ""}`}
+          style={wide ? { minWidth: minTableWidth } : undefined}
+        >
           <thead>
             <tr className="bg-surface-2 border-b-2 border-border">
               {indexColumn && (
@@ -102,7 +114,7 @@ function DataTableInner<T>(
                 <th
                   key={c.key}
                   style={c.width ? { width: c.width } : isActionsColumn(c) ? { width: "10rem" } : undefined}
-                  className={`px-2 md:px-3 py-3.5 font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground break-words whitespace-normal ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                  className={`${headPad} font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground ${textMode} ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {c.header}
                 </th>
@@ -128,7 +140,7 @@ function DataTableInner<T>(
                     {columns.map((c, idx) => (
                       <td
                         key={c.key}
-                        className={`px-2 md:px-3 py-3 md:py-3.5 align-middle break-words whitespace-normal min-w-0 ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-nowrap [&>div]:justify-center [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                        className={`${cellPad} align-middle ${textMode} ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-nowrap [&>div]:justify-center [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                       >
                         {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                       </td>

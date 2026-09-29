@@ -370,31 +370,68 @@
 #invoice-print-area .tr-thanks { font-family: "Vazir", "Vazirmatn", Arial, Tahoma, sans-serif; font-size: 17pt; font-weight: 700; margin-bottom: 1mm; }
 #invoice-print-area .tr-phone { font-size: 13pt; font-weight: 600; }
 
-/* Fit application tables in their available width instead of showing horizontal scrollbars. */
-.overflow-x-auto:has(> table) {
+/* Fit application tables in their available width instead of showing horizontal scrollbars.
+   Column-dense screens opt out with [data-wide] on their scroll container: those tables keep a
+   floor width, scroll horizontally, and never break a word character-by-character. */
+.overflow-x-auto:not([data-wide]):has(> table) {
   overflow-x: visible;
 }
 
-.overflow-x-auto > table,
-.card-elevated > div > table,
-.card-elevated > table {
+.overflow-x-auto > table:not([data-wide]),
+.card-elevated > div > table:not([data-wide]),
+.card-elevated > table:not([data-wide]) {
   width: 100%;
   min-width: 0 !important;
   table-layout: fixed;
 }
 
-.overflow-x-auto > table th,
-.overflow-x-auto > table td,
-.card-elevated > div > table th,
-.card-elevated > div > table td,
-.card-elevated > table th,
-.card-elevated > table td {
+.overflow-x-auto > table:not([data-wide]) th,
+.overflow-x-auto > table:not([data-wide]) td,
+.card-elevated > div > table:not([data-wide]) th,
+.card-elevated > div > table:not([data-wide]) td,
+.card-elevated > table:not([data-wide]) th,
+.card-elevated > table:not([data-wide]) td {
   min-width: 0 !important;
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
   hyphens: none;
+}
 
+/* Opt-in wide tables: a real floor width plus smooth horizontal scroll, one-line cells only. */
+.overflow-x-auto[data-wide]:has(> table) {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) hsl(var(--muted) / 0.35);
+}
+
+.overflow-x-auto[data-wide] > table,
+.card-elevated > div > table[data-wide] {
+  table-layout: auto;
+}
+
+.overflow-x-auto[data-wide] > table th,
+.overflow-x-auto[data-wide] > table td,
+.card-elevated > div > table[data-wide] th,
+.card-elevated > div > table[data-wide] td {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.overflow-x-auto[data-wide]::-webkit-scrollbar { height: 10px; }
+.overflow-x-auto[data-wide]::-webkit-scrollbar-track { background: hsl(var(--muted) / 0.35); border-radius: 9999px; }
+.overflow-x-auto[data-wide]::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+}
+.overflow-x-auto[data-wide]::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.55);
+  background-clip: padding-box;
 }
 
 .overflow-x-auto > table input,
