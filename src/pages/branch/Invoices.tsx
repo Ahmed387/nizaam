@@ -37,6 +37,8 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
+import { SalesMetricsGrid } from "@/components/invoices/SalesMetricsGrid";
+import { useSalesMetrics, fetchPaymentSummaries, salePayState, bucketOf, BUCKET_LABELS, type SalePayState } from "@/hooks/useSalesInvoices";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -367,6 +369,17 @@ export default function Invoices() {
         description: v.description ?? v.voucher_number,
       }));
     }
+    if (tab === "sale" && data.length) {
+      const pays = await fetchPaymentSummaries(data.map((x: any) => x.id), ctrl.signal).catch(() => new Map<string, Awaited<ReturnType<typeof fetchPaymentSummaries>> extends Map<string, infer V> ? V : never>());
+      if (stale()) return;
+      data = data.map((x: any) => {
+        const s = pays.get(x.id);
+        const paid = s?.paid ?? 0;
+        const total = Number(x.total) || 0;
+        const buckets = [...new Set((s?.methods ?? []).map(bucketOf))];
+        return { ...x, __paid: paid, __remaining: Math.max(0, Math.round((total - paid) * 100) / 100), __payState: salePayState(total, paid), __method: buckets.length > 1 ? "متعدد" : buckets.length ? BUCKET_LABELS[buckets[0]] : "—" };
+      });
+    }
     setRows(data);
     setTotalCount(r.count ?? data.length);
     setLoading(false);
@@ -380,8 +393,11 @@ export default function Invoices() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, branchId, page, buildQuery]);
 
+  const [metricsTick, setMetricsTick] = useState(0);
+  const { metrics: salesMetrics, loading: salesMetricsLoading } = useSalesMetrics(buildQuery, tab === "sale" && !!branchId, metricsTick);
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
+  useRealtimeRefresh(["invoices", "invoice_payments"], () => setMetricsTick((t) => t + 1));
+  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
 
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
 
@@ -430,6 +446,14 @@ export default function Invoices() {
           ) },
           { key: "customer", header: "العميل", align: "center", render: (r: any) => r.contacts?.name ?? "نقدي" },
           { key: "total", header: "المبلغ", align: "center", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
+          { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", width: "10rem", render: (r: any) => r.status === "active" ? (
+            <span className="flex flex-col text-xs tabular-nums leading-tight">
+              <span className="text-success font-semibold">{formatEGP(r.__paid ?? 0)}</span>
+              <span className={Number(r.__remaining) > 0 ? "text-warning font-semibold" : "text-muted-foreground"}>{formatEGP(r.__remaining ?? 0)}</span>
+            </span>
+          ) : <span className="text-muted-foreground">—</span> },
+          { key: "__pay_state", header: "حالة السداد", align: "center", width: "9rem", render: (r: any) => r.status === "active" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
+          { key: "__method", header: "طريقة الدفع", align: "center", width: "7rem", render: (r: any) => r.__method ?? "—" },
           { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
 { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
@@ -1125,6 +1149,8 @@ export default function Invoices() {
         </div>
       )}
 
+      {tab === "sale" && <SalesMetricsGrid metrics={salesMetrics} loading={salesMetricsLoading} />}
+
       <div ref={tableTopRef} className="scroll-mt-4" />
       <DataTable
         loading={loading}
@@ -1298,5 +1324,18 @@ export default function Invoices() {
       <CancelReturnDialog target={selectedReturnForCancel} onClose={() => setSelectedReturnForCancel(null)} onDone={() => load()} />
 
     </BranchLayout>
+  );
+}
+
+function SalePayBadge({ state, remaining }: { state: SalePayState; remaining: number }) {
+  const cls = state === "paid" ? "bg-success/15 text-success border-success/40"
+    : state === "partial" ? "bg-warning/15 text-warning border-warning/40"
+    : "bg-destructive/15 text-destructive border-destructive/40";
+  const label = state === "paid" ? "مدفوعة بالكامل" : state === "partial" ? "سداد جزئي" : "آجل بالكامل";
+  return (
+    <span className={`inline-flex flex-col items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls}`}>
+      {label}
+      {state === "partial" && <span className="font-semibold tabular-nums opacity-90">متبقي {formatEGP(remaining)}</span>}
+    </span>
   );
 }
