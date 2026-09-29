@@ -10,11 +10,12 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { formatEGP, formatDate, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { formatEGP, formatDate, resolveTreasuryOperationNumber, sanitizeOperationalDescription, treasuryCategoryLabel } from "@/lib/format";
 import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
 import { DetailsChevron } from "@/components/DetailsChevron";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2, Landmark } from "lucide-react";
@@ -22,12 +23,16 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesDrawer";
 import { useContactCreditBalances } from "@/hooks/useContactCreditBalances";
+import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
   id: string; branch_id: string; type: "income" | "expense"; category: string;
   amount: number; description: string | null; payment_method: string; created_at: string;
   reference_number?: string | null;
+  reference_id?: string | null;
+  voucher_number?: string | null;
+  invoice_number?: string | null;
 };
 type ViewBal = { branch_id: string; current_balance: number; last_transaction_date: string | null };
 
@@ -123,7 +128,7 @@ export default function MainTreasury() {
     let q = applyCairoRange(
       supabase
         .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at,reference_number", { count: "exact" })
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at,reference_id,reference_number", { count: "exact" })
         .in("branch_id", branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
       "created_at", from, to,
     );
@@ -137,7 +142,24 @@ export default function MainTreasury() {
     if (dq.maxAmt !== "" && !isNaN(Number(dq.maxAmt))) q = q.lte("amount", Number(dq.maxAmt));
     const start = (page - 1) * PAGE_SIZE;
     const { data, count } = await q.order("created_at", { ascending: false }).range(start, start + PAGE_SIZE - 1);
-    setPageRows((data ?? []) as TxRow[]);
+    const movements = (data ?? []) as TxRow[];
+    const movementIds = movements.map((row) => row.id);
+    const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
+    const [{ data: vouchers }, { data: invoices }] = await Promise.all([
+      movementIds.length
+        ? supabase.from("vouchers").select("treasury_id,voucher_number").in("treasury_id", movementIds)
+        : Promise.resolve({ data: [] as { treasury_id: string | null; voucher_number: string }[] }),
+      referenceIds.length
+        ? supabase.from("invoices").select("id,invoice_number").in("id", referenceIds)
+        : Promise.resolve({ data: [] as { id: string; invoice_number: string }[] }),
+    ]);
+    const voucherByMovement = new Map((vouchers ?? []).map((voucher) => [voucher.treasury_id, voucher.voucher_number]));
+    const invoiceByReference = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice.invoice_number]));
+    setPageRows(movements.map((row) => ({
+      ...row,
+      voucher_number: voucherByMovement.get(row.id) ?? null,
+      invoice_number: row.reference_id ? invoiceByReference.get(row.reference_id) ?? null : null,
+    })));
     setTotalCount(count ?? 0);
     setTableLoading(false);
   }, [tenantId, branches, branchFilter, from, to, typeF, methodF, dq, page]);
@@ -364,37 +386,39 @@ export default function MainTreasury() {
           rows={pageRows}
           indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
           empty="لا توجد حركات مطابقة للفلاتر"
+          tableClassName="min-w-[1180px]"
           columns={[
             { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: TxRow) => (
               <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
             )},
-            { key: "created_at", header: "التاريخ", render: (r: TxRow) => formatDate(r.created_at) },
-            { key: "branch", header: "الفرع", render: (r: TxRow) => branches.find(b => b.id === r.branch_id)?.name ?? "—" },
-            { key: "type", header: "النوع", render: (r: TxRow) => (
+            { key: "created_at", header: "التاريخ", align: "center", width: "8.5rem", render: (r: TxRow) => formatDate(r.created_at) },
+            { key: "branch", header: "الفرع", align: "center", width: "9rem", render: (r: TxRow) => branches.find(b => b.id === r.branch_id)?.name ?? "—" },
+            { key: "type", header: "النوع", align: "center", width: "6rem", render: (r: TxRow) => (
               <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
                 {r.type === "income" ? "وارد ↓" : "صادر ↑"}
               </span>
             )},
-            { key: "category", header: "التصنيف" },
-            { key: "payment_method", header: "طريقة الدفع" },
-            { key: "reference_number", header: "رقم العملية", render: (r: TxRow) => (
-              <span dir="ltr" className="unicode-isolate inline-block font-mono text-xs">
-                {extractOperationReference(r.reference_number, r.description)}
+            { key: "category", header: "التصنيف", align: "center", width: "9rem", render: (r: TxRow) => treasuryCategoryLabel(r.category) },
+            { key: "payment_method", header: "الوعاء", align: "center", width: "8rem", render: (r: TxRow) => (
+              <span className="rounded bg-muted px-2 py-1 text-xs">
+                {PAYMENT_METHOD_LABELS[r.payment_method as PaymentMethod] ?? r.payment_method ?? "—"}
               </span>
             )},
-            { key: "description", header: "الملاحظات / البيان", render: (r: TxRow) => {
+            { key: "reference_number", header: "رقم العملية", align: "center", width: "10rem", render: (r: TxRow) => (
+              <Badge variant="secondary" dir="ltr" className="unicode-isolate max-w-full rounded-md font-mono text-xs font-bold">
+                {resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number)}
+              </Badge>
+            )},
+            { key: "description", header: "الملاحظات / البيان", align: "right", width: "18rem", className: "whitespace-normal break-words leading-6", render: (r: TxRow) => {
               const text = sanitizeOperationalDescription(r.description);
               return text ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span dir="rtl" className="unicode-isolate inline-block max-w-[240px] truncate text-right cursor-help" title={text}>{text}</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{text}</TooltipContent>
-                </Tooltip>
+                <span dir="rtl" className="unicode-isolate block w-full whitespace-normal break-words text-right">{text}</span>
               ) : "—";
             }},
-            { key: "amount", header: "المبلغ", render: (r: TxRow) => (
-              <b className={r.type === "income" ? "text-success" : "text-destructive"}>{formatEGP(Number(r.amount))}</b>
+            { key: "amount", header: "المبلغ", align: "center", width: "10rem", numeric: true, render: (r: TxRow) => (
+              <b dir="ltr" className={`unicode-isolate inline-block ${r.type === "income" ? "text-success" : "text-destructive"}`}>
+                {r.type === "income" ? "+" : "−"} {formatEGP(Number(r.amount))}
+              </b>
             )},
           ]}
         />

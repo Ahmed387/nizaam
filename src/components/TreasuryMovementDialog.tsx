@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { formatDateTime, formatEGP, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { formatDateTime, formatEGP, resolveTreasuryOperationNumber, sanitizeOperationalDescription, treasuryCategoryLabel } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 
 export interface TreasuryMovement {
@@ -9,7 +9,10 @@ export interface TreasuryMovement {
   amount: number;
   description: string | null;
   payment_method: string | null;
+  reference_id?: string | null;
   reference_number?: string | null;
+  voucher_number?: string | null;
+  invoice_number?: string | null;
   created_at: string;
 }
 
@@ -22,7 +25,7 @@ interface Props {
 
 export function TreasuryMovementDialog({ movement, open, onOpenChange, branchName }: Props) {
   const description = sanitizeOperationalDescription(movement?.description);
-  const reference = extractOperationReference(movement?.reference_number, movement?.description);
+  const reference = resolveTreasuryOperationNumber(movement?.voucher_number, movement?.invoice_number, movement?.reference_number);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" dir="rtl">
@@ -33,7 +36,7 @@ export function TreasuryMovementDialog({ movement, open, onOpenChange, branchNam
             <div><span className="text-muted-foreground">التاريخ:</span> {formatDateTime(movement.created_at)}</div>
             {branchName && <div><span className="text-muted-foreground">الفرع:</span> {branchName}</div>}
             <div><span className="text-muted-foreground">النوع:</span> {movement.type === "income" ? "وارد" : "صادر"}</div>
-            <div><span className="text-muted-foreground">التصنيف:</span> {movement.category || "—"}</div>
+            <div><span className="text-muted-foreground">التصنيف:</span> {treasuryCategoryLabel(movement.category)}</div>
             <div><span className="text-muted-foreground">طريقة الدفع:</span> {PAYMENT_METHOD_LABELS[movement.payment_method as PaymentMethod] ?? movement.payment_method ?? "—"}</div>
             <div className="col-span-2"><span className="text-muted-foreground">المبلغ:</span> <b>{formatEGP(Number(movement.amount))}</b></div>
             <div className="col-span-2"><span className="text-muted-foreground">الملاحظات / البيان:</span> <span dir="rtl" className="unicode-isolate whitespace-pre-wrap">{description || "—"}</span></div>

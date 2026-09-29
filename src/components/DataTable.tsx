@@ -29,6 +29,8 @@ interface DataTableProps<T> {
   pageSize?: number;
   /** Optional visual-only index column, generated centrally from the visible row order. */
   indexColumn?: boolean | { offset?: number; width?: string };
+  /** Optional table-level sizing for wide, column-dense tables. */
+  tableClassName?: string;
 }
 
 function DataTableInner<T>(
@@ -46,6 +48,7 @@ function DataTableInner<T>(
     renderExpandedRow,
     pageSize,
     indexColumn,
+    tableClassName,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
@@ -89,7 +92,7 @@ function DataTableInner<T>(
     }
     return (
       <div className="w-full overflow-x-auto">
-        <table className="w-full text-sm md:text-base border-collapse table-fixed">
+        <table className={`w-full text-sm md:text-base border-collapse table-fixed ${tableClassName ?? ""}`}>
           <thead>
             <tr className="bg-surface-2 border-b-2 border-border">
               {indexColumn && (

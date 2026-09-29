@@ -43,6 +43,55 @@ export const extractOperationReference = (
   return String(installmentReference ?? "").trim() || "—";
 };
 
+/** Uses official document numbers before the movement's external reference. */
+export const resolveTreasuryOperationNumber = (
+  voucherNumber?: string | null,
+  invoiceNumber?: string | null,
+  referenceNumber?: string | null,
+): string =>
+  String(voucherNumber ?? "").trim()
+  || String(invoiceNumber ?? "").trim()
+  || String(referenceNumber ?? "").trim()
+  || "—";
+
+const TREASURY_CATEGORY_LABELS: Record<string, string> = {
+  payment_out: "صرف دفعة",
+  payment_in: "تحصيل دفعة",
+  credit_deposit: "إيداع تحت الحساب",
+  sales: "مبيعات نقدية",
+  sale: "مبيعات نقدية",
+  cash_sale: "مبيعات نقدية",
+  supplier_payment: "سداد مورد",
+  customer_payment: "تحصيل من عميل",
+  installment: "تحصيل قسط",
+  return: "مرتجع",
+  customer_return: "رد قيمة مرتجع عميل",
+  partner_contribution: "مساهمة رأس مال شريك",
+  partner_capital: "مساهمة رأس مال شريك",
+  partner_withdrawal: "مسحوبات شريك",
+  branch_transfer_in: "تحويل وارد من فرع",
+  branch_transfer_out: "تحويل صادر إلى فرع",
+  capital_allocation_in: "تمويل وارد للفرع",
+  capital_allocation_out: "تمويل صادر للفرع",
+  transfer_fee: "عمولة تحويل",
+  salary: "راتب",
+  advance: "سلفة",
+  advance_repayment: "سداد سلفة",
+  rent: "إيجار",
+  utilities: "مرافق",
+  maintenance: "صيانة",
+  shipping: "شحن",
+  expense: "مصروف",
+  other_receipt: "قبض آخر",
+  other_payment: "صرف آخر",
+};
+
+/** Keeps existing Arabic descriptions and translates known stored category keys. */
+export const treasuryCategoryLabel = (category?: string | null): string => {
+  const value = String(category ?? "").trim();
+  return TREASURY_CATEGORY_LABELS[value] ?? (value || "—");
+};
+
 export const formatEGP = (n: number | string | null | undefined) => {
   const v = Number(n ?? 0);
   const txt = new Intl.NumberFormat(AR, {
