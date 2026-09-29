@@ -30,7 +30,7 @@ const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
 
 const MOVEMENT_KINDS: Record<Exclude<MovementFilter, "all">, Set<LedgerRow["kind"]>> = {
   invoices: new Set(["sale", "purchase"]),
-  vouchers: new Set(["receipt_voucher", "payment_voucher"]),
+  vouchers: new Set(["receipt_voucher", "payment_voucher", "credit_deposit"]),
   returns: new Set(["sale_return", "purchase_return"]),
   payments: new Set(["sale_payment", "supplier_payment"]),
 };
