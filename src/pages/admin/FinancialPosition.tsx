@@ -16,6 +16,7 @@ import PartnerTransactions from "./PartnerTransactions";
 import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { formatEGP } from "@/lib/format";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
 function ActionButton({
@@ -106,10 +107,12 @@ export default function FinancialPosition() {
           <TabsContent value="overview" className="mt-4 space-y-6">
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard label="النقدية" value={positionCash} icon={<Wallet className="w-5 h-5" />} accent="primary" />
-          <StatCard label="مستحق على العملاء" value={positionReceivables} icon={<HandCoins className="w-5 h-5" />} accent="success" />
-          <StatCard label="مستحق للموردين" value={positionPayables} icon={<ArrowDownCircle className="w-5 h-5" />} accent="destructive" />
-          <StatCard label="أرصدة تحت الحساب طرف الإدارة" value={financial.managementCredit} icon={<Landmark className="w-5 h-5" />} accent="warning" />
+          <StatCard label="النقدية" value={formatEGP(positionCash)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
+          <StatCard label="مستحق على العملاء" value={formatEGP(positionReceivables)} icon={<HandCoins className="w-5 h-5" />} accent="success" />
+          <StatCard label="مستحق للموردين" value={formatEGP(positionPayables)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="destructive" />
+          {(branchFilter === ALL_FINANCIAL_BRANCHES || selectedSnapshot?.code === "MAIN-TREASURY") && (
+            <StatCard label="أرصدة تحت الحساب طرف الإدارة" value={formatEGP(financial.managementCredit)} icon={<Landmark className="w-5 h-5" />} accent="warning" />
+          )}
         </div>
 
         {branchFilter === ALL_FINANCIAL_BRANCHES && <BranchFinancialDistribution rows={financial.distribution} loading={financial.loading} />}

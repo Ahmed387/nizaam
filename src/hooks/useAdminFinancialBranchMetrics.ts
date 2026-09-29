@@ -52,6 +52,7 @@ export function useAdminFinancialBranchMetrics() {
       let receivables = 0;
       let payables = 0;
       let credit = 0;
+      const contactsById = new Map(contactRows.map((contact) => [contact.contact_id, contact]));
       for (const contact of contactRows) {
         const balance = Number(contact.total_balance ?? 0);
         const type = String(contact.type ?? "");
@@ -71,7 +72,7 @@ export function useAdminFinancialBranchMetrics() {
         let branchPayables = 0;
         for (const row of (balancesRes.data ?? []) as any[]) {
           const balance = Number(row.balance ?? 0);
-          const contact = contactRows.find((item) => item.contact_id === row.contact_id);
+          const contact = contactsById.get(row.contact_id);
           const type = String(contact?.type ?? "");
           if ((type === "customer" || type === "both") && balance > 0) branchReceivables += balance;
           if ((type === "supplier" || type === "both") && balance < 0) branchPayables += -balance;
