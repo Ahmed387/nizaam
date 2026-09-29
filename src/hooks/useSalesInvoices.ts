@@ -154,7 +154,10 @@ export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean,
           invoices.push(...((data ?? []) as InvoiceTotalRow[]));
           if (!data || data.length < 1000) break;
         }
-        const activeRows = invoices.filter((i) => i.status === "active");
+        // The payment-method filter uses an inner join that can repeat an invoice per matching payment — dedupe by id.
+        const seen = new Set<string>();
+        const unique = invoices.filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)));
+        const activeRows = unique.filter((i) => i.status === "active");
         const pays = await fetchPaymentSummaries(activeRows.map((i) => i.id), ctrl.signal);
         const cancelledRows = invoices.filter((i) => i.status !== "active");
         const cancelledTotal = r2(cancelledRows.reduce((a, i) => a + (Number(i.total) || 0), 0));
