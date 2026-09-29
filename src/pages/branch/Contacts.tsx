@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
+import { fetchAllRows } from "@/lib/fetchAll";
+import { scopeToBranch } from "@/lib/branchQuery";
 import { toast } from "sonner";
 import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet, ChevronDown, ChevronUp } from "lucide-react";
 import { ContactDetailsDrawer } from "@/components/ContactDetailsDrawer";
@@ -78,8 +80,8 @@ export default function Contacts() {
     setLoading(true);
     // دليل جهات موحّد: كل جهات الشركة غير المؤرشفة، والرصيد محسوب من تعاملات هذا الفرع فقط
     const idsOf = (tbl: string, col: string) =>
-      fetchAllRows<any>((from, to) =>
-        scopeToBranch((supabase.from(tbl as any) as any).select(`id,${col}`), branchId).not(col, "is", null).order("id").range(from, to)
+      fetchAllRows<any>(() =>
+        scopeToBranch((supabase.from(tbl as any) as any).select(`id,${col}`), branchId).not(col, "is", null).order("id")
       ).then((rs) => rs.map((x: any) => x[col] as string)).catch(() => [] as string[]);
     const [{ data }, balRes, ...activity] = await Promise.all([
       supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }),
