@@ -16,7 +16,7 @@ import { formatEGP } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet, ChevronDown, ChevronUp } from "lucide-react";
-import { ContactBranchAccordion } from "@/components/ContactBranchAccordion";
+import { ContactDetailsDrawer } from "@/components/ContactDetailsDrawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -297,9 +297,7 @@ export default function Contacts() {
     load();
   };
 
-  const goToProfile = (r: any) => {
-    nav(`/branch/${branchId}/contacts/${r.id}`);
-  };
+  const drawerContact = useMemo(() => rows.find((r) => r.id === expandedId) ?? null, [rows, expandedId]);
 
   const promoteToBoth = async (r: any, asWhat: "customer" | "supplier") => {
     if (r.type === "both") return;
@@ -431,23 +429,8 @@ export default function Contacts() {
         rows={filtered}
         pageSize={50}
         indexColumn
-        onRowClick={goToProfile}
+        onRowClick={(r: any) => setExpandedId(r.id)}
         getRowKey={(r: any) => r.id}
-        isRowExpanded={(r: any) => expandedId === r.id}
-        renderExpandedRow={(r: any) => (
-          tenantId && branchId ? (
-            <ContactBranchAccordion
-              contactId={r.id}
-              contactName={r.name}
-              contactType={r.type}
-              tenantId={tenantId}
-              receivingBranchId={branchId}
-              expanded
-              canSettle={isAdmin || isManager || hasRole("cashier") || hasRole("accountant")}
-              onSettled={load}
-            />
-          ) : null
-        )}
         columns={[
           {
             key: "name",
