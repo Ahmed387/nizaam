@@ -52,7 +52,7 @@ export function InvoiceQuickDialog({ invoiceId, branchId, onClose }: Props) {
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <div><span className="text-muted-foreground">الرقم: </span><span className="font-mono">{inv.invoice_number}</span></div>
-              <div><span className="text-muted-foreground">التاريخ: </span>{inv.invoice_date ?? formatDateTime(inv.created_at)}</div>
+              <div><span className="text-muted-foreground">التاريخ: </span>{formatDateTime(inv.invoice_date ?? inv.created_at)}</div>
               <div><span className="text-muted-foreground">الكاشير: </span>{cashier ?? "—"}</div>
               <div><span className="text-muted-foreground">طريقة الدفع: </span>{PAY[inv.payment_method] ?? inv.payment_method}</div>
               <div className="col-span-2"><span className="text-muted-foreground">العميل: </span>{inv.contacts?.name ?? "—"}</div>
