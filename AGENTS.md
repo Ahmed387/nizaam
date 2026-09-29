@@ -19,3 +19,4 @@
 - Admin financial branch reports use `contact_branch_balances` for branch debt, `get_branch_wallet_balances` for cash, and `v_contact_balances.ledger_balance` for company debt so management credit stays separate.
 - Treasury Overview shows negative `v_contact_balances.credit_balance` separately; never add it to treasury cash or flows.
 - Every new statistical card uses `MetricHint` with its meaning, data source, and exact code formula.
+- Branch pages scope every branch-owned query with `scopeToBranch` (src/lib/branchQuery.ts) using the route branch id; cross-branch views live only in admin/HQ pages. Why: strict branch isolation.
