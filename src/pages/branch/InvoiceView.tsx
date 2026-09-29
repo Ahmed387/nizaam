@@ -1,3 +1,4 @@
+import { fetchContactBalance } from "@/lib/contactBalances";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -60,7 +61,7 @@ export default function InvoiceView() {
         }
         // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge live ledger balance
         if ((i as any).contact_id) {
-          const { fetchContactBalance } = await import("@/lib/contactBalances");
+          
           const bal = await fetchContactBalance((i as any).contact_id);
           if ((i as any).contacts) (i as any).contacts.balance = bal;
         }
@@ -102,7 +103,7 @@ export default function InvoiceView() {
       if (i) {
         // TODO Phase 2.2B: Remove after contacts.balance column is dropped
         if ((i as any).contact_id) {
-          const { fetchContactBalance } = await import("@/lib/contactBalances");
+          
           const bal = await fetchContactBalance((i as any).contact_id);
           if ((i as any).contacts) (i as any).contacts.balance = bal;
         }

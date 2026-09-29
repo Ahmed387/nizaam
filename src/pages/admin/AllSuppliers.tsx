@@ -1,3 +1,4 @@
+import { fetchContactBalanceMap, mergeBalancesById } from "@/lib/contactBalances";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
@@ -105,7 +106,7 @@ export default function AllSuppliers() {
     ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
     const list = (sups ?? []) as any[];
-    const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
+    
     const balMap = await fetchContactBalanceMap(list.map((c) => c.id));
     setSuppliers(mergeBalancesById(list, balMap) as any);
     setBranches(filterBranches((brs ?? []) as any) as any);

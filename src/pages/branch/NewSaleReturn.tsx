@@ -1,3 +1,4 @@
+import { fetchContactBalance } from "@/lib/contactBalances";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -116,7 +117,7 @@ export default function NewSaleReturn() {
     if (!inv) return toast.error("الفاتورة غير موجودة");
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped
     if ((inv as any).contact_id && (inv as any).contacts) {
-      const { fetchContactBalance } = await import("@/lib/contactBalances");
+      
       (inv as any).contacts.balance = await fetchContactBalance((inv as any).contact_id);
     }
     const { data: items } = await supabase
