@@ -20,6 +20,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
+import { MetricHint } from "@/components/ui/MetricHint";
 import { VouchersTable } from "@/components/VouchersTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -282,14 +283,14 @@ export default function Treasury() {
               return (
                 <div key={w.key} className="bg-surface-2 rounded-lg p-4 text-center">
                   <Icon className={`w-6 h-6 mx-auto mb-2 ${w.color}`} />
-                  <div className="text-xs text-muted-foreground mb-1">{w.label}</div>
+                  <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">{w.label}<MetricHint label={`شرح ${w.label}`} meaning={`رصيد وعاء «${w.label}» المتبقي لهذا الفرع حتى الآن.`} source="سجل حركات الخزينة للفرع (get_branch_wallet_balances) مفلترًا بطريقة الدفع." formula={`مجموع الوارد عبر ${w.label} − مجموع المنصرف عبر ${w.label}`} /></div>
                    <FinancialAmount value={walletBalances[w.key]} size="sm" />
                 </div>
               );
             })}
           </div>
           <div className="border-t pt-4 text-center">
-            <div className="text-sm text-muted-foreground mb-1">الرصيد الفعلي الحالي للخزينة <span className="text-xs">(كل الفترات — لا يتأثر بفلتر التاريخ)</span></div>
+            <div className="text-sm text-muted-foreground mb-1">الرصيد الفعلي الحالي للخزينة <MetricHint label="شرح الرصيد الفعلي الحالي للخزينة" meaning="صافي النقدية الفعلية المتبقية بدرج وخزائن هذا الفرع حتى الآن. الرقم السالب يعني تجاوز المصروفات والمسحوبات المسجلة لحجم المقبوضات النقدية المدخلة بالدرج." source="سجل حركات وسندات الخزينة للفرع (get_branch_wallet_balances)." formula="[مجموع المقبوضات والوارد للفرع] − [مجموع المصروفات والمنصرف وسندات الصرف]" /> <span className="text-xs">(كل الفترات — لا يتأثر بفلتر التاريخ)</span></div>
              <FinancialAmount value={walletBalances.total_balance} size="hero" className="gradient-text font-extrabold" />
             {lowThreshold > 0 && walletBalances.total_balance < lowThreshold && (
               <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
