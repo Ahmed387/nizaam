@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 
@@ -15,6 +15,9 @@ export interface InvoicePaymentSummary {
 
 export interface SalesMetrics {
   count: number;
+  activeCount: number;
+  cancelledCount: number;
+  cancelledTotal: number;
   totalSales: number;
   collected: number;
   remaining: number;
@@ -58,6 +61,37 @@ export const BUCKET_LABELS: Record<CollectionBucket, string> = {
   bank: "بنكي",
   other: "أخرى",
 };
+
+/** Stored payment_method keys that belong to a collection bucket (used by the payment filter). */
+export function methodsForFilter(method: string): string[] {
+  const b = bucketOf(method);
+  if (b === "wallet") return ["vodafone", "wallet"];
+  if (b === "other") return [method];
+  return [b];
+}
+
+export interface EnrichedSaleFields {
+  __paid: number;
+  __remaining: number;
+  __payState: SalePayState;
+  __byBucket: Record<CollectionBucket, number>;
+}
+
+/** Memoized merge of page rows with their payment breakdown (recomputed only when inputs change). */
+export function useEnrichedSaleRows<T extends { id: string; total?: number | string | null }>(
+  rows: T[],
+  pays: Map<string, InvoicePaymentSummary> | null,
+): (T & Partial<EnrichedSaleFields>)[] {
+  return useMemo(() => {
+    if (!pays) return rows;
+    return rows.map((x) => {
+      const s = pays.get(x.id);
+      const paid = s?.paid ?? 0;
+      const total = Number(x.total) || 0;
+      return { ...x, __paid: paid, __remaining: Math.max(0, r2(total - paid)), __payState: salePayState(total, paid), __byBucket: s?.byBucket ?? emptyBuckets() };
+    });
+  }, [rows, pays]);
+}
 
 export function salePayState(total: number, paid: number): SalePayState {
   if (paid <= 0.01) return "credit";
@@ -122,6 +156,8 @@ export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean,
         }
         const activeRows = invoices.filter((i) => i.status === "active");
         const pays = await fetchPaymentSummaries(activeRows.map((i) => i.id), ctrl.signal);
+        const cancelledRows = invoices.filter((i) => i.status !== "active");
+        const cancelledTotal = r2(cancelledRows.reduce((a, i) => a + (Number(i.total) || 0), 0));
         let totalSales = 0, collected = 0, remaining = 0;
         const byBucket = emptyBuckets();
         for (const inv of activeRows) {
@@ -134,7 +170,7 @@ export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean,
           if (s) (Object.keys(byBucket) as CollectionBucket[]).forEach((k) => { byBucket[k] += s.byBucket[k]; });
         }
         (Object.keys(byBucket) as CollectionBucket[]).forEach((k) => { byBucket[k] = r2(byBucket[k]); });
-        if (!cancelled) setMetrics({ count: invoices.length, totalSales: r2(totalSales), collected: r2(collected), remaining: r2(remaining), byBucket });
+        if (!cancelled) setMetrics({ count: invoices.length, activeCount: activeRows.length, cancelledCount: cancelledRows.length, cancelledTotal, totalSales: r2(totalSales), collected: r2(collected), remaining: r2(remaining), byBucket });
       } catch (e) {
         if (!cancelled && (e as { name?: string })?.name !== "AbortError") setMetrics(null);
       } finally {
