@@ -372,6 +372,13 @@ export default function Invoices() {
     if (stale()) return;
     if (r.error && !/abort/i.test(r.error.message ?? "")) toast.error(r.error.message);
     let data: any[] = r.data ?? [];
+    let joinedDupes = false;
+    if (tab === "sale" && queryFilters.payment) {
+      // The payment inner join can repeat an invoice once per matching payment — collapse to one row per invoice.
+      joinedDupes = true;
+      const seen = new Set<string>();
+      data = data.filter((x: any) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
+    }
     if (tab === "income" || tab === "expense") {
       data = data.map((v: any) => ({
         ...v,
