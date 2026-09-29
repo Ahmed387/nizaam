@@ -370,7 +370,7 @@ export default function Invoices() {
       }));
     }
     if (tab === "sale" && data.length) {
-      const pays = await fetchPaymentSummaries(data.map((x: any) => x.id), ctrl.signal).catch(() => new Map());
+      const pays = await fetchPaymentSummaries(data.map((x: any) => x.id), ctrl.signal).catch(() => new Map<string, Awaited<ReturnType<typeof fetchPaymentSummaries>> extends Map<string, infer V> ? V : never>());
       if (stale()) return;
       data = data.map((x: any) => {
         const s = pays.get(x.id);
