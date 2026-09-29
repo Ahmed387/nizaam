@@ -156,8 +156,8 @@ export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean,
         }
         const activeRows = invoices.filter((i) => i.status === "active");
         const pays = await fetchPaymentSummaries(activeRows.map((i) => i.id), ctrl.signal);
-        const cancelled = invoices.filter((i) => i.status !== "active");
-        const cancelledTotal = r2(cancelled.reduce((a, i) => a + (Number(i.total) || 0), 0));
+        const cancelledRows = invoices.filter((i) => i.status !== "active");
+        const cancelledTotal = r2(cancelledRows.reduce((a, i) => a + (Number(i.total) || 0), 0));
         let totalSales = 0, collected = 0, remaining = 0;
         const byBucket = emptyBuckets();
         for (const inv of activeRows) {
@@ -170,7 +170,7 @@ export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean,
           if (s) (Object.keys(byBucket) as CollectionBucket[]).forEach((k) => { byBucket[k] += s.byBucket[k]; });
         }
         (Object.keys(byBucket) as CollectionBucket[]).forEach((k) => { byBucket[k] = r2(byBucket[k]); });
-        if (!cancelled) setMetrics({ count: invoices.length, activeCount: activeRows.length, cancelledCount: cancelled.length, cancelledTotal, totalSales: r2(totalSales), collected: r2(collected), remaining: r2(remaining), byBucket });
+        if (!cancelled) setMetrics({ count: invoices.length, activeCount: activeRows.length, cancelledCount: cancelledRows.length, cancelledTotal, totalSales: r2(totalSales), collected: r2(collected), remaining: r2(remaining), byBucket });
       } catch (e) {
         if (!cancelled && (e as { name?: string })?.name !== "AbortError") setMetrics(null);
       } finally {

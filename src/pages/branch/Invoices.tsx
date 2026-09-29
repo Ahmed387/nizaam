@@ -38,7 +38,7 @@ import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from 
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 import { SalesMetricsGrid } from "@/components/invoices/SalesMetricsGrid";
-import { useSalesMetrics, fetchPaymentSummaries, salePayState, bucketOf, BUCKET_LABELS, type SalePayState } from "@/hooks/useSalesInvoices";
+import { useSalesMetrics, fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -174,6 +174,7 @@ export default function Invoices() {
   };
 
   const [rows, setRows] = useState<any[]>([]);
+  const [salePays, setSalePays] = useState<Map<string, InvoicePaymentSummary> | null>(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -261,7 +262,12 @@ export default function Invoices() {
       if (q) qb = looksLikeDocumentNumber ? qb.ilike("invoice_number", `%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
       if (f.status) qb = qb.eq("status", f.status);
-      if (f.payment) qb = qb.eq("payment_method", f.payment);
+      if (f.payment) {
+        // Invoices holding at least one real (non-voided, non-reversal) payment of this method.
+        const pr = await fetchAllRows<{ invoice_id: string }>(() => supabase.from("invoice_payments").select("id, invoice_id").eq("branch_id", branchId!)
+          .in("payment_method", methodsForFilter(f.payment)).gt("amount", 0).is("voided_at", null).is("reverses_payment_id", null).order("id"));
+        qb = qb.in("id", [...new Set(pr.map((p) => p.invoice_id))].concat(["00000000-0000-0000-0000-000000000000"]));
+      }
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase") {
       const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
@@ -369,17 +375,11 @@ export default function Invoices() {
         description: v.description ?? v.voucher_number,
       }));
     }
-    if (tab === "sale" && data.length) {
-      const pays = await fetchPaymentSummaries(data.map((x: any) => x.id), ctrl.signal).catch(() => new Map<string, Awaited<ReturnType<typeof fetchPaymentSummaries>> extends Map<string, infer V> ? V : never>());
+    if (tab === "sale") {
+      const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
       if (stale()) return;
-      data = data.map((x: any) => {
-        const s = pays.get(x.id);
-        const paid = s?.paid ?? 0;
-        const total = Number(x.total) || 0;
-        const buckets = [...new Set((s?.methods ?? []).map(bucketOf))];
-        return { ...x, __paid: paid, __remaining: Math.max(0, Math.round((total - paid) * 100) / 100), __payState: salePayState(total, paid), __method: buckets.length > 1 ? "متعدد" : buckets.length ? BUCKET_LABELS[buckets[0]] : "—" };
-      });
-    }
+      setSalePays(pays);
+    } else setSalePays(null);
     setRows(data);
     setTotalCount(r.count ?? data.length);
     setLoading(false);
@@ -402,7 +402,8 @@ export default function Invoices() {
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
 
   // Filtering now happens in the database; the current page is what we show.
-  const filteredRows = rows;
+  const enrichedRows = useEnrichedSaleRows(rows, tab === "sale" ? salePays : null);
+  const filteredRows = enrichedRows;
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const attRecordType = useMemo<RecordType | null>(() => {
@@ -420,6 +421,7 @@ export default function Invoices() {
   const attIds = useMemo(() => attRecordType ? filteredRows.map((r: any) => r.id) : [], [attRecordType, filteredRows]);
   const attCounts = useAttachmentCounts((attRecordType ?? "voucher") as RecordType, attIds);
 
+  const bucketCell = (v: number | undefined) => Number(v) > 0 ? <span className="tabular-nums">{formatEGP(Number(v))}</span> : <span className="text-muted-foreground">—</span>;
   const textCell = (v: any) => v ? <span className="block truncate max-w-[12rem] mx-auto" title={String(v)}>{v}</span> : <span className="text-muted-foreground">—</span>;
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
@@ -453,7 +455,10 @@ export default function Invoices() {
             </span>
           ) : <span className="text-muted-foreground">—</span> },
           { key: "__pay_state", header: "حالة السداد", align: "center", width: "9rem", render: (r: any) => r.status === "active" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
-          { key: "__method", header: "طريقة الدفع", align: "center", width: "7rem", render: (r: any) => r.__method ?? "—" },
+          { key: "__b_cash", header: "نقدي", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.cash) },
+          { key: "__b_instapay", header: "انستاباي", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
+          { key: "__b_wallet", header: "محفظة", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
+          { key: "__b_bank", header: "بنكي", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
           { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
 { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
