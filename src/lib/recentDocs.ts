@@ -6,6 +6,7 @@ export type RecentDoc = {
   branch_name?: string | null;
   number: string;
   party: string;
+  contact_id?: string | null;
   amount: number;
   created_at: string;
   kind: "sale" | "purchase" | "sale_return" | "purchase_return";
@@ -25,10 +26,10 @@ export async function fetchRecentDocs(limit = 5, branchId?: string): Promise<Rec
   const scope = (q: any) => (branchId ? q.eq("branch_id", branchId) : q);
 
   const [inv, shp, sret, pret] = await Promise.all([
-    scope(supabase.from("invoices").select("id, branch_id, invoice_number, total, created_at, contacts:contact_id(name), branches(name)")).order("created_at", { ascending: false }).limit(limit),
-    scope(supabase.from("shipments").select("id, branch_id, shipment_number, total_cost, created_at, contacts:contact_id(name), branches(name)")).order("created_at", { ascending: false }).limit(limit),
+    scope(supabase.from("invoices").select("id, branch_id, invoice_number, contact_id, total, created_at, contacts:contact_id(name), branches(name)")).order("created_at", { ascending: false }).limit(limit),
+    scope(supabase.from("shipments").select("id, branch_id, shipment_number, contact_id, total_cost, created_at, contacts:contact_id(name), branches(name)")).order("created_at", { ascending: false }).limit(limit),
     scope(supabase.from("returns").select("id, branch_id, return_number, total_refund, created_at, branches(name)")).order("created_at", { ascending: false }).limit(limit),
-    scope(supabase.from("purchase_returns").select("id, branch_id, return_number, total_amount, created_at, contacts:contact_id(name), branches(name)")).order("created_at", { ascending: false }).limit(limit),
+    scope(supabase.from("purchase_returns").select("id, branch_id, return_number, contact_id, total_amount, created_at, contacts:contact_id(name), branches(name)")).order("created_at", { ascending: false }).limit(limit),
   ]);
 
   const map = (rows: any[] | null, kind: RecentDoc["kind"], num: string, amt: string, pathFor: (r: any) => string): RecentDoc[] =>
@@ -38,6 +39,7 @@ export async function fetchRecentDocs(limit = 5, branchId?: string): Promise<Rec
       branch_name: r.branches?.name ?? null,
       number: r[num] ?? "—",
       party: r.contacts?.name ?? "—",
+      contact_id: r.contact_id ?? null,
       amount: Number(r[amt] ?? 0),
       created_at: r.created_at,
       kind,
