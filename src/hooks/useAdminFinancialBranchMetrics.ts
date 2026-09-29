@@ -18,7 +18,7 @@ export type BranchFinancialSnapshot = FinancialBranch & {
   cash: number;
 };
 
-type ContactBalance = { contact_id: string; type: string; total_balance: number; credit_balance: number };
+type ContactBalance = { contact_id: string; type: string; ledger_balance: number; credit_balance: number };
 
 export function useAdminFinancialBranchMetrics() {
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export function useAdminFinancialBranchMetrics() {
           .order("id")),
         fetchAllRows<ContactBalance>(() => supabase
           .from("v_contact_balances" as any)
-          .select("contact_id, type, total_balance, credit_balance")
+          .select("contact_id, type, ledger_balance, credit_balance")
           .order("contact_id")),
       ]);
 
@@ -55,7 +55,7 @@ export function useAdminFinancialBranchMetrics() {
       let credit = 0;
       const contactsById = new Map(contactRows.map((contact) => [contact.contact_id, contact]));
       for (const contact of contactRows) {
-        const balance = Number(contact.total_balance ?? 0);
+        const balance = Number(contact.ledger_balance ?? 0);
         const type = String(contact.type ?? "");
         if ((type === "customer" || type === "both") && balance > 0) receivables += balance;
         if ((type === "supplier" || type === "both") && balance < 0) payables += -balance;
