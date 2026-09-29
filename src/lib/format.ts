@@ -63,7 +63,7 @@ const TREASURY_CATEGORY_LABELS: Record<string, string> = {
 /** Keeps existing Arabic descriptions and translates known stored category keys. */
 export const treasuryCategoryLabel = (category?: string | null): string => {
   const value = String(category ?? "").trim();
-  return TREASURY_CATEGORY_LABELS[value] ?? value || "—";
+  return TREASURY_CATEGORY_LABELS[value] ?? (value || "—");
 };
 
 export const formatEGP = (n: number | string | null | undefined) => {

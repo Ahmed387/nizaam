@@ -9,6 +9,7 @@ export interface TreasuryMovement {
   amount: number;
   description: string | null;
   payment_method: string | null;
+  reference_id?: string | null;
   reference_number?: string | null;
   voucher_number?: string | null;
   invoice_number?: string | null;
