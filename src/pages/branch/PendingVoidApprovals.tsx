@@ -52,7 +52,7 @@ export default function PendingVoidApprovals() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (tenantId) load(); }, [tenantId, branchId]);
   useRealtimeRefresh(["approval_requests"], load);
 
   const submitDecision = async () => {
