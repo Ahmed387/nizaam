@@ -377,20 +377,20 @@
   overflow-x: visible;
 }
 
-.overflow-x-auto > table:not([data-wide]),
-.card-elevated > div > table:not([data-wide]),
-.card-elevated > table:not([data-wide]) {
+.overflow-x-auto:not([data-wide]) > table,
+.card-elevated > div:not([data-wide]) > table,
+.card-elevated > table {
   width: 100%;
   min-width: 0 !important;
   table-layout: fixed;
 }
 
-.overflow-x-auto > table:not([data-wide]) th,
-.overflow-x-auto > table:not([data-wide]) td,
-.card-elevated > div > table:not([data-wide]) th,
-.card-elevated > div > table:not([data-wide]) td,
-.card-elevated > table:not([data-wide]) th,
-.card-elevated > table:not([data-wide]) td {
+.overflow-x-auto:not([data-wide]) > table th,
+.overflow-x-auto:not([data-wide]) > table td,
+.card-elevated > div:not([data-wide]) > table th,
+.card-elevated > div:not([data-wide]) > table td,
+.card-elevated > table th,
+.card-elevated > table td {
   min-width: 0 !important;
   white-space: normal;
   overflow-wrap: break-word;
@@ -407,14 +407,14 @@
 }
 
 .overflow-x-auto[data-wide] > table,
-.card-elevated > div > table[data-wide] {
+.card-elevated > div[data-wide] > table {
   table-layout: auto;
 }
 
 .overflow-x-auto[data-wide] > table th,
 .overflow-x-auto[data-wide] > table td,
-.card-elevated > div > table[data-wide] th,
-.card-elevated > div > table[data-wide] td {
+.card-elevated > div[data-wide] > table th,
+.card-elevated > div[data-wide] > table td {
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: keep-all;
