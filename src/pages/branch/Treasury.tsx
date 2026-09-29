@@ -1,4 +1,4 @@
-import { applyCairoRange, cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { NumberedPagination } from "@/components/NumberedPagination";
@@ -6,7 +6,7 @@ import { NumberedPagination } from "@/components/NumberedPagination";
 const PAGE_SIZE = 50;
 /** Strip PostgREST or()/ilike metacharacters from free text. */
 const safeLike = (s: string) => s.replace(/[,()%*\\]/g, " ").trim();
-/** Cairo-day shortcut pills; bounds are applied by applyCairoRange in load(). */
+/** Cairo-day shortcut pills; SQL date bounds are applied directly to transaction_date. */
 const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
   { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
   { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
@@ -32,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatEGP, formatDateTime, resolveTreasuryOperationNumber, sanitizeOperationalDescription, treasuryCategoryLabel } from "@/lib/format";
+import { formatDate, formatEGP, formatDateTime, resolveTreasuryOperationNumber, sanitizeOperationalDescription, treasuryCategoryLabel } from "@/lib/format";
 import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
 import { DetailsChevron } from "@/components/DetailsChevron";
 import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
@@ -103,7 +103,9 @@ export default function Treasury() {
 
   /** Applies the page's filters to any treasury query (shared by table page + period totals). */
   const applyFilters = (q: any) => {
-    let tq = applyCairoRange(q.eq("branch_id", branchId!), "created_at", fromDate, toDate);
+    let tq = q.eq("branch_id", branchId!);
+    if (fromDate) tq = tq.gte("transaction_date", fromDate);
+    if (toDate) tq = tq.lte("transaction_date", toDate);
     if (tab !== "all") tq = tq.eq("type", tab);
     if (methodFilter !== "all") tq = tq.eq("payment_method", methodFilter);
     const s = safeLike(search);
@@ -120,7 +122,7 @@ export default function Treasury() {
     setPeriodLoading(true);
     try {
       const data = await fetchAllRows<PeriodTransaction>(() =>
-        applyFilters(supabase.from("treasury").select("id,type,payment_method,amount")).order("id"));
+        applyFilters(supabase.from("treasury").select("id,type,payment_method,amount")).order("transaction_date").order("id"));
       setPeriodRows(data);
     } finally { setPeriodLoading(false); }
   };
@@ -131,7 +133,7 @@ export default function Treasury() {
     const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }));
     const offset = (page - 1) * PAGE_SIZE;
     const [tr, tt, wb, br] = await Promise.all([
-      tq.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
+      tq.order("transaction_date", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
       fetchAllRows<any>(() => supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).order("id")).then((data) => ({ data, error: null })),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
@@ -294,8 +296,8 @@ export default function Treasury() {
     setExporting(true);
     try {
       const all = await fetchAllRows<any>(() => supabase.from("treasury")
-        .select("id,type,category,amount,description,reference_id,reference_number,payment_method,created_at")
-        .eq("branch_id", branchId).order("created_at", { ascending: true }).order("id"));
+        .select("id,type,category,amount,description,reference_id,reference_number,payment_method,transaction_date")
+        .eq("branch_id", branchId).order("transaction_date", { ascending: true }).order("id"));
       const ids = all.map((r) => r.id);
       const refIds = [...new Set(all.map((r) => r.reference_id).filter(Boolean))] as string[];
       const chunk = <T,>(a: T[], n = 200) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
@@ -308,13 +310,12 @@ export default function Treasury() {
         const { data } = await supabase.from("invoices").select("id,invoice_number,contact:contacts!invoices_contact_id_fkey(name)").in("id", c);
         (data ?? []).forEach((v: any) => iMap.set(v.id, v));
       }
-      const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-      const header = ["م", "التاريخ والوقت (القاهرة)", "رقم السند / العملية", "نوع الحركة", "التصنيف", "الجهة / المستلم", "البيان / الملاحظات", "الوعاء المالي", "وارد (+)", "منصرف (-)", "الرصيد التراكمي"];
+      const header = ["م", "تاريخ السند / الحركة", "رقم السند / العملية", "نوع الحركة", "التصنيف", "الجهة / المستلم", "البيان / الملاحظات", "الوعاء المالي", "وارد (+)", "منصرف (-)", "الرصيد التراكمي"];
       const aoa: any[][] = [header];
       all.forEach((r, i) => {
         const v = vMap.get(r.id); const inv = r.reference_id ? iMap.get(r.reference_id) : null;
         const amt = Number(r.amount ?? 0); const isIn = r.type === "income";
-        aoa.push([i + 1, fmt.format(new Date(r.created_at)),
+        aoa.push([i + 1, formatDate(r.transaction_date),
           resolveTreasuryOperationNumber(v?.voucher_number, inv?.invoice_number, r.reference_number),
           isIn ? "وارد" : "منصرف", treasuryCategoryLabel(r.category),
           v?.party_name || inv?.contact?.name || "—", sanitizeOperationalDescription(r.description) || "—",
@@ -478,7 +479,7 @@ export default function Treasury() {
               { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
                 <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
               )},
-              { key: "created_at", header: "التاريخ", align: "center", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
+              { key: "transaction_date", header: "تاريخ السند / الحركة", align: "center", width: "10rem", render: (r: any) => formatDate(r.transaction_date) },
               { key: "type", header: "النوع", align: "center", width: "7rem", render: (r: any) => (
                 <span className={`px-2 py-1 rounded text-xs font-bold ${r.type === "income" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
                   {r.type === "income" ? "💚 دخول" : "🔴 خروج"}

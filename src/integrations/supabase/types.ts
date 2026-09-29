@@ -6164,6 +6164,7 @@ export type Database = {
           reference_id: string | null
           reference_number: string | null
           tenant_id: string | null
+          transaction_date: string
           transfer_from_account: string | null
           transfer_to_account: string | null
           type: Database["public"]["Enums"]["treasury_type"]
@@ -6181,6 +6182,7 @@ export type Database = {
           reference_id?: string | null
           reference_number?: string | null
           tenant_id?: string | null
+          transaction_date?: string
           transfer_from_account?: string | null
           transfer_to_account?: string | null
           type: Database["public"]["Enums"]["treasury_type"]
@@ -6198,6 +6200,7 @@ export type Database = {
           reference_id?: string | null
           reference_number?: string | null
           tenant_id?: string | null
+          transaction_date?: string
           transfer_from_account?: string | null
           transfer_to_account?: string | null
           type?: Database["public"]["Enums"]["treasury_type"]
