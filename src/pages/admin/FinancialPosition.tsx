@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -19,23 +19,24 @@ import { FinancialAmount } from "@/components/FinancialAmount";
 import { formatEGP } from "@/lib/format";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
-function ActionButton({
-  to,
-  icon,
-  title,
-  note,
-  variant = "outline",
-  iconClass = "text-primary",
-}: {
+const ActionButton = forwardRef<HTMLAnchorElement, {
   to: string;
   icon: React.ReactNode;
   title: string;
   note: string;
   variant?: "default" | "outline";
   iconClass?: string;
-}) {
+}>(function ActionButton({
+  to,
+  icon,
+  title,
+  note,
+  variant = "outline",
+  iconClass = "text-primary",
+}, ref) {
   return (
     <Link
+      ref={ref}
       to={to}
       className={`group relative flex flex-col gap-1 rounded-xl border p-3 text-right transition-all hover:shadow-md hover:-translate-y-0.5 ${
         variant === "default"
@@ -52,7 +53,7 @@ function ActionButton({
       </p>
     </Link>
   );
-}
+});
 
 export default function FinancialPosition() {
   const { tenantId } = useAuth();
