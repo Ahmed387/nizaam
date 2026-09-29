@@ -17,3 +17,4 @@
 - Default today values use `cairoTodayDay()`, never UTC slicing.
 - Contact credit deposits use only `MAIN-TREASURY`; `PARTNER-CASH` is partner-capital-only, and neither is operational.
 - Admin financial branch reports use `contact_branch_balances` for branch debt, `get_branch_wallet_balances` for cash, and `v_contact_balances.ledger_balance` for company debt so management credit stays separate.
+- Treasury Overview presents active under-account contact balances from negative `v_contact_balances.credit_balance` as a separate informational card; never add them to treasury cash or flow totals.
