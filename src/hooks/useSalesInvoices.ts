@@ -7,6 +7,19 @@ export type SalePayState = "paid" | "partial" | "credit";
 
 export type CollectionBucket = "cash" | "instapay" | "wallet" | "bank" | "other";
 
+/** Card click-to-filter keys (applied client-side on the loaded rows). */
+export type SalesCardFilter = "active" | "cancelled" | "collected" | "remaining" | CollectionBucket;
+
+export function matchesCardFilter(r: { status?: string; __paid?: number; __remaining?: number; __byBucket?: Record<CollectionBucket, number> }, k: SalesCardFilter | null): boolean {
+  if (!k) return true;
+  if (k === "cancelled") return r.status !== "active";
+  if (r.status !== "active") return false;
+  if (k === "active") return true;
+  if (k === "collected") return (r.__paid ?? 0) > 0.01;
+  if (k === "remaining") return (r.__remaining ?? 0) > 0.01;
+  return (r.__byBucket?.[k] ?? 0) > 0.01;
+}
+
 export interface InvoicePaymentSummary {
   paid: number;
   byBucket: Record<CollectionBucket, number>;

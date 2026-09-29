@@ -18,12 +18,21 @@ interface MetricCardWithHintProps {
   metricHint: MetricHintProps;
   tone?: Tone;
   footer?: ReactNode;
+  active?: boolean;
+  onClick?: () => void;
 }
 
 /** كارت مالي موحّد مع زر ℹ️ يشرح طريقة الحساب (يفتح بالضغط أو التمرير). */
-export function MetricCardWithHint({ label, value, icon, metricHint, tone = "primary", footer }: MetricCardWithHintProps) {
+export function MetricCardWithHint({ label, value, icon, metricHint, tone = "primary", footer, active, onClick }: MetricCardWithHintProps) {
   return (
-    <div className="card-elevated p-5 flex flex-col items-center justify-center text-center">
+    <div
+      className={`card-elevated p-5 flex flex-col items-center justify-center text-center ${onClick ? "cursor-pointer transition-shadow hover:ring-1 hover:ring-primary/40" : ""} ${active ? "ring-2 ring-primary" : ""}`}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-pressed={onClick ? !!active : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+    >
       <div className="text-base font-semibold text-foreground flex items-center gap-1.5">
         <span className={`[&_svg]:w-5 [&_svg]:h-5 ${TONES[tone]}`}>{icon}</span>
         {label}
