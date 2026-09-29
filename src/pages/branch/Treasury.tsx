@@ -1,4 +1,4 @@
-import { applyCairoRange, cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { NumberedPagination } from "@/components/NumberedPagination";
@@ -6,7 +6,7 @@ import { NumberedPagination } from "@/components/NumberedPagination";
 const PAGE_SIZE = 50;
 /** Strip PostgREST or()/ilike metacharacters from free text. */
 const safeLike = (s: string) => s.replace(/[,()%*\\]/g, " ").trim();
-/** Cairo-day shortcut pills; bounds are applied by applyCairoRange in load(). */
+/** Cairo-day shortcut pills; SQL date bounds are applied directly to transaction_date. */
 const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
   { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
   { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
