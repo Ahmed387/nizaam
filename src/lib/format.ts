@@ -43,6 +43,29 @@ export const extractOperationReference = (
   return String(installmentReference ?? "").trim() || "—";
 };
 
+/** Uses official document numbers before the movement's external reference. */
+export const resolveTreasuryOperationNumber = (
+  voucherNumber?: string | null,
+  invoiceNumber?: string | null,
+  referenceNumber?: string | null,
+): string =>
+  String(voucherNumber ?? "").trim()
+  || String(invoiceNumber ?? "").trim()
+  || String(referenceNumber ?? "").trim()
+  || "—";
+
+const TREASURY_CATEGORY_LABELS: Record<string, string> = {
+  payment_out: "صرف دفعة",
+  payment_in: "تحصيل دفعة",
+  credit_deposit: "إيداع تحت الحساب",
+};
+
+/** Keeps existing Arabic descriptions and translates known stored category keys. */
+export const treasuryCategoryLabel = (category?: string | null): string => {
+  const value = String(category ?? "").trim();
+  return TREASURY_CATEGORY_LABELS[value] ?? value || "—";
+};
+
 export const formatEGP = (n: number | string | null | undefined) => {
   const v = Number(n ?? 0);
   const txt = new Intl.NumberFormat(AR, {

@@ -23,6 +23,7 @@ import { DataTable } from "@/components/DataTable";
 import { VouchersTable } from "@/components/VouchersTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -30,7 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatEGP, formatDateTime, extractOperationReference, sanitizeOperationalDescription } from "@/lib/format";
+import { formatEGP, formatDateTime, resolveTreasuryOperationNumber, sanitizeOperationalDescription, treasuryCategoryLabel } from "@/lib/format";
 import { TreasuryMovementDialog, TreasuryMovement } from "@/components/TreasuryMovementDialog";
 import { DetailsChevron } from "@/components/DetailsChevron";
 import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notifications";
@@ -115,7 +116,24 @@ export default function Treasury() {
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
     ]);
-    setRows(tr.data ?? []);
+    const movements = (tr.data ?? []) as TreasuryMovement[];
+    const movementIds = movements.map((row) => row.id);
+    const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
+    const [{ data: vouchers }, { data: invoices }] = await Promise.all([
+      movementIds.length
+        ? supabase.from("vouchers").select("treasury_id,voucher_number").in("treasury_id", movementIds)
+        : Promise.resolve({ data: [] as { treasury_id: string | null; voucher_number: string }[] }),
+      referenceIds.length
+        ? supabase.from("invoices").select("id,invoice_number").in("id", referenceIds)
+        : Promise.resolve({ data: [] as { id: string; invoice_number: string }[] }),
+    ]);
+    const voucherByMovement = new Map((vouchers ?? []).map((voucher) => [voucher.treasury_id, voucher.voucher_number]));
+    const invoiceByReference = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice.invoice_number]));
+    setRows(movements.map((row) => ({
+      ...row,
+      voucher_number: voucherByMovement.get(row.id) ?? null,
+      invoice_number: row.reference_id ? invoiceByReference.get(row.reference_id) ?? null : null,
+    })));
     setTotalCount(tr.count ?? 0);
     setTransfers(tt.data ?? []);
     const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
@@ -376,42 +394,37 @@ export default function Treasury() {
           </div>
 
           <TooltipProvider delayDuration={200}>
-          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
+          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} tableClassName="min-w-[1100px]"
             columns={[
               { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
                 <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
               )},
-              { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
-              { key: "type", header: "النوع", render: (r: any) => (
+              { key: "created_at", header: "التاريخ", align: "center", width: "10rem", render: (r: any) => formatDateTime(r.created_at) },
+              { key: "type", header: "النوع", align: "center", width: "7rem", render: (r: any) => (
                 <span className={`px-2 py-1 rounded text-xs font-bold ${r.type === "income" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
                   {r.type === "income" ? "💚 دخول" : "🔴 خروج"}
                 </span>
               )},
-              { key: "payment_method", header: "الوعاء", render: (r: any) => (
+              { key: "payment_method", header: "الوعاء", align: "center", width: "8rem", render: (r: any) => (
                 <span className="text-xs px-2 py-0.5 rounded bg-muted">{PAYMENT_METHOD_LABELS[(r.payment_method ?? "cash") as PaymentMethod]}</span>
               )},
-              { key: "category", header: "التصنيف", render: (r: any) => (
-                <span>{r.category}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
+              { key: "category", header: "التصنيف", align: "center", width: "9rem", render: (r: any) => (
+                <span>{treasuryCategoryLabel(r.category)}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
               )},
-              { key: "description", header: "الملاحظات / البيان", render: (r: any) => {
+              { key: "description", header: "الملاحظات / البيان", align: "right", width: "18rem", className: "whitespace-normal break-words leading-6", render: (r: any) => {
                 const text = sanitizeOperationalDescription(r.description);
                 return text ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span dir="rtl" className="unicode-isolate inline-block max-w-[260px] truncate text-right cursor-help" title={text}>{text}</span>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap text-xs">{text}</TooltipContent>
-                  </Tooltip>
+                  <span dir="rtl" className="unicode-isolate block w-full whitespace-normal break-words text-right">{text}</span>
                 ) : "—";
               }},
-              { key: "reference_number", header: "رقم العملية", render: (r: any) => (
-                <span dir="ltr" className="unicode-isolate inline-block font-mono text-xs">
-                  {extractOperationReference(r.reference_number, r.description)}
-                </span>
+              { key: "reference_number", header: "رقم العملية", align: "center", width: "10rem", render: (r: any) => (
+                <Badge variant="secondary" dir="ltr" className="unicode-isolate max-w-full rounded-md font-mono text-xs font-bold">
+                  {resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number)}
+                </Badge>
               )},
-              { key: "amount", header: "المبلغ", render: (r: any) => (
-                <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>
-                  {r.type === "income" ? "+" : "-"} {formatEGP(r.amount)}
+              { key: "amount", header: "المبلغ", align: "center", width: "10rem", numeric: true, render: (r: any) => (
+                <span dir="ltr" className={`unicode-isolate inline-block font-bold ${r.type === "income" ? "text-success" : "text-destructive"}`}>
+                  {r.type === "income" ? "+" : "−"} {formatEGP(r.amount)}
                 </span>
               )},
             ]} />
