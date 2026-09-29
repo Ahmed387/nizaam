@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/StatCard";
-import { FinancialBranchDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
+import { BranchFinancialDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
 import { ALL_FINANCIAL_BRANCHES, useAdminFinancialBranchMetrics } from "@/hooks/useAdminFinancialBranchMetrics";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
-import { FinancialBranchDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
+import { BranchFinancialDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ALL_FINANCIAL_BRANCHES, useAdminFinancialBranchMetrics } from "@/hooks/useAdminFinancialBranchMetrics";
 import { supabase } from "@/integrations/supabase/client";
