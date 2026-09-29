@@ -23,6 +23,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesDrawer";
 import { useContactCreditBalances } from "@/hooks/useContactCreditBalances";
+import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
@@ -398,7 +399,11 @@ export default function MainTreasury() {
               </span>
             )},
             { key: "category", header: "التصنيف", align: "center", width: "9rem", render: (r: TxRow) => treasuryCategoryLabel(r.category) },
-            { key: "payment_method", header: "الوعاء", align: "center", width: "8rem" },
+            { key: "payment_method", header: "الوعاء", align: "center", width: "8rem", render: (r: TxRow) => (
+              <span className="rounded bg-muted px-2 py-1 text-xs">
+                {PAYMENT_METHOD_LABELS[r.payment_method as PaymentMethod] ?? r.payment_method ?? "—"}
+              </span>
+            )},
             { key: "reference_number", header: "رقم العملية", align: "center", width: "10rem", render: (r: TxRow) => (
               <Badge variant="secondary" dir="ltr" className="unicode-isolate max-w-full rounded-md font-mono text-xs font-bold">
                 {resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number)}
