@@ -200,8 +200,14 @@ export default function Invoices() {
   const loadParties = useCallback(async () => {
     if (!active.party || !branchId) { setParties([]); return; }
     if (active.party === "customer") {
-      const { data } = await supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("name");
-      setParties((data ?? []) as any);
+      // اتحاد: المسجّلين على الفرع + أي عميل عنده فواتير في الفرع (join داخل قاعدة البيانات، بدون قوائم IDs في الرابط)
+      const [registered, buyers] = await Promise.all([
+        fetchAllRows<any>(() => supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("id")).catch(() => []),
+        fetchAllRows<any>(() => supabase.from("contacts").select("id, name, phone, inv:invoices!inner(id)").eq("is_archived", false).eq("inv.branch_id", branchId).limit(1, { referencedTable: "inv" }).order("id")).catch(() => []),
+      ]);
+      const map = new Map<string, { id: string; name: string; phone: string | null }>();
+      [...registered, ...buyers].forEach((d: any) => map.set(d.id, { id: d.id, name: d.name, phone: d.phone }));
+      setParties(Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "ar")) as any);
     } else {
       const { data } = await supabase.from("contacts").select("id, name, phone").eq("is_archived", false).order("name");
       setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.name, phone: d.phone })));

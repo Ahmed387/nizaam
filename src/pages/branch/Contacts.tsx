@@ -657,6 +657,16 @@ export default function Contacts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {tenantId && branchId && (
+        <ContactDetailsDrawer
+          contact={drawerContact}
+          tenantId={tenantId}
+          branchId={branchId}
+          canSettle={isAdmin || isManager || hasRole("cashier") || hasRole("accountant")}
+          onClose={() => setExpandedId(null)}
+          onSettled={load}
+        />
+      )}
     </BranchLayout>
   );
 }
