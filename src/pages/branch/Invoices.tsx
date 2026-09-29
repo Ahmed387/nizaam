@@ -263,10 +263,15 @@ export default function Invoices() {
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
       if (f.status) qb = qb.eq("status", f.status);
       if (f.payment) {
-        // Invoices holding at least one real (non-voided, non-reversal) payment of this method.
-        const pr = await fetchAllRows<{ invoice_id: string }>(() => supabase.from("invoice_payments").select("id, invoice_id").eq("branch_id", branchId!)
-          .in("payment_method", methodsForFilter(f.payment)).gt("amount", 0).is("voided_at", null).is("reverses_payment_id", null).order("id"));
-        qb = qb.in("id", [...new Set(pr.map((p) => p.invoice_id))].concat(["00000000-0000-0000-0000-000000000000"]));
+        // Database-level filter: inner join to invoice_payments keeps invoices holding at least
+        // one real (non-voided, non-reversal) payment of this method. No client-side ID lists,
+        // so there is no URL-length ceiling regardless of how many payments exist.
+        qb = supabase.from("invoices").select(`${projection}, pay_filter:invoice_payments!inner(id)`, opts).eq("branch_id", branchId!)
+          .in("pay_filter.payment_method", methodsForFilter(f.payment))
+          .gt("pay_filter.amount", 0).is("pay_filter.voided_at", null).is("pay_filter.reverses_payment_id", null);
+        if (q) qb = looksLikeDocumentNumber ? qb.ilike("invoice_number", `%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
+        qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
+        if (f.status) qb = qb.eq("status", f.status);
       }
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase") {
@@ -367,6 +372,13 @@ export default function Invoices() {
     if (stale()) return;
     if (r.error && !/abort/i.test(r.error.message ?? "")) toast.error(r.error.message);
     let data: any[] = r.data ?? [];
+    let joinedDupes = false;
+    if (tab === "sale" && queryFilters.payment) {
+      // The payment inner join can repeat an invoice once per matching payment — collapse to one row per invoice.
+      joinedDupes = true;
+      const seen = new Set<string>();
+      data = data.filter((x: any) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
+    }
     if (tab === "income" || tab === "expense") {
       data = data.map((v: any) => ({
         ...v,
@@ -381,7 +393,15 @@ export default function Invoices() {
       setSalePays(pays);
     } else setSalePays(null);
     setRows(data);
-    setTotalCount(r.count ?? data.length);
+    if (joinedDupes) {
+      // Exact distinct-invoice count for the joined query (r.count would count join rows).
+      const { qb: cq } = await buildQuery("id", false);
+      const idRows = await fetchAllRows<{ id: string }>(() => cq.abortSignal(ctrl.signal)).catch(() => [] as { id: string }[]);
+      if (stale()) return;
+      setTotalCount(new Set(idRows.map((x) => x.id)).size);
+    } else {
+      setTotalCount(r.count ?? data.length);
+    }
     setLoading(false);
     if (tab === "sale_return" || tab === "purchase_return") {
       const col = tab === "sale_return" ? "total_refund" : "total_amount";
