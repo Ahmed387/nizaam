@@ -7228,6 +7228,14 @@ export type Database = {
         Args: { _branch_id: string; _product_id: string; _quantity: number }
         Returns: Json
       }
+      contact_branch_balances: {
+        Args: { p_branch_id: string }
+        Returns: {
+          balance: number
+          contact_id: string
+          overdue: number
+        }[]
+      }
       contact_has_legacy_docs: { Args: { p_contact: string }; Returns: boolean }
       create_inventory_session: {
         Args: { p_branch_id: string; p_notes?: string }
