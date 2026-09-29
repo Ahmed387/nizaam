@@ -1,22 +1,22 @@
 # Project rules
 
-- Stock movements use document dates, never `created_at`, so point-in-time balances match the event day.
-- Set stock-ledger context with `public.stock_mv_ctx(...)` immediately before quantity changes in transfer RPCs.
+- Stock movements use document dates, not `created_at`, for correct point-in-time balances.
+- Set `public.stock_mv_ctx(...)` immediately before transfer quantity changes.
 - Validate backdated transfers with `stock_balance_as_of`; block insufficient stock without override.
-- Voucher journals follow `voucher_date`; `uq_journal_entries_voucher_source` prevents duplicate live entries.
-- Date filters use `cairoDate.ts`: Cairo bounds for timestamps and plain-day comparison for SQL dates.
-- Write recipient/notes only via `set_document_annotations`; keep financial fields untouched.
-- New-document recipient is the signed-in user via `LockedRecipientInput` and stays read-only in edits.
-- Compute contact running balances before filters; date views add a synthetic prior-balance row.
-- Render row `#` only through `DataTable.indexColumn` and `toArabicAlphabetIndex`.
-- Derive treasury references/notes with format helpers; never rewrite stored ledger text.
+- Voucher journals follow `voucher_date`; treasury periods use synchronized `treasury.transaction_date`, never `created_at`.
+- Date filters use Cairo timestamp bounds or direct SQL-date comparison.
+- Write recipient/notes only via `set_document_annotations`; leave financial fields untouched.
+- New-document recipient is the signed-in user via `LockedRecipientInput` and stays read-only.
+- Compute contact running balances before filters; dated views add a prior-balance row.
+- Render `#` only through `DataTable.indexColumn` and `toArabicAlphabetIndex`.
+- Derive treasury labels with format helpers; never rewrite stored ledger text.
 - Reads over 1,000 rows use `fetchAllRows`, `.order("id")`, and lean columns.
-- Save sales only via atomic `process_sale_full`; it enforces shifts and admin-only backdating.
-- Voucher cancellation posts a reversing row via `cancel_voucher`; never delete treasury history.
-- Cap sale-return refunds server-side at actual cash/transfer paid; remainder becomes credit.
+- Save sales only via atomic `process_sale_full`; require shifts and restrict backdating to admins.
+- Cancel vouchers through `cancel_voucher` reversal rows; never delete treasury history.
+- Cap return refunds at actual cash/transfer paid; the remainder is credit.
 - Default today values use `cairoTodayDay()`, never UTC slicing.
-- Contact credit deposits use only `MAIN-TREASURY`; `PARTNER-CASH` is partner-capital-only, and neither is operational.
-- Admin financial branch reports use `contact_branch_balances` for branch debt, `get_branch_wallet_balances` for cash, and `v_contact_balances.ledger_balance` for company debt so management credit stays separate.
-- Treasury Overview shows negative `v_contact_balances.credit_balance` separately; never add it to treasury cash or flows.
-- Every new statistical card uses `MetricHint` with its meaning, data source, and exact code formula.
-- Branch pages scope every branch-owned query with `scopeToBranch` (src/lib/branchQuery.ts) using the route branch id; cross-branch views live only in admin/HQ pages. Why: strict branch isolation.
+- Contact deposits use `MAIN-TREASURY`; `PARTNER-CASH` is partner-capital-only; neither is operational.
+- Admin reports use `contact_branch_balances`, `get_branch_wallet_balances`, and `v_contact_balances.ledger_balance` for their respective scopes.
+- Show negative contact credit separately from treasury cash and flows.
+- Every statistical card uses `MetricHint` with meaning, source, and exact formula.
+- Branch queries use `scopeToBranch` with the route branch id; cross-branch views are admin/HQ only.
