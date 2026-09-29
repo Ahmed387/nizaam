@@ -30,8 +30,8 @@ export function InvoiceQuickDialog({ invoiceId, branchId, onClose }: Props) {
       let name: string | null = null;
       const cid = (h.data as any)?.cashier_id;
       if (cid) {
-        const p = await supabase.from("profiles").select("full_name").eq("id", cid).maybeSingle();
-        name = (p.data as any)?.full_name ?? null;
+        const p = await supabase.from("profiles").select("name").eq("id", cid).maybeSingle();
+        name = (p.data as any)?.name ?? null;
       }
       if (!alive) return;
       setInv(h.data); setItems(it.data ?? []); setCashier(name);
