@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export const ALL_FINANCIAL_BRANCHES = "all";
 
@@ -100,6 +101,10 @@ export function useAdminFinancialBranchMetrics() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useRealtimeRefresh(
+    ["branches", "contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "treasury"],
+    load,
+  );
 
   const totalCash = useMemo(() => distribution.reduce((sum, row) => sum + row.cash, 0), [distribution]);
 
