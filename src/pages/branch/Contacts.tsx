@@ -77,13 +77,32 @@ export default function Contacts() {
   const load = async () => {
     setLoading(true);
     // دليل جهات موحّد: كل جهات الشركة غير المؤرشفة، والرصيد محسوب من تعاملات هذا الفرع فقط
-    const [{ data }, balRes] = await Promise.all([
+    const idsOf = (tbl: string, col: string) =>
+      fetchAllRows<any>((from, to) =>
+        scopeToBranch((supabase.from(tbl as any) as any).select(`id,${col}`), branchId).not(col, "is", null).order("id").range(from, to)
+      ).then((rs) => rs.map((x: any) => x[col] as string)).catch(() => [] as string[]);
+    const [{ data }, balRes, ...activity] = await Promise.all([
       supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }),
       supabase.rpc("contact_branch_balances" as any, { p_branch_id: branchId }),
+      idsOf("invoices", "contact_id"),
+      idsOf("shipments", "contact_id"),
+      idsOf("purchase_returns", "contact_id"),
+      idsOf("supplier_payments", "contact_id"),
+      idsOf("vouchers", "party_id"),
     ]);
+    const active = new Set<string>(activity.flat());
     const balMap = new Map<string, { balance: number; overdue: number }>();
-    ((balRes.data ?? []) as any[]).forEach((b) => balMap.set(b.contact_id, { balance: Number(b.balance ?? 0), overdue: Number(b.overdue ?? 0) }));
-    const list = ((data ?? []) as any[]).map((c) => ({ ...c, balance: balMap.get(c.id)?.balance ?? 0, overdue: balMap.get(c.id)?.overdue ?? 0 }));
+    ((balRes.data ?? []) as any[]).forEach((b) => {
+      const bal = Number(b.balance ?? 0), od = Number(b.overdue ?? 0);
+      balMap.set(b.contact_id, { balance: bal, overdue: od });
+      if (Math.abs(bal) > 0.01 || Math.abs(od) > 0.01) active.add(b.contact_id);
+    });
+    const list = ((data ?? []) as any[]).map((c) => ({
+      ...c,
+      balance: balMap.get(c.id)?.balance ?? 0,
+      overdue: balMap.get(c.id)?.overdue ?? 0,
+      inBranch: c.branch_id === branchId || active.has(c.id),
+    }));
     setRows(list);
     setLoading(false);
   };
@@ -91,8 +110,11 @@ export default function Contacts() {
   // Realtime: refresh on contact changes AND on any transaction that affects balance (triggers will update contacts row)
   useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers"], load);
 
+  // الجهات الفعلية للفرع: أُنشئت فيه أو لها تعامل/رصيد فيه. البحث يشمل كل جهات الشركة لتفادي التكرار.
+  const branchRows = useMemo(() => rows.filter((x) => x.inBranch), [rows]);
+
   const filtered = useMemo(() => {
-    let r = rows;
+    let r = search.trim() ? rows : branchRows;
     if (filter !== "all") {
       r = r.filter((x) => x.type === filter || x.type === "both");
     }
@@ -113,16 +135,16 @@ export default function Contacts() {
       r = r.filter((x) => searchMatch(search, x.name, x.phone, x.contact_person, (x as any).email, (x as any).address, (x as any).notes));
     }
     return r;
-  }, [rows, filter, balanceFilters, search]);
+  }, [rows, branchRows, filter, balanceFilters, search]);
 
 
 
   const counts = useMemo(() => ({
-    all: rows.length,
-    customer: rows.filter((r) => r.type === "customer" || r.type === "both").length,
-    supplier: rows.filter((r) => r.type === "supplier" || r.type === "both").length,
-    both: rows.filter((r) => r.type === "both").length,
-  }), [rows]);
+    all: branchRows.length,
+    customer: branchRows.filter((r) => r.type === "customer" || r.type === "both").length,
+    supplier: branchRows.filter((r) => r.type === "supplier" || r.type === "both").length,
+    both: branchRows.filter((r) => r.type === "both").length,
+  }), [branchRows]);
 
   // Balance totals for filtered list
   const balanceTotals = useMemo(() => {
