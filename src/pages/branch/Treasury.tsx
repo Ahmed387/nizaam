@@ -45,6 +45,7 @@ import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { TreasuryMetricsGrid, type PeriodTransaction, type TreasuryChannel } from "@/components/treasury/TreasuryMetricsGrid";
 
 interface WalletBalances {
   cash_balance: number;
@@ -90,6 +91,8 @@ export default function Treasury() {
   const [notesSearch, setNotesSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [periodRows, setPeriodRows] = useState<PeriodTransaction[]>([]);
+  const [periodLoading, setPeriodLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
   useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
   useEffect(() => { setPage(1); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter]);
@@ -98,11 +101,9 @@ export default function Treasury() {
     setMinAmount(""); setMaxAmount(""); setTab("all"); setMethodFilter("all");
   };
 
-  const load = async () => {
-    setLoading(true);
-    // Server-side filters; dates via canonical Cairo bounds
-    let tq = supabase.from("treasury").select("*", { count: "exact" }).eq("branch_id", branchId!);
-    tq = applyCairoRange(tq, "created_at", fromDate, toDate);
+  /** Applies the page's filters to any treasury query (shared by table page + period totals). */
+  const applyFilters = (q: any) => {
+    let tq = applyCairoRange(q.eq("branch_id", branchId!), "created_at", fromDate, toDate);
     if (tab !== "all") tq = tq.eq("type", tab);
     if (methodFilter !== "all") tq = tq.eq("payment_method", methodFilter);
     const s = safeLike(search);
@@ -111,6 +112,23 @@ export default function Treasury() {
     if (n) tq = tq.ilike("description", `%${n}%`);
     if (minAmount !== "" && !isNaN(Number(minAmount))) tq = tq.gte("amount", Number(minAmount));
     if (maxAmount !== "" && !isNaN(Number(maxAmount))) tq = tq.lte("amount", Number(maxAmount));
+    return tq;
+  };
+
+  // Period totals need every filtered row (table is paginated) — lean columns only, refetched only when filters change.
+  const loadPeriod = async () => {
+    setPeriodLoading(true);
+    try {
+      const data = await fetchAllRows<PeriodTransaction>(() =>
+        applyFilters(supabase.from("treasury").select("id,type,payment_method,amount")).order("id"));
+      setPeriodRows(data);
+    } finally { setPeriodLoading(false); }
+  };
+  useEffect(() => { if (branchId) loadPeriod(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter]);
+
+  const load = async () => {
+    setLoading(true);
+    const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }));
     const offset = (page - 1) * PAGE_SIZE;
     const [tr, tt, wb, br] = await Promise.all([
       tq.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
@@ -252,6 +270,14 @@ export default function Treasury() {
       ? [{ key: "other_balance" as const, label: "وسائل أخرى", icon: Wallet, color: "text-amber-500", method: "other" as const }]
       : []),
   ];
+  const channels = useMemo<TreasuryChannel[]>(() => [
+    { method: "cash", label: "نقدي", icon: Wallet, color: "text-success" },
+    { method: "vodafone", label: "فودافون كاش", icon: Smartphone, color: "text-destructive" },
+    { method: "instapay", label: "انستاباي", icon: CreditCard, color: "text-primary" },
+    { method: "bank", label: "حساب بنكي", icon: Landmark, color: "text-primary" },
+    ...(periodRows.some((r) => !["cash", "vodafone", "instapay", "bank"].includes(String(r.payment_method)))
+      ? [{ method: "other", label: "وسائل أخرى", icon: Wallet, color: "text-warning" }] : []),
+  ], [periodRows]);
 
   // تحويلات واردة لسه محصلش عليها تأكيد استلام — الفلوس دي مش مضافة للرصيد
   const pendingIncoming = useMemo(
@@ -340,30 +366,18 @@ export default function Treasury() {
       />
 
       {canSeeBalances ? (
-        <div className="card-elevated p-6 mb-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {wallets.map((w) => {
-              const Icon = w.icon;
-              return (
-                <div key={w.key} className="bg-surface-2 rounded-lg p-4 text-center">
-                  <Icon className={`w-6 h-6 mx-auto mb-2 ${w.color}`} />
-                  <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">{w.label}<MetricHint label={`شرح ${w.label}`} meaning={`رصيد وعاء «${w.label}» المتبقي لهذا الفرع حتى الآن.`} source="سجل حركات الخزينة للفرع (get_branch_wallet_balances) مفلترًا بطريقة الدفع." formula={`مجموع الوارد عبر ${w.label} − مجموع المنصرف عبر ${w.label}`} /></div>
-                   <FinancialAmount value={walletBalances[w.key]} size="sm" />
-                </div>
-              );
-            })}
-          </div>
-          <div className="border-t pt-4 text-center">
-            <div className="text-sm text-muted-foreground mb-1">الرصيد الفعلي الحالي للخزينة <MetricHint label="شرح الرصيد الفعلي الحالي للخزينة" meaning="صافي النقدية الفعلية المتبقية بدرج وخزائن هذا الفرع حتى الآن. الرقم السالب يعني تجاوز المصروفات والمسحوبات المسجلة لحجم المقبوضات النقدية المدخلة بالدرج." source="سجل حركات وسندات الخزينة للفرع (get_branch_wallet_balances)." formula="[مجموع المقبوضات والوارد للفرع] − [مجموع المصروفات والمنصرف وسندات الصرف]" /> <span className="text-xs">(كل الفترات — لا يتأثر بفلتر التاريخ)</span></div>
-             <FinancialAmount value={walletBalances.total_balance} size="hero" className="gradient-text font-extrabold" />
-            {lowThreshold > 0 && walletBalances.total_balance < lowThreshold && (
-              <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
-                <AlertTriangle className="w-5 h-5" />
-                <span className="font-semibold">تنبيه: الرصيد أقل من الحد المسموح ({formatEGP(lowThreshold)})</span>
-              </div>
-            )}
-          </div>
-        </div>
+        <TreasuryMetricsGrid
+          cumulativeBalance={Number(walletBalances.total_balance)}
+          periodRows={periodRows}
+          channels={channels}
+          loading={periodLoading}
+          lowThresholdAlert={lowThreshold > 0 && walletBalances.total_balance < lowThreshold ? (
+            <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
+              <AlertTriangle className="w-5 h-5" />
+              <span className="font-semibold">تنبيه: الرصيد أقل من الحد المسموح ({formatEGP(lowThreshold)})</span>
+            </div>
+          ) : null}
+        />
       ) : (
         <div className="card-elevated p-6 mb-6 text-center text-muted-foreground">
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
