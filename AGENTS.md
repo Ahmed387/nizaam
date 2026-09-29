@@ -16,3 +16,4 @@
 - Cap sale-return refunds server-side at actual cash/transfer paid; remainder becomes credit.
 - Default today values use `cairoTodayDay()`, never UTC slicing.
 - Contact credit deposits use only `MAIN-TREASURY`; `PARTNER-CASH` is partner-capital-only, and neither is operational.
+- Admin financial branch reports use `contact_branch_balances` for branch debt and `get_branch_wallet_balances` for cash; company totals remain consolidated from `v_contact_balances`.

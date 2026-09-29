@@ -5,6 +5,9 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/StatCard";
+import { FinancialBranchDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
+import { ALL_FINANCIAL_BRANCHES, useAdminFinancialBranchMetrics } from "@/hooks/useAdminFinancialBranchMetrics";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,6 +58,12 @@ export default function FinancialPosition() {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") || "overview";
   const [stats, setStats] = useState({ count: 0, capital: 0, balance: 0 });
+  const [branchFilter, setBranchFilter] = useState(ALL_FINANCIAL_BRANCHES);
+  const financial = useAdminFinancialBranchMetrics();
+  const selectedSnapshot = financial.distribution.find((row) => row.id === branchFilter);
+  const positionReceivables = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.companyReceivables : selectedSnapshot?.receivables ?? 0;
+  const positionPayables = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.companyPayables : selectedSnapshot?.payables ?? 0;
+  const positionCash = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.totalCash : selectedSnapshot?.cash ?? 0;
 
   const load = async () => {
     if (!tenantId) return;
@@ -80,6 +89,8 @@ export default function FinancialPosition() {
       <div dir="rtl" className="text-right space-y-6">
         <PageHeader title="الذمة المالية للشركاء" subtitle="كل حاجة عن فلوس الشركاء ورأس المال والأرباح — في مكان واحد" />
 
+        <FinancialBranchFilter value={branchFilter} onChange={setBranchFilter} branches={financial.branches} />
+
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
@@ -93,6 +104,15 @@ export default function FinancialPosition() {
           <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
 
           <TabsContent value="overview" className="mt-4 space-y-6">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard label="النقدية" value={positionCash} icon={<Wallet className="w-5 h-5" />} accent="primary" />
+          <StatCard label="مستحق على العملاء" value={positionReceivables} icon={<HandCoins className="w-5 h-5" />} accent="success" />
+          <StatCard label="مستحق للموردين" value={positionPayables} icon={<ArrowDownCircle className="w-5 h-5" />} accent="destructive" />
+          <StatCard label="أرصدة تحت الحساب طرف الإدارة" value={financial.managementCredit} icon={<Landmark className="w-5 h-5" />} accent="warning" />
+        </div>
+
+        {branchFilter === ALL_FINANCIAL_BRANCHES && <BranchFinancialDistribution rows={financial.distribution} loading={financial.loading} />}
 
         {/* Friendly intro */}
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">

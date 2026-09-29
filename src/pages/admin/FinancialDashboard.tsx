@@ -5,11 +5,14 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
+import { FinancialBranchDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { ALL_FINANCIAL_BRANCHES, useAdminFinancialBranchMetrics } from "@/hooks/useAdminFinancialBranchMetrics";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDate } from "@/lib/format";
 import { invoiceProfit } from "@/lib/profitEngine";
+import { addDaysDay, cairoTodayDay } from "@/lib/cairoDate";
 import {
   Wallet, HandCoins, TrendingDown, TrendingUp, AlertTriangle, Calendar,
   ArrowDownCircle, ArrowUpCircle, BarChart3,
@@ -18,75 +21,63 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
 
-const fmtDay = (d: Date) => d.toISOString().slice(0, 10);
-const daysAgo = (n: number) => fmtDay(new Date(Date.now() - n * 86400000));
-
 export default function FinancialDashboard() {
   const [loading, setLoading] = useState(true);
-  const [treasuryBalance, setTreasuryBalance] = useState(0);
-  const [receivables, setReceivables] = useState(0);
-  const [payables, setPayables] = useState(0);
+  const [branchFilter, setBranchFilter] = useState(ALL_FINANCIAL_BRANCHES);
   const [upcoming, setUpcoming] = useState<any[]>([]);
   const [overdue, setOverdue] = useState<any[]>([]);
   const [monthlyTrend, setMonthlyTrend] = useState<any[]>([]);
   
   const [cashIn30, setCashIn30] = useState(0);
   const [cashOut30, setCashOut30] = useState(0);
+  const metrics = useAdminFinancialBranchMetrics();
+  const selectedSnapshot = metrics.distribution.find((row) => row.id === branchFilter);
+  const treasuryBalance = branchFilter === ALL_FINANCIAL_BRANCHES ? metrics.totalCash : selectedSnapshot?.cash ?? 0;
+  const receivables = branchFilter === ALL_FINANCIAL_BRANCHES ? metrics.companyReceivables : selectedSnapshot?.receivables ?? 0;
+  const payables = branchFilter === ALL_FINANCIAL_BRANCHES ? metrics.companyPayables : selectedSnapshot?.payables ?? 0;
 
   const load = useCallback(async () => {
+    if (metrics.loading) return;
     setLoading(true);
-    const last30 = daysAgo(30);
-    const next30 = fmtDay(new Date(Date.now() + 30 * 86400000));
+    const today = cairoTodayDay();
+    const last30 = addDaysDay(today, -30);
+    const next30 = addDaysDay(today, 30);
+    const last180 = addDaysDay(today, -180);
+    const visibleBranchIds = metrics.branches.map((branch) => branch.id);
+    const inScope = (branchId: string) => branchFilter === ALL_FINANCIAL_BRANCHES ? visibleBranchIds.includes(branchId) : branchId === branchFilter;
 
-    const [vAll, vRange, contactsRes, instUp, instOv, inv90] = await Promise.all([
-      fetchAllRows<any>(() => supabase.from("vouchers").select("id, type, amount").eq("status", "active").order("id")).then((data) => ({ data })),
-      fetchAllRows<any>(() => supabase.from("vouchers").select("id, type, amount, voucher_date").eq("status", "active").gte("voucher_date", last30).order("id")).then((data) => ({ data })),
-      // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-      fetchAllRows<any>(() => supabase.from("v_contact_balances" as any).select("contact_id, type, total_balance").order("contact_id")).then((data) => ({ data })),
+    const [vRange, instUp, instOv, inv90] = await Promise.all([
+      fetchAllRows<any>(() => {
+        let query = supabase.from("vouchers").select("id, branch_id, type, amount, voucher_date").eq("status", "active").gte("voucher_date", last30);
+        if (branchFilter !== ALL_FINANCIAL_BRANCHES) query = query.eq("branch_id", branchFilter);
+        else if (visibleBranchIds.length) query = query.in("branch_id", visibleBranchIds);
+        return query.order("id");
+      }).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase
         .from("payment_installments")
         .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
         .in("status", ["pending", "partial"])
-        .gte("due_date", fmtDay(new Date()))
+        .gte("due_date", today)
         .lte("due_date", next30)
         .order("due_date", { ascending: true })
         .order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase
         .from("payment_installments")
         .select("id, due_date, amount, paid_amount, status, payment_plans!inner(entity_name, branch_id)")
-        .or("status.eq.overdue,and(status.eq.pending,due_date.lt." + fmtDay(new Date()) + ")")
+        .or("status.eq.overdue,and(status.eq.pending,due_date.lt." + today + ")")
         .order("due_date", { ascending: true })
         .order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase
         .from("invoices")
-        .select("id, created_at, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+        .select("id, branch_id, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
         .eq("status", "active")
-        .gte("invoice_date", daysAgo(180))
+        .gte("invoice_date", last180)
+        .in("branch_id", branchFilter === ALL_FINANCIAL_BRANCHES ? visibleBranchIds : [branchFilter])
         .order("id")).then((data) => ({ data })),
     ]);
 
-    // Treasury net
-    const tBal = (vAll.data ?? []).reduce(
-      (s: number, x: any) => s + (x.type === "receipt" ? 1 : -1) * Number(x.amount),
-      0,
-    );
-    setTreasuryBalance(tBal);
-
-    // SINGLE FORMULA:
-    // Receivables = SUM(balance > 0 WHERE contact_type='customer')
-    // Payables    = SUM(|balance| WHERE balance < 0 AND contact_type='supplier')
-    let rec = 0, pay = 0;
-    for (const c of (contactsRes.data ?? []) as any[]) {
-      const b = Number(c.total_balance ?? c.balance ?? 0);
-      const t = String(c.type ?? c.contact_type ?? "").toLowerCase();
-      if ((t === "customer" || t === "both") && b > 0) rec += b;
-      if ((t === "supplier" || t === "both") && b < 0) pay += -b;
-    }
-    setReceivables(rec);
-    setPayables(pay);
-
-    setUpcoming(instUp.data ?? []);
-    setOverdue(instOv.data ?? []);
+    setUpcoming((instUp.data ?? []).filter((row: any) => inScope(row.payment_plans?.branch_id)));
+    setOverdue((instOv.data ?? []).filter((row: any) => inScope(row.payment_plans?.branch_id)));
 
     // 30-day cash flow
     let cin = 0, cout = 0;
@@ -100,7 +91,7 @@ export default function FinancialDashboard() {
     // Monthly trend (last 6 months) — sales & profit
     const months: Record<string, { month: string; sales: number; profit: number }> = {};
     for (const i of (inv90.data ?? []) as any[]) {
-      const k = (i.invoice_date ?? i.created_at).slice(0, 7);
+      const k = i.invoice_date.slice(0, 7);
       if (!months[k]) months[k] = { month: k, sales: 0, profit: 0 };
       // مصدر موحّد: profitEngine (صافي المرتجعات + خصم الفاتورة + بدون ضريبة)
       const ip = invoiceProfit(i);
@@ -112,7 +103,7 @@ export default function FinancialDashboard() {
     // Top profit products moved to Reports → Profitability tab (single source of truth).
 
     setLoading(false);
-  }, []);
+  }, [branchFilter, metrics.branches, metrics.loading]);
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(
@@ -132,12 +123,23 @@ export default function FinancialDashboard() {
         }
       />
 
+      <div className="mb-6">
+        <FinancialBranchFilter value={branchFilter} onChange={setBranchFilter} branches={metrics.branches} />
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="رصيد الخزن" value={formatEGP(treasuryBalance)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
+        <StatCard label="رصيد النقدية" value={formatEGP(treasuryBalance)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
         <StatCard label="مستحق على العملاء" value={formatEGP(receivables)} icon={<HandCoins className="w-5 h-5" />} accent="success" />
         <StatCard label="مستحق للموردين" value={formatEGP(payables)} icon={<TrendingDown className="w-5 h-5" />} accent="destructive" />
         <StatCard label="أقساط متأخرة" value={overdue.length} icon={<AlertTriangle className="w-5 h-5" />} accent="warning" />
       </div>
+
+      {branchFilter === ALL_FINANCIAL_BRANCHES && (
+        <div className="mb-6 space-y-4">
+          <StatCard label="أرصدة تحت الحساب طرف الإدارة" value={formatEGP(metrics.managementCredit)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
+          <BranchFinancialDistribution rows={metrics.distribution} loading={metrics.loading} />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="وارد (30 يوم)" value={formatEGP(cashIn30)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="success" />

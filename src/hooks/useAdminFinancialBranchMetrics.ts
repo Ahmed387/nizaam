@@ -17,7 +17,7 @@ export type BranchFinancialSnapshot = FinancialBranch & {
   cash: number;
 };
 
-type ContactBalance = { type: string; total_balance: number; credit_balance: number };
+type ContactBalance = { contact_id: string; type: string; total_balance: number; credit_balance: number };
 
 export function useAdminFinancialBranchMetrics() {
   const [loading, setLoading] = useState(true);
@@ -71,7 +71,7 @@ export function useAdminFinancialBranchMetrics() {
         let branchPayables = 0;
         for (const row of (balancesRes.data ?? []) as any[]) {
           const balance = Number(row.balance ?? 0);
-          const contact = contactRows.find((item: any) => item.contact_id === row.contact_id) as any;
+          const contact = contactRows.find((item) => item.contact_id === row.contact_id);
           const type = String(contact?.type ?? "");
           if ((type === "customer" || type === "both") && balance > 0) branchReceivables += balance;
           if ((type === "supplier" || type === "both") && balance < 0) branchPayables += -balance;
