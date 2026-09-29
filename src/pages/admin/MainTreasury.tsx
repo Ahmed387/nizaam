@@ -79,7 +79,7 @@ export default function MainTreasury() {
   const load = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    // كل الخزائن الحقيقية: الفروع + خزينة الشركاء (النظامية)
+    // كل الخزائن الحقيقية: الفروع + الأوعية المالية المركزية النظامية.
     const { data: brs } = await supabase
       .from("branches")
       .select("id,name,code")
@@ -191,7 +191,7 @@ export default function MainTreasury() {
       />
 
       <div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">
-        الصفحة دي <b>للعرض بس</b>، وبتجمّعلك أرصدة كل الخزائن الحقيقية (الفروع + خزينة الشركاء) في مكان واحد.
+        الصفحة دي <b>للعرض بس</b>، وبتجمّعلك أرصدة خزائن الفروع والأوعية المالية المركزية في مكان واحد.
         <b> لتحويل فلوس فعلي</b>، استخدم زرار <b>«تحويل فلوس من خزنة الشركاء للفروع»</b> فوق، أو روح لخزنة الفرع نفسه.
       </div>
 
@@ -201,11 +201,11 @@ export default function MainTreasury() {
         <StatCard label="إجمالي الوارد" value={formatEGP(totals.cin)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="success" />
         <StatCard label="إجمالي الصادر" value={formatEGP(totals.cout)} icon={<ArrowUpCircle className="w-5 h-5" />} accent="destructive" />
         <StatCard label="صافي التدفق" value={formatEGP(totals.net)} icon={<TrendingUp className="w-5 h-5" />} accent={totals.net >= 0 ? "success" : "destructive"} />
-        <StatCard label="عدد الفروع" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
+        <StatCard label="عدد الخزائن" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
       </div>
 
       {/* Per-branch rollup cards */}
-      <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4" /> تفصيل الفروع</h3>
+      <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet className="w-4 h-4" /> تفصيل الخزائن</h3>
       <TooltipProvider delayDuration={200}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {perBranch.map(({ branch, cin, cout, lastAt }) => {

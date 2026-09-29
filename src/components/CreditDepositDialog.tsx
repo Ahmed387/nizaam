@@ -21,7 +21,7 @@ interface Props {
   size?: "sm" | "default";
 }
 
-/** Admin/owner-only: deposit an on-account credit into the management treasury (never a branch drawer). */
+/** Admin/owner-only: deposit credit into the central management account, never an operational branch drawer. */
 export function CreditDepositButton({ contact, onDone, size = "default" }: Props) {
   const { isAdmin, tenantId } = useAuth();
   const [open, setOpen] = useState(false);
@@ -84,7 +84,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
           <DialogHeader>
             <DialogTitle>إيداع رصيد تحت الحساب</DialogTitle>
             <DialogDescription>
-              المبلغ يدخل خزينة الإدارة الرئيسية أو الحساب البنكي العام فقط — لا يمس درج أي فرع — ويُضاف لرصيد الجهة المتاح تحت الحساب.
+              المبلغ يدخل الخزينة الرئيسية (الإدارة) أو الحساب البنكي العام للشركة فقط — لا يمس درج أي فرع — ويُضاف لرصيد الجهة المتاح تحت الحساب.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -113,8 +113,8 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
               <Select value={method} onValueChange={(v) => setMethod(v as "cash" | "bank")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">خزينة الإدارة الرئيسية (نقدي)</SelectItem>
-                  <SelectItem value="bank">الحساب البنكي العام</SelectItem>
+                  <SelectItem value="cash">الخزينة الرئيسية (الإدارة) — نقدي</SelectItem>
+                  <SelectItem value="bank">الحساب البنكي العام للشركة</SelectItem>
                 </SelectContent>
               </Select>
             </div>

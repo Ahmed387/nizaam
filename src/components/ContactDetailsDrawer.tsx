@@ -34,10 +34,12 @@ export function ContactDetailsDrawer({ contact, tenantId, branchId, canSettle, o
     (async () => {
       const l = await fetchContactLedger(contact.id);
       const ids = Array.from(new Set(l.rows.map((r) => r.branch_id).filter(Boolean))) as string[];
-      const { data } = ids.length ? await supabase.from("branches").select("id,name").in("id", ids) : { data: [] };
+      const { data } = ids.length ? await supabase.from("branches").select("id,name,code,is_system").in("id", ids) : { data: [] };
       if (cancelled) return;
       setRows(l.rows);
-      setBranchNames(Object.fromEntries((data ?? []).map((b: any) => [b.id, b.name])));
+      setBranchNames(Object.fromEntries((data ?? [])
+        .filter((b: any) => b.code !== "PARTNER-CASH")
+        .map((b: any) => [b.id, b.code === "MAIN-TREASURY" ? "حساب الإدارة (تحت الحساب)" : b.name])));
       setLoading(false);
     })().catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -105,7 +107,7 @@ function BranchStatement({ rows, branchId, loading, onFull, onOpen }: { rows: Le
     <div className="space-y-3">
       <div className="flex items-center justify-between card-elevated p-3">
         <div>
-          <div className="text-xs text-muted-foreground">رصيد هذا الفرع</div>
+          <div className="text-xs text-muted-foreground">رصيد هذا الحساب</div>
           <div className={`text-lg font-bold ${list.bal >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(list.bal)}</div>
         </div>
         <Button size="sm" variant="outline" onClick={onFull}><FileText className="w-4 h-4 ml-1" /> كشف تفصيلي بالفلاتر</Button>

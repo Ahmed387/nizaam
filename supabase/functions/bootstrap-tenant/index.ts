@@ -155,6 +155,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Central financial containers are system-only and never operational branches.
+    const { error: systemBranchErr } = await supabase.from("branches").insert([
+      { name: "الخزينة الرئيسية (الإدارة)", code: "MAIN-TREASURY", tenant_id: tenantId, is_active: true, is_system: true },
+      { name: "خزينة الشركاء", code: "PARTNER-CASH", tenant_id: tenantId, is_active: true, is_system: true },
+    ]);
+    if (systemBranchErr) return await rollback("فشل تجهيز الأوعية المالية المركزية: " + systemBranchErr.message);
+
     // ---- 5. create equity partners ----
     const partnerRows: any[] = [];
     for (const p of partners) {
