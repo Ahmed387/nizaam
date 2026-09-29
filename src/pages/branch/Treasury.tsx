@@ -39,7 +39,8 @@ import { notifyMany, getBranchManagers, getTenantAdmins } from "@/lib/notificati
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/components/PaymentMethodPicker";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
-import { ArrowLeftRight, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
+import * as XLSX from "xlsx";
+import { ArrowLeftRight, FileSpreadsheet, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { RecordAttachments } from "@/components/RecordAttachments";
@@ -261,11 +262,74 @@ export default function Treasury() {
 
 
 
+  const [exporting, setExporting] = useState(false);
+  const exportLedger = async () => {
+    if (!branchId) return;
+    setExporting(true);
+    try {
+      const all = await fetchAllRows<any>(() => supabase.from("treasury")
+        .select("id,type,category,amount,description,reference_id,reference_number,payment_method,created_at")
+        .eq("branch_id", branchId).order("created_at", { ascending: true }).order("id"));
+      const ids = all.map((r) => r.id);
+      const refIds = [...new Set(all.map((r) => r.reference_id).filter(Boolean))] as string[];
+      const chunk = <T,>(a: T[], n = 200) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+      const vMap = new Map<string, any>(); const iMap = new Map<string, any>();
+      for (const c of chunk(ids)) {
+        const { data } = await supabase.from("vouchers").select("treasury_id,voucher_number,party_name").in("treasury_id", c);
+        (data ?? []).forEach((v: any) => vMap.set(v.treasury_id, v));
+      }
+      for (const c of chunk(refIds)) {
+        const { data } = await supabase.from("invoices").select("id,invoice_number,contact:contacts!invoices_contact_id_fkey(name)").in("id", c);
+        (data ?? []).forEach((v: any) => iMap.set(v.id, v));
+      }
+      const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+      const header = ["م", "التاريخ والوقت (القاهرة)", "رقم السند / العملية", "نوع الحركة", "التصنيف", "الجهة / المستلم", "البيان / الملاحظات", "الوعاء المالي", "وارد (+)", "منصرف (-)", "الرصيد التراكمي"];
+      const aoa: any[][] = [header];
+      all.forEach((r, i) => {
+        const v = vMap.get(r.id); const inv = r.reference_id ? iMap.get(r.reference_id) : null;
+        const amt = Number(r.amount ?? 0); const isIn = r.type === "income";
+        aoa.push([i + 1, fmt.format(new Date(r.created_at)),
+          resolveTreasuryOperationNumber(v?.voucher_number, inv?.invoice_number, r.reference_number),
+          isIn ? "وارد" : "منصرف", treasuryCategoryLabel(r.category),
+          v?.party_name || inv?.contact?.name || "—", sanitizeOperationalDescription(r.description) || "—",
+          PAYMENT_METHOD_LABELS[(r.payment_method ?? "cash") as PaymentMethod] ?? r.payment_method,
+          isIn ? amt : 0, isIn ? 0 : amt, 0]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const n = all.length; const last = n + 1;
+      for (let row = 2; row <= last; row++) {
+        ws[`K${row}`] = { t: "n", f: row === 2 ? `I2-J2` : `K${row - 1}+I${row}-J${row}` };
+      }
+      const s = last + 2;
+      XLSX.utils.sheet_add_aoa(ws, [
+        ["", "إجمالي المقبوضات (الوارد)"], ["", "إجمالي المصروفات (المنصرف)"], ["", "صافي رصيد الخزينة"],
+      ], { origin: `A${s}` });
+      ws[`C${s}`] = { t: "n", f: n ? `SUM(I2:I${last})` : "0" };
+      ws[`C${s + 1}`] = { t: "n", f: n ? `SUM(J2:J${last})` : "0" };
+      ws[`C${s + 2}`] = { t: "n", f: `C${s}-C${s + 1}` };
+      ws["!ref"] = `A1:K${s + 2}`;
+      ws["!cols"] = [6, 18, 16, 10, 20, 24, 40, 14, 14, 14, 16].map((wch) => ({ wch }));
+      ws["!views"] = [{ RTL: true }] as any;
+      const wb = XLSX.utils.book_new();
+      wb.Workbook = { Views: [{ RTL: true }] } as any;
+      XLSX.utils.book_append_sheet(wb, ws, "كشف الخزينة");
+      XLSX.writeFile(wb, `كشف-خزينة-الفرع-${cairoTodayDay()}.xlsx`);
+      toast.success(`تم تصدير ${n} حركة`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذر التصدير");
+    } finally { setExporting(false); }
+  };
+
   return (
     <BranchLayout>
       <PageHeader title="الخزينة" subtitle="عرض فقط — كل الحركات تتم عبر سندات القبض والصرف"
         actions={
           <div className="flex gap-2">
+            {canSeeBalances && (
+              <Button variant="outline" onClick={exportLedger} disabled={exporting}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> {exporting ? "جارٍ التصدير..." : "تصدير كشف الخزينة Excel"}
+              </Button>
+            )}
             {canTransfer && otherBranches.length > 0 && (
               <Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
