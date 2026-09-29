@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { scopeToBranch } from "@/lib/branchQuery";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -27,7 +29,8 @@ interface VoidReq {
 }
 
 export default function PendingVoidApprovals() {
-  const { isAdmin, isOwner, hasRole } = useAuth();
+  const { isAdmin, isOwner, hasRole, tenantId } = useAuth();
+  const { id: branchId } = useParams<{ id: string }>();
   const canDecide = isAdmin || isOwner || hasRole("branch_manager");
   const [rows, setRows] = useState<VoidReq[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,10 +41,10 @@ export default function PendingVoidApprovals() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("approval_requests" as any)
-      .select("*")
-      .eq("entity_type", "payment_void")
+    const { data, error } = await scopeToBranch(
+      supabase.from("approval_requests" as any).select("*").eq("entity_type", "payment_void") as any,
+      branchId, tenantId,
+    )
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) toast.error(error.message);
@@ -49,7 +52,7 @@ export default function PendingVoidApprovals() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (tenantId) load(); }, [tenantId, branchId]);
   useRealtimeRefresh(["approval_requests"], load);
 
   const submitDecision = async () => {

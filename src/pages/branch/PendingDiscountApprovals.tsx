@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { scopeToBranch } from "@/lib/branchQuery";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -39,18 +41,18 @@ export default function PendingDiscountApprovals() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const { id: branchId } = useParams<{ id: string }>();
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("discount_approval_requests" as any)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+    const { data } = await scopeToBranch(
+      supabase.from("discount_approval_requests" as any).select("*") as any,
+      branchId, tenantId,
+    ).order("created_at", { ascending: false });
     setRows((data ?? []) as any);
     setLoading(false);
   };
 
-  useEffect(() => { if (tenantId) load(); }, [tenantId]);
+  useEffect(() => { if (tenantId) load(); }, [tenantId, branchId]);
   useRealtimeRefresh(["discount_approval_requests"], load);
 
   const filtered = rows.filter((r) => tab === "pending" ? r.status === "pending" : r.status !== "pending");
