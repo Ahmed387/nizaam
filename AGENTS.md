@@ -20,3 +20,5 @@
 - Show negative contact credit separately from treasury cash and flows.
 - Every statistical card uses `MetricHint` with meaning, source, and exact formula.
 - Branch queries use `scopeToBranch` with the route branch id; cross-branch views are admin/HQ only.
+- Wide tables use DataTable `minTableWidth` (wrapper gets `data-wide`); `index.css` compact CSS stays `:not([data-wide])`-guarded.
+- Filter payments in-DB via `invoice_payments!inner`, not a client id list.

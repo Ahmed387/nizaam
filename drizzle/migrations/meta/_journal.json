@@ -218,6 +218,13 @@
       "when": 1790691500222,
       "tag": "0030_canonical_treasury_transaction_date",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790694803277,
+      "tag": "0031_invoice_payments_invoice_id_fk",
+      "breakpoints": true
     }
   ]
 }

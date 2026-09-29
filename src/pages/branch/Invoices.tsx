@@ -466,23 +466,32 @@ export default function Invoices() {
               <span className="font-mono text-primary font-semibold">{r.invoice_number}</span>
             </span>
           ) },
-          { key: "customer", header: "العميل", align: "center", render: (r: any) => r.contacts?.name ?? "نقدي" },
+          { key: "customer", header: "العميل", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
+            const name = r.contacts?.name ?? "نقدي";
+            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+          } },
           { key: "total", header: "المبلغ", align: "center", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
-          { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", width: "10rem", render: (r: any) => r.status === "active" ? (
-            <span className="flex flex-col text-xs tabular-nums leading-tight">
-              <span className="text-success font-semibold">{formatEGP(r.__paid ?? 0)}</span>
-              <span className={Number(r.__remaining) > 0 ? "text-warning font-semibold" : "text-muted-foreground"}>{formatEGP(r.__remaining ?? 0)}</span>
+          { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", className: "min-w-[150px]", render: (r: any) => r.status === "active" ? (
+            <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
+              <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
+                <span className="text-[10px] font-extrabold text-muted-foreground">مدفوع</span>
+                {formatEGP(r.__paid ?? 0)}
+              </span>
+              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-bold ${Number(r.__remaining) > 0 ? "bg-warning/10 text-warning" : "text-muted-foreground"}`}>
+                <span className="text-[10px] font-extrabold text-muted-foreground">متبقي</span>
+                {formatEGP(r.__remaining ?? 0)}
+              </span>
             </span>
           ) : <span className="text-muted-foreground">—</span> },
-          { key: "__pay_state", header: "حالة السداد", align: "center", width: "9rem", render: (r: any) => r.status === "active" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
-          { key: "__b_cash", header: "نقدي", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.cash) },
-          { key: "__b_instapay", header: "انستاباي", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
-          { key: "__b_wallet", header: "محفظة", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
-          { key: "__b_bank", header: "بنكي", align: "center", width: "7rem", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
-          { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
-{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
-          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
-          { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", width: "10rem", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "__pay_state", header: "حالة السداد", align: "center", className: "min-w-[135px]", render: (r: any) => r.status === "active" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
+          { key: "__b_cash", header: "نقدي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.cash) },
+          { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
+          { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
+          { key: "__b_bank", header: "بنكي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
+          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
+          { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -1184,6 +1193,7 @@ export default function Invoices() {
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
+        minTableWidth={tab === "sale" ? "1400px" : undefined}
         getRowKey={(row: any) => row.id}
         isRowExpanded={DOC_ITEMS_TABS.includes(tab) ? (row: any) => expandedInvoiceId === row.id : undefined}
         renderExpandedRow={DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
