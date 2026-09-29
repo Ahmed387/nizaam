@@ -1,3 +1,4 @@
+import { fetchContactBalance } from "@/lib/contactBalances";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -46,7 +47,7 @@ export default function QuoteView() {
         if (!q) { setError("عرض السعر غير موجود"); return; }
         // TODO Phase 2.2B: Remove after contacts.balance column is dropped
         if ((q as any).contact_id) {
-          const { fetchContactBalance } = await import("@/lib/contactBalances");
+          
           const bal = await fetchContactBalance((q as any).contact_id);
           if ((q as any).contacts) (q as any).contacts.balance = bal;
         }

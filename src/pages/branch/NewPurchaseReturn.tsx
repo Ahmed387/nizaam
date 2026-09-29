@@ -1,3 +1,4 @@
+import { fetchContactBalance } from "@/lib/contactBalances";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PickerItemsToggle } from "@/components/PickerItemsPreview";
@@ -107,7 +108,7 @@ export default function NewPurchaseReturn() {
     if (!sh) return toast.error("الفاتورة غير موجودة");
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped
     if ((sh as any).contact_id && (sh as any).contacts) {
-      const { fetchContactBalance } = await import("@/lib/contactBalances");
+      
       (sh as any).contacts.balance = await fetchContactBalance((sh as any).contact_id);
     }
 

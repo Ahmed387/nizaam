@@ -1,3 +1,4 @@
+import { fetchContactBalanceMap, mergeBalancesById } from "@/lib/contactBalances";
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -92,7 +93,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
     ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
     const cList = (c.data ?? []) as any[];
-    const { fetchContactBalanceMap, mergeBalancesById } = await import("@/lib/contactBalances");
+    
     const cBalMap = await fetchContactBalanceMap(cList.map((x) => x.id));
     setContacts(mergeBalancesById(cList, cBalMap));
     setInvoices(i.data ?? []);
