@@ -68,6 +68,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   const canAdd = !!branchId && (isAdmin || hasRole("branch_manager"));
 
+  const [searchInput, setSearchInput] = useState("");
+  const [searchText, setSearchText] = useState("");
+  useEffect(() => { const t = setTimeout(() => setSearchText(searchInput.trim()), 300); return () => clearTimeout(t); }, [searchInput]);
   const [agg, setAgg] = useState({ totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 });
 
   /** Same filter set for the table rows and the full-scope totals. */
@@ -82,6 +85,10 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     if (filters.payment_method) q = q.eq("payment_method", filters.payment_method);
     if (filters.source) q = q.eq("source", filters.source);
     if (filters.branch_id) q = q.eq("branch_id", filters.branch_id);
+    if (searchText) {
+      const term = searchText.replace(/[,()*%]/g, " ").trim();
+      if (term) q = q.or(`voucher_number.ilike.%${term}%,party_name.ilike.%${term}%,description.ilike.%${term}%`);
+    }
     if (deductibleIds) {
       q = q.eq("type", "payment").eq("status", "active").in("category_id", deductibleIds.length ? deductibleIds : ["00000000-0000-0000-0000-000000000000"]);
     }
@@ -123,7 +130,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     }
   }, [type, adminAllBranches]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, onlyDeductedFromProfit]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit]);
 
   useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); });
 
@@ -239,6 +246,13 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       )}
 
       <div className="card-elevated p-4 space-y-3">
+        <Input
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="ابحث برقم السند أو اسم الجهة أو البيان"
+          className="h-9"
+          aria-label="بحث في السندات"
+        />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">من تاريخ</Label>
@@ -401,6 +415,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           ) },
           { key: "payment_method", header: "طريقة الدفع", render: (r: Voucher) => PAYMENT_METHOD_LABELS[r.payment_method] },
           { key: "party", header: "الجهة", render: (r: Voucher) => r.party_name ?? "—" },
+          { key: "description", header: "البيان / الوصف", render: (r: Voucher) => (
+            <span className="block max-w-[18rem] text-xs whitespace-pre-wrap break-words line-clamp-3" title={r.description ?? ""}>{r.description || "—"}</span>
+          ) },
           ...(adminAllBranches ? [{ key: "branch", header: "الفرع", render: (r: Voucher) => branchMap[r.branch_id] ?? "—" }] : []),
           { key: "source", header: "المصدر", render: (r: Voucher) => (
             <Badge variant={r.source === "manual" ? "secondary" : "outline"}>
