@@ -279,7 +279,7 @@ export default function Treasury() {
         (data ?? []).forEach((v: any) => vMap.set(v.treasury_id, v));
       }
       for (const c of chunk(refIds)) {
-        const { data } = await supabase.from("invoices").select("id,invoice_number,contact:contacts(name)").in("id", c);
+        const { data } = await supabase.from("invoices").select("id,invoice_number,contact:contacts!invoices_contact_id_fkey(name)").in("id", c);
         (data ?? []).forEach((v: any) => iMap.set(v.id, v));
       }
       const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
