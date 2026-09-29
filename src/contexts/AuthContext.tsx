@@ -88,8 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTenantId(ctx.tenantId);
     setTenant(ctx.tenant);
     setRoles(ctx.roles);
-    // خزينة الشركاء (PARTNER-CASH) فرع محاسبي افتراضي — مش فرع تشغيلي، فمستبعد من قوائم الفروع في الواجهة
-    setBranches((ctx.branches as any[]).filter((b) => b?.code !== "PARTNER-CASH") as any);
+    // الأوعية المالية النظامية ليست فروعًا تشغيلية، فتُستبعد من قوائم الفروع في الواجهة.
+    setBranches((ctx.branches as any[]).filter((b) => !b?.is_system) as any);
     await loadPerms(ctx.tenantId);
     const { data: overrides } = await supabase
       .from("user_permissions" as any)

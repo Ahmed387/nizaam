@@ -245,7 +245,7 @@ export async function fetchProfitWindow(params: {
     fetchAllRows<any>(() => buildExp(prevFromDate, prevToDate, false)),
     fetchAllRows<any>(() => buildInc(fromDate, toDate, true)),
     fetchAllRows<any>(() => buildInc(prevFromDate, prevToDate, false)),
-    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).neq("code", "PARTNER-CASH"),
+    supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).eq("is_system", false),
   ]);
   const invRes = { data: invRows };
   const expRes = { data: expRows };

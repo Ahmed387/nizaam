@@ -94,8 +94,8 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     if (!branchId) return;
     setLoading(true);
     const [b, allB, p, out, inc, self] = await Promise.all([
-      supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH").neq("id", branchId),
-      supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH"),
+      supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false).neq("id", branchId),
+      supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false),
       supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
       supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
       supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),

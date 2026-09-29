@@ -65,7 +65,7 @@ export default function SeedData() {
       addLog(`✓ ${cats?.length ?? 0} تصنيف`);
 
       // 2) Branches
-      const { data: branches } = await supabase.from("branches").select("*").eq("is_active", true).neq("code", "PARTNER-CASH");
+      const { data: branches } = await supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false);
       if (!branches || branches.length === 0) {
         addLog("⚠️ لا توجد فروع — أضف فرعاً أولاً من 'إدارة الفروع'");
         setLoading(false);

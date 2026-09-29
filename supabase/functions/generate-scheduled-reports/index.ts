@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
         .from("branches")
         .select("id, name")
         .eq("tenant_id", t.id)
-        .neq("code", "PARTNER-CASH");
+        .eq("is_system", false);
       const perBranch = (branches ?? []).map((b: any) => ({
         branch_id: b.id,
         branch_name: b.name,

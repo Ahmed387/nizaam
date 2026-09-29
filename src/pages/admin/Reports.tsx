@@ -69,7 +69,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     const toIso = getCairoDayBounds(undefined, to).endIso!;
     const [b, inv, exp, pr, sup, sh, sp, emp, tr, ret, cu, ash, asp, ptx, oi, pp, ipay] = await Promise.all([
       // خزينة الشركاء (PARTNER-CASH) فرع افتراضي محاسبي — مش فرع تشغيلي، بيتستبعد من تقارير الفروع
-      supabase.from("branches").select("id,name,code").eq("is_active", true).neq("code", "PARTNER-CASH"),
+      supabase.from("branches").select("id,name,code").eq("is_active", true).eq("is_system", false),
       // سحب كل الفواتير على دفعات (الحد الافتراضي 1000 صف كان بيقص التقارير في الفترات الكبيرة)
       fetchAllRows<any>(() => supabase.from("invoices").select("*, invoice_items(*)").gte("invoice_date", fromIso).lte("invoice_date", toIso).order("id")).then((rows) => ({ data: rows })),
       fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).gte("voucher_date", from).lte("voucher_date", to).order("id")).then((rows) => ({ data: rows })),

@@ -173,7 +173,7 @@ export default function AttachmentsHub({ scope }: Props) {
 
     // Branches + uploaders
     const [{ data: brList }, { data: profs }] = await Promise.all([
-      supabase.from("branches").select("id, name").eq("tenant_id", tenantId).neq("code", "PARTNER-CASH"),
+      supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_system", false),
       supabase.from("profiles").select("id, name").eq("tenant_id", tenantId),
     ]);
     const brMap: Record<string, string> = {};

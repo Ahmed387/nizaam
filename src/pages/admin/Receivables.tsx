@@ -82,7 +82,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     const [{ data: pp }, { data: pi }, { data: br }] = await Promise.all([
       supabase.from("payment_plans").select("*").neq("status", "completed").order("created_at", { ascending: false }),
       supabase.from("payment_installments").select("*").in("status", ["pending", "overdue", "partial"]),
-      supabase.from("branches").select("id,name").neq("code", "PARTNER-CASH"),
+      supabase.from("branches").select("id,name").eq("is_system", false),
     ]);
     setPlans((((pp as any) ?? []) as any[]).filter((r: any) => isAllowed(r.branch_id)) as any);
     setInstallments((pi as any) ?? []);
