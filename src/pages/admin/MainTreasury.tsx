@@ -208,9 +208,10 @@ export default function MainTreasury() {
         <StatCard label="عدد الخزائن" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
       </div>
 
-      <button
+      <Button
         type="button"
-        className="mb-6 block w-full text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
+        variant="ghost"
+        className="mb-6 block h-auto w-full rounded-2xl p-0 text-right"
         onClick={() => setCreditDrawerOpen(true)}
         aria-label="عرض تفاصيل أرصدة تحت الحساب"
       >
@@ -222,7 +223,7 @@ export default function MainTreasury() {
           accent="warning"
           className="cursor-pointer"
         />
-      </button>
+      </Button>
 
       <ContactCreditBalancesDrawer
         open={creditDrawerOpen}
