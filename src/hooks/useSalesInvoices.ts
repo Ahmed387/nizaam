@@ -111,25 +111,15 @@ export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean,
     setLoading(true);
     (async () => {
       try {
-        const { qb: _probe } = await buildQuery("id", false);
-        void _probe;
-        const invoices = await fetchAllRows<InvoiceTotalRow>(async () => {
+        // Same filtered query as the table, paged in 1,000-row batches (never limited to the visible page).
+        const invoices: InvoiceTotalRow[] = [];
+        for (let from = 0; ; from += 1000) {
           const { qb } = await buildQuery("id, total, status", false);
-          return qb.order("id").abortSignal(ctrl.signal);
-        }).catch(async () => {
-          // fetchAllRows expects a sync builder; fall back to manual paging.
-          const all: InvoiceTotalRow[] = [];
-          let from = 0;
-          for (;;) {
-            const { qb } = await buildQuery("id, total, status", false);
-            const { data, error } = await qb.order("id").range(from, from + 999).abortSignal(ctrl.signal);
-            if (error) throw error;
-            all.push(...((data ?? []) as InvoiceTotalRow[]));
-            if (!data || data.length < 1000) break;
-            from += 1000;
-          }
-          return all;
-        });
+          const { data, error } = await qb.order("id").range(from, from + 999).abortSignal(ctrl.signal);
+          if (error) throw error;
+          invoices.push(...((data ?? []) as InvoiceTotalRow[]));
+          if (!data || data.length < 1000) break;
+        }
         const activeRows = invoices.filter((i) => i.status === "active");
         const pays = await fetchPaymentSummaries(activeRows.map((i) => i.id), ctrl.signal);
         let totalSales = 0, collected = 0, remaining = 0;
