@@ -8,7 +8,7 @@ import { fetchAllRows } from "@/lib/fetchAll";
 export type LedgerKind =
   | "opening" | "sale" | "sale_payment" | "sale_return"
   | "purchase" | "supplier_payment" | "purchase_return"
-  | "receipt_voucher" | "payment_voucher";
+  | "receipt_voucher" | "payment_voucher" | "credit_deposit";
 
 export type LedgerRow = {
   date: string;
@@ -149,6 +149,18 @@ export async function fetchContactLedger(contactId: string): Promise<ContactLedg
       branch_id: v.branch_id ?? null,
     });
   });
+
+  // «إيداع رصيد تحت الحساب» (management treasury). Balance effect lives in credit_balance,
+  // which total_balance already includes — this row makes that credit visible in the statement.
+  const deposits = await fetchAllRows<any>(() => supabase.from("vouchers" as any)
+    .select("id, voucher_number, amount, voucher_date, description, branch_id")
+    .eq("party_id", contactId).eq("source_type", "credit_deposit").eq("status", "active")
+    .order("id"));
+  (deposits ?? []).forEach((v: any) => list.push({
+    date: v.voucher_date, kind: "credit_deposit", type: "إيداع رصيد تحت الحساب",
+    reference: v.voucher_number ?? "—", description: v.description ?? "—",
+    debit: 0, credit: Number(v.amount ?? 0), branch_id: v.branch_id ?? null,
+  }));
 
   list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   return {

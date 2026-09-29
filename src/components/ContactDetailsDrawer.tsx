@@ -8,6 +8,7 @@ import { ContactBranchAccordion } from "@/components/ContactBranchAccordion";
 import { fetchContactLedger, filterLedgerByBranches, withRunningBalance, ledgerSum, type LedgerRow } from "@/lib/contactLedger";
 import { formatDate, formatEGP } from "@/lib/format";
 import { FileText, UserRound } from "lucide-react";
+import { CreditDepositButton } from "@/components/CreditDepositDialog";
 
 interface Props {
   contact: { id: string; name: string; type: string } | null;
@@ -60,6 +61,7 @@ export function ContactDetailsDrawer({ contact, tenantId, branchId, canSettle, o
               <Button size="sm" variant="outline" onClick={() => nav(`/branch/${branchId}/contacts/${contact.id}`)}>
                 <UserRound className="w-4 h-4 ml-1" /> الملف الكامل
               </Button>
+              <CreditDepositButton size="sm" contact={contact} onDone={onSettled} />
             </div>
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="flex-wrap h-auto">

@@ -7237,6 +7237,19 @@ export type Database = {
         }[]
       }
       contact_has_legacy_docs: { Args: { p_contact: string }; Returns: boolean }
+      create_contact_credit_deposit: {
+        Args: {
+          p_amount: number
+          p_contact_id: string
+          p_description?: string
+          p_method: string
+          p_reference_number?: string
+          p_transferred_from?: string
+          p_transferred_to?: string
+          p_voucher_date?: string
+        }
+        Returns: string
+      }
       create_inventory_session: {
         Args: { p_branch_id: string; p_notes?: string }
         Returns: string
