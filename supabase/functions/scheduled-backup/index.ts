@@ -17,7 +17,7 @@ const PAGE = 2000; // دفعات كبيرة لتقليل عدد النداءات
 const RPC_RETRIES = 3;
 const RPC_RETRY_DELAY_MS = 800;
 const MEDIA_BUCKETS = ["product-images", "employee-cards", "voucher-attachments", "attachments"];
-const MEDIA_BUDGET_BYTES = 250 * 1024 * 1024; // guard against Edge Function timeouts
+const MEDIA_BUDGET_BYTES = 120 * 1024 * 1024; // guard against Edge Function timeouts
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 const DRIVE_FILE_NAME = "A&N.tar";
 
@@ -105,10 +105,18 @@ Deno.serve(async (req) => {
 
     let requestedTenant: string | undefined;
     let ensureFolderOnly = false;
+    let mode: string | undefined;
+    let jobId: string | undefined;
+    let partTable: string | undefined;
+    let clientCounts: Record<string, number> | undefined;
     try {
       const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
       if (body?.tenant_id) requestedTenant = body.tenant_id;
       if (body?.ensure_folder_only) ensureFolderOnly = true;
+      if (typeof body?.mode === "string") mode = body.mode;
+      if (typeof body?.job_id === "string" && /^[a-zA-Z0-9-]{8,64}$/.test(body.job_id)) jobId = body.job_id;
+      if (typeof body?.table === "string") partTable = body.table;
+      if (body?.counts && typeof body.counts === "object") clientCounts = body.counts;
     } catch { /* ignore */ }
 
     // ---- Authorization: cron secret OR an owner / super_admin JWT (admins are blocked) ----
@@ -173,6 +181,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: !anyError, folders }, anyError ? 500 : 200);
     }
 
+    let stagedJobDir: string | null = null;
+    let stagedCounts: Record<string, number> = {};
+
     // ---- Single source of truth for the table list + topological order ----
     const { data: manifestRows, error: manErr } = await admin.rpc("backup_table_manifest");
     if (manErr) throw new Error(`فهرس الجداول: ${manErr.message}`);
@@ -187,6 +198,52 @@ Deno.serve(async (req) => {
     if (!ctidErr && Array.isArray(ctidInfo)) {
       for (const row of ctidInfo) {
         if (row?.table_name) orderByMap.set(row.table_name, row.has_ctid ? "x.ctid" : "1");
+      }
+    }
+
+    // ---- Staged (chunked) mode: the browser drives one small step per call ----
+    if (mode && mode !== "full") {
+      if (tenantIds.length !== 1) return jsonResponse({ error: "حدد شركة واحدة للنسخ المرحلي" }, 400);
+      const tenantId = tenantIds[0];
+      if (mode === "plan") {
+        return jsonResponse({ ok: true, job_id: crypto.randomUUID(), tables: tables.map((t) => t.table_name) });
+      }
+      if (!jobId) return jsonResponse({ error: "job_id مطلوب" }, 400);
+      const stageDir = `${tenantId}/_staging/${jobId}`;
+      if (mode === "part") {
+        const t = tables.find((x) => x.table_name === partTable);
+        if (!t) return jsonResponse({ error: "جدول غير معروف" }, 400);
+        const enc = new TextEncoder();
+        const orderBy = orderByMap.get(t.table_name) ?? "1";
+        const parts: Uint8Array[] = [];
+        let total = 0, offset = 0, first = true;
+        while (true) {
+          const raw = await fetchPageRaw(url, serviceKey, "backup_fetch_page", {
+            _table: t.table_name, _tenant: tenantId, _offset: offset, _limit: PAGE, _order_by: orderBy,
+          }, t.table_name);
+          const n = (JSON.parse(raw) as any[]).length;
+          const page = enc.encode(raw);
+          if (n > 0) {
+            if (first) parts.push(page);
+            else { parts.push(enc.encode(",")); parts.push(page.subarray(1, page.byteLength - 1)); }
+            first = false;
+          }
+          total += n;
+          if (n < PAGE) break;
+          offset += PAGE;
+        }
+        const content = first ? enc.encode("[]") : concatArrays(parts);
+        const { error: upErr } = await admin.storage.from("system-backups")
+          .upload(`${stageDir}/${t.table_name}.json`, content, { contentType: "application/json", upsert: true });
+        if (upErr) return jsonResponse({ error: `رفع ${t.table_name}: ${upErr.message}` }, 500);
+        return jsonResponse({ ok: true, table: t.table_name, rows: total, bytes: content.byteLength });
+      }
+      if (mode === "finalize") {
+        stagedJobDir = stageDir;
+        stagedCounts = clientCounts ?? {};
+        // fall through to the archive builder below, reading staged files
+      } else {
+        return jsonResponse({ error: "mode غير معروف" }, 400);
       }
     }
 
@@ -216,6 +273,17 @@ Deno.serve(async (req) => {
       async function* archiveChunks(): AsyncGenerator<Uint8Array> {
         // ---------- 1) one JSON file per table (streamed one table at a time, raw text) ----------
         for (const t of tables) {
+          if (stagedJobDir) {
+            const { data: f, error: fErr } = await admin.storage.from("system-backups")
+              .download(`${stagedJobDir}/${t.table_name}.json`);
+            if (fErr || !f) throw new Error(`ملف الجدول ${t.table_name} غير موجود في المرحلة`);
+            const content = new Uint8Array(await f.arrayBuffer());
+            counts[t.table_name] = Number(stagedCounts[t.table_name] ?? 0);
+            yield tarHeader(`tables/${t.table_name}.json`, content.byteLength);
+            yield content;
+            yield tarPadding(content.byteLength);
+            continue;
+          }
           const orderBy = orderByMap.get(t.table_name) ?? "1";
           const parts: Uint8Array[] = [];
           let total = 0;
@@ -353,7 +421,19 @@ Deno.serve(async (req) => {
       // ---------- 4) Google Drive in-place sync ----------
       let drive: { synced: boolean; error?: string } = { synced: false };
       try {
-        drive = await syncToDrive(admin, url, serviceKey, tenantId, storagePath);
+        if (stagedJobDir) {
+          // Drive sync and staging cleanup run in the background so the call returns fast
+          const dir = stagedJobDir;
+          // @ts-ignore EdgeRuntime is provided by the Supabase runtime
+          EdgeRuntime.waitUntil((async () => {
+            try { await syncToDrive(admin, url, serviceKey, tenantId, storagePath); } catch (e) { console.warn("drive", e); }
+            const { data: files } = await admin.storage.from("system-backups").list(dir, { limit: 1000 });
+            if (files?.length) await admin.storage.from("system-backups").remove(files.map((x: any) => `${dir}/${x.name}`));
+          })());
+          drive = { synced: false, error: undefined };
+        } else {
+          drive = await syncToDrive(admin, url, serviceKey, tenantId, storagePath);
+        }
       } catch (e: any) {
         drive = { synced: false, error: e?.message ?? String(e) };
       }
