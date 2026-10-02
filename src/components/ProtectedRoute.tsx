@@ -59,18 +59,21 @@ export function ProtectedRoute({
   }
 
   // المراقب: قراءة فقط — ممنوع من شاشات الإعدادات وترحيل/زرع البيانات، وممنوع من مسارات الشركاء/السوبر أدمن
+  // الشريك يملك رؤية مركزية (قراءة فقط) لكل الفروع + بوابته الخاصة؛ لا يُمنع من /partner حتى لو معه دور المراقب.
+  const isPartner = hasRole("partner");
   const VIEWER_BLOCKED = [
     "/admin/settings", "/admin/seed",
-    "/partner", "/super",
+    ...(isPartner ? [] : ["/partner"]), "/super",
   ];
-  const viewerOnly = isViewer && !isAdmin && !isSuperAdmin;
+  const centralRead = isViewer || isPartner;
+  const viewerOnly = centralRead && !isAdmin && !isSuperAdmin;
   if (viewerOnly && VIEWER_BLOCKED.some((p) => loc.pathname.startsWith(p))) {
     return <Navigate to="/" replace />;
   }
-  // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them.
-  // Admins / super admins / the tenant owner / viewers (read-only) keep access to every branch.
+  // Branch URL guard: a user may only open /branch/<id>/* for branches assigned to them (by branch_id).
+  // Admins / super admins / the tenant owner / viewers / partners (read-only) keep access to every branch.
   const branchMatch = loc.pathname.match(/^\/branch\/([^/]+)/);
-  if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner && !isViewer) {
+  if (branchMatch && !isAdmin && !isSuperAdmin && !isOwner && !centralRead) {
     const allowed = branches.some((b) => b.id === branchMatch[1]);
     if (!allowed) return <Navigate to="/" replace />;
   }
