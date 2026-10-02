@@ -37,8 +37,11 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
-import { SalesMetricsGrid } from "@/components/invoices/SalesMetricsGrid";
-import { useSalesMetrics, fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, matchesCardFilter, type SalesCardFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
+import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
+import { isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -60,30 +63,16 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
 const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean; party?: "customer" | "supplier" }> = {
   sale:            { search: true, date: true, status: true,  amount: true,  payment: true },
   purchase:        { search: true, date: true,                 amount: true },
-  sale_return:     { search: true, date: true,                 amount: true, party: "customer" },
+  sale_return:     { search: true, date: true, status: true,  amount: true, party: "customer" },
   purchase_return: { search: true, date: true, status: true,  amount: true, party: "supplier" },
-  income:          { search: true, date: true,                 amount: true, payment: true, category: true },
-  expense:         { search: true, date: true,                 amount: true, payment: true, category: true },
+  income:          { search: true, date: true, status: true,  amount: true, payment: true, category: true },
+  expense:         { search: true, date: true, status: true,  amount: true, payment: true, category: true },
   transfer:        {              date: true, status: true,                                            transferBranch: true },
   quote:           { search: true, date: true, status: true,  amount: true },
 };
 
-type Filters = {
-  q: string;
-  from: string;
-  to: string;
-  status: string;
-  amountMin: string;
-  amountMax: string;
-  payment: string;
-  categoryId: string;
-  fromBranch: string;
-  toBranch: string;
-  partyId: string;
-  recipient: string;
-  notes: string;
-};
-const EMPTY_FILTERS: Filters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", recipient: "", notes: "" };
+type Filters = DocumentFilters;
+const EMPTY_FILTERS: Filters = EMPTY_DOCUMENT_FILTERS;
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -304,7 +293,9 @@ export default function Invoices() {
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "income" || tab === "expense") {
       qb = supabase.from("vouchers" as any).select(select, opts).eq("branch_id", branchId!)
-        .eq("type", tab === "income" ? "receipt" : "payment").eq("status", "active");
+        .eq("type", tab === "income" ? "receipt" : "payment");
+      // Cancelled vouchers stay visible (badge + their own card); every money card counts active only.
+      if (f.status) qb = qb.eq("status", f.status);
       if (tab === "expense") {
         // Exclude system-managed payment types that aren't real business expenses
         const { data: ex } = await supabase.from("voucher_categories" as any).select("id").in("system_key", ["customer_return", "supplier_payment", "branch_transfer_out"]);
@@ -313,7 +304,7 @@ export default function Invoices() {
       }
       if (q) qb = qb.or(`voucher_number.ilike.%${q}%,description.ilike.%${q}%,party_name.ilike.%${q}%`);
       qb = dateRange(qb, "voucher_date", true); qb = amountRange(qb, "amount"); qb = textCols(qb, "recipient_name", "description");
-      if (f.payment) qb = qb.eq("payment_method", f.payment);
+      if (f.payment) qb = qb.in("payment_method", methodsForFilter(f.payment));
       if (f.categoryId) qb = qb.eq("category_id", f.categoryId);
       qb = qb.order("voucher_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "transfer") {
@@ -342,7 +333,7 @@ export default function Invoices() {
     purchase: "*, contacts:contact_id(name)",
     sale_return: "*, invoices(invoice_number, invoice_date, contact_id, contacts:contact_id(name, phone))",
     purchase_return: "*, contacts:contact_id(name, phone)",
-    income: "*, voucher_categories(name)",
+    income: "*, voucher_categories(name, system_key)",
     expense: "*, voucher_categories(name, system_key)",
     transfer: "*",
     quote: "*, contacts:contact_id(name)",
@@ -414,17 +405,19 @@ export default function Invoices() {
   }, [tab, branchId, page, buildQuery]);
 
   const [metricsTick, setMetricsTick] = useState(0);
-  const { metrics: salesMetrics, loading: salesMetricsLoading } = useSalesMetrics(buildQuery, tab === "sale" && !!branchId, metricsTick);
+  const docKind = isDocKind(tab) ? tab : null;
+  const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to }, metricsTick);
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "invoice_payments"], () => setMetricsTick((t) => t + 1));
+  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers"], () => setMetricsTick((t) => t + 1));
   useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
 
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
 
   // Filtering now happens in the database; the current page is what we show.
   const enrichedRows = useEnrichedSaleRows(rows, tab === "sale" ? salePays : null);
-  const [cardFilter, setCardFilter] = useState<SalesCardFilter | null>(null);
-  const filteredRows = useMemo(() => tab === "sale" && cardFilter ? enrichedRows.filter((r: any) => matchesCardFilter(r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, tab]);
+  const [cardFilter, setCardFilter] = useState<DocCardKey | null>(null);
+  useEffect(() => { setCardFilter(null); }, [tab, branchId]);
+  const filteredRows = useMemo(() => docKind && cardFilter ? enrichedRows.filter((r: any) => matchesDocCard(docKind, r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, docKind]);
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const attRecordType = useMemo<RecordType | null>(() => {
@@ -649,7 +642,12 @@ export default function Invoices() {
       case "expense": return {
         newLink: `${base}/treasury`, newLabel: tab === "income" ? "سند قبض جديد" : "سند صرف جديد", newPerm: tab === "income" ? "receipt_vouchers.create" : "payment_vouchers.create",
         columns: [
-          { key: "description", header: "البيان", align: "right" },
+          { key: "description", header: "البيان", align: "right", className: "min-w-[220px]", render: (r: any) => (
+            <span className="inline-flex items-center gap-2">
+              {r.status === "cancelled" && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-bold text-destructive">ملغي</span>}
+              <span className={r.status === "cancelled" ? "line-through text-muted-foreground" : ""}>{r.description}</span>
+            </span>
+          ) },
           { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
           { key: "category", header: "التصنيف", align: "right", width: "10rem" },
           { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name ?? r.party_name) },
@@ -829,7 +827,10 @@ export default function Invoices() {
   const statusOptions: { value: string; label: string }[] = useMemo(() => {
     switch (tab) {
       case "sale": return [{ value: "active", label: "نشطة" }, { value: "cancelled", label: "ملغاة" }];
-      case "purchase_return": return [{ value: "active", label: "نشط" }, { value: "cancelled", label: "ملغي" }];
+      case "sale_return":
+      case "purchase_return":
+      case "income":
+      case "expense": return [{ value: "active", label: "نشط" }, { value: "cancelled", label: "ملغي" }];
       case "transfer": return [{ value: "pending", label: "قيد التنفيذ" }, { value: "completed", label: "مكتمل" }, { value: "cancelled", label: "ملغي" }];
       case "quote": return [{ value: "draft", label: "مسودة" }, { value: "sent", label: "مُرسل" }, { value: "accepted", label: "مقبول" }, { value: "rejected", label: "مرفوض" }];
       default: return [];
@@ -838,10 +839,10 @@ export default function Invoices() {
 
   const paymentOptions = [
     { value: "cash", label: "نقدي" },
-    { value: "transfer", label: "تحويل بنكي" },
-    { value: "card", label: "فيزا" },
+    { value: "instapay", label: "انستاباي" },
     { value: "wallet", label: "محفظة" },
-    { value: "instapay", label: "انستا باي" },
+    { value: "bank", label: "بنكي" },
+    ...(tab === "sale" ? [{ value: "credit_balance", label: "رصيد مسبق" }] : []),
   ];
 
   const hasAnyFilter =
@@ -863,28 +864,6 @@ export default function Invoices() {
     setSuggestOpen(false);
   };
 
-  // Quick date presets
-  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const applyQuickDate = (preset: "today" | "yesterday" | "7d" | "thisMonth" | "lastMonth") => {
-    const now = new Date();
-    let from = "", to = "";
-    if (preset === "today") { from = to = ymd(now); }
-    else if (preset === "yesterday") {
-      const y = new Date(now); y.setDate(y.getDate() - 1);
-      from = to = ymd(y);
-    } else if (preset === "7d") {
-      const s = new Date(now); s.setDate(s.getDate() - 6);
-      from = ymd(s); to = ymd(now);
-    } else if (preset === "thisMonth") {
-      from = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
-      to = ymd(now);
-    } else if (preset === "lastMonth") {
-      from = ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1));
-      to = ymd(new Date(now.getFullYear(), now.getMonth(), 0));
-    }
-    setInputF({ ...inputF, from, to });
-  };
-
   // Autocomplete suggestions for return tabs (uses already-loaded rows)
   const suggestions = useMemo(() => {
     if (!isReturnTab) return [];
@@ -896,12 +875,6 @@ export default function Invoices() {
     };
     return rows.filter((r) => searchMatch(q, text(r))).slice(0, 20);
   }, [isReturnTab, tab, draftFilters.q, rows]);
-
-  // Summary (count + total) for return tabs
-  const summary = useMemo(() => {
-    if (!isReturnTab) return null;
-    return { count: totalCount, total: returnsTotal };
-  }, [isReturnTab, totalCount, returnsTotal]);
 
   const selectedParty = parties.find((p) => p.id === inputF.partyId);
 
@@ -949,51 +922,23 @@ export default function Invoices() {
         ))}
       </div>
 
-      {/* Filters bar */}
-      <div className="bg-card border rounded-lg p-3 mb-4">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <span>فلاتر {currentTabLabel}</span>
-            <span className="text-xs text-muted-foreground font-normal">
-              (يعرض {totalCount ? ((page - 1) * PAGE_SIZE + 1).toLocaleString("en-US") : 0} - {Math.min(page * PAGE_SIZE, totalCount).toLocaleString("en-US")} من أصل {totalCount.toLocaleString("en-US")} مستند)
-            </span>
-          </div>
-          {hasAnyFilter && (
-            <Button variant="ghost" size="sm" onClick={clearAll} className="gap-1 h-7">
-              <X className="w-3 h-3" /> مسح الفلاتر
-            </Button>
-          )}
-        </div>
-
-        {/* Quick date presets */}
-        {active.date && (
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <CalendarIcon className="w-3 h-3" /> اختصارات:
-            </span>
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("today")}>النهاردة</Button>
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("yesterday")}>امبارح</Button>
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("7d")}>آخر 7 أيام</Button>
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("thisMonth")}>الشهر ده</Button>
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyQuickDate("lastMonth")}>الشهر اللي فات</Button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {active.search && (
-            <div className="space-y-1 lg:col-span-2 relative">
-              <Label className="text-xs">بحث (رقم / اسم / تليفون / سبب)</Label>
-              <Input
-                value={inputF.q}
-                onChange={(e) => { setInputF({ ...inputF, q: e.target.value }); if (isReturnTab) setSuggestOpen(true); }}
-                onFocus={() => isReturnTab && setSuggestOpen(true)}
-                onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
-                onKeyDown={(e) => { if (e.key === "Enter" && isReturnTab) applySearch(); }}
-                placeholder="رقم الفاتورة، اسم العميل، المورد، تليفون..."
-                className="h-9"
-              />
-              {/* Autocomplete dropdown */}
+      <UnifiedDocumentFilters
+        title={currentTabLabel}
+        shown={{ from: totalCount ? (page - 1) * PAGE_SIZE + 1 : 0, to: Math.min(page * PAGE_SIZE, totalCount), total: totalCount }}
+        value={inputF}
+        onChange={setInputF}
+        onReset={() => { clearAll(); setCardFilter(null); }}
+        hasAnyFilter={Boolean(hasAnyFilter || cardFilter)}
+        showSearch={!!active.search}
+        showDate={!!active.date}
+        showAmount={!!active.amount}
+        onSearchTyped={() => { if (isReturnTab) setSuggestOpen(true); }}
+        searchInputProps={{
+          onFocus: () => isReturnTab && setSuggestOpen(true),
+          onBlur: () => setTimeout(() => setSuggestOpen(false), 150),
+          onKeyDown: (e) => { if (e.key === "Enter" && isReturnTab) applySearch(); },
+        }}
+        searchAddon={<>
               {isReturnTab && suggestOpen && suggestions.length > 0 && (
                 <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-72 overflow-y-auto">
                   {suggestions.map((r: any) => {
@@ -1022,20 +967,19 @@ export default function Invoices() {
                   })}
                 </div>
               )}
-            </div>
-          )}
-          {active.date && (
-            <>
-              <div className="space-y-1">
-                <Label className="text-xs">من تاريخ</Label>
-                <Input type="date" value={inputF.from} onChange={(e) => setInputF({ ...inputF, from: e.target.value })} className="h-9" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">إلى تاريخ</Label>
-                <Input type="date" value={inputF.to} onChange={(e) => setInputF({ ...inputF, to: e.target.value })} className="h-9" />
-              </div>
-            </>
-          )}
+        </>}
+        statusOptions={active.status ? statusOptions : undefined}
+        paymentOptions={active.payment ? paymentOptions : undefined}
+        customField={active.category ? (
+          <UnifiedDocumentFilters.Field label="نوع السند / التصنيف">
+            <UnifiedDocumentFilters.Select value={inputF.categoryId} options={categories.map((c) => ({ value: c.id, label: c.name }))} onChange={(v) => setInputF({ ...inputF, categoryId: v })} />
+          </UnifiedDocumentFilters.Field>
+        ) : tab !== "quote" ? (
+          <UnifiedDocumentFilters.Field label={tab === "sale" ? "اسم المستلم / البائع" : "اسم المستلم"}>
+            <Input value={inputF.recipient} onChange={(e) => setInputF({ ...inputF, recipient: e.target.value })} className="h-10 bg-background" placeholder="اسم المستلم" />
+          </UnifiedDocumentFilters.Field>
+        ) : undefined}
+        extraFields={<>
           {active.party && (
             <div className="space-y-1">
               <Label className="text-xs">{active.party === "customer" ? "العميل" : "المورد"}</Label>
@@ -1072,65 +1016,15 @@ export default function Invoices() {
               </Popover>
             </div>
           )}
-          {active.status && statusOptions.length > 0 && (
-            <div className="space-y-1">
-              <Label className="text-xs">الحالة</Label>
-              <Select value={inputF.status || "__all__"} onValueChange={(v) => setInputF({ ...inputF, status: v === "__all__" ? "" : v })}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">الكل</SelectItem>
-                  {statusOptions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          {active.category && (
+            <UnifiedDocumentFilters.Field label="اسم المستلم">
+              <Input value={inputF.recipient} onChange={(e) => setInputF({ ...inputF, recipient: e.target.value })} className="h-10 bg-background" placeholder="اسم المستلم" />
+            </UnifiedDocumentFilters.Field>
           )}
           {tab !== "quote" && (
-            <>
-              <div className="space-y-1">
-                <Label className="text-xs">بحث المستلم</Label>
-                <Input value={inputF.recipient} onChange={(e) => setInputF({ ...inputF, recipient: e.target.value })} className="h-9" placeholder="اسم المستلم" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">بحث الملاحظات</Label>
-                <Input value={inputF.notes} onChange={(e) => setInputF({ ...inputF, notes: e.target.value })} className="h-9" placeholder="نص في الملاحظات" />
-              </div>
-            </>
-          )}
-          {active.amount && (
-            <>
-              <div className="space-y-1">
-                <Label className="text-xs">المبلغ من</Label>
-                <Input type="number" min="0" value={inputF.amountMin} onChange={(e) => setInputF({ ...inputF, amountMin: e.target.value })} className="h-9" placeholder="0" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">المبلغ إلى</Label>
-                <Input type="number" min="0" value={inputF.amountMax} onChange={(e) => setInputF({ ...inputF, amountMax: e.target.value })} className="h-9" placeholder="—" />
-              </div>
-            </>
-          )}
-          {active.payment && (
-            <div className="space-y-1">
-              <Label className="text-xs">طريقة الدفع</Label>
-              <Select value={inputF.payment || "__all__"} onValueChange={(v) => setInputF({ ...inputF, payment: v === "__all__" ? "" : v })}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">الكل</SelectItem>
-                  {paymentOptions.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {active.category && (
-            <div className="space-y-1">
-              <Label className="text-xs">التصنيف</Label>
-              <Select value={inputF.categoryId || "__all__"} onValueChange={(v) => setInputF({ ...inputF, categoryId: v === "__all__" ? "" : v })}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">الكل</SelectItem>
-                  {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            <UnifiedDocumentFilters.Field label="بحث الملاحظات">
+              <Input value={inputF.notes} onChange={(e) => setInputF({ ...inputF, notes: e.target.value })} className="h-10 bg-background" placeholder="نص في الملاحظات" />
+            </UnifiedDocumentFilters.Field>
           )}
           {active.transferBranch && (
             <>
@@ -1156,36 +1050,16 @@ export default function Invoices() {
               </div>
             </>
           )}
-        </div>
-
-        {/* Search / Clear buttons (return tabs only) */}
-        {isReturnTab && (
-          <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
-            <Button type="button" variant="outline" size="sm" onClick={clearAll} className="gap-1">
-              <X className="w-4 h-4" /> مسح
-            </Button>
-            <Button type="button" size="sm" onClick={applySearch} className="gap-1">
-              <Search className="w-4 h-4" /> بحث
-            </Button>
+        </>}
+        footer={isReturnTab ? (
+          <div className="flex items-center justify-end gap-2 pt-3 border-t">
+            <Button type="button" variant="outline" size="sm" onClick={clearAll} className="gap-1"><X className="w-4 h-4" /> مسح</Button>
+            <Button type="button" size="sm" onClick={applySearch} className="gap-1"><Search className="w-4 h-4" /> بحث</Button>
           </div>
-        )}
-      </div>
+        ) : undefined}
+      />
 
-      {/* Summary (return tabs only) */}
-      {isReturnTab && summary && (
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-card border rounded-lg p-3">
-            <div className="text-xs text-muted-foreground">عدد المرتجعات</div>
-            <div className="text-xl font-bold text-primary">{summary.count.toLocaleString("en-US")}</div>
-          </div>
-          <div className="bg-card border rounded-lg p-3">
-            <div className="text-xs text-muted-foreground">إجمالي المبلغ المسترد</div>
-            <div className="text-xl font-bold text-warning">{formatEGP(summary.total)}</div>
-          </div>
-        </div>
-      )}
-
-      {tab === "sale" && <SalesMetricsGrid metrics={salesMetrics} loading={salesMetricsLoading} selected={cardFilter} onSelect={setCardFilter} />}
+      {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} />}
 
       <div ref={tableTopRef} className="scroll-mt-4" />
       <DataTable
@@ -1195,7 +1069,7 @@ export default function Invoices() {
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
-        minTableWidth={tab === "sale" ? "1400px" : undefined}
+        minTableWidth={tab === "sale" ? "1400px" : docKind ? "1100px" : undefined}
         getRowKey={(row: any) => row.id}
         isRowExpanded={DOC_ITEMS_TABS.includes(tab) ? (row: any) => expandedInvoiceId === row.id : undefined}
         renderExpandedRow={DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
