@@ -120,10 +120,10 @@ export const METRIC_SELECT: Record<DocKind, string> = {
   expense: "id, amount, status, payment_method, party_type, voucher_categories(system_key, name)",
 };
 
-/** Payment vouchers that move money out but are not operating expenses: transfers between treasuries/branches and refunds to customers. */
+/** Payment vouchers that move money out but are not operating expenses: transfers between treasuries/branches, refunds to customers, and staff advances (receivables). */
 export function isInternalOrRefundPayment(sysKey?: string | null, name?: string | null, partyType?: string | null): boolean {
-  if (sysKey === "customer_return" || (sysKey ?? "").includes("transfer")) return true;
+  if (sysKey === "customer_return" || sysKey === "advance" || (sysKey ?? "").includes("transfer")) return true;
   if (partyType === "customer") return true;
   const n = name ?? "";
-  return /تحويل/.test(n) || /مرتجع/.test(n) || /مدفوعات لعملاء/.test(n);
+  return /تحويل/.test(n) || /مرتجع/.test(n) || /سلف/.test(n) || /مدفوعات لعملاء/.test(n);
 }
