@@ -1,3 +1,4 @@
+import { withAuthRetry, isNetworkError } from "@/lib/authRetry";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -44,9 +45,15 @@ export default function Login() {
     setBusy(true);
     try {
       // 1) Standard sign-in (works for owners, managers and any employee with an account)
-      const { error } = await supabase.auth.signInWithPassword({ email: mail, password });
+      const { error } = await withAuthRetry(() =>
+        supabase.auth.signInWithPassword({ email: mail, password }),
+      );
       if (!error) {
         toast.success("تم تسجيل الدخول بنجاح");
+        return;
+      }
+      if (isNetworkError(error)) {
+        toast.error("تعذر الاتصال بالخادم — تأكد من الإنترنت وحاول مرة أخرى");
         return;
       }
 
@@ -70,10 +77,9 @@ export default function Login() {
         return;
       }
 
-      const { error: signErr } = await supabase.auth.signInWithPassword({
-        email: resolvedCredentials.email,
-        password,
-      });
+      const { error: signErr } = await withAuthRetry(() =>
+        supabase.auth.signInWithPassword({ email: resolvedCredentials.email, password }),
+      );
       if (signErr) {
         toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         return;

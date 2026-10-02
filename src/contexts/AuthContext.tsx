@@ -1,3 +1,4 @@
+import { withAuthRetry } from "@/lib/authRetry";
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
@@ -157,7 +158,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch(() => setConnError(true))
       .finally(() => setLoading(false));
 
-    return () => sub.subscription.unsubscribe();
+    // Session resiliency: when the network comes back or the tab regains focus,
+    // refresh the token proactively (with backoff) so users are not logged out.
+    const refreshIfNeeded = async () => {
+      const { data } = await supabase.auth.getSession();
+      const s = data.session;
+      if (!s?.expires_at) return;
+      const secsLeft = s.expires_at - Math.floor(Date.now() / 1000);
+      if (secsLeft < 300) {
+        await withAuthRetry(() => supabase.auth.refreshSession()).catch(() => undefined);
+      }
+    };
+    const onOnline = () => {
+      supabase.auth.startAutoRefresh();
+      refreshIfNeeded();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onOnline();
+    };
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
 
