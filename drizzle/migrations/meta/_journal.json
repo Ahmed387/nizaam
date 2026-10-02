@@ -232,6 +232,13 @@
       "when": 1790961255344,
       "tag": "0032_remove_settlement_unify_prepaid_credit",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790964912660,
+      "tag": "0033_harden_historical_tables_rls",
+      "breakpoints": true
     }
   ]
 }
