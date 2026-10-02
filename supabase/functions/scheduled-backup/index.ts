@@ -329,7 +329,7 @@ Deno.serve(async (req) => {
             for (const e of entries ?? []) {
               const full = prefix ? `${prefix}/${e.name}` : e.name;
               if (!e.id) { queue.push(full); continue; } // folder
-              if (mediaBytes >= MEDIA_BUDGET_BYTES) continue;
+              if (stagedJobDir || mediaBytes >= MEDIA_BUDGET_BYTES) { media.push({ bucket, path: full, size: Number((e as any).metadata?.size ?? 0) }); continue; }
               const { data: file, error: dErr } = await admin.storage.from(bucket).download(full);
               if (dErr || !file) continue;
               const bytes = new Uint8Array(await file.arrayBuffer());
