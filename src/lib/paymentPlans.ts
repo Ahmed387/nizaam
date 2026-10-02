@@ -13,6 +13,8 @@ interface CreatePlanArgs {
   /** direction of the initial payment if any */
   direction: "in" | "out";
   createdBy: string;
+  /** Plan header already created atomically by a DB RPC (e.g. record_shipment_with_credit). */
+  existingPlanId?: string;
 }
 
 /**
@@ -20,11 +22,13 @@ interface CreatePlanArgs {
  * Returns the created plan id.
  */
 export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promise<string> {
-  const { branchId, entityType, entityId, entityName, totalAmount, referenceType, referenceId, state, direction, createdBy } = args;
+  const { branchId, entityType, entityId, entityName, totalAmount, referenceType, referenceId, state, direction, createdBy, existingPlanId } = args;
   const paidNow = state.mode === "credit" ? 0 : Number(state.paidNow || 0);
 
   // If fully paid in cash with no plan needed, still create a "completed" plan for auditability.
-  const { data: plan, error: pe } = await supabase
+  const { data: plan, error: pe } = existingPlanId
+    ? { data: { id: existingPlanId } as any, error: null }
+    : await supabase
     .from("payment_plans")
     .insert({
       branch_id: branchId,

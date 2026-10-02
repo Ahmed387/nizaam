@@ -1394,6 +1394,7 @@ export type Database = {
       customer_credit_log: {
         Row: {
           amount: number
+          balance_delta: number | null
           contact_id: string
           created_at: string
           created_by: string
@@ -1405,6 +1406,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          balance_delta?: number | null
           contact_id: string
           created_at?: string
           created_by: string
@@ -1416,6 +1418,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          balance_delta?: number | null
           contact_id?: string
           created_at?: string
           created_by?: string
@@ -8084,6 +8087,10 @@ export type Database = {
         Args: { p_contact_id: string }
         Returns: undefined
       }
+      recompute_contact_credit: {
+        Args: { p_contact_id: string }
+        Returns: number
+      }
       record_contact_payment: {
         Args: {
           p_amount: number
@@ -8173,6 +8180,10 @@ export type Database = {
         Returns: string
       }
       record_shipment: {
+        Args: { p_header: Json; p_lines: Json; p_plan?: Json }
+        Returns: Json
+      }
+      record_shipment_with_credit: {
         Args: { p_header: Json; p_lines: Json; p_plan?: Json }
         Returns: Json
       }

@@ -22,6 +22,7 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { VariantLine } from "@/components/VariantChips";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
+import { fetchContactLedger, withRunningBalance } from "@/lib/contactLedger";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -42,6 +43,22 @@ export default function ShipmentView() {
   const [editBusy, setEditBusy] = useState(false);
   const [editReason, setEditReason] = useState("");
   const [edit, setEdit] = useState({ arrival_date: "", received_by: "", shipping_cost: 0, admin_cost: 0, notes: "" });
+
+  // Supplier balance derived live from the contact ledger (stored snapshots are deprecated).
+  const [liveBal, setLiveBal] = useState<{ prev: number; curr: number } | null>(null);
+  useEffect(() => {
+    if (!ship?.contact_id) { setLiveBal(null); return; }
+    let cancelled = false;
+    fetchContactLedger(ship.contact_id).then((l) => {
+      if (cancelled) return;
+      const run = withRunningBalance(l.rows);
+      const row = run.find((r) => r.kind === "purchase" && r.link?.endsWith(`/shipments/${ship.id}`));
+      if (!row) { setLiveBal(null); return; }
+      const curr = Number(row.balance ?? 0);
+      setLiveBal({ curr, prev: curr - (row.debit - row.credit) });
+    }).catch(() => { if (!cancelled) setLiveBal(null); });
+    return () => { cancelled = true; };
+  }, [ship?.contact_id, ship?.id, ship?.total_cost]);
 
   const loadShipment = async () => {
     const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
@@ -298,12 +315,12 @@ export default function ShipmentView() {
       </div>
 
       {/* Supplier balance snapshot — captured at shipment creation */}
-      {ship.contact_id && (ship.previous_balance != null || ship.current_balance != null) && (() => {
-        const prevLbl = balanceLabel(Number(ship.previous_balance ?? 0));
-        const currLbl = balanceLabel(Number(ship.current_balance ?? 0));
+      {ship.contact_id && liveBal && (() => {
+        const prevLbl = balanceLabel(liveBal.prev);
+        const currLbl = balanceLabel(liveBal.curr);
         return (
           <div className="card-elevated p-4 mb-6">
-            <div className="font-bold text-sm mb-2">📒 رصيد المورد (لحظة استلام فاتورة الشراء)</div>
+            <div className="font-bold text-sm mb-2">📒 رصيد المورد (محسوب من كشف الحساب الفعلي)</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-surface-2 p-2 rounded border border-border">
                 <div className="text-xs text-muted-foreground">الرصيد السابق</div>
@@ -418,8 +435,8 @@ export default function ShipmentView() {
         discount={Number(itemsDiscount) > 0 ? Number(itemsDiscount) : 0}
         total={Number(ship.total_cost ?? 0)}
         paid={Number(ship.total_cost ?? 0)}
-        previousBalance={ship.previous_balance != null ? Number(ship.previous_balance) : null}
-        currentBalance={ship.current_balance != null ? Number(ship.current_balance) : null}
+        previousBalance={liveBal ? liveBal.prev : null}
+        currentBalance={liveBal ? liveBal.curr : null}
       />
 
           </div>

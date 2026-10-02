@@ -26,3 +26,5 @@
 - Prepaid customer credit is only `contacts.credit_balance` (negative = available) consumed via `process_sale_full.p_credit_to_apply`; `settlement` is retired and `treasury` rejects non-cash methods by trigger — why: one flow, no phantom cash.
 - The six document tabs in `Invoices.tsx` use `UnifiedDocumentFilters` + `UnifiedDocumentMetrics`; card values and click-to-filter both come from `docFacts` in `lib/documentMetrics.ts` — why: one formula per card, cards and table never diverge.
 - `treasury` has no client INSERT grant; cash movements are written only by SECURITY DEFINER RPCs (e.g. `disburse_employee_advance`) — why: no phantom or half-written cash from the browser.
+- `contacts.credit_balance` is a derived cache of Σ `customer_credit_log.balance_delta`, synced by trigger; direct updates are blocked — why: one source of truth for prepaid credit.
+- Purchase invoices save via `record_shipment_with_credit` (shipment + plan header + supplier advance deduction atomically); supplier balances on shipments are computed from the contact ledger, never from stored `previous_balance/current_balance` — why: no half-saved invoices or stale balances.
