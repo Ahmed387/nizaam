@@ -41,7 +41,8 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
     }
     case "purchase": {
       const amount = n(r.total_cost);
-      return { cancelled: false, amount, parts: { active: amount }, byBucket };
+      const remaining = n(r.__remaining);
+      return { cancelled: false, amount, parts: { active: amount, supplierPaid: n(r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 }, byBucket };
     }
     case "sale_return":
     case "purchase_return": {
@@ -104,13 +105,14 @@ export function matchesDocCard(kind: DocKind, r: Row, key: DocCardKey | null): b
   if (f.cancelled) return false;
   if (key === "active") return true;
   if ((BUCKETS as string[]).includes(key)) return f.byBucket[key as CollectionBucket] > 0.01;
+  if (kind === "purchase" && key === "supplierPaid") return (f.parts.supplierDue ?? 0) <= 0.01;
   return (f.parts[key] ?? 0) > 0.01;
 }
 
 /** Lean projection each kind needs for its metrics (all filtered rows, never just one page). */
 export const METRIC_SELECT: Record<DocKind, string> = {
   sale: "id, total, status",
-  purchase: "id, total_cost",
+  purchase: "id, total_cost, contact_id",
   sale_return: "id, total_refund, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
   purchase_return: "id, total_amount, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
   income: "id, amount, status, payment_method, party_type, voucher_categories(system_key)",

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
+import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */
@@ -55,6 +56,10 @@ export function useDocumentMetrics(
           });
         }
 
+        if (kind === "purchase") {
+          const alloc = await fetchPurchaseAllocation(ctx.branchId!, unique.map((r) => r.contact_id), ctrl.signal);
+          unique = unique.map((r) => ({ ...r, __paid: alloc.get(r.id)?.paid ?? 0, __remaining: alloc.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
+        }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));
 
         if (kind === "purchase") {
@@ -73,9 +78,11 @@ export function useDocumentMetrics(
           for (const v of vouchers) { const a = Number(v.amount) || 0; paid += a; byBucket[bucketOf(v.payment_method)] += a; }
           (Object.keys(byBucket) as (keyof typeof byBucket)[]).forEach((b) => { byBucket[b] = r2(byBucket[b]); });
           result.byBucket = byBucket;
-          result.supplierPaid = r2(paid);
-          result.supplierDue = r2(Math.max(0, (result.values.active ?? 0) - paid));
-          result.counts.supplierPaid = vouchers.length;
+          result.supplierPaid = r2(result.values.supplierPaid ?? 0);
+          result.supplierDue = r2(result.values.supplierDue ?? 0);
+          result.counts.supplierPaid = unique.filter((r) => r.__remaining <= 0.01).length;
+          result.counts.supplierDue = unique.filter((r) => r.__remaining > 0.01).length;
+          void paid;
         }
         if (!cancelled) setMetrics(result);
       } catch (e) {
