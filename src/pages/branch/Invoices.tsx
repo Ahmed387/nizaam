@@ -37,6 +37,7 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
+import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
 import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
@@ -295,12 +296,6 @@ export default function Invoices() {
         .eq("type", tab === "income" ? "receipt" : "payment");
       // Cancelled vouchers stay visible (badge + their own card); every money card counts active only.
       if (f.status) qb = qb.eq("status", f.status);
-      if (tab === "expense") {
-        // Exclude system-managed payment types that aren't real business expenses
-        const { data: ex } = await supabase.from("voucher_categories" as any).select("id").in("system_key", ["customer_return", "supplier_payment", "branch_transfer_out"]);
-        const exIds = (ex ?? []).map((c: any) => c.id);
-        if (exIds.length) qb = qb.or(`category_id.is.null,category_id.not.in.${inList(exIds)}`);
-      }
       if (q) qb = qb.or(`voucher_number.ilike.%${q}%,description.ilike.%${q}%,party_name.ilike.%${q}%`);
       qb = dateRange(qb, "voucher_date", true); qb = amountRange(qb, "amount"); qb = textCols(qb, "recipient_name", "description");
       if (f.payment) qb = qb.in("payment_method", methodsForFilter(f.payment));
@@ -382,6 +377,11 @@ export default function Invoices() {
       if (stale()) return;
       setSalePays(pays);
     } else setSalePays(null);
+    if (tab === "purchase" && data.length) {
+      const alloc = await fetchPurchaseAllocation(branchId!, data.map((x: any) => x.contact_id), ctrl.signal).catch(() => new Map());
+      if (stale()) return;
+      data = data.map((x: any) => ({ ...x, __paid: alloc.get(x.id)?.paid ?? 0, __remaining: alloc.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
+    }
     setRows(data);
     if (joinedDupes) {
       // Exact distinct-invoice count for the joined query (r.count would count join rows).
