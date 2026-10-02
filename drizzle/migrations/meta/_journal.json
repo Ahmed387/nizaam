@@ -225,6 +225,13 @@
       "when": 1790694803277,
       "tag": "0031_invoice_payments_invoice_id_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790961255344,
+      "tag": "0032_remove_settlement_unify_prepaid_credit",
+      "breakpoints": true
     }
   ]
 }
