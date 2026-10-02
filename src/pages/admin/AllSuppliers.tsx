@@ -405,16 +405,7 @@ export default function AllSuppliers() {
       const ship = { id: (rpcRes as any).shipment_id } as { id: string };
 
 
-      await supabase.from("treasury").insert({
-        tenant_id: tenantId,
-        branch_id: shipForm.branch_id,
-        type: "expense",
-        category: "shipment",
-        amount: shipGrandTotal,
-        description: `فاتورة شراء #${ship.id.slice(0, 8)}`,
-        reference_id: ship.id,
-        created_by: user!.id,
-      });
+      // Purchases never move cash: supplier payments go through an explicit payment voucher only.
 
       toast.success("تم تسجيل فاتورة الشراء وتحديث المخزون");
       setNewShipOpen(false);
