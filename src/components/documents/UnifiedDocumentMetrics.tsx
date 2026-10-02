@@ -52,8 +52,8 @@ const TOP: Record<DocKind, CardDef[]> = {
     { key: "active", label: "إجمالي المدفوعات", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
     { key: "cancelled", label: "سندات ملغاة", icon: <XCircle />, tone: "warning", countWord: "سند ملغي", meaning: "السندات الملغاة، خارج باقي الكروت.", formula: "Σ المبلغ حيث الحالة = ملغي" },
     { key: "suppliers", label: "سداد موردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف لطرف مورد أو بتصنيف سداد مورد.", formula: "Σ المبلغ حيث الطرف = مورد" },
-    { key: "operating", label: "مصاريف تشغيلية وإدارية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع" },
-    { key: "internal", label: "تحويلات داخلية ومرتجع", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع ومرتجعات ومدفوعات للعملاء — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع)، أو الطرف = عميل" },
+    { key: "operating", label: "مصاريف تشغيلية وإدارية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع وسلف" },
+    { key: "internal", label: "تحويلات داخلية ومرتجع وسلف", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع، مرتجعات ومدفوعات للعملاء، وسلف الموظفين (ذمة تُسترد) — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع) أو سلف موظفين، أو الطرف = عميل" },
   ],
 };
 
