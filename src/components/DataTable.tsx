@@ -100,13 +100,15 @@ function DataTableInner<T>(
       return <div className="p-12 text-center text-muted-foreground">{empty}</div>;
     }
     return (
-      <div className="w-full overflow-x-auto" data-wide={wide ? "" : undefined}>
+      <>
+      {/* Wide tables scroll inside a viewport-high box: the horizontal bar stays on screen and the header sticks. */}
+      <div className={wide ? "w-full overflow-auto max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table
           className={`w-full text-sm md:text-base border-collapse ${wide ? "table-auto" : "table-fixed"} ${tableClassName ?? ""}`}
           style={wide ? { minWidth: minTableWidth } : undefined}
         >
           <thead>
-            <tr className="bg-surface-2 border-b-2 border-border">
+            <tr className={`bg-surface-2 border-b-2 border-border ${wide ? "sticky top-0 z-20 shadow-sm" : ""}`}>
               {indexColumn && (
                 <th style={{ width: indexWidth }} className="px-2 py-3.5 text-center text-xs font-extrabold text-foreground border-l border-border/60">#</th>
               )}
@@ -163,6 +165,7 @@ function DataTableInner<T>(
             </tfoot>
           )}
         </table>
+      </div>
         {pageCount > 1 && (
           <div className="flex items-center justify-center gap-3 border-t border-border p-3 text-sm">
             <button type="button" className="rounded-md border border-border px-3 py-1 disabled:opacity-40" disabled={safePage <= 0} onClick={() => setPage(safePage - 1)}>السابق</button>
@@ -170,7 +173,7 @@ function DataTableInner<T>(
             <button type="button" className="rounded-md border border-border px-3 py-1 disabled:opacity-40" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>التالي</button>
           </div>
         )}
-      </div>
+      </>
     );
   })();
 
