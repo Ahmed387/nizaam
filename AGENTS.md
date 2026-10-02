@@ -31,3 +31,4 @@
 - Guarded RPCs keep their whole body in one function (no `__impl` split copies); tenant/role guards run at the top of that body — why: one callable path, no unguarded twin.
 - Products with stock/document history cannot be deleted (RESTRICT FKs + guard trigger; only the guarded branch reset purges) — why: protect historical reports and COGS.
 - Payments of backdated documents pass the document date to `record_payment_transaction(p_payment_date)` so treasury/payment rows inherit it — why: periods follow accounting dates.
+- `vouchers.treasury_id` is NOT NULL with FK to `treasury` (ON DELETE CASCADE) — why: no voucher can exist without its cash movement; admin purges of treasury remove the voucher with it.
