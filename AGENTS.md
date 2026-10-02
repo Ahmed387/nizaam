@@ -25,3 +25,4 @@
 
 - Prepaid customer credit is only `contacts.credit_balance` (negative = available) consumed via `process_sale_full.p_credit_to_apply`; `settlement` is retired and `treasury` rejects non-cash methods by trigger — why: one flow, no phantom cash.
 - The six document tabs in `Invoices.tsx` use `UnifiedDocumentFilters` + `UnifiedDocumentMetrics`; card values and click-to-filter both come from `docFacts` in `lib/documentMetrics.ts` — why: one formula per card, cards and table never diverge.
+- `treasury` has no client INSERT grant; cash movements are written only by SECURITY DEFINER RPCs (e.g. `disburse_employee_advance`) — why: no phantom or half-written cash from the browser.
