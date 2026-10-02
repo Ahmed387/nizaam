@@ -33,6 +33,7 @@ export function BackupTab() {
   const allowed = isOwner || isSuperAdmin;
 
   const [runningServer, setRunningServer] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -83,23 +84,41 @@ export function BackupTab() {
 
   const runBackupNow = async () => {
     setRunningServer(true);
+    setProgress({ done: 0, total: 1, label: "تجهيز قائمة الجداول…" });
+    const call = async (body: Record<string, unknown>, tries = 3): Promise<any> => {
+      for (let i = 0; i < tries; i++) {
+        const { data, error } = await supabase.functions.invoke("scheduled-backup", { body });
+        const msg = await edgeErrorMessage(error);
+        if (!msg) return data;
+        if (i === tries - 1) throw new Error(msg);
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+      }
+    };
     try {
-      const { data, error } = await supabase.functions.invoke("scheduled-backup", { body: {} });
-      const bErr = await edgeErrorMessage(error);
-      if (bErr) throw new Error(bErr);
+      const plan = await call({ mode: "plan" });
+      const tables: string[] = plan.tables ?? [];
+      const counts: Record<string, number> = {};
+      const total = tables.length + 1;
+      for (let i = 0; i < tables.length; i++) {
+        setProgress({ done: i, total, label: `نسخ جدول ${tables[i]} (${i + 1}/${tables.length})` });
+        const r = await call({ mode: "part", job_id: plan.job_id, table: tables[i] });
+        counts[tables[i]] = Number(r?.rows ?? 0);
+      }
+      setProgress({ done: tables.length, total, label: "تجميع وضغط الملف النهائي والمرفقات…" });
+      const data = await call({ mode: "finalize", job_id: plan.job_id, counts }, 2);
+      setProgress({ done: total, total, label: "اكتملت النسخة" });
       const first = (data as any)?.results?.[0];
+      if (first?.status === "failed") throw new Error(first.error);
       toast.success(
-        first
-          ? `تمت النسخة: ${first.tables} جدول • ${Number(first.rows ?? 0).toLocaleString("en-US")} سجل${first.drive?.synced ? " • تمت مزامنة Google Drive" : ""}`
-          : "تم تشغيل النسخ الاحتياطي",
+        `تمت النسخة: ${tables.length} جدول • ${Object.values(counts).reduce((s, n) => s + n, 0).toLocaleString("en-US")} سجل`,
       );
-      if (first?.drive?.error) toast.warning(first.drive.error);
       loadHistory();
       loadSettings();
     } catch (e: any) {
       toast.error(e.message ?? "فشل التشغيل");
     } finally {
       setRunningServer(false);
+      setTimeout(() => setProgress(null), 4000);
     }
   };
 
@@ -232,6 +251,17 @@ export function BackupTab() {
             {runningServer ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
             تشغيل نسخة احتياطية الآن
           </Button>
+          {progress && (
+            <div className="w-full space-y-1.5 mt-3" aria-live="polite">
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%` }} />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{progress.label}</span>
+                <span>{Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
