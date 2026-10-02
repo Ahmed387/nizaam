@@ -81,14 +81,14 @@ export async function fetchContactLedger(contactId: string): Promise<ContactLedg
     }));
     pays.forEach((p: any) => {
       const amt = Number(p.amount ?? 0);
-      const isSettle = p.payment_method === "settlement";
+      const isPrepaid = p.payment_method === "credit_balance" || p.payment_method === "credit_applied";
       const inv = invById.get(p.invoice_id);
       list.push({
         date: p.created_at, kind: "sale_payment",
-        type: isSettle ? "مقاصة (تسوية بين الحسابين)" : "تحصيل من عميل",
+        type: isPrepaid ? "خصم من الرصيد المسبق" : "تحصيل من عميل",
         reference: inv?.invoice_number ?? "—",
-        description: isSettle ? "خصم من رصيد الجهة الدائن" : (p.payment_method ?? "—"),
-        debit: isSettle ? amt : 0, credit: amt, branch_id: inv?.branch_id ?? null,
+        description: isPrepaid ? "سداد من دفعة مقدمة (بدون حركة خزينة)" : (p.payment_method ?? "—"),
+        debit: 0, credit: amt, branch_id: inv?.branch_id ?? null,
       });
     });
     (rets ?? []).forEach((r: any) => {

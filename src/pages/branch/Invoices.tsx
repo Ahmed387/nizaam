@@ -489,7 +489,7 @@ export default function Invoices() {
           { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
           { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
           { key: "__b_bank", header: "بنكي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
-          { key: "__b_other", header: "مقاصة", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
+          { key: "__b_other", header: "رصيد مسبق", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
           { key: "status", header: "الحالة", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },

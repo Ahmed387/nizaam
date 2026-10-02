@@ -72,7 +72,7 @@ export const BUCKET_LABELS: Record<CollectionBucket, string> = {
   instapay: "انستاباي",
   wallet: "محفظة",
   bank: "بنكي",
-  other: "مقاصة / أخرى",
+  other: "رصيد مسبق",
 };
 
 /** Stored payment_method keys that belong to a collection bucket (used by the payment filter). */

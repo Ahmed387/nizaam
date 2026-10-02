@@ -148,7 +148,7 @@ export default function ShiftClose() {
                 <span>{formatEGP(breakdown.reduce((s, b) => s + b.total, 0))}</span>
               </div>
               {(() => {
-                const onAccount = breakdown.filter((b) => ["settlement", "credit_balance"].includes(b.payment_method)).reduce((s, b) => s + b.total, 0);
+                const onAccount = breakdown.filter((b) => ["credit_balance", "credit_applied"].includes(b.payment_method)).reduce((s, b) => s + b.total, 0);
                 return onAccount > 0 ? (
                   <div className="flex items-center justify-between text-sm rounded bg-muted/60 px-2 py-1" title="تمت تسوية هذه المبالغ خصماً من رصيد العميل المودع مسبقاً لدى الإدارة، ولا تمثل نقدية ورقية داخل درج الكاشير">
                     <span>مبيعات مسددة من أرصدة تحت الحساب <span className="text-[11px] text-muted-foreground">(ليست نقدية في الدرج)</span></span>

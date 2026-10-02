@@ -41,7 +41,7 @@ const PAYMENT_METHODS = [
   { value: "vodafone", label: "فودافون كاش", terms: ["vodafone", "فودافون"] },
   { value: "instapay", label: "إنستاباي", terms: ["instapay", "انستاباي", "إنستاباي"] },
   { value: "bank", label: "حساب بنكي", terms: ["bank", "بنك", "بنكي"] },
-  { value: "settlement", label: "مقاصة / تسوية", terms: ["settlement", "مقاصة", "تسوية"] },
+  { value: "credit_balance", label: "رصيد مسبق", terms: ["credit_balance", "رصيد مسبق", "دفعة مقدمة"] },
 ] as const;
 
 const includesText = (value: unknown, search: string) => String(value ?? "").toLocaleLowerCase("ar-EG").includes(search.toLocaleLowerCase("ar-EG"));
