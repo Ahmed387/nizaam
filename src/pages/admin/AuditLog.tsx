@@ -37,8 +37,16 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [page]);
   useRealtimeRefresh(["audit_log"], () => load());
 
-  const exportExcel = () => {
-    const data = rows.map((r) => ({
+  const exportExcel = async () => {
+    const t = toast.loading("جاري تجهيز السجل كامل...");
+    let all: any[];
+    try {
+      all = await fetchAllRows<any>(() =>
+        supabase.from("audit_log").select("created_at, user_name, action, entity, entity_id, details, branches(name)")
+          .order("created_at", { ascending: false }).order("id"));
+    } catch (e: any) { toast.dismiss(t); return toast.error(e.message); }
+    toast.dismiss(t);
+    const data = all.map((r) => ({
       "التاريخ": formatDateTime(r.created_at),
       "المستخدم": r.user_name,
       "الفرع": r.branches?.name ?? "—",
