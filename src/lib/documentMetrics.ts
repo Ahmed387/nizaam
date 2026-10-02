@@ -65,7 +65,8 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
         return { cancelled, amount, parts: { active: amount, customers: fromCustomer ? amount : 0, otherIncome: fromCustomer ? 0 : amount }, byBucket };
       }
       const supplier = sysKey === "supplier_payment" || r.party_type === "supplier";
-      return { cancelled, amount, parts: { active: amount, suppliers: supplier ? amount : 0, operating: supplier ? 0 : amount }, byBucket };
+      const internal = !supplier && isInternalOrRefundPayment(sysKey, r.voucher_categories?.name, r.party_type);
+      return { cancelled, amount, parts: { active: amount, suppliers: supplier ? amount : 0, internal: internal ? amount : 0, operating: supplier || internal ? 0 : amount }, byBucket };
     }
   }
 }
@@ -116,5 +117,13 @@ export const METRIC_SELECT: Record<DocKind, string> = {
   sale_return: "id, total_refund, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
   purchase_return: "id, total_amount, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
   income: "id, amount, status, payment_method, party_type, voucher_categories(system_key)",
-  expense: "id, amount, status, payment_method, party_type, voucher_categories(system_key)",
+  expense: "id, amount, status, payment_method, party_type, voucher_categories(system_key, name)",
 };
+
+/** Payment vouchers that move money out but are not operating expenses: transfers between treasuries/branches and refunds to customers. */
+export function isInternalOrRefundPayment(sysKey?: string | null, name?: string | null, partyType?: string | null): boolean {
+  if (sysKey === "customer_return" || (sysKey ?? "").includes("transfer")) return true;
+  if (partyType === "customer") return true;
+  const n = name ?? "";
+  return /تحويل/.test(n) || /مرتجع/.test(n) || /مدفوعات لعملاء/.test(n);
+}

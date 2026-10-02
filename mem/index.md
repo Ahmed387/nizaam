@@ -7,3 +7,4 @@ Indexes on big tables (invoices, vouchers…) ONLY via CREATE INDEX CONCURRENTLY
 
 ## Memories
 - [Sacred red-line counts](mem://features/red-line-counts) — الأرقام المحمية للتحقق: 11,842 فاتورة، 26,092 سند، 59 إيداع، 783 مصروف، 1,776 منتج
+- [Document cards](mem://features/doc-metrics) — FIFO purchase remaining approved; payment vouchers split suppliers/operating/internal

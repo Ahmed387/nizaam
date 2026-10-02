@@ -14,7 +14,7 @@ const SOURCE: Record<DocKind, string> = {
   sale_return: "مرتجعات البيع المطابقة لكل الفلاتر (بتاريخ المرتجع) في هذا الفرع، مقسمة حسب طريقة رد المبلغ.",
   purchase_return: "مرتجعات الشراء المطابقة لكل الفلاتر (بتاريخ المرتجع) في هذا الفرع، مقسمة حسب طريقة الاسترداد.",
   income: "سندات القبض المطابقة لكل الفلاتر (بتاريخ السند) في هذا الفرع.",
-  expense: "سندات الصرف المطابقة لكل الفلاتر (بتاريخ السند) في هذا الفرع، بدون السندات الآلية المستبعدة من هذه الشاشة.",
+  expense: "سندات الصرف المطابقة لكل الفلاتر (بتاريخ السند) في هذا الفرع، شاملة كل ما خرج من الخزينة.",
 };
 
 const TOP: Record<DocKind, CardDef[]> = {
@@ -52,7 +52,8 @@ const TOP: Record<DocKind, CardDef[]> = {
     { key: "active", label: "إجمالي المدفوعات", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
     { key: "cancelled", label: "سندات ملغاة", icon: <XCircle />, tone: "warning", countWord: "سند ملغي", meaning: "السندات الملغاة، خارج باقي الكروت.", formula: "Σ المبلغ حيث الحالة = ملغي" },
     { key: "suppliers", label: "سداد موردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف لطرف مورد أو بتصنيف سداد مورد.", formula: "Σ المبلغ حيث الطرف = مورد" },
-    { key: "operating", label: "مصاريف تشغيلية وإدارية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "باقي سندات الصرف (غير سداد الموردين).", formula: "إجمالي المدفوعات − سداد موردين" },
+    { key: "operating", label: "مصاريف تشغيلية وإدارية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع" },
+    { key: "internal", label: "تحويلات داخلية ومرتجع", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع ومرتجعات ومدفوعات للعملاء — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع)، أو الطرف = عميل" },
   ],
 };
 
@@ -86,7 +87,7 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
   const verb = BUCKET_VERB[kind];
   return (
     <div className={`space-y-3 mb-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={`grid grid-cols-2 gap-3 ${TOP[kind].length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         {TOP[kind].map((c) => {
           const value = c.value ? (metrics ? c.value(metrics) : 0) : (metrics?.values[c.key] ?? 0);
           const count = metrics?.counts[c.key];
