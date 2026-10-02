@@ -117,13 +117,7 @@ export default function SeedData() {
 
         // (Expenses seeded via vouchers/treasury — see opening balance below)
 
-        // Treasury opening balance
-        await supabase.from("treasury").insert({
-          branch_id: branch.id, type: "income", category: "رصيد افتتاحي",
-          amount: 20000, description: "رصيد افتتاحي للخزنة",
-          created_by: user!.id,
-        });
-        addLog(`    ✓ رصيد افتتاحي 20,000 ج.م`);
+        // Treasury opening balance is no longer seeded directly (treasury is RPC-only).
       }
 
       addLog("✅ تم إنشاء البيانات التجريبية بنجاح!");

@@ -232,22 +232,14 @@ export default function EmployeeProfile() {
     const { validateTransferPayment } = await import("@/lib/paymentMethods");
     const aErr = validateTransferPayment(advPm);
     if (aErr) return toast.error(aErr);
-    const { data: adv, error } = await supabase.from("advances").insert({
-      employee_id: emp.id, amount: amt, monthly_deduct: md, remaining: amt, reason: advForm.reason || null,
-    }).select().single();
+    const { data: res, error } = await supabase.rpc("disburse_employee_advance", {
+      p_employee_id: emp.id, p_amount: amt, p_monthly_deduct: md, p_reason: advForm.reason || null,
+      p_payment_method: advPm.method, p_reference_number: advPm.reference_number ?? null,
+      p_transfer_to_account: advPm.transfer_to_account ?? null, p_transfer_from_account: advPm.transfer_from_account ?? null,
+      p_fee_amount: advPm.fee_amount || 0,
+    } as any);
     if (error) return toast.error(error.message);
-    await supabase.from("treasury").insert({
-      branch_id: emp.branch_id, type: "expense", category: "advance",
-      amount: amt, description: `سلفة - ${emp.name}`, reference_id: adv.id, created_by: user!.id,
-      payment_method: advPm.method, reference_number: advPm.reference_number ?? null, transfer_to_account: advPm.transfer_to_account ?? null, transfer_from_account: advPm.transfer_from_account ?? null,
-    });
-    if (advPm.fee_amount > 0) {
-      await supabase.from("treasury").insert({
-        branch_id: emp.branch_id, type: "expense", category: "transfer_fee",
-        amount: advPm.fee_amount, description: `عمولة ${advPm.method} - سلفة ${emp.name}`,
-        is_fee: true, payment_method: advPm.method, created_by: user!.id,
-      } as any);
-    }
+    const adv = { id: (res as any)?.advance_id as string };
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "advance", entityId: adv.id, details: { employee: emp.name, amount: amt, method: advPm.method } });
     toast.success("تم صرف السلفة");
     setAdvOpen(false);

@@ -7391,6 +7391,20 @@ export type Database = {
           product_name: string
         }[]
       }
+      disburse_employee_advance: {
+        Args: {
+          p_amount: number
+          p_employee_id: string
+          p_fee_amount?: number
+          p_monthly_deduct: number
+          p_payment_method?: string
+          p_reason?: string
+          p_reference_number?: string
+          p_transfer_from_account?: string
+          p_transfer_to_account?: string
+        }
+        Returns: Json
+      }
       disburse_pending_advance: {
         Args: { p_request_id: string }
         Returns: string
