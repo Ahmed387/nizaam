@@ -546,7 +546,7 @@ export default function NewShipment() {
         capacity: l.capacity?.trim() || undefined,
         size: l.size?.trim() || undefined,
       }));
-      const { data: rpcRes, error: rpcErr } = await supabase.rpc("record_shipment", {
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc("record_shipment_with_credit" as any, {
         p_header: {
           branch_id: branchId!,
           contact_id: supplierId,
@@ -564,9 +564,20 @@ export default function NewShipment() {
           notes: notes.trim() || null,
         },
         p_lines: linesPayload,
+        // Atomic: shipment + payment plan header + supplier advance deduction in one transaction.
+        p_plan: {
+          plan_type: plan.mode === "credit" || plan.mode === "partial" ? plan.scheduleType : "open",
+          paid_now: plannedPaidNow,
+          apply_credit: true,
+        },
       });
       if (rpcErr) throw rpcErr;
       const ship = { id: (rpcRes as any).shipment_id } as { id: string };
+      const atomicPlanId = String((rpcRes as any).payment_plan_id);
+      const appliedCredit = Number((rpcRes as any).credit_applied || 0);
+      if (appliedCredit > 0) {
+        toast.success(`✓ تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك المسبق عند المورد`, { duration: 6000 });
+      }
 
       // Persist invoice_date (DB trigger restricts non-today changes to admin/super_admin)
       const today = cairoTodayDay();
@@ -579,9 +590,9 @@ export default function NewShipment() {
 
       // Treasury / payment plan handling (non-fatal — shipment is already saved)
       const supplier = suppliers.find((s) => s.id === supplierId);
-      let appliedCredit = 0;
       try {
-        const planId = await createPaymentPlanWithInitial({
+        // Plan header + credit already saved atomically; only schedule & explicit payments remain.
+        await createPaymentPlanWithInitial({
           branchId: branchId!,
           entityType: "supplier",
           entityId: supplierId,
@@ -592,28 +603,8 @@ export default function NewShipment() {
           state: plan,
           direction: "out",
           createdBy: user!.id,
+          existingPlanId: atomicPlanId,
         });
-
-        // Auto-apply any existing supplier credit (positive contact balance)
-        try {
-          const { data: creditApplied } = await supabase.rpc("apply_supplier_credit" as any, {
-            p_contact_id: supplierId,
-            p_payment_plan_id: planId,
-            p_branch_id: branchId!,
-          });
-          appliedCredit = Number(creditApplied || 0);
-          if (appliedCredit > 0) {
-            // Append a note on the shipment for visibility
-            const noteText = `تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك السابق عند المورد`;
-            await supabase
-              .from("shipments")
-              .update({ notes: (notes.trim() ? notes.trim() + " — " : "") + noteText })
-              .eq("id", ship.id);
-            toast.success(`✓ تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك السابق عند المورد`, { duration: 6000 });
-          }
-        } catch (creditErr: any) {
-          console.warn("apply_supplier_credit failed:", creditErr);
-        }
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
         docWarning({
