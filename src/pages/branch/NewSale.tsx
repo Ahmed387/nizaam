@@ -976,7 +976,7 @@ export default function NewSale() {
     try {
       const custId = customerId || null;
       // إذا لم يُدخل الكاشير أي دفعة فالفاتورة فعلياً آجل — لا نسمّيها "نقدي"
-      // المقاصة/الرصيد السابق لا يحرّكان الخزينة: لو مفيش دفعات فعلية نبعت قائمة فاضية
+      // الرصيد المسبق لا يحرّك الخزينة: لو مفيش دفعات فعلية نبعت قائمة فاضية
       // (مش null) عشان process_sale ما يفترضش إن الفاتورة كلها اتدفعت كاش.
       const usesPrepaid = creditToApply > 0;
       const primaryMethod =
@@ -1012,7 +1012,7 @@ export default function NewSale() {
         return;
       }
 
-      // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق + المقاصة في معاملة واحدة
+      // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق في معاملة واحدة
       const { data: invId, error: rpcErr } = await supabase.rpc("process_sale_full" as any, {
         ...payload,
         p_recipient: recipientName.trim() || null,
@@ -1072,7 +1072,7 @@ export default function NewSale() {
         } catch (e) { console.warn("link discount requests failed", e); }
       }
 
-      // المستلم والملاحظات والرصيد السابق والمقاصة اتحفظوا جوه process_sale_full
+      // المستلم والملاحظات والرصيد المسبق اتحفظوا جوه process_sale_full
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
