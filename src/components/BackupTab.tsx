@@ -33,6 +33,7 @@ export function BackupTab() {
   const allowed = isOwner || isSuperAdmin;
 
   const [runningServer, setRunningServer] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -250,6 +251,17 @@ export function BackupTab() {
             {runningServer ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
             تشغيل نسخة احتياطية الآن
           </Button>
+          {progress && (
+            <div className="w-full space-y-1.5 mt-3" aria-live="polite">
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%` }} />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{progress.label}</span>
+                <span>{Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
