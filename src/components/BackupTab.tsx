@@ -83,23 +83,41 @@ export function BackupTab() {
 
   const runBackupNow = async () => {
     setRunningServer(true);
+    setProgress({ done: 0, total: 1, label: "تجهيز قائمة الجداول…" });
+    const call = async (body: Record<string, unknown>, tries = 3): Promise<any> => {
+      for (let i = 0; i < tries; i++) {
+        const { data, error } = await supabase.functions.invoke("scheduled-backup", { body });
+        const msg = await edgeErrorMessage(error);
+        if (!msg) return data;
+        if (i === tries - 1) throw new Error(msg);
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+      }
+    };
     try {
-      const { data, error } = await supabase.functions.invoke("scheduled-backup", { body: {} });
-      const bErr = await edgeErrorMessage(error);
-      if (bErr) throw new Error(bErr);
+      const plan = await call({ mode: "plan" });
+      const tables: string[] = plan.tables ?? [];
+      const counts: Record<string, number> = {};
+      const total = tables.length + 1;
+      for (let i = 0; i < tables.length; i++) {
+        setProgress({ done: i, total, label: `نسخ جدول ${tables[i]} (${i + 1}/${tables.length})` });
+        const r = await call({ mode: "part", job_id: plan.job_id, table: tables[i] });
+        counts[tables[i]] = Number(r?.rows ?? 0);
+      }
+      setProgress({ done: tables.length, total, label: "تجميع وضغط الملف النهائي والمرفقات…" });
+      const data = await call({ mode: "finalize", job_id: plan.job_id, counts }, 2);
+      setProgress({ done: total, total, label: "اكتملت النسخة" });
       const first = (data as any)?.results?.[0];
+      if (first?.status === "failed") throw new Error(first.error);
       toast.success(
-        first
-          ? `تمت النسخة: ${first.tables} جدول • ${Number(first.rows ?? 0).toLocaleString("en-US")} سجل${first.drive?.synced ? " • تمت مزامنة Google Drive" : ""}`
-          : "تم تشغيل النسخ الاحتياطي",
+        `تمت النسخة: ${tables.length} جدول • ${Object.values(counts).reduce((s, n) => s + n, 0).toLocaleString("en-US")} سجل`,
       );
-      if (first?.drive?.error) toast.warning(first.drive.error);
       loadHistory();
       loadSettings();
     } catch (e: any) {
       toast.error(e.message ?? "فشل التشغيل");
     } finally {
       setRunningServer(false);
+      setTimeout(() => setProgress(null), 4000);
     }
   };
 
