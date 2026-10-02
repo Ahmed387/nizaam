@@ -22,3 +22,5 @@
 - Branch queries use `scopeToBranch` with the route branch id; cross-branch views are admin/HQ only.
 - Wide tables use DataTable `minTableWidth` (wrapper gets `data-wide`); `index.css` compact CSS stays `:not([data-wide])`-guarded.
 - Filter payments in-DB via `invoice_payments!inner`, not a client id list.
+
+- Prepaid customer credit is only `contacts.credit_balance` (negative = available) consumed via `process_sale_full.p_credit_to_apply`; `settlement` is retired and `treasury` rejects non-cash methods by trigger — why: one flow, no phantom cash.
