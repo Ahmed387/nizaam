@@ -2685,6 +2685,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "invoice_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
             foreignKeyName: "invoice_payments_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -3841,6 +3855,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "payment_transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
             foreignKeyName: "payment_transactions_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
@@ -3853,6 +3881,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_contact_balances"
             referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_fee_treasury_id_fkey"
+            columns: ["fee_treasury_id"]
+            isOneToOne: false
+            referencedRelation: "treasury"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "payment_transactions_installment_id_fkey"
@@ -3880,6 +3915,13 @@ export type Database = {
             columns: ["reverses_tx_id"]
             isOneToOne: false
             referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_treasury_id_fkey"
+            columns: ["treasury_id"]
+            isOneToOne: false
+            referencedRelation: "treasury"
             referencedColumns: ["id"]
           },
           {
@@ -5804,7 +5846,29 @@ export type Database = {
           reference_type?: string | null
           tenant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_transfers: {
         Row: {
@@ -5978,6 +6042,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "supplier_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
             foreignKeyName: "supplier_payments_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
@@ -5990,6 +6068,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_contact_balances"
             referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_treasury_id_fkey"
+            columns: ["treasury_id"]
+            isOneToOne: false
+            referencedRelation: "treasury"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -6946,10 +7031,6 @@ export type Database = {
         Args: { p_transfer_id: string }
         Returns: undefined
       }
-      acknowledge_treasury_transfer__impl: {
-        Args: { p_transfer_id: string }
-        Returns: undefined
-      }
       add_invoice_payment: {
         Args: {
           p_amount: number
@@ -6961,20 +7042,6 @@ export type Database = {
           p_reference_number: string
           p_transfer_from_account: string
           p_transfer_to_account: string
-        }
-        Returns: string
-      }
-      add_invoice_payment__impl: {
-        Args: {
-          p_amount: number
-          p_fee_amount?: number
-          p_fee_on_customer?: boolean
-          p_invoice_id: string
-          p_payment_method: string
-          p_received_by_name?: string
-          p_reference_number?: string
-          p_transfer_from_account?: string
-          p_transfer_to_account?: string
         }
         Returns: string
       }
@@ -7042,10 +7109,6 @@ export type Database = {
         Returns: Json
       }
       approve_inventory_session: {
-        Args: { p_session_id: string }
-        Returns: undefined
-      }
-      approve_inventory_session__impl: {
         Args: { p_session_id: string }
         Returns: undefined
       }
@@ -7147,19 +7210,11 @@ export type Database = {
         Args: { _invoice_id: string; _reason: string; _refund_method?: string }
         Returns: Json
       }
-      cancel_invoice_with_refund__impl: {
-        Args: { _invoice_id: string; _reason: string; _refund_method?: string }
-        Returns: Json
-      }
       cancel_partner_advance: {
         Args: { _advance_id: string; _reason?: string }
         Returns: Json
       }
       cancel_pre_order: {
-        Args: { p_pre_order_id: string; p_refund: boolean }
-        Returns: undefined
-      }
-      cancel_pre_order__impl: {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
       }
@@ -7442,16 +7497,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      edit_invoice__impl: {
-        Args: {
-          _customer_id: string
-          _discount_amount?: number
-          _invoice_id: string
-          _items: Json
-          _vat_rate?: number
-        }
-        Returns: undefined
-      }
       edit_invoice_payment: {
         Args: {
           p_amount: number
@@ -7464,21 +7509,6 @@ export type Database = {
           p_reference_number: string
           p_transfer_from_account: string
           p_transfer_to_account: string
-        }
-        Returns: string
-      }
-      edit_invoice_payment__impl: {
-        Args: {
-          p_amount: number
-          p_fee_amount?: number
-          p_fee_on_customer?: boolean
-          p_payment_id: string
-          p_payment_method: string
-          p_reason?: string
-          p_received_by_name?: string
-          p_reference_number?: string
-          p_transfer_from_account?: string
-          p_transfer_to_account?: string
         }
         Returns: string
       }
@@ -7507,25 +7537,7 @@ export type Database = {
         }
         Returns: string
       }
-      edit_payment_transaction__impl: {
-        Args: {
-          p_amount: number
-          p_fee_amount?: number
-          p_payment_method: string
-          p_reason?: string
-          p_received_by_name?: string
-          p_reference_number?: string
-          p_transfer_from_account?: string
-          p_transfer_to_account?: string
-          p_tx_id: string
-        }
-        Returns: string
-      }
       edit_shipment: {
-        Args: { p_header: Json; p_items: Json; p_shipment_id: string }
-        Returns: Json
-      }
-      edit_shipment__impl: {
         Args: { p_header: Json; p_items: Json; p_shipment_id: string }
         Returns: Json
       }
@@ -7679,10 +7691,6 @@ export type Database = {
         Returns: string
       }
       hard_delete_invoice: { Args: { _invoice_id: string }; Returns: undefined }
-      hard_delete_invoice__impl: {
-        Args: { _invoice_id: string }
-        Returns: undefined
-      }
       has_permission: {
         Args: { _key: string; _user_id: string }
         Returns: boolean
@@ -7921,10 +7929,6 @@ export type Database = {
         }
       }
       partial_confirm_transfer: {
-        Args: { p_received: number; p_transfer_id: string }
-        Returns: Json
-      }
-      partial_confirm_transfer__impl: {
         Args: { p_received: number; p_transfer_id: string }
         Returns: Json
       }
@@ -8191,10 +8195,6 @@ export type Database = {
         Args: { _invoice_id: string }
         Returns: Json
       }
-      redistribute_installments_after_return__impl: {
-        Args: { _invoice_id: string }
-        Returns: Json
-      }
       register_sale_return_full: {
         Args: {
           _invoice_id: string
@@ -8219,10 +8219,6 @@ export type Database = {
         | { Args: { p_group: string }; Returns: number }
         | { Args: { p_group: string; p_reason?: string }; Returns: number }
       reject_treasury_transfer: {
-        Args: { p_reason: string; p_transfer_id: string }
-        Returns: undefined
-      }
-      reject_treasury_transfer__impl: {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: undefined
       }
@@ -8539,16 +8535,8 @@ export type Database = {
         Args: { p_payment_id: string; p_reason: string }
         Returns: string
       }
-      void_invoice_payment__impl: {
-        Args: { p_payment_id: string; p_reason?: string }
-        Returns: string
-      }
       void_payment_transaction: {
         Args: { p_reason: string; p_tx_id: string }
-        Returns: string
-      }
-      void_payment_transaction__impl: {
-        Args: { p_reason?: string; p_tx_id: string }
         Returns: string
       }
     }
