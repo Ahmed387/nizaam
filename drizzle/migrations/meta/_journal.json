@@ -239,6 +239,13 @@
       "when": 1790964912660,
       "tag": "0033_harden_historical_tables_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790965806830,
+      "tag": "0034_atomic_employee_advance_and_block_treasury_insert",
+      "breakpoints": true
     }
   ]
 }
