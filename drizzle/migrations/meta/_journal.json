@@ -267,6 +267,13 @@
       "when": 1790972561053,
       "tag": "0037_inventory_guard_and_backdated_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790973891275,
+      "tag": "0038_vouchers_treasury_strict_fk",
+      "breakpoints": true
     }
   ]
 }

@@ -6669,7 +6669,7 @@ export type Database = {
           tenant_id: string
           transferred_from: string | null
           transferred_to: string | null
-          treasury_id: string | null
+          treasury_id: string
           type: Database["public"]["Enums"]["voucher_type"]
           voucher_date: string
           voucher_number: string
@@ -6700,7 +6700,7 @@ export type Database = {
           tenant_id: string
           transferred_from?: string | null
           transferred_to?: string | null
-          treasury_id?: string | null
+          treasury_id: string
           type: Database["public"]["Enums"]["voucher_type"]
           voucher_date?: string
           voucher_number: string
@@ -6731,7 +6731,7 @@ export type Database = {
           tenant_id?: string
           transferred_from?: string | null
           transferred_to?: string | null
-          treasury_id?: string | null
+          treasury_id?: string
           type?: Database["public"]["Enums"]["voucher_type"]
           voucher_date?: string
           voucher_number?: string
@@ -6763,6 +6763,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_treasury_id_fkey"
+            columns: ["treasury_id"]
+            isOneToOne: false
+            referencedRelation: "treasury"
             referencedColumns: ["id"]
           },
         ]
