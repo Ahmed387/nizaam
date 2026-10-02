@@ -2013,6 +2013,7 @@ export type Database = {
       }
       historical_invoice_items: {
         Row: {
+          branch_id: string | null
           branch_name: string
           created_at: string | null
           date: string
@@ -2029,6 +2030,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          branch_id?: string | null
           branch_name: string
           created_at?: string | null
           date: string
@@ -2045,6 +2047,7 @@ export type Database = {
           year: number
         }
         Update: {
+          branch_id?: string | null
           branch_name?: string
           created_at?: string | null
           date?: string
@@ -2062,6 +2065,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "historical_invoice_items_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historical_invoice_items_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
             foreignKeyName: "historical_invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -2072,6 +2089,7 @@ export type Database = {
       }
       historical_invoices: {
         Row: {
+          branch_id: string | null
           branch_name: string
           created_at: string | null
           credit: number | null
@@ -2093,6 +2111,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          branch_id?: string | null
           branch_name: string
           created_at?: string | null
           credit?: number | null
@@ -2114,6 +2133,7 @@ export type Database = {
           year: number
         }
         Update: {
+          branch_id?: string | null
           branch_name?: string
           created_at?: string | null
           credit?: number | null
@@ -2134,11 +2154,27 @@ export type Database = {
           warehouse_name?: string | null
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "historical_invoices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historical_invoices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+        ]
       }
       historical_vouchers: {
         Row: {
           amount: number | null
+          branch_id: string | null
           branch_name: string
           category: string | null
           created_at: string | null
@@ -2155,6 +2191,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          branch_id?: string | null
           branch_name: string
           category?: string | null
           created_at?: string | null
@@ -2171,6 +2208,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          branch_id?: string | null
           branch_name?: string
           category?: string | null
           created_at?: string | null
@@ -2185,7 +2223,22 @@ export type Database = {
           voucher_type?: string
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "historical_vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historical_vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+        ]
       }
       inventory_adjustments: {
         Row: {
@@ -7698,6 +7751,7 @@ export type Database = {
         Returns: string
       }
       hard_delete_invoice: { Args: { _invoice_id: string }; Returns: undefined }
+      has_central_access: { Args: { _uid: string }; Returns: boolean }
       has_permission: {
         Args: { _key: string; _user_id: string }
         Returns: boolean
@@ -7713,6 +7767,7 @@ export type Database = {
         Args: { _branch_id: string; _transfer_id: string }
         Returns: undefined
       }
+      historical_branch_id_for: { Args: { p_name: string }; Returns: string }
       historical_stock_at: {
         Args: { _as_of: string; _branch_id: string }
         Returns: {
