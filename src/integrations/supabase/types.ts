@@ -8050,7 +8050,6 @@ export type Database = {
           p_payments: Json
           p_received_by_name?: string
           p_recipient?: string
-          p_settlement_amount?: number
           p_subtotal: number
           p_total: number
           p_vat_amount: number

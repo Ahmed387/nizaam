@@ -121,8 +121,6 @@ export default function NewSale() {
   const [creditToApply, setCreditToApply] = useState(0);
   const [customerBalance, setCustomerBalance] = useState(0); // contacts.balance (>0 له عندنا، <0 علينا له)
   const [customerType, setCustomerType] = useState<string>("customer");
-  const [useSettlement, setUseSettlement] = useState(false);
-  const [settlementAmount, setSettlementAmount] = useState(0);
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
   // لو المستخدم استرجع مسودة، منمسحش اختياره للضريبة بالإعداد الافتراضي
@@ -233,13 +231,11 @@ export default function NewSale() {
 
   useEffect(() => {
     setCreditToApply(0);
-    setUseSettlement(false);
-    setSettlementAmount(0);
     if (!customerId) { setCustomerCredit(0); setCustomerBalance(0); setCustomerType("customer"); return; }
     const load = async () => {
       // TODO Phase 2.2B: Remove after contacts.balance column is dropped
       const { data } = await supabase.from("v_contact_balances" as any).select("credit_balance, total_balance, type").eq("contact_id", customerId).maybeSingle();
-      setCustomerCredit(Number((data as any)?.credit_balance ?? 0));
+      setCustomerCredit(Math.max(0, -Number((data as any)?.credit_balance ?? 0))); // credit_balance < 0 = رصيد مسبق متاح
       setCustomerBalance(Number((data as any)?.total_balance ?? 0));
       setCustomerType(String((data as any)?.type ?? "customer"));
     };
@@ -798,11 +794,10 @@ export default function NewSale() {
     if (creditToApply > total) setCreditToApply(Math.max(0, total));
     if (creditToApply > customerCredit) setCreditToApply(Math.max(0, customerCredit));
   }, [total, customerCredit, creditToApply]);
-  const effectiveSettlement = useSettlement ? Math.max(0, Math.min(settlementAmount, total - paymentsSum - creditToApply, Math.abs(Math.min(0, customerBalance)))) : 0;
-  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply - effectiveSettlement);
+  const creditRemaining = Math.max(0, total - paymentsSum - creditToApply);
   // Any shortfall is automatically treated as credit (آجل). Only block over-payment.
   const isCredit = creditMode || creditRemaining > 0.01;
-  const paymentsValid = (paymentsSum + creditToApply + effectiveSettlement) <= total + 0.01;
+  const paymentsValid = (paymentsSum + creditToApply) <= total + 0.01;
 
   // Auto-rescale scheduled installments whenever the credit remainder changes,
   // so partial payments by any method update the installment plan automatically.
@@ -981,16 +976,16 @@ export default function NewSale() {
     try {
       const custId = customerId || null;
       // إذا لم يُدخل الكاشير أي دفعة فالفاتورة فعلياً آجل — لا نسمّيها "نقدي"
-      // المقاصة/الرصيد السابق لا يحرّكان الخزينة: لو مفيش دفعات فعلية نبعت قائمة فاضية
+      // الرصيد المسبق لا يحرّك الخزينة: لو مفيش دفعات فعلية نبعت قائمة فاضية
       // (مش null) عشان process_sale ما يفترضش إن الفاتورة كلها اتدفعت كاش.
-      const hasNonCashSettlement = effectiveSettlement > 0 || creditToApply > 0;
+      const usesPrepaid = creditToApply > 0;
       const primaryMethod =
         payments.length > 0
           ? payments[0].payment_method
           : creditRemaining > 0
             ? "credit"
-            : hasNonCashSettlement
-              ? (effectiveSettlement > 0 ? "settlement" : "credit_balance")
+            : usesPrepaid
+              ? "credit_balance"
               : "cash";
 
       const payload = {
@@ -1003,7 +998,7 @@ export default function NewSale() {
         p_total: total,
         p_payment_method: primaryMethod,
         p_items: items as any,
-        p_payments: payments.length > 0 ? payments : (hasNonCashSettlement ? [] : null),
+        p_payments: payments, // دائمًا قائمة (قد تكون فارغة) — لا افتراض كاش
         p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
         p_vat_amount: vatAmount,
         p_invoice_date: invoiceDate || null,
@@ -1017,13 +1012,12 @@ export default function NewSale() {
         return;
       }
 
-      // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق + المقاصة في معاملة واحدة
+      // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق في معاملة واحدة
       const { data: invId, error: rpcErr } = await supabase.rpc("process_sale_full" as any, {
         ...payload,
         p_recipient: recipientName.trim() || null,
         p_notes: invoiceNotes.trim() || null,
         p_credit_to_apply: creditToApply > 0 && custId ? creditToApply : 0,
-        p_settlement_amount: effectiveSettlement > 0 && custId ? effectiveSettlement : 0,
         p_received_by_name: profile?.name ?? null,
       });
       if (rpcErr) {
@@ -1078,7 +1072,7 @@ export default function NewSale() {
         } catch (e) { console.warn("link discount requests failed", e); }
       }
 
-      // المستلم والملاحظات والرصيد السابق والمقاصة اتحفظوا جوه process_sale_full
+      // المستلم والملاحظات والرصيد المسبق اتحفظوا جوه process_sale_full
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
@@ -1222,56 +1216,16 @@ export default function NewSale() {
                 </div>
               );
             })()}
-            {customerId && customerBalance < 0 && total > 0 && (
-              <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 space-y-2">
-                <label className="flex items-start gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={useSettlement}
-                    onChange={(e) => {
-                      const v = e.target.checked;
-                      setUseSettlement(v);
-                      if (v) {
-                        const maxSettle = Math.min(total - paymentsSum - creditToApply, Math.abs(customerBalance));
-                        setSettlementAmount(Math.max(0, maxSettle));
-                      } else {
-                        setSettlementAmount(0);
-                      }
-                    }}
-                  />
-                  <span>
-                    <b>مقاصة</b> — خصم قيمة الفاتورة من المستحق له ({formatEGP(Math.abs(customerBalance))})
-                    <div className="text-xs text-muted-foreground mt-0.5">بدل ما يدفع، نقلل اللي إحنا مدينين له بنفس القيمة.</div>
-                  </span>
-                </label>
-                {useSettlement && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Label className="text-xs">قيمة المقاصة:</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="w-32 h-8"
-                      value={settlementAmount}
-                      onChange={(e) => setSettlementAmount(Math.max(0, Number(e.target.value) || 0))}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      الحد الأقصى: {formatEGP(Math.min(total - paymentsSum - creditToApply, Math.abs(customerBalance)))}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
             {customerCredit > 0 && (
               <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm">
-                  هذا العميل لديه رصيد دائن: <b className="text-primary">{formatEGP(customerCredit)}</b>
+                  رصيد مسبق متاح للعميل: <b className="text-primary">{formatEGP(customerCredit)}</b>
                   {creditToApply > 0 && <span className="text-success ms-2">— سيتم استخدام {formatEGP(creditToApply)}</span>}
                 </div>
                 <div className="flex gap-2">
                   {creditToApply === 0 ? (
                     <Button type="button" size="sm" onClick={() => setCreditToApply(Math.min(customerCredit, total))} disabled={total <= 0}>
-                      استخدام الرصيد
+                      خصم من الرصيد المسبق
                     </Button>
                   ) : (
                     <Button type="button" size="sm" variant="outline" onClick={() => setCreditToApply(0)}>
