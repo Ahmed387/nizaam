@@ -281,6 +281,13 @@
       "when": 1790974306497,
       "tag": "0039_historical_branch_id_scoping",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790974359362,
+      "tag": "0040_partner_gets_central_read",
+      "breakpoints": true
     }
   ]
 }

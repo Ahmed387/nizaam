@@ -32,3 +32,5 @@
 - Products with stock/document history cannot be deleted (RESTRICT FKs + guard trigger; only the guarded branch reset purges) — why: protect historical reports and COGS.
 - Payments of backdated documents pass the document date to `record_payment_transaction(p_payment_date)` so treasury/payment rows inherit it — why: periods follow accounting dates.
 - `vouchers.treasury_id` is NOT NULL with FK to `treasury` (ON DELETE CASCADE) — why: no voucher can exist without its cash movement; admin purges of treasury remove the voucher with it.
+- Partners get central read-only access to all branches (client treats `partner` like `viewer`; a trigger auto-adds the `viewer` role) — why: one central read path, no writes outside their portal.
+- Historical import tables are scoped by `branch_id` (auto-filled from `branch_name` by trigger); `branch_name` is display-only — why: no string-based access checks.
