@@ -8174,6 +8174,7 @@ export type Database = {
           p_fee_on_customer: boolean
           p_fee_type: string
           p_installment_id: string
+          p_payment_date?: string
           p_payment_method: string
           p_payment_plan_id: string
           p_received_by_name: string

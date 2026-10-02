@@ -260,6 +260,13 @@
       "when": 1790972014453,
       "tag": "0036_phase3_merge_impl_unify_guard_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790972561053,
+      "tag": "0037_inventory_guard_and_backdated_payments",
+      "breakpoints": true
     }
   ]
 }
