@@ -212,7 +212,6 @@ export default function Invoices() {
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [returnsTotal, setReturnsTotal] = useState(0);
   const tableTopRef = useRef<HTMLDivElement>(null);
   // 300ms debounce on the text search; other filters apply instantly.
   const [debounced, setDebounced] = useState({ q: filters.q, recipient: filters.recipient, notes: filters.notes });
@@ -394,13 +393,6 @@ export default function Invoices() {
       setTotalCount(r.count ?? data.length);
     }
     setLoading(false);
-    if (tab === "sale_return" || tab === "purchase_return") {
-      const col = tab === "sale_return" ? "total_refund" : "total_amount";
-      const { qb: sq } = await buildQuery(col, false);
-      const part = await fetchAllRows<any>(() => sq.abortSignal(ctrl.signal)).catch(() => [] as any[]);
-      if (stale()) return;
-      setReturnsTotal(part.reduce((s: number, x: any) => s + Number(x[col] ?? 0), 0));
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, branchId, page, buildQuery]);
 

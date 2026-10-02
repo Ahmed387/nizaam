@@ -399,18 +399,22 @@
 }
 
 /* Opt-in wide tables: a real floor width plus smooth horizontal scroll, one-line cells only. */
+.overflow-auto[data-wide]:has(> table),
 .overflow-x-auto[data-wide]:has(> table) {
-  overflow-x: auto;
+  overflow: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) hsl(var(--muted) / 0.35);
 }
 
+.overflow-auto[data-wide] > table,
 .overflow-x-auto[data-wide] > table,
 .card-elevated > div[data-wide] > table {
   table-layout: auto;
 }
 
+.overflow-auto[data-wide] > table th,
+.overflow-auto[data-wide] > table td,
 .overflow-x-auto[data-wide] > table th,
 .overflow-x-auto[data-wide] > table td,
 .card-elevated > div[data-wide] > table th,
@@ -421,14 +425,18 @@
   hyphens: none;
 }
 
-.overflow-x-auto[data-wide]::-webkit-scrollbar { height: 10px; }
+.overflow-auto[data-wide]::-webkit-scrollbar,
+.overflow-x-auto[data-wide]::-webkit-scrollbar { height: 10px; width: 10px; }
+.overflow-auto[data-wide]::-webkit-scrollbar-track,
 .overflow-x-auto[data-wide]::-webkit-scrollbar-track { background: hsl(var(--muted) / 0.35); border-radius: 9999px; }
+.overflow-auto[data-wide]::-webkit-scrollbar-thumb,
 .overflow-x-auto[data-wide]::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   background-clip: padding-box;
   border: 2px solid transparent;
   border-radius: 9999px;
 }
+.overflow-auto[data-wide]::-webkit-scrollbar-thumb:hover,
 .overflow-x-auto[data-wide]::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.55);
   background-clip: padding-box;
