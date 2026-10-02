@@ -604,6 +604,7 @@ export default function NewShipment() {
           direction: "out",
           createdBy: user!.id,
           existingPlanId: atomicPlanId,
+          paymentDate: invoiceDate || null,
         });
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);

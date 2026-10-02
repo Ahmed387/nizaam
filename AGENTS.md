@@ -29,3 +29,5 @@
 - `contacts.credit_balance` is a derived cache of Σ `customer_credit_log.balance_delta`, synced by trigger; direct updates are blocked — why: one source of truth for prepaid credit.
 - Purchase invoices save via `record_shipment_with_credit` (shipment + plan header + supplier advance deduction atomically); supplier balances on shipments are computed from the contact ledger, never from stored `previous_balance/current_balance` — why: no half-saved invoices or stale balances.
 - Guarded RPCs keep their whole body in one function (no `__impl` split copies); tenant/role guards run at the top of that body — why: one callable path, no unguarded twin.
+- Products with stock/document history cannot be deleted (RESTRICT FKs + guard trigger; only the guarded branch reset purges) — why: protect historical reports and COGS.
+- Payments of backdated documents pass the document date to `record_payment_transaction(p_payment_date)` so treasury/payment rows inherit it — why: periods follow accounting dates.

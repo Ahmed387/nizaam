@@ -15,6 +15,8 @@ interface CreatePlanArgs {
   createdBy: string;
   /** Plan header already created atomically by a DB RPC (e.g. record_shipment_with_credit). */
   existingPlanId?: string;
+  /** Accounting date (YYYY-MM-DD) inherited by the initial payment of a backdated document. */
+  paymentDate?: string | null;
 }
 
 /**
@@ -22,7 +24,7 @@ interface CreatePlanArgs {
  * Returns the created plan id.
  */
 export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promise<string> {
-  const { branchId, entityType, entityId, entityName, totalAmount, referenceType, referenceId, state, direction, createdBy, existingPlanId } = args;
+  const { branchId, entityType, entityId, entityName, totalAmount, referenceType, referenceId, state, direction, createdBy, existingPlanId, paymentDate } = args;
   const paidNow = state.mode === "credit" ? 0 : Number(state.paidNow || 0);
 
   // If fully paid in cash with no plan needed, still create a "completed" plan for auditability.
@@ -93,6 +95,7 @@ export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promis
         p_fee_on_customer: direction === "in" ? state.feeOnCustomer : false,
         p_direction: direction,
         p_transfer_from_account: sp.transfer_from_account ?? null,
+        p_payment_date: paymentDate ?? null,
       });
       if (te) throw te;
     }
