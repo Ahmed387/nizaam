@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 
@@ -7,34 +7,10 @@ export type SalePayState = "paid" | "partial" | "credit";
 
 export type CollectionBucket = "cash" | "instapay" | "wallet" | "bank" | "other";
 
-/** Card click-to-filter keys (applied client-side on the loaded rows). */
-export type SalesCardFilter = "active" | "cancelled" | "collected" | "remaining" | CollectionBucket;
-
-export function matchesCardFilter(r: { status?: string; __paid?: number; __remaining?: number; __byBucket?: Record<CollectionBucket, number> }, k: SalesCardFilter | null): boolean {
-  if (!k) return true;
-  if (k === "cancelled") return r.status !== "active";
-  if (r.status !== "active") return false;
-  if (k === "active") return true;
-  if (k === "collected") return (r.__paid ?? 0) > 0.01;
-  if (k === "remaining") return (r.__remaining ?? 0) > 0.01;
-  return (r.__byBucket?.[k] ?? 0) > 0.01;
-}
-
 export interface InvoicePaymentSummary {
   paid: number;
   byBucket: Record<CollectionBucket, number>;
   methods: string[];
-}
-
-export interface SalesMetrics {
-  count: number;
-  activeCount: number;
-  cancelledCount: number;
-  cancelledTotal: number;
-  totalSales: number;
-  collected: number;
-  remaining: number;
-  byBucket: Record<CollectionBucket, number>;
 }
 
 interface PaymentRow {
@@ -45,16 +21,7 @@ interface PaymentRow {
   reverses_payment_id: string | null;
 }
 
-interface InvoiceTotalRow {
-  id: string;
-  total: number | string | null;
-  status: string;
-}
-
-/** Query factory shared with the table: same filters, only the projection differs. */
-export type SalesQueryBuilder = (select: string, withCount: boolean) => Promise<{ qb: any }>;
-
-const emptyBuckets = (): Record<CollectionBucket, number> => ({ cash: 0, instapay: 0, wallet: 0, bank: 0, other: 0 });
+export const emptyBuckets = (): Record<CollectionBucket, number> => ({ cash: 0, instapay: 0, wallet: 0, bank: 0, other: 0 });
 
 export function bucketOf(method: string | null | undefined): CollectionBucket {
   switch (method) {
@@ -62,7 +29,9 @@ export function bucketOf(method: string | null | undefined): CollectionBucket {
     case "instapay": return "instapay";
     case "vodafone":
     case "wallet": return "wallet";
-    case "bank": return "bank";
+    case "bank":
+    case "transfer":
+    case "card": return "bank";
     default: return "other";
   }
 }
@@ -79,6 +48,7 @@ export const BUCKET_LABELS: Record<CollectionBucket, string> = {
 export function methodsForFilter(method: string): string[] {
   const b = bucketOf(method);
   if (b === "wallet") return ["vodafone", "wallet"];
+  if (b === "bank") return ["bank", "transfer", "card"];
   if (b === "other") return [method];
   return [b];
 }
@@ -112,7 +82,7 @@ export function salePayState(total: number, paid: number): SalePayState {
   return "partial";
 }
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
+export const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Net paid per invoice (excludes voided payments and reversal rows), grouped by collection bucket. */
 export async function fetchPaymentSummaries(invoiceIds: string[], signal?: AbortSignal): Promise<Map<string, InvoicePaymentSummary>> {
@@ -141,60 +111,4 @@ export async function fetchPaymentSummaries(invoiceIds: string[], signal?: Abort
     }
   }
   return out;
-}
-
-/**
- * Metrics for the sale tab. Reads ALL rows matching the exact same query the
- * table uses (not just the visible page), so cards and table never diverge.
- */
-export function useSalesMetrics(buildQuery: SalesQueryBuilder, enabled: boolean, refreshKey: number) {
-  const [metrics, setMetrics] = useState<SalesMetrics | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!enabled) { setMetrics(null); return; }
-    const ctrl = new AbortController();
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
-      try {
-        // Same filtered query as the table, paged in 1,000-row batches (never limited to the visible page).
-        const invoices: InvoiceTotalRow[] = [];
-        for (let from = 0; ; from += 1000) {
-          const { qb } = await buildQuery("id, total, status", false);
-          const { data, error } = await qb.order("id").range(from, from + 999).abortSignal(ctrl.signal);
-          if (error) throw error;
-          invoices.push(...((data ?? []) as InvoiceTotalRow[]));
-          if (!data || data.length < 1000) break;
-        }
-        // The payment-method filter uses an inner join that can repeat an invoice per matching payment — dedupe by id.
-        const seen = new Set<string>();
-        const unique = invoices.filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)));
-        const activeRows = unique.filter((i) => i.status === "active");
-        const pays = await fetchPaymentSummaries(activeRows.map((i) => i.id), ctrl.signal);
-        const cancelledRows = unique.filter((i) => i.status !== "active");
-        const cancelledTotal = r2(cancelledRows.reduce((a, i) => a + (Number(i.total) || 0), 0));
-        let totalSales = 0, collected = 0, remaining = 0;
-        const byBucket = emptyBuckets();
-        for (const inv of activeRows) {
-          const total = Number(inv.total) || 0;
-          const s = pays.get(inv.id);
-          const paid = s?.paid ?? 0;
-          totalSales += total;
-          collected += paid;
-          remaining += Math.max(0, total - paid);
-          if (s) (Object.keys(byBucket) as CollectionBucket[]).forEach((k) => { byBucket[k] += s.byBucket[k]; });
-        }
-        (Object.keys(byBucket) as CollectionBucket[]).forEach((k) => { byBucket[k] = r2(byBucket[k]); });
-        if (!cancelled) setMetrics({ count: unique.length, activeCount: activeRows.length, cancelledCount: cancelledRows.length, cancelledTotal, totalSales: r2(totalSales), collected: r2(collected), remaining: r2(remaining), byBucket });
-      } catch (e) {
-        if (!cancelled && (e as { name?: string })?.name !== "AbortError") setMetrics(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; ctrl.abort(); };
-  }, [buildQuery, enabled, refreshKey]);
-
-  return { metrics, loading };
 }
