@@ -15,6 +15,8 @@ import { getOpenShift, closeShift, shiftCashSales, shiftPaymentBreakdown, fetchS
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 
+const PREPAID_METHODS = ["credit_balance", "credit_applied"];
+
 export default function ShiftClose() {
   const { id: branchId = "" } = useParams();
   const nav = useNavigate();
@@ -134,7 +136,7 @@ export default function ShiftClose() {
             <div className="text-xs text-muted-foreground">مفيش تحصيلات في الوردية دي لحد دلوقتي</div>
           ) : (
             <div className="space-y-1.5">
-              {breakdown.map((b) => (
+              {breakdown.filter((b) => !PREPAID_METHODS.includes(b.payment_method)).map((b) => (
                 <div key={b.payment_method} className="flex items-center justify-between text-sm">
                   <span>
                     {(PAYMENT_METHOD_LABELS as Record<string, string>)[b.payment_method] ?? b.payment_method}
@@ -144,14 +146,14 @@ export default function ShiftClose() {
                 </div>
               ))}
               <div className="flex items-center justify-between text-sm border-t pt-1.5 font-bold">
-                <span>الإجمالي</span>
-                <span>{formatEGP(breakdown.reduce((s, b) => s + b.total, 0))}</span>
+                <span>إجمالي المقبوض الفعلي</span>
+                <span>{formatEGP(breakdown.filter((b) => !PREPAID_METHODS.includes(b.payment_method)).reduce((s, b) => s + b.total, 0))}</span>
               </div>
               {(() => {
-                const onAccount = breakdown.filter((b) => ["credit_balance", "credit_applied"].includes(b.payment_method)).reduce((s, b) => s + b.total, 0);
+                const onAccount = breakdown.filter((b) => PREPAID_METHODS.includes(b.payment_method)).reduce((s, b) => s + b.total, 0);
                 return onAccount > 0 ? (
-                  <div className="flex items-center justify-between text-sm rounded bg-muted/60 px-2 py-1" title="تمت تسوية هذه المبالغ خصماً من رصيد العميل المودع مسبقاً لدى الإدارة، ولا تمثل نقدية ورقية داخل درج الكاشير">
-                    <span>مبيعات مسددة من أرصدة تحت الحساب <span className="text-[11px] text-muted-foreground">(ليست نقدية في الدرج)</span></span>
+                  <div className="flex items-center justify-between text-sm rounded bg-muted/60 px-2 py-1" title="مبالغ خُصمت من الرصيد المسبق للعميل المودع لدى الإدارة، ولا تمثل نقدية داخل درج الكاشير ولا تدخل في التقفيل">
+                    <span>للعلم: سداد من رصيد مسبق <span className="text-[11px] text-muted-foreground">(ليست نقدية في الدرج)</span></span>
                     <span className="font-semibold">{formatEGP(onAccount)}</span>
                   </div>
                 ) : null;
