@@ -9,6 +9,8 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatEGP, balanceLabel } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
+import { useParams } from "react-router-dom";
+import { ContactLookup } from "@/components/ContactLookup";
 
 export type PartyType = "supplier" | "customer" | "employee";
 
@@ -17,30 +19,31 @@ interface Props {
   value: string;
   onChange: (id: string, label?: string) => void;
   placeholder?: string;
+  /** Defaults to the :id route param. */
+  branchId?: string | null;
 }
 
 /** Searchable party picker with live balance badge. */
-export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
+export function PartyCombobox({ type, value, onChange, placeholder, branchId: branchIdProp }: Props) {
+  const params = useParams<{ id: string }>();
+  const branchId = branchIdProp ?? params.id ?? null;
+  const isContact = type !== "employee";
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<{ id: string; name: string }[]>([]);
   const [bal, setBal] = useState<{ label: string; amount: number; tone: "good" | "bad" | "neutral" } | null>(null);
 
+  // Employees only — contacts are searched server-side through ContactLookup.
   const loadItems = useCallback(async () => {
-    if (type === "supplier") {
-      const { data } = await supabase.from("contacts").select("id, name").eq("is_archived", false).order("name");
-      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
-    } else if (type === "customer") {
-      const { data } = await supabase.from("contacts").select("id, name").eq("is_archived", false).order("name");
-      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
-    } else {
-      const { data } = await supabase.from("employees").select("id, name").order("name");
-      setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
-    }
-  }, [type]);
+    if (type !== "employee") { setItems([]); return; }
+    let q = supabase.from("employees").select("id, name").order("name");
+    if (branchId) q = q.eq("branch_id", branchId);
+    const { data } = await q;
+    setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
+  }, [type, branchId]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
   // realtime على الجداول الحقيقية (contacts / employees) + حدث محلي فوري بعد الإضافة
-  useRealtimeRefresh([type === "employee" ? "employees" : "contacts"], loadItems);
+  useRealtimeRefresh(["employees"], loadItems);
   useEffect(() => {
     const h = () => loadItems();
     window.addEventListener("party:refresh", h);
@@ -72,6 +75,9 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
 
   return (
     <div className="space-y-1.5">
+      {isContact ? (
+        <ContactLookup branchId={branchId} kind={type as "customer" | "supplier"} value={value} onChange={(id, c) => onChange(id, c?.name)} placeholder={placeholder ?? "— اختر —"} />
+      ) : (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal">
@@ -96,6 +102,7 @@ export function PartyCombobox({ type, value, onChange, placeholder }: Props) {
           </Command>
         </PopoverContent>
       </Popover>
+      )}
       {bal && value && (
         <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">{bal.label}</span>
