@@ -35,11 +35,9 @@ export function PartyCombobox({ type, value, onChange, placeholder, branchId: br
   // Employees only — contacts are searched server-side through ContactLookup.
   const loadItems = useCallback(async () => {
     if (type !== "employee") { setItems([]); return; }
-    let q = supabase.from("employees").select("id, name").order("name");
-    if (branchId) q = q.eq("branch_id", branchId);
-    const { data } = await q;
+    const { data } = await supabase.from("employees").select("id, name").order("name");
     setItems((data ?? []).map((d: any) => ({ id: d.id, name: d.name })));
-  }, [type, branchId]);
+  }, [type]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
   // realtime على الجداول الحقيقية (contacts / employees) + حدث محلي فوري بعد الإضافة
