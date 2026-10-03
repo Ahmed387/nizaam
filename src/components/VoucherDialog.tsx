@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { tenantStoragePath } from "@/lib/attachmentPath";
 import { Loader2, Check, ChevronsUpDown, Paperclip, Upload, X, FileText, Image as ImageIcon, ArrowDownCircle, ArrowUpCircle, Wallet, Receipt, User as UserIcon, StickyNote, CalendarDays, Tag, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ContactLookup } from "@/components/ContactLookup";
 import { cairoTodayDay } from "@/lib/cairoDate";
 
 const ATT_BUCKET = "record-attachments";
@@ -165,14 +166,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     if (!form.party_type || form.party_type === "other") { setPartyOptions([]); return; }
     (async () => {
       if (form.party_type === "supplier" || form.party_type === "customer") {
-        const { data, error } = await supabase
-          .from("contacts")
-          .select("id, name")
-          .in("type", [form.party_type, "both"])
-          .eq("is_archived", false)
-          .order("name");
-        if (error) { toast.error(error.message); return; }
-        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
+        // Contacts are searched server-side by ContactLookup (branch/activity eligibility).
+        setPartyOptions([]);
         const pending = pendingPartyRef.current;
         if (pending) {
           pendingPartyRef.current = null;
@@ -461,7 +456,17 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
               </div>
               <div>
                 <Label className="text-xs font-medium">{form.party_type && form.party_type !== "other" ? (isReceipt ? "اختر الحساب" : "اختر الجهة") : (isReceipt ? "اسم الحساب" : "اسم الجهة")}</Label>
-                {form.party_type && form.party_type !== "other" ? (
+                {form.party_type === "customer" || form.party_type === "supplier" ? (
+                  <ContactLookup
+                    className="mt-1.5"
+                    triggerClassName="h-10"
+                    branchId={branchId}
+                    kind={form.party_type}
+                    value={form.party_id}
+                    onChange={(id, c) => setForm((f) => ({ ...f, party_id: id, party_name: c?.name ?? "" }))}
+                    placeholder="اختر..."
+                  />
+                ) : form.party_type && form.party_type !== "other" ? (
                   <Popover open={partyOpen} onOpenChange={setPartyOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox" className="mt-1.5 w-full justify-between font-normal h-10">

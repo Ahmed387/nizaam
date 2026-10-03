@@ -1,3 +1,4 @@
+import { ContactLookup } from "@/components/ContactLookup";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,6 @@ export function PreOrderDialog({
     setQty(1); setDeposit(0); setNotes(""); setPayment("cash");
     setRefNum(""); setTransferAccount(""); setReceivedBy("");
     setPrice(Number(catalogItem?.display_price ?? 0));
-    supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
   }, [open, catalogItem, branchId]);
 
   const total = qty * price;
@@ -145,19 +145,14 @@ export function PreOrderDialog({
               العميل <span className="text-muted-foreground/70 text-xs font-normal">(اختياري)</span>
             </Label>
             <div className="relative">
-              <select
-                className={selectCls}
+              <ContactLookup
+                branchId={branchId}
+                kind="customer"
                 value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-              >
-                <option value="">— عميل جديد —</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.phone ? `(${c.phone})` : ""}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                onChange={(id, c) => { setCustomerId(id); if (c) setCustomers((prev) => [...prev.filter((x) => x.id !== c.id), c]); }}
+                placeholder="— عميل جديد —"
+                emptyLabel="— عميل جديد —"
+              />
             </div>
           </div>
 

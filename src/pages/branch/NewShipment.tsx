@@ -25,6 +25,7 @@ import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
+import { getContactsByIds, searchContacts } from "@/lib/contactLookup";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -171,7 +172,8 @@ export default function NewShipment() {
 
   useEffect(() => {
     if (!branchId) return;
-    supabase.from("contacts").select("*").eq("is_archived", false).order("name").then(({ data }) => setSuppliers(data ?? []));
+    // Only used to show the "no suppliers yet" prompt; picking is server-searched.
+    searchContacts(branchId, "supplier", "", 1).then(setSuppliers).catch(() => setSuppliers([]));
     loadProducts();
     supabase.from("price_list_items_public").select("product_name, display_price").order("product_name").then(({ data }) => setPriceList((data ?? []).map((d: any) => ({ product_name: d.product_name, market_price: d.display_price, new_price: d.display_price }))));
   }, [branchId]);
@@ -589,7 +591,7 @@ export default function NewShipment() {
 
 
       // Treasury / payment plan handling (non-fatal — shipment is already saved)
-      const supplier = suppliers.find((s) => s.id === supplierId);
+      const supplier = suppliers.find((s) => s.id === supplierId) ?? (await getContactsByIds(branchId, [supplierId]))[0];
       try {
         // Plan header + credit already saved atomically; only schedule & explicit payments remain.
         await createPaymentPlanWithInitial({
@@ -686,7 +688,7 @@ export default function NewShipment() {
               </Label>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <PartyCombobox type="supplier" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
+                  <PartyCombobox type="supplier" branchId={branchId} value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
                 </div>
                 <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500/10 hover:text-sky-700">
                   <UserPlus className="w-4 h-4" />

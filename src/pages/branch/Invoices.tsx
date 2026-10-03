@@ -1,3 +1,4 @@
+import { ContactLookup } from "@/components/ContactLookup";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { applyCairoRange } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -171,8 +172,6 @@ export default function Invoices() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [parties, setParties] = useState<{ id: string; name: string; phone?: string }[]>([]);
-  const [partyOpen, setPartyOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
   const active = FILTERS[tab];
@@ -191,25 +190,6 @@ export default function Invoices() {
     })();
   }, [tab, active.category]);
 
-  // Load parties (customers / suppliers) for return tabs
-  const loadParties = useCallback(async () => {
-    if (!active.party || !branchId) { setParties([]); return; }
-    if (active.party === "customer") {
-      // اتحاد: المسجّلين على الفرع + أي عميل عنده فواتير في الفرع (join داخل قاعدة البيانات، بدون قوائم IDs في الرابط)
-      const [registered, buyers] = await Promise.all([
-        fetchAllRows<any>(() => supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("id")).catch(() => []),
-        fetchAllRows<any>(() => supabase.from("contacts").select("id, name, phone, inv:invoices!inner(id)").eq("is_archived", false).eq("inv.branch_id", branchId).limit(1, { referencedTable: "inv" }).order("id")).catch(() => []),
-      ]);
-      const map = new Map<string, { id: string; name: string; phone: string | null }>();
-      [...registered, ...buyers].forEach((d: any) => map.set(d.id, { id: d.id, name: d.name, phone: d.phone }));
-      setParties(Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "ar")) as any);
-    } else {
-      const { data } = await supabase.from("contacts").select("id, name, phone").eq("is_archived", false).order("name");
-      setParties((data ?? []).map((d: any) => ({ id: d.id, name: d.name, phone: d.phone })));
-    }
-  }, [active.party, branchId]);
-  useEffect(() => { loadParties(); }, [loadParties]);
-  useRealtimeRefresh(["contacts"], loadParties);
 
   // ===== Server-side pagination engine =====
   const PAGE_SIZE = 50;
@@ -936,7 +916,6 @@ export default function Invoices() {
     return rows.filter((r) => searchMatch(q, text(r))).slice(0, 20);
   }, [isReturnTab, tab, draftFilters.q, rows]);
 
-  const selectedParty = parties.find((p) => p.id === inputF.partyId);
 
   return (
     <BranchLayout>
@@ -1043,37 +1022,15 @@ export default function Invoices() {
           {active.party && (
             <div className="space-y-1">
               <Label className="text-xs">{active.party === "customer" ? "العميل" : "المورد"}</Label>
-              <Popover open={partyOpen} onOpenChange={setPartyOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal h-9">
-                    <span className="truncate">{selectedParty?.name ?? "الكل"}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="ابحث بالاسم أو التليفون..." />
-                    <CommandList>
-                      <CommandEmpty>لا توجد نتائج</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem value="__all__" onSelect={() => { setInputF({ ...inputF, partyId: "" }); setPartyOpen(false); }}>
-                          <Check className={cn("ml-2 h-4 w-4", !inputF.partyId ? "opacity-100" : "opacity-0")} />
-                          الكل
-                        </CommandItem>
-                        {parties.map((p) => (
-                          <CommandItem key={p.id} value={`${p.name} ${p.phone ?? ""}`} onSelect={() => { setInputF({ ...inputF, partyId: p.id }); setPartyOpen(false); }}>
-                            <Check className={cn("ml-2 h-4 w-4", inputF.partyId === p.id ? "opacity-100" : "opacity-0")} />
-                            <div className="flex flex-col">
-                              <span>{p.name}</span>
-                              {p.phone && <span className="text-xs text-muted-foreground">{p.phone}</span>}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <ContactLookup
+                branchId={branchId}
+                kind={active.party === "customer" ? "customer" : "supplier"}
+                value={inputF.partyId}
+                onChange={(id) => setInputF({ ...inputF, partyId: id })}
+                placeholder="الكل"
+                emptyLabel="الكل"
+                triggerClassName="h-9"
+              />
             </div>
           )}
           {active.category && (

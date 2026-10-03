@@ -1,3 +1,5 @@
+import { ContactLookup } from "@/components/ContactLookup";
+import { getContactsByIds } from "@/lib/contactLookup";
 import { VariantLine } from "@/components/VariantChips";
 import { focusSection } from "@/lib/sectionFocus";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -123,10 +125,9 @@ export default function EditSaleInvoice() {
     if (!invoiceId || !branchId) return;
     (async () => {
       setLoading(true);
-      const [{ data: inv }, { data: its }, { data: c }, { data: p }, { data: pays }, { data: plan }] = await Promise.all([
+      const [{ data: inv }, { data: its }, { data: p }, { data: pays }, { data: plan }] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", invoiceId).maybeSingle(),
         supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId),
-        supabase.from("contacts").select("id, name").eq("is_archived", false).eq("branch_id", branchId).order("name"),
         supabase
           .from("products")
           .select("id, name, sku, quantity, cost_price, selling_price, market_price")
@@ -143,7 +144,6 @@ export default function EditSaleInvoice() {
 
       setInvoice(inv);
       setCustomerId(inv?.contact_id ?? null);
-      setCustomers(c ?? []);
       setProducts(p ?? []);
       setPayments(pays ?? []);
       setPaymentPlan(plan ?? null);
@@ -183,7 +183,9 @@ export default function EditSaleInvoice() {
       }));
       setItems(loadedItems);
 
-      const custName = (c ?? []).find((x) => x.id === inv?.contact_id)?.name ?? "عميل نقدي";
+      const custRow = inv?.contact_id ? (await getContactsByIds(branchId, [inv.contact_id]))[0] : null;
+      if (custRow) setCustomers([{ id: custRow.id, name: custRow.name }]);
+      const custName = custRow?.name ?? "عميل نقدي";
       initialSnapshotRef.current = {
         customerId: inv?.contact_id ?? null,
         customerName: custName,
@@ -637,18 +639,15 @@ export default function EditSaleInvoice() {
           onToggle={() => toggleSection("customer")}
         >
           <div className="p-4 space-y-3">
-            <select
-              className="w-full h-11 rounded-md border-2 border-input bg-background px-3 text-sm font-semibold focus:border-primary focus:outline-none"
-              value={customerId ?? ""}
-              onChange={(e) => setCustomerId(e.target.value || null)}
-            >
-              <option value="">عميل نقدي</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <ContactLookup
+              branchId={branchId}
+              kind="customer"
+              value={customerId}
+              onChange={(id, c) => { setCustomerId(id || null); if (c) setCustomers((prev) => [...prev.filter((x) => x.id !== c.id), { id: c.id, name: c.name }]); }}
+              placeholder="عميل نقدي"
+              emptyLabel="عميل نقدي"
+              triggerClassName="h-11 border-2 font-semibold"
+            />
             <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} />
             {!isAdmin && (
               <p className="text-[11px] text-muted-foreground">تعديل تاريخ ووقت الفاتورة متاح لصاحب الشركة فقط.</p>

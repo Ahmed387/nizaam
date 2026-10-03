@@ -1,4 +1,5 @@
 import { CustomerSelect } from "@/components/CustomerSelect";
+import { getContactsByIds } from "@/lib/contactLookup";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
@@ -300,7 +301,6 @@ export default function NewSale() {
   useEffect(() => {
     if (!branchId) return;
     supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("name").then(({ data }) => setProducts(data ?? []));
-    supabase.from("contacts").select("id, name, phone").eq("is_archived", false).eq("branch_id", branchId).order("name").then(({ data }) => setCustomers(data ?? []));
     loadCatalog();
     // Load branch default bank account (settings key scoped by branch)
     supabase.from("settings" as any).select("value").eq("key", `branch_default_bank:${branchId}`).maybeSingle()
@@ -1082,7 +1082,7 @@ export default function NewSale() {
       // Create payment plan for credit remainder (auto-triggered on any shortfall)
       if (isCredit && creditRemaining > 0 && custId) {
         try {
-          const cust = customers.find((c) => c.id === custId);
+          const cust = customers.find((c) => c.id === custId) ?? (await getContactsByIds(branchId, [custId]))[0];
           await createPaymentPlanWithInitial({
             branchId: branchId!,
             entityType: "customer",
@@ -1175,7 +1175,7 @@ export default function NewSale() {
                 <div>
                   <Label className="mb-1 block">العميل</Label>
                   <div className="flex gap-2">
-                    <CustomerSelect className="flex-1" customers={customers} value={customerId} onChange={setCustomerId} />
+                    <CustomerSelect className="flex-1" branchId={branchId} value={customerId} onChange={(id, c) => { setCustomerId(id); if (c) setCustomers((prev) => [...prev.filter((x) => x.id !== c.id), c]); }} />
                     <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
                       <UserPlus className="w-4 h-4" />
                     </Button>
