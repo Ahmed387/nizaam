@@ -1119,6 +1119,50 @@ export default function Invoices() {
         ) : undefined}
       />
 
+      {tab === "transfer" && (
+        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
+          <MetricCardWithHint
+            label="إجمالي التحويلات"
+            value={transferMetrics.totalQuantity}
+            currency={false}
+            icon={<ArrowLeftRight />}
+            tone="primary"
+            footer={<span className="tabular-nums">{transferMetrics.totalCount.toLocaleString("en-US")} حركة • {transferMetrics.totalQuantity.toLocaleString("en-US")} وحدة</span>}
+            metricHint={{
+              meaning: "عدد التحويلات وإجمالي كمياتها حسب الفلاتر الحالية.",
+              source: "كل تحويلات المخزون المطابقة للتاريخ والفرع المرسل والمستلم والحالة.",
+              formula: "عدد التحويلات = عدد الصفوف؛ إجمالي الكمية = Σ الكمية",
+            }}
+          />
+          <MetricCardWithHint
+            label="التحويلات المؤكدة"
+            value={transferMetrics.confirmedQuantity}
+            currency={false}
+            icon={<PackageCheck />}
+            tone="success"
+            footer={<span className="tabular-nums">{transferMetrics.confirmedCount.toLocaleString("en-US")} حركة • {transferMetrics.confirmedQuantity.toLocaleString("en-US")} وحدة</span>}
+            metricHint={{
+              meaning: "التحويلات المؤكدة ضمن النتائج المطابقة للفلاتر.",
+              source: "تحويلات المخزون ذات الحالة confirmed.",
+              formula: "العدد = عدد التحويلات المؤكدة؛ الكمية = Σ كمياتها",
+            }}
+          />
+          <MetricCardWithHint
+            label="التحويلات المرفوضة / المعلقة"
+            value={transferMetrics.unresolvedQuantity}
+            currency={false}
+            icon={<AlertTriangle />}
+            tone="warning"
+            footer={<span className="tabular-nums">{transferMetrics.unresolvedCount.toLocaleString("en-US")} حركة • {transferMetrics.unresolvedQuantity.toLocaleString("en-US")} وحدة</span>}
+            metricHint={{
+              meaning: "التحويلات المرفوضة أو التي ما زالت معلقة ضمن الفلاتر الحالية.",
+              source: "تحويلات المخزون ذات الحالة rejected أو pending.",
+              formula: "العدد = المرفوضة + المعلقة؛ الكمية = Σ كمياتها",
+            }}
+          />
+        </div>
+      )}
+
       {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} />}
 
       <div ref={tableTopRef} className="scroll-mt-4" />
