@@ -402,6 +402,43 @@ export default function Invoices() {
   const [metricsTick, setMetricsTick] = useState(0);
   const docKind = isDocKind(tab) ? tab : null;
   const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to }, metricsTick);
+  const [transferMetrics, setTransferMetrics] = useState({ totalCount: 0, totalQuantity: 0, confirmedCount: 0, confirmedQuantity: 0, unresolvedCount: 0, unresolvedQuantity: 0 });
+  const [transferMetricsLoading, setTransferMetricsLoading] = useState(false);
+  useEffect(() => {
+    if (tab !== "transfer" || !branchId) return;
+    let active = true;
+    setTransferMetricsLoading(true);
+    (async () => {
+      const all: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; from < 100_000; from += pageSize) {
+        const { qb } = await buildQuery("id, quantity, status", false);
+        const { data, error } = await qb.order("id").range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      if (!active) return;
+      const summarize = (items: any[]) => ({ count: items.length, quantity: items.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0) });
+      const total = summarize(all);
+      const confirmed = summarize(all.filter((row) => row.status === "confirmed"));
+      const unresolved = summarize(all.filter((row) => row.status === "rejected" || row.status === "pending"));
+      setTransferMetrics({
+        totalCount: total.count,
+        totalQuantity: total.quantity,
+        confirmedCount: confirmed.count,
+        confirmedQuantity: confirmed.quantity,
+        unresolvedCount: unresolved.count,
+        unresolvedQuantity: unresolved.quantity,
+      });
+    })().catch((error) => {
+      if (active) toast.error(error?.message ?? "تعذر تحميل ملخص التحويلات");
+    }).finally(() => {
+      if (active) setTransferMetricsLoading(false);
+    });
+    return () => { active = false; };
+  }, [tab, branchId, buildQuery, metricsTick]);
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers"], () => setMetricsTick((t) => t + 1));
   useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
@@ -697,7 +734,17 @@ export default function Invoices() {
         columns: [
           { key: "from_branch_id", header: "من", align: "right", width: "10rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5">{branchName(r.from_branch_id)}</span> },
           { key: "to_branch_id", header: "إلى", align: "right", width: "10rem", render: (r: any) => branchName(r.to_branch_id) },
-          { key: "status", header: "الحالة", align: "center", width: "7rem" },
+          {
+            key: "status", header: "الحالة", align: "center", width: "7rem", render: (r: any) => (
+              <Badge variant="outline" className={r.status === "confirmed"
+                ? "border-success/40 bg-success/10 text-success"
+                : r.status === "rejected"
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : "border-warning/40 bg-warning/10 text-warning"}>
+                {r.status === "confirmed" ? "مؤكد" : r.status === "rejected" ? "مرفوض" : "معلق"}
+              </Badge>
+            ),
+          },
 { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
           { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => r.transfer_date ? formatDate(r.transfer_date) : formatDateTime(r.created_at) },
@@ -839,7 +886,7 @@ export default function Invoices() {
       case "purchase_return":
       case "income":
       case "expense": return [{ value: "active", label: "نشط" }, { value: "cancelled", label: "ملغي" }];
-      case "transfer": return [{ value: "pending", label: "قيد التنفيذ" }, { value: "completed", label: "مكتمل" }, { value: "cancelled", label: "ملغي" }];
+      case "transfer": return [{ value: "pending", label: "معلق" }, { value: "confirmed", label: "مؤكد" }, { value: "rejected", label: "مرفوض" }];
       case "quote": return [{ value: "draft", label: "مسودة" }, { value: "sent", label: "مُرسل" }, { value: "accepted", label: "مقبول" }, { value: "rejected", label: "مرفوض" }];
       default: return [];
     }
