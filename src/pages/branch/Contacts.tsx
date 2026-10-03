@@ -13,9 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
-import { searchMatch } from "@/lib/search";
-import { fetchAllRows } from "@/lib/fetchAll";
-import { scopeToBranch } from "@/lib/branchQuery";
 import { toast } from "sonner";
 import { Plus, Users, UserCheck, Truck, UserPlus, TruckIcon, Pencil, Trash2, FileSpreadsheet, Printer, ArrowUpRight, ArrowDownLeft, FileText, Filter, Check, Scale, Receipt, Wallet, ChevronDown, ChevronUp } from "lucide-react";
 import { ContactDetailsDrawer } from "@/components/ContactDetailsDrawer";
@@ -300,10 +297,10 @@ export default function Contacts() {
         title="الموردين والعملاء"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filtered.length} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!total} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filtered.length} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!total} className="gap-2">
               <Printer className="w-4 h-4" /> PDF
             </Button>
             <Button className="btn-gradient" onClick={openNew}>
@@ -543,6 +540,17 @@ export default function Contacts() {
           },
         ]}
       />
+      {total > PAGE_SIZE && (
+        <div className="mt-3 flex items-center justify-between gap-2 text-sm">
+          <span className="text-muted-foreground tabular-nums">
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} من {total}
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page === 0 || loading} onClick={() => setPage((p) => p - 1)}>السابق</Button>
+            <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= total || loading} onClick={() => setPage((p) => p + 1)}>التالي</Button>
+          </div>
+        </div>
+      )}
 
       {voucherCtx && branchId && (
         <VoucherDialog
