@@ -6,6 +6,7 @@ import { useParams } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,11 +23,12 @@ import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
-import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search, CalendarIcon } from "lucide-react";
+import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search, CalendarIcon, PackageCheck, AlertTriangle } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { DataTable } from "@/components/DataTable";
+import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -286,10 +288,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     toast.success("تم إخفاء التحويل المرفوض من الشاشة");
   };
 
-  const statusBadge = (s: string) => {
-    const map: Record<string, string> = { pending: "text-warning", confirmed: "text-success", rejected: "text-destructive" };
-    const lbl: Record<string, string> = { pending: "قيد الانتظار", confirmed: "تم الاستلام", rejected: "مرفوض" };
-    return <span className={`font-bold ${map[s]}`}>{lbl[s] ?? s}</span>;
+  const statusBadge = (status: string) => {
+    if (status === "confirmed") {
+      return <Badge className="border-success/30 bg-success/15 text-success hover:bg-success/15">مؤكد</Badge>;
+    }
+    if (status === "rejected") {
+      return <Badge className="border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/15">مرفوض</Badge>;
+    }
+    return <Badge className="border-warning/30 bg-warning/15 text-warning hover:bg-warning/15">معلق</Badge>;
   };
 
   // Group incoming by group_id (or by id if no group) — pending only + not visually dismissed
@@ -330,32 +336,28 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     }));
   }, [outgoing, hidden]);
 
-  // ما تم استلامه بالفعل — سجل تاريخي كامل (وارد + صادر) لا يتأثر بالإخفاء البصري
-  const completedRows = useMemo(() => {
-    const rows = [
-      ...incoming.filter((t) => t.status === "confirmed" || t.status === "rejected").map((t) => ({
+  // صفوف التحويل الواردة والصادرة موحّدة حتى تقرأ الكروت والجدول نفس حقول الفلاتر.
+  const transferRows = useMemo(() => [
+      ...incoming.map((t) => ({
         ...t,
         direction: "in" as const,
         from_name: t.from_branch?.name ?? "—",
         to_name: selfBranchName,
       })),
-      ...outgoing.filter((t) => t.status === "confirmed" || t.status === "rejected").map((t) => ({
+      ...outgoing.map((t) => ({
         ...t,
         direction: "out" as const,
         from_name: selfBranchName,
         to_name: t.to_branch?.name ?? "—",
       })),
-    ].sort((a, b) => String(b.confirmed_at ?? b.created_at).localeCompare(String(a.confirmed_at ?? a.created_at)));
+    ], [incoming, outgoing, selfBranchName]);
 
-    return rows.filter((r) => {
+  // الفلاتر المشتركة للكروت والجدول؛ الحالة تُطبّق على الجدول لاحقاً حتى تظل الكروت قابلة للمقارنة.
+  const filteredTransferRows = useMemo(() => {
+    return transferRows.filter((r) => {
       if (Array.isArray(r.hidden_for_branches) && r.hidden_for_branches.includes(branchId)) return false;
-      // 0. فلتر الحالة (الكل / مستلم / مرفوض)
-      if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
-      // 1. فلتر الفرع المرسل
       if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
-      // 2. فلتر الفرع المستلم
       if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
-      // 3. فلتر التاريخ من / إلى
       const confirmedAt = r.confirmed_at ?? r.created_at;
       if (confirmedAt) {
         const d = new Date(confirmedAt);
@@ -368,7 +370,6 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
           if (d > to) return false;
         }
       }
-      // 4. فلتر المنتج بالمحرك الذكي متعدد الكلمات
       if (productQuery.trim()) {
         const prod = r.products ?? {};
         if (!searchMatch(productQuery, prod.name, prod.sku, prod.brand, prod.model, prod.legacy_code)) {
@@ -377,7 +378,26 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       }
       return true;
     });
-  }, [incoming, outgoing, selfBranchName, productQuery, fromBranchFilter, toBranchFilter, statusFilter, dateFrom, dateTo]);
+  }, [transferRows, branchId, productQuery, fromBranchFilter, toBranchFilter, dateFrom, dateTo]);
+
+  const transferMetrics = useMemo(() => {
+    const summarize = (rows: any[]) => ({
+      count: rows.length,
+      quantity: rows.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0),
+    });
+    return {
+      total: summarize(filteredTransferRows),
+      confirmed: summarize(filteredTransferRows.filter((row) => row.status === "confirmed")),
+      unresolved: summarize(filteredTransferRows.filter((row) => row.status === "rejected" || row.status === "pending")),
+    };
+  }, [filteredTransferRows]);
+
+  // السجل التاريخي يعرض المكتمل والمرفوض فقط، مع تطبيق فلتر الحالة فوق نفس البيانات التي تغذي الكروت.
+  const completedRows = useMemo(() => filteredTransferRows
+    .filter((row) => row.status === "confirmed" || row.status === "rejected")
+    .filter((row) => statusFilter === "ALL" || row.status === statusFilter)
+    .sort((a, b) => String(b.confirmed_at ?? b.created_at).localeCompare(String(a.confirmed_at ?? a.created_at))),
+  [filteredTransferRows, statusFilter]);
 
   const totalPendingIncoming = incomingGroups.reduce((s, g) => s + g.pendingCount, 0);
 
@@ -490,6 +510,48 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </TabsContent>
 
         <TabsContent value="done" className="mt-4 space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <MetricCardWithHint
+              label="إجمالي التحويلات"
+              value={transferMetrics.total.quantity}
+              currency={false}
+              icon={<ArrowLeftRight />}
+              tone="primary"
+              footer={<span className="tabular-nums">{transferMetrics.total.count.toLocaleString("en-US")} حركة • {transferMetrics.total.quantity.toLocaleString("en-US")} وحدة</span>}
+              metricHint={{
+                meaning: "عدد حركات التحويل وإجمالي الكميات المطابقة للفلاتر الحالية.",
+                source: "تحويلات المخزون الواردة والصادرة المرتبطة بالفرع، بعد تطبيق التاريخ والفرع المرسل والفرع المستلم.",
+                formula: "عدد الحركات = عدد الصفوف؛ إجمالي الكميات = Σ كمية كل حركة",
+              }}
+            />
+            <MetricCardWithHint
+              label="التحويلات المؤكدة"
+              value={transferMetrics.confirmed.quantity}
+              currency={false}
+              icon={<PackageCheck />}
+              tone="success"
+              footer={<span className="tabular-nums">{transferMetrics.confirmed.count.toLocaleString("en-US")} حركة • {transferMetrics.confirmed.quantity.toLocaleString("en-US")} وحدة</span>}
+              metricHint={{
+                meaning: "التحويلات التي أكد الفرع المستلم استلامها ضمن الفلاتر الحالية.",
+                source: "تحويلات المخزون المطابقة للفلاتر حيث الحالة البرمجية confirmed.",
+                formula: "عدد المؤكد = عدد الصفوف المؤكدة؛ الكمية = Σ كمية الصفوف المؤكدة",
+              }}
+            />
+            <MetricCardWithHint
+              label="التحويلات المرفوضة / المعلقة"
+              value={transferMetrics.unresolved.quantity}
+              currency={false}
+              icon={<AlertTriangle />}
+              tone="warning"
+              footer={<span className="tabular-nums">{transferMetrics.unresolved.count.toLocaleString("en-US")} حركة • {transferMetrics.unresolved.quantity.toLocaleString("en-US")} وحدة</span>}
+              metricHint={{
+                meaning: "التحويلات غير المؤكدة: المرفوضة أو التي ما زالت بانتظار قرار الفرع المستلم.",
+                source: "تحويلات المخزون المطابقة للفلاتر حيث الحالة rejected أو pending.",
+                formula: "عدد غير المؤكد = عدد الصفوف المرفوضة + المعلقة؛ الكمية = Σ كمياتها",
+              }}
+            />
+          </div>
+
           {/* شريط الفلاتر المتعدد المعايير */}
           <div className="bg-surface border border-border rounded-lg p-3 space-y-3">
             <div className="flex flex-wrap items-end gap-2">
@@ -666,7 +728,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 key: "status", header: "الحالة", align: "center", render: (r: any) =>
                   r.status === "rejected" ? (
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-destructive/15 text-destructive border border-destructive/30">مرفوض</span>
+                      {statusBadge(r.status)}
                       <button
                         type="button"
                         aria-label="إخفاء التحويل المرفوض"
@@ -678,7 +740,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                       </button>
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
+                    statusBadge(r.status)
                   ),
               },
             ]}

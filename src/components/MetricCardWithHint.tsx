@@ -14,6 +14,7 @@ const TONES: Record<Tone, string> = {
 interface MetricCardWithHintProps {
   label: string;
   value: number;
+  currency?: boolean;
   icon: ReactNode;
   metricHint: MetricHintProps;
   tone?: Tone;
@@ -23,7 +24,7 @@ interface MetricCardWithHintProps {
 }
 
 /** كارت مالي موحّد مع زر ℹ️ يشرح طريقة الحساب (يفتح بالضغط أو التمرير). */
-export function MetricCardWithHint({ label, value, icon, metricHint, tone = "primary", footer, active, onClick }: MetricCardWithHintProps) {
+export function MetricCardWithHint({ label, value, currency = true, icon, metricHint, tone = "primary", footer, active, onClick }: MetricCardWithHintProps) {
   return (
     <div
       className={`card-elevated p-5 flex flex-col items-center justify-center text-center ${onClick ? "cursor-pointer transition-shadow hover:ring-1 hover:ring-primary/40" : ""} ${active ? "ring-2 ring-primary" : ""}`}
@@ -38,7 +39,7 @@ export function MetricCardWithHint({ label, value, icon, metricHint, tone = "pri
         {label}
         <MetricHint {...metricHint} label={`شرح ${label}`} />
       </div>
-      <FinancialAmount value={value} size="md" className={`mt-2 font-extrabold ${TONES[tone]}`} />
+      <FinancialAmount value={value} currency={currency} size="md" className={`mt-2 font-extrabold ${TONES[tone]}`} />
       {footer && <div className="mt-1 text-xs text-muted-foreground">{footer}</div>}
     </div>
   );
