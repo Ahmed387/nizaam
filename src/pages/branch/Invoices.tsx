@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
-import { Plus, ShoppingCart, PackagePlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Pencil, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, ShoppingCart, PackagePlus, PackageCheck, AlertTriangle, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Pencil, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
 import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
+import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
 import { isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
 
