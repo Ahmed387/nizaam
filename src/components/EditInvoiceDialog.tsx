@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { Trash2, Plus } from "lucide-react";
+import { ContactLookup } from "@/components/ContactLookup";
+
 
 
 type Item = {
@@ -36,7 +38,6 @@ export function EditInvoiceDialog({
 }) {
   const [items, setItems] = useState<Item[]>([]);
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [openSuggestIdx, setOpenSuggestIdx] = useState<number | null>(null);
@@ -60,11 +61,9 @@ export function EditInvoiceDialog({
         }))
       );
       setCustomerId(invoice.contact_id ?? null);
-      const [{ data: c }, { data: p }] = await Promise.all([
-        supabase.from("contacts").select("id, name").eq("is_archived", false).eq("branch_id", branchId).order("name"),
+      const [{ data: p }] = await Promise.all([
         supabase.from("products").select("id, name, sku, quantity, cost_price, selling_price, market_price").eq("branch_id", branchId).order("name"),
       ]);
-      setCustomers(c ?? []);
       setProducts(p ?? []);
     })();
   }, [open, invoice?.id, branchId]);
@@ -146,16 +145,7 @@ export function EditInvoiceDialog({
         <div className="space-y-4">
           <div>
             <Label className="text-xs">العميل</Label>
-            <select
-              className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={customerId ?? ""}
-              onChange={(e) => setCustomerId(e.target.value || null)}
-            >
-              <option value="">عميل نقدي</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <ContactLookup branchId={branchId} kind="customer" value={customerId} onChange={(id) => setCustomerId(id || null)} placeholder="عميل نقدي" emptyLabel="عميل نقدي" triggerClassName="h-9" />
           </div>
 
           <div>
