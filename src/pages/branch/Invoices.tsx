@@ -440,7 +440,7 @@ export default function Invoices() {
     return () => { active = false; };
   }, [tab, branchId, buildQuery, metricsTick]);
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers"], () => setMetricsTick((t) => t + 1));
+  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers"], () => setMetricsTick((t) => t + 1));
   useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
 
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
