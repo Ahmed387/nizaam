@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -76,91 +76,53 @@ export default function Contacts() {
   };
   const isManager = hasRole("branch_manager");
 
-  const load = async () => {
-    setLoading(true);
-    // دليل جهات موحّد: كل جهات الشركة غير المؤرشفة، والرصيد محسوب من تعاملات هذا الفرع فقط
-    const idsOf = (tbl: string, col: string) =>
-      fetchAllRows<any>(() =>
-        scopeToBranch((supabase.from(tbl as any) as any).select(`id,${col}`), branchId).not(col, "is", null).order("id")
-      ).then((rs) => rs.map((x: any) => x[col] as string)).catch(() => [] as string[]);
-    const [{ data }, balRes, ...activity] = await Promise.all([
-      supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }),
-      supabase.rpc("contact_branch_balances" as any, { p_branch_id: branchId }),
-      idsOf("invoices", "contact_id"),
-      idsOf("shipments", "contact_id"),
-      idsOf("purchase_returns", "contact_id"),
-      idsOf("supplier_payments", "contact_id"),
-      idsOf("vouchers", "party_id"),
-    ]);
-    const active = new Set<string>(activity.flat());
-    const balMap = new Map<string, { balance: number; overdue: number }>();
-    ((balRes.data ?? []) as any[]).forEach((b) => {
-      const bal = Number(b.balance ?? 0), od = Number(b.overdue ?? 0);
-      balMap.set(b.contact_id, { balance: bal, overdue: od });
-      if (Math.abs(bal) > 0.01 || Math.abs(od) > 0.01) active.add(b.contact_id);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState({ all: 0, customer: 0, supplier: 0, both: 0 });
+  const [balanceTotals, setBalanceTotals] = useState({ oweUs: 0, weOwe: 0, net: 0, overdue: 0 });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => { const t = setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => clearTimeout(t); }, [search]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, filter, balanceFilters, branchId]);
+
+  // All filtering, search and paging run in the database (contacts_page RPC) — no 1,000-row cap.
+  const fetchPage = async (limit: number, offset: number) => {
+    const { data, error } = await supabase.rpc("contacts_page" as any, {
+      p_branch_id: branchId, p_type: filter, p_query: debouncedSearch || null,
+      p_balance: balanceFilters.length ? balanceFilters : null, p_limit: limit, p_offset: offset,
     });
-    const list = ((data ?? []) as any[]).map((c) => ({
-      ...c,
-      balance: balMap.get(c.id)?.balance ?? 0,
-      overdue: balMap.get(c.id)?.overdue ?? 0,
-      inBranch: c.branch_id === branchId || active.has(c.id),
-    }));
-    setRows(list);
-    setLoading(false);
+    if (error) throw error;
+    return data as any;
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId]);
+  const reqRef = useRef(0);
+  const load = async () => {
+    if (!branchId) return;
+    const id = ++reqRef.current;
+    setLoading(true);
+    try {
+      const res = await fetchPage(PAGE_SIZE, page * PAGE_SIZE);
+      if (id !== reqRef.current) return;
+      setRows(res?.rows ?? []);
+      setTotal(Number(res?.total ?? 0));
+      setCounts({ all: 0, customer: 0, supplier: 0, both: 0, ...(res?.counts ?? {}) });
+      const oweUs = Number(res?.totals?.owe_us ?? 0), weOwe = Number(res?.totals?.we_owe ?? 0);
+      setBalanceTotals({ oweUs, weOwe, net: oweUs - weOwe, overdue: Number(res?.totals?.overdue ?? 0) });
+    } catch (e: any) {
+      if (id === reqRef.current) toast.error(e.message ?? "تعذر تحميل الجهات");
+    } finally {
+      if (id === reqRef.current) setLoading(false);
+    }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, page, debouncedSearch, filter, balanceFilters]);
+
   // Realtime: refresh on contact changes AND on any transaction that affects balance (triggers will update contacts row)
   useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers"], load);
 
-  // الجهات الفعلية للفرع: أُنشئت فيه أو لها تعامل/رصيد فيه. البحث يشمل كل جهات الشركة لتفادي التكرار.
-  const branchRows = useMemo(() => rows.filter((x) => x.inBranch), [rows]);
+  const filtered = rows;
 
-  const filtered = useMemo(() => {
-    let r = search.trim() ? rows : branchRows;
-    if (filter !== "all") {
-      r = r.filter((x) => x.type === filter || x.type === "both");
-    }
-    if (balanceFilters.length > 0) {
-      r = r.filter((x) => {
-        const b = Number(x.balance ?? 0);
-        const isOweUs = b > 0.01;
-        const isWeOwe = b < -0.01;
-        const isSettled = Math.abs(b) < 0.01;
-        return (
-          (balanceFilters.includes("owe_us") && isOweUs) ||
-          (balanceFilters.includes("we_owe") && isWeOwe) ||
-          (balanceFilters.includes("settled") && isSettled)
-        );
-      });
-    }
-    if (search.trim()) {
-      r = r.filter((x) => searchMatch(search, x.name, x.phone, x.contact_person, (x as any).email, (x as any).address, (x as any).notes));
-    }
-    return r;
-  }, [rows, branchRows, filter, balanceFilters, search]);
-
-
-
-  const counts = useMemo(() => ({
-    all: branchRows.length,
-    customer: branchRows.filter((r) => r.type === "customer" || r.type === "both").length,
-    supplier: branchRows.filter((r) => r.type === "supplier" || r.type === "both").length,
-    both: branchRows.filter((r) => r.type === "both").length,
-  }), [branchRows]);
-
-  // Balance totals for filtered list
-  const balanceTotals = useMemo(() => {
-    let oweUs = 0, weOwe = 0, overdue = 0;
-    for (const r of filtered) {
-      const b = Number(r.balance ?? 0);
-      if (b > 0) oweUs += b; else if (b < 0) weOwe += -b;
-      overdue += Number(r.overdue ?? 0);
-    }
-    return { oweUs, weOwe, net: oweUs - weOwe, overdue };
-  }, [filtered]);
 
   // Excel / PDF export of the current filtered view
-  const exportRows = () => filtered.map((r) => {
+  const exportRows = async () => ((await fetchPage(100000, 0))?.rows ?? [] as any[]).map((r: any) => {
     const b = Number(r.balance ?? 0);
     return {
       "الاسم": r.name,
@@ -175,13 +137,13 @@ export default function Contacts() {
   const filterSuffix = balanceFilters.length === 1
     ? (balanceFilters[0] === "owe_us" ? "_لنا" : balanceFilters[0] === "we_owe" ? "_علينا" : "_متعادلين")
     : "";
-  const handleExportExcel = () => {
-    const data = exportRows();
+  const handleExportExcel = async () => {
+    const data = await exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
     exportToExcel("العملاء_والموردين" + filterSuffix, [{ name: "الأرصدة", rows: data }]);
   };
-  const handleExportPDF = () => {
-    const data = exportRows();
+  const handleExportPDF = async () => {
+    const data = await exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
     const title = "أرصدة العملاء والموردين" + (filterSuffix ? ` (${BALANCE_LABELS[balanceFilters[0]]})` : "");
     const summary = `
@@ -451,8 +413,8 @@ export default function Contacts() {
       <DataTable
         loading={loading}
         rows={filtered}
-        pageSize={50}
-        indexColumn
+        pageSize={PAGE_SIZE}
+        indexColumn={{ offset: page * PAGE_SIZE }}
         onRowClick={(r: any) => setExpandedId(r.id)}
         getRowKey={(r: any) => r.id}
         columns={[
