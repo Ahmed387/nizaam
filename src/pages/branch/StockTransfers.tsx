@@ -510,6 +510,48 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </TabsContent>
 
         <TabsContent value="done" className="mt-4 space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <MetricCardWithHint
+              label="إجمالي التحويلات"
+              value={transferMetrics.total.quantity}
+              currency={false}
+              icon={<ArrowLeftRight />}
+              tone="primary"
+              footer={<span className="tabular-nums">{transferMetrics.total.count.toLocaleString("en-US")} حركة • {transferMetrics.total.quantity.toLocaleString("en-US")} وحدة</span>}
+              metricHint={{
+                meaning: "عدد حركات التحويل وإجمالي الكميات المطابقة للفلاتر الحالية.",
+                source: "تحويلات المخزون الواردة والصادرة المرتبطة بالفرع، بعد تطبيق التاريخ والفرع المرسل والفرع المستلم.",
+                formula: "عدد الحركات = عدد الصفوف؛ إجمالي الكميات = Σ كمية كل حركة",
+              }}
+            />
+            <MetricCardWithHint
+              label="التحويلات المؤكدة"
+              value={transferMetrics.confirmed.quantity}
+              currency={false}
+              icon={<PackageCheck />}
+              tone="success"
+              footer={<span className="tabular-nums">{transferMetrics.confirmed.count.toLocaleString("en-US")} حركة • {transferMetrics.confirmed.quantity.toLocaleString("en-US")} وحدة</span>}
+              metricHint={{
+                meaning: "التحويلات التي أكد الفرع المستلم استلامها ضمن الفلاتر الحالية.",
+                source: "تحويلات المخزون المطابقة للفلاتر حيث الحالة البرمجية confirmed.",
+                formula: "عدد المؤكد = عدد الصفوف المؤكدة؛ الكمية = Σ كمية الصفوف المؤكدة",
+              }}
+            />
+            <MetricCardWithHint
+              label="التحويلات المرفوضة / المعلقة"
+              value={transferMetrics.unresolved.quantity}
+              currency={false}
+              icon={<AlertTriangle />}
+              tone="warning"
+              footer={<span className="tabular-nums">{transferMetrics.unresolved.count.toLocaleString("en-US")} حركة • {transferMetrics.unresolved.quantity.toLocaleString("en-US")} وحدة</span>}
+              metricHint={{
+                meaning: "التحويلات غير المؤكدة: المرفوضة أو التي ما زالت بانتظار قرار الفرع المستلم.",
+                source: "تحويلات المخزون المطابقة للفلاتر حيث الحالة rejected أو pending.",
+                formula: "عدد غير المؤكد = عدد الصفوف المرفوضة + المعلقة؛ الكمية = Σ كمياتها",
+              }}
+            />
+          </div>
+
           {/* شريط الفلاتر المتعدد المعايير */}
           <div className="bg-surface border border-border rounded-lg p-3 space-y-3">
             <div className="flex flex-wrap items-end gap-2">
@@ -686,7 +728,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                 key: "status", header: "الحالة", align: "center", render: (r: any) =>
                   r.status === "rejected" ? (
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-destructive/15 text-destructive border border-destructive/30">مرفوض</span>
+                      {statusBadge(r.status)}
                       <button
                         type="button"
                         aria-label="إخفاء التحويل المرفوض"
@@ -698,7 +740,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                       </button>
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-success/15 text-success border border-success/30">تم الاستلام بنجاح</span>
+                    statusBadge(r.status)
                   ),
               },
             ]}
