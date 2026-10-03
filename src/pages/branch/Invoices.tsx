@@ -172,7 +172,6 @@ export default function Invoices() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [partyOpen, setPartyOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
   const active = FILTERS[tab];
@@ -191,7 +190,6 @@ export default function Invoices() {
     })();
   }, [tab, active.category]);
 
-  // Load parties (customers / suppliers) for return tabs
 
   // ===== Server-side pagination engine =====
   const PAGE_SIZE = 50;

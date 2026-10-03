@@ -34,3 +34,4 @@
 - `vouchers.treasury_id` is NOT NULL with FK to `treasury` (ON DELETE CASCADE) — why: no voucher can exist without its cash movement; admin purges of treasury remove the voucher with it.
 - Partners get central read-only access to all branches (client treats `partner` like `viewer`; a trigger auto-adds the `viewer` role) — why: one central read path, no writes outside their portal.
 - Historical import tables are scoped by `branch_id` (auto-filled from `branch_name` by trigger); `branch_name` is display-only — why: no string-based access checks.
+- Every document contact picker uses `ContactLookup` → `search_branch_contacts` RPC (eligibility: not archived, type+both, own branch / no branch / activity in branch; server-side search) — why: one rule everywhere, no 1,000-row cap.
