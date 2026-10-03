@@ -8,6 +8,7 @@ import { BranchLayout } from "@/components/layout/Layouts";
 import { PermGate } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -567,6 +568,19 @@ export default function Invoices() {
           { key: "inv", header: "رقم الفاتورة", align: "right", width: "8rem", render: (r: any) => r.invoices?.invoice_number ?? "—" },
           { key: "customer", header: "العميل", align: "right", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
           { key: "reason", header: "السبب", align: "right" },
+          { key: "status", header: "الحالة", align: "center", width: "7rem", render: (r: any) => {
+            const cancelled = r.status === "cancelled";
+            return (
+              <Badge
+                variant="outline"
+                className={cancelled
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : "border-success/40 bg-success/10 text-success"}
+              >
+                {cancelled ? "ملغي" : "نشط"}
+              </Badge>
+            );
+          } },
           { key: "total_refund", header: "المرتجع", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_refund) },
 { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
