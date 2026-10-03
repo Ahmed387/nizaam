@@ -279,6 +279,7 @@ export default function Invoices() {
         const invs = await fetchAllRows<any>(() => supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).order("id"));
         qb = qb.in("invoice_id", (invs ?? []).map((i: any) => i.id).concat(["00000000-0000-0000-0000-000000000000"]));
       }
+      if (f.status) qb = qb.eq("status", f.status);
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_refund"); qb = textCols(qb, "recipient_name", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase_return") {
@@ -842,9 +843,14 @@ export default function Invoices() {
     filters.amountMin || filters.amountMax || filters.payment ||
     filters.categoryId || filters.fromBranch || filters.toBranch || filters.partyId || filters.recipient || filters.notes;
 
-  // For return tabs: use draft filters (apply only when search button clicked)
+  // For return tabs: the text search stays draft until بحث/Enter; the status dropdown applies to the
+  // table instantly (database-level, so pagination and the metric cards stay in step with the rows).
   const inputF = isReturnTab ? draftFilters : filters;
-  const setInputF = (next: Filters) => (isReturnTab ? setDraftFilters(next) : setFilters(next));
+  const setInputF = (next: Filters) => {
+    if (!isReturnTab) return setFilters(next);
+    setDraftFilters(next);
+    if (next.status !== draftFilters.status) setFilters((f) => ({ ...f, status: next.status }));
+  };
 
   const applySearch = () => {
     setFilters(draftFilters);
