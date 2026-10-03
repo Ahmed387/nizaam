@@ -309,6 +309,13 @@
       "when": 1791069841251,
       "tag": "0043_search_branch_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791070368778,
+      "tag": "0044_contacts_page",
+      "breakpoints": true
     }
   ]
 }

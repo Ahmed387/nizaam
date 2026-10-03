@@ -7365,6 +7365,17 @@ export type Database = {
         }[]
       }
       contact_has_legacy_docs: { Args: { p_contact: string }; Returns: boolean }
+      contacts_page: {
+        Args: {
+          p_balance?: string[]
+          p_branch_id: string
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       create_contact_credit_deposit: {
         Args: {
           p_amount: number
