@@ -7852,6 +7852,7 @@ export type Database = {
         Returns: string
       }
       normalize_ar_name: { Args: { t: string }; Returns: string }
+      normalize_search_text: { Args: { p: string }; Returns: string }
       notify_tenant_admins: {
         Args: {
           p_body: string
@@ -8355,6 +8356,22 @@ export type Database = {
         }[]
       }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
+      search_branch_contacts: {
+        Args: {
+          p_branch_id: string
+          p_ids?: string[]
+          p_kind?: string
+          p_limit?: number
+          p_query?: string
+        }
+        Returns: {
+          branch_id: string
+          id: string
+          name: string
+          phone: string
+          type: string
+        }[]
+      }
       seed_default_chart_of_accounts: {
         Args: { p_tenant_id: string }
         Returns: undefined
