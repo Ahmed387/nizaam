@@ -1,4 +1,5 @@
 import { ContactLookup } from "@/components/ContactLookup";
+import { getContactsByIds } from "@/lib/contactLookup";
 import { VariantLine } from "@/components/VariantChips";
 import { focusSection } from "@/lib/sectionFocus";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -182,7 +183,9 @@ export default function EditSaleInvoice() {
       }));
       setItems(loadedItems);
 
-      const custName = (c ?? []).find((x) => x.id === inv?.contact_id)?.name ?? "عميل نقدي";
+      const custRow = inv?.contact_id ? (await getContactsByIds(branchId, [inv.contact_id]))[0] : null;
+      if (custRow) setCustomers([{ id: custRow.id, name: custRow.name }]);
+      const custName = custRow?.name ?? "عميل نقدي";
       initialSnapshotRef.current = {
         customerId: inv?.contact_id ?? null,
         customerName: custName,
