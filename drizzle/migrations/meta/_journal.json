@@ -323,6 +323,13 @@
       "when": 1791141068691,
       "tag": "0045_doc_ledger_allocation",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1791142184885,
+      "tag": "0046_doc_ledger_allocation_netting",
+      "breakpoints": true
     }
   ]
 }
