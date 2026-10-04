@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
-import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
+import { fetchPurchaseAllocation, fetchLedgerAllocation } from "@/lib/purchaseAllocation";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */
@@ -22,7 +22,7 @@ export interface DocMetrics extends DocMetricsResult {
 export function useDocumentMetrics(
   kind: DocKind | null,
   buildQuery: DocQueryBuilder,
-  ctx: { branchId?: string; from: string; to: string },
+  ctx: { branchId?: string; from: string; to: string; partyId?: string },
   refreshKey: number,
 ) {
   const [metrics, setMetrics] = useState<DocMetrics | null>(null);
