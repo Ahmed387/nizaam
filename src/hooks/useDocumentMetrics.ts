@@ -91,7 +91,10 @@ export function useDocumentMetrics(
           result.byBucket = byBucket;
         }
         if (kind === "purchase") {
-          result.supplierPaid = r2(result.values.supplierPaid ?? 0);
+          // «المسدد للموردين» = pure cash/bank outflows (supplier-payment vouchers) FIFO over the invoices;
+          // returns and sales netting are excluded. «المتبقي» stays on the full statement allocation.
+          const cashAlloc = await fetchLedgerAllocation("purchase", ctx.branchId!, unique.map((r) => r.contact_id), ctx.to, ctrl.signal, true);
+          result.supplierPaid = r2(unique.reduce((s, r) => s + (cashAlloc.get(r.id)?.paid ?? 0), 0));
           result.supplierDue = r2(result.values.supplierDue ?? 0);
           result.counts.supplierPaid = unique.filter((r) => r.__remaining <= 0.01).length;
           result.counts.supplierDue = unique.filter((r) => r.__remaining > 0.01).length;
