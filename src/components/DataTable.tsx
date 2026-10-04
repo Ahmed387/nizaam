@@ -1,6 +1,5 @@
 import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { toArabicAlphabetIndex } from "@/lib/format";
 
 type Align = "right" | "left" | "center";
 
@@ -27,7 +26,7 @@ interface DataTableProps<T> {
   renderExpandedRow?: (row: T) => ReactNode;
   /** Optional client-side pagination (rows per page). */
   pageSize?: number;
-  /** Optional visual-only index column, generated centrally from the visible row order. */
+  /** Optional numeric index column, generated centrally from the visible row order. */
   indexColumn?: boolean | { offset?: number; width?: string };
   /** Optional table-level sizing for wide, column-dense tables. */
   tableClassName?: string;
@@ -136,7 +135,7 @@ function DataTableInner<T>(
                   >
                     {indexColumn && (
                       <td className="px-2 py-3 text-center align-middle font-semibold text-muted-foreground border-l border-border/40">
-                        {toArabicAlphabetIndex(indexOffset + safePage * (pageSize ?? rows.length) + i)}
+                        {indexOffset + safePage * (pageSize ?? rows.length) + i + 1}
                       </td>
                     )}
                     {columns.map((c, idx) => (

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, ArrowUpLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatEGP, toArabicAlphabetIndex, sanitizeOperationalDescription } from "@/lib/format";
+import { formatEGP, sanitizeOperationalDescription } from "@/lib/format";
 import type { RecentDoc } from "@/lib/recentDocs";
 
 type Line = { name: string; qty: number; price: number; total: number };
@@ -81,7 +81,7 @@ export function RecentDocDetails({ doc }: { doc: RecentDoc }) {
           <tbody>
             {lines.map((r, i) => (
               <tr key={i} className="border-t border-border/40 bg-card">
-                <td className="p-2 text-center text-muted-foreground">{toArabicAlphabetIndex(i)}</td>
+                <td className="p-2 text-center text-muted-foreground tabular-nums">{i + 1}</td>
                 <td className="p-2 text-right">{r.name}</td>
                 <td className="p-2 text-center tabular-nums">{r.qty}</td>
                 <td className="p-2 text-center tabular-nums">{formatEGP(r.price)}</td>
