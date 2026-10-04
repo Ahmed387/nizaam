@@ -316,6 +316,13 @@
       "when": 1791070368778,
       "tag": "0044_contacts_page",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791141068691,
+      "tag": "0045_doc_ledger_allocation",
+      "breakpoints": true
     }
   ]
 }
