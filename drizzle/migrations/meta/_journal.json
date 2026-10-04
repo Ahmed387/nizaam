@@ -316,6 +316,27 @@
       "when": 1791070368778,
       "tag": "0044_contacts_page",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791141068691,
+      "tag": "0045_doc_ledger_allocation",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1791142184885,
+      "tag": "0046_doc_ledger_allocation_netting",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791142315305,
+      "tag": "0047_doc_ledger_allocation_definer",
+      "breakpoints": true
     }
   ]
 }
