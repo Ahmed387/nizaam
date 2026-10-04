@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Loader2, ArrowUpLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { formatEGP, formatDateTime, toArabicAlphabetIndex } from "@/lib/format";
+import { formatEGP, formatDateTime } from "@/lib/format";
 
 const PAY: Record<string, string> = { cash: "نقدي", installment: "تقسيط", bank: "بنكي", transfer: "تحويل", credit: "آجل", balance: "رصيد", mixed: "متعدد" };
 
@@ -63,7 +63,7 @@ export function InvoiceQuickDialog({ invoiceId, branchId, onClose }: Props) {
                 <tbody>
                   {items.map((r, i) => (
                     <tr key={r.id} className="border-t">
-                      <td className="p-2 text-center text-muted-foreground">{toArabicAlphabetIndex(i)}</td>
+                      <td className="p-2 text-center text-muted-foreground tabular-nums">{i + 1}</td>
                       <td className="p-2">{r.product_name}</td>
                       <td className="p-2 text-center tabular-nums">{Number(r.quantity)}</td>
                       <td className="p-2 text-center tabular-nums">{formatEGP(Number(r.final_price ?? r.selling_price ?? 0))}</td>

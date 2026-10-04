@@ -8,7 +8,7 @@
 - Write recipient/notes only via `set_document_annotations`; leave financial fields untouched.
 - New-document recipient is the signed-in user via `LockedRecipientInput` and stays read-only.
 - Compute contact running balances before filters; dated views add a prior-balance row.
-- Render `#` only through `DataTable.indexColumn` and `toArabicAlphabetIndex`.
+- Render list-level `#` columns through `DataTable.indexColumn` as 1-based numeric indices with the correct server-page offset — why: numbering stays consistent and continuous across pagination.
 - Derive treasury labels with format helpers; never rewrite stored ledger text.
 - Reads over 1,000 rows use `fetchAllRows`, `.order("id")`, and lean columns.
 - Save sales only via atomic `process_sale_full`; require shifts and restrict backdating to admins.

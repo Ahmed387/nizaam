@@ -1,20 +1,6 @@
 // كل الأرقام في النظام بتتكتب بالأرقام الإنجليزية (1,234.56) عشان تبقى واضحة ومقروءة
 const AR = "ar-EG-u-nu-latn";
 
-const ARABIC_ALPHABET = [
-  "أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي",
-  "ك", "ل", "م", "ن", "س", "ع", "ف", "ص", "ق", "ر",
-  "ش", "ت", "ث", "خ", "ذ", "ض", "ظ", "غ",
-] as const;
-
-/** Visual-only Arabic row label. Keeps working after the first 28 rows: أ2، ب2... */
-export const toArabicAlphabetIndex = (zeroBasedIndex: number): string => {
-  const safeIndex = Math.max(0, Math.floor(zeroBasedIndex));
-  const cycle = Math.floor(safeIndex / ARABIC_ALPHABET.length);
-  const letter = ARABIC_ALPHABET[safeIndex % ARABIC_ALPHABET.length];
-  return cycle === 0 ? letter : `${letter}${cycle + 1}`;
-};
-
 /** Removes only the legacy payment-plan UUID tag from displayed text; stored data is untouched. */
 export const sanitizeOperationalDescription = (value: string | null | undefined): string =>
   String(value ?? "")
