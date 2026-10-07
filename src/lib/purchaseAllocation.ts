@@ -16,7 +16,6 @@ export async function fetchLedgerAllocation(
   contactIds: (string | null | undefined)[],
   asOf?: string | null,
   signal?: AbortSignal,
-  cashOnly = false,
 ): Promise<LedgerAllocation> {
   const out: LedgerAllocation = new Map();
   const ids = [...new Set(contactIds.filter(Boolean) as string[])];
@@ -24,7 +23,7 @@ export async function fetchLedgerAllocation(
     const chunk = ids.slice(i, i + 300);
     for (let from = 0; ; from += 1000) {
       let q: any = (supabase.rpc as any)("doc_ledger_allocation", {
-        p_kind: kind, p_branch_id: branchId, p_contact_ids: chunk, p_as_of: asOf || null, p_cash_only: cashOnly,
+        p_kind: kind, p_branch_id: branchId, p_contact_ids: chunk, p_as_of: asOf || null,
       }).order("doc_id").range(from, from + 999);
       if (signal) q = q.abortSignal(signal);
       const { data, error } = await q;

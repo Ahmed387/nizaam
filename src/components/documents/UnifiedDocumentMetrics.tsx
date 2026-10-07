@@ -27,7 +27,7 @@ const TOP: Record<DocKind, CardDef[]> = {
   purchase: [
     { key: "active", label: "إجمالي المشتريات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة شراء", meaning: "قيمة فواتير الشراء المطابقة.", formula: "Σ إجمالي التكلفة" },
     { key: "cancelled", label: "مشتريات ملغاة", icon: <XCircle />, tone: "destructive", countWord: "فاتورة", meaning: "فواتير الشراء لا تُلغى في النظام (تُحذف بسجل تدقيق)، لذلك القيمة صفر دائمًا.", formula: "Σ فواتير الشراء الملغاة = 0" },
-    { key: "supplierPaid", label: "المسدد للموردين نقدًا/بنكيًا (-)", icon: <ArrowUpCircle />, tone: "success", countWord: "فاتورة مسددة بالكامل", value: (m) => m.supplierPaid ?? 0, meaning: "المدفوع فعليًا من الخزينة أو البنك للموردين فقط: سندات صرف «مدفوعات موردين» النشطة ومدفوعات الموردين، تُوزَّع على فواتير الشراء المعروضة الأقدم أولًا (بعد الرصيد الافتتاحي) حتى نهاية الفترة. لا يشمل مرتجعات الشراء ولا المقاصة مع المبيعات. «المتبقي» يبقى وفق كشف الحساب الكامل. النقر يعرض الفواتير المسددة بالكامل وفق كشف الحساب.", formula: "Σ min(إجمالي الفاتورة، سندات صرف الموردين النقدية/البنكية المتبقية بعد الرصيد الافتتاحي والفواتير الأقدم)" },
+    { key: "supplierPaid", label: "المسدد للموردين (-)", icon: <ArrowUpCircle />, tone: "success", countWord: "فاتورة مسددة بالكامل", value: (m) => m.supplierPaid ?? 0, meaning: "المسدد من فواتير الشراء المعروضة وفق كشف حساب المورد في الفرع: مدفوعات الموردين وسندات الصرف والجزء المخصوم من مرتجعات الشراء (ناقص سندات القبض من المورد) تُوزَّع على الأقدم أولًا بدءًا بالرصيد الافتتاحي، حتى نهاية الفترة. النقر يعرض الفواتير المسددة بالكامل (المتبقي = 0).", formula: "Σ المسدد لكل فاتورة = min(إجمالي الفاتورة، رصيد السداد المتبقي بعد الرصيد الافتتاحي والفواتير الأقدم)" },
     { key: "supplierDue", label: "المستحق للموردين / الآجل دائن (+)", icon: <Clock />, tone: "warning", countWord: "فاتورة عليها متبقي", value: (m) => m.supplierDue ?? 0, meaning: "المتبقي للموردين على فواتير الشراء المعروضة بعد توزيع سداداتهم. النقر يعرض الفواتير التي عليها متبقي (> 0).", formula: "Σ max(0, إجمالي الفاتورة − المسدد الموزع عليها)" },
   ],
   sale_return: [
@@ -99,33 +99,17 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
         })}
       </div>
       <div className={`grid grid-cols-2 gap-3 ${buckets.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
-        {BUCKET_DEFS.filter((b) => buckets.includes(b.key)).map((b) => {
-          const flow = kind === "sale" || kind === "purchase";
-          const label = flow
-            ? (b.key === "other" ? (kind === "sale" ? "خصم من الرصيد المسبق (بدون نقدية)" : "رصيد مسبق") : `${kind === "sale" ? "إجمالي المحصل" : "إجمالي المسدد"} ${b.label} — فواتير + سندات`)
-            : b.label;
-          const party = kind === "sale" ? "العملاء" : "الموردين";
-          const vName = kind === "sale" ? "سندات القبض من العملاء" : "سندات الصرف للموردين";
-          return (
-          <MetricCardWithHint key={b.key} label={label} value={metrics?.byBucket[b.key] ?? 0} icon={b.icon} tone={b.key === "other" ? "warning" : "success"}
-            {...sel(b.key, !flow)}
-            metricHint={flow ? {
-              meaning: b.key === "other"
-                ? (kind === "sale" ? "ما سُدد من الفواتير بخصم رصيد العميل المسبق — لا يحرك الخزينة." : "سداد الموردين لا يتم بالرصيد المسبق من هذه الشاشة، لذلك القيمة صفر عادةً.")
-                : `التدفق الفعلي بطريقة «${b.label}» خلال الفترة: يجمع ${kind === "sale" ? "الدفعات المسجلة على فواتير البيع المعروضة (عند الإنشاء أو بعده)" : "سداد الموردين"} مع كل ${vName} اليدوية والمربوطة بنفس الطريقة، في نفس الفرع والفترة${kind === "sale" ? "" : ""}.`,
-              source: `${kind === "sale" ? "دفعات فواتير البيع (invoice_payments) + " : ""}${vName} النشطة — حسب تاريخ السند وفلتر الجهة`,
-              formula: b.key === "other"
-                ? "Σ دفعات الفواتير بطريقة الرصيد المسبق"
-                : `${kind === "sale" ? "Σ دفعات الفواتير «" + b.label + "» + " : ""}Σ ${vName} «${b.label}» في الفترة. قد يختلف المجموع عن كارت ${kind === "sale" ? "المحصل" : "المسدد"} لأن السندات تسدد أيضًا أرصدة افتتاحية وفواتير من فترات أخرى لدى ${party}.`,
-            } : {
+        {BUCKET_DEFS.filter((b) => buckets.includes(b.key)).map((b) => (
+          <MetricCardWithHint key={b.key} label={b.label} value={metrics?.byBucket[b.key] ?? 0} icon={b.icon} tone={b.key === "other" ? "warning" : "success"}
+            {...sel(b.key, kind !== "purchase")}
+            metricHint={{
               meaning: b.key === "other"
                 ? `ما ${verb} عن طريق الرصيد المسبق / الحساب، بدون أي حركة نقدية في الخزينة.`
                 : `ما ${verb} عن طريق «${b.label}» من المستندات النشطة المطابقة.`,
               source,
-              formula: `Σ مبالغ «${b.label}» للمستندات النشطة؛ ومجموع الأوعية = ${kind === "sale_return" ? "المنصرف + المضاف للرصيد" : kind === "purchase_return" ? "المسترد + المخصوم" : "إجمالي السندات النشطة"}`,
+              formula: `Σ مبالغ «${b.label}» للمستندات النشطة؛ ومجموع الأوعية = ${kind === "sale" ? "المحصل الفعلي" : kind === "purchase" ? "المسدد للموردين" : kind === "sale_return" ? "المنصرف + المضاف للرصيد" : kind === "purchase_return" ? "المسترد + المخصوم" : "إجمالي السندات النشطة"}`,
             }} />
-          );
-        })}
+        ))}
       </div>
     </div>
   );

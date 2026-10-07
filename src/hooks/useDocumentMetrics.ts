@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
-import { fetchPurchaseAllocation, fetchLedgerAllocation } from "@/lib/purchaseAllocation";
+import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */
@@ -22,7 +22,7 @@ export interface DocMetrics extends DocMetricsResult {
 export function useDocumentMetrics(
   kind: DocKind | null,
   buildQuery: DocQueryBuilder,
-  ctx: { branchId?: string; from: string; to: string; partyId?: string },
+  ctx: { branchId?: string; from: string; to: string },
   refreshKey: number,
 ) {
   const [metrics, setMetrics] = useState<DocMetrics | null>(null);
@@ -67,37 +67,27 @@ export function useDocumentMetrics(
         }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));
 
-        if (kind === "sale" || kind === "purchase") {
-          // Payment-method cards = actual money flow: payments recorded on the invoices above
-          // (sales: invoice_payments; purchases are paid by vouchers only) + every active voucher of
-          // the same branch and period — receipts from customers (sales) / payments to suppliers (purchases).
-          const vType = kind === "sale" ? "receipt" : "payment";
-          let orExpr = kind === "sale" ? "party_type.eq.customer" : "party_type.eq.supplier";
-          if (kind === "purchase") {
-            const { data: cats } = await supabase.from("voucher_categories" as any).select("id").eq("system_key", "supplier_payment");
-            const catIds = ((cats ?? []) as any[]).map((c) => c.id);
-            if (catIds.length) orExpr += `,category_id.in.(${catIds.join(",")})`;
-          }
+        if (kind === "purchase") {
+          // Supplier payments are account-level (not tied to one shipment): same branch + same period.
+          const { data: cats } = await supabase.from("voucher_categories" as any).select("id").eq("system_key", "supplier_payment");
+          const catIds = ((cats ?? []) as any[]).map((c) => c.id);
+          const orExpr = ["party_type.eq.supplier", catIds.length ? `category_id.in.(${catIds.join(",")})` : null].filter(Boolean).join(",");
           const vouchers = await fetchAllRows<any>(() => {
             let q: any = supabase.from("vouchers" as any).select("id, amount, payment_method")
-              .eq("branch_id", ctx.branchId!).eq("type", vType).eq("status", "active").or(orExpr);
-            if (ctx.partyId) q = q.eq("party_id", ctx.partyId);
+              .eq("branch_id", ctx.branchId!).eq("type", "payment").eq("status", "active").or(orExpr);
             q = applyCairoRange(q, "voucher_date", ctx.from, ctx.to, true);
             return q.order("id").abortSignal(ctrl.signal);
           });
-          const byBucket = kind === "sale" ? { ...result.byBucket } : emptyBuckets();
-          for (const v of vouchers) byBucket[bucketOf(v.payment_method)] += Number(v.amount) || 0;
+          const byBucket = emptyBuckets();
+          let paid = 0;
+          for (const v of vouchers) { const a = Number(v.amount) || 0; paid += a; byBucket[bucketOf(v.payment_method)] += a; }
           (Object.keys(byBucket) as (keyof typeof byBucket)[]).forEach((b) => { byBucket[b] = r2(byBucket[b]); });
           result.byBucket = byBucket;
-        }
-        if (kind === "purchase") {
-          // «المسدد للموردين» = pure cash/bank outflows (supplier-payment vouchers) FIFO over the invoices;
-          // returns and sales netting are excluded. «المتبقي» stays on the full statement allocation.
-          const cashAlloc = await fetchLedgerAllocation("purchase", ctx.branchId!, unique.map((r) => r.contact_id), ctx.to, ctrl.signal, true);
-          result.supplierPaid = r2(unique.reduce((s, r) => s + (cashAlloc.get(r.id)?.paid ?? 0), 0));
+          result.supplierPaid = r2(result.values.supplierPaid ?? 0);
           result.supplierDue = r2(result.values.supplierDue ?? 0);
           result.counts.supplierPaid = unique.filter((r) => r.__remaining <= 0.01).length;
           result.counts.supplierDue = unique.filter((r) => r.__remaining > 0.01).length;
+          void paid;
         }
         if (!cancelled) setMetrics(result);
       } catch (e) {

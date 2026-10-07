@@ -7562,7 +7562,6 @@ export type Database = {
         Args: {
           p_as_of?: string
           p_branch_id: string
-          p_cash_only?: boolean
           p_contact_ids: string[]
           p_kind: string
         }

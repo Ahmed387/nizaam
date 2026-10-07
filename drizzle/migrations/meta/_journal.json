@@ -337,13 +337,6 @@
       "when": 1791142315305,
       "tag": "0047_doc_ledger_allocation_definer",
       "breakpoints": true
-    },
-    {
-      "idx": 48,
-      "version": "7",
-      "when": 1791143679935,
-      "tag": "0048_doc_ledger_allocation_cash_only",
-      "breakpoints": true
     }
   ]
 }

@@ -389,7 +389,7 @@ export default function Invoices() {
 
   const [metricsTick, setMetricsTick] = useState(0);
   const docKind = isDocKind(tab) ? tab : null;
-  const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to, partyId: queryFilters.partyId || undefined }, metricsTick);
+  const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to }, metricsTick);
   const [transferMetrics, setTransferMetrics] = useState({ totalCount: 0, totalQuantity: 0, confirmedCount: 0, confirmedQuantity: 0, unresolvedCount: 0, unresolvedQuantity: 0 });
   const [transferMetricsLoading, setTransferMetricsLoading] = useState(false);
   useEffect(() => {
