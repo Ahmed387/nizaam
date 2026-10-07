@@ -112,7 +112,7 @@ export function matchesDocCard(kind: DocKind, r: Row, key: DocCardKey | null): b
 
 /** Lean projection each kind needs for its metrics (all filtered rows, never just one page). */
 export const METRIC_SELECT: Record<DocKind, string> = {
-  sale: "id, total, status, contact_id",
+  sale: "id, total, status",
   purchase: "id, total_cost, contact_id",
   sale_return: "id, total_refund, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
   purchase_return: "id, total_amount, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",

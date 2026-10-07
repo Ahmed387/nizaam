@@ -48,21 +48,16 @@ export function useDocumentMetrics(
         let unique = rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
 
         if (kind === "sale") {
-          const active = unique.filter((r) => r.status === "active");
-          const [pays, alloc] = await Promise.all([
-            fetchPaymentSummaries(active.map((r) => r.id), ctrl.signal),
-            fetchLedgerAllocation("sale", ctx.branchId!, active.map((r) => r.contact_id), ctx.to, ctrl.signal),
-          ]);
+          const pays = await fetchPaymentSummaries(unique.filter((r) => r.status === "active").map((r) => r.id), ctrl.signal);
           unique = unique.map((r) => {
             const s = pays.get(r.id);
-            // Customer invoices: FIFO over the branch statement. Walk-in (no contact): direct payments.
-            const paid = alloc.get(r.id)?.paid ?? s?.paid ?? 0;
+            const paid = s?.paid ?? 0;
             return { ...r, __paid: paid, __remaining: Math.max(0, r2((Number(r.total) || 0) - paid)), __byBucket: s?.byBucket ?? emptyBuckets() };
           });
         }
 
         if (kind === "purchase") {
-          const alloc = await fetchPurchaseAllocation(ctx.branchId!, unique.map((r) => r.contact_id), ctrl.signal, ctx.to);
+          const alloc = await fetchPurchaseAllocation(ctx.branchId!, unique.map((r) => r.contact_id), ctrl.signal);
           unique = unique.map((r) => ({ ...r, __paid: alloc.get(r.id)?.paid ?? 0, __remaining: alloc.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
         }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));

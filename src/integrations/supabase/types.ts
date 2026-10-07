@@ -7558,22 +7558,6 @@ export type Database = {
         }
         Returns: Json
       }
-      doc_ledger_allocation: {
-        Args: {
-          p_as_of?: string
-          p_branch_id: string
-          p_contact_ids: string[]
-          p_kind: string
-        }
-        Returns: {
-          amount: number
-          contact_id: string
-          doc_date: string
-          doc_id: string
-          paid: number
-          remaining: number
-        }[]
-      }
       edit_invoice: {
         Args: {
           _customer_id: string

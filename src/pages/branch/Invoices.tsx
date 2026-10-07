@@ -39,8 +39,8 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
-import { fetchPurchaseAllocation, fetchLedgerAllocation } from "@/lib/purchaseAllocation";
-import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, emptyBuckets, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
+import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
@@ -357,19 +357,11 @@ export default function Invoices() {
     }
     if (tab === "sale") {
       const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
-      // Paid/remaining come from the customer's branch statement (FIFO), so manual receipt vouchers count too.
-      const alloc = data.length ? await fetchLedgerAllocation("sale", branchId!, data.map((x: any) => x.contact_id), queryFilters.to, ctrl.signal).catch(() => new Map()) : new Map();
       if (stale()) return;
-      for (const x of data) {
-        const a = alloc.get(x.id);
-        if (!a) continue;
-        const s = pays.get(x.id) ?? { paid: 0, byBucket: emptyBuckets(), methods: [] };
-        pays.set(x.id, { ...s, paid: a.paid });
-      }
       setSalePays(pays);
     } else setSalePays(null);
     if (tab === "purchase" && data.length) {
-      const alloc = await fetchPurchaseAllocation(branchId!, data.map((x: any) => x.contact_id), ctrl.signal, queryFilters.to).catch(() => new Map());
+      const alloc = await fetchPurchaseAllocation(branchId!, data.map((x: any) => x.contact_id), ctrl.signal).catch(() => new Map());
       if (stale()) return;
       data = data.map((x: any) => ({ ...x, __paid: alloc.get(x.id)?.paid ?? 0, __remaining: alloc.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
     }
