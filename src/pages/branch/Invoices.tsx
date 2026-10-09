@@ -305,7 +305,7 @@ export default function Invoices() {
     if (tab === "sale") {
       const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
       // Paid / remaining from the unified ledger (direct payments, FIFO of general money, return credit).
-      const st = data.length ? await fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal).catch(() => new Map()) : new Map();
+      const st = data.length ? await fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map()) : new Map();
       if (stale()) return;
       for (const x of data) {
         const a = st.get(x.id);
