@@ -32,6 +32,30 @@ export interface PendingSale {
     p_payment_method: string;
     p_items: any;
     p_payments?: any;
+    p_vat_rate?: number;
+    p_vat_amount?: number;
+    p_invoice_date?: string | null;
+  };
+}
+
+/** Cairo calendar day (YYYY-MM-DD) of a timestamp — the day the sale was actually made. */
+function cairoDay(ms: number): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
+}
+
+/**
+ * Replays through process_sale_full (shift gate, admin-only backdating, same rules as an online sale).
+ * process_sale is no longer callable from the browser (SEC-001). Older queued rows may lack the
+ * VAT/date/payments fields, so they are filled in: the invoice keeps the day it was made offline.
+ */
+function toFullPayload(p: PendingSale) {
+  const x = p.payload;
+  return {
+    ...x,
+    p_payments: Array.isArray(x.p_payments) ? x.p_payments : [],
+    p_vat_rate: x.p_vat_rate ?? 0,
+    p_vat_amount: x.p_vat_amount ?? 0,
+    p_invoice_date: x.p_invoice_date ?? cairoDay(p.created_at),
   };
 }
 
@@ -98,14 +122,16 @@ export async function syncPendingSales(silent = false) {
     if (!pending.length) return;
     let ok = 0;
     let fail = 0;
+    let lastError = "";
     for (const p of pending) {
-      const { error } = await supabase.rpc("process_sale", p.payload as any);
-      if (error) { fail++; continue; }
+      const { error } = await supabase.rpc("process_sale_full" as any, toFullPayload(p) as any);
+      // Failed rows stay queued (nothing is lost); a manager/admin can sync them later.
+      if (error) { fail++; lastError = error.message; continue; }
       if (p.id != null) await removePending(p.id);
       ok++;
     }
     if (ok > 0) toast.success(`تمت مزامنة ${ok} فاتورة محفوظة محلياً`);
-    if (fail > 0) toast.error(`فشل مزامنة ${fail} فاتورة — راجع المخزون`);
+    if (fail > 0) toast.error(`فشل مزامنة ${fail} فاتورة — فضلت محفوظة على الجهاز. السبب: ${lastError}`);
     if (ok === 0 && fail === 0 && !silent) toast.info("لا توجد عمليات معلقة");
   } finally {
     syncing = false;
