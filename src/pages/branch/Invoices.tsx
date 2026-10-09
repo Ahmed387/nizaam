@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
+import { CancelPurchaseDialog } from "@/components/CancelPurchaseDialog";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
 import { Plus, ShoppingCart, PackagePlus, PackageCheck, AlertTriangle, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, FileText, ClipboardList, FileSpreadsheet, Printer, Search, X, Eye, Pencil, Trash2, XCircle, Calendar as CalendarIcon, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel, printReport } from "@/lib/export";
@@ -66,7 +68,7 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
 // Which filters apply to each tab
 const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean; party?: "customer" | "supplier" }> = {
   sale:            { search: true, date: true, status: true,  amount: true,  payment: true },
-  purchase:        { search: true, date: true,                 amount: true },
+  purchase:        { search: true, date: true, status: true,  amount: true },
   sale_return:     { search: true, date: true, status: true,  amount: true, party: "customer" },
   purchase_return: { search: true, date: true, status: true,  amount: true, party: "supplier" },
   income:          { search: true, date: true, status: true,  amount: true, payment: true, category: true },
@@ -82,10 +84,10 @@ export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
   const { branches, isAdmin, hasRole, tenantId, user, profile } = useAuth();
   const isManager = hasRole("branch_manager");
-  const [delTarget, setDelTarget] = useState<any>(null);
-  const [delBusy, setDelBusy] = useState(false);
-  const [delReason, setDelReason] = useState("");
-  const canDeleteInvoice = isAdmin || isManager;
+  // No hard delete (owner rule): sale and purchase invoices are cancelled, never deleted.
+  const [cancelSale, setCancelSale] = useState<any>(null);
+  const [cancelPurchase, setCancelPurchase] = useState<any>(null);
+  const canCancelDoc = isAdmin || isManager;
   const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
   const [selectedReturnForCancel, setSelectedReturnForCancel] = useState<CancelReturnTarget | null>(null);
   const deleteRejectedTransfer = async (t: any) => {
@@ -101,58 +103,8 @@ export default function Invoices() {
   const [viewVoucher, setViewVoucher] = useState<any>(null);
   const [cancelVoucher, setCancelVoucher] = useState<any>(null);
   const [cancelVoucherReason, setCancelVoucherReason] = useState("");
-  const [deleteVoucher, setDeleteVoucher] = useState<any>(null);
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
-
-  const handleDeleteInvoice = async () => {
-    if (!delTarget) return;
-    setDelBusy(true);
-    if (isAdmin) {
-      const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: delTarget.id });
-      setDelBusy(false);
-      if (error) return toast.error(error.message);
-      toast.success(`تم حذف الفاتورة ${delTarget.invoice_number} نهائياً`);
-    } else if (isManager) {
-      if (!delReason.trim()) { setDelBusy(false); return toast.error("اكتب سبب الحذف"); }
-      const ok = await (await import("@/lib/approvalRequests")).createApprovalRequest({
-        tenantId: tenantId!, branchId: branchId ?? null,
-        entityType: "invoice", entityId: delTarget.id, entityLabel: `فاتورة ${delTarget.invoice_number}`,
-        action: "delete", reason: delReason,
-        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-      });
-      setDelBusy(false);
-      if (!ok) return;
-    } else { setDelBusy(false); return; }
-    setDelTarget(null); setDelReason(""); load();
-  };
-
-  // Shipment delete (purchase tab)
-  const [delShipment, setDelShipment] = useState<any>(null);
-  const [delShipReason, setDelShipReason] = useState("");
-  const [delShipBusy, setDelShipBusy] = useState(false);
-  const handleDeleteShipment = async () => {
-    if (!delShipment) return;
-    setDelShipBusy(true);
-    const label = `فاتورة شراء ${delShipment.shipment_number ?? ""} - ${delShipment.contacts?.name ?? ""}`;
-    if (isAdmin) {
-      const { error } = await supabase.from("shipments").delete().eq("id", delShipment.id);
-      setDelShipBusy(false);
-      if (error) return toast.error(error.message);
-      toast.success(`تم حذف ${label}`);
-    } else if (isManager) {
-      if (!delShipReason.trim()) { setDelShipBusy(false); return toast.error("اكتب سبب الحذف"); }
-      const ok = await (await import("@/lib/approvalRequests")).createApprovalRequest({
-        tenantId: tenantId!, branchId: branchId ?? null,
-        entityType: "shipment", entityId: delShipment.id, entityLabel: label,
-        action: "delete", reason: delShipReason,
-        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-      });
-      setDelShipBusy(false);
-      if (!ok) return;
-    } else { setDelShipBusy(false); return toast.error("غير مصرح"); }
-    setDelShipment(null); setDelShipReason(""); load();
-  };
 
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
@@ -250,6 +202,7 @@ export default function Invoices() {
       qb = supabase.from("shipments").select(projection, opts).eq("branch_id", branchId!);
       if (q) qb = looksLikeDocumentNumber ? qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
       qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_cost"); qb = textCols(qb, "received_by", "notes");
+      if (f.status) qb = qb.eq("status", f.status);
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "sale_return") {
       const projection = q && !looksLikeDocumentNumber ? `${select}, search_invoice:invoice_id!inner(search_contact:contact_id!inner(id))` : select;
@@ -363,7 +316,9 @@ export default function Invoices() {
     if (tab === "purchase" && data.length) {
       const alloc = await fetchPurchaseAllocation(branchId!, data.map((x: any) => x.contact_id), ctrl.signal).catch(() => new Map());
       if (stale()) return;
-      data = data.map((x: any) => ({ ...x, __paid: alloc.get(x.id)?.paid ?? 0, __remaining: alloc.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
+      data = data.map((x: any) => (x.status === "cancelled"
+        ? { ...x, __paid: 0, __remaining: 0 }
+        : { ...x, __paid: alloc.get(x.id)?.paid ?? 0, __remaining: alloc.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
     }
     setRows(data);
     if (joinedDupes) {
@@ -507,9 +462,9 @@ export default function Invoices() {
                 </Button>
                 <DocAnnotationsButton kind="invoice" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
 <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
-                {canDeleteInvoice && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي" onClick={() => setDelTarget(r)}>
-                    <Trash2 className="w-4 h-4" />
+                {canCancelDoc && r.status === "active" && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="إلغاء الفاتورة (مع رد المدفوع)" onClick={() => setCancelSale(r)}>
+                    <XCircle className="w-4 h-4" />
                   </Button>
                 )}
               </div>
@@ -544,6 +499,7 @@ export default function Invoices() {
                     { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           { key: "arrival_date", header: "تاريخ الوصول", align: "right", width: "10rem", render: (r: any) => formatDate(r.arrival_date) },
           { key: "total_cost", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
+          { key: "status", header: "الحالة", align: "center", width: "7rem", render: (r: any) => r.status === "cancelled" ? <span className="text-destructive font-semibold" title={r.cancel_reason ?? undefined}>ملغاة</span> : "نشطة" },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -552,9 +508,9 @@ export default function Invoices() {
                 </Button>
                 <DocAnnotationsButton kind="shipment" id={r.id} recipient={r.received_by} notes={r.notes} onSaved={() => load()} />
 <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
-                {canDeleteInvoice && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف فاتورة الشراء" : "طلب حذف"} onClick={() => setDelShipment(r)}>
-                    <Trash2 className="w-4 h-4" />
+                {canCancelDoc && (r.status ?? "active") === "active" && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "إلغاء فاتورة الشراء" : "طلب إلغاء"} onClick={() => setCancelPurchase(r)}>
+                    <XCircle className="w-4 h-4" />
                   </Button>
                 )}
               </div>
@@ -697,11 +653,6 @@ export default function Invoices() {
                       <XCircle className="w-4 h-4" />
                     </Button>
                   )}
-                  {isAdmin && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="حذف نهائي — يمسح السند ومرفقاته من قاعدة البيانات بدون رجوع." onClick={() => setDeleteVoucher(r)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
               );
             },
@@ -759,7 +710,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canDeleteInvoice, isAdmin, isManager, expandedInvoiceId]);
+  }, [tab, branchId, nav, branches, attCounts, canCancelDoc, isAdmin, isManager, expandedInvoiceId]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -861,7 +812,8 @@ export default function Invoices() {
   // Status options per tab
   const statusOptions: { value: string; label: string }[] = useMemo(() => {
     switch (tab) {
-      case "sale": return [{ value: "active", label: "نشطة" }, { value: "cancelled", label: "ملغاة" }];
+      case "sale":
+      case "purchase": return [{ value: "active", label: "نشطة" }, { value: "cancelled", label: "ملغاة" }];
       case "sale_return":
       case "purchase_return":
       case "income":
@@ -1160,65 +1112,8 @@ export default function Invoices() {
         onChange={(p) => { setPage(p); tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
       />
 
-      <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setDelReason(""); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              {isManager && !isAdmin ? "طلب حذف فاتورة للموافقة" : "حذف الفاتورة نهائياً"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-1">
-              {isManager && !isAdmin ? (
-                <div>سيتم إرسال طلب حذف الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> لمدير الشركة للموافقة.</div>
-              ) : (
-                <>
-                  <div>هتمسح الفاتورة <span className="font-mono text-primary">{delTarget?.invoice_number}</span> نهائياً.</div>
-                  <div>• كل البضاعة هترجع للمخزن • الفلوس هتتشال من الخزنة • الأقساط هتتمسح</div>
-                  <div className="text-destructive font-semibold">العملية دي مش بترجع.</div>
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {isManager && !isAdmin && (
-            <div className="px-1">
-              <Label>سبب الحذف *</Label>
-              <Input className="mt-1.5" value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteInvoice} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {delBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف نهائياً")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={!!delShipment} onOpenChange={(o) => { if (!o) { setDelShipment(null); setDelShipReason(""); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              {isManager && !isAdmin ? "طلب حذف فاتورة شراء للموافقة" : "حذف فاتورة الشراء"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isManager && !isAdmin
-                ? <>سيتم إرسال طلب حذف فاتورة الشراء <span className="font-mono text-primary">{delShipment?.shipment_number}</span> لمدير الشركة للموافقة.</>
-                : <>هل أنت متأكد من حذف فاتورة الشراء <span className="font-mono text-primary">{delShipment?.shipment_number}</span>؟ لن يمكن التراجع.</>}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {isManager && !isAdmin && (
-            <div className="px-1">
-              <Label>سبب الحذف *</Label>
-              <Input className="mt-1.5" value={delShipReason} onChange={(e) => setDelShipReason(e.target.value)} placeholder="اكتب السبب..." />
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={delShipBusy}>تراجع</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteShipment} disabled={delShipBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {delShipBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CancelInvoiceDialog open={!!cancelSale} onOpenChange={(o) => { if (!o) setCancelSale(null); }} invoice={cancelSale} onDone={() => { setCancelSale(null); load(); }} />
+      <CancelPurchaseDialog open={!!cancelPurchase} onOpenChange={(o) => { if (!o) setCancelPurchase(null); }} shipment={cancelPurchase} onDone={() => { setCancelPurchase(null); load(); }} />
 
       {/* Voucher view dialog */}
       <VoucherViewDialog voucher={viewVoucher} open={!!viewVoucher} onOpenChange={(o) => !o && setViewVoucher(null)}
@@ -1256,32 +1151,6 @@ export default function Invoices() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete voucher */}
-      <Dialog open={!!deleteVoucher} onOpenChange={(o) => !o && setDeleteVoucher(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>حذف السند {deleteVoucher?.voucher_number} نهائياً</DialogTitle></DialogHeader>
-          <div className="space-y-2 py-2 text-sm">
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed">
-              <b>الفرق:</b><br />
-              • <b>إلغاء</b> = السند يفضل بحالة «ملغي» مع تتبع السبب.<br />
-              • <b>حذف نهائي</b> = السند ومرفقاته يتمسحوا خالص من قاعدة البيانات.
-            </div>
-            <p>لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.</p>
-            <p className="text-destructive font-semibold">العملية دي مالهاش رجوع.</p>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteVoucher(null)} disabled={voucherBusy}>تراجع</Button>
-            <Button variant="destructive" disabled={voucherBusy} onClick={async () => {
-              setVoucherBusy(true);
-              const { error } = await supabase.rpc("delete_voucher_admin" as any, { p_voucher_id: deleteVoucher.id, p_reason: "حذف من شاشة الفواتير والمستندات" });
-              setVoucherBusy(false);
-              if (error) return toast.error(error.message);
-              toast.success("تم حذف السند نهائياً");
-              setDeleteVoucher(null); load();
-            }}>تأكيد الحذف</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <ReturnEditDialog
         kind={returnEdit?.kind ?? "sale_return"}

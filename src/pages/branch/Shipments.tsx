@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { CancelPurchaseDialog } from "@/components/CancelPurchaseDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate } from "@/lib/format";
-import { Plus, Eye, Trash2, FileDown } from "lucide-react";
+import { Plus, Eye, XCircle, FileDown } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
@@ -25,12 +25,11 @@ import { generateShipmentsReport } from "@/utils/generatePDFReport";
 export default function Shipments() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
+  const { profile, isAdmin, hasRole } = useAuth();
   const isManager = hasRole("branch_manager");
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [delTarget, setDelTarget] = useState<any>(null);
-  const [reason, setReason] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [fSupplier, setFSupplier] = useState<string>("all");
   const [fStatus, setFStatus] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>("");
@@ -61,7 +60,8 @@ export default function Shipments() {
     }
     // Allocate FIFO: oldest shipments get paid first
     const byContact = new Map<string, any[]>();
-    [...ships].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    // Cancelled invoices are outside the supplier statement — they take no payment.
+    [...ships].filter((s: any) => s.status !== "cancelled").sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       .forEach((s) => {
         if (!s.contact_id) return;
         const arr = byContact.get(s.contact_id) ?? [];
@@ -79,6 +79,7 @@ export default function Shipments() {
       });
     });
     const enriched = ships.map((s: any) => {
+      if (s.status === "cancelled") return { ...s, _paid_amount: 0, _payment_status: "cancelled" };
       const ps = paidStatus.get(s.id) ?? { paid: 0, total: Number(s.total_cost || 0) };
       return { ...s, _paid_amount: ps.paid, _payment_status: ps.paid >= ps.total - 0.01 ? "paid" : ps.paid > 0 ? "partial" : "unpaid" };
     });
@@ -120,26 +121,6 @@ export default function Shipments() {
       filters: { from: fFrom || undefined, to: fTo || undefined },
       userName: profile?.name ?? "—",
     });
-  };
-
-  const doDelete = async () => {
-    if (!delTarget) return;
-    const label = `فاتورة شراء ${delTarget.contacts?.name ?? ""} بتاريخ ${formatDate(delTarget.arrival_date)}`;
-    if (isAdmin) {
-      const { error } = await supabase.from("shipments").delete().eq("id", delTarget.id);
-      if (error) return toast.error(error.message);
-      toast.success("تم حذف فاتورة الشراء");
-    } else if (isManager) {
-      if (!reason.trim()) return toast.error("اكتب سبب الحذف");
-      const ok = await createApprovalRequest({
-        tenantId: tenantId!, branchId: branchId ?? null,
-        entityType: "shipment", entityId: delTarget.id, entityLabel: label,
-        action: "delete", reason,
-        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-      });
-      if (!ok) return;
-    } else return toast.error("غير مصرح");
-    setDelTarget(null); setReason(""); load();
   };
 
   return (
@@ -189,6 +170,7 @@ export default function Shipments() {
                     <SelectItem value="paid">مدفوعة بالكامل</SelectItem>
                     <SelectItem value="partial">مدفوعة جزئياً</SelectItem>
                     <SelectItem value="unpaid">غير مدفوعة</SelectItem>
+                    <SelectItem value="cancelled">ملغاة</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -221,6 +203,9 @@ export default function Shipments() {
               const status = r._payment_status;
               const paid = r._paid_amount ?? 0;
               const total = Number(r.total_cost || 0);
+              if (status === "cancelled") {
+                return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-destructive font-semibold" title={r.cancel_reason ?? undefined}>ملغاة</span>;
+              }
               if (status === "paid") {
                 return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-emerald-500/10 text-emerald-600 font-medium">مدفوعة بالكامل</span>;
               }
@@ -245,9 +230,9 @@ export default function Shipments() {
                 <Button size="sm" variant="ghost" onClick={() => nav(`/branch/${branchId}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
-                {(isAdmin || isManager) && (
-                  <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" title={isAdmin ? "حذف" : "طلب حذف"} onClick={() => { setDelTarget(r); setReason(""); }}>
-                    <Trash2 className="w-4 h-4" />
+                {(isAdmin || isManager) && r.status !== "cancelled" && (
+                  <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" title={isAdmin ? "إلغاء فاتورة الشراء" : "طلب إلغاء"} onClick={() => setCancelTarget(r)}>
+                    <XCircle className="w-4 h-4" />
                   </Button>
                 )}
               </div>
@@ -261,30 +246,7 @@ export default function Shipments() {
 
 
 
-      <AlertDialog open={!!delTarget} onOpenChange={(o) => { if (!o) { setDelTarget(null); setReason(""); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{isManager && !isAdmin ? "طلب حذف فاتورة شراء للموافقة" : "حذف فاتورة الشراء"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isManager && !isAdmin
-                ? <>سيتم إرسال الطلب لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
-                : <>هل أنت متأكد من حذف هذه فاتورة الشراء؟ لن يمكن التراجع.</>}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {isManager && !isAdmin && (
-            <div className="px-1">
-              <Label>سبب الحذف *</Label>
-              <Textarea className="mt-1.5" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="اكتب السبب..." />
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={doDelete}>
-              {isManager && !isAdmin ? "إرسال الطلب" : "حذف"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CancelPurchaseDialog open={!!cancelTarget} onOpenChange={(o) => { if (!o) setCancelTarget(null); }} shipment={cancelTarget} onDone={() => { setCancelTarget(null); load(); }} />
     </BranchLayout>
   );
 }

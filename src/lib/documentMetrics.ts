@@ -42,7 +42,7 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
     case "purchase": {
       const amount = n(r.total_cost);
       const remaining = n(r.__remaining);
-      return { cancelled: false, amount, parts: { active: amount, supplierPaid: n(r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 }, byBucket };
+      return { cancelled, amount, parts: { active: amount, supplierPaid: n(r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 }, byBucket };
     }
     case "sale_return":
     case "purchase_return": {

@@ -8,9 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { withPartnerBalance } from "@/lib/partnerBalances";
 import { toast } from "sonner";
-import { Loader2, Pencil, PlusCircle, Wallet, Trash2 } from "lucide-react";
+import { Loader2, Pencil, PlusCircle, Wallet } from "lucide-react";
 import { EditPartnerTxDialog } from "@/components/EditPartnerTxDialog";
-import { confirmAlert } from "@/components/ConfirmDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -100,20 +99,6 @@ export default function PartnerProfile() {
     load();
   };
 
-  const deleteTx = async (t: any) => {
-    const ok = await confirmAlert({
-      title: "حذف الحركة نهائيًا؟",
-      description: `هيتم مسح الحركة (${TX_LABEL[t.transaction_type]?.label ?? t.transaction_type} بمبلغ ${fmtAmt(t.amount)}) والرصيد هيتحدّث تلقائيًا. مفيش رجوع.`,
-      confirmLabel: "أيوه، احذف",
-      cancelLabel: "لأ، سيبها",
-      tone: "danger",
-    });
-    if (!ok) return;
-    const { error } = await supabase.rpc("delete_partner_transaction" as any, { _tx_id: t.id });
-    if (error) return toast.error(error.message);
-    toast.success("تم حذف الحركة — الرصيد اتحدّث");
-    load();
-  };
 
 
 
@@ -229,9 +214,6 @@ export default function PartnerProfile() {
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setEditTx(t); setOpenEdit(true); }}>
                             <Pencil className="w-3.5 h-3.5 ml-1" />تعديل
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2 text-destructive hover:bg-destructive/10" onClick={() => deleteTx(t)}>
-                            <Trash2 className="w-3.5 h-3.5 ml-1" />حذف
                           </Button>
                         </div>
                       </td>

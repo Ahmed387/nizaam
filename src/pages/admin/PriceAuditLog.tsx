@@ -6,17 +6,14 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime, formatEGP } from "@/lib/format";
-import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles, Trash2, AlertTriangle } from "lucide-react";
+import { FileSpreadsheet, TrendingDown, TrendingUp, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useBranchScope } from "@/lib/branchScope";
-import { confirmAlert } from "@/components/ConfirmDialog";
 
 const PRICE_TYPE_LABEL: Record<string, string> = {
   selling_price: "سعر البيع",
@@ -45,7 +42,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {}) {
-  const { tenant, profile, isAdmin } = useAuth();
+  const { tenant, profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);
@@ -135,29 +132,6 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
     toast.success(`تم تصدير ${data.length} سجل`);
   };
 
-  const [confirmAll, setConfirmAll] = useState(false);
-  const [confirmWord, setConfirmWord] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const deleteRow = async (id: string) => {
-    if (!(await confirmAlert({ title: "هل أنت متأكد من حذف هذا السجل نهائياً؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
-    const { error } = await supabase.from("price_audit_log").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    toast.success("تم الحذف");
-  };
-
-  const deleteAll = async () => {
-    if (confirmWord.trim() !== "تأكيد") return toast.error("اكتب كلمة (تأكيد) للمتابعة");
-    setBusy(true);
-    const { error } = await supabase.rpc("admin_reset_price_audit", { p_branch_id: null } as any);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم مسح كل سجل تعديلات الأسعار");
-    setConfirmAll(false); setConfirmWord("");
-    load();
-  };
-
   const rowClass = (r: any) => {
     if (r.old_value == null) return "bg-primary/5";
     if (Number(r.new_value) > Number(r.old_value)) return "bg-success/5";
@@ -173,11 +147,6 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
-            {isAdmin && (
-              <Button variant="destructive" onClick={() => { setConfirmWord(""); setConfirmAll(true); }}>
-                <Trash2 className="w-4 h-4 ml-1" /> حذف الكل
-              </Button>
-            )}
           </div>
         }
       />
@@ -250,42 +219,9 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
           { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
           { key: "change_reason", header: "السبب", render: (r: any) => <span className="text-xs">{r.change_reason ?? "—"}</span> },
           { key: "source", header: "المصدر", render: (r: any) => <span className="px-2 py-0.5 rounded text-xs bg-muted">{SOURCE_LABEL[r.source] ?? r.source}</span> },
-          ...(isAdmin ? [{
-            key: "del", header: "حذف", render: (r: any) => (
-              <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteRow(r.id)}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )
-          }] : []),
         ]}
       />
 
-      <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> حذف كل سجل تعديلات الأسعار
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              هتمسح <b>كل</b> سجلات تعديلات الأسعار للشركة. الإجراء نهائي ولا يمكن التراجع عنه.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2">
-            <Label>اكتب كلمة <b>تأكيد</b> للمتابعة</Label>
-            <Input value={confirmWord} onChange={(e) => setConfirmWord(e.target.value)} placeholder="تأكيد" />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              disabled={busy || confirmWord.trim() !== "تأكيد"}
-              onClick={(e) => { e.preventDefault(); deleteAll(); }}
-            >
-              نفّذ المسح
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </ConditionalLayout>
   );
 }

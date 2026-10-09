@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Trash2, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2, Percent, Clock } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2, Percent, Clock } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
@@ -25,7 +25,6 @@ import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
 import { UserPermissionsTab } from "@/components/UserPermissionsTab";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
-import { DataManagementTab } from "@/components/DataManagementTab";
 
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
 import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
@@ -236,7 +235,6 @@ export default function Settings() {
             
             ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
             ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
-            ...(canManageAdminTools ? [{ v: "data", icon: Trash2, label: "إدارة البيانات", danger: true as const }] : []),
             ...(isOwner ? [{ v: "personal-access", icon: Wallet, label: "المصاريف الشخصية" }] : []),
           ].map((it: any) => {
             const Icon = it.icon;
@@ -635,11 +633,6 @@ export default function Settings() {
             </Button>
           </div>
         </TabsContent>
-        {canManageAdminTools && (
-          <TabsContent value="data" className="mt-4">
-            <DataManagementTab />
-          </TabsContent>
-        )}
 
         </div>
       </Tabs>

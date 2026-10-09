@@ -4,16 +4,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { logAudit } from "@/lib/roles";
 import { formatEGP, formatDateTime, balanceLabel } from "@/lib/format";
-import { toast } from "sonner";
-import { Printer, X, FileDown, Trash2, Pencil, Wallet, CheckCircle2, Clock, CircleDashed, MoreVertical, AlertTriangle } from "lucide-react";
+import { Printer, X, FileDown, Pencil, Wallet, CheckCircle2, Clock, CircleDashed } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
@@ -28,7 +23,7 @@ import { VariantLine } from "@/components/VariantChips";
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
   const nav = useNavigate();
-  const { user, profile, hasRole, isAdmin, tenant } = useAuth();
+  const { hasRole, isAdmin, tenant } = useAuth();
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -37,10 +32,7 @@ export default function InvoiceView() {
   const [branch, setBranch] = useState<any>(null);
   const [cashierName, setCashierName] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [editOpen, setEditOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -124,17 +116,7 @@ export default function InvoiceView() {
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
 
   const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
-  const canDelete = isAdmin || hasRole("branch_manager");
   const canEdit = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
-
-  const hardDelete = async () => {
-    setDeleting(true);
-    const { error } = await supabase.rpc("hard_delete_invoice" as any, { _invoice_id: invoiceId! });
-    if (error) { setDeleting(false); return toast.error(error.message); }
-    await logAudit({ userId: user!.id, userName: profile!.name, branchId: id, action: "DELETE", entity: "Invoice", entityId: invoiceId, details: { invoice_number: inv.invoice_number } });
-    toast.success("تم حذف الفاتورة نهائياً + رجعت البضاعة + اتشالت الفلوس من الخزنة");
-    nav(`/branch/${id}/sales`);
-  };
 
   return (
     <BranchLayout>
@@ -153,25 +135,6 @@ export default function InvoiceView() {
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={printThermalInvoice} title="تحميل PDF"><FileDown className="w-4 h-4" /></Button>
-            {canDelete && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" title="خيارات إضافية"><MoreVertical className="w-4 h-4" /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive focus:bg-destructive/10 gap-2"
-                    onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
-                  >
-                    <Trash2 className="w-4 h-4" /> حذف نهائي للفاتورة
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
-                    الحذف بيرجّع البضاعة ويشيل الفلوس
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
         }
       />
@@ -532,78 +495,6 @@ export default function InvoiceView() {
       />
 
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> حذف الفاتورة نهائياً
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <div className="rounded-lg border-2 border-destructive/40 bg-destructive/5 p-3 space-y-2">
-              <p className="font-bold text-destructive">
-                ⚠️ سيتم إرجاع البضاعة للمخزن وخصم المبلغ من الخزنة
-              </p>
-              <p>
-                هتمسح الفاتورة{" "}
-                <span className="font-mono text-primary font-bold">{inv.invoice_number}</span>{" "}
-                نهائياً من النظام.
-              </p>
-            </div>
-
-            {(() => {
-              const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
-              const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
-              const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
-              const itemsCount = items.reduce((s, it) => s + Number(it.quantity ?? 0), 0);
-              return (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-lg border border-border bg-surface-2 p-2.5">
-                    <div className="text-muted-foreground mb-1">📦 هيرجع للمخزن</div>
-                    <div className="font-extrabold text-base">{itemsCount} قطعة</div>
-                    <div className="text-muted-foreground">({items.length} صنف)</div>
-                  </div>
-                  <div className="rounded-lg border border-border bg-surface-2 p-2.5">
-                    <div className="text-muted-foreground mb-1">💰 هيتشال من الخزنة</div>
-                    <div className="font-extrabold text-base text-destructive tabular-nums" dir="ltr">
-                      {formatEGP(paidNow)}
-                    </div>
-                    <div className="text-muted-foreground">من إجمالي {formatEGP(Number(inv.total ?? 0))}</div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <ul className="list-disc pr-5 space-y-1 text-muted-foreground text-xs">
-              <li>الأقساط والمدفوعات المرتبطة بالفاتورة هتتمسح</li>
-              <li><b className="text-destructive">العملية دي مش بترجع — استخدمها بحذر</b></li>
-            </ul>
-
-            <div className="pt-1">
-              <label className="text-xs font-semibold block mb-1.5">
-                للتأكيد، اكتب <span className="font-mono bg-muted px-1.5 py-0.5 rounded">أؤكد</span> في الخانة:
-              </label>
-              <Input
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="أؤكد"
-                className="text-center font-bold"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>تراجع</Button>
-            <Button
-              variant="destructive"
-              onClick={hardDelete}
-              disabled={deleting || deleteConfirmText.trim() !== "أؤكد"}
-            >
-              {deleting ? "جاري الحذف..." : "احذف نهائياً"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit moved to full page: /branch/:id/sales/:invoiceId/edit */}
 

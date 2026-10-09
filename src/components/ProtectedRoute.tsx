@@ -62,7 +62,7 @@ export function ProtectedRoute({
   // الشريك يملك رؤية مركزية (قراءة فقط) لكل الفروع + بوابته الخاصة؛ لا يُمنع من /partner حتى لو معه دور المراقب.
   const isPartner = hasRole("partner");
   const VIEWER_BLOCKED = [
-    "/admin/settings", "/admin/seed",
+    "/admin/settings",
     ...(isPartner ? [] : ["/partner"]), "/super",
   ];
   const centralRead = isViewer || isPartner;

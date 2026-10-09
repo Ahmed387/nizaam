@@ -34,6 +34,10 @@ const ENTITY_LABEL: Record<string, string> = {
   shipment: "فاتورة شراء",
 };
 
+/** Invoices and purchase invoices are never deleted: an approved "delete" request cancels them (reversal kept). */
+const actionLabel = (r: { action: string; entity_type?: string }) =>
+  r.action !== "delete" ? "تعديل" : r.entity_type === "contact" ? "حذف" : "إلغاء";
+
 export default function ApprovalRequests({ embedded }: { embedded?: boolean } = {}) {
   const Wrapper: any = embedded ? Fragment : AdminLayout;
   const { tenantId, user, profile } = useAuth();
@@ -94,7 +98,7 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
         { key: "requested_by_name", header: "مقدم الطلب" },
         { key: "action", header: "النوع", render: (r: Req) => (
           <span className={`px-2 py-1 rounded text-xs ${r.action === "delete" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
-            {r.action === "delete" ? "حذف" : "تعديل"}
+            {actionLabel(r)}
           </span>
         )},
         { key: "entity_type", header: "النوع", render: (r: Req) => <span className="text-sm">{ENTITY_LABEL[r.entity_type] ?? r.entity_type}</span> },
@@ -124,7 +128,7 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
           <DialogHeader>
             <DialogTitle>{decision?.type === "approve" ? "تأكيد الموافقة" : "تأكيد الرفض"}</DialogTitle>
             <DialogDescription>
-              {decision?.req.requested_by_name} يطلب {decision?.req.action === "delete" ? "حذف" : "تعديل"} <b>{decision?.req.entity_label}</b>
+              {decision?.req.requested_by_name} يطلب {decision ? actionLabel(decision.req) : ""} <b>{decision?.req.entity_label}</b>
               {decision?.req.reason && <div className="mt-2 text-sm">السبب: {decision.req.reason}</div>}
               {decision?.req.action === "update" && decision?.req.payload && (
                 <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">{JSON.stringify(decision.req.payload, null, 2)}</pre>
