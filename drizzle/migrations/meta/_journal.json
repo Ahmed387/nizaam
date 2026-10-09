@@ -421,6 +421,13 @@
       "when": 1791548005377,
       "tag": "0059_step6d_part4_security_sec005_sec007",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791548416432,
+      "tag": "0060_step6d_part5_integrity_grants",
+      "breakpoints": true
     }
   ]
 }

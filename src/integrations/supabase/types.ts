@@ -3085,6 +3085,51 @@ export type Database = {
           },
         ]
       }
+      ledger_credit_balance_snapshot: {
+        Row: {
+          contact_id: string
+          contact_type: string | null
+          ledger_customer_advance: number | null
+          ledger_supplier_advance: number | null
+          old_credit_balance: number | null
+          taken_at: string
+          tenant_id: string
+        }
+        Insert: {
+          contact_id: string
+          contact_type?: string | null
+          ledger_customer_advance?: number | null
+          ledger_supplier_advance?: number | null
+          old_credit_balance?: number | null
+          taken_at?: string
+          tenant_id: string
+        }
+        Update: {
+          contact_id?: string
+          contact_type?: string | null
+          ledger_customer_advance?: number | null
+          ledger_supplier_advance?: number | null
+          old_credit_balance?: number | null
+          taken_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_credit_balance_snapshot_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_credit_balance_snapshot_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
       ledger_gl_links: {
         Row: {
           created_at: string
@@ -9037,6 +9082,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      opening_balances_reconciliation: {
+        Args: never
+        Returns: {
+          contact_id: string
+          contact_name: string
+          contact_type: string
+          ledger_advance_now: number
+          old_prepaid_credit: number
+          opening_in_contact: number
+          opening_in_ledger: number
+          side: string
+          status: string
+        }[]
+      }
       opening_balances_summary: { Args: never; Returns: Json }
       opening_entry_section: { Args: { p_entry: string }; Returns: string }
       opening_section_key: {
@@ -9695,6 +9754,24 @@ export type Database = {
       system_health_check: { Args: never; Returns: Json }
       system_integrity_audit: {
         Args: { p_tenant?: string }
+        Returns: {
+          amount: number
+          area: string
+          branch_id: string
+          branch_name: string
+          check_code: string
+          contact_id: string
+          contact_name: string
+          details: string
+          doc_id: string
+          doc_number: string
+          doc_type: string
+          severity: string
+          title: string
+        }[]
+      }
+      system_integrity_audit_gl: {
+        Args: { p_tenant: string }
         Returns: {
           amount: number
           area: string
