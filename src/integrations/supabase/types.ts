@@ -2025,6 +2025,7 @@ export type Database = {
           price: number | null
           profit: number | null
           qty: number | null
+          tenant_id: string | null
           total: number | null
           unit: string | null
           year: number
@@ -2042,6 +2043,7 @@ export type Database = {
           price?: number | null
           profit?: number | null
           qty?: number | null
+          tenant_id?: string | null
           total?: number | null
           unit?: string | null
           year: number
@@ -2059,6 +2061,7 @@ export type Database = {
           price?: number | null
           profit?: number | null
           qty?: number | null
+          tenant_id?: string | null
           total?: number | null
           unit?: string | null
           year?: number
@@ -2085,6 +2088,13 @@ export type Database = {
             referencedRelation: "historical_invoices"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "historical_invoice_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       historical_invoices: {
@@ -2105,6 +2115,7 @@ export type Database = {
           payment_method: string | null
           profit: number | null
           returned_invoice_no: string | null
+          tenant_id: string | null
           total_amount: number | null
           total_qty: number | null
           warehouse_name: string | null
@@ -2127,6 +2138,7 @@ export type Database = {
           payment_method?: string | null
           profit?: number | null
           returned_invoice_no?: string | null
+          tenant_id?: string | null
           total_amount?: number | null
           total_qty?: number | null
           warehouse_name?: string | null
@@ -2149,6 +2161,7 @@ export type Database = {
           payment_method?: string | null
           profit?: number | null
           returned_invoice_no?: string | null
+          tenant_id?: string | null
           total_amount?: number | null
           total_qty?: number | null
           warehouse_name?: string | null
@@ -2169,6 +2182,13 @@ export type Database = {
             referencedRelation: "v_treasury_balances"
             referencedColumns: ["branch_id"]
           },
+          {
+            foreignKeyName: "historical_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       historical_vouchers: {
@@ -2184,6 +2204,7 @@ export type Database = {
           movement_name: string | null
           notes: string | null
           party_name: string | null
+          tenant_id: string | null
           treasury_name: string | null
           voucher_no: string | null
           voucher_type: string
@@ -2201,6 +2222,7 @@ export type Database = {
           movement_name?: string | null
           notes?: string | null
           party_name?: string | null
+          tenant_id?: string | null
           treasury_name?: string | null
           voucher_no?: string | null
           voucher_type: string
@@ -2218,6 +2240,7 @@ export type Database = {
           movement_name?: string | null
           notes?: string | null
           party_name?: string | null
+          tenant_id?: string | null
           treasury_name?: string | null
           voucher_no?: string | null
           voucher_type?: string
@@ -2237,6 +2260,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_treasury_balances"
             referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "historical_vouchers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3986,6 +4016,30 @@ export type Database = {
           },
         ]
       }
+      platform_flags: {
+        Row: {
+          enabled: boolean
+          key: string
+          note: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          note?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          note?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       pre_order_transactions: {
         Row: {
           amount: number
@@ -5336,6 +5390,24 @@ export type Database = {
           period_start?: string
           summary?: Json
           tenant_id?: string
+        }
+        Relationships: []
+      }
+      security_rpc_allowlist: {
+        Row: {
+          added_in: string
+          function_name: string
+          note: string | null
+        }
+        Insert: {
+          added_in: string
+          function_name: string
+          note?: string | null
+        }
+        Update: {
+          added_in?: string
+          function_name?: string
+          note?: string | null
         }
         Relationships: []
       }
@@ -8570,6 +8642,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      super_tenants_monthly_profit: { Args: { p_month: string }; Returns: Json }
       supplier_outstanding_payable: {
         Args: { _contact_id: string }
         Returns: number
